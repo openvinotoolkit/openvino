@@ -146,5 +146,25 @@ void PreProcessSteps::PreProcessStepsImpl::add_resize_impl(ResizeAlgorithm alg, 
         true));
 }
 
+void PreProcessSteps::PreProcessStepsImpl::add_convert_layout_impl(const Layout& layout) {
+    m_actions.emplace_back(std::make_tuple(
+        [layout](const std::vector<std::shared_ptr<Node>>& nodes, PreprocessingContext& context) {
+            OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't convert layout for empty input.");
+            OPENVINO_ASSERT(nodes.size() == 1,
+                            "Can't convert layout for multi-plane input. Suggesting to convert current image to "
+                            "RGB/BGR color format using 'convert_color'");
+            Layout dst_layout = layout == Layout() ? context.network_layout() : layout;
+            auto permutation =
+                layout::find_permutation(context.layout(), nodes[0]->get_output_partial_shape(0), dst_layout);
+            auto perm_constant =
+                op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
+            auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
+            transpose->set_friendly_name(nodes[0]->get_friendly_name() + "/convert_layout");
+            context.layout() = dst_layout;  // Update context's current layout
+            return transpose;
+        },
+        true));
+}
+
 }  // namespace preprocess
 }  // namespace ov

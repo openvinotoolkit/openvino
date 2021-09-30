@@ -233,6 +233,32 @@ std::string Layout::to_string() const {
     return res.str();
 }
 
+namespace layout {
+
+std::vector<int64_t> find_permutation(const Layout& src_layout, const PartialShape& src_shape, const Layout& dst) {
+    // Basic implementation so far, can support partially-specified layouts later
+    OPENVINO_ASSERT(!src_layout.m_dynamic && !dst.m_dynamic, "Conversion is not supported for dynamic layouts");
+    OPENVINO_ASSERT(src_layout.m_left_size == src_layout.m_left_size,
+                    "Conversion is not supported for layouts with different sizes");
+    std::vector<int64_t> res(src_layout.m_left_size);
+    for (int64_t i = 0; i < src_layout.m_left_size; i++) {
+        auto it = src_layout.m_index_map.find(i);
+        OPENVINO_ASSERT(it != src_layout.m_index_map.end(),
+                        "Conversion is not supported for partially specified source layout: ",
+                        src_layout.to_string());
+        auto name = it->second;
+        OPENVINO_ASSERT(dst.has_name(name),
+                        "Source dimension name '",
+                        name,
+                        "' is not found in destination layout: ",
+                        dst.to_string());
+        res[dst.get_index_by_name(name)] = i;
+    }
+    return res;
+}
+
+}  // namespace layout
+
 #define DEFINE_NAMED_DIMENSION(NAME, name)            \
     bool layout::has_##name(const Layout& layout) {   \
         return layout.has_name(NAME);                 \

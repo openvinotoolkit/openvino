@@ -419,6 +419,113 @@ static RefPreprocessParams resize_lvalues() {
     return res;
 }
 
+static RefPreprocessParams convert_layout_nhwc_to_nchw_shape_lvalue() {
+    RefPreprocessParams res("convert_layout_nhwc_to_nchw_shape_lvalue");
+    res.function = []() {
+        auto f = create_simple_function(element::u8, {1, 3, 2, 2});
+        f->get_parameters()[0]->set_layout("NCHW");
+        auto t = InputTensorInfo();
+        t.set_layout("NHWC");
+        t.set_data_shape({1, 2, 2, 3});
+        f = PrePostProcessor()
+                .input(InputInfo()
+                               .tensor(std::move(t))
+                               .preprocess(PreProcessSteps().convert_layout("NCHW")))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
+                                                                                 4,  5,  6,       // [H=0, W=1]
+                                                                                 7,  8,  9,       // [H=1, W=0]
+                                                                                 10, 11, 12});    // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::u8, std::vector<uint8_t>{1, 4, 7, 10,    // R
+                                                                                   2, 5, 8, 11,    // G
+                                                                                   3, 6, 9, 12});  // B
+    return res;
+}
+
+static RefPreprocessParams convert_layout_nhwc_to_nchw_shape() {
+    RefPreprocessParams res("convert_layout_nhwc_to_nchw_shape");
+    res.function = []() {
+        auto f = create_simple_function(element::u8, {1, 3, 2, 2});
+        f->get_parameters()[0]->set_layout("NCHW");
+        f = PrePostProcessor()
+                .input(InputInfo()
+                               .tensor(InputTensorInfo().set_layout("NHWC").set_data_shape({1, 2, 2, 3}))
+                               .preprocess(PreProcessSteps().convert_layout("NCHW")))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
+                                                                                 4,  5,  6,       // [H=0, W=1]
+                                                                                 7,  8,  9,       // [H=1, W=0]
+                                                                                 10, 11, 12});    // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::u8, std::vector<uint8_t>{1, 4, 7, 10,    // R
+                                                                                   2, 5, 8, 11,    // G
+                                                                                   3, 6, 9, 12});  // B
+    return res;
+}
+
+static RefPreprocessParams convert_layout_nhwc_to_net_no_tensor_shape() {
+    RefPreprocessParams res("convert_layout_nhwc_to_net_no_tensor_shape");
+    res.function = []() {
+        auto f = create_simple_function(element::u8, {1, 3, 2, 2});
+        f->get_parameters()[0]->set_layout("NCHW");
+        auto p = PreProcessSteps();
+        p.convert_layout();
+        f = PrePostProcessor()
+                .input(InputInfo()
+                               .tensor(InputTensorInfo().set_layout("NHWC"))
+                               .preprocess(std::move(p)))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
+                                                                                 4,  5,  6,       // [H=0, W=1]
+                                                                                 7,  8,  9,       // [H=1, W=0]
+                                                                                 10, 11, 12});    // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::u8, std::vector<uint8_t>{1, 4, 7, 10,    // R
+                                                                                   2, 5, 8, 11,    // G
+                                                                                   3, 6, 9, 12});  // B
+    return res;
+}
+
+static RefPreprocessParams resize_and_convert_layout() {
+    RefPreprocessParams res("resize_and_convert_layout");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{1, 2, 2, 2});
+        f = PrePostProcessor()
+                .input(InputInfo()
+                               .tensor(InputTensorInfo()
+                                               .set_layout("NCHW")
+                                               .set_spatial_dynamic_shape())
+                               .preprocess(PreProcessSteps()
+                                                   .resize(ResizeAlgorithm::RESIZE_LINEAR)
+                                                   .convert_layout())
+                               .network(InputNetworkInfo().set_layout("NHWC")))
+                .build(f);
+        return f;
+    };
+
+    auto result = std::make_shared<HostTensor>();
+    // clang-format off
+    std::vector<float> input = {
+            1., 1., 1., 1., // channel 1
+            1., 1., 1., 1.,
+            1., 1., 1., 1.,
+            1., 1., 1., 1.,
+            2., 2., 2., 2., // channel 2
+            2., 2., 2., 2.,
+            2., 2., 2., 2.,
+            2., 2., 2., 2.,
+    };
+    std::vector<float> expected = {1., 2., 1., 2., 1., 2., 1., 2.};
+    // clang-format on
+    res.inputs.emplace_back(element::f32, Shape{1, 2, 4, 4}, input);
+    res.expected.emplace_back(Shape{1, 2, 2, 2}, element::f32, expected);
+    return res;
+}
+
 
 std::vector<RefPreprocessParams> allPreprocessTests() {
     return std::vector<RefPreprocessParams> {
@@ -437,7 +544,11 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
         resize_from_spatial_dims(),
         resize_to_network_width_height(),
         resize_to_specified_width_height(),
-        resize_lvalues()
+        resize_lvalues(),
+        convert_layout_nhwc_to_nchw_shape(),
+        convert_layout_nhwc_to_nchw_shape_lvalue(),
+        convert_layout_nhwc_to_net_no_tensor_shape(),
+        resize_and_convert_layout()
              };
 }
 

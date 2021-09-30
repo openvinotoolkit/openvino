@@ -9,10 +9,21 @@
 
 #include "ngraph/attribute_adapter.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rank.hpp"
 #include "openvino/core/variant.hpp"
 
 namespace ov {
+
+class Layout;
+
+namespace layout {
+
+std::vector<int64_t> find_permutation(const Layout& src_layout,
+                                      const PartialShape& src_shape,
+                                      const Layout& dst_layout);
+
+}
 
 class OPENVINO_API Layout {
 public:
@@ -70,6 +81,10 @@ private:
     bool m_dynamic = false;
     int64_t m_left_size = 0;
     int64_t m_right_size = 0;
+
+    friend std::vector<int64_t> layout::find_permutation(const Layout& src_layout,
+                                                         const PartialShape& src_shape,
+                                                         const Layout& dst_layout);
 };
 
 namespace layout {
