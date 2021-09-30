@@ -17,7 +17,7 @@ using namespace ngraph;
 using namespace ov;
 
 // order defines default precision
-const std::vector<ngraph::element::Type> PrecisionsAttribute::defaultPrecisions = { ngraph::element::u8, ngraph::element::i8 };
+std::vector<ngraph::element::Type> PrecisionsAttribute::defaultPrecisions = {ngraph::element::u8,  ngraph::element::i8};
 
 PrecisionsAttribute::PrecisionsAttribute(const std::vector<ngraph::element::Type>& precisions) {
     sharedValue->precisions = precisions;

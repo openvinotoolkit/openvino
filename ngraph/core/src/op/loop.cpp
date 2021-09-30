@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v5::Loop, "Loop", 5, op::util::SubGraphOp);
+BWDCMP_RTTI_DEFINITION(op::v5::Loop);
 
 op::v5::Loop::Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition) : SubGraphOp() {
     set_argument(0, trip_count);
@@ -306,6 +306,4 @@ op::v5::Loop::Loop(const op::v5::Loop& other) : SubGraphOp() {
     other.clone_to(*this, other.input_values());
 }
 
-namespace ov {
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>::type_info;
-}
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>);

@@ -89,6 +89,9 @@ public:
     bool created() const override {
         return getType() == MemoryInput;
     }
+    bool isExecutable() const override {
+        return true;
+    }
     void execute(mkldnn::stream strm) override;
 
     void createPrimitive() override;

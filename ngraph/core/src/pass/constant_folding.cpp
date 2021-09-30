@@ -12,8 +12,6 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::pass::ConstantFolding, "ConstantFolding", 0);
-
 bool ov::pass::ConstantFolding::run_on_function(std::shared_ptr<ov::Function> f) {
     bool rewritten = pre_calculated_values_folding(f);
 
@@ -90,7 +88,7 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::sha
             if (status) {
                 for (const auto& node : order) {
                     const auto& rt_info = node->get_rt_info();
-                    if (rt_info.count("DISABLED_CONSTANT_FOLDING")) {
+                    if (rt_info.count("disabled_constant_folding_0")) {
                         status = false;
                         break;
                     }

@@ -298,7 +298,7 @@ bool MKLDNNSplitNode::created() const {
     return getType() == Split;
 }
 
-bool MKLDNNSplitNode::isOptimized() {
+bool MKLDNNSplitNode::isOptimized() const {
     return getSelectedPrimitiveDescriptor() && getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].inPlace >= 0;
 }
 
@@ -333,7 +333,7 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
         }
 
         // reset undefined offsets
-        config.inConfs[i].desc = MemoryDescUtils::cloneWithDefaultStridesAndOffset(*config.inConfs[i].desc);
+        config.inConfs[i].desc = config.inConfs[i].desc->as<BlockedMemoryDesc>()->cloneWithDefaultStridesAndOffset();
     }
     if (config.outConfs.size() != outputShapes.size())
         THROW_ERROR << "has invalid config";

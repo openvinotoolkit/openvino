@@ -66,7 +66,8 @@ void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& op) {
                                   pads_begin,
                                   pads_end,
                                   border_mode,
-                                  pad_value);
+                                  pad_value,
+                                  op->get_friendly_name());
 
     p.AddPrimitive(tilePrim);
     p.AddPrimitiveToProfiler(op);

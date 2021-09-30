@@ -67,14 +67,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*BF16NetworkRestore1.*)",
         R"(.*MobileNet_ssd_with_branching.*)",
 
-        // TODO: 55656 AUTO plugin and QueryNetwork
-        R"(.*CoreThreading.*smoke_QueryNetwork.*targetDevice=AUTO_config.*)",
-        // Unsupported config KEY_ENFORCE_BF16 for AUTO plugin
-        R"(.*Behavior_Auto.*InferRequestSetBlobByType.*)",
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
-        // need to implement Export / Import
-        R"(.*IEClassImportExportTestP.*)",
         // CVS-58963: Not implemented yet
         R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
         // Not expected behavior
@@ -91,11 +85,23 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",
 
+        // TODO: CVS-66526 overrides i/o precisions in execution graph
+        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=(i8|i16).*)",
+        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=(i64|u16).*)",
+        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=(u32|u64).*)",
+        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=f16.*)",
+        R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*type=(i8|u32).*)",
+        R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*type=f16.*)",
+        R"(.*smoke_(Auto|Multi)_BehaviorTests/OVExecNetwork.*type=i8.*)",
+
         // Issue: 62746
-        R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)"
+        R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
+        // Issue 66685
+        R"(smoke_PrePostProcess.*resize_linear_nhwc.*)",
     };
 
-#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+#define FIX_62820 0
+#if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
     retVector.emplace_back(R"(.*ReusableCPUStreamsExecutor.*)");
 #endif
 

@@ -19,7 +19,7 @@
 #include <ngraph/variant.hpp>
 #include <transformations_visibility.hpp>
 
-namespace ngraph {
+namespace ov {
 
 /**
  * @ingroup ie_runtime_attr_api
@@ -31,6 +31,7 @@ private:
     std::string primitives_priority;
 
 public:
+    friend class VariantWrapper<PrimitivesPriority>;
     /**
      * A default constructor
      */
@@ -54,26 +55,22 @@ public:
  */
 TRANSFORMATIONS_API std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
 
-}  // namespace ngraph
-
-namespace ov {
-
-extern template class TRANSFORMATIONS_API VariantImpl<ngraph::PrimitivesPriority>;
+extern template class TRANSFORMATIONS_API VariantImpl<PrimitivesPriority>;
 
 template<>
-class TRANSFORMATIONS_API VariantWrapper<ngraph::PrimitivesPriority> : public VariantImpl<ngraph::PrimitivesPriority> {
+class TRANSFORMATIONS_API VariantWrapper<PrimitivesPriority> : public VariantImpl<PrimitivesPriority> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::RuntimeAttribute::PrimitivesPriority", 0};
+    OPENVINO_RTTI("primitives_priority", "0");
 
-    const VariantTypeInfo &get_type_info() const override {
-        return type_info;
-    }
+    VariantWrapper() = default;
 
     VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
 
     std::shared_ptr<ov::Variant> merge(const ngraph::NodeVector & nodes) override;
 
     std::shared_ptr<ov::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
+
+    bool visit_attributes(AttributeVisitor & visitor) override;
 };
 
 }  // namespace ov

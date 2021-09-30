@@ -16,7 +16,8 @@ namespace util {
 ///
 class OPENVINO_API MultiSubGraphOp : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_RTTI("MultiSubGraphOp", "util");
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Abstract class describes a connection between a MultiSubGraphOp input and
     /// the body.
     class InputDescription {
@@ -72,7 +73,8 @@ public:
     ///
     class OPENVINO_API SliceInputDescription : public InputDescription {
     public:
-        OPENVINO_RTTI_DECLARATION;
+        OPENVINO_RTTI("SliceInputDescription");
+        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -106,7 +108,8 @@ public:
     ///
     class OPENVINO_API MergedInputDescription : public InputDescription {
     public:
-        OPENVINO_RTTI_DECLARATION;
+        OPENVINO_RTTI("MergedInputDescription");
+        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -127,7 +130,8 @@ public:
     /// \brief Produces an output by concatenating an output from each iteration
     class OPENVINO_API ConcatOutputDescription : public OutputDescription {
     public:
-        OPENVINO_RTTI_DECLARATION;
+        OPENVINO_RTTI("ConcatOutputDescription");
+        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -159,7 +163,8 @@ public:
     /// \brief Produces an input
     class OPENVINO_API InvariantInputDescription : public InputDescription {
     public:
-        OPENVINO_RTTI_DECLARATION;
+        OPENVINO_RTTI("InvariantInputDescription");
+        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -174,7 +179,8 @@ public:
     /// \brief Produces an output from a specific iteration
     class OPENVINO_API BodyOutputDescription : public MultiSubGraphOp::OutputDescription {
     public:
-        OPENVINO_RTTI_DECLARATION;
+        OPENVINO_RTTI("BodyOutputDescription");
+        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -304,7 +310,8 @@ public:
     AttributeAdapter(std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>& value)
         : DirectValueAccessor<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>>(value) {}
 
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_RTTI("AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>>")
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -314,7 +321,9 @@ public:
     AttributeAdapter(std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>& value)
         : DirectValueAccessor<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>>(value) {}
 
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_RTTI(
+        "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

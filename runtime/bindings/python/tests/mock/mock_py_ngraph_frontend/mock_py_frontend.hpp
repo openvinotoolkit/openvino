@@ -107,12 +107,29 @@ public:
     std::vector<Place::Ptr> get_consuming_operations() const override {
         m_stat.m_get_consuming_operations++;
         m_stat.m_lastArgInt = -1;
+        m_stat.m_lastArgString = "";
         return {std::make_shared<PlaceMockPy>()};
     }
 
     std::vector<Place::Ptr> get_consuming_operations(int outputPortIndex) const override {
         m_stat.m_get_consuming_operations++;
         m_stat.m_lastArgInt = outputPortIndex;
+        m_stat.m_lastArgString = "";
+        return {std::make_shared<PlaceMockPy>()};
+    }
+
+    std::vector<Place::Ptr> get_consuming_operations(const std::string& outputName) const override {
+        m_stat.m_get_consuming_operations++;
+        m_stat.m_lastArgInt = -1;
+        m_stat.m_lastArgString = outputName;
+        return {std::make_shared<PlaceMockPy>()};
+    }
+
+    std::vector<Place::Ptr> get_consuming_operations(const std::string& outputName,
+                                                     int outputPortIndex) const override {
+        m_stat.m_get_consuming_operations++;
+        m_stat.m_lastArgInt = outputPortIndex;
+        m_stat.m_lastArgString = outputName;
         return {std::make_shared<PlaceMockPy>()};
     }
 
@@ -128,6 +145,20 @@ public:
         return std::make_shared<PlaceMockPy>();
     }
 
+    Place::Ptr get_target_tensor(const std::string& outputName) const override {
+        m_stat.m_get_target_tensor++;
+        m_stat.m_lastArgInt = -1;
+        m_stat.m_lastArgString = outputName;
+        return {std::make_shared<PlaceMockPy>()};
+    }
+
+    Place::Ptr get_target_tensor(const std::string& outputName, int outputPortIndex) const override {
+        m_stat.m_get_target_tensor++;
+        m_stat.m_lastArgInt = outputPortIndex;
+        m_stat.m_lastArgString = outputName;
+        return {std::make_shared<PlaceMockPy>()};
+    }
+
     Place::Ptr get_producing_operation() const override {
         m_stat.m_get_producing_operation++;
         m_stat.m_lastArgInt = -1;
@@ -138,6 +169,20 @@ public:
         m_stat.m_get_producing_operation++;
         m_stat.m_lastArgInt = inputPortIndex;
         return std::make_shared<PlaceMockPy>();
+    }
+
+    Place::Ptr get_producing_operation(const std::string& inputName) const override {
+        m_stat.m_get_producing_operation++;
+        m_stat.m_lastArgInt = -1;
+        m_stat.m_lastArgString = inputName;
+        return {std::make_shared<PlaceMockPy>()};
+    }
+
+    Place::Ptr get_producing_operation(const std::string& inputName, int inputPortIndex) const override {
+        m_stat.m_get_producing_operation++;
+        m_stat.m_lastArgInt = inputPortIndex;
+        m_stat.m_lastArgString = inputName;
+        return {std::make_shared<PlaceMockPy>()};
     }
 
     Place::Ptr get_producing_port() const override {
@@ -233,6 +278,20 @@ public:
     Place::Ptr get_source_tensor() const override {
         m_stat.m_get_source_tensor++;
         m_stat.m_lastArgInt = -1;
+        return {std::make_shared<PlaceMockPy>()};
+    }
+
+    Place::Ptr get_source_tensor(const std::string& inputName) const override {
+        m_stat.m_get_source_tensor++;
+        m_stat.m_lastArgInt = -1;
+        m_stat.m_lastArgString = inputName;
+        return {std::make_shared<PlaceMockPy>()};
+    }
+
+    Place::Ptr get_source_tensor(const std::string& inputName, int inputPortIndex) const override {
+        m_stat.m_get_source_tensor++;
+        m_stat.m_lastArgInt = inputPortIndex;
+        m_stat.m_lastArgString = inputName;
         return {std::make_shared<PlaceMockPy>()};
     }
 
