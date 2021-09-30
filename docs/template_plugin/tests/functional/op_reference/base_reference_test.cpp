@@ -3,6 +3,7 @@
 //
 #include "base_reference_test.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 #include <gtest/gtest.h>
 
@@ -11,7 +12,7 @@
 #include "openvino/runtime/tensor.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace reference_tests {
 
@@ -41,6 +42,7 @@ void CommonReferenceTest::FillInputs() {
         const auto& blob_shape = (param_shape_is_static) ? param->get_shape() : inputData[i].get_shape();
         
         ov::runtime::Tensor blob(param->get_element_type(), blob_shape);
+
         ASSERT_EQ(blob.get_byte_size(), inputData[i].get_byte_size());
 
         std::memcpy(blob.data(), inputData[i].data(), inputData[i].get_byte_size());
