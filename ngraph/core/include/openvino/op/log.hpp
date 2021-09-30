@@ -12,7 +12,8 @@ namespace v0 {
 /// \brief Elementwise natural log operation.
 class OPENVINO_API Log : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Log", "opset1", op::util::UnaryElementwiseArithmetic);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a natural log operation.
     Log() = default;
     /// \brief Constructs a natural log operation.

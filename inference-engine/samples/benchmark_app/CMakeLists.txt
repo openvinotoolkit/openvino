@@ -32,16 +32,18 @@ find_path(OpenCL_HPP_INCLUDE_DIR
       OpenCL/common/inc
       "AMD APP/include")
 
-if(OPENCL_HEADERS_DIR)
+if(TARGET OpenCL)
     # Use OpenCL CPP headers from sources if present
-    set(OpenCL_HEADERS OPENCL_HEADERS_DIR)
+    set(OpenCL_HEADERS ${OPENCL_HEADERS_DIR})
+    set(OpenCL_LIB "OpenCL")
 elseif(OpenCL_HPP_INCLUDE_DIR)
     # Append OpenCL CPP headers to C headers and use both
-    set(OpenCL_HEADERS OpenCL_INCLUDE_DIR OpenCL_HPP_INCLUDE_DIR)
+    set(OpenCL_HEADERS ${OpenCL_INCLUDE_DIR} ${OpenCL_HPP_INCLUDE_DIR})
+    set(OpenCL_LIB "OpenCL::OpenCL")
 endif()
 
 if(OpenCL_FOUND AND OpenCL_HEADERS)
-    target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCL_LIB})
     target_include_directories(${TARGET_NAME} PRIVATE ${OpenCL_HEADERS})
     target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_GPU_DEVICE_MEM_SUPPORT)
 endif()

@@ -25,10 +25,10 @@ bool is_event_profiled(const cl::Event& event) {
     return false;
 }
 
-instrumentation::profiling_interval get_profiling_interval(const char* name, cl_ulong start,  cl_ulong end) {
+instrumentation::profiling_interval get_profiling_interval(instrumentation::profiling_stage stage, cl_ulong start,  cl_ulong end) {
     auto diff = std::chrono::nanoseconds(end - start);
     auto period = std::make_shared<instrumentation::profiling_period_basic>(diff);
-    return { name, period };
+    return { stage, period };
 }
 
 }  // namespace
@@ -71,9 +71,9 @@ bool ocl_event::add_event_handler_impl(event_handler, void*) {
 }
 
 static const std::vector<profiling_period_ocl_start_stop> profiling_periods{
-    {"submission", CL_PROFILING_COMMAND_QUEUED, CL_PROFILING_COMMAND_SUBMIT},
-    {"starting", CL_PROFILING_COMMAND_SUBMIT, CL_PROFILING_COMMAND_START},
-    {"executing", CL_PROFILING_COMMAND_START, CL_PROFILING_COMMAND_END},
+    { instrumentation::profiling_stage::submission, CL_PROFILING_COMMAND_QUEUED, CL_PROFILING_COMMAND_SUBMIT },
+    { instrumentation::profiling_stage::starting, CL_PROFILING_COMMAND_SUBMIT, CL_PROFILING_COMMAND_START },
+    { instrumentation::profiling_stage::executing, CL_PROFILING_COMMAND_START, CL_PROFILING_COMMAND_END },
 };
 
 bool ocl_event::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
@@ -87,7 +87,7 @@ bool ocl_event::get_profiling_info_impl(std::list<instrumentation::profiling_int
         _event.getProfilingInfo(period.start, &start);
         _event.getProfilingInfo(period.stop, &end);
 
-        info.push_back(get_profiling_interval(period.name, start, end));
+        info.push_back(get_profiling_interval(period.stage, start, end));
     }
 
     return true;
@@ -114,7 +114,7 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
     // For every profiling period (i.e. submission / starting / executing),
     // the goal is to sum up all disjoint durations of its projection on the time axis
 
-    std::map<std::string, std::vector<std::pair<unsigned long long, unsigned long long>>> all_durations;
+    std::map<instrumentation::profiling_stage, std::vector<std::pair<unsigned long long, unsigned long long>>> all_durations;
 
     for (size_t i = 0; i < _events.size(); i++) {
         auto be = downcast<ocl_event>(_events[i].get());
@@ -129,7 +129,7 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
             auto ev_duration = std::make_pair(static_cast<unsigned long long>(ev_start),
                                               static_cast<unsigned long long>(ev_end));
 
-            auto& durations = all_durations[period.name];
+            auto& durations = all_durations[period.stage];
             bool ev_duration_merged = false;
             auto it = durations.begin();
 
@@ -173,21 +173,21 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
 
     for (auto& period : profiling_periods) {
         unsigned long long sum = 0;
-        for (auto& duration : all_durations[period.name]) {
+        for (auto& duration : all_durations[period.stage]) {
             sum += (duration.second - duration.first);
         }
 
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->print_multi_kernel_perf) {
-            if (0 == strcmp(period.name, "executing")) {
+            if (period.stage == instrumentation::profiling_stage::executing) {
                 GPU_DEBUG_COUT << "Multi-kernel time: ";
-                for (auto& duration : all_durations[period.name])
+                for (auto& duration : all_durations[period.stage])
                     std::cout << "  " << (duration.second - duration.first) / 1000;
                 std::cout << " Total " << sum / 1000 << std::endl;
             }
         }
 
-        info.push_back(get_profiling_interval(period.name, 0, sum));
+        info.push_back(get_profiling_interval(period.stage, 0, sum));
     }
 
     return true;

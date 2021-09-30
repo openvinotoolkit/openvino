@@ -13,7 +13,8 @@ namespace v6 {
 ///
 class OPENVINO_API GatherElements : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("GatherElements", "opset6", op::Op, 6);
+    BWDCMP_RTTI_DECLARATION;
     GatherElements() = default;
 
     /// \brief Constructs a GatherElements operation.

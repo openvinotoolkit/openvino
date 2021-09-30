@@ -106,21 +106,27 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
 }
 
 CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph,
-                                           const std::vector<IExtensionPtr>& exts)
+                                           const std::vector<IExtensionPtr>& exts,
+                                           bool newAPI)
     : _ngraph_function(nGraph),
-      _ie_extensions(exts) {
+      _ie_extensions(exts),
+      _new_api(newAPI) {
     // Restore usual attributes for CNNNetwork
-    auto keep_input_info = [](CNNNetworkNGraphImpl& network, const DataPtr& inData) {
+    auto keep_input_info = [=](CNNNetworkNGraphImpl& network, const DataPtr& inData) {
         InputInfo::Ptr info(new InputInfo());
         info->setInputData(inData);
-        Precision prc = info->getPrecision();
 
-        // Convert precision into native format (keep element size)
-        prc = prc == Precision::Q78
-                  ? Precision::I16
-                  : prc == Precision::FP16 ? Precision::FP32 : static_cast<Precision::ePrecision>(prc);
+        if (!_new_api) {
+            Precision prc = info->getPrecision();
 
-        info->setPrecision(prc);
+            // Convert precision into native format (keep element size)
+            prc = prc == Precision::Q78
+                      ? Precision::I16
+                      : prc == Precision::FP16 ? Precision::FP32 : static_cast<Precision::ePrecision>(prc);
+
+            info->setPrecision(prc);
+        }
+
         network.setInputInfo(info);
     };
 
@@ -141,13 +147,16 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
 
         keep_input_info(*this, ptr);
     }
-    for (auto& output : _outputData) {
-        // Convert precision into native format. Be consistent with possible conversion to CNNNetwork later.
-        if (output.second->getPrecision() == Precision::I64) {
-            output.second->setPrecision(Precision::I32);
-        } else if (output.second->getPrecision() != Precision::FP32 &&
-                   output.second->getPrecision() != Precision::I32) {
-            output.second->setPrecision(Precision::FP32);
+
+    if (!_new_api) {
+        for (auto& output : _outputData) {
+            // Convert precision into native format. Be consistent with possible conversion to CNNNetwork later.
+            if (output.second->getPrecision() == Precision::I64) {
+                output.second->setPrecision(Precision::I32);
+            } else if (output.second->getPrecision() != Precision::FP32 &&
+                       output.second->getPrecision() != Precision::I32) {
+                output.second->setPrecision(Precision::FP32);
+            }
         }
     }
 }
@@ -346,11 +355,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
         ssr_manager.register_pass<ngraph::pass::SmartReshape>();
         ssr_manager.run_passes(_ngraph_function);
 
-        std::map<std::string, ngraph::PartialShape> reshapeShapes;
-        for (const auto& item : inputShapes) {
-            reshapeShapes[item.first] = ngraph::PartialShape(item.second);
-        }
-        reshape(reshapeShapes);
+        reshape(inputShapes);
     } catch (std::exception& ex) {
         reshape(originalInputShapes);
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
@@ -359,7 +364,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
     return OK;
 }
 
-StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
+StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, SizeVector>& inputShapes,
                                          ResponseDesc* responseDesc) noexcept {
     std::map<std::string, ngraph::PartialShape> shapes;
     for (const auto& shape : inputShapes)
@@ -420,13 +425,12 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
             std::stringstream shape_representation;
             for (const auto& input : op->input_values()) {
                 bool first = true;
+                shape_representation << "{";
                 for (const auto& dimension : input.get_partial_shape()) {
-                    if (!first) {
+                    if (!first)
                         shape_representation << ",";
-                    } else {
-                        shape_representation << "{";
-                        first = false;
-                    }
+                    first = false;
+
                     if (obfuscate)
                         shape_representation << (dimension.is_dynamic() ? "D" : "S");
                     else
@@ -437,13 +441,12 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
             shape_representation << "-> ";
             for (const auto& output: op->outputs())  {
                 bool first = true;
+                shape_representation << "{";
                 for (const auto& dimension : output.get_partial_shape()) {
-                    if (!first) {
+                    if (!first)
                         shape_representation << ",";
-                    } else {
-                        shape_representation << "{";
-                        first = false;
-                    }
+                    first = false;
+
                     if (obfuscate)
                         shape_representation << (dimension.is_dynamic() ? "D" : "S");
                     else

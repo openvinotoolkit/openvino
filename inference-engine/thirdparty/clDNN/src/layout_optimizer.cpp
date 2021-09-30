@@ -842,6 +842,48 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node) {
         const size_t kNStreams = static_cast<size_t>(node.get_program().get_engine().configuration().n_streams);
         const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
         preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
+    } else if (node.is_type<reorder>()) {
+        if (!_optimization_attributes.use_onednn_impls)
+            return impl_types::ocl;
+
+        std::vector<format> onednn_optimized_fmt = {
+            format::bfyx,
+            format::b_fs_zyx_fsv16,
+            format::b_fs_yx_fsv16,
+            format::b_fs_yx_fsv32,
+            format::bs_fs_yx_bsv16_fsv16,
+            format::bs_fs_zyx_bsv16_fsv16,
+            format::bs_fs_yx_bsv32_fsv16,
+            format::bs_fs_yx_bsv32_fsv32,
+        };
+
+        auto input_layout = node.get_dependency(0).get_output_layout();
+        auto output_layout = node.get_output_layout();
+
+        auto input_fmt = input_layout.format;
+        auto output_fmt = output_layout.format;
+
+        preferred_impl = impl_types::onednn;
+
+        if (std::find(onednn_optimized_fmt.begin(), onednn_optimized_fmt.end(), input_fmt) == onednn_optimized_fmt.end() ||
+            std::find(onednn_optimized_fmt.begin(), onednn_optimized_fmt.end(), output_fmt) == onednn_optimized_fmt.end()) {
+            preferred_impl = impl_types::ocl;
+        }
+
+        // onednn doesn't support paddings
+        if (input_layout.data_padding || output_layout.data_padding) {
+            preferred_impl = impl_types::ocl;
+        }
+
+        // Native impl works faster for this type of reorder
+        if (input_layout.format == format::bfyx && output_layout.format == format::bfyx) {
+            preferred_impl = impl_types::ocl;
+        }
+
+        // onednn reorder doesn't support different number of dimensions in input and output layouts
+        if (input_layout.format.dimension() != output_layout.format.dimension()) {
+            preferred_impl = impl_types::ocl;
+        }
     }
 
     return preferred_impl;
@@ -931,6 +973,9 @@ void layout_optimizer::set_optimization_attribute(optimization_attributes_type a
             break;
         case optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network:
             _optimization_attributes.bs_fs_yx_bsv16_fsv16_network = val;
+            break;
+        case optimization_attributes_type::use_onednn_impls:
+            _optimization_attributes.use_onednn_impls = val;
             break;
         default:
             throw std::out_of_range("unsupported layout optimization attribute");
