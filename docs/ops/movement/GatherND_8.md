@@ -17,7 +17,8 @@ insert it into the output at position `i_0, ..., i_{K-2}` as the following formu
 
 The last dimension of `indices` tensor must be not greater than a rank of `data` tensor, i.e. `indices.shape[-1] <= data.rank`.
 
-The shape of the output is calculated as `data.shape[:batch_dims] + indices.shape[batch_dims:-1] + data.shape[(batch_dims + indices_shape[-1]):]`.
+The shape of the output is calculated as `indices.shape[:batch_dims] + indices.shape[batch_dims:-1]`
+if `indices.shape[-1] == data.rank - batch_dims`  else `indices.shape[:batch_dims] + list(indices.shape)[batch_dims:-1] + list(data.shape)[batch_dims + indices.shape[-1]:]`.
 
 **Attributes**:
 
