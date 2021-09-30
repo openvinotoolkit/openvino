@@ -9,9 +9,22 @@ from mo.middle.replacement import MiddleReplacementPattern
 
 
 class PreserveRuntimeInfo(MiddleReplacementPattern):
+    """ This transformation preserves original layout for Parameter and Result nodes
+    and adds old_api_map attribute in rt_info which stores the following information:
+
+    Parameter:
+    Order of the transpose which should be applied to Parameter with old API layout to
+    obtain Parameter with new API layout.
+
+    Result:
+    Order of the transpose which should be applied to Result with new API layout to
+    obtain Result with old API layout.
+
+    This transformation shouldn't be applied for Parameter or Result nodes inside
+    body graphs of any operations like If, TensorIterator, Loop etc. For this reason
+    transformation should be executed non-recursively.
+    """
     enabled = True
-    # can't be turned on for Kaldi until permutation logic will be aligned
-    graph_condition = [lambda graph: graph.graph['fw'] != 'kaldi']
     run_not_recursively = True
 
     def run_after(self):

@@ -75,7 +75,7 @@ class Op(object):
                 [('id', lambda node: node.node), 'name', 'type', 'version'],
                 [
                     ('data', backend_attrs_mapping[self.ir_version]() + self.default_backend_attrs, []),
-                    ('runtime_info', ['old_api_element_type', 'old_api_transpose_order'],[]),
+                    ('@runtime_info', ['old_api_map'], []),
                     '@ports',
                     '@consts'])]
         })
@@ -478,13 +478,37 @@ class PermuteAttrs:
 class RTInfo:
     def __init__(self):
         self.info = defaultdict(dict)
+        self.info['old_api_map']['serialize'] = self.old_api_map_serialize
+        self.info['old_api_map']['version'] = '0'
 
     def old_api_transpose(self, legacy_shape: np.array, inv: np.array):
-        self.info['old_api']['legacy_shape'] = legacy_shape
-        self.info['old_api']['inverse_order'] = inv
+        self.info['old_api_map']['legacy_shape'] = legacy_shape
+        self.info['old_api_map']['inverse_order'] = inv
 
     def old_api_transpose_result(self, order: np.array):
-        self.info['old_api']['order'] = order
+        self.info['old_api_map']['order'] = order
 
     def old_api_convert(self, legacy_type: np.dtype):
-        self.info['old_api']['legacy_type'] = legacy_type
+        self.info['old_api_map']['legacy_type'] = legacy_type
+
+    def serialize_old_api_map_for_parameter(self) -> Dict:
+        result = {}
+        if 'legacy_type' in self.info['old_api_map']:
+            result['element_type'] = np_data_type_to_destination_type(self.info['old_api_map']['legacy_type'])
+
+        if 'inverse_order' in self.info['old_api_map']:
+            result['order'] = '{}'.format(self.info['old_api_map']['inverse_order']).replace(' ', ',')
+        return result
+
+    def serialize_old_api_map_for_result(self) -> Dict:
+        if 'order' in self.info['old_api_map']:
+            return {'order': '{}'.format(self.info['old_api_map']['order']).replace(' ', ',')}
+        return {}
+
+    def old_api_map_serialize(self, node) -> Dict:
+        result = {}
+        if node.soft_get('type') == 'Parameter':
+            result = self.serialize_old_api_map_for_parameter()
+        elif node.soft_get('type') == 'Result':
+            result = self.serialize_old_api_map_for_result()
+        return result
