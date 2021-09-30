@@ -43,7 +43,9 @@ protected:
         CommonTestUtils::OpType opType;
         ngraph::helpers::EltwiseTypes eltwiseType;
         std::map<std::string, std::string> additional_config;
-        std::tie(shapes, eltwiseType, secondaryInputType, opType, netPrecision, inPrc, outPrc, inLayout, targetDevice, additional_config) = basicParamsSet;
+        std::tie(shapes, eltwiseType, secondaryInputType, opType, netPr/**/ecision, inPrc, outPrc, inLayout, targetDevice, additional_config) = basicParamsSet;
+        targetStaticShapes = shapes.second;
+        inputDynamicShapes = shapes.first;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
@@ -101,6 +103,7 @@ protected:
 
         function = makeNgraphFunction(ngPrc, input, eltwise, "Eltwise");
         functionRefs = ngraph::clone_function(*function);
+        functionRefs->set_friendly_name("EltwiseRefs");
     }
 };
 

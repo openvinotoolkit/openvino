@@ -119,6 +119,8 @@ protected:
                                                                 padEnd, dilation, padType, convOutChannels);
 
         function = makeNgraphFunction(ngPrc, inputParams, convolutionNode, "Convolution");
+        functionRefs = ngraph::clone_function(*function);
+        function->set_friendly_name("convolutionRefs");
     }
 };
 
