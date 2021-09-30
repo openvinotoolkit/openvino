@@ -66,7 +66,7 @@ protected:
 
 private:
     void addZeroPoints(mkldnn::primitive_attr& attr) const;
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights) const;
+    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights, bool initAsBinary);
     void filterSupportedDescriptors();
     bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) const;
     bool isNspcAvailable() const;

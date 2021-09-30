@@ -145,6 +145,14 @@ void MKLDNNFullyConnectedNode::createPrimitive() {
                     {DNNL_ARG_BIAS, getParentEdgeAt(BIAS_ID)->getMemory().GetPrimitive()}, {DNNL_ARG_DST, dst}};
     else
         primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getParentEdgeAt(WEIGHTS_ID)->getMemory().GetPrimitive()}, {DNNL_ARG_DST, dst}};
+
+    auto post_ops = attr->get_post_ops();
+    int idx = 0;
+    for (int i = 0; i < post_ops.len(); i++) {
+        if (post_ops.kind(i) == mkldnn::primitive::kind::binary) {
+            primArgs.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(i) | DNNL_ARG_SRC_1, binaryPostOpsArgs[idx++]});
+        }
+    }
 }
 
 void MKLDNNFullyConnectedNode::execute(mkldnn::stream strm) {
@@ -174,19 +182,40 @@ bool MKLDNNFullyConnectedNode::canFuse(const MKLDNNNodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
-void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) {
+void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false, bool initAsBinary = false) {
+    bool initBinaryMemory = initWeights;
     mkldnn::post_ops ops;
 
     for (auto &node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops);
+            fakeQuantizeNode->appendPostOps(ops, initAsBinary, initBinaryMemory);
+            if (initBinaryMemory) {
+                if (fakeQuantizeNode->cropHighMemory)
+                    binaryPostOpsArgs.push_back(fakeQuantizeNode->cropHighMemory->GetPrimitive());
+                if (fakeQuantizeNode->cropLowMemory)
+                    binaryPostOpsArgs.push_back(fakeQuantizeNode->cropLowMemory->GetPrimitive());
+                if (fakeQuantizeNode->inputScaleMemory)
+                    binaryPostOpsArgs.push_back(fakeQuantizeNode->inputScaleMemory->GetPrimitive());
+                if (fakeQuantizeNode->inputShiftMemory)
+                    binaryPostOpsArgs.push_back(fakeQuantizeNode->inputShiftMemory->GetPrimitive());
+                if (fakeQuantizeNode->outputScaleMemory)
+                    binaryPostOpsArgs.push_back(fakeQuantizeNode->outputScaleMemory->GetPrimitive());
+                if (fakeQuantizeNode->outputShiftMemory)
+                    binaryPostOpsArgs.push_back(fakeQuantizeNode->outputShiftMemory->GetPrimitive());
+            }
             continue;
         }
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops);
+            eltwiseNode->appendPostOps(ops, initAsBinary, initBinaryMemory);
+            if (initBinaryMemory) {
+                if (eltwiseNode->scalesMemory)
+                    binaryPostOpsArgs.push_back(eltwiseNode->scalesMemory->GetPrimitive());
+                if (eltwiseNode->shiftsMemory)
+                    binaryPostOpsArgs.push_back(eltwiseNode->shiftsMemory->GetPrimitive());
+            }
             continue;
         }
 
@@ -238,7 +267,7 @@ const std::vector<impl_desc_type>& MKLDNNFullyConnectedNode::getPrimitivesPriori
 std::shared_ptr<mkldnn::primitive_attr> MKLDNNFullyConnectedNode::initPrimitiveAttr() {
     auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
 
-    setPostOps(*attr, true);
+    setPostOps(*attr, true, true);
 
     return attr;
 }
