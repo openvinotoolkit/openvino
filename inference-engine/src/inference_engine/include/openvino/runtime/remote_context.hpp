@@ -18,6 +18,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/parameter.hpp"
+#include "openvino/runtime/remote_tensor.hpp"
 
 namespace InferenceEngine {
 class RemoteBlob;
@@ -108,7 +109,7 @@ public:
     /**
      * @brief Returns name of the device on which underlying object is allocated.
      * Abstract method.
-     * @return A device name string in the same format as that in plugin metric.
+     * @return A device name string in fully specified format `<device_name>[.<device_id>[.<tile_id>]]`.
      */
     std::string get_device_name() const;
 
@@ -116,21 +117,19 @@ public:
      * @brief Allocates memory tensor in device memory or wraps user-supplied memory handle
      * using the specified tensor description and low-level device-specific parameters.
      * Returns a pointer to the object which implements RemoteTensor interface.
-     * @param element_type Defines the element type of the tensor
+     * @param type Defines the element type of the tensor
      * @param shape Defines the shape of the tensor
      * @param params Map of the low-level tensor object parameters.
      * Abstract method.
      * @return A pointer to plugin object that implements RemoteTensor interface.
      */
-    std::shared_ptr<ie::RemoteBlob> create_blob(element::Type element_type,
-                                                const Shape& shape,
-                                                const ParamMap& params = {});
+    RemoteTensor create_tensor(const element::Type& type, const Shape& shape, const ParamMap& params = {});
 
     /**
      * @brief Returns a map of device-specific parameters required for low-level
      * operations with underlying object.
      * Parameters include device/context handles, access flags,
-     * etc. Contents of the map returned depend on remote execution context that is
+     * etc. Content of the returned map depends on remote execution context that is
      * currently set on the device (working scenario).
      * Abstract method.
      * @return A map of name/parameter elements.

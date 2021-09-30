@@ -77,6 +77,8 @@ set(SRC
     op_eval/transpose.cpp
     op_eval/variadic_split.cpp
     opset1.cpp
+    ov_default_allocator_test.cpp
+    ov_tensor_test.cpp
     partial_shape.cpp
     pass_config.cpp
     pass_manager.cpp
@@ -112,6 +114,7 @@ set(SRC
     type_prop/concat.cpp
     type_prop/constant.cpp
     type_prop/convert.cpp
+    type_prop/convert_color_nv12.cpp
     type_prop/convolution.cpp
     type_prop/convolution_backprop_data.cpp
     type_prop/cos.cpp
@@ -234,6 +237,7 @@ set(SRC
     type_prop/squeeze.cpp
     type_prop/swish.cpp
     type_prop/tan.cpp
+    type_prop/tanh.cpp
     type_prop/ti.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
@@ -250,6 +254,7 @@ set(SRC
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
     visitors/op/add.cpp
+    visitors/op/asin.cpp
     visitors/op/asinh.cpp
     visitors/op/atan.cpp
     visitors/op/atanh.cpp
@@ -260,6 +265,7 @@ set(SRC
     visitors/op/ceiling.cpp
     visitors/op/constant.cpp
     visitors/op/convert.cpp
+    visitors/op/convert_color_nv12.cpp
     visitors/op/convolution_backprop.cpp
     visitors/op/cos.cpp
     visitors/op/cosh.cpp
@@ -345,6 +351,7 @@ set(SRC
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
     visitors/op/sign.cpp
+    visitors/op/sin.cpp
     visitors/op/sinh.cpp
     visitors/op/slice.cpp
     visitors/op/softmax.cpp
@@ -367,6 +374,11 @@ set(SRC
     uint4.cpp
     util.cpp
 )
+
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set_source_files_properties(ov_tensor_test.cpp
+                                PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+endif()
 
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
@@ -418,8 +430,6 @@ set(MULTI_TEST_SRC
     backend/add.in.cpp
     backend/aliased_output.in.cpp
     backend/api.in.cpp
-    backend/asin.in.cpp
-    backend/asinh.in.cpp
     backend/auto_broadcast.in.cpp
     backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
@@ -434,8 +444,6 @@ set(MULTI_TEST_SRC
     backend/convolution.in.cpp
     backend/binary_convolution.in.cpp
     backend/clamp.in.cpp
-    backend/cos.in.cpp
-    backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/deformable_psroi_pooling.in.cpp
@@ -510,8 +518,6 @@ set(MULTI_TEST_SRC
     backend/shape_of.in.cpp
     backend/shuffle_channels.in.cpp
     backend/sigmoid.in.cpp
-    backend/sin.in.cpp
-    backend/sinh.in.cpp
     backend/softmax.in.cpp
     backend/softplus.in.cpp
     backend/space_to_batch.in.cpp
@@ -521,7 +527,6 @@ set(MULTI_TEST_SRC
     backend/squeeze.in.cpp
     backend/subtract.in.cpp
     backend/swish.in.cpp
-    backend/tanh.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp
     backend/transpose.in.cpp
