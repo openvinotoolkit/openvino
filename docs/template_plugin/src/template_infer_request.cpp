@@ -378,15 +378,12 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
         } else if (_outputTensors[_executableNetwork->_outputIndex.at(name)] &&
                    _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_partial_shape().is_static()) {
             dims = _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_shape();
-        } else if (foundOutput->isDynamic()) {
-            auto rank = foundOutput->getPartialShape().rank();
-            dims = rank.is_dynamic() ? SizeVector{0} : SizeVector(rank.get_length(), 0);
         } else {
-            IE_THROW() << "Output blob dimensions are not all known for output name " << name
-                       << " with partial shape: " << foundOutput->getPartialShape();
+            auto rank = foundOutput->getPartialShape().rank();
+            dims = SizeVector(rank.is_dynamic() ? 1 : rank.get_length(), 0);
         }
 
-        if (data && data->getTensorDesc().getDims() != dims) {
+        if (data->getTensorDesc().getDims() != dims) {
             auto&& results = _executableNetwork->_function->get_results();
             AllocateImplSingle(
                 _outputs,
