@@ -1794,7 +1794,6 @@ std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> NetworkHelpe
             auto constant = as_type_ptr<opset1::Constant>(outputResult.get_node_shared_ptr());
             newConstant.push_back(constant);
         }
-
         newConstants[i] = newConstant;
     }
     return newConstants;
