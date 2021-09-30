@@ -24,7 +24,8 @@ public:
         std::vector<std::pair<std::shared_ptr<ngraph::opset8::Parameter>, std::shared_ptr<ngraph::opset8::Result>>>;
 
     explicit MakeStateful(const ParamResPairs& pairs_to_replace) : m_param_res_pairs(pairs_to_replace) {}
-    explicit MakeStateful(const std::map<std::string, std::string>& param_res_names) : m_param_res_names(param_res_names) {}
+    explicit MakeStateful(const std::map<std::string, std::string>& param_res_names)
+        : m_param_res_names(param_res_names) {}
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
 private:

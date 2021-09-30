@@ -20,8 +20,8 @@ string generate_variable_name(const shared_ptr<Parameter>& param, const shared_p
 }
 
 ov::pass::MakeStateful::ParamResPairs find_param_results_by_names(
-        const shared_ptr<ngraph::Function>& func,
-        const std::map<std::string, std::string>& param_res_names) {
+    const shared_ptr<ngraph::Function>& func,
+    const std::map<std::string, std::string>& param_res_names) {
     ov::pass::MakeStateful::ParamResPairs pairs_to_replace;
     const auto& params = func->get_parameters();
     const auto& results = func->get_results();
@@ -34,10 +34,7 @@ ov::pass::MakeStateful::ParamResPairs find_param_results_by_names(
         auto param = std::find_if(params.begin(), params.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
             return node->get_friendly_name() == param_name;
         });
-        NGRAPH_CHECK(param != params.end(),
-                     "Parameter node with name = ",
-                     param_name,
-                     "doesn't exist in the function");
+        NGRAPH_CHECK(param != params.end(), "Parameter node with name = ", param_name, "doesn't exist in the function");
 
         auto res = std::find_if(results.begin(), results.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
             return node->get_friendly_name() == res_name;
@@ -71,7 +68,8 @@ bool ov::pass::MakeStateful::run_on_function(std::shared_ptr<ngraph::Function> f
 
         // Create Variable
         std::string var_name = generate_variable_name(param, res, idx++);
-        auto variable = std::make_shared<Variable>(VariableInfo{param->get_shape(), param->get_element_type(), var_name});
+        auto variable =
+            std::make_shared<Variable>(VariableInfo{param->get_shape(), param->get_element_type(), var_name});
         variables.push_back(variable);
 
         // Create ReadValue
