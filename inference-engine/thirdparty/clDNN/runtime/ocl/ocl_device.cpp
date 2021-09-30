@@ -234,6 +234,8 @@ device_info init_device_info(const cl::Device& device) {
     info.supports_local_block_io = extensions.find("cl_intel_subgroup_local_block_io") != std::string::npos &&
                                    is_local_block_io_supported(device);
 
+    info.supports_queue_families = extensions.find("cl_intel_command_queue_families") != std::string::npos;
+
     bool device_attr_supported = extensions.find("cl_intel_device_attribute_query") != std::string::npos;
 
     if (device_attr_supported) {
@@ -246,6 +248,7 @@ device_info init_device_info(const cl::Device& device) {
         auto features = device.getInfo<CL_DEVICE_FEATURE_CAPABILITIES_INTEL>();
 
         info.supports_imad = info.supports_imad || (features & CL_DEVICE_FEATURE_FLAG_DP4A_INTEL);
+        info.supports_immad = info.supports_immad || (features & CL_DEVICE_FEATURE_FLAG_DPAS_INTEL);
     } else {
         info.gfx_ver = {0, 0, 0};
         info.device_id = driver_dev_id();
