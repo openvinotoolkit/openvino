@@ -48,8 +48,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 58621
         R"(.*IEClassNetworkTestP\.LoadNetworkActualNoThrow.*)",
         R"(.*IEClassNetworkTestP\.LoadNetworkActualHeteroDeviceNoThrow.*)",
-        // CVS-58963: Not implemented yet
-        R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
         // TODO: CVS-65013
         R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
     };

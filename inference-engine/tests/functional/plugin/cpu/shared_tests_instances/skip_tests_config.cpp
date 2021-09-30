@@ -69,8 +69,6 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
-        // CVS-58963: Not implemented yet
-        R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
         // Not expected behavior
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
