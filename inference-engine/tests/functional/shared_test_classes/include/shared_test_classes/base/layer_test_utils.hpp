@@ -161,6 +161,7 @@ protected:
     InferenceEngine::InferRequest inferRequest;
 
 private:
+    void ResizeNgraphFunction();
     RefMode refMode = RefMode::INTERPRETER;
 };
 

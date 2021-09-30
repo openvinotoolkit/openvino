@@ -41,7 +41,10 @@ void SoftMaxLayerTest::SetUp() {
     std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, axis, targetDevice, configuration) = GetParam();
     outLayout = inLayout;
 
-    targetStaticShapes = {shapes.second};
+    targetStaticShapes.reserve(shapes.second.size());
+    for (const auto& staticShape : shapes.second) {
+        targetStaticShapes.push_back({staticShape});
+    }
     inputDynamicShapes = {shapes.first};
 
     const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

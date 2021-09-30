@@ -27,7 +27,7 @@ std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector
 
 std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesDynamic = {
         {{{ngraph::Dimension(1, 10), 200}, {ngraph::Dimension(1, 10), 200}},
-         {{{2, 200}, {2, 200}}}},
+         {{{2, 200}, {2, 200}}, {{1, 200}, {5, 200}}}},
 };
 
 std::vector<InferenceEngine::Precision> netPrecisions = {

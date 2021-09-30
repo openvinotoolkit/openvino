@@ -22,6 +22,14 @@ namespace LayerTestsUtils {
 LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f) {
     core = PluginCache::get().ie(targetDevice);
 }
+void LayerTestsCommon::ResizeNgraphFunction() {
+    auto params = function->get_parameters();
+    for (size_t i = 0; i < params.size(); i++) {
+        params[i]->set_partial_shape(targetStaticShapes[index][i]);
+    }
+    functionRefs = ngraph::clone_function(*function);
+    functionRefs->set_friendly_name("FunctionRefs");
+}
 
 void LayerTestsCommon::Run() {
     //TODO: w/a: to identify gaps with functionRefs and init it
@@ -52,6 +60,8 @@ void LayerTestsCommon::Run() {
         for (size_t i = 0; i < targetStaticShapes.size(); i++) {
             index = i;
             try {
+                // resize ngraph function according new target shape
+                ResizeNgraphFunction();
                 GenerateInputs();
                 Infer();
                 Validate();

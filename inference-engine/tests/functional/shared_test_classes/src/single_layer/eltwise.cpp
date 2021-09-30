@@ -105,6 +105,8 @@ void EltwiseLayerTest::SetUp() {
             input.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
         }
     }
+    input[0]->set_friendly_name("param0");
+    secondaryInput->set_friendly_name("param1");
 
     auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
     function = std::make_shared<ngraph::Function>(eltwise, input, "Eltwise");
