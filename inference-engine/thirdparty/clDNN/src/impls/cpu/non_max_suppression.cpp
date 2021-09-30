@@ -117,7 +117,7 @@ vector2D<bounding_box> load_boxes_impl(stream& stream, memory::ptr mem, bool cen
     auto boxes_num = lay.size.feature[0];
     result.resize(batch_size);
 
-    mem_lock<T> boxes_lock(mem, stream);
+    mem_lock<T, mem_lock_type::read> boxes_lock(mem, stream);
     auto ptr = boxes_lock.data();
 
     for (int bi = 0; bi < batch_size; ++bi) {
@@ -166,7 +166,7 @@ vector3D<float> load_scores_impl(stream& stream, memory::ptr mem) {
 
     vector3D<float> result(batch_size, vector2D<float>(classes_num));
 
-    mem_lock<T> lock(mem, stream);
+    mem_lock<T, mem_lock_type::read> lock(mem, stream);
     auto ptr = lock.data();
 
     for (int bi = 0; bi < batch_size; ++bi) {
@@ -196,7 +196,7 @@ vector3D<float> load_scores(stream& stream, memory::ptr mem) {
 
 template <typename T, typename MemT>
 T load_scalar_impl(stream& stream, memory::ptr mem) {
-    mem_lock<MemT> lock(mem, stream);
+    mem_lock<MemT, mem_lock_type::read> lock(mem, stream);
     auto ptr = lock.data();
 
     return static_cast<T>(ptr[0]);
@@ -219,7 +219,7 @@ T load_scalar(stream& stream, memory::ptr mem) {
 
 template <typename T>
 void store_result_impl(stream& stream, memory::ptr mem, const std::vector<result_indices>& result) {
-    mem_lock<T> lock(mem, stream);
+    mem_lock<T, mem_lock_type::write> lock(mem, stream);
     auto ptr = lock.data();
 
     auto output_size = static_cast<size_t>(mem->get_layout().size.batch[0]);
@@ -273,7 +273,7 @@ void store_first_output(stream& stream, memory::ptr mem, const std::vector<resul
 
 template <typename T>
 void store_second_output_impl(stream& stream, memory::ptr mem, const std::vector<result_indices>& result) {
-    mem_lock<T> lock(mem, stream);
+    mem_lock<T, mem_lock_type::write> lock(mem, stream);
     auto ptr = lock.data();
 
     auto output_size = static_cast<size_t>(mem->get_layout().size.batch[0]);
@@ -310,7 +310,7 @@ void store_second_output(stream& stream, memory::ptr mem, const std::vector<resu
 
 template <typename T>
 void store_third_output_impl(stream& stream, memory::ptr mem, const std::vector<result_indices>& result) {
-    mem_lock<T> lock(mem, stream);
+    mem_lock<T, mem_lock_type::write> lock(mem, stream);
     auto ptr = lock.data();
     ptr[0] = static_cast<T>(result.size());
 }
