@@ -36,8 +36,7 @@ void InferenceEnginePython::ApplyLowLatencyTransformation(InferenceEnginePython:
 void InferenceEnginePython::ApplyMakeStatefulTransformation(InferenceEnginePython::IENetwork network,
                                                             std::map<std::string, std::string>& param_res_names) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ov::pass::MakeStateful>(
-        ov::pass::MakeStateful::find_param_results_by_names(network.actual->getFunction(), param_res_names));
+    manager.register_pass<ov::pass::MakeStateful>(param_res_names);
     manager.run_passes(network.actual->getFunction());
 }
 
