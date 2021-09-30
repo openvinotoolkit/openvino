@@ -51,18 +51,6 @@ typedef std::tuple<
     TransposeTransformationTestValues
 > TransposeTransformationParams;
 
-inline std::ostream& operator<<(std::ostream& os, const std::vector<int>& values) {
-    os << "{ ";
-    for (size_t i = 0; i < values.size(); ++i) {
-        os << values[i];
-        if (i != (values.size() - 1ul)) {
-            os << ", ";
-        }
-    }
-    os << " }";
-    return os;
-}
-
 class TransposeTransformation : public LayerTransformation, public testing::WithParamInterface<TransposeTransformationParams> {
 public:
     void SetUp() override {
@@ -102,6 +90,15 @@ public:
         return result.str();
     }
 };
+
+TEST_P(TransposeTransformation, CompareFunctions) {
+    InitNodeInfo().run_on_function(actualFunction);
+    actualFunction->validate_nodes_and_infer_types();
+    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
+}
 
 namespace testValues1 {
 const std::vector<ngraph::PartialShape> inputShapes4D = {
@@ -187,13 +184,6 @@ const std::vector<TransposeTransformationTestValues> testValues = {
         }
     },
 };
-
-TEST_P(TransposeTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
-    actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
-    ASSERT_TRUE(res.first) << res.second;
-}
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
