@@ -19,6 +19,7 @@ void if_reference(const std::vector<std::shared_ptr<Function>>& bodies,
 
     auto condition_value = args[0]->get_data_ptr<bool>()[0];
     auto branch_index = (condition_value) ? op::v8::If::THEN_BODY_INDEX : op::v8::If::ELSE_BODY_INDEX;
+
     HostTensorVector inputs_to_body;
     HostTensorVector outs_from_body;
     inputs_to_body.resize(input_descs[branch_index].size());
