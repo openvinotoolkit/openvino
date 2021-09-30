@@ -61,6 +61,6 @@ install(DIRECTORY automation
         EXCLUDE_FROM_ALL)
 
 install(FILES .coveragerc
-        DESTINATION tools/model_optimizer
+        DESTINATION tests/model_optimizer
         COMPONENT tests
         EXCLUDE_FROM_ALL)
