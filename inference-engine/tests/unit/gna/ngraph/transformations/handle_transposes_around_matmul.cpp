@@ -252,8 +252,8 @@ TEST(TransformationTests, InsertTransposeAfterMatmulTest) {
                 RunTest(
                     handle_transpose_after_matmul::CreateMatmulFunction(
                         {1, 256}, {256, 256}, {8, 32}, false, true, enable_add, matmul_on_left_side, enable_fq),
-                    handle_transpose_after_matmul::CreateMatmulTransposeFunction(
-                        {1, 256}, {256, 256}, {8, 32}, true, true, enable_add, matmul_on_left_side, enable_fq));
+                    handle_transpose_after_matmul::CreateMatmulFunction(
+                        {1, 256}, {256, 256}, {8, 32}, false, true, enable_add, matmul_on_left_side, enable_fq));
             }
         }
     }

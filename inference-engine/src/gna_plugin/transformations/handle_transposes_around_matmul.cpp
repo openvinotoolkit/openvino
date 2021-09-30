@@ -125,7 +125,9 @@ HandleTransposeBeforeMatMul::HandleTransposeBeforeMatMul() {
 }
 
 HandleTransposeAfterMatMul::HandleTransposeAfterMatMul() {
-    auto matmul = ngraph::pattern::wrap_type<ngraph::opset8::MatMul>();
+    auto matmul = ngraph::pattern::wrap_type<ngraph::opset8::MatMul>({}, [](const ngraph::Output<ngraph::Node>& node) {
+        auto out_shape = node.get_node_shared_ptr()->get_output_shape(0);
+        return std::count_if(out_shape.begin(), out_shape.end(), [](size_t n) { return n > 1; }) > 1; });
     auto add_left = ngraph::pattern::wrap_type<ngraph::opset8::Add>({matmul, ngraph::pattern::any_input()});
     auto add_right = ngraph::pattern::wrap_type<ngraph::opset8::Add>({ngraph::pattern::any_input(), matmul});
     auto fq_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{matmul, add_left, add_right});
