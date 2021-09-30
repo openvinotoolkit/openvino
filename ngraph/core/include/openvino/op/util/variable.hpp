@@ -42,6 +42,7 @@ private:
     VariableInfo m_info;
 };
 using VariableVector = std::vector<Variable::Ptr>;
+
 }  // namespace util
 }  // namespace op
 template <>
@@ -51,7 +52,7 @@ public:
     explicit AttributeAdapter(std::shared_ptr<op::util::Variable>& value)
         : DirectValueAccessor<std::shared_ptr<op::util::Variable>>(value) {}
 
-    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>");
+    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<ov::op::util::Varimable>>");
     BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

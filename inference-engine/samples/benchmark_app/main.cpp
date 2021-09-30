@@ -410,9 +410,9 @@ int main(int argc, char* argv[]) {
                                           {{"read network time (ms)", duration_ms}});
 
             const InputsDataMap inputInfo(cnnNetwork.getInputsInfo());
-            /*if (inputInfo.empty()) {
+            if (inputInfo.empty()) {
                 throw std::logic_error("no inputs info is provided");
-            }*/
+            }
 
             // ----------------- 5. Resizing network to match image sizes and given
             // batch ----------------------------------

@@ -30,7 +30,6 @@ INFERENCE_ENGINE_API_CPP(void)
 InferenceEngine::makeStateful(InferenceEngine::CNNNetwork& network, std::map<std::string, std::string>& in_out_names) {
     auto function = network.getFunction();
     ngraph::pass::Manager manager;
-    manager.register_pass<ov::pass::MakeStateful>(
-        ov::pass::MakeStateful::find_param_results_by_names(function, in_out_names));
+    manager.register_pass<ov::pass::MakeStateful>(in_out_names);
     manager.run_passes(function);
 }

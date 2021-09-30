@@ -66,7 +66,7 @@ https://wiki.ith.intel.com/x/2N42bg.
 Consider adding those useful command line options:
 - `-jobs=$(nproc)` runs multiple fuzzing jobs in parallel.
 - `-rss_limit_mb=0` to ignore out-of-memory issues.
-    
+
 ## Analyzing fuzzing quality
 
 ### Explore code coverage

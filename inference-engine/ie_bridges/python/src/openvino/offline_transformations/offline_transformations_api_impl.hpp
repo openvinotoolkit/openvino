@@ -6,7 +6,6 @@
 
 #include <map>
 #include <string>
-#include <vector>
 
 #include "Python.h"
 #include "ie_api_impl.hpp"

@@ -5,7 +5,6 @@
 #include "openvino/pass/make_stateful.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <openvino/op/util/variable.hpp>
 #include <openvino/opsets/opset8.hpp>
@@ -19,13 +18,47 @@ namespace {
 string generate_variable_name(const shared_ptr<Parameter>& param, const shared_ptr<Result>& res, uint64_t idx) {
     return param->get_friendly_name() + res->get_friendly_name() + std::to_string(idx);
 }
+
+ov::pass::MakeStateful::ParamResPairs find_param_results_by_names(
+        const shared_ptr<ngraph::Function>& func,
+        const std::map<std::string, std::string>& param_res_names) {
+    ov::pass::MakeStateful::ParamResPairs pairs_to_replace;
+    const auto& params = func->get_parameters();
+    const auto& results = func->get_results();
+
+    // find corresponding param and result by name and add to the list
+    for (const auto& param_res : param_res_names) {
+        const auto& param_name = param_res.first;
+        const auto& res_name = param_res.second;
+
+        auto param = std::find_if(params.begin(), params.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
+            return node->get_friendly_name() == param_name;
+        });
+        NGRAPH_CHECK(param != params.end(),
+                     "Parameter node with name = ",
+                     param_name,
+                     "doesn't exist in the function");
+
+        auto res = std::find_if(results.begin(), results.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
+            return node->get_friendly_name() == res_name;
+        });
+        NGRAPH_CHECK(res != results.end(), "Result node with name = ", res_name, " doesn't exist in the function");
+
+        pairs_to_replace.emplace_back(*param, *res);
+    }
+    return pairs_to_replace;
+}
 }  // namespace
 
 bool ov::pass::MakeStateful::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    if (m_param_res_pairs.empty()) {
+        m_param_res_pairs = find_param_results_by_names(f, m_param_res_names);
+    }
+
     VariableVector variables;
     SinkVector sinks;
     uint64_t idx = 0;
-    for (const auto& pair : m_pairs_to_replace) {
+    for (const auto& pair : m_param_res_pairs) {
         const auto& param = pair.first;
         const auto& res = pair.second;
 
@@ -38,7 +71,7 @@ bool ov::pass::MakeStateful::run_on_function(std::shared_ptr<ngraph::Function> f
 
         // Create Variable
         std::string var_name = generate_variable_name(param, res, idx++);
-        auto variable = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, var_name});
+        auto variable = std::make_shared<Variable>(VariableInfo{param->get_shape(), param->get_element_type(), var_name});
         variables.push_back(variable);
 
         // Create ReadValue
@@ -62,34 +95,4 @@ bool ov::pass::MakeStateful::run_on_function(std::shared_ptr<ngraph::Function> f
     f->add_variables(variables);
     f->add_sinks(sinks);
     return true;
-}
-
-ov::pass::MakeStateful::ParamResPairs ov::pass::MakeStateful::find_param_results_by_names(
-    const shared_ptr<ngraph::Function>& func,
-    const std::map<std::string, std::string>& param_res_names) {
-    ParamResPairs pairs_to_replace;
-    const auto& params = func->get_parameters();
-    const auto& results = func->get_results();
-
-    // find corresponding param and result by name and add to the list
-    for (const auto& param_res : param_res_names) {
-        const auto& param_name = param_res.first;
-        const auto& res_name = param_res.second;
-
-        auto param = std::find_if(params.begin(), params.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
-            return node->get_friendly_name().find(param_name) != std::string::npos;
-        });
-        NGRAPH_CHECK(param != params.end(),
-                     "Parameter node with name = ",
-                     param_name,
-                     "doesn't exist in the function");
-
-        auto res = std::find_if(results.begin(), results.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
-            return node->get_friendly_name().find(res_name) != std::string::npos;
-        });
-        NGRAPH_CHECK(res != results.end(), "Result node with name = ", res_name, " doesn't belong to the function");
-
-        pairs_to_replace.emplace_back(*param, *res);
-    }
-    return pairs_to_replace;
 }

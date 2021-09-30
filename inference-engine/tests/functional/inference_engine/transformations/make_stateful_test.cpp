@@ -13,8 +13,7 @@
 #include <ngraph/pass/manager.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include <transformations/common_optimizations/make_stateful.hpp>
-#include <transformations/serialize.hpp>
+#include <openvino/pass/make_stateful.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -43,7 +42,7 @@ TEST(TransformationTests, make_stateful_by_name) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::MakeStateful>(ov::pass::MakeStateful::find_param_results_by_names(f, pair_names));
+        manager.register_pass<ov::pass::MakeStateful>(pair_names);
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -138,7 +137,7 @@ TEST(TransformationTests, make_stateful_dynamic_shapes) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::MakeStateful>(ov::pass::MakeStateful::find_param_results_by_names(f, pair_names));
+        manager.register_pass<ov::pass::MakeStateful>(pair_names);
 
         EXPECT_THROW(manager.run_passes(f), ::ov::AssertFailure);
         ASSERT_NO_THROW(check_rt_info(f));
