@@ -30,10 +30,10 @@ def replace_links(content, items, md_folder, labels, docs_folder):
         link = item
         link_path = md_folder.joinpath(link).resolve()
         if os.path.exists(link_path):
-            content = content.replace(link.as_posix(), '@ref ' + labels[link_path])
+            content = content.replace(link, '@ref ' + labels[link_path])
         else:
             rel_path = os.path.relpath(link_path, docs_folder).replace('\\', '/')
-            content = content.replace(link.as_posix(), rel_path)
+            content = content.replace(link, rel_path)
     return content
 
 
@@ -41,7 +41,7 @@ def replace_image_links(content, images, input_dir, md_folder, output_dir):
     for image in images:
         new_path = md_folder.joinpath(image).resolve().relative_to(input_dir).resolve()
         new_path = output_dir.name / new_path
-        content = content.replace(image.as_posix(), new_path.as_posix())
+        content = content.replace(image, new_path.as_posix())
     return content
 
 
@@ -94,10 +94,10 @@ def process(input_dir, output_dir, exclude_dirs):
         with open(md_file, 'r', encoding='utf-8') as f:
             content = f.read()
 
-        inline_links = get_refs_by_regex(content, r'!?\[.*?\]\(([\w\/\-\.]+\.md)\)')
-        reference_links = get_refs_by_regex(content, r'\[.+\]\:\s*?([\w\/\-\.]+\.md)')
-        inline_images = get_refs_by_regex(content, r'!?\[.*?\]\(([\w\/\-\.]+\.(?:png|jpg|gif|svg))\)')
-        reference_images = get_refs_by_regex(content, r'\[.+\]\:\s*?([\w\/\-\.]+\.(?:png|jpg|gif|svg))')
+        inline_links = set(re.findall(r'!?\[.*?\]\(([\w\/\-\.]+\.md)\)', content))
+        reference_links = set(re.findall(r'\[.+\]\:\s*?([\w\/\-\.]+\.md)', content))
+        inline_images = set(re.findall(r'!?\[.*?\]\(([\w\/\-\.]+\.(?:png|jpg|gif|svg))\)', content))
+        reference_images = set(re.findall(r'\[.+\]\:\s*?([\w\/\-\.]+\.(?:png|jpg|gif|svg))', content))
 
         images = inline_images
         images.update(reference_images)

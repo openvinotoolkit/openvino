@@ -1,12 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-
-## @defgroup ngraph_python_opset7 nGraph Python Opset7
-# nGraph Python Opset7
-# @ingroup ngraph_python_opsets
-
-
 """Factory functions for all ngraph ops."""
 from functools import partial
 from typing import Callable, Iterable, List, Optional, Set, Union
@@ -51,7 +45,6 @@ _get_node_factory_opset7 = partial(_get_node_factory, "opset7")
 # -------------------------------------------- ops ------------------------------------------------
 
 
-## @ingroup ngraph_python_opset7
 @nameable_op
 def einsum(
         inputs: List[Node],
@@ -59,9 +52,9 @@ def einsum(
 ) -> Node:
     """Return a node which performs Einsum operation.
 
-    @param inputs: The list of input nodes
-    @param equation: Einsum equation
-    @return: The new node performing Einsum operation on the inputs
+    :param inputs: The list of input nodes
+    :param equation: Einsum equation
+    :return:: The new node performing Einsum operation on the inputs
     """
     attributes = {
         "equation": equation
@@ -70,7 +63,6 @@ def einsum(
     return _get_node_factory_opset7().create("Einsum", as_nodes(*inputs), attributes)
 
 
-## @ingroup ngraph_python_opset7
 @nameable_op
 def gelu(
         data: Node,
@@ -79,10 +71,10 @@ def gelu(
 ) -> Node:
     """Return a node which performs Gelu activation function.
 
-    @param data: The node with data tensor.
-    @param approximation_mode: defines which approximation to use ('tanh' or 'erf')
-    @param name: Optional output node name.
-    @return The new node performing a Gelu activation with the input tensor.
+    :param data: The node with data tensor.
+    :param approximation_mode: defines which approximation to use ('tanh' or 'erf')
+    :param name: Optional output node name.
+    :return: The new node performing a Gelu activation with the input tensor.
     """
     inputs = as_nodes(data)
 
@@ -93,7 +85,6 @@ def gelu(
     return _get_node_factory_opset7().create("Gelu", inputs, attributes)
 
 
-## @ingroup ngraph_python_opset7
 @nameable_op
 def roll(
         data: NodeInput,
@@ -102,17 +93,16 @@ def roll(
 ) -> Node:
     """Return a node which performs Roll operation.
 
-    @param data: The node with data tensor.
-    @param shift: The node with the tensor with numbers of places by which elements are shifted.
-    @param axes: The node with the tensor with axes along which elements are shifted.
-    @return The new node performing a Roll operation on the input tensor.
+    :param data: The node with data tensor.
+    :param shift: The node with the tensor with numbers of places by which elements are shifted.
+    :param axes: The node with the tensor with axes along which elements are shifted.
+    :return: The new node performing a Roll operation on the input tensor.
     """
     inputs = as_nodes(data, shift, axes)
 
     return _get_node_factory_opset7().create("Roll", inputs)
 
 
-## @ingroup ngraph_python_opset7
 @nameable_op
 def gather(
         data: NodeInput,
@@ -122,11 +112,11 @@ def gather(
 ) -> Node:
     """Return a node which performs Gather.
 
-    @param data:         N-D tensor with data for gathering
-    @param indices:      N-D tensor with indices by which data is gathered
-    @param axis:         axis along which elements are gathered
-    @param batch_dims:   number of batch dimensions
-    @return:             The new node which performs Gather
+    :param data:         N-D tensor with data for gathering
+    :param indices:      N-D tensor with indices by which data is gathered
+    :param axis:         axis along which elements are gathered
+    :param batch_dims:   number of batch dimensions
+    :return::             The new node which performs Gather
     """
     inputs = as_nodes(data, indices, axis)
     attributes = {
@@ -135,7 +125,6 @@ def gather(
     return _get_node_factory_opset7().create("Gather", inputs, attributes)
 
 
-## @ingroup ngraph_python_opset7
 def dft(
         data: NodeInput,
         axes: NodeInput,
@@ -143,10 +132,10 @@ def dft(
 ) -> Node:
     """Return a node which performs DFT operation.
 
-    @param data: Tensor with transformed data.
-    @param axes: Tensor with axes to transform.
-    @param signal_size: Tensor specifying signal size with respect to axes from the input 'axes'.
-    @return: The new node which performs DFT operation on the input data tensor.
+    :param data: Tensor with transformed data.
+    :param axes: Tensor with axes to transform.
+    :param signal_size: Tensor specifying signal size with respect to axes from the input 'axes'.
+    :return:: The new node which performs DFT operation on the input data tensor.
     """
     if signal_size is None:
         inputs = as_nodes(data, axes)
@@ -156,7 +145,6 @@ def dft(
     return _get_node_factory_opset7().create("DFT", inputs)
 
 
-## @ingroup ngraph_python_opset7
 @nameable_op
 def idft(
         data: NodeInput,
@@ -165,10 +153,10 @@ def idft(
 ) -> Node:
     """Return a node which performs IDFT operation.
 
-    @param data: Tensor with transformed data.
-    @param axes: Tensor with axes to transform.
-    @param signal_size: Tensor specifying signal size with respect to axes from the input 'axes'.
-    @return: The new node which performs IDFT operation on the input data tensor.
+    :param data: Tensor with transformed data.
+    :param axes: Tensor with axes to transform.
+    :param signal_size: Tensor specifying signal size with respect to axes from the input 'axes'.
+    :return:: The new node which performs IDFT operation on the input data tensor.
     """
     if signal_size is None:
         inputs = as_nodes(data, axes)

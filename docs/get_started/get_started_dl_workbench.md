@@ -24,9 +24,7 @@ Run DL Workbench on your local system by using the installation form. Select you
 @sphinxdirective
 .. raw:: html
 
-\htmlonly
-<iframe style="width: 100%; height: 620px;" src="https://openvinotoolkit.github.io/workbench_aux/"  frameborder="0" allow="clipboard-write;"></iframe>
-\endhtmlonly
+   <iframe style="width: 100%; height: 620px;" src="https://openvinotoolkit.github.io/workbench_aux/"  frameborder="0" allow="clipboard-write;"></iframe>
 
 @endsphinxdirective
 
@@ -39,8 +37,10 @@ Watch the video to learn more detailed information on how to run DL Workbench:
 @sphinxdirective
 .. list-table::
 
-   * - .. youtube:: JBDG2g5hsoM
-          :width: 560px
+   * - .. raw:: html
+          
+          <iframe width="560" height="100%" src="https://www.youtube.com/embed/JBDG2g5hsoM" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
    * - **Inference Engine Concept**. Duration: 3:43
      
 @endsphinxdirective
@@ -48,8 +48,10 @@ Watch the video to learn more detailed information on how to run DL Workbench:
 @sphinxdirective
 .. list-table::
 
-   * - .. youtube:: on8xSSTKCt8
-          :width: 560px
+   * - .. raw:: html
+          
+          <iframe width="560" height="100%" src="https://www.youtube.com/embed/on8xSSTKCt8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
    * - **Inference Engine Concept**. Duration: 3:43
      
 @endsphinxdirective

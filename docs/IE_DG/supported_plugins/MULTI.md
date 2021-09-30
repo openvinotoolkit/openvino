@@ -96,10 +96,13 @@ Notice that you can use the FP16 IR to work with multi-device (as CPU automatica
 Also notice that no demos are (yet) fully optimized for the multi-device, by means of supporting the OPTIMAL_NUMBER_OF_INFER_REQUESTS metric, using the GPU streams/throttling, and so on.
 
 ## Video: MULTI Plugin
-[![](https://img.youtube.com/vi/xbORYFEmrqU/0.jpg)](https://www.youtube.com/watch?v=xbORYFEmrqU)
-\htmlonly
-<iframe width="560" height="315" src="https://www.youtube.com/embed/xbORYFEmrqU" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-\endhtmlonly
+
+@sphinxdirective
+.. raw:: html
+
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/xbORYFEmrqU" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+@endsphinxdirective
 
 ## See Also
 * [Supported Devices](Supported_Devices.md)

@@ -10,91 +10,153 @@
 --------------------------------------------------------------------------------
 
 function getCompoundTocTree(compound)
-	local s = ".. toctree::\n\t:hidden:\n\n"
 
+	local s = ""
+	if #compound.groupArray > 0 or #compound.namespaceArray > 0 or #compound.enumArray > 0 or
+	#compound.structArray > 0 or #compound.unionArray > 0 or #compound.interfaceArray > 0 or
+	#compound.protocolArray > 0 or #compound.exceptionArray > 0 or #compound.classArray > 0 or
+	#compound.singletonArray > 0 or #compound.serviceArray > 0 or compound.hasGlobalNamespace then
+		s = s .. ".. toctree::\n\t:hidden:\n\n"
+	end
+
+	local hash = {}
 	for i = 1, #compound.groupArray do
 		local item = compound.groupArray[i]
 		local fileName = getItemFileName(item)
-		s = s .. "\t" .. fileName .. "\n"
+		local isDuplicate = hash[fileName]
+		if isDuplicate == nil then
+			s = s .. "\t" .. fileName .. "\n"
+			hash[fileName] = true
+		end
 	end
 
+	local hash = {}
 	for i = 1, #compound.namespaceArray do
 		local item = compound.namespaceArray[i]
 		if isTocTreeItem(compound, item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. fileName .. "\n"
+			local isDuplicate = hash[fileName]
+			if isDuplicate == nil then
+				s = s .. "\t" .. fileName .. "\n"
+				hash[fileName] = true
+			end
 		end
 	end
 
+	local hash = {}
 	for i = 1, #compound.enumArray do
 		local item = compound.enumArray[i]
 		if isTocTreeItem(compound, item) and not isUnnamedItem(item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. fileName .. "\n"
+			local isDuplicate = hash[fileName]
+			if isDuplicate == nil then
+				s = s .. "\t" .. fileName .. "\n"
+				hash[fileName] = true
+			end
 		end
 	end
 
+	local hash = {}
 	for i = 1, #compound.structArray do
 		local item = compound.structArray[i]
 		if isTocTreeItem(compound, item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. fileName .. "\n"
+			local isDuplicate = hash[fileName]
+			if isDuplicate == nil then
+				s = s .. "\t" .. fileName .. "\n"
+				hash[fileName] = true
+			end
 		end
 	end
 
+	local hash = {}
 	for i = 1, #compound.unionArray do
 		local item = compound.unionArray[i]
 		if isTocTreeItem(compound, item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. fileName .. "\n"
+			local isDuplicate = hash[fileName]
+			if isDuplicate == nil then
+				s = s .. "\t" .. fileName .. "\n"
+				hash[fileName] = true
+			end
 		end
 	end
 
+	local hash = {}
 	for i = 1, #compound.interfaceArray do
 		local item = compound.interfaceArray[i]
 		if isTocTreeItem(compound, item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. fileName .. "\n"
+			local isDuplicate = hash[fileName]
+			if isDuplicate == nil then
+				s = s .. "\t" .. fileName .. "\n"
+				hash[fileName] = true
+			end
 		end
 	end
 
+	local hash = {}
 	for i = 1, #compound.protocolArray do
 		local item = compound.protocolArray[i]
 		if isTocTreeItem(compound, item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. fileName .. "\n"
+			local isDuplicate = hash[fileName]
+			if isDuplicate == nil then
+				s = s .. "\t" .. fileName .. "\n"
+				hash[fileName] = true
+			end
 		end
 	end
 
+	local hash = {}
 	for i = 1, #compound.exceptionArray do
 		local item = compound.exceptionArray[i]
 		if isTocTreeItem(compound, item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. fileName .. "\n"
+			local isDuplicate = hash[fileName]
+			if isDuplicate == nil then
+				s = s .. "\t" .. fileName .. "\n"
+				hash[fileName] = true
+			end
 		end
 	end
 
+	local hash = {}
 	for i = 1, #compound.classArray do
 		local item = compound.classArray[i]
 		if isTocTreeItem(compound, item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. fileName .. "\n"
+			local isDuplicate = hash[fileName]
+			if isDuplicate == nil then
+				s = s .. "\t" .. fileName .. "\n"
+				hash[fileName] = true
+			end
 		end
 	end
 
+	local hash = {}
 	for i = 1, #compound.singletonArray do
 		local item = compound.singletonArray[i]
 		if isTocTreeItem(compound, item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. fileName .. "\n"
+			local isDuplicate = hash[fileName]
+			if isDuplicate == nil then
+				s = s .. "\t" .. fileName .. "\n"
+				hash[fileName] = true
+			end
 		end
 	end
 
+	local hash = {}
 	for i = 1, #compound.serviceArray do
 		local item = compound.serviceArray[i]
 		if isTocTreeItem(compound, item) then
 			local fileName = getItemFileName(item)
-			s = s .. "\t" .. fileName .. "\n"
+			local isDuplicate = hash[fileName]
+			if isDuplicate == nil then
+				s = s .. "\t" .. fileName .. "\n"
+				hash[fileName] = true
+			end
 		end
 	end
 

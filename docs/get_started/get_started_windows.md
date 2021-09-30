@@ -27,8 +27,16 @@ This guide assumes you completed all Intel® Distribution of OpenVINO™ toolkit
 By default, the installation directory is `C:\Program Files (x86)\Intel\openvino_<version>`, referred to as `<INSTALL_DIR>`. If you installed the Intel® Distribution of OpenVINO™ toolkit to a directory other than the default, replace `C:\Program Files (x86)\Intel` with the directory in which you installed the software. For simplicity, a shortcut to the latest installation is also created: `C:\Program Files (x86)\Intel\openvino_2021`.
 
 The primary tools for deploying your models and applications are installed to the `<INSTALL_DIR>\deployment_tools` directory.
-<details>
-    <summary><strong>Click for the <code>deployment_tools</code> directory structure</strong></summary>
+
+@sphinxdirective
+
+.. raw:: html
+
+   <div class="collapsible-section" data-title="<strong>Click for the <code>deployment_tools</code> directory structure</strong>">
+
+@endsphinxdirective
+
+
    
 
 | Directory&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Description                                                                           |  
@@ -52,7 +60,16 @@ The primary tools for deploying your models and applications are installed to th
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`tools\`        | Model Downloader and Accuracy Checker tools. |
 | `tools\`                                | Contains a symbolic link to the Model Downloader folder and auxiliary tools to work with your models: Calibration tool, Benchmark and Collect Statistics tools.|
 
-</details>
+
+@sphinxdirective
+
+.. raw:: html
+
+   </div>
+
+@endsphinxdirective
+
+
 
 ## <a name="workflow-overview"></a>OpenVINO™ Workflow Overview
 
@@ -91,8 +108,16 @@ The script:
 3. Builds the Image Classification Sample Async application.
 4. Runs the compiled sample with the `car.png` image located in the `demo` directory.
 
-<details>
-    <summary><strong>Click for an example of running the Image Classification demo script</strong></summary>
+
+@sphinxdirective
+
+.. raw:: html
+
+   <div class="collapsible-section" data-title="<strong>Click for an example of running the Image Classification demo script</strong>">
+
+@endsphinxdirective
+
+
 
 To run the script to perform inference on a CPU:
 
@@ -126,7 +151,16 @@ classid probability label
 [ INFO ] Execution successful
 ```
 
-</details>
+
+@sphinxdirective
+
+.. raw:: html
+
+   </div>
+
+@endsphinxdirective
+
+
 
 ### Inference Pipeline Demo Script
 The `demo_security_barrier_camera` uses vehicle recognition in which vehicle attributes build on each other to narrow in on a specific attribute.
@@ -142,8 +176,16 @@ This application:
 2. Uses the vehicle identification as input to the second model, which identifies specific vehicle attributes, including the license plate.
 3. Uses the the license plate as input to the third model, which recognizes specific characters in the license plate.
 
-<details>
-    <summary><strong>Click for an example of Running the Pipeline demo script</strong></summary>
+
+@sphinxdirective
+
+.. raw:: html
+
+   <div class="collapsible-section" data-title="<strong>Click for an example of Running the Pipeline demo script</strong>">
+
+@endsphinxdirective
+
+
     
 To run the script performing inference on Intel® Processor Graphics:
 
@@ -155,7 +197,16 @@ When the verification script completes, you see an image that displays the resul
 
 ![](../img/inference_pipeline_script_win.png) 
 
-</details>
+
+@sphinxdirective
+
+.. raw:: html
+
+   </div>
+
+@endsphinxdirective
+
+
 
 ### Benchmark Demo Script
 The `demo_benchmark_app` script illustrates how to use the Benchmark Application to estimate deep learning inference performance on supported devices. 
@@ -166,8 +217,16 @@ The script:
 3. Builds the Inference Engine Benchmark tool.
 4. Runs the tool with the `car.png` image located in the `demo` directory.
 
-<details>
-    <summary><strong>Click for an example of running the Benchmark demo script</strong></summary>
+
+@sphinxdirective
+
+.. raw:: html
+
+   <div class="collapsible-section" data-title="<strong>Click for an example of running the Benchmark demo script</strong>">
+
+@endsphinxdirective
+
+
 
 To run the script that performs inference (runs on CPU by default):
 
@@ -175,7 +234,16 @@ To run the script that performs inference (runs on CPU by default):
 .\demo_benchmark_app.bat
 ```
 When the verification script completes, you see the performance counters, resulting latency, and throughput values displayed on the screen.
-</details>
+
+@sphinxdirective
+
+.. raw:: html
+
+   </div>
+
+@endsphinxdirective
+
+
 
 ## <a name="using-sample-application"></a>Use Code Samples and Demo Applications to Learn the Workflow
 
@@ -244,8 +312,16 @@ Download the following models if you want to run the Image Classification Sample
 |`vehicle-attributes-recognition-barrier-0039`  | Security Barrier Camera Demo application            |
 |`license-plate-recognition-barrier-0001`       | Security Barrier Camera Demo application            |
 
-<details>
-    <summary><strong>Click for an example of downloading the SqueezeNet Caffe* model</strong></summary>
+
+@sphinxdirective
+
+.. raw:: html
+
+   <div class="collapsible-section" data-title="<strong>Click for an example of downloading the SqueezeNet Caffe* model</strong>">
+
+@endsphinxdirective
+
+
 
 To download the SqueezeNet 1.1 Caffe* model to the `C:\Users\<USER_ID>\Documents\models` folder:
 
@@ -267,10 +343,27 @@ Your screen looks similar to this after the download:
 
 ========== Replacing text in C:\Users\username\Documents\models\public\squeezenet1.1\squeezenet1.1.prototxt
 ```
-</details>
 
-<details>
-    <summary><strong>Click for an example of downloading models for the Security Barrier Camera Demo application</strong></summary>
+@sphinxdirective
+
+.. raw:: html
+
+   </div>
+
+@endsphinxdirective
+
+
+
+
+@sphinxdirective
+
+.. raw:: html
+
+   <div class="collapsible-section" data-title="<strong>Click for an example of downloading models for the Security Barrier Camera Demo application</strong>">
+
+@endsphinxdirective
+
+
 
 To download all three pre-trained models in FP16 precision to the `C:\Users\<USER_ID>\Documents\models` folder:   
 
@@ -302,7 +395,16 @@ Your screen looks similar to this after the download:
 ################|| Post-processing ||################
 ```
 
-</details>   
+
+@sphinxdirective
+
+.. raw:: html
+
+   </div>
+
+@endsphinxdirective
+
+   
 
 ### <a name="convert-models-to-intermediate-representation"></a> Step 2: Convert the Models to the Intermediate Representation
 
@@ -330,8 +432,16 @@ The `vehicle-license-plate-detection-barrier-0106`, `vehicle-attributes-recognit
    ```
    The produced IR files are in the `<ir_dir>` directory.
 
-<details>
-    <summary><strong>Click for an example of converting the SqueezeNet Caffe* model</strong></summary>
+
+@sphinxdirective
+
+.. raw:: html
+
+   <div class="collapsible-section" data-title="<strong>Click for an example of converting the SqueezeNet Caffe* model</strong>">
+
+@endsphinxdirective
+
+
 
 The following command converts the public SqueezeNet 1.1 Caffe\* model to the FP16 IR and saves to the `C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir` output directory:
 
@@ -348,7 +458,16 @@ Copy the `squeezenet1.1.labels` file from the `<INSTALL_DIR>\deployment_tools\de
    ```batch   
    cp <INSTALL_DIR>\deployment_tools\demo\squeezenet1.1.labels <ir_dir>
    ```
-</details>
+
+@sphinxdirective
+
+.. raw:: html
+
+   </div>
+
+@endsphinxdirective
+
+
 
 ### <a name="download-media"></a> Step 3: Download a Video or a Still Photo as Media
 
@@ -378,8 +497,16 @@ To run the **Image Classification** code sample with an input image on the IR:
    ```bat
    classification_sample_async.exe -i <path_to_media> -m <path_to_model> -d <target_device>
    ```
-<details>
-    <summary><strong>Click for examples of running the Image Classification code sample on different devices</strong></summary>
+
+@sphinxdirective
+
+.. raw:: html
+
+   <div class="collapsible-section" data-title="<strong>Click for examples of running the Image Classification code sample on different devices</strong>">
+
+@endsphinxdirective
+
+
 
 The following commands run the Image Classification Code Sample using the `car.png` file from the `<INSTALL_DIR>\deployment_tools\demo` directory as an input image, the IR of your model from `C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir` and on different hardware devices:
 
@@ -423,7 +550,16 @@ classid probability label
 [ INFO ] Execution successful
 ```
 
-</details>
+
+@sphinxdirective
+
+.. raw:: html
+
+   </div>
+
+@endsphinxdirective
+
+
 
 ### <a name="run-security-barrier"></a>Step 5: Run the Security Barrier Camera Demo Application
 
@@ -444,8 +580,16 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
    .\security_barrier_camera_demo -i <path_to_media> -m <path_to_vehicle-license-plate-detection_model_xml> -m_va <path_to_vehicle_attributes_model_xml> -m_lpr <path_to_license_plate_recognition_model_xml> -d <target_device>
    ```
 
-<details>
-    <summary><strong>Click for examples of running the Security Barrier Camera demo application on different devices</strong></summary>
+
+@sphinxdirective
+
+.. raw:: html
+
+   <div class="collapsible-section" data-title="<strong>Click for examples of running the Security Barrier Camera demo application on different devices</strong>">
+
+@endsphinxdirective
+
+
 
 **CPU:**
 
@@ -466,7 +610,16 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
 .\classification_sample_async -i <INSTALL_DIR>\inference-engine\samples\sample_data\car.png -m <ir_dir>\squeezenet1.1.xml -d MYRIAD
 ```
 
-</details>
+
+@sphinxdirective
+
+.. raw:: html
+
+   </div>
+
+@endsphinxdirective
+
+
 
 ## <a name="basic-guidelines-sample-application"></a>Basic Guidelines for Using Code Samples and Demo Applications
 

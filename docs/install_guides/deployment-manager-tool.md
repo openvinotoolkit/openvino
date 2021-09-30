@@ -25,8 +25,16 @@ The Deployment Manager is a Python\* command-line tool that is delivered within 
 There are two ways to create a deployment package that includes inference-related components of the OpenVINO™ toolkit: you can run the Deployment Manager tool in either interactive or standard CLI mode.
 
 ### Run Interactive Mode
-<details>
-  <summary>Click to expand/collapse</summary>
+
+@sphinxdirective
+
+.. raw:: html
+
+   <div class="collapsible-section" data-title="Click to expand/collapse">
+
+@endsphinxdirective
+
+
   
 Interactive mode provides a user-friendly command-line interface that will guide you through the process with text prompts.
 
@@ -49,11 +57,28 @@ Use the options provided on the screen to complete selection of the target devic
    3. Once all the parameters are set, type **g** and press **Enter** to generate the package for the selected target devices. If you want to interrupt the generation process and exit the program, type **q** and press **Enter**.
 
 The script successfully completes and the deployment package is generated in the output directory specified. 
-</details>
+
+@sphinxdirective
+
+.. raw:: html
+
+   </div>
+
+@endsphinxdirective
+
+
 
 ### Run Standard CLI Mode
-<details>
-  <summary>Click to expand/collapse</summary>
+
+@sphinxdirective
+
+.. raw:: html
+
+   <div class="collapsible-section" data-title="Click to expand/collapse">
+
+@endsphinxdirective
+
+
 
 Alternatively, you can run the Deployment Manager tool in the standard CLI mode. In this mode, you specify the target devices and other parameters as command-line arguments of the Deployment Manager Python script. This mode facilitates integrating the tool in an automation pipeline.
 
@@ -75,7 +100,16 @@ The following options are available:
 *	`[--user_data]` — (Optional) Path to a directory with user data (IRs, models, datasets, etc.) required for inference. By default, it's set to `None`, which means that the user data are already present on the target host machine.
 
 The script successfully completes and the deployment package is generated in the output directory specified.
-</details>
+
+@sphinxdirective
+
+.. raw:: html
+
+   </div>
+
+@endsphinxdirective
+
+
 
 ## Deploy Package on Target Hosts
 

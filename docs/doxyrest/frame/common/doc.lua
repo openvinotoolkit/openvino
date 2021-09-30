@@ -86,7 +86,7 @@ function formatDocBlock_programlisting(block, context)
 	code = replaceCommonSpacePrefix(code, "\t")
 	code = trimTrailingWhitespace(code)
 
-	return "\n\n.. ref-code-block:: " .. LANGUAGE .. "\n\n" .. code .. "\n\n"
+	return "\n\n.. code-block:: " .. "guess" .. "\n\n" .. code .. "\n\n"
 end
 
 function formatDocBlock_preformatted(block, context)

@@ -485,8 +485,16 @@ pip3 install -r requirements_onnx.txt
 
 
 
-<details>
-    <summary>Click to expand</summary>
+
+@sphinxdirective
+
+.. raw:: html
+
+   <div class="collapsible-section" data-title="Click to expand">
+
+@endsphinxdirective
+
+
 
 These procedures require:
 
@@ -594,7 +602,16 @@ python3 -m easy_install dist/protobuf-3.6.1-py3.6-win-amd64.egg
 ```shell
 set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
 ```
-</details>
+
+@sphinxdirective
+
+.. raw:: html
+
+   </div>
+
+@endsphinxdirective
+
+
 
 ## See Also
 
