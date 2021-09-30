@@ -10,11 +10,9 @@ from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.utils.error import Error
 
+
 class MergeNodesPermutations(MiddleReplacementPattern):
     enabled = True
-    force_clean_up = True
-    # can't be turned on for Kaldi until permutation logic will be aligned
-    graph_condition = [lambda graph: graph.graph['fw'] != 'kaldi']
 
     def run_after(self):
         return [ApplyNHWCtoNCHWpermutation, PostMiddleStart]

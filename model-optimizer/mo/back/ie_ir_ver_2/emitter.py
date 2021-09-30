@@ -251,27 +251,22 @@ def serialize_meta_list(graph, node, schema, element, edges, unsupported):
 
 def serialize_runtime_info(node, schema: list, parent_element: Element):
     name, attrs, _ = schema
+    if 'rt_info' not in node:
+        return
     rt_info = SubElement(parent_element, 'rt_info')
-    attribute = SubElement(rt_info, 'attribute')
-    attribute.set('name', 'old_api_map')
-    attribute.set('version', '0')
 
-    if 'rt_info' in node:
-        for attr in attrs:
-            key = attr
-            value = None
-            if key == 'old_api_element_type' and 'legacy_type' in node.rt_info.info['old_api']:
-                key = 'element_type'
-                value = np_data_type_to_destination_type(node.rt_info.info['old_api']['legacy_type'])
-            elif key == 'old_api_transpose_order':
-                key = 'order'
-                if node.soft_get('type') == 'Parameter' and 'inverse_order' in node.rt_info.info['old_api']:
-                    value = '{}'.format(node.rt_info.info['old_api']['inverse_order']).replace(' ', ',')
-                elif node.soft_get('type') == 'Result' and 'order' in node.rt_info.info['old_api']:
-                    value = '{}'.format(node.rt_info.info['old_api']['order']).replace(' ', ',')
-            if value is not None:
-                attribute.set(key, value)
-    if len(attribute.attrib) <= 2:
+    for attr in attrs:
+        attribute = SubElement(rt_info, 'attribute')
+        attribute.set('name', attr)
+        attribute.set('version', node.rt_info.info[attr]['version'])
+
+        params = node.rt_info.info[attr]['serialize'](node)
+        if len(params) == 0:
+            rt_info.remove(attribute)
+            continue
+        for key, value in params.items():
+            attribute.set(key, value)
+    if len(rt_info.attrib) == 0 and len(list(rt_info)) == 0:
         parent_element.remove(rt_info)
 
 
@@ -306,7 +301,7 @@ def serialize_node_attributes(
                     serialize_meta_list(graph, node, s, parent_element, edges, unsupported)
                 elif name == '@network':
                     serialize_network(node[s[1]], parent_element, unsupported)
-                elif name == 'runtime_info':
+                elif name == '@runtime_info':
                     serialize_runtime_info(node, s, parent_element)
                 else:
                     serialize_element(graph, node, s, parent_element, edges, unsupported)
