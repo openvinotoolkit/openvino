@@ -12,6 +12,8 @@
 
 #include <iostream>
 
+#include <cldnn/runtime/debug_configuration.hpp>
+
 using namespace cldnn;
 using namespace ::tests;
 
@@ -788,7 +790,7 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
         return true;
     }
 
-     void execute(const mvn_basic_test_params& params) {
+    void execute(const mvn_basic_test_params& params) {
         auto& size = params.input_size;
         auto& output_pad = params.output_pad;
         auto& engine = get_test_engine();
@@ -828,18 +830,18 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
         topology topo_opt;
         topo_opt.add(input_layout("input", input->get_layout()));
         topo_opt.add(reorder("input_to_target_layout", "input", {params.input_type, params.input_format, size}));
-        auto prim_opt = mvn("mvn", "input_to_target_layout", params.normalize_variance, 1e-10f, false, params.across_channels);
+        auto prim_opt = mvn("mvn_opt", "input_to_target_layout", params.normalize_variance, 1e-10f, false, params.across_channels);
         prim_opt.output_padding = output_pad;
         topo_opt.add(prim_opt);
         auto build_opts_opt = build_options();
-        build_opts_opt.set_option(build_option::outputs({"mvn", "input_to_target_layout"}));
-        build_opts_opt.set_option(build_option::force_implementations({ {"mvn", {params.input_format, "mvn_gpu_b_fs_yx_fsv16_imad"}} }));
+        build_opts_opt.set_option(build_option::outputs({"mvn_opt", "input_to_target_layout"}));
+        build_opts_opt.set_option(build_option::force_implementations({ {"mvn_opt", {params.input_format, "mvn_gpu_b_fs_yx_fsv16_imad"}} }));
 
         network net_opt(engine, topo_opt, build_opts_opt);
         net_opt.set_input_data("input", input);
 
         auto outputs_opt = net_opt.execute();
-        auto output_opt = outputs_opt.at("mvn").get_memory();
+        auto output_opt = outputs_opt.at("mvn_opt").get_memory();
 
         auto output_dtype = output->get_layout().data_type;
         auto output_opt_dtype = output_opt->get_layout().data_type;
@@ -880,18 +882,18 @@ struct mvn_test_case_generator_bsv32 : std::vector<mvn_basic_test_params> {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(mvn_bsv32_fsv32,
+INSTANTIATE_TEST_SUITE_P(mvn_bsv32_fsv32,
                         mvn_random_test_bsv32,
                         testing::ValuesIn(mvn_test_case_generator_bsv32()
                                               .bsv32_tests(format::bs_fs_yx_bsv32_fsv32, data_types::i8)));
 
 
-INSTANTIATE_TEST_CASE_P(mvn_bsv32_fsv16,
+INSTANTIATE_TEST_SUITE_P(mvn_bsv32_fsv16,
                         mvn_random_test_bsv32,
                         testing::ValuesIn(mvn_test_case_generator_bsv32()
                                               .bsv32_tests(format::bs_fs_yx_bsv32_fsv16, data_types::f16)));
 
-INSTANTIATE_TEST_CASE_P(mvn_fsv16,
+INSTANTIATE_TEST_SUITE_P(mvn_fsv16,
                         mvn_random_test_bsv32,
                         testing::ValuesIn(mvn_test_case_generator_bsv32()
                                               .bsv32_tests(format::b_fs_yx_fsv16, data_types::i8)));

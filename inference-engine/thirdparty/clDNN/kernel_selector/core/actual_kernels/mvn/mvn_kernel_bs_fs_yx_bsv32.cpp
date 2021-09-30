@@ -191,6 +191,8 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
     auto dispatchData = SetDefaultForMulti(params, has_enough_data);
 
     KernelData kd;
+    size_t entry_part_id = 0;
+
     if (has_enough_data) {
         size_t kernels_num = params.mvnNormalizeVariance ? 5 : 3;
         kd = KernelData::Default<mvn_params>(params, kernels_num);
@@ -200,7 +202,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             // Mean first stage
             auto cldnn_jit = GetJitConstants(params, dispatchData.stage_1);
             cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_MEAN_1", 1));
-            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options);
+            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options, entry_part_id++);
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[0];
             FillCLKernelData(kernel,
@@ -224,7 +226,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             // Mean second stage
             auto cldnn_jit = GetJitConstants(params, dispatchData.stage_2);
             cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_MEAN_2", 1));
-            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options);
+            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options, entry_part_id++);
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[1];
             FillCLKernelData(kernel,
@@ -248,7 +250,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             // Variance first stage
             auto cldnn_jit = GetJitConstants(params, dispatchData.stage_1);
             cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_VAR_1", 1));
-            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options);
+            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options, entry_part_id++);
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[2];
             FillCLKernelData(kernel,
@@ -271,7 +273,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             // Variance second stage
             auto cldnn_jit = GetJitConstants(params, dispatchData.stage_2);
             cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_VAR_2", 1));
-            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options);
+            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options, entry_part_id++);
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[3];
             FillCLKernelData(kernel,
@@ -295,7 +297,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             auto cldnn_jit = GetJitConstants(params, dispatchData.stage_final);
             cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_MAIN_BSV32", 1));
             cldnn_jit.AddConstant(MakeJitConstant("PRECALC_VARIANCE", params.mvnNormalizeVariance));
-            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options);
+            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options, entry_part_id++);
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[kernels_num - 1];
             FillCLKernelData(kernel,
@@ -322,7 +324,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             // Mean and Variance stage
             auto cldnn_jit = GetJitConstants(params, dispatchData.stage_1);
             cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_MEAN_VAR_BSV32", 1));
-            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options);
+            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options, entry_part_id++);
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[0];
             FillCLKernelData(kernel,
@@ -351,7 +353,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             auto cldnn_jit = GetJitConstants(params, dispatchData.stage_final);
             cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_MAIN_BSV32", 1));
             cldnn_jit.AddConstant(MakeJitConstant("PRECALC_VARIANCE", params.mvnNormalizeVariance));
-            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options);
+            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options, entry_part_id++);
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[1];
             FillCLKernelData(kernel,
