@@ -46,6 +46,11 @@ DECLARE_GPU_METRIC_KEY(UARCH_VERSION, std::string);
 DECLARE_GPU_METRIC_KEY(EXECUTION_UNITS_COUNT, int);
 
 /**
+ * @brief Metric to get statistics of GPU memory allocated by engine for each allocation type
+ */
+DECLARE_GPU_METRIC_KEY(MEMORY_STATISTICS, std::map<std::string, uint64_t>);
+
+/**
  * @brief Possible return value for OPTIMIZATION_CAPABILITIES metric
  *  - "HW_MATMUL" - Defines if device has hardware block for matrix multiplication
  */
