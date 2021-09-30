@@ -132,6 +132,7 @@ std::vector<ConvolutionParams> generateConvolutionI8Params() {
 
     std::vector<ConvolutionParams> convolutionParams {
 // --------------------- 1D convolution ------------------------------------------
+// clang-format off
         ConvolutionParams(PartialShape {1, 1, 6},
                           PartialShape {1, 1, 3},
                           PartialShape {1, 1, 4},
@@ -1065,8 +1066,7 @@ std::vector<ConvolutionParams> generateConvolutionFloatParams() {
     };
     return convolutionParams;
 }
-
-
+// clang-format on
 
 std::vector<ConvolutionParams> generateConvolutionCombinedParams() {
     const std::vector<std::vector<ConvolutionParams>> convolutionTypeParams {
