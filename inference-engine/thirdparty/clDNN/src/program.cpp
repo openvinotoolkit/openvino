@@ -1025,9 +1025,10 @@ void program::fuse_nodes(program_node &fused_node, program_node &peer_node, std:
             quantize_node& q_node = peer_node.as<quantize>();
             if (q_node.get_scale_shift_opt()) {
                 bool can_drop_input = false;
+                bool out_range_usage = q_node.get_per_tensor_output_range() && q_node.get_output_lo_val() < q_node.get_output_hi_val();
 
-                // Drop input range if clamp is not needed
-                can_drop_input |= (i == 1 || i == 2) && !q_node.get_need_clamp();
+                // Drop input range if we use output per-tensor range or if clamp is used for input range
+                can_drop_input |= (i == 1 || i == 2) && (out_range_usage || (!out_range_usage && !q_node.get_need_clamp()));
                 // Drop output range - it's not used in scale-shift-opt quantize kernel
                 can_drop_input |= i == 3 || i == 4;
                 // Drop tensor with input scale when we have per-tensor parameter
