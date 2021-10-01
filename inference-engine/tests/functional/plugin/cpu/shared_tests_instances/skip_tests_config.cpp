@@ -113,7 +113,6 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO: Issue CVS-51680
         R"(.*BehaviorTests.*canRun3SyncRequestsConsistentlyFromThreads.*CPU_THROUGHPUT.*)",
-
     };
 
 #define FIX_62820 0
