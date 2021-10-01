@@ -100,7 +100,7 @@ benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
             std::vector<ngraph::Dimension> parsed_shape;
             for (auto& dim : split(shape_map[name], ',')) {
                 if (dim == "?" || dim == "-1") {
-                    parsed_shape.push_back(ngraph::Dimension());
+                    parsed_shape.push_back(ngraph::Dimension::dynamic());
                 } else {
                     const std::string range_divider = "..";
                     size_t range_index = dim.find(range_divider);
@@ -127,9 +127,12 @@ benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
                 parsed_shape.push_back(std::stoi(dim));
             }
             info.blobShape = parsed_shape;
+        } else if(info.partialShape.is_static()) {
+            info.blobShape = info.partialShape.get_shape();
         } else {
-            info.blobShape = descriptor.getDims();
+            throw std::logic_error("blob_shape command line parameter should be set in case of network dynamic shape.");
         }
+
         // Layout
         if (layout_map.count(name)) {
             info.layout = layout_map.at(name);
