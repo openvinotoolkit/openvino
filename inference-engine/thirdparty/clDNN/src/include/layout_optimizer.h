@@ -171,7 +171,7 @@ public:
     explicit layout_optimizer(bool output_size_handling_enabled = true);
 
     format get_preferred_format(program_node& node);
-    impl_types get_preferred_impl_type(program_node& node);
+    impl_types get_preferred_impl_type(program_node& node, format preferred_format);
 
     bool is_format_supported(program_node& node, format::type fmt);
 
