@@ -54,6 +54,17 @@ struct OPENVINO_API DiscreteTypeInfo {
         return *this == target_type || (parent && parent->is_castable(target_type));
     }
 
+    std::string get_version() const {
+        if (version_id) {
+            return std::string(version_id);
+        }
+        return std::to_string(version);
+    }
+
+    operator std::string() const {
+        return std::string(name) + "_" + get_version();
+    }
+
     // For use as a key
     bool operator<(const DiscreteTypeInfo& b) const;
     bool operator<=(const DiscreteTypeInfo& b) const;
