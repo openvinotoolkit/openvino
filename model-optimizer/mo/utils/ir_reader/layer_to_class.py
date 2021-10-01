@@ -7,7 +7,6 @@ import os
 import numpy as np
 
 from extensions.back.TopKNormalizer import TopKNormalizer
-from extensions.middle.FakeSplitOutputs import AddFakeOutputsToSplit
 from extensions.ops.Cast import Cast
 from extensions.ops.ReduceOps import ReduceOp
 from extensions.ops.activation_ops import Activation
@@ -26,7 +25,6 @@ from mo.ops.convolution import Convolution
 from mo.ops.deconvolution import Deconvolution
 from mo.ops.op import Op
 from mo.ops.pooling import Pooling
-from mo.ops.result import Result
 from mo.utils.class_registration import update_registration
 from mo.utils.import_extensions import import_by_path
 from mo.utils.ir_reader.extender import Extender
@@ -389,7 +387,7 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
         # output ports. We need to do that for correct shape inference. These Result operations will be removed during
         # IR emitting.For TopK operation we should use specific function TopKNormalizer.normalize_outputs.
         if op.soft_get('type') != 'TopK':
-            AddFakeOutputsToSplit.node_normalize_outputs(op)
+            Op.normalize_outputs(op)
 
         # Set correct_data_type attribute to Const data nodes to correct processing of restored values
         if op.soft_get('type') == 'Const':
