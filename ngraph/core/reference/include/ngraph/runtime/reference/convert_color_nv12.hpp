@@ -32,7 +32,7 @@ void color_convert_nv12(const T* arg_y,
     };
     auto is_little_endian = little_endian();
     for (int batch = 0; batch < batch_size; batch++) {
-        T* out = out_ptr + batch * image_w * image_h;
+        T* out = out_ptr + batch * image_w * image_h * 3;
         auto y_ptr = arg_y + batch * stride_y;
         auto uv_ptr = arg_uv + batch * stride_uv;
         for (int h = 0; h < image_h; h++) {

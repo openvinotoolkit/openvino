@@ -32,7 +32,8 @@ protected:
     ov::runtime::InferRequest inferRequest;
     std::vector<ov::runtime::Tensor> inputData;
     std::vector<ov::runtime::Tensor> refOutData;
-    float threshold = 1e-2f;
+    float threshold = 1e-2f;    // Relative diff
+    float abs_threshold = -1.f; // Absolute diff (not used when negative)
 };
 
 template <class T>
