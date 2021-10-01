@@ -6,23 +6,21 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-#define GNA_LEGACY 1
-
 namespace GNAPluginNS {
 
 /**
  * @brief Brodcast data in Const layer
  * Transformation recognizes the next patterns
  *
- * Constant
- *    |
- * Eltwise
+ * Constant    Any
+ *       |     |
+ *       Eltwise
  *
  * Constant
  *    |
- * FakeQuantize
- *    |
- * Eltwise
+ * FakeQuantize     Any
+ *            |     |
+ *            Eltwise
  *
  * Where Eltwise node is one of the: Multiply, Substract and Add
  *
