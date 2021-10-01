@@ -385,7 +385,8 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
     for op in new_graph.get_op_nodes():
         # Call normalize node outputs for restored operations to connect temporary Result operations for disconnected
         # output ports. We need to do that for correct shape inference. These Result operations will be removed during
-        # IR emitting.For TopK operation we should use specific function TopKNormalizer.normalize_outputs.
+        # IR emitting. For TopK operation outputs normalizing we should use specific
+        # function TopKNormalizer.normalize_outputs.
         if op.soft_get('type') != 'TopK':
             Op.normalize_outputs(op)
 
