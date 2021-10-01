@@ -2,17 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Defines default accumulator type.
-// TODO: currently we calculate on float32 because it's lot of "add" operation and it stuck on the value "8192.0f"
-// TODO: Get rid of this include and generate proper accumulator type on host (when needed)
-#if !defined(ACCUMULATOR_TYPE)
-    #define ACCUMULATOR_TYPE float
-    #define TO_ACCUMULATOR_TYPE(v) (float)(v)
-    #define ACCUMULATOR_TYPE_ZERO 0.0f
-#endif
 
-
-inline void FUNC(sub_group_block_write_uchar16)(__global uchar* outPtr, uchar16 v) {
+inline void sub_group_block_write_uchar16(__global uchar* outPtr, uchar16 v) {
 #ifdef cl_intel_subgroups_char
     intel_sub_group_block_write_uc16(outPtr, v);
 #else
@@ -37,7 +28,7 @@ inline void FUNC(sub_group_block_write_uchar16)(__global uchar* outPtr, uchar16 
 #endif
 }
 
-inline uchar16 FUNC(sub_group_block_read_uchar16)(const __global uchar* ptr) __attribute__((overloadable)) {
+inline uchar16 sub_group_block_read_uchar16(const __global uchar* ptr) __attribute__((overloadable)) {
 #ifdef cl_intel_subgroups_char
     // WA for compiler support
     // return intel_sub_group_block_read_uc16(ptr);
@@ -68,7 +59,7 @@ inline uchar16 FUNC(sub_group_block_read_uchar16)(const __global uchar* ptr) __a
 #endif
 }
 
-inline uchar16 FUNC(sub_group_block_read_uchar16)(const __local uchar* ptr) __attribute__((overloadable)) {
+inline uchar16 sub_group_block_read_uchar16(const __local uchar* ptr) __attribute__((overloadable)) {
 #if LOCAL_BLOCK_IO_SUPPORTED && defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
     // WA for compiler support
     // return intel_sub_group_block_read_uc16(ptr);
@@ -99,7 +90,7 @@ inline uchar16 FUNC(sub_group_block_read_uchar16)(const __local uchar* ptr) __at
 #endif
 }
 
-inline void FUNC(sub_group_block_write_uchar8)(__global uchar* outPtr, uchar8 v)
+inline void sub_group_block_write_uchar8(__global uchar* outPtr, uchar8 v)
 {
 #ifdef cl_intel_subgroups_char
     intel_sub_group_block_write_uc8(outPtr, v);
@@ -117,7 +108,7 @@ inline void FUNC(sub_group_block_write_uchar8)(__global uchar* outPtr, uchar8 v)
 #endif
 }
 
-inline uchar8 FUNC(sub_group_block_read_uchar8)(const __global uchar* ptr) __attribute__((overloadable)) {
+inline uchar8 sub_group_block_read_uchar8(const __global uchar* ptr) __attribute__((overloadable)) {
 #ifdef cl_intel_subgroups_char
     return intel_sub_group_block_read_uc8(ptr);
 #else
@@ -138,7 +129,7 @@ inline uchar8 FUNC(sub_group_block_read_uchar8)(const __global uchar* ptr) __att
 #endif
 }
 
-inline uchar8 FUNC(sub_group_block_read_uchar8)(const __local uchar* ptr) __attribute__((overloadable)) {
+inline uchar8 sub_group_block_read_uchar8(const __local uchar* ptr) __attribute__((overloadable)) {
 #if LOCAL_BLOCK_IO_SUPPORTED && defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
     return intel_sub_group_block_read_uc8(ptr);
 #else
@@ -159,7 +150,7 @@ inline uchar8 FUNC(sub_group_block_read_uchar8)(const __local uchar* ptr) __attr
 #endif
 }
 
-inline void FUNC(sub_group_block_write_uchar4)(__global uchar* outPtr, uchar4 v) {
+inline void sub_group_block_write_uchar4(__global uchar* outPtr, uchar4 v) {
 #ifdef cl_intel_subgroups_char
     intel_sub_group_block_write_uc4(outPtr, v);
 #else
@@ -172,7 +163,7 @@ inline void FUNC(sub_group_block_write_uchar4)(__global uchar* outPtr, uchar4 v)
 #endif
 }
 
-inline uchar4 FUNC(sub_group_block_read_uchar4)(const __global uchar* ptr) __attribute__((overloadable)) {
+inline uchar4 sub_group_block_read_uchar4(const __global uchar* ptr) __attribute__((overloadable)) {
 #ifdef cl_intel_subgroups_char
     return intel_sub_group_block_read_uc4(ptr);
 #else
@@ -189,7 +180,7 @@ inline uchar4 FUNC(sub_group_block_read_uchar4)(const __global uchar* ptr) __att
 #endif
 }
 
-inline uchar4 FUNC(sub_group_block_read_uchar4)(const __local uchar* ptr) __attribute__((overloadable)) {
+inline uchar4 sub_group_block_read_uchar4(const __local uchar* ptr) __attribute__((overloadable)) {
 #if LOCAL_BLOCK_IO_SUPPORTED && defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
     return intel_sub_group_block_read_uc4(ptr);
 #else
@@ -206,7 +197,7 @@ inline uchar4 FUNC(sub_group_block_read_uchar4)(const __local uchar* ptr) __attr
 #endif
 }
 
-inline void FUNC(sub_group_block_write_uchar2)(__global uchar* outPtr, uchar2 v) {
+inline void sub_group_block_write_uchar2(__global uchar* outPtr, uchar2 v) {
 #ifdef cl_intel_subgroups_char
     intel_sub_group_block_write_uc2(outPtr, v);
 #else
@@ -217,7 +208,7 @@ inline void FUNC(sub_group_block_write_uchar2)(__global uchar* outPtr, uchar2 v)
 #endif
 }
 
-inline uchar2 FUNC(sub_group_block_read_uchar2)(const __global uchar* ptr) __attribute__((overloadable)) {
+inline uchar2 sub_group_block_read_uchar2(const __global uchar* ptr) __attribute__((overloadable)) {
 #ifdef cl_intel_subgroups_char
     return intel_sub_group_block_read_uc2(ptr);
 #else
@@ -232,7 +223,7 @@ inline uchar2 FUNC(sub_group_block_read_uchar2)(const __global uchar* ptr) __att
 #endif
 }
 
-inline uchar2 FUNC(sub_group_block_read_uchar2)(const __local uchar* ptr) __attribute__((overloadable)) {
+inline uchar2 sub_group_block_read_uchar2(const __local uchar* ptr) __attribute__((overloadable)) {
 #if LOCAL_BLOCK_IO_SUPPORTED && defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
     return intel_sub_group_block_read_uc2(ptr);
 #else
@@ -247,7 +238,7 @@ inline uchar2 FUNC(sub_group_block_read_uchar2)(const __local uchar* ptr) __attr
 #endif
 }
 
-inline void FUNC(sub_group_block_write_uchar)(__global uchar* outPtr, uchar v) {
+inline void sub_group_block_write_uchar(__global uchar* outPtr, uchar v) {
 #ifdef cl_intel_subgroups_char
     intel_sub_group_block_write_uc(outPtr, v);
 #else
@@ -257,7 +248,7 @@ inline void FUNC(sub_group_block_write_uchar)(__global uchar* outPtr, uchar v) {
 #endif
 }
 
-inline uchar FUNC(sub_group_block_read_uchar)(const __global uchar* ptr) __attribute__((overloadable)) {
+inline uchar sub_group_block_read_uchar(const __global uchar* ptr) __attribute__((overloadable)) {
 #ifdef cl_intel_subgroups_char
     return intel_sub_group_block_read_uc(ptr);
 #else
@@ -271,7 +262,7 @@ inline uchar FUNC(sub_group_block_read_uchar)(const __global uchar* ptr) __attri
 #endif
 }
 
-inline uchar FUNC(sub_group_block_read_uchar)(const __local uchar* ptr) __attribute__((overloadable)) {
+inline uchar sub_group_block_read_uchar(const __local uchar* ptr) __attribute__((overloadable)) {
 #if LOCAL_BLOCK_IO_SUPPORTED && defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
     return intel_sub_group_block_read_uc(ptr);
 #else
@@ -356,17 +347,17 @@ inline uchar FUNC(sub_group_block_read_uchar)(const __local uchar* ptr) __attrib
 #define BLOCK_WRITE_FUNC_size4       intel_sub_group_block_write
 #define BLOCK_WRITE_FUNC(type_size)  CAT(BLOCK_WRITE_FUNC_size, type_size)
 
-#define BLOCK_READ_UC_1(ptr)  FUNC_CALL(sub_group_block_read_uchar)(ptr)
-#define BLOCK_READ_UC_2(ptr)  FUNC_CALL(sub_group_block_read_uchar2)(ptr)
-#define BLOCK_READ_UC_4(ptr)  FUNC_CALL(sub_group_block_read_uchar4)(ptr)
-#define BLOCK_READ_UC_8(ptr)  FUNC_CALL(sub_group_block_read_uchar8)(ptr)
-#define BLOCK_READ_UC_16(ptr) FUNC_CALL(sub_group_block_read_uchar16)(ptr)
+#define BLOCK_READ_UC_1(ptr)  sub_group_block_read_uchar(ptr)
+#define BLOCK_READ_UC_2(ptr)  sub_group_block_read_uchar2(ptr)
+#define BLOCK_READ_UC_4(ptr)  sub_group_block_read_uchar4(ptr)
+#define BLOCK_READ_UC_8(ptr)  sub_group_block_read_uchar8(ptr)
+#define BLOCK_READ_UC_16(ptr) sub_group_block_read_uchar16(ptr)
 
-#define BLOCK_WRITE_UC_1(ptr, val)  FUNC_CALL(sub_group_block_write_uchar)(ptr, val)
-#define BLOCK_WRITE_UC_2(ptr, val)  FUNC_CALL(sub_group_block_write_uchar2)(ptr, val)
-#define BLOCK_WRITE_UC_4(ptr, val)  FUNC_CALL(sub_group_block_write_uchar4)(ptr, val)
-#define BLOCK_WRITE_UC_8(ptr, val)  FUNC_CALL(sub_group_block_write_uchar8)(ptr, val)
-#define BLOCK_WRITE_UC_16(ptr, val) FUNC_CALL(sub_group_block_write_uchar16)(ptr, val)
+#define BLOCK_WRITE_UC_1(ptr, val)  sub_group_block_write_uchar(ptr, val)
+#define BLOCK_WRITE_UC_2(ptr, val)  sub_group_block_write_uchar2(ptr, val)
+#define BLOCK_WRITE_UC_4(ptr, val)  sub_group_block_write_uchar4(ptr, val)
+#define BLOCK_WRITE_UC_8(ptr, val)  sub_group_block_write_uchar8(ptr, val)
+#define BLOCK_WRITE_UC_16(ptr, val) sub_group_block_write_uchar16(ptr, val)
 
 #define BLOCK_READN_FUNC_size1(vector_size)                 CAT(BLOCK_READ_UC_, vector_size)
 #define BLOCK_READN_FUNC_SIZE_DEF(type_size, vector_size)   MAKE_VECTOR_TYPE(BLOCK_READ_FUNC(type_size), vector_size)

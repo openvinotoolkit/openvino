@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/fetch_data.cl"
-#include "include/fetch_weights.cl"
+#include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/fetch_weights.cl"
 #include "include/imad.cl"
 #if QUANTIZATION_TERM
 #define ACCUMULATOR_TYPE int
@@ -16,7 +16,6 @@
 #define ACTIVATION_TYPE INPUT0_TYPE
 #define TO_ACTIVATION_TYPE(x) TO_INPUT0_TYPE(x)
 #endif
-#define MAKE_VECTOR_TYPE(elem_type, size) CAT(elem_type, size)
 #define OUTPUT_TYPE16 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 16)
 #define BATCH_SLICE_SIZE 16
 #define FEATURE_SLICE_SIZE 16

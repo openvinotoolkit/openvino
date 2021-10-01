@@ -8,7 +8,7 @@
 // Output matrix dimensions: M x N
 // --------------------------------------------------------------------------------------------------------------------------------
 
-#include "include/common.cl"
+#include "include/batch_headers/common.cl"
 
 
 #define DOT4i0( _result, _A, _B, i)					\

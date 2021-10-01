@@ -51,7 +51,7 @@
     )
 
 #define GET_FILTER_OS_IS_YX_ISV8_OSV16_ISV2_INDEX(prefix, o, i, y, x, sub_group_size) \
-    FUNC_CALL(get_os_is_zyx_isv8_osv16_isv2_index)(                                   \
+    get_os_is_zyx_isv8_osv16_isv2_index(                                   \
         0, o, i, 0, y, x,                                                             \
         CAT(prefix, _SIZE_X),                                                         \
         CAT(prefix, _SIZE_Y),                                                         \
@@ -63,7 +63,7 @@
     )
 
 #define GET_FILTER_OS_IS_ZYX_ISV8_OSV16_ISV2_INDEX(prefix, o, i, z, y, x, sub_group_size) \
-    FUNC_CALL(get_os_is_zyx_isv8_osv16_isv2_index)(                                       \
+    get_os_is_zyx_isv8_osv16_isv2_index(                                       \
         0, o, i, z, y, x,                                                                 \
         CAT(prefix, _SIZE_X),                                                             \
         CAT(prefix, _SIZE_Y),                                                             \
@@ -74,7 +74,7 @@
         CAT(prefix, _OFFSET)                                                              \
     )
 
-inline uint FUNC(get_os_is_zyx_osv_isv_index)(uint o, uint i, uint z, uint y, uint x,
+inline uint get_os_is_zyx_osv_isv_index(uint o, uint i, uint z, uint y, uint x,
     uint x_size, uint y_size, uint z_size, uint i_size, uint o_size, uint osv_size, uint isv_size)
 {
     const uint isv = i % isv_size;
@@ -100,7 +100,7 @@ inline uint FUNC(get_os_is_zyx_osv_isv_index)(uint o, uint i, uint z, uint y, ui
     return output_offset;
 }
 
-inline uint FUNC(get_g_os_is_zyx_osv_isv_index)(uint g, uint o, uint i, uint z, uint y, uint x,
+inline uint get_g_os_is_zyx_osv_isv_index(uint g, uint o, uint i, uint z, uint y, uint x,
     uint x_size, uint y_size, uint z_size, uint i_size, uint o_size, uint osv_size, uint isv_size)
 {
     const uint isv = i % isv_size;
@@ -129,7 +129,7 @@ inline uint FUNC(get_g_os_is_zyx_osv_isv_index)(uint g, uint o, uint i, uint z, 
 }
 
 #define GET_FILTER_G_OS_IS_ZYX_OSV16_ISV16_INDEX(prefix, g, o, i, z, y, x)   \
-    FUNC_CALL(get_g_os_is_zyx_osv_isv_index)(                                \
+    get_g_os_is_zyx_osv_isv_index(                                \
         g, o, i, z, y, x,                                                    \
         CAT(prefix, _SIZE_X),                                                \
         CAT(prefix, _SIZE_Y),                                                \
@@ -140,7 +140,7 @@ inline uint FUNC(get_g_os_is_zyx_osv_isv_index)(uint g, uint o, uint i, uint z, 
         16)
 
 #define GET_FILTER_OS_IS_YX_OSV16_ISV16_INDEX(prefix, o, i, y, x) \
-    FUNC_CALL(get_os_is_zyx_osv_isv_index)(                       \
+    get_os_is_zyx_osv_isv_index(                       \
         o, i, 0, y, x,                                            \
         CAT(prefix, _SIZE_X),                                     \
         CAT(prefix, _SIZE_Y),                                     \
@@ -151,7 +151,7 @@ inline uint FUNC(get_g_os_is_zyx_osv_isv_index)(uint g, uint o, uint i, uint z, 
         16)
 
 #define GET_FILTER_OS_IS_ZYX_OSV16_ISV16_INDEX(prefix, o, i, z, y, x)   \
-    FUNC_CALL(get_os_is_zyx_osv_isv_index)(                             \
+    get_os_is_zyx_osv_isv_index(                             \
         o, i, z, y, x,                                                  \
         CAT(prefix, _SIZE_X),                                           \
         CAT(prefix, _SIZE_Y),                                           \
@@ -162,7 +162,7 @@ inline uint FUNC(get_g_os_is_zyx_osv_isv_index)(uint g, uint o, uint i, uint z, 
         16)
 
 #define GET_FILTER_OS_IS_ZYX_OSV32_ISV16_INDEX(prefix, o, i, z, y, x)   \
-    FUNC_CALL(get_os_is_zyx_osv_isv_index)(                             \
+    get_os_is_zyx_osv_isv_index(                             \
         o, i, z, y, x,                                                  \
         CAT(prefix, _SIZE_X),                                           \
         CAT(prefix, _SIZE_Y),                                           \
@@ -173,7 +173,7 @@ inline uint FUNC(get_g_os_is_zyx_osv_isv_index)(uint g, uint o, uint i, uint z, 
         16)
 
 #define GET_FILTER_OS_IS_ZYX_OSV64_ISV16_INDEX(prefix, o, i, z, y, x)   \
-    FUNC_CALL(get_os_is_zyx_osv_isv_index)(                             \
+    get_os_is_zyx_osv_isv_index(                             \
         o, i, z, y, x,                                                  \
         CAT(prefix, _SIZE_X),                                           \
         CAT(prefix, _SIZE_Y),                                           \
@@ -184,7 +184,7 @@ inline uint FUNC(get_g_os_is_zyx_osv_isv_index)(uint g, uint o, uint i, uint z, 
         16)
 
 #define GET_FILTER_G_OS_IS_YX_ISV8_OSV16_ISV2_INDEX(prefix, g, o, i, y, x, sub_group_size) \
-    FUNC_CALL(get_os_is_zyx_isv8_osv16_isv2_index)(                                        \
+    get_os_is_zyx_isv8_osv16_isv2_index(                                        \
         g, o, i, 0, y, x,                                                                  \
         CAT(prefix, _SIZE_X),                                                              \
         CAT(prefix, _SIZE_Y),                                                              \
@@ -196,7 +196,7 @@ inline uint FUNC(get_g_os_is_zyx_osv_isv_index)(uint g, uint o, uint i, uint z, 
     )
 
 #define GET_FILTER_G_OS_IS_ZYX_ISV8_OSV16_ISV2_INDEX(prefix, g, o, i, z, y, x, sub_group_size) \
-    FUNC_CALL(get_os_is_zyx_isv8_osv16_isv2_index)(                                            \
+    get_os_is_zyx_isv8_osv16_isv2_index(                                            \
         g, o, i, z, y, x,                                                                      \
         CAT(prefix, _SIZE_X),                                                                  \
         CAT(prefix, _SIZE_Y),                                                                  \
@@ -207,7 +207,7 @@ inline uint FUNC(get_g_os_is_zyx_osv_isv_index)(uint g, uint o, uint i, uint z, 
         CAT(prefix, _OFFSET)                                                                   \
     )
 
-inline uint FUNC(get_os_is_zyx_isv8_osv16_isv2_index)(uint g, uint o, uint i,  uint z, uint y, uint x, uint x_size, uint y_size, uint z_size,
+inline uint get_os_is_zyx_isv8_osv16_isv2_index(uint g, uint o, uint i,  uint z, uint y, uint x, uint x_size, uint y_size, uint z_size,
                                                       uint g_size, uint o_size, uint i_size, uint offset)
 {
     const uint group_offset = g * o_size * i_size * z_size * y_size * x_size;
@@ -227,7 +227,7 @@ inline uint FUNC(get_os_is_zyx_isv8_osv16_isv2_index)(uint g, uint o, uint i,  u
     return idx;
 }
 
-inline uint FUNC(get_os_zyxi_osv16_index)(uint o, uint i, uint z, uint y, uint x, uint i_size, uint o_size, uint x_size, uint y_size, uint z_size)
+inline uint get_os_zyxi_osv16_index(uint o, uint i, uint z, uint y, uint x, uint i_size, uint o_size, uint x_size, uint y_size, uint z_size)
 {
     const size_t idx = o%16 + (o / 16)*i_size*x_size*y_size*z_size*16 +
                        16 *(i+ x*i_size + y*i_size*x_size + z*i_size*x_size*y_size);
@@ -235,7 +235,7 @@ inline uint FUNC(get_os_zyxi_osv16_index)(uint o, uint i, uint z, uint y, uint x
 }
 
 #define GET_FILTER_OS_ZYXI_OSV16(prefix, o, i, z, y, x) \
-    FUNC_CALL(get_os_zyxi_osv16_index)(                 \
+    get_os_zyxi_osv16_index(                 \
         o, i, z, y, x, CAT(prefix, _IFM_NUM),           \
         CAT(prefix, _OFM_NUM),                          \
         CAT(prefix, _SIZE_X),                           \
@@ -338,7 +338,7 @@ inline uint FUNC(get_os_zyxi_osv16_index)(uint o, uint i, uint z, uint y, uint x
         ((o) / (sub_group_size))*CAT(prefix, _OFM_PITCH)                            \
     )
 
-inline uint FUNC(get_gi_yxs_os_yxsv2_osv_index)(uint g, uint o, uint i, uint y, uint x, uint x_size, uint g_pitch, uint i_pitch,
+inline uint get_gi_yxs_os_yxsv2_osv_index(uint g, uint o, uint i, uint y, uint x, uint x_size, uint g_pitch, uint i_pitch,
                                                 uint y_pitch, uint x_pitch, uint offset, uint sub_group_size)
 {
     const uint aligned_ofm_line = x_pitch;
@@ -363,7 +363,7 @@ inline uint FUNC(get_gi_yxs_os_yxsv2_osv_index)(uint g, uint o, uint i, uint y, 
 }
 
 #define GET_FILTER_I_YXS_OS_YXSV2_OSV_INDEX(prefix, o, i, y, x, sub_group_size) \
-    FUNC_CALL(get_gi_yxs_os_yxsv2_osv_index)(                                   \
+    get_gi_yxs_os_yxsv2_osv_index(                                   \
         0, o, i, y, x,                                                          \
         CAT(prefix, _SIZE_X ),                                                  \
         CAT(prefix, _GROUPS_PITCH),                                             \
@@ -373,7 +373,7 @@ inline uint FUNC(get_gi_yxs_os_yxsv2_osv_index)(uint g, uint o, uint i, uint y, 
         CAT(prefix, _OFFSET),                                                   \
         sub_group_size)
 
-inline uint FUNC(get_giy_xs_os_xsv2_osv_index)(uint g, uint o, uint i, uint y, uint x, uint x_size, uint g_pitch,
+inline uint get_giy_xs_os_xsv2_osv_index(uint g, uint o, uint i, uint y, uint x, uint x_size, uint g_pitch,
                                                uint i_pitch, uint y_pitch, uint x_pitch, uint offset, uint sub_group_size)
 {
     const uint aligned_ofm_line = x_pitch;
@@ -409,7 +409,7 @@ inline uint FUNC(get_giy_xs_os_xsv2_osv_index)(uint g, uint o, uint i, uint y, u
 }
 
 #define GET_FILTER_IY_XS_OS_XSV2_OSV_INDEX(prefix, o, i, y, x, sub_group_size)  \
-    FUNC_CALL(get_giy_xs_os_xsv2_osv_index)(                                    \
+    get_giy_xs_os_xsv2_osv_index(                                    \
         0, o, i, y, x,                                                          \
         CAT(prefix, _SIZE_X ),                                                  \
         CAT(prefix, _GROUPS_PITCH),                                             \
@@ -419,7 +419,7 @@ inline uint FUNC(get_giy_xs_os_xsv2_osv_index)(uint g, uint o, uint i, uint y, u
         CAT(prefix, _OFFSET),                                                   \
         sub_group_size)
 
-inline uint FUNC(get_os_is_yx_isa8_osv8_isv4_index)(uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
+inline uint get_os_is_yx_isa8_osv8_isv4_index(uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
 {
     const uint f_32_aligned = ((size_ifm + 31)/32) * 32;
 	const uint isv2_idx = i % 4;
@@ -438,14 +438,14 @@ inline uint FUNC(get_os_is_yx_isa8_osv8_isv4_index)(uint o, uint i, uint y, uint
 }
 
 #define GET_FILTER_OS_IS_YX_ISA8_OSV8_ISV4_INDEX(prefix, o, i, y, x) \
-    FUNC_CALL(get_os_is_yx_isa8_osv8_isv4_index)(                    \
+    get_os_is_yx_isa8_osv8_isv4_index(                    \
         o, i, y, x, CAT(prefix, _SIZE_X ),                           \
         CAT(prefix, _SIZE_Y),                                        \
         CAT(prefix, _IFM_NUM),                                       \
         CAT(prefix, _OFM_NUM),                                       \
         CAT(prefix, _OFFSET))
 
-inline uint FUNC(get_os_is_zyx_isa8_osv8_isv4_index)(uint o, uint i, uint z, uint y, uint x,
+inline uint get_os_is_zyx_isa8_osv8_isv4_index(uint o, uint i, uint z, uint y, uint x,
                                                      uint size_x, uint size_y, uint size_z,
                                                      uint size_ifm, uint size_ofm, uint offset)
 {
@@ -467,7 +467,7 @@ inline uint FUNC(get_os_is_zyx_isa8_osv8_isv4_index)(uint o, uint i, uint z, uin
 }
 
 #define GET_FILTER_OS_IS_ZYX_ISA8_OSV8_ISV4_INDEX(prefix, o, i, z, y, x) \
-    FUNC_CALL(get_os_is_zyx_isa8_osv8_isv4_index)(                       \
+    get_os_is_zyx_isa8_osv8_isv4_index(                       \
         o, i, z, y, x,                                                   \
         CAT(prefix, _SIZE_X ),                                           \
         CAT(prefix, _SIZE_Y),                                            \
@@ -476,7 +476,7 @@ inline uint FUNC(get_os_is_zyx_isa8_osv8_isv4_index)(uint o, uint i, uint z, uin
         CAT(prefix, _OFM_NUM),                                           \
         CAT(prefix, _OFFSET))
 
-inline uint FUNC(get_os_is_yx_isa8_osv16_isv4_index)(uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
+inline uint get_os_is_yx_isa8_osv16_isv4_index(uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
 {
     const uint f_32_aligned = ((size_ifm + 31)/32) * 32;
     const uint isv2_idx = i % 4;
@@ -495,14 +495,14 @@ inline uint FUNC(get_os_is_yx_isa8_osv16_isv4_index)(uint o, uint i, uint y, uin
 }
 
 #define GET_FILTER_OS_IS_YX_ISA8_OSV16_ISV4_INDEX(prefix, o, i, y, x) \
-    FUNC_CALL(get_os_is_yx_isa8_osv16_isv4_index)(                    \
+    get_os_is_yx_isa8_osv16_isv4_index(                    \
         o, i, y, x, CAT(prefix, _SIZE_X ),                            \
         CAT(prefix, _SIZE_Y),                                         \
         CAT(prefix, _IFM_NUM),                                        \
         CAT(prefix, _OFM_NUM),                                        \
         CAT(prefix, _OFFSET))
 
-inline uint FUNC(get_os_is_zyx_isa8_osv16_isv4_index)(uint o, uint i, uint z, uint y, uint x,
+inline uint get_os_is_zyx_isa8_osv16_isv4_index(uint o, uint i, uint z, uint y, uint x,
                                                       uint size_x, uint size_y, uint size_z,
                                                       uint size_ifm, uint size_ofm, uint offset)
 {
@@ -524,7 +524,7 @@ inline uint FUNC(get_os_is_zyx_isa8_osv16_isv4_index)(uint o, uint i, uint z, ui
 }
 
 #define GET_FILTER_OS_IS_ZYX_ISA8_OSV16_ISV4_INDEX(prefix, o, i, z, y, x) \
-    FUNC_CALL(get_os_is_zyx_isa8_osv16_isv4_index)(                       \
+    get_os_is_zyx_isa8_osv16_isv4_index(                       \
         o, i, z, y, x,                                                    \
         CAT(prefix, _SIZE_X ),                                            \
         CAT(prefix, _SIZE_Y),                                             \
@@ -533,7 +533,7 @@ inline uint FUNC(get_os_is_zyx_isa8_osv16_isv4_index)(uint o, uint i, uint z, ui
         CAT(prefix, _OFM_NUM),                                            \
         CAT(prefix, _OFFSET))
 
-inline uint FUNC(get_os_is_yx_isa8_osv8_isv4_swizzled_by_4_index)(uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
+inline uint get_os_is_yx_isa8_osv8_isv4_swizzled_by_4_index(uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
 {
     const uint o_swizzled = (o % 4) * 8 + ((o % 32) / 4) + (o / 32) * 32;
 
@@ -553,7 +553,7 @@ inline uint FUNC(get_os_is_yx_isa8_osv8_isv4_swizzled_by_4_index)(uint o, uint i
     return idx;
 }
 
-inline uint FUNC(get_os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4_index)(uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
+inline uint get_os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4_index(uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
 {
     const uint o_swizzled = (o % 4) * 8 + ((o % 32) / 4) + (o / 32) * 32;
     const uint isv_idx = i % 4;
@@ -578,7 +578,7 @@ inline uint FUNC(get_os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4_index)(uint o, u
     return idx;
 }
 
-inline uint FUNC(get_os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4_index)(uint o, uint i, uint z, uint y, uint x,
+inline uint get_os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4_index(uint o, uint i, uint z, uint y, uint x,
                                                                         uint size_x, uint size_y, uint size_z,
                                                                         uint size_ifm, uint size_ofm, uint offset)
 {
@@ -606,7 +606,7 @@ inline uint FUNC(get_os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4_index)(uint o, 
     return idx;
 }
 
-inline uint FUNC(get_g_os_is_yx_osa4_isa8_osv8_isv4)(uint g, uint o, uint i, uint z, uint y, uint x,
+inline uint get_g_os_is_yx_osa4_isa8_osv8_isv4(uint g, uint o, uint i, uint z, uint y, uint x,
                                                      uint size_x, uint size_y, uint size_z, uint size_ifm, uint size_ofm, uint offset)
 {
     const uint isv_idx = i % 4;
@@ -634,8 +634,8 @@ inline uint FUNC(get_g_os_is_yx_osa4_isa8_osv8_isv4)(uint g, uint o, uint i, uin
     return idx;
 }
 
-inline uint FUNC(get_g_os_is_yx_osa4_isa8_osv8_isv2)(uint g, uint o, uint i, uint z, uint y, uint x,
-                                                     uint size_x, uint size_y,  uint size_z, uint size_ifm, uint size_ofm, uint offset)
+inline uint get_g_os_is_yx_osa4_isa8_osv8_isv2(uint g, uint o, uint i, uint z, uint y, uint x,
+                                               uint size_x, uint size_y,  uint size_z, uint size_ifm, uint size_ofm, uint offset)
 {
     const uint isv_idx = i % 2;
     const uint isa_idx = (i / 2) % 8;
@@ -662,7 +662,7 @@ inline uint FUNC(get_g_os_is_yx_osa4_isa8_osv8_isv2)(uint g, uint o, uint i, uin
     return idx;
 }
 
-inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv4)(uint g, uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
+inline uint get_g_os_is_yx_osa2_isa8_osv16_isv4(uint g, uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
 {
     const uint isv_idx = i % 4;
     const uint isa_idx = (i / 4) % 8;
@@ -688,7 +688,7 @@ inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv4)(uint g, uint o, uint i, ui
     return idx;
 }
 
-inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv2)(uint g, uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
+inline uint get_g_os_is_yx_osa2_isa8_osv16_isv2(uint g, uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
 {
     const uint isv_idx = i % 2;
     const uint isa_idx = (i / 2) % 8;
@@ -715,7 +715,7 @@ inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv2)(uint g, uint o, uint i, ui
 }
 
 #define GET_FILTER_OS_IS_YX_OSA4_ISA8_OSV8_ISV4_INDEX(prefix, o, i, y, x) \
-    FUNC_CALL(get_g_os_is_yx_osa4_isa8_osv8_isv4)(                        \
+    get_g_os_is_yx_osa4_isa8_osv8_isv4(                        \
         0, o, i, 0, y, x,                                                 \
         CAT(prefix, _SIZE_X),                                             \
         CAT(prefix, _SIZE_Y),                                             \
@@ -725,7 +725,7 @@ inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv2)(uint g, uint o, uint i, ui
         CAT(prefix, _OFFSET))
 
 #define GET_FILTER_OS_IS_ZYX_OSA4_ISA8_OSV8_ISV4_INDEX(prefix, o, i, z, y, x) \
-    FUNC_CALL(get_g_os_is_yx_osa4_isa8_osv8_isv4)(                            \
+    get_g_os_is_yx_osa4_isa8_osv8_isv4(                            \
         0, o, i, z, y, x,                                                     \
         CAT(prefix, _SIZE_X),                                                 \
         CAT(prefix, _SIZE_Y),                                                 \
@@ -735,7 +735,7 @@ inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv2)(uint g, uint o, uint i, ui
         CAT(prefix, _OFFSET))
 
 #define GET_FILTER_G_OS_IS_YX_OSA4_ISA8_OSV8_ISV4_INDEX(prefix, g, o, i, y, x) \
-    FUNC_CALL(get_g_os_is_yx_osa4_isa8_osv8_isv4)(                             \
+    get_g_os_is_yx_osa4_isa8_osv8_isv4(                             \
         g, o, i, 0, y, x,                                                      \
         CAT(prefix, _SIZE_X),                                                  \
         CAT(prefix, _SIZE_Y),                                                  \
@@ -745,7 +745,7 @@ inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv2)(uint g, uint o, uint i, ui
         CAT(prefix, _OFFSET))
 
 #define GET_FILTER_G_OS_IS_ZYX_OSA4_ISA8_OSV8_ISV4_INDEX(prefix, g, o, i, z, y, x) \
-    FUNC_CALL(get_g_os_is_yx_osa4_isa8_osv8_isv4)(                                 \
+    get_g_os_is_yx_osa4_isa8_osv8_isv4(                                 \
         g, o, i, z, y, x,                                                          \
         CAT(prefix, _SIZE_X),                                                      \
         CAT(prefix, _SIZE_Y),                                                      \
@@ -755,7 +755,7 @@ inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv2)(uint g, uint o, uint i, ui
         CAT(prefix, _OFFSET))
 
 #define GET_FILTER_OS_IS_YX_OSA4_ISA8_OSV8_ISV2_INDEX(prefix, o, i, y, x) \
-    FUNC_CALL(get_g_os_is_yx_osa4_isa8_osv8_isv2)(                        \
+    get_g_os_is_yx_osa4_isa8_osv8_isv2(                        \
         0, o, i, 0, y, x,                                                 \
         CAT(prefix, _SIZE_X),                                             \
         CAT(prefix, _SIZE_Y),                                             \
@@ -765,7 +765,7 @@ inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv2)(uint g, uint o, uint i, ui
         CAT(prefix, _OFFSET))
 
 #define GET_FILTER_OS_IS_ZYX_OSA4_ISA8_OSV8_ISV2_INDEX(prefix, o, i, z, y, x) \
-    FUNC_CALL(get_g_os_is_yx_osa4_isa8_osv8_isv2)(                            \
+    get_g_os_is_yx_osa4_isa8_osv8_isv2(                            \
         0, o, i, z, y, x,                                                     \
         CAT(prefix, _SIZE_X),                                                 \
         CAT(prefix, _SIZE_Y),                                                 \
@@ -775,7 +775,7 @@ inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv2)(uint g, uint o, uint i, ui
         CAT(prefix, _OFFSET))
 
 #define GET_FILTER_G_OS_IS_YX_OSA4_ISA8_OSV8_ISV2_INDEX(prefix, g, o, i, y, x) \
-    FUNC_CALL(get_g_os_is_yx_osa4_isa8_osv8_isv2)(                             \
+    get_g_os_is_yx_osa4_isa8_osv8_isv2(                             \
         g, o, i, 0, y, x,                                                      \
         CAT(prefix, _SIZE_X),                                                  \
         CAT(prefix, _SIZE_Y),                                                  \
@@ -785,7 +785,7 @@ inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv2)(uint g, uint o, uint i, ui
         CAT(prefix, _OFFSET))
 
 #define GET_FILTER_G_OS_IS_ZYX_OSA4_ISA8_OSV8_ISV2_INDEX(prefix, g, o, i, z, y, x) \
-    FUNC_CALL(get_g_os_is_yx_osa4_isa8_osv8_isv2)(                                 \
+    get_g_os_is_yx_osa4_isa8_osv8_isv2(                                 \
         g, o, i, z, y, x,                                                          \
         CAT(prefix, _SIZE_X),                                                      \
         CAT(prefix, _SIZE_Y),                                                      \
@@ -795,7 +795,7 @@ inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv2)(uint g, uint o, uint i, ui
         CAT(prefix, _OFFSET))
 
 #define GET_FILTER_OS_IS_YX_OSA2_ISA8_OSV16_ISV4_INDEX(prefix, o, i, y, x) \
-    FUNC_CALL(get_g_os_is_yx_osa2_isa8_osv16_isv4)(                        \
+    get_g_os_is_yx_osa2_isa8_osv16_isv4(                        \
         0, o, i, y, x,                                                     \
         CAT(prefix, _SIZE_X),                                              \
         CAT(prefix, _SIZE_Y),                                              \
@@ -804,7 +804,7 @@ inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv2)(uint g, uint o, uint i, ui
         CAT(prefix, _OFFSET))
 
 #define GET_FILTER_G_OS_IS_YX_OSA2_ISA8_OSV16_ISV4_INDEX(prefix, g, o, i, y, x) \
-    FUNC_CALL(get_g_os_is_yx_osa2_isa8_osv16_isv4)(                             \
+    get_g_os_is_yx_osa2_isa8_osv16_isv4(                             \
         g, o, i, y, x,                                                          \
         CAT(prefix, _SIZE_X),                                                   \
         CAT(prefix, _SIZE_Y),                                                   \
@@ -813,7 +813,7 @@ inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv2)(uint g, uint o, uint i, ui
         CAT(prefix, _OFFSET))
 
 #define GET_FILTER_OS_IS_YX_OSA2_ISA8_OSV16_ISV2_INDEX(prefix, o, i, y, x) \
-    FUNC_CALL(get_g_os_is_yx_osa2_isa8_osv16_isv2)(                        \
+    get_g_os_is_yx_osa2_isa8_osv16_isv2(                        \
         0, o, i, y, x,                                                     \
         CAT(prefix, _SIZE_X),                                              \
         CAT(prefix, _SIZE_Y),                                              \
@@ -822,7 +822,7 @@ inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv2)(uint g, uint o, uint i, ui
         CAT(prefix, _OFFSET))
 
 #define GET_FILTER_G_OS_IS_YX_OSA2_ISA8_OSV16_ISV2_INDEX(prefix, g, o, i, y, x) \
-    FUNC_CALL(get_g_os_is_yx_osa2_isa8_osv16_isv2)(                             \
+    get_g_os_is_yx_osa2_isa8_osv16_isv2(                             \
         g, o, i, y, x,                                                          \
         CAT(prefix, _SIZE_X),                                                   \
         CAT(prefix, _SIZE_Y),                                                   \
@@ -831,7 +831,7 @@ inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv2)(uint g, uint o, uint i, ui
         CAT(prefix, _OFFSET))
 
 #define GET_FILTER_OS_IS_YX_ISA8_OSV8_ISV4_SWIZZLED_BY_4_INDEX(prefix, o, i, y, x) \
-	FUNC_CALL(get_os_is_yx_isa8_osv8_isv4_swizzled_by_4_index)(                    \
+	get_os_is_yx_isa8_osv8_isv4_swizzled_by_4_index(                    \
         o, i, y, x, CAT(prefix, _SIZE_X ),                                         \
         CAT(prefix, _SIZE_Y),                                                      \
         CAT(prefix, _IFM_NUM),                                                     \
@@ -839,7 +839,7 @@ inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv2)(uint g, uint o, uint i, ui
         CAT(prefix, _OFFSET))
 
 #define GET_FILTER_OS_IS_YX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4_INDEX(prefix, o, i, y, x) \
-    FUNC_CALL(get_os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4_index)(                    \
+    get_os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4_index(                    \
         o, i, y, x,                                                                     \
         CAT(prefix, _SIZE_X),                                                           \
         CAT(prefix, _SIZE_Y),                                                           \
@@ -848,7 +848,7 @@ inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv2)(uint g, uint o, uint i, ui
         CAT(prefix, _OFFSET))
 
 #define GET_FILTER_OS_IS_ZYX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4_INDEX(prefix, o, i, z, y, x) \
-    FUNC_CALL(get_os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4_index)(                       \
+    get_os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4_index(                       \
         o, i, z, y, x,                                                                      \
         CAT(prefix, _SIZE_X),                                                               \
         CAT(prefix, _SIZE_Y),                                                               \
@@ -858,7 +858,7 @@ inline uint FUNC(get_g_os_is_yx_osa2_isa8_osv16_isv2)(uint g, uint o, uint i, ui
         CAT(prefix, _OFFSET))
 
 
-inline uint FUNC(get_is_o_yx_isv32_index)(uint o, uint i, uint y, uint x, uint i_size, uint o_size, uint x_size, uint y_size)
+inline uint get_is_o_yx_isv32_index(uint o, uint i, uint y, uint x, uint i_size, uint o_size, uint x_size, uint y_size)
 {
     const uint i_aligned_to_32 = ((i_size + 31) / 32) * 32;
     const uint i_val = i % 32;
@@ -868,14 +868,14 @@ inline uint FUNC(get_is_o_yx_isv32_index)(uint o, uint i, uint y, uint x, uint i
 }
 
 #define GET_FILTER_IS_O_YX_ISV32(prefix, o, i, y, x) \
-    FUNC_CALL(get_is_o_yx_isv32_index)(              \
+    get_is_o_yx_isv32_index(              \
         o, i, y, x,                                  \
         CAT(prefix, _IFM_NUM),                       \
         CAT(prefix, _OFM_NUM),                       \
         CAT(prefix, _SIZE_X),                        \
         CAT(prefix, _SIZE_Y))
 
-inline uint FUNC(get_is_o32_yx_isv32_swizzled_by_4_index)(uint o, uint i, uint y, uint x, uint i_size, uint o_size, uint x_size, uint y_size)
+inline uint get_is_o32_yx_isv32_swizzled_by_4_index(uint o, uint i, uint y, uint x, uint i_size, uint o_size, uint x_size, uint y_size)
 {
     const uint o_aligned_to_32 = ((o_size + 31) / 32) * 32;
     const uint o_swizzled = (o % 4) * 8 + ((o % 32) / 4) + (o / 32) * 32;
@@ -887,14 +887,14 @@ inline uint FUNC(get_is_o32_yx_isv32_swizzled_by_4_index)(uint o, uint i, uint y
 }
 
 #define GET_FILTER_IS_O32_YX_ISV32_SWIZZLED_BY_4(prefix, o, i, y, x) \
-    FUNC_CALL(get_is_o32_yx_isv32_swizzled_by_4_index)(              \
+    get_is_o32_yx_isv32_swizzled_by_4_index(              \
         o, i, y, x,                                                  \
         CAT(prefix, _IFM_NUM),                                       \
         CAT(prefix, _OFM_NUM),                                       \
         CAT(prefix, _SIZE_X),                                        \
         CAT(prefix, _SIZE_Y))
 
-inline uint FUNC(get_os_is_y_x8_osv8_isv4_index)(uint o, uint i, uint y, uint x, uint i_size, uint o_size, uint x_size, uint y_size)
+inline uint get_os_is_y_x8_osv8_isv4_index(uint o, uint i, uint y, uint x, uint i_size, uint o_size, uint x_size, uint y_size)
 {
     const uint i_aligned_to_4 = ((i_size + 3) / 4) * 4;
     const uint o_aligned_to_8 = ((o_size + 7) / 8) * 8;
@@ -908,14 +908,14 @@ inline uint FUNC(get_os_is_y_x8_osv8_isv4_index)(uint o, uint i, uint y, uint x,
 }
 
 #define GET_FILTER_OS_IS_Y_X8_OSV8_ISV4(prefix, o, i, y, x) \
-    FUNC_CALL(get_os_is_y_x8_osv8_isv4_index)(              \
+    get_os_is_y_x8_osv8_isv4_index(              \
         o, i, y, x,                                         \
         CAT(prefix, _IFM_NUM),                              \
         CAT(prefix, _OFM_NUM),                              \
         CAT(prefix, _SIZE_X),                               \
         CAT(prefix, _SIZE_Y))
 
-inline uint FUNC(get_os_is_y_x8_osv8_isv4_swizzled_by_4_index)(uint o, uint i, uint y, uint x, uint i_size, uint o_size, uint x_size, uint y_size)
+inline uint get_os_is_y_x8_osv8_isv4_swizzled_by_4_index(uint o, uint i, uint y, uint x, uint i_size, uint o_size, uint x_size, uint y_size)
 {
     const uint i_aligned_to_4 = ((i_size + 3) / 4) * 4;
     const uint o_aligned_to_8 = ((o_size + 7) / 8) * 8;
@@ -930,7 +930,7 @@ inline uint FUNC(get_os_is_y_x8_osv8_isv4_swizzled_by_4_index)(uint o, uint i, u
 }
 
 #define GET_FILTER_OS_IS_Y_X8_OSV8_ISV4_SWIZZLED_BY_4(prefix, o, i, y, x) \
-    FUNC_CALL(get_os_is_y_x8_osv8_isv4_swizzled_by_4_index)(              \
+    get_os_is_y_x8_osv8_isv4_swizzled_by_4_index(              \
         o, i, y, x,                                                       \
         CAT(prefix, _IFM_NUM),                                            \
         CAT(prefix, _OFM_NUM),                                            \
@@ -939,7 +939,7 @@ inline uint FUNC(get_os_is_y_x8_osv8_isv4_swizzled_by_4_index)(uint o, uint i, u
 
 
 #define GET_FILTER_G_OS_IS_YX_OSV16_ISV4_INDEX(prefix, g, o, i, y, x) \
-    FUNC_CALL(get_g_os_is_yx_osv16_isv4)(                         \
+    get_g_os_is_yx_osv16_isv4(                         \
         g, o, i, y, x,                                            \
         CAT(prefix, _IFM_PITCH),                                 \
         CAT(prefix, _OFM_PITCH),                                 \
@@ -948,7 +948,7 @@ inline uint FUNC(get_os_is_y_x8_osv8_isv4_swizzled_by_4_index)(uint o, uint i, u
         CAT(prefix, _OFM_NUM),                                   \
         CAT(prefix, _IFM_NUM), 16, 4)
 
-inline uint FUNC(get_g_os_is_yx_osv16_isv4)(uint g, uint o, uint i, uint y, uint x,
+inline uint get_g_os_is_yx_osv16_isv4(uint g, uint o, uint i, uint y, uint x,
                                           uint i_size,
                                           uint o_size,
                                           uint x_size,
@@ -978,7 +978,7 @@ inline uint FUNC(get_g_os_is_yx_osv16_isv4)(uint g, uint o, uint i, uint y, uint
 }
 
 #define GET_FILTER_OS_IS_YX_OSV8_ISV2_INDEX(prefix, o, i, y, x) \
-    FUNC_CALL(get_g_os_is_yx_osv16_isv4)(                       \
+    get_g_os_is_yx_osv16_isv4(                       \
         0, o, i, y, x,                                          \
         CAT(prefix, _IFM_PITCH),                                \
         CAT(prefix, _OFM_PITCH),                                \
@@ -988,7 +988,7 @@ inline uint FUNC(get_g_os_is_yx_osv16_isv4)(uint g, uint o, uint i, uint y, uint
         CAT(prefix, _IFM_NUM), 8, 2)
 
 #define GET_FILTER_OS_IS_YX_OSV8_ISV4_INDEX(prefix, o, i, y, x) \
-    FUNC_CALL(get_g_os_is_yx_osv16_isv4)(                       \
+    get_g_os_is_yx_osv16_isv4(                       \
         0, o, i, y, x,                                          \
         CAT(prefix, _IFM_PITCH),                                \
         CAT(prefix, _OFM_PITCH),                                \
@@ -998,7 +998,7 @@ inline uint FUNC(get_g_os_is_yx_osv16_isv4)(uint g, uint o, uint i, uint y, uint
         CAT(prefix, _IFM_NUM), 8, 4)
 
 #define GET_FILTER_OS_IS_YX_OSV16_ISV4_INDEX(prefix, o, i, y, x) \
-    FUNC_CALL(get_os_is_zyx_osv_isv4)(                           \
+    get_os_is_zyx_osv_isv4(                           \
         o, i, 0, y, x,                                           \
         CAT(prefix, _IFM_PITCH),                                 \
         CAT(prefix, _OFM_PITCH),                                 \
@@ -1007,7 +1007,7 @@ inline uint FUNC(get_g_os_is_yx_osv16_isv4)(uint g, uint o, uint i, uint y, uint
         16)
 
 #define GET_FILTER_OS_IS_YX_OSV32_ISV4_INDEX(prefix, o, i, y, x) \
-    FUNC_CALL(get_os_is_zyx_osv_isv4)(                           \
+    get_os_is_zyx_osv_isv4(                           \
         o, i, 0, y, x,                                           \
         CAT(prefix, _IFM_PITCH),                                 \
         CAT(prefix, _OFM_PITCH),                                 \
@@ -1016,7 +1016,7 @@ inline uint FUNC(get_g_os_is_yx_osv16_isv4)(uint g, uint o, uint i, uint y, uint
         32)
 
 #define GET_FILTER_OS_IS_ZYX_OSV32_ISV4_INDEX(prefix, o, i, z, y, x) \
-    FUNC_CALL(get_os_is_zyx_osv_isv4)(                               \
+    get_os_is_zyx_osv_isv4(                               \
         o, i, z, y, x,                                               \
         CAT(prefix, _IFM_PITCH),                                     \
         CAT(prefix, _OFM_PITCH),                                     \
@@ -1024,7 +1024,7 @@ inline uint FUNC(get_g_os_is_yx_osv16_isv4)(uint g, uint o, uint i, uint y, uint
         CAT(prefix, _SIZE_Y),                                        \
         32)
 
-inline uint FUNC(get_os_is_zyx_osv_isv4)(uint o, uint i, uint z, uint y, uint x,
+inline uint get_os_is_zyx_osv_isv4(uint o, uint i, uint z, uint y, uint x,
                                          uint i_size,
                                          uint o_size,
                                          uint x_size,
@@ -1050,14 +1050,14 @@ inline uint FUNC(get_os_is_zyx_osv_isv4)(uint o, uint i, uint z, uint y, uint x,
 }
 
 #define GET_FILTER_OS_IS_YX_OSV32_ISV4_SWIZZLED_BY_2_INDEX(prefix, o, i, y, x) \
-    FUNC_CALL(get_os_is_yx_osv32_isv4_swizzled_by_2)(                          \
+    get_os_is_yx_osv32_isv4_swizzled_by_2(                          \
         o, i, y, x,                                                            \
         CAT(prefix, _OFM_NUM),                                                 \
         CAT(prefix, _IFM_NUM),                                                 \
         CAT(prefix, _SIZE_Y),                                                  \
         CAT(prefix, _SIZE_X))
 
-inline uint FUNC(get_os_is_yx_osv32_isv4_swizzled_by_2)(uint o, uint i, uint y, uint x,
+inline uint get_os_is_yx_osv32_isv4_swizzled_by_2(uint o, uint i, uint y, uint x,
                                                         uint o_size,
                                                         uint i_size,
                                                         uint y_size,
@@ -1084,7 +1084,7 @@ inline uint FUNC(get_os_is_yx_osv32_isv4_swizzled_by_2)(uint o, uint i, uint y, 
     return idx;
 }
 
-inline uint FUNC(get_os_is_osv32_isv32_swizzled_by_4_index)(uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
+inline uint get_os_is_osv32_isv32_swizzled_by_4_index(uint o, uint i, uint y, uint x, uint size_x, uint size_y, uint size_ifm, uint size_ofm, uint offset)
 {
     const uint size_ifm_a = ((size_ifm + 31)/32) * 32;
 
@@ -1106,14 +1106,14 @@ inline uint FUNC(get_os_is_osv32_isv32_swizzled_by_4_index)(uint o, uint i, uint
 }
 
 #define GET_FILTER_OS_IS_OSV32_ISV32_SWIZZLED_BY_4_INDEX(prefix, o, i, y, x)\
-    FUNC_CALL(get_os_is_osv32_isv32_swizzled_by_4_index)(\
+    get_os_is_osv32_isv32_swizzled_by_4_index(\
         o, i, y, x, CAT(prefix, _SIZE_X ),\
         CAT(prefix, _SIZE_Y),\
         CAT(prefix, _IFM_NUM),\
         CAT(prefix, _OFM_NUM),\
         CAT(prefix, _OFFSET))
 
-inline uint FUNC(get_os_i_yxs_osv_yxsv4_index)(uint o, uint i, uint y, uint x, uint i_size, uint size_x, uint size_y, uint osv) {
+inline uint get_os_i_yxs_osv_yxsv4_index(uint o, uint i, uint y, uint x, uint i_size, uint size_x, uint size_y, uint osv) {
     const uint yxsv = 4;
     uint yx = y * size_x + x;
     uint yx_size_aligned = (size_x * size_y + yxsv - 1) / yxsv * yxsv;
@@ -1132,7 +1132,7 @@ inline uint FUNC(get_os_i_yxs_osv_yxsv4_index)(uint o, uint i, uint y, uint x, u
 }
 
 #define GET_FILTER_OS_I_YXS_OSV4_YXSV4_INDEX(prefix, o, i, y, x)    \
-    FUNC_CALL(get_os_i_yxs_osv_yxsv4_index)(                        \
+    get_os_i_yxs_osv_yxsv4_index(                        \
         o, i, y, x,                                                 \
         CAT(prefix, _IFM_NUM),                                      \
         CAT(prefix, _SIZE_X),                                       \
@@ -1233,7 +1233,7 @@ inline uint FUNC(get_os_i_yxs_osv_yxsv4_index)(uint o, uint i, uint y, uint x, u
     )
 
 #define GET_FILTER_GI_YXS_OS_YXSV2_OSV_INDEX(prefix, g, o, i, y, x, sub_group_size) \
-    FUNC_CALL(get_gi_yxs_os_yxsv2_osv_index)(                                       \
+    get_gi_yxs_os_yxsv2_osv_index(                                       \
         g, o, i, y, x,                                                              \
         CAT(prefix, _SIZE_X ),                                                      \
         CAT(prefix, _GROUPS_PITCH),                                                 \
@@ -1244,7 +1244,7 @@ inline uint FUNC(get_os_i_yxs_osv_yxsv4_index)(uint o, uint i, uint y, uint x, u
         sub_group_size)
 
 #define GET_FILTER_GIY_XS_OS_XSV2_OSV_INDEX(prefix, g, o, i, y, x, sub_group_size)  \
-    FUNC_CALL(get_giy_xs_os_xsv2_osv_index)(                                        \
+    get_giy_xs_os_xsv2_osv_index(                                        \
         g, o, i, y, x,                                                              \
         CAT(prefix, _SIZE_X ),                                                      \
         CAT(prefix, _GROUPS_PITCH),                                                 \
@@ -1254,7 +1254,7 @@ inline uint FUNC(get_os_i_yxs_osv_yxsv4_index)(uint o, uint i, uint y, uint x, u
         CAT(prefix, _OFFSET),                                                       \
         sub_group_size)
 
-inline uint FUNC(get_gs_oi_yxs_gsv_yxsv4_index)(uint g, uint o, uint i, uint y, uint x, uint o_size, uint i_size, uint size_x, uint size_y, const uint gsv) {
+inline uint get_gs_oi_yxs_gsv_yxsv4_index(uint g, uint o, uint i, uint y, uint x, uint o_size, uint i_size, uint size_x, uint size_y, const uint gsv) {
     const uint yxsv = 4;
     uint yx = y * size_x + x;
     uint yx_size_aligned = (size_x * size_y + yxsv - 1) / yxsv * yxsv;
@@ -1273,7 +1273,7 @@ inline uint FUNC(get_gs_oi_yxs_gsv_yxsv4_index)(uint g, uint o, uint i, uint y, 
 }
 
 #define GET_FILTER_GS_OI_YXS_GSV4_YXSV4_INDEX(prefix, g, o, i, y, x) \
-    FUNC_CALL(get_gs_oi_yxs_gsv_yxsv4_index)(                        \
+    get_gs_oi_yxs_gsv_yxsv4_index(                        \
         g, o, i, y, x,                                               \
         CAT(prefix, _OFM_NUM),                                       \
         CAT(prefix, _IFM_NUM),                                       \
@@ -1282,7 +1282,7 @@ inline uint FUNC(get_gs_oi_yxs_gsv_yxsv4_index)(uint g, uint o, uint i, uint y, 
         4)
 
 #define GET_FILTER_GS_OI_YXS_GSV16_YXSV4_INDEX(prefix, g, o, i, y, x) \
-    FUNC_CALL(get_gs_oi_yxs_gsv_yxsv4_index)(                         \
+    get_gs_oi_yxs_gsv_yxsv4_index(                         \
         g, o, i, y, x,                                                \
         CAT(prefix, _OFM_NUM),                                        \
         CAT(prefix, _IFM_NUM),                                        \
@@ -1291,7 +1291,7 @@ inline uint FUNC(get_gs_oi_yxs_gsv_yxsv4_index)(uint g, uint o, uint i, uint y, 
         16)
 
 #define GET_FILTER_GS_OI_YXS_GSV32_YXSV4_INDEX(prefix, g, o, i, y, x) \
-    FUNC_CALL(get_gs_oi_yxs_gsv_yxsv4_index)(                         \
+    get_gs_oi_yxs_gsv_yxsv4_index(                         \
         g, o, i, y, x,                                                \
         CAT(prefix, _OFM_NUM),                                        \
         CAT(prefix, _IFM_NUM),                                        \
@@ -1311,7 +1311,7 @@ inline uint FUNC(get_gs_oi_yxs_gsv_yxsv4_index)(uint g, uint o, uint i, uint y, 
         ((o) / (sub_group_size))*CAT(prefix, _OFM_PITCH)                               \
     )
 
-inline uint FUNC(get_g_os_zyx_is_osv_isv_index)(uint g, uint o, uint i, uint z, uint y, uint x,
+inline uint get_g_os_zyx_is_osv_isv_index(uint g, uint o, uint i, uint z, uint y, uint x,
                                                 uint g_size, uint o_size, uint i_size, uint z_size, uint y_size, uint x_size,
                                                 uint osv, uint isv) {
     uint is_size = (i_size + isv - 1) / isv;
@@ -1344,7 +1344,7 @@ inline uint FUNC(get_g_os_zyx_is_osv_isv_index)(uint g, uint o, uint i, uint z, 
 }
 
 #define GET_FILTER_G_OS_ZYX_IS_OSV_ISV_INDEX(tensor, g, o, i, z, y, x, osv, isv)            \
-    FUNC_CALL(get_g_os_zyx_is_osv_isv_index)(                                               \
+    get_g_os_zyx_is_osv_isv_index(                                               \
     g, o, i, z, y, x,                                                                       \
     CAT(tensor, _GROUPS_NUM),                                                               \
     CAT(tensor, _OFM_NUM),                                                                  \

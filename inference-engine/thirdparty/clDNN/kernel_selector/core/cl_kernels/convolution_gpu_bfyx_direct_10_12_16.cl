@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/fetch_data.cl"
 
 //////////////////////////////////////////////////////////////////////////////
 // Direct Convolution
@@ -26,7 +26,7 @@ KERNEL(convolution_f16_10x12x16)(
 #endif
     uint split_idx)
 {
-#include "include/vec_typedefs.cl"
+#include "include/batch_headers/vec_typedefs.cl"
 
     const unsigned global_x = (uint)get_global_id(0);
     const unsigned global_y = (uint)get_global_id(1);

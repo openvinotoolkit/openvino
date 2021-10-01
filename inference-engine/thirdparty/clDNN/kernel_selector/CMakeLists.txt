@@ -74,11 +74,13 @@ file(GLOB_RECURSE __CLDNN_Sources__cl_kernels
 set(__CLDNN_Directory__cg_cache        "${CLDNN__CODEGEN_INCDIR}")
 set(__CLDNN_CGDirectory__cg_cache      "${CLDNN__CODEGEN_DIR}/cache")
 set(__CLDNN_Label__cg_cache            "${__CLDNN_Label__core}\\codegen")
+set(__CLDNN_Label__cg_cache_batch_headers            "${__CLDNN_Label__core}\\codegen")
 set(__CLDNN_File__cg_cache__prim_db    "ks_primitive_db.inc")
+set(__CLDNN_File__cg_cache__prim_db_batch_headers    "ks_primitive_db_batch_headers.inc")
 set(__CLDNN_Sources__cg_cache
     "${__CLDNN_Directory__cg_cache}/${__CLDNN_File__cg_cache__prim_db}"
+    "${__CLDNN_Directory__cg_cache}/${__CLDNN_File__cg_cache__prim_db_batch_headers}"
   )
-
 
 set(__CLDNN_AllSources
     ${__CLDNN_Sources__main}
@@ -144,12 +146,13 @@ endif()
 # =================================== Custom pre- and post-steps =======================================
 add_custom_command(OUTPUT "${__CLDNN_CGDirectory__cg_cache}/${__CLDNN_File__cg_cache__prim_db}"
     COMMAND "${CMAKE_COMMAND}" -E make_directory "${__CLDNN_CGDirectory__cg_cache}"
-    COMMAND "${PYTHON_EXECUTABLE}" "${__CLDNN_Directory__core_common}/primitive_db_gen.py" -out_path "${__CLDNN_CGDirectory__cg_cache}" -out_file_name "${__CLDNN_File__cg_cache__prim_db}" -kernels "${__CLDNN_Directory__cl_kernels}"
+    COMMAND "${PYTHON_EXECUTABLE}" "${__CLDNN_Directory__core_common}/primitive_db_gen.py" -out_path "${__CLDNN_CGDirectory__cg_cache}" -out_file_name_prim_db "${__CLDNN_File__cg_cache__prim_db}" -out_file_name_batch_headers "${__CLDNN_File__cg_cache__prim_db_batch_headers}" -kernels "${__CLDNN_Directory__cl_kernels}"
     DEPENDS ${__CLDNN_Sources__cl_kernels} "${__CLDNN_Directory__core_common}/primitive_db_gen.py"
     COMMENT "Generating ${__CLDNN_File__cg_cache__prim_db} ..."
   )
 add_custom_command(OUTPUT "${__CLDNN_Directory__cg_cache}/${__CLDNN_File__cg_cache__prim_db}"
     COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${__CLDNN_CGDirectory__cg_cache}/${__CLDNN_File__cg_cache__prim_db}" "${__CLDNN_Directory__cg_cache}/${__CLDNN_File__cg_cache__prim_db}"
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${__CLDNN_CGDirectory__cg_cache}/${__CLDNN_File__cg_cache__prim_db_batch_headers}" "${__CLDNN_Directory__cg_cache}/${__CLDNN_File__cg_cache__prim_db_batch_headers}"
     DEPENDS "${__CLDNN_CGDirectory__cg_cache}/${__CLDNN_File__cg_cache__prim_db}" ${__CLDNN_Sources__cl_kernels} "${__CLDNN_Directory__core_common}/primitive_db_gen.py"
     COMMENT "Updating file if the file changed (${__CLDNN_File__cg_cache__prim_db}) ..."
   )
