@@ -88,7 +88,7 @@ static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
     return subDevices;
 }
 
-std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(void* user_context, void* user_device) const {
+std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(void* user_context, void* user_device, int target_tile_id) const {
     bool host_out_of_order = true;  // Change to false, if debug requires in-order queue.
     std::vector<device::ptr> dev_orig, dev_sorted;
     if (user_context != nullptr) {
@@ -120,6 +120,10 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
         if (!subDevices.empty()) {
             uint32_t sub_idx = 0;
             for (auto& subdevice : subDevices) {
+                if (target_tile_id != -1 && static_cast<int>(sub_idx) != target_tile_id) {
+                    sub_idx++;
+                    continue;
+                }
                 auto subdPtr = std::make_shared<ocl_device>(subdevice, cl::Context(subdevice), rootDevice->get_platform());
                 ret[map_id+"."+std::to_string(sub_idx++)] = subdPtr;
             }
