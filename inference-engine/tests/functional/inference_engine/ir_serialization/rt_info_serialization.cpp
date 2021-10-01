@@ -32,8 +32,8 @@ TEST_F(RTInfoSerializationTest, all_attributes) {
     auto init_info = [](RTMap & info) {
         info[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
                 std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("add"));
-        info[VariantWrapper<ov::PrimitivesPriority>::get_type_info_static()] =
-                std::make_shared<VariantWrapper<ov::PrimitivesPriority>>(ov::PrimitivesPriority("priority"));
+        info[ov::PrimitivesPriority::get_type_info_static()] =
+                std::make_shared<ov::PrimitivesPriority>("priority");
     };
 
     std::shared_ptr<ngraph::Function> function;
@@ -62,11 +62,11 @@ TEST_F(RTInfoSerializationTest, all_attributes) {
         ASSERT_TRUE(fused_names_attr);
         ASSERT_EQ(fused_names_attr->get().getNames(), "add");
 
-        const std::string & pkey = VariantWrapper<ov::PrimitivesPriority>::get_type_info_static();
+        const std::string & pkey = ov::PrimitivesPriority::get_type_info_static();
         ASSERT_TRUE(info.count(pkey));
-        auto primitives_priority_attr = std::dynamic_pointer_cast<VariantWrapper<ov::PrimitivesPriority>>(info.at(pkey));
+        auto primitives_priority_attr = std::dynamic_pointer_cast<ov::PrimitivesPriority>(info.at(pkey));
         ASSERT_TRUE(primitives_priority_attr);
-        ASSERT_EQ(primitives_priority_attr->get().getPrimitivesPriority(), "priority");
+        ASSERT_EQ(primitives_priority_attr->get(), "priority");
     };
 
     auto add = f->get_results()[0]->get_input_node_ptr(0);

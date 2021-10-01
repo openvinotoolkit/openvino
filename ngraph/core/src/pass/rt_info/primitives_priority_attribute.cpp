@@ -17,25 +17,17 @@
 using namespace ov;
 using namespace ngraph;
 
-std::string PrimitivesPriority::getPrimitivesPriority() const {
-    return primitives_priority;
-}
-
 std::string ov::getPrimitivesPriority(const std::shared_ptr<ngraph::Node>& node) {
     const auto& rtInfo = node->get_rt_info();
-    using PrimitivesPriorityWrapper = VariantWrapper<PrimitivesPriority>;
 
-    if (!rtInfo.count(PrimitivesPriorityWrapper::get_type_info_static()))
+    if (!rtInfo.count(PrimitivesPriority::get_type_info_static()))
         return "";
 
-    const auto& attr = rtInfo.at(PrimitivesPriorityWrapper::get_type_info_static());
-    PrimitivesPriority pp = ov::as_type_ptr<PrimitivesPriorityWrapper>(attr)->get();
-    return pp.getPrimitivesPriority();
+    const auto& attr = rtInfo.at(PrimitivesPriority::get_type_info_static());
+    return ov::as_type_ptr<PrimitivesPriority>(attr)->get();
 }
 
-template class ov::VariantImpl<PrimitivesPriority>;
-
-std::shared_ptr<ngraph::Variant> VariantWrapper<PrimitivesPriority>::merge(const ngraph::NodeVector& nodes) {
+std::shared_ptr<ngraph::Variant> PrimitivesPriority::merge(const ngraph::NodeVector& nodes) {
     auto isConvolutionBased = [](const std::shared_ptr<Node>& node) -> bool {
         if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
             std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node) ||
@@ -64,14 +56,14 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<PrimitivesPriority>::merge(const
     if (unique_pp.size() == 1) {
         final_primitives_priority = *unique_pp.begin();
     }
-    return std::make_shared<VariantWrapper<PrimitivesPriority>>(PrimitivesPriority(final_primitives_priority));
+    return std::make_shared<PrimitivesPriority>(final_primitives_priority);
 }
 
-std::shared_ptr<ngraph::Variant> VariantWrapper<PrimitivesPriority>::init(const std::shared_ptr<ngraph::Node>& node) {
+std::shared_ptr<ngraph::Variant> PrimitivesPriority::init(const std::shared_ptr<ngraph::Node>& node) {
     throw ngraph_error(std::string(get_type_info()) + " has no default initialization.");
 }
 
-bool VariantWrapper<PrimitivesPriority>::visit_attributes(AttributeVisitor& visitor) {
-    visitor.on_attribute("value", m_value.primitives_priority);
+bool PrimitivesPriority::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("value", m_value);
     return true;
 }

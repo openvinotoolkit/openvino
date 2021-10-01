@@ -16,25 +16,17 @@
 
 namespace ov {
 
-class TRANSFORMATIONS_API NmsSelectedIndices {
-public:
-    NmsSelectedIndices() = default;
-};
-
 TRANSFORMATIONS_API bool has_nms_selected_indices(const Node * node);
 
 TRANSFORMATIONS_API void set_nms_selected_indices(Node * node);
 
-extern template class TRANSFORMATIONS_API VariantImpl<NmsSelectedIndices>;
-
-template<>
-class TRANSFORMATIONS_API VariantWrapper<NmsSelectedIndices> : public VariantImpl<NmsSelectedIndices> {
+class TRANSFORMATIONS_API NmsSelectedIndices : public VariantImpl<bool> {
 public:
     OPENVINO_RTTI("nms_selected_indices", "0");
 
-    VariantWrapper() = default;
+    NmsSelectedIndices() = default;
 
-    VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
+    NmsSelectedIndices(const value_type &value) : VariantImpl<value_type>(value) {}
 
     bool is_copyable() const override { return false; }
 };

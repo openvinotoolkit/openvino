@@ -28,10 +28,10 @@ class TRANSFORMATIONS_API Attributes {
 public:
     Attributes() {
         register_factory<VariantWrapper<ngraph::FusedNames>>();
-        register_factory<VariantWrapper<PrimitivesPriority>>();
-        register_factory<VariantWrapper<DisableConstantFolding>>();
-        register_factory<VariantWrapper<NmsSelectedIndices>>();
-        register_factory<VariantWrapper<Strides>>();
+        register_factory<PrimitivesPriority>();
+        register_factory<DisableConstantFolding>();
+        register_factory<NmsSelectedIndices>();
+        register_factory<StridesPropagation>();
     }
 
     Variant * create_by_type_info(const ov::DiscreteTypeInfo & type_info) {

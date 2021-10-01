@@ -8,10 +8,10 @@ template class ov::VariantImpl<ov::NmsSelectedIndices>;
 
 void ov::set_nms_selected_indices(Node * node) {
     auto & rt_info = node->get_rt_info();
-    rt_info[VariantWrapper<NmsSelectedIndices>::get_type_info_static()] = make_variant<NmsSelectedIndices>({});
+    rt_info[NmsSelectedIndices::get_type_info_static()] = std::make_shared<NmsSelectedIndices>(true);
 }
 
 bool ov::has_nms_selected_indices(const Node * node) {
     const auto & rt_info = node->get_rt_info();
-    return rt_info.count(VariantWrapper<NmsSelectedIndices>::get_type_info_static());
+    return rt_info.count(NmsSelectedIndices::get_type_info_static());
 }
