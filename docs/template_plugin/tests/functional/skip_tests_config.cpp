@@ -21,5 +21,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*)",
         // CVS-58963: Not implemented yet
         R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
+        // Issue 62174
+        R"(.*CompareWithHardcodedRefs_batch_fp32_two_bgr.*)",
     };
 }

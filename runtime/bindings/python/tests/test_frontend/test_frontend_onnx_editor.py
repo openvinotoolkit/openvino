@@ -217,7 +217,7 @@ def create_test_onnx_models():
 
 fem = FrontEndManager()
 test_models_names = []
-ONNX_FRONTEND_NAME = "onnx_experimental"
+ONNX_FRONTEND_NAME = "onnx"
 
 
 def setup_module():

@@ -172,7 +172,7 @@ const auto convParams = ::testing::Combine(
     ::testing::ValuesIn(biases)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_DWSCToScaleShifts, DWSCToScaleShiftsTest,
+INSTANTIATE_TEST_SUITE_P(smoke_DWSCToScaleShifts, DWSCToScaleShiftsTest,
     ::testing::Combine(
         convParams,
         ::testing::ValuesIn(netPrecisions),
@@ -203,7 +203,7 @@ const auto convParamsSD = ::testing::Combine(
     ::testing::ValuesIn(biases)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_DWSCToScaleShiftsStridesDilations, DWSCToScaleShiftsTest,
+INSTANTIATE_TEST_SUITE_P(smoke_DWSCToScaleShiftsStridesDilations, DWSCToScaleShiftsTest,
     ::testing::Combine(
         convParamsSD,
         ::testing::ValuesIn(netPrecisions),

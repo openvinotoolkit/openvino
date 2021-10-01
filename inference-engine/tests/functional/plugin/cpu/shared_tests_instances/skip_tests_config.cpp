@@ -69,8 +69,6 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
-        // need to implement Export / Import
-        R"(.*IEClassImportExportTestP.*)",
         // CVS-58963: Not implemented yet
         R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
         // Not expected behavior
@@ -98,6 +96,12 @@ std::vector<std::string> disabledTestPatterns() {
 
         // Issue: 62746
         R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
+
+        // TODO: Issue CVS-51680
+        R"(.*BehaviorTests.*canRun3SyncRequestsConsistentlyFromThreads.*CPU_THROUGHPUT.*)",
+
+        // Issue 66685
+        R"(smoke_PrePostProcess.*resize_linear_nhwc.*)",
     };
 
 #define FIX_62820 0
