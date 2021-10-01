@@ -59,8 +59,8 @@ class GatherND(Op):
 
         # compute output shape
         if batch_dims > 0:
-            if is_fully_defined(data_shape[:batch_dims]):
-                batch = data_shape[:batch_dims].tolist()
+            if is_fully_defined(indices_shape[:batch_dims]):
+                batch = indices_shape[:batch_dims].tolist()
                 if node['version'] == 'opset5':     # Support old version of gather
                     batch = [np.prod(data_shape[:batch_dims]).tolist()]
             else:
@@ -68,31 +68,29 @@ class GatherND(Op):
         else:
             batch = []
         slice_shape = list(data_shape[(batch_dims + indices_shape[-1]):])
-        output_shape = batch + list(indices_shape[batch_dims:-1]) + slice_shape
+
+        batch_dims_size = 1
+
+        for i in range(batch_dims):
+            batch_dims_size *= indices_shape[i]
+
+        if indices_shape[-1] == len(data_shape) - batch_dims:
+            output_shape = batch + list(indices_shape)[batch_dims:-1]
+        else:
+            output_shape = batch + list(indices_shape)[batch_dims:-1] + slice_shape
         node.out_port(0).data.set_shape(output_shape)
 
         # compute output value if all input values are defined
         if is_fully_defined(indices_value) and is_fully_defined(data_value):
-            output_value = np.zeros(output_shape, dtype=data_value.dtype)
-            if batch_dims == 0:
-                output_indices_range = int64_array(indices_shape[:-1])
-                for output_index in np.ndindex(tuple(output_indices_range)):
-                    indices_tuple = indices_value[output_index]
-                    output_value[output_index] = data_value[tuple(indices_tuple.T)]
-            else:
-                batch_dims_range = int64_array(indices_shape[:batch_dims])
-                for batch_indices in np.ndindex(tuple(batch_dims_range)):
-                    # compute batch index in output tensor
-                    batch_ind = 0
-                    num_elements = 1
-                    for ind in reversed(range(len(batch_dims_range))):
-                        batch_ind += batch_indices[ind] * num_elements
-                        num_elements *= batch_dims_range[ind]
-                    output_indices_range = int64_array(indices_shape[batch_dims:-1])
-                    for output_index in np.ndindex(tuple(output_indices_range)):
-                        tmp_ind = batch_indices + output_index
-                        indices_tuple = tuple(indices_value[tmp_ind].T)
-                        full_input_ind = batch_indices + indices_tuple
-                        full_output_ind = tuple(np.array([batch_ind]).T) + output_index
-                        output_value[full_output_ind] = data_value[full_input_ind]
+            output_data = []
+
+            reshaped_indices = indices_value.reshape(batch_dims_size, -1, indices_shape[-1])
+
+            reshaped_data = data_value.reshape((batch_dims_size,) + tuple((data_shape[batch_dims:])))
+
+            for batch_dim in range(reshaped_indices.shape[0]):
+                for outer_dim in range(reshaped_indices.shape[1]):
+                    gather_index = tuple(reshaped_indices[batch_dim][outer_dim])
+                    output_data.append(reshaped_data[(batch_dim,) + gather_index])
+            output_value = np.asarray(output_data, dtype=data_value.dtype).reshape(output_shape)
             node.out_port(0).data.set_value(output_value)

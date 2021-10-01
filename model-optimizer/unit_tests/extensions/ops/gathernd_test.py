@@ -14,7 +14,7 @@ nodes_attributes = {'data': {'kind': 'op'},
                     'data_data': {'shape': None, 'value': None, 'kind': 'data'},
                     'indices': {'kind': 'op'},
                     'indices_data': {'shape': None, 'value': None, 'kind': 'data'},
-                    'gathernd_node': {'op': 'GatherNDUpdate', 'kind': 'op', 'batch_dims': 0},
+                    'gathernd_node': {'op': 'GatherNDUpdate', 'kind': 'op', 'batch_dims': 0, 'version': 'opset8'},
                     'output': {'shape': None, 'value': None, 'kind': 'data'}}
 
 # graph 1
@@ -82,7 +82,7 @@ inputs7 = {'data_data': {'shape': int64_array([2, 3, 4]), 'value': int64_array([
                                                                                       [[[0]],
                                                                                        [[2]],
                                                                                        [[2]]]])}}
-output7 = int64_array([[2], [5], [11], [13], [19], [23]])
+output7 = int64_array([[[2], [5], [11]], [[13], [19], [23]]])
 
 # test data for constant folding: gather elements, batch_dims = 2
 inputs8 = {'data_data': {'shape': int64_array([2, 3, 4, 2]),
@@ -99,12 +99,12 @@ inputs8 = {'data_data': {'shape': int64_array([2, 3, 4, 2]),
                                                   [[[2, 0], [1, 1], [3, 1]],
                                                    [[1, 1], [2, 0], [2, 0]],
                                                    [[0, 0], [3, 1], [3, 1]]]])}}
-output8 = int64_array([[3, 8, 6],
+output8 = int64_array([[[3, 8, 6],
                        [10, 12, 13],
-                       [23, 24, 22],
-                       [29, 28, 32],
+                       [23, 24, 22]],
+                      [[29, 28, 32],
                        [36, 37, 37],
-                       [41, 48, 48]])
+                       [41, 48, 48]]])
 
 # test data for partial infer: gather slices and batch_dims=2
 inputs9 = {'data_data': {'shape': shape_array([dynamic_dimension_value, 40, 4, 9]), 'value': None},
@@ -162,7 +162,7 @@ class TestGatherNDUpdate(unittest.TestCase):
         GatherND.infer(gathernd_node)
 
         # prepare reference results
-        ref_output_shape = int64_array([400, 3, 5, 9])
+        ref_output_shape = int64_array([10, 40, 3, 5, 9])
 
         # get the result
         res_output_shape = graph.node['output']['shape']
