@@ -30,7 +30,9 @@ def get_scale_factor(matrix: np.ndarray) -> float:
         return target_max / max_val
 
 
-def infer_data(data: dict, exec_net: ExecutableNetwork, input_blobs: list, output_blobs: list) -> np.ndarray:
+def infer_data(
+    data: dict, exec_net: ExecutableNetwork, input_blobs: list, output_blobs: list, cw_l: int = 0, cw_r: int = 0,
+) -> np.ndarray:
     """Do a synchronous matrix inference"""
     matrix_shape = next(iter(data.values())).shape
     result = {}
@@ -40,11 +42,14 @@ def infer_data(data: dict, exec_net: ExecutableNetwork, input_blobs: list, outpu
         batch_size = shape[0]
         result[blob_name] = np.ndarray((matrix_shape[0], shape[-1]))
 
-    slice_begin = 0
-    slice_end = batch_size
+    index = 0 - cw_l
 
-    while slice_begin < matrix_shape[0]:
-        vectors = {blob_name: data[blob_name][slice_begin:slice_end] for blob_name in input_blobs}
+    while index < matrix_shape[0]:
+        if index < 0:
+            vectors = {blob_name: data[blob_name][0] for blob_name in input_blobs}
+        else:
+            vectors = {blob_name: data[blob_name][index:index + batch_size] for blob_name in input_blobs}
+
         num_of_vectors = next(iter(vectors.values())).shape[0]
 
         if num_of_vectors < batch_size:
@@ -57,11 +62,11 @@ def infer_data(data: dict, exec_net: ExecutableNetwork, input_blobs: list, outpu
 
         vector_results = exec_net.infer(vectors)
 
-        for blob_name in output_blobs:
-            result[blob_name][slice_begin:slice_end] = vector_results[blob_name][:num_of_vectors]
+        if index >= 0:
+            for blob_name in output_blobs:
+                result[blob_name][index:index + batch_size] = vector_results[blob_name][:num_of_vectors]
 
-        slice_begin += batch_size
-        slice_end += batch_size
+        index += batch_size
 
     return result
 
@@ -161,7 +166,7 @@ def main():
         for blob_name in output_blobs:
             net.outputs[blob_name].precision = 'FP32'
 
-        net.batch_size = args.batch_size
+        net.batch_size = args.batch_size if args.context_window_left + args.context_window_right == 0 else 1
 
 # ---------------------------Step 4. Loading model to the device-------------------------------------------------------
     devices = args.device.replace('HETERO:', '').split(',')
@@ -272,7 +277,9 @@ def main():
             for state in request.query_state():
                 state.reset()
 
-        result = infer_data(input_data[key], exec_net, input_blobs, output_blobs)
+        result = infer_data(
+            input_data[key], exec_net, input_blobs, output_blobs, args.context_window_left, args.context_window_right,
+        )
 
         for blob_name in result.keys():
             results[blob_name][key] = result[blob_name]
