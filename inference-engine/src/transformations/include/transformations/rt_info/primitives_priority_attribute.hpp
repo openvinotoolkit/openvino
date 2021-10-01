@@ -17,54 +17,22 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include <transformations_visibility.hpp>
 
 namespace ov {
-
-/**
- * @ingroup ie_runtime_attr_api
- * @brief PrimitivesPriority class represents runtime info attribute that
- * can be used for plugins specific primitive choice.
- */
-class TRANSFORMATIONS_API PrimitivesPriority {
-private:
-    std::string primitives_priority;
-
-public:
-    friend class VariantWrapper<PrimitivesPriority>;
-    /**
-     * A default constructor
-     */
-    PrimitivesPriority() = default;
-
-    /**
-     * @brief      Constructs a new object consisting of a single name     *
-     * @param[in]  name  The primitives priority value
-     */
-    explicit PrimitivesPriority(const std::string &primitives_priority) : primitives_priority(primitives_priority) {}
-
-    /**
-     * @brief return string with primitives priority value
-     */
-    std::string getPrimitivesPriority() const;
-};
 /**
  * @ingroup ie_runtime_attr_api
  * @brief getPrimitivesPriority return string with primitive priorities value
  * @param[in] node The node will be used to get PrimitivesPriority attribute
  */
-TRANSFORMATIONS_API std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
+NGRAPH_API std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
 
-extern template class TRANSFORMATIONS_API VariantImpl<PrimitivesPriority>;
-
-template<>
-class TRANSFORMATIONS_API VariantWrapper<PrimitivesPriority> : public VariantImpl<PrimitivesPriority> {
+class NGRAPH_API PrimitivesPriority : public VariantImpl<std::string> {
 public:
     OPENVINO_RTTI("primitives_priority", "0");
 
-    VariantWrapper() = default;
+    PrimitivesPriority() = default;
 
-    VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
+    PrimitivesPriority(const value_type &value) : VariantImpl<value_type>(value) {}
 
     std::shared_ptr<ov::Variant> merge(const ngraph::NodeVector & nodes) override;
 
@@ -72,5 +40,4 @@ public:
 
     bool visit_attributes(AttributeVisitor & visitor) override;
 };
-
 }  // namespace ov

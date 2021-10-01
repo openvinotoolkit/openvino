@@ -6,6 +6,8 @@
 
 #include "pooling_inst.h"
 #include "quantize_inst.h"
+#include "reshape_inst.h"
+#include "reorder_inst.h"
 #include "binary_convolution_inst.h"
 #include "scale_inst.h"
 #include "eltwise_inst.h"
@@ -41,6 +43,57 @@ bool check_binarization(memory::ptr mem_input_low, memory::ptr mem_input_high, p
 
 void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& quantize_node) {
     const auto& stream = p.get_stream();
+
+    size_t out_features = static_cast<size_t>(quantize_node.get_output_layout().size.feature[0]);
+    float* bias_values = nullptr;
+    cldnn::memory* bias_mem_ptr = nullptr;
+    bool can_merge_bias = false;
+    size_t bias_depth = 0;
+
+    // Will try to merge bias into FQ
+    auto &merge_node = quantize_node.get_dependency(0);
+
+    if (merge_node.is_type<eltwise>() && merge_node.get_dependencies().size() == 2) {
+        auto& eltw_node = merge_node.as<eltwise>();
+        auto& eltw_node_dep1 = eltw_node.get_dependency(1);
+
+        // Check that this is not input layout
+        if (!eltw_node_dep1.is_type<input_layout>()) {
+            // We should check a case with reshape / reorder nodes before bias constant data
+            if (eltw_node_dep1.is_type<data>()) {
+                bias_depth = 1;
+            } else if (eltw_node_dep1.get_dependencies().size()) {
+                auto has_extra_nodes1 = eltw_node_dep1.is_type<reshape>() || eltw_node_dep1.is_type<reorder>();
+                if (has_extra_nodes1 && eltw_node_dep1.get_dependency(0).is_type<data>()) {
+                    bias_depth = 2;
+                } else if (has_extra_nodes1 && eltw_node_dep1.get_dependency(0).get_dependencies().size()) {
+                    auto has_extra_nodes2 = eltw_node_dep1.get_dependency(0).is_type<reshape>() || eltw_node_dep1.get_dependency(0).is_type<reorder>();
+                    if (has_extra_nodes2 && eltw_node_dep1.get_dependency(0).get_dependency(0).is_type<data>())
+                        bias_depth = 3;
+                }
+            }
+
+            auto& dep = bias_depth == 1 ? eltw_node_dep1 :
+                        bias_depth == 2 ? eltw_node_dep1.get_dependency(0) :
+                        bias_depth == 3 ? eltw_node_dep1.get_dependency(0).get_dependency(0) :
+                        eltw_node_dep1;
+
+            if (bias_depth) {
+                can_merge_bias = dep.is_constant() && dep.get_output_layout().count() == out_features && dep.get_users().size() == 1 &&
+                                 eltw_node.get_primitive()->mode == eltwise_mode::sum && eltw_node.get_dependencies().size() == 2 &&
+                                 eltw_node.get_dependency(0).is_type<convolution>();
+            }
+
+            if (can_merge_bias) {
+                auto &bias = dep.as<data>();
+                auto &mem_bias = bias.get_attached_memory();
+                bias_mem_ptr = &mem_bias;
+                auto data_bias_ptr = static_cast<float*>(mem_bias.lock(stream));
+                bias_values = data_bias_ptr;
+            }
+        }
+    }
+
     program_node &input_low_node = quantize_node.get_dependency(1);
     program_node &input_high_node = quantize_node.get_dependency(2);
     program_node &output_low_node = quantize_node.get_dependency(3);
@@ -83,9 +136,11 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
 
     auto lock_memory = [&stream] (memory::ptr memory, std::function<void(std::size_t, float)>& set_data,
                                   std::function<float(size_t)>& get_data) {
+        using float_mem_lock = mem_lock<float, mem_lock_type::write>;
+        using uint16_t_mem_lock = mem_lock<uint16_t, mem_lock_type::write>;
         switch (memory->get_layout().data_type) {
             case data_types::f32: {
-                std::shared_ptr<mem_lock<float, mem_lock_type::write>> data_lock_ptr = std::make_shared<mem_lock<float, mem_lock_type::write>>(memory, stream);
+                std::shared_ptr<float_mem_lock> data_lock_ptr = std::make_shared<float_mem_lock>(memory, stream);
                 float* data = data_lock_ptr->data();
                 set_data = [data] (size_t idx, float value) {
                     data[idx] = value;
@@ -93,11 +148,10 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
                 get_data = [data] (size_t idx) {
                     return data[idx];
                 };
-                return std::pair<std::shared_ptr<mem_lock<float, mem_lock_type::write>>,
-                                 std::shared_ptr<mem_lock<uint16_t, mem_lock_type::write>>>(data_lock_ptr, nullptr);
+                return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<uint16_t_mem_lock>>(data_lock_ptr, nullptr);
             }
             case data_types::f16: {
-                auto data_lock_ptr = std::make_shared<mem_lock<uint16_t, mem_lock_type::write>>(memory, stream);
+                std::shared_ptr<uint16_t_mem_lock> data_lock_ptr = std::make_shared<uint16_t_mem_lock>(memory, stream);
                 uint16_t* data = data_lock_ptr->data();
                 set_data = [data] (size_t idx, float value) {
                     data[idx] = float_to_half(value);
@@ -105,8 +159,7 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
                 get_data = [data] (size_t idx) {
                     return half_to_float(data[idx]);
                 };
-                return std::pair<std::shared_ptr<mem_lock<float, mem_lock_type::write>>,
-                                 std::shared_ptr<mem_lock<uint16_t, mem_lock_type::write>>>(nullptr, data_lock_ptr);
+                return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<uint16_t_mem_lock>>(nullptr, data_lock_ptr);
             }
             default:
                 throw std::runtime_error("prepare_quantization: Unsupported precision of quantize output values");
@@ -161,8 +214,9 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
 
                     float out_lo = get_data_output_low(get_offset_safe(mem_output_low->get_layout(), idx));
                     float out_hi = get_data_output_high(get_offset_safe(mem_output_high->get_layout(), idx));
-                    set_data_input_scale(s_offset, (static_cast<float>(levels) - 1.f) / (in_hi - in_lo));
-                    set_data_input_shift(s_offset, - in_lo * (static_cast<float>(levels) - 1.f) / (in_hi - in_lo));
+                    float in_shift_basic = (static_cast<float>(levels) - 1.f) / (in_hi - in_lo);
+                    set_data_input_scale(s_offset, in_shift_basic);
+                    set_data_input_shift(s_offset, can_merge_bias ? (bias_values[f] - in_lo) * in_shift_basic : -in_lo * in_shift_basic);
                     set_data_output_scale(s_offset, (out_hi - out_lo) / (static_cast<float>(levels) - 1.f));
                     set_data_output_shift(s_offset, out_lo);
 
@@ -186,12 +240,15 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
     bool per_tensor_in_range = true;
     bool per_tensor_out_scale = true;
     bool per_tensor_out_shift = true;
+    bool per_tensor_out_range = true;
     float in_scale_val = get_data_input_scale(0);
     float in_shift_val = get_data_input_shift(0);
     float out_scale_val = get_data_output_scale(0);
     float out_shift_val = get_data_output_shift(0);
     float in_lo_val = get_data_input_low(0);
     float in_hi_val = get_data_input_high(0);
+    float out_lo_val = get_data_output_low(0);
+    float out_hi_val = get_data_output_high(0);
     for (size_t i = 0; i < scales_layout.count(); i++) {
         if (in_scale_val != get_data_input_scale(i))
             per_tensor_in_scale = false;
@@ -207,9 +264,56 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
         if (in_lo_val != get_data_input_low(i % mem_input_low->get_layout().count()) ||
             in_hi_val != get_data_input_high(i % mem_input_high->get_layout().count()))
             per_tensor_in_range = false;
+        if (out_lo_val != get_data_output_low(i % mem_output_low->get_layout().count()) ||
+            out_hi_val != get_data_output_high(i % mem_output_high->get_layout().count()))
+            per_tensor_out_range = false;
+    }
+
+    auto out_is_int8 = quantize_node.get_output_layout().data_type == data_types::i8;
+    auto out_is_uint8 = quantize_node.get_output_layout().data_type == data_types::u8;
+    auto out_is_fp = !(out_is_int8 || out_is_uint8);
+    bool need_clamp = levels != 256 || out_is_fp;
+    bool need_min_clamp = need_clamp;
+    bool need_max_clamp = need_clamp;
+
+    // Check that we can optimize clamp operation for int8 data using saturation clamp only
+    if (per_tensor_out_range && !out_is_fp && levels != 256) {
+        if ((out_is_int8 && out_lo_val == -128.f) || (out_is_uint8 && out_lo_val == 0.f))
+            need_min_clamp = false;
+        if ((out_is_int8 && out_hi_val == 127.f) || (out_is_uint8 && out_hi_val == 255.f))
+            need_max_clamp = false;
+    }
+
+    // Check that we can merge bias into FQ input shift and if yes then
+    // we remove bias from network graph
+    if (can_merge_bias) {
+        auto &eltw_node = merge_node.as<eltwise>();
+
+        // Remove bias constants and extra reshapes / reorders from the graph (dep3, dep2, dep1)
+        if (bias_depth == 3) {
+            auto &dep3 = eltw_node.get_dependency(1).get_dependency(0).get_dependency(0);
+            p.remove_all_connections(dep3);
+            p.remove_if_dangling(dep3);
+        }
+
+        if (bias_depth >= 2) {
+            auto &dep2 = eltw_node.get_dependency(1).get_dependency(0);
+            p.remove_all_connections(dep2);
+            p.remove_if_dangling(dep2);
+        }
+
+        auto &dep1 = eltw_node.get_dependency(1);
+        p.remove_all_connections(dep1);
+        p.remove_if_dangling(dep1);
+
+        // Remove bias from the graph (eltwise in a "sum" mode)
+        p.extract_and_remove(eltw_node);
     }
 
     if (has_negative_scales) {
+        if (can_merge_bias)
+            bias_mem_ptr->unlock(stream);
+
         return;
     }
 
@@ -266,10 +370,16 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
         quantize_node.set_input_shift_val(in_shift_val);
     }
 
-    auto out_dt = quantize_node.get_output_layout().data_type;
-    bool need_clamp = levels != 256 || (out_dt != data_types::u8 && out_dt != data_types::i8);
     if (need_clamp) {
         quantize_node.set_need_clamp();
+    }
+
+    if (need_min_clamp) {
+        quantize_node.set_need_min_clamp();
+    }
+
+    if (need_max_clamp) {
+        quantize_node.set_need_max_clamp();
     }
 
     if (per_tensor_in_range) {
@@ -277,6 +387,13 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
         quantize_node.set_input_lo_val(in_lo_val);
         quantize_node.set_input_hi_val(in_hi_val);
     }
+
+    if (per_tensor_out_range) {
+        quantize_node.set_per_tensor_output_range();
+        quantize_node.set_output_lo_val(out_lo_val);
+        quantize_node.set_output_hi_val(out_hi_val);
+    }
+
     if (per_tensor_out_scale) {
         quantize_node.set_per_tensor_output_scale();
         quantize_node.set_output_scale_val(out_scale_val);
@@ -285,6 +402,10 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
     if (per_tensor_out_shift) {
         quantize_node.set_per_tensor_output_shift();
         quantize_node.set_output_shift_val(out_shift_val);
+    }
+
+    if (can_merge_bias) {
+        bias_mem_ptr->unlock(stream);
     }
 }
 
