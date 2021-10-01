@@ -26,6 +26,9 @@ public:
     MKLDNNMemoryCPtr getMemoryPtr() const;
 
     void executeDynamicImpl(mkldnn::stream strm) override {}
+    bool isExecutable() const override {
+        return false;
+    }
 
     std::vector<VectorDims> shapeInfer() const override {
         return std::vector<VectorDims>();

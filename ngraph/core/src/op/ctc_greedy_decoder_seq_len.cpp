@@ -9,7 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v6::CTCGreedyDecoderSeqLen, "CTCGreedyDecoderSeqLen", 6);
+BWDCMP_RTTI_DEFINITION(op::v6::CTCGreedyDecoderSeqLen);
 
 op::v6::CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const Output<Node>& input,
                                                        const Output<Node>& seq_len,

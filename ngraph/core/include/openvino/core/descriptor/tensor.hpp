@@ -5,6 +5,7 @@
 #pragma once
 
 #include <atomic>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -14,6 +15,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/variant.hpp"
 
 namespace ngraph {
 namespace runtime {
@@ -74,6 +76,13 @@ public:
     }
     size_t size() const;
 
+    RTMap& get_rt_info() {
+        return m_rt_info;
+    }
+    const RTMap& get_rt_info() const {
+        return m_rt_info;
+    }
+
 protected:
     element::Type m_element_type;
 
@@ -88,7 +97,7 @@ protected:
     // const PartialShape& descriptor::Tensor::get_shape() const
     // It was decided to move m_shape and m_partial_shape synchronization point there and
     // to keep methods signature backward compatible.
-    mutable std::mutex shape_mutex;
+    mutable std::mutex m_mutex;
     mutable std::atomic_bool m_shape_changed;
     mutable Shape m_shape;
     // TODO: end
@@ -96,7 +105,11 @@ protected:
     PartialShape m_partial_shape;
     ngraph::HostTensorPtr m_lower_value, m_upper_value;
     std::string m_name;
-    std::unordered_set<std::string> m_names;
+
+    mutable std::atomic_bool m_names_changing{false};
+    mutable std::unordered_set<std::string> m_names;
+    static std::atomic<size_t> m_next_instance_id;
+    std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
 };
 
 OPENVINO_API

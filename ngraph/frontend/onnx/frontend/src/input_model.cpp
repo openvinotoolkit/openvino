@@ -17,7 +17,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 InputModelONNX::InputModelONNX(const std::string& path)
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path)} {}
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 InputModelONNX::InputModelONNX(const std::wstring& path)
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path)} {}
 #endif

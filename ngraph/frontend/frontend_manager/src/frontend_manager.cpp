@@ -5,8 +5,8 @@
 #include "frontend_manager/frontend_manager.hpp"
 
 #include <frontend_manager/place.hpp>
-#include <ngraph/env_util.hpp>
 #include <ngraph/except.hpp>
+#include <openvino/util/env_util.hpp>
 
 #include "frontend_manager/frontend_exceptions.hpp"
 #include "plugin_loader.hpp"
@@ -72,7 +72,7 @@ private:
                 }
             }
         };
-        std::string env_path = ngraph::getenv_string("OV_FRONTEND_PATH");
+        std::string env_path = ov::util::getenv_string("OV_FRONTEND_PATH");
         if (!env_path.empty()) {
             auto start = 0u;
             auto sep_pos = env_path.find(PathSeparator, start);
@@ -109,6 +109,11 @@ std::vector<std::string> FrontEndManager::get_available_front_ends() const {
 
 void FrontEndManager::register_front_end(const std::string& name, FrontEndFactory creator) {
     m_impl->register_front_end(name, creator);
+}
+
+template <>
+FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<std::shared_ptr<Variant>>& variants) {
+    return load_by_model_impl(variants);
 }
 
 //----------- FrontEnd ---------------------------
@@ -373,9 +378,3 @@ Place::Ptr Place::get_producing_operation(const std::string& inputName, int inpu
 std::vector<Place::Ptr> Place::get_consuming_operations(const std::string& outputPortName) const {
     return {};
 }
-
-constexpr VariantTypeInfo VariantWrapper<std::istream*>::type_info;
-
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-constexpr VariantTypeInfo VariantWrapper<std::wstring>::type_info;
-#endif

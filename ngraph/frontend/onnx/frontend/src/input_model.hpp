@@ -13,7 +13,7 @@ namespace frontend {
 class InputModelONNX : public InputModel {
 public:
     InputModelONNX(const std::string& path);
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     InputModelONNX(const std::wstring& path);
 #endif
     InputModelONNX(std::istream& model_stream);
