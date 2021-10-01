@@ -32,6 +32,7 @@ public:
         register_factory<DisableConstantFolding>();
         register_factory<NmsSelectedIndices>();
         register_factory<StridesPropagation>();
+        register_factory<ov::IndexWrapper>();
     }
 
     Variant * create_by_type_info(const ov::DiscreteTypeInfo & type_info) {

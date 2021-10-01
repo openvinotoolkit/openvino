@@ -20,6 +20,8 @@ using ov::Variant;
 using ov::VariantImpl;
 using ov::VariantWrapper;
 
+using ov::IndexWrapper;
+
 using ov::make_variant;
 
 using ov::RTMap;

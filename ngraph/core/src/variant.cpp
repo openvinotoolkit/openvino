@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/variant.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 
 #include "ngraph/node.hpp"
 
@@ -24,3 +25,8 @@ bool Variant::is_copyable() const {
 
 template class ngraph::VariantImpl<std::string>;
 template class ngraph::VariantImpl<int64_t>;
+
+bool ov::IndexWrapper::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("value", m_value);
+    return true;
+}

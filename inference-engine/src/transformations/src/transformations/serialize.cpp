@@ -840,6 +840,14 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 
     const bool exec_graph = is_exec_graph(f);
 
+    for (size_t i = 0; i < f.get_parameters().size(); i++) {
+        const auto& param = f.get_parameters()[i];
+        param->get_rt_info()[ov::IndexWrapper::get_type_info_static()] = std::make_shared<ov::IndexWrapper>(i);
+    }
+    for (size_t i = 0; i < f.get_results().size(); i++) {
+        const auto& result = f.get_results()[i];
+        result->get_rt_info()[ov::IndexWrapper::get_type_info_static()] = std::make_shared<ov::IndexWrapper>(i);
+    }
     for (const auto& n : f.get_ordered_ops()) {
         ngraph::Node* node = n.get();
         const std::string & node_type_name{node->get_type_name()};

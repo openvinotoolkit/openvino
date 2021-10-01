@@ -11,7 +11,7 @@
 #include "ie_core.hpp"
 #include "ngraph/ngraph.hpp"
 #include "transformations/serialize.hpp"
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <transformations/rt_info/attributes.hpp>
 
 using namespace ngraph;
@@ -38,8 +38,8 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
 
     std::shared_ptr<ngraph::Function> function;
     {
-        auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
-        auto add = std::make_shared<ngraph::opset8::Add>(data, data);
+        auto data = std::make_shared<ov::opset8::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
+        auto add = std::make_shared<ov::opset8::Add>(data, data);
         init_info(add->get_rt_info());
         init_info(add->input(0).get_rt_info());
         init_info(add->input(1).get_rt_info());
@@ -80,14 +80,14 @@ TEST_F(RTInfoSerializationTest, all_attributes_v10) {
     auto init_info = [](RTMap & info) {
         info[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
                 std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("add"));
-        info[VariantWrapper<ov::PrimitivesPriority>::get_type_info_static()] =
-                std::make_shared<VariantWrapper<ov::PrimitivesPriority>>(ov::PrimitivesPriority("priority"));
+        info[ov::PrimitivesPriority::get_type_info_static()] =
+                std::make_shared<ov::PrimitivesPriority>("priority");
     };
 
     std::shared_ptr<ngraph::Function> function;
     {
-        auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
-        auto add = std::make_shared<ngraph::opset8::Add>(data, data);
+        auto data = std::make_shared<ov::opset8::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
+        auto add = std::make_shared<ov::opset8::Add>(data, data);
         init_info(add->get_rt_info());
         init_info(add->input(0).get_rt_info());
         init_info(add->input(1).get_rt_info());
@@ -119,14 +119,14 @@ TEST_F(RTInfoSerializationTest, all_attributes_v11) {
     auto init_info = [](RTMap & info) {
         info[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
                 std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("add"));
-        info[VariantWrapper<ov::PrimitivesPriority>::get_type_info_static()] =
-                std::make_shared<VariantWrapper<ov::PrimitivesPriority>>(ov::PrimitivesPriority("priority"));
+        info[ov::PrimitivesPriority::get_type_info_static()] =
+                std::make_shared<ov::PrimitivesPriority>("priority");
     };
 
     std::shared_ptr<ngraph::Function> function;
     {
-        auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
-        auto add = std::make_shared<ngraph::opset8::Add>(data, data);
+        auto data = std::make_shared<ov::opset8::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
+        auto add = std::make_shared<ov::opset8::Add>(data, data);
         init_info(add->get_rt_info());
         init_info(add->input(0).get_rt_info());
         init_info(add->input(1).get_rt_info());
@@ -149,11 +149,11 @@ TEST_F(RTInfoSerializationTest, all_attributes_v11) {
         ASSERT_TRUE(fused_names_attr);
         ASSERT_EQ(fused_names_attr->get().getNames(), "add");
 
-        const std::string & pkey = VariantWrapper<ov::PrimitivesPriority>::get_type_info_static();
+        const std::string & pkey = ov::PrimitivesPriority::get_type_info_static();
         ASSERT_TRUE(info.count(pkey));
-        auto primitives_priority_attr = std::dynamic_pointer_cast<VariantWrapper<ov::PrimitivesPriority>>(info.at(pkey));
+        auto primitives_priority_attr = std::dynamic_pointer_cast<ov::PrimitivesPriority>(info.at(pkey));
         ASSERT_TRUE(primitives_priority_attr);
-        ASSERT_EQ(primitives_priority_attr->get().getPrimitivesPriority(), "priority");
+        ASSERT_EQ(primitives_priority_attr->get(), "priority");
     };
 
     auto add = f->get_results()[0]->get_input_node_ptr(0);
@@ -161,4 +161,52 @@ TEST_F(RTInfoSerializationTest, all_attributes_v11) {
     check_info(add->input(0).get_rt_info());
     check_info(add->input(1).get_rt_info());
     check_info(add->output(0).get_rt_info());
+}
+
+TEST_F(RTInfoSerializationTest, parameter_result_v11) {
+    std::shared_ptr<ngraph::Function> function;
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto param2 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ngraph::Shape({1, 3, 24, 24}));
+        param2->set_friendly_name("param2");
+        param2->output(0).get_tensor().set_names({"data2"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("relu_op");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result1 = std::make_shared<ov::opset8::Result>(relu);
+        result1->set_friendly_name("result1");
+        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
+        concat->set_friendly_name("concat_op");
+        concat->output(0).get_tensor().set_names({"concat"});
+        auto result2 = std::make_shared<ov::opset8::Result>(concat);
+        result2->set_friendly_name("result2");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
+                                                      ngraph::ParameterVector{param1, param2});
+        function->set_friendly_name("SingleRuLU");
+    }
+
+    pass::Manager m;
+    m.register_pass<pass::Serialize>(m_out_xml_path, m_out_bin_path, pass::Serialize::Version::IR_V11);
+    m.run_passes(function);
+
+    auto core = InferenceEngine::Core();
+    auto net = core.ReadNetwork(m_out_xml_path, m_out_bin_path);
+    auto f = net.getFunction();
+
+    auto check_info = [](const RTMap & info, size_t index) {
+        const std::string & pkey = ov::IndexWrapper::get_type_info_static();
+        ASSERT_TRUE(info.count(pkey));
+        auto index_attr = std::dynamic_pointer_cast<ov::IndexWrapper>(info.at(pkey));
+        ASSERT_TRUE(index_attr);
+        ASSERT_EQ(index_attr->get(), index);
+    };
+
+    for (size_t i = 0; i < f->get_parameters().size(); i++) {
+        check_info(f->get_parameters()[i]->get_rt_info(), i);
+    }
+    for (size_t i = 0; i < f->get_results().size(); i++) {
+        check_info(f->get_results()[i]->get_rt_info(), i);
+    }
 }
