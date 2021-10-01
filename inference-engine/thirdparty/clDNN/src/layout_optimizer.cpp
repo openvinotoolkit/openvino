@@ -24,6 +24,59 @@
 
 using namespace cldnn;
 
+static size_t get_post_ops_count(const program_node& node) {
+    size_t onednn_post_ops_count = 0;
+    for (auto& fo : node.get_fused_primitives()) {
+        if (fo.node->is_type<activation>() || fo.node->is_type<eltwise>()) {
+            onednn_post_ops_count++;
+        } else if (fo.node->is_type<quantize>()) {
+            auto& q = fo.node->as<quantize>();
+
+            // pre-scale, pre-shift
+            if (q.get_per_tensor_input_scale() && q.get_per_tensor_input_shift()) {
+                onednn_post_ops_count++;
+            } else {
+                onednn_post_ops_count += 2;
+            }
+
+            // post-scale, post-shift
+            if (q.get_need_post_scale() && q.get_need_post_shift() &&
+                q.get_per_tensor_output_scale() && q.get_per_tensor_output_shift()) {
+                onednn_post_ops_count++;
+            } else {
+                onednn_post_ops_count += 2;
+            }
+
+            auto out_dt = fo.output_layout.data_type;
+            auto output_type_is_int8 = out_dt == data_types::u8 || out_dt == data_types::i8;
+            auto out_range_usage = q.get_per_tensor_output_range() && q.get_output_lo_val() < q.get_output_hi_val();
+
+            if (out_range_usage) {
+                // round
+                if (!output_type_is_int8) {
+                    onednn_post_ops_count++;
+                }
+
+                // clamp
+                if (q.get_need_clamp()) {
+                    onednn_post_ops_count++;
+                }
+            } else {
+                // clamp
+                if (q.get_need_clamp()) {
+                    onednn_post_ops_count += 2;
+                }
+                // round
+                {
+                    onednn_post_ops_count++;
+                }
+            }
+        }
+    }
+
+    return onednn_post_ops_count;
+}
+
 std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
                                                                        const layout& in_layout,
                                                                        const layout& out_layout
@@ -842,6 +895,48 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node) {
         const size_t kNStreams = static_cast<size_t>(node.get_program().get_engine().configuration().n_streams);
         const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
         preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
+    } else if (node.is_type<reorder>()) {
+        if (!_optimization_attributes.use_onednn_impls)
+            return impl_types::ocl;
+
+        std::vector<format> onednn_optimized_fmt = {
+            format::bfyx,
+            format::b_fs_zyx_fsv16,
+            format::b_fs_yx_fsv16,
+            format::b_fs_yx_fsv32,
+            format::bs_fs_yx_bsv16_fsv16,
+            format::bs_fs_zyx_bsv16_fsv16,
+            format::bs_fs_yx_bsv32_fsv16,
+            format::bs_fs_yx_bsv32_fsv32,
+        };
+
+        auto input_layout = node.get_dependency(0).get_output_layout();
+        auto output_layout = node.get_output_layout();
+
+        auto input_fmt = input_layout.format;
+        auto output_fmt = output_layout.format;
+
+        preferred_impl = impl_types::onednn;
+
+        if (std::find(onednn_optimized_fmt.begin(), onednn_optimized_fmt.end(), input_fmt) == onednn_optimized_fmt.end() ||
+            std::find(onednn_optimized_fmt.begin(), onednn_optimized_fmt.end(), output_fmt) == onednn_optimized_fmt.end()) {
+            preferred_impl = impl_types::ocl;
+        }
+
+        // onednn doesn't support paddings
+        if (input_layout.data_padding || output_layout.data_padding) {
+            preferred_impl = impl_types::ocl;
+        }
+
+        // Native impl works faster for this type of reorder
+        if (input_layout.format == format::bfyx && output_layout.format == format::bfyx) {
+            preferred_impl = impl_types::ocl;
+        }
+
+        // onednn reorder doesn't support different number of dimensions in input and output layouts
+        if (input_layout.format.dimension() != output_layout.format.dimension()) {
+            preferred_impl = impl_types::ocl;
+        }
     }
 
     return preferred_impl;
@@ -932,6 +1027,9 @@ void layout_optimizer::set_optimization_attribute(optimization_attributes_type a
         case optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network:
             _optimization_attributes.bs_fs_yx_bsv16_fsv16_network = val;
             break;
+        case optimization_attributes_type::use_onednn_impls:
+            _optimization_attributes.use_onednn_impls = val;
+            break;
         default:
             throw std::out_of_range("unsupported layout optimization attribute");
     }
@@ -955,6 +1053,9 @@ bool layout_optimizer::is_format_optimized(const convolution_node& node, const f
             return convolution_fs_b_yx_fsv32_opt(input_layout, output_layout, weights_layout, prim);
         case format::bs_fs_yx_bsv16_fsv16:
             return convolution_bs_fs_yx_bsv16_fsv16_opt(input_layout, output_layout, weights_layout, prim);
+        case format::bs_fs_yx_bsv32_fsv32:
+        case format::bs_fs_yx_bsv32_fsv16:
+            return false;
         default:
             throw std::invalid_argument(
                 "[Layout optimizer] Other formats in is_format_optimized(...) method are not implemented!");

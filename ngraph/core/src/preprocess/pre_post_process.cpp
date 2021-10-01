@@ -6,108 +6,97 @@
 
 #include "ngraph/opsets/opset1.hpp"
 #include "openvino/core/function.hpp"
+#include "preprocess_steps_impl.hpp"
 
 namespace ov {
 namespace preprocess {
 
 /// \brief InputTensorInfoImpl - internal data structure
-struct InputTensorInfo::InputTensorInfoImpl {
+class InputTensorInfo::InputTensorInfoImpl {
+public:
     InputTensorInfoImpl() = default;
-    explicit InputTensorInfoImpl(const element::Type& type) : m_type(type) {}
 
+    void set_element_type(const element::Type& type) {
+        m_type = type;
+        m_type_set = true;
+    }
+    bool is_element_type_set() const {
+        return m_type_set;
+    }
+    const element::Type& get_element_type() const {
+        return m_type;
+    }
+
+    void set_layout(const Layout& layout) {
+        m_layout = layout;
+        m_layout_set = true;
+    }
+    bool is_layout_set() const {
+        return m_layout_set;
+    }
+    const Layout& get_layout() const {
+        return m_layout;
+    }
+
+    bool is_spatial_shape_set() const {
+        return m_spatial_shape_set;
+    }
+
+    int get_spatial_width() const {
+        return m_spatial_width;
+    }
+
+    int get_spatial_height() const {
+        return m_spatial_height;
+    }
+
+    bool is_spatial_shape_dynamic() const {
+        return m_spatial_shape_set && m_spatial_width == -1 && m_spatial_height == -1;
+    }
+
+    void set_spatial_dynamic_shape() {
+        m_spatial_shape_set = true;
+        m_spatial_width = -1;
+        m_spatial_height = -1;
+    }
+
+    void set_spatial_static_shape(size_t height, size_t width) & {
+        m_spatial_shape_set = true;
+        m_spatial_height = static_cast<int>(height);
+        m_spatial_width = static_cast<int>(width);
+    }
+
+private:
     element::Type m_type = element::dynamic;
+    bool m_type_set = false;
+
     Layout m_layout = Layout();
+    bool m_layout_set = false;
+
+    int m_spatial_width = -1;
+    int m_spatial_height = -1;
+    bool m_spatial_shape_set = false;
 };
 
-static int64_t get_channels_helper(const std::shared_ptr<Node>& node) {
-    auto it = node->get_rt_info().find("LAYOUT");
-    if (it == node->get_rt_info().end()) {
-        return -1;
+/// \brief InputNetworkInfoImpl - internal data structure
+class InputNetworkInfo::InputNetworkInfoImpl {
+public:
+    InputNetworkInfoImpl() = default;
+
+    void set_layout(const Layout& layout) {
+        m_layout = layout;
+        m_layout_set = true;
     }
-    auto layout = std::dynamic_pointer_cast<VariantWrapper<Layout>>(it->second);
-    OPENVINO_ASSERT(layout, "Layout runtime info for node is invalid");
-    if (!layout::has_channels(layout->get())) {
-        return -1;
+    bool is_layout_set() const {
+        return m_layout_set;
     }
-    return layout::channels(layout->get());
-}
-
-static Shape construct_mean_scale_shape(const std::shared_ptr<Node>& node, size_t values_size) {
-    // TODO: support also Mean/Scale image case
-    auto channels = get_channels_helper(node);
-    OPENVINO_ASSERT(channels >= 0, "Channels dimension is not specified in layout");
-    auto node_shape = node->get_output_partial_shape(0);
-    auto node_rank = node->get_output_partial_shape(0).rank();
-    OPENVINO_ASSERT(node_rank.is_static(), "Mean/scale vector operation is not supported for fully dynamic shape");
-    OPENVINO_ASSERT(node_rank.get_length() > channels, "Channels dimension is out of bounds");
-    OPENVINO_ASSERT(node_shape[channels] == values_size, "Number of channels and mean/values size mismatch");
-    std::vector<std::size_t> v(node_rank.get_length(), 1);
-    v[channels] = values_size;
-    return {v};
-}
-
-static void propagate_layout(const std::shared_ptr<Node>& src, const std::shared_ptr<Node>& dst) {
-    if (src->get_rt_info().count("LAYOUT")) {
-        dst->get_rt_info()["LAYOUT"] = src->get_rt_info()["LAYOUT"];
-    }
-}
-
-/// \brief PreProcessStepsImpl - internal data structure
-struct PreProcessSteps::PreProcessStepsImpl {
-    void add_scale_impl(const std::vector<float>& values) {
-        m_actions.emplace_back(std::make_tuple(
-            [values](const std::shared_ptr<Node>& node) {
-                Shape shape;
-                if (values.size() == 1) {
-                    shape = Shape{1};
-                } else {
-                    shape = construct_mean_scale_shape(node, values.size());
-                }
-                auto constant = op::v0::Constant::create(element::f32, shape, values);
-                constant->set_friendly_name(node->get_friendly_name() + "/scale/Divide_Factor");
-
-                auto new_op = std::make_shared<op::v1::Divide>(node, constant);
-                new_op->set_friendly_name(node->get_friendly_name() + "/scale/Divide");
-                propagate_layout(node, new_op);
-                return new_op;
-            },
-            false));
+    const Layout& get_layout() const {
+        return m_layout;
     }
 
-    void add_mean_impl(const std::vector<float>& values) {
-        m_actions.emplace_back(std::make_tuple(
-            [values](const std::shared_ptr<Node>& node) {
-                Shape shape;
-                if (values.size() == 1) {
-                    shape = Shape{1};
-                } else {
-                    shape = construct_mean_scale_shape(node, values.size());
-                }
-                auto constant = op::v0::Constant::create(element::f32, shape, values);
-                constant->set_friendly_name(node->get_friendly_name() + "/mean/Mean_Const");
-
-                auto new_op = std::make_shared<op::v1::Subtract>(node, constant);
-                new_op->set_friendly_name(node->get_friendly_name() + "/mean/Subtract");
-                propagate_layout(node, new_op);
-                return new_op;
-            },
-            false));
-    }
-
-    void add_convert_impl(const element::Type& type) {
-        m_actions.emplace_back(std::make_tuple(
-            [type](const std::shared_ptr<Node>& node) {
-                if (node->get_element_type().is_dynamic()) {
-                    throw ngraph::ngraph_error("Can't insert 'convert_element_type' for dynamic source tensor type.");
-                }
-                auto convert = std::make_shared<op::v0::Convert>(node, type);
-                convert->set_friendly_name(node->get_friendly_name() + "/convert_element_type");
-                propagate_layout(node, convert);
-                return convert;
-            },
-            true));
-    }
-    std::list<std::tuple<PreProcessSteps::CustomPreprocessOp, bool>> m_actions;
+private:
+    Layout m_layout = Layout();
+    bool m_layout_set = false;
 };
 
 /// \brief InputInfoImpl - internal data structure
@@ -119,15 +108,18 @@ struct InputInfo::InputInfoImpl {
         return m_has_index;
     }
 
-    void create_tensor_data(const element::Type& type) {
-        m_tensor_data =
-            std::unique_ptr<InputTensorInfo::InputTensorInfoImpl>(new InputTensorInfo::InputTensorInfoImpl(type));
+    void create_tensor_data(const element::Type& type, const Layout& layout) {
+        auto data = std::unique_ptr<InputTensorInfo::InputTensorInfoImpl>(new InputTensorInfo::InputTensorInfoImpl());
+        data->set_layout(layout);
+        data->set_element_type(type);
+        m_tensor_data = std::move(data);
     }
 
     bool m_has_index = false;
     size_t m_index = 0;
     std::unique_ptr<InputTensorInfo::InputTensorInfoImpl> m_tensor_data;
     std::unique_ptr<PreProcessSteps::PreProcessStepsImpl> m_preprocess;
+    std::unique_ptr<InputNetworkInfo::InputNetworkInfoImpl> m_network_data;
 };
 
 //-------------- InputInfo ------------------
@@ -155,6 +147,16 @@ InputInfo&& InputInfo::preprocess(PreProcessSteps&& builder) && {
 InputInfo& InputInfo::preprocess(PreProcessSteps&& builder) & {
     m_impl->m_preprocess = std::move(builder.m_impl);
     return *this;
+}
+
+InputInfo& InputInfo::network(InputNetworkInfo&& builder) & {
+    m_impl->m_network_data = std::move(builder.m_impl);
+    return *this;
+}
+
+InputInfo&& InputInfo::network(InputNetworkInfo&& builder) && {
+    m_impl->m_network_data = std::move(builder.m_impl);
+    return std::move(*this);
 }
 
 // ------------------------ PrePostProcessor --------------------
@@ -194,43 +196,68 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
                                 "particular input instead of default one");
             param = function->get_parameters().front();
         }
+        // Set parameter layout from 'network' information
+        if (input->m_network_data && input->m_network_data->is_layout_set() && param->get_layout() == Layout()) {
+            param->set_layout(input->m_network_data->get_layout());
+        }
         auto consumers = param->output(0).get_target_inputs();
         if (!input->m_tensor_data) {
-            input->create_tensor_data(param->get_element_type());
+            input->create_tensor_data(param->get_element_type(), param->get_layout());
+        }
+        if (!input->m_tensor_data->is_layout_set() && param->get_layout() != Layout()) {
+            input->m_tensor_data->set_layout(param->get_layout());
+        }
+        if (!input->m_tensor_data->is_element_type_set()) {
+            input->m_tensor_data->set_element_type(param->get_element_type());
         }
         auto new_param_shape = param->get_partial_shape();
-        auto new_param = std::make_shared<op::v0::Parameter>(input->m_tensor_data->m_type, new_param_shape);
-        if (input->m_tensor_data->m_layout != Layout()) {
-            new_param->get_rt_info()["LAYOUT"] =
-                std::make_shared<VariantWrapper<Layout>>(input->m_tensor_data->m_layout);
+        if (input->m_tensor_data->is_spatial_shape_set()) {
+            auto height_idx = get_and_check_height_idx(input->m_tensor_data->get_layout(), new_param_shape);
+            auto width_idx = get_and_check_width_idx(input->m_tensor_data->get_layout(), new_param_shape);
+            if (input->m_tensor_data->is_spatial_shape_dynamic()) {
+                // Use dynamic spatial dimensions
+                new_param_shape[height_idx] = Dimension::dynamic();
+                new_param_shape[width_idx] = Dimension::dynamic();
+            } else {
+                // Use static spatial dimensions
+                new_param_shape[height_idx] = input->m_tensor_data->get_spatial_height();
+                new_param_shape[width_idx] = input->m_tensor_data->get_spatial_width();
+            }
+        }
+        auto new_param = std::make_shared<op::v0::Parameter>(input->m_tensor_data->get_element_type(), new_param_shape);
+        if (input->m_tensor_data->is_layout_set()) {
+            new_param->set_layout(input->m_tensor_data->get_layout());
         }
         // Old param will be removed, so friendly name can be reused
         new_param->set_friendly_name(param->get_friendly_name());
-        std::shared_ptr<Node> node = new_param;
 
+        // Also reuse names of original tensor
+        new_param->get_output_tensor(0).set_names(param->get_output_tensor(0).get_names());
+
+        std::shared_ptr<Node> node = new_param;
+        PreprocessingContext context(new_param->get_layout());
+        context.network_layout() = param->get_layout();
+        context.network_shape() = param->get_partial_shape();
         // 2. Apply preprocessing
-        for (const auto& action : input->m_preprocess->m_actions) {
-            node = std::get<0>(action)(node);
+        for (const auto& action : input->m_preprocess->actions()) {
+            node = std::get<0>(action)({node}, context);
             tensor_data_updated |= std::get<1>(action);
         }
 
         // Check final type
-        if (node->get_element_type() != param->get_element_type()) {
-            throw ngraph::ngraph_error(
-                std::string("Element type after preprocessing {") + node->get_element_type().c_type_string() +
-                std::string("} doesn't match with network element type {") + param->get_element_type().c_type_string() +
-                "}. Please add 'convert_element_type' explicitly");
-        }
+        OPENVINO_ASSERT(node->get_element_type() == param->get_element_type(),
+                        std::string("Element type after preprocessing {") + node->get_element_type().c_type_string() +
+                            std::string("} doesn't match with network element type {") +
+                            param->get_element_type().c_type_string() +
+                            "}. Please add 'convert_element_type' explicitly");
 
         // Replace parameter
         for (auto consumer : consumers) {
             consumer.replace_source_output(node);
         }
-        if (input->has_index()) {
-            function->replace_parameter(input->m_index, new_param);
-        } else {
-            function->replace_parameter(0, new_param);
-        }
+        function->add_parameters({new_param});
+        // remove old parameter
+        function->remove_parameter(param);
     }
     if (tensor_data_updated) {
         function->validate_nodes_and_infer_types();
@@ -245,22 +272,58 @@ InputTensorInfo& InputTensorInfo::operator=(InputTensorInfo&&) noexcept = defaul
 InputTensorInfo::~InputTensorInfo() = default;
 
 InputTensorInfo& InputTensorInfo::set_element_type(const element::Type& type) & {
-    m_impl->m_type = type;
+    m_impl->set_element_type(type);
     return *this;
 }
 
 InputTensorInfo&& InputTensorInfo::set_element_type(const element::Type& type) && {
-    m_impl->m_type = type;
+    m_impl->set_element_type(type);
     return std::move(*this);
 }
 
 InputTensorInfo& InputTensorInfo::set_layout(const Layout& layout) & {
-    m_impl->m_layout = layout;
+    m_impl->set_layout(layout);
     return *this;
 }
 
 InputTensorInfo&& InputTensorInfo::set_layout(const Layout& layout) && {
-    m_impl->m_layout = layout;
+    m_impl->set_layout(layout);
+    return std::move(*this);
+}
+
+InputTensorInfo& InputTensorInfo::set_spatial_dynamic_shape() & {
+    m_impl->set_spatial_dynamic_shape();
+    return *this;
+}
+
+InputTensorInfo&& InputTensorInfo::set_spatial_dynamic_shape() && {
+    m_impl->set_spatial_dynamic_shape();
+    return std::move(*this);
+}
+
+InputTensorInfo& InputTensorInfo::set_spatial_static_shape(size_t height, size_t width) & {
+    m_impl->set_spatial_static_shape(height, width);
+    return *this;
+}
+
+InputTensorInfo&& InputTensorInfo::set_spatial_static_shape(size_t height, size_t width) && {
+    m_impl->set_spatial_static_shape(height, width);
+    return std::move(*this);
+}
+
+// --------------------- InputNetworkInfo ------------------
+InputNetworkInfo::InputNetworkInfo() : m_impl(std::unique_ptr<InputNetworkInfoImpl>(new InputNetworkInfoImpl())) {}
+InputNetworkInfo::InputNetworkInfo(InputNetworkInfo&&) noexcept = default;
+InputNetworkInfo& InputNetworkInfo::operator=(InputNetworkInfo&&) noexcept = default;
+InputNetworkInfo::~InputNetworkInfo() = default;
+
+InputNetworkInfo& InputNetworkInfo::set_layout(const Layout& layout) & {
+    m_impl->set_layout(layout);
+    return *this;
+}
+
+InputNetworkInfo&& InputNetworkInfo::set_layout(const Layout& layout) && {
+    m_impl->set_layout(layout);
     return std::move(*this);
 }
 
@@ -321,15 +384,55 @@ PreProcessSteps&& PreProcessSteps::convert_element_type(const element::Type& typ
     return std::move(*this);
 }
 
+PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg, size_t dst_height, size_t dst_width) & {
+    OPENVINO_ASSERT(dst_height <= std::numeric_limits<int>::max() && dst_width <= std::numeric_limits<int>::max(),
+                    "Resize: Width/Height dimensions cannot be greater than ",
+                    std::to_string(std::numeric_limits<int>::max()));
+    m_impl->add_resize_impl(alg, static_cast<int>(dst_height), static_cast<int>(dst_width));
+    return *this;
+}
+
+PreProcessSteps&& PreProcessSteps::resize(ResizeAlgorithm alg, size_t dst_height, size_t dst_width) && {
+    OPENVINO_ASSERT(dst_height <= std::numeric_limits<int>::max() && dst_width <= std::numeric_limits<int>::max(),
+                    "Resize: Width/Height dimensions cannot be greater than ",
+                    std::to_string(std::numeric_limits<int>::max()));
+    m_impl->add_resize_impl(alg, static_cast<int>(dst_height), static_cast<int>(dst_width));
+    return std::move(*this);
+}
+
+PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg) & {
+    m_impl->add_resize_impl(alg, -1, -1);
+    return *this;
+}
+
+PreProcessSteps&& PreProcessSteps::resize(ResizeAlgorithm alg) && {
+    m_impl->add_resize_impl(alg, -1, -1);
+    return std::move(*this);
+}
+
 PreProcessSteps& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_cb) & {
     // 'true' indicates that custom preprocessing step will trigger validate_and_infer_types
-    m_impl->m_actions.emplace_back(std::make_tuple(preprocess_cb, true));
+    m_impl->actions().emplace_back(std::make_tuple(
+        [preprocess_cb](const std::vector<std::shared_ptr<ov::Node>>& nodes, PreprocessingContext&) {
+            OPENVINO_ASSERT(nodes.size() == 1,
+                            "Can't apply custom preprocessing step for multi-plane input. Suggesting to convert "
+                            "current image to RGB/BGR color format using 'convert_color'");
+            return preprocess_cb(nodes[0]);
+        },
+        true));
     return *this;
 }
 
 PreProcessSteps&& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_cb) && {
     // 'true' indicates that custom preprocessing step will trigger validate_and_infer_types
-    m_impl->m_actions.emplace_back(std::make_tuple(preprocess_cb, true));
+    m_impl->actions().emplace_back(std::make_tuple(
+        [preprocess_cb](const std::vector<std::shared_ptr<ov::Node>>& nodes, PreprocessingContext&) {
+            OPENVINO_ASSERT(nodes.size() == 1,
+                            "Can't apply custom preprocessing step for multi-plane input. Suggesting to convert "
+                            "current image to RGB/BGR color format using 'convert_color'");
+            return preprocess_cb(nodes[0]);
+        },
+        true));
     return std::move(*this);
 }
 

@@ -22,13 +22,11 @@ inline std::string getRTInfoValue(const std::map<std::string, std::shared_ptr<ng
 
 inline std::string getPrimitivesPriorityValue(const std::shared_ptr<ngraph::Node> &node) {
     const auto &rtInfo = node->get_rt_info();
-    using PrimitivesPriorityWraper = ngraph::VariantWrapper<ngraph::PrimitivesPriority>;
 
-    if (!rtInfo.count(PrimitivesPriorityWraper::type_info.name)) return "";
+    if (!rtInfo.count(ov::PrimitivesPriority::get_type_info_static())) return "";
 
-    const auto &attr = rtInfo.at(PrimitivesPriorityWraper::type_info.name);
-    ngraph::PrimitivesPriority pp = ngraph::as_type_ptr<PrimitivesPriorityWraper>(attr)->get();
-    return pp.getPrimitivesPriority();
+    const auto &attr = rtInfo.at(ov::PrimitivesPriority::get_type_info_static());
+    return ngraph::as_type_ptr<ov::PrimitivesPriority>(attr)->get();
 }
 
 template <typename T>

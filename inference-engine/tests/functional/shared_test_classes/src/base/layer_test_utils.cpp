@@ -75,6 +75,7 @@ void LayerTestsCommon::Serialize() {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path);
     manager.run_passes(function);
+    function->validate_nodes_and_infer_types();
 
     auto result = getCore()->ReadNetwork(out_xml_path, out_bin_path);
 
@@ -88,6 +89,23 @@ void LayerTestsCommon::Serialize() {
     EXPECT_TRUE(success) << message;
 
     CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
+}
+
+void LayerTestsCommon::QueryNetwork() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    cnnNetwork = InferenceEngine::CNNNetwork(function);
+
+    auto queryNetworkResult = PluginCache::get().ie()->QueryNetwork(cnnNetwork, targetDevice);
+    std::set<std::string> expected;
+    for (auto&& node : function->get_ops()) {
+        expected.insert(node->get_friendly_name());
+    }
+
+    std::set<std::string> actual;
+    for (auto&& res : queryNetworkResult.supportedLayersMap) {
+        actual.insert(res.first);
+    }
+    ASSERT_EQ(expected, actual);
 }
 
 InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo &info) const {

@@ -64,6 +64,9 @@
 #include "impls/ocl/register.hpp"
 #include "impls/cpu/register.hpp"
 #include "impls/common/register.hpp"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "impls/onednn/register.hpp"
+#endif
 
 #include "kernel_base.h"
 
@@ -130,6 +133,9 @@ void program::init_primitives() {
         common::register_implementations();
         cpu::register_implementations();
         ocl::register_implementations();
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        onednn::register_implementations();
+#endif
         is_initialized = true;
     }
 }
@@ -417,9 +423,17 @@ void program::build_program(bool is_internal) {
     { pre_optimize_graph(is_internal); }
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
-    prepare_memory_dependencies();
-    compile();
-    init_kernels();
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+#ifdef GPU_DEBUG_CONFIG
+    if (debug_config->dry_run_path.empty()) {
+#else
+    {
+#endif
+        prepare_memory_dependencies();
+        compile();
+        init_kernels();
+    }
 
     if (!is_internal) {
         prim_info = get_current_stage_info();
@@ -602,6 +616,10 @@ void program::transfer_memory_to_device() {
 
 
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
+                GPU_DEBUG_GET_INSTANCE(debug_config);
+                GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                    GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
+                }
                 // Allocate and transfer memory
                 auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
                 device_mem->copy_from(get_stream(), mem);
@@ -893,6 +911,7 @@ void program::replace(program_node& old_node, program_node& new_node) {
     new_node.constant = old_node.constant;
     new_node.data_flow = old_node.data_flow;
     new_node.user_mark = old_node.user_mark;
+    const_cast<primitive_id&>(new_node.desc->ext_prim_id) = old_node.desc->ext_prim_id;
 
     processing_order.insert(&old_node, &new_node);
     if (processing_order.get_processing_iterator(old_node) != processing_order.end())
@@ -1006,9 +1025,10 @@ void program::fuse_nodes(program_node &fused_node, program_node &peer_node, std:
             quantize_node& q_node = peer_node.as<quantize>();
             if (q_node.get_scale_shift_opt()) {
                 bool can_drop_input = false;
+                bool out_range_usage = q_node.get_per_tensor_output_range() && q_node.get_output_lo_val() < q_node.get_output_hi_val();
 
-                // Drop input range if clamp is not needed
-                can_drop_input |= (i == 1 || i == 2) && !q_node.get_need_clamp();
+                // Drop input range if we use output per-tensor range or if clamp is used for input range
+                can_drop_input |= (i == 1 || i == 2) && (out_range_usage || (!out_range_usage && !q_node.get_need_clamp()));
                 // Drop output range - it's not used in scale-shift-opt quantize kernel
                 can_drop_input |= i == 3 || i == 4;
                 // Drop tensor with input scale when we have per-tensor parameter
@@ -1363,4 +1383,10 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
     if (should_use_bs_fs_yx_bsv16_fsv16)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network, 1);
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    auto& engine = get_engine();
+    if (engine.get_device_info().supports_immad && engine.configuration().queue_type == queue_types::in_order)
+        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
+#endif
 }

@@ -9,9 +9,13 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
+        // CVS-66280
+        R"(.*canLoadCorrectNetworkAndCheckConfig.*)",
+        R"(.*canSetCorrectConfigLoadNetworkAndCheckConfig.*)",
+        //
         R"(.*ExclusiveAsyncRequests.*)",
         R"(.*ReusableCPUStreamsExecutor.*)",
-        R"(.*SplitLayerTest.*numSplits\=30.*)",
+        R"(.*SplitLayerTest.*numSplits=30.*)",
         // CVS-51758
         R"(.*InferRequestPreprocessConversionTest.*oLT=(NHWC|NCHW).*)",
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*)",

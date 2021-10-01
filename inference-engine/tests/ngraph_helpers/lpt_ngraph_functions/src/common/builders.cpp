@@ -96,11 +96,11 @@ std::shared_ptr<Node> makeDequantization(
                     ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get());
             }
 
-            subtract->set_friendly_name(data.get_node_shared_ptr()->get_friendly_name() + "/DequantizationSubtract");
             ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(subtract, dequantizationOperations.subtract.outPrecision);
         }
 
         NetworkHelper::copyInfo({ data.get_node_shared_ptr(), subtract }, subtract);
+        subtract->set_friendly_name(data.get_node_shared_ptr()->get_friendly_name() + "/DequantizationSubtract");
 
         if (!dequantizationOperations.subtract.attributes.empty()) {
             auto& rt = subtract->get_rt_info();
