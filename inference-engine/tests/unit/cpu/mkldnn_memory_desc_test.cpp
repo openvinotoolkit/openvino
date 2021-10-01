@@ -385,13 +385,13 @@ TEST(MakeUndefinedDnnlDesc, checkLayout) {
     const memory::data_type dataType = memory::data_type::u8;
 
     payloadArgs payload[] {
-            { memory::format_tag::nChw16c,     {1, 1, 10, 10}, "aBcd16b" },  // auto blocked
-            { memory::format_tag::nhwc,        {4, 2, 10, 7 }, "acdb" },  // permuted
-            { memory::format_tag::nchw,        {4, 2, 10, 7 }, "abcd" },  // plain
-            { memory::format_tag::NChw16n16c,  {4, 2, 10, 7 }, "ABcd16a16b" },  // blocked for 2 dims
-            { memory::format_tag::Acdb16a,     {96, 1, 7, 7 }, "Acdb16a" },  // same strides but not default order
+            payloadArgs{ memory::format_tag::nChw16c,     {1, 1, 10, 10}, "aBcd16b" },  // auto blocked
+            payloadArgs{ memory::format_tag::nhwc,        {4, 2, 10, 7 }, "acdb" },  // permuted
+            payloadArgs{ memory::format_tag::nchw,        {4, 2, 10, 7 }, "abcd" },  // plain
+            payloadArgs{ memory::format_tag::NChw16n16c,  {4, 2, 10, 7 }, "ABcd16a16b" },  // blocked for 2 dims
+            payloadArgs{ memory::format_tag::Acdb16a,     {96, 1, 7, 7 }, "Acdb16a" },  // same strides but not default order
             // TODO [DS]: uncomment when serializeFormat() properly handles the permutation
-            //{ memory::format_tag::BAcd16a16b,  {17, 2, 10, 7 }, "BAcd16a16b" },  // blocked and permuted outer dims
+            //payloadArgs{ memory::format_tag::BAcd16a16b,  {17, 2, 10, 7 }, "BAcd16a16b" },  // blocked and permuted outer dims
     };
 
     ngraph::PartialShape fullyUndef({{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}});
@@ -420,12 +420,12 @@ TEST(MakeUndefinedDnnlDesc, extraData) {
     const memory::data_type dataType = memory::data_type::u8;
 
     payloadArgs payload[] {
-            { memory::format_tag::nChw16c,     {1, 1, 10, 10} },  // auto blocked
-            { memory::format_tag::nhwc,        {4, 2, 10, 7 } },  // permuted
-            { memory::format_tag::nchw,        {4, 2, 10, 7 } },  // plain
-            { memory::format_tag::NChw16n16c,  {4, 2, 10, 7 } },  // blocked for 2 dims
-            { memory::format_tag::Acdb16a,     {96, 1, 7, 7 } },  // same strides but not default order
-            { memory::format_tag::BAcd16a16b,  {17, 2, 10, 7 } },  // blocked and permuted outer dims
+            payloadArgs{ memory::format_tag::nChw16c,     {1, 1, 10, 10} },  // auto blocked
+            payloadArgs{ memory::format_tag::nhwc,        {4, 2, 10, 7 } },  // permuted
+            payloadArgs{ memory::format_tag::nchw,        {4, 2, 10, 7 } },  // plain
+            payloadArgs{ memory::format_tag::NChw16n16c,  {4, 2, 10, 7 } },  // blocked for 2 dims
+            payloadArgs{ memory::format_tag::Acdb16a,     {96, 1, 7, 7 } },  // same strides but not default order
+            payloadArgs{ memory::format_tag::BAcd16a16b,  {17, 2, 10, 7 } },  // blocked and permuted outer dims
     };
 
     ngraph::PartialShape fullyUndef({{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}});
