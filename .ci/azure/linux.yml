@@ -131,7 +131,7 @@ jobs:
   - script: ls -alR $(REPO_DIR)/inference-engine/temp/
     displayName: 'List temp SDKs'
 
-  - script: ninja
+  - script: ninja -v
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Lin'
 
