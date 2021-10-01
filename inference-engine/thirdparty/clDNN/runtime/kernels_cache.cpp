@@ -384,6 +384,8 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
             std::cout << err_log << std::endl;
         }
         std::cout << err_log << std::endl;
+        for (auto& s : batch.source)
+            dump_file << s;
         throw std::runtime_error("Program build failed. You may enable OCL source dump to see the error log.\n");
     }
 }

@@ -770,3 +770,4 @@ KERNEL(mvn_final)(
 
 #undef CEIL_DIV
 #undef USE_IMAD
+

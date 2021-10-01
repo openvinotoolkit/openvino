@@ -29,6 +29,10 @@ class OpenCL2CHeaders(object):
             #try:
                 print('processing {}'.format(filename))
                 res += self.cl_file_to_str(filename)
+                if 'mvn_gpu_b_fs_yx_fsv16_imad.cl' in filename:
+                    print('---------------------------------')
+                    print(self.cl_file_to_str(filename))
+                    print('---------------------------------')
             #except:
             #    pass
 
