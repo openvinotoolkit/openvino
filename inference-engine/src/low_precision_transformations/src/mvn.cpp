@@ -78,8 +78,6 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
         }
     }
 
-    bool isScalarScales = NetworkHelper::isScalarLike(dequantization.multiplyConstant);
-
     AxisSet reduction_axes;
     if (ov::is_type<op::MVN>(mvn)) {
         reduction_axes = ov::as_type_ptr<op::MVN>(mvn)->get_reduction_axes();
@@ -104,6 +102,7 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
         }
     }
 
+    bool isScalarScales = NetworkHelper::isScalarLike(dequantization.multiplyConstant);
     return perTensor && isScalarScales;
 }
 
@@ -127,9 +126,9 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
 
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(mvn);
     const auto scalesConst = dequantization.multiplyConstant;
+    const auto type = scalesConst->get_element_type();
 
-    auto newScalesConst = dequantization.multiplyConstant;
-    const auto type = scalesConst->get_output_element_type(0);
+    auto newScalesConst = scalesConst;
     if (normalizeVariance) {
         switch (type) {
             case ngraph::element::Type_t::f16: {
@@ -145,11 +144,12 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
             }
         }
     }
+
     std::shared_ptr<Node> newMVN;
     if (ov::is_type<op::MVN>(mvn)) {
         newMVN = mvn->copy_with_new_inputs({dequantization.data});
     } else {
-        newMVN = mvn->copy_with_new_inputs({dequantization.data, mvn->get_input_node_shared_ptr(1)});
+        newMVN = mvn->copy_with_new_inputs({dequantization.data, mvn->input_value(1)});
     }
     NetworkHelper::setOutDataPrecisionForTypeRelaxed(newMVN, deqPrecision);
     NetworkHelper::copyInfo(mvn, newMVN);

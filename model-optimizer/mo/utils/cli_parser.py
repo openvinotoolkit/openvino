@@ -19,6 +19,7 @@ from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
 
+
 class DeprecatedStoreTrue(argparse.Action):
     def __init__(self, nargs=0, **kw):
         super().__init__(nargs=nargs, **kw)
@@ -275,7 +276,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument('--data_type',
                               help='Data type for all intermediate tensors and weights. ' +
                                    'If original model is in FP32 and --data_type=FP16 is specified, all model weights ' +
-                                   'and biases are quantized to FP16.',
+                                   'and biases are compressed to FP16.',
                               choices=["FP16", "FP32", "half", "float"],
                               default='float')
     common_group.add_argument('--transform',
@@ -353,10 +354,16 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help='Switch model conversion progress display to a multiline mode.',
                               action='store_true', default=False)
     common_group.add_argument('--transformations_config',
-                          help='Use the configuration file with transformations description.',
-                          action=CanonicalizePathCheckExistenceAction)
+                              help='Use the configuration file with transformations description.',
+                              action=CanonicalizePathCheckExistenceAction)
     common_group.add_argument('--legacy_ir_generation',
                               help=argparse.SUPPRESS, action=DeprecatedStoreTrue, default=False)
+    common_group.add_argument("--use_new_frontend",
+                              help="Use new frontend API for model processing",
+                              action='store_true', default=False)
+    common_group.add_argument("--use_legacy_frontend",
+                              help="Use legacy API for model processing",
+                              action='store_true', default=False)
     return parser
 
 
@@ -378,6 +385,7 @@ def get_common_cli_options(model_name):
     d['disable_gfusing'] = ['- Enable grouped convolutions fusing', lambda x: not x]
     d['move_to_preprocess'] = '- Move mean values to preprocess section'
     d['reverse_input_channels'] = '- Reverse input channels'
+    d['use_legacy_frontend'] = '- Use legacy API for model processing'
     return d
 
 
@@ -528,7 +536,7 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
                           action=CanonicalizePathCheckExistenceAction,
                           type=readable_file)
     tf_group.add_argument('--saved_model_dir', default=None,
-                          help='TensorFlow*: directory with a model in SavedModel format'
+                          help='TensorFlow*: directory with a model in SavedModel format '
                                'of TensorFlow 1.x or 2.x version.',
                           action=CanonicalizePathCheckExistenceAction,
                           type=readable_dirs)
@@ -949,7 +957,7 @@ def parse_tuple_pairs(argv_values: str):
 
     matches = [m for m in re.finditer(r'[(\[]([0-9., -]+)[)\]]', argv_values, re.IGNORECASE)]
 
-    error_msg = 'Mean/scale values should consist of name and values specified in round or square brackets' \
+    error_msg = 'Mean/scale values should consist of name and values specified in round or square brackets ' \
                 'separated by comma, e.g. data(1,2,3),info[2,3,4],egg[255] or data(1,2,3). Or just plain set of ' \
                 'values without names: (1,2,3),(2,3,4) or [1,2,3],[2,3,4].' + refer_to_faq_msg(101)
     if not matches:

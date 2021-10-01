@@ -20,7 +20,7 @@
 #    include <dlfcn.h>
 #    include <limits.h>
 #    include <unistd.h>
-#    ifdef ENABLE_UNICODE_PATH_SUPPORT
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #        include <codecvt>
 #        include <locale>
 #    endif
@@ -66,39 +66,9 @@
 
 #endif
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
-
-std::string FileUtils::wStringtoMBCSstringChar(const std::wstring& wstr) {
-#    ifdef _WIN32
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
-    std::string strTo(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
-    return strTo;
-#    else
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_decoder;
-    return wstring_decoder.to_bytes(wstr);
-#    endif
-}
-
-std::wstring FileUtils::multiByteCharToWString(const char* str) {
-#    ifdef _WIN32
-    int strSize = static_cast<int>(std::strlen(str));
-    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
-    std::wstring wstrTo(size_needed, 0);
-    MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
-    return wstrTo;
-#    else
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_encoder;
-    std::wstring result = wstring_encoder.from_bytes(str);
-    return result;
-#    endif
-}
-
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
-
 long long FileUtils::fileSize(const char* charfilepath) {
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = FileUtils::multiByteCharToWString(charfilepath);
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    std::wstring widefilename = ov::util::string_to_wstring(charfilepath);
     const wchar_t* fileName = widefilename.c_str();
 #elif defined(__ANDROID__) || defined(ANDROID)
     std::string fileName = charfilepath;
@@ -138,7 +108,7 @@ void FileUtils::createDirectoryRecursive(const std::string& dirPath) {
         return;
     }
 
-    std::size_t pos = dirPath.rfind(FileUtils::FileSeparator);
+    std::size_t pos = dirPath.rfind(ov::util::FileTraits<char>::file_separator);
     if (pos != std::string::npos) {
         createDirectoryRecursive(dirPath.substr(0, pos));
     }
@@ -156,7 +126,7 @@ namespace {
 
 template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
 std::basic_string<C> getPathName(const std::basic_string<C>& s) {
-    size_t i = s.rfind(FileUtils::FileTraits<C>::FileSeparator, s.length());
+    size_t i = s.rfind(ov::util::FileTraits<C>::file_separator, s.length());
     if (i != std::string::npos) {
         return (s.substr(0, i));
     }
@@ -199,7 +169,7 @@ static std::string getIELibraryPathA() {
 #endif  // _WIN32
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 std::wstring getIELibraryPathW() {
 #    ifdef _WIN32
@@ -213,17 +183,17 @@ std::wstring getIELibraryPathW() {
     GetModuleFileNameW(hm, (LPWSTR)ie_library_path, sizeof(ie_library_path) / sizeof(ie_library_path[0]));
     return getPathName(std::wstring(ie_library_path));
 #    elif defined(__linux__) || defined(__APPLE__)
-    return ::FileUtils::multiByteCharToWString(getIELibraryPathA().c_str());
+    return ::ov::util::string_to_wstring(getIELibraryPathA().c_str());
 #    else
 #        error "Unsupported OS"
 #    endif
 }
 
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 std::string getIELibraryPath() {
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
-    return FileUtils::wStringtoMBCSstringChar(getIELibraryPathW());
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    return ov::util::wstring_to_string(getIELibraryPathW());
 #else
     return getIELibraryPathA();
 #endif

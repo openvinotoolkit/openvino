@@ -10,7 +10,7 @@ using namespace ngraph;
 using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;
 
-std::string MulticlassNmsLayerTest::getTestCaseName(testing::TestParamInfo<MulticlassNmsParams> obj) {
+std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo<MulticlassNmsParams>& obj) {
     InputShapeParams inShapeParams;
     InputPrecisions inPrecisions;
     int32_t nmsTopK, backgroundClass, keepTopK;

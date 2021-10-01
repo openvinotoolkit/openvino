@@ -64,9 +64,12 @@
 #include "transformations/convert_matmul_to_pointwise_convolution.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
 #include "transformations/handle_transposes_around_matmul.hpp"
-#include "transformations/decompose_2d_conv.hpp"
-#include "transformations/convert_padded2valid_conv.hpp"
+#include "transformations/decompose_2d_convolution.hpp"
+#include "transformations/convert_padded_to_valid_convolution.hpp"
+#include "transformations/insert_reshape_around_matmul.hpp"
+#include "transformations/convert_dwsc_to_scaleshifts.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
+#include "transformations/remove_single_input_concat.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -417,50 +420,16 @@ void GNAPlugin::InitGNADevice() {
                 config.swExactMode,
                 gnaFlags->gna_lib_async_threads_num,
                 gnaFlags->gna_openmp_multithreading,
-                gnaFlags->performance_counting);
+                gnaFlags->performance_counting,
+                !config.dumpXNNPath.empty(),
+                GetDeviceVersionFromString(config.dumpXNNGeneration));
 #endif
     size_t page_size_bytes = 4096;
     gnamem = std::make_shared<gna_memory_type>(memory::make_polymorph<memory::GNAAllocator>(gnadevice), page_size_bytes);
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
 
-void GNAPlugin::UpdateGnaQuantModeFromNetwork(InferenceEngine::CNNNetwork & network) {
-    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateGnaQuantModeFromNetwork");
-    // fp32 emulation mode dont need any modifications to configuration
-    if (config.gnaFlags.sw_fp32) return;
-
-    // search for FQ layers
-    // only supports cases of int16 or int8
-    auto it = details::CNNNetworkIterator(network), end = details::CNNNetworkIterator();
-    for (; it != end; it++) {
-        if (!LayerInfo(*it).isFakeQuantize()) {
-            continue;
-        }
-
-        GNAFakeQuantizeLayer fqLayer(*it);
-        auto inputLayer = fqLayer.getInputLayer();
-
-        // this fake quantize represents data quantization - not weights
-        if (!LayerInfo(inputLayer).isConst()) {
-            continue;
-        }
-        // also in mixed mode i8 should be stated as target precision
-        if (fqLayer.getLevels() <= std::numeric_limits<uint8_t>::max()) {
-            config.gnaPrecision = InferenceEngine::Precision::I8;
-        } else if (fqLayer.getLevels() <= std::numeric_limits<uint16_t>::max()) {
-            config.gnaPrecision = InferenceEngine::Precision::I16;
-        } else {
-            THROW_GNA_LAYER_EXCEPTION(*it)
-                << "unsupported quantisation scheme: number of levels is " << fqLayer.getLevels() << " while only up to "
-                << std::numeric_limits<uint16_t>::max() << " is supported";
-        }
-
-        gnaFlags->fake_quantized = true;
-        config.gnaFlags.fake_quantized = true;
-    }
-}
-
-void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & network) {
+void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateInputScaleFromNetwork");
     // fp32 emulation mode dont need any modifications to configuration
     if (config.gnaFlags.sw_fp32) return;
@@ -475,6 +444,7 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
             if (!LayerInfo(nextToInputLayer.second).isFakeQuantize()) {
                 continue;
             }
+
             // replacing scale factor from this fq layer
             GNAFakeQuantizeLayer fqLayer(nextToInputLayer.second);
             auto inputRange = fqLayer.getInputRange();
@@ -485,9 +455,6 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
                     << "unsupported, per-channel quantization for input layer : " << input.second->name();
             }
 
-            auto fp32eq = [](float p1, float p2) -> bool {
-                return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
-            };
             // GNA input is always quantized to int16, so number of levels can't be greater than max uint16
             // todo: should be solved in POT (issue 63330)
             size_t levels = std::min(fqLayer.getLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max() + 1));
@@ -706,23 +673,28 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         InitGNADevice();
     }
 
-    bool isNgraphPassesUsed = false;
+    std::string effectiveGnaCompileTarget = config.gnaCompileTarget;
+    if (gnadevice) {
+        effectiveGnaCompileTarget = gnadevice->getEffectiveGnaCompileTarget();
+    }
 
+    bool isNgraphPassesUsed = false;
+    bool fake_quantized = false;
     if (_network.getFunction()) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         const auto& graph = clonedNetwork.getFunction();
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+        fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
         // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
-        manager.register_pass<ConvertPadded2ValidConv>();
-        if (config.gnaCompileTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
-            manager.register_pass<Decompose2DConvTransposedWithBiasAF>();
-            manager.register_pass<Decompose2DConvTransposedWithBias>();
-            manager.register_pass<Decompose2DConv>();
-        }
+        manager.register_pass<ConvertDWSCToScaleShifts>();
+        manager.register_pass<ConvertPaddedToValidConv>();
+        manager.register_pass<Decompose2DConvTransposedWithBiasAF>(effectiveGnaCompileTarget, config.gnaPrecision);
+        manager.register_pass<Decompose2DConvTransposedWithBias>(effectiveGnaCompileTarget, config.gnaPrecision);
+        manager.register_pass<Decompose2DConv>(effectiveGnaCompileTarget, config.gnaPrecision);
         // TODO enable this transformation for networks with convolutions
         if (!ngraph::op::util::has_op_with_type<ngraph::opset7::Convolution>(graph)) {
             manager.register_pass<ConvertMatmulWithFqToPointWiseConvolution>();
@@ -732,19 +704,23 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<SplitConvolutionWithFq>();
         manager.register_pass<SplitConvolutionWithBias>();
         manager.register_pass<SplitConvolution>();
-        manager.register_pass<HandleTransposesAroundMatMul>();
+        manager.register_pass<InsertReshapeAroundMatmulWithTranspose>();
+        manager.register_pass<InsertReshapeAroundMatmulWithFq>();
+        manager.register_pass<InsertReshapeAroundMatmulWithAdd>();
+        manager.register_pass<InsertReshapeAroundMatmul>();
         manager.register_pass<SwapInputMatMulWithFq>();
         manager.register_pass<SwapInputMatMulWithBias>();
         manager.register_pass<SwapInputMatMul>();
+        manager.register_pass<HandleTransposesAroundMatMul>();
         manager.register_pass<InsertTransposeAfterConvOrPool>();
         manager.register_pass<ReorderActivationAndPooling>();
+        manager.register_pass<RemoveSingleInputConcat>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
         manager.register_pass<RemoveExtraReshapes>();
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
-
         const auto& pass_config = manager.get_pass_config();
         pass_config->disable<ngraph::pass::FakeQuantizeMulFusion>();
         pass_config->disable<ngraph::pass::FakeQuantizeReshapeFusion>();
@@ -773,9 +749,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
-    // FQ networks now replaces certain flags in the plugin - flags will'be owerritten
-    UpdateGnaQuantModeFromNetwork(network);
-    UpdateInputScaleFromNetwork(network);
+    if (fake_quantized) {
+        UpdateInputScaleFromNetwork(network);
+    }
 
     // Set input and output information from orginal network
     UpdateInputsAndOutputsInfoFromNetwork(network);
@@ -793,9 +769,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             passes->registerPass<UnrollTIPass>();
             passes->registerPass<RemoveConstPass>();
             passes->registerPass<UnrollLSTMCellPass>();
+            passes->registerPass<RemoveSingleInputConcatPass>();
         }
-
-        passes->registerPass<RemoveSingleInputConcatPass>();
 
         // fake quantisation aware passes
         passes->registerPass<FuseFQIntoWeightsPass>();
@@ -840,19 +815,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         // to run all passes need to have two calls to pass manager
         run_passes(newNet, true, gnaFlags->input_low_precision);
         run_passes(newNet, false, gnaFlags->input_low_precision);
-    } else if (gnaFlags->fake_quantized) {
-        switch (config.gnaPrecision) {
-            case Precision::I16:
-                ModelQuantizer<FakeQuantI16> q16;
-                newNet = q16.quantize(network, run_passes, inputsDesc->inputScaleFactors);
-                break;
-            case Precision::I8:
-                ModelQuantizer<FakeQuantI8> q8;
-                newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
-                break;
-            default:
-                THROW_GNA_EXCEPTION << "unsupported GNA precision for quantisation: " << config.gnaPrecision;
-        }
+    } else if (fake_quantized) {
+        ModelQuantizer<FakeQuant> modelQuantizer;
+        newNet = modelQuantizer.quantize(network, run_passes, inputsDesc->inputScaleFactors);
     } else {
         switch (config.gnaPrecision) {
             case Precision::I16:
@@ -1032,10 +997,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 #else
     nnets.emplace_back(make_shared<CPPWrapper<intel_nnet_type_t>>(), -1, InferenceEngine::BlobMap());
 #endif
+
     if (!gnaFlags->sw_fp32 && !graphCompiler.dnnComponents.components.empty()) {
         // number of layer gets calculated inside that InitGNAStruct function
 #if GNA_LIB_VER == 2
-        dnn->InitGNAStruct(&std::get<0>(gnaModels.front())->obj, config.gnaCompileTarget);
+        dnn->InitGNAStruct(&std::get<0>(gnaModels.front())->obj, effectiveGnaCompileTarget);
 #else
         dnn->InitGNAStruct(&std::get<0>(nnets.front())->obj);
 #endif
@@ -1046,7 +1012,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 #if GNA_LIB_VER == 2
         gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>()));
         // this can be improved by just copy all structures, but we are too lazy
-        dnn->InitGNAStruct(&std::get<0>(gnaModels.back())->obj, config.gnaCompileTarget);
+        dnn->InitGNAStruct(&std::get<0>(gnaModels.back())->obj, effectiveGnaCompileTarget);
 #else
         nnets.emplace_back(make_shared<CPPWrapper<intel_nnet_type_t>>(), -1, InferenceEngine::BlobMap());
         dnn->InitGNAStruct(&std::get<0>(nnets.back())->obj);

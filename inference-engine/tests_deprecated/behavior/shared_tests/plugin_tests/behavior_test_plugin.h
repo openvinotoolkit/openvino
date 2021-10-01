@@ -107,7 +107,4 @@ const TestModel convReluNormPoolFcModelFP32 = getConvReluNormPoolFcModel(Inferen
 const TestModel convReluNormPoolFcModelFP16 = getConvReluNormPoolFcModel(InferenceEngine::Precision::FP16);
 const TestModel convReluNormPoolFcModelQ78 = getConvReluNormPoolFcModel(InferenceEngine::Precision::Q78);
 
-class FPGAHangingTest : public BehaviorPluginTest {
-};
-
 #endif

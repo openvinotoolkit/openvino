@@ -5,7 +5,7 @@
 /**
  * @brief A header file that provides wrapper classes for infer requests and callbacks.
  *
- * @file infer_request.hpp
+ * @file openvino/runtime/infer_request.hpp
  */
 #pragma once
 
@@ -13,24 +13,27 @@
 #include <memory>
 #include <string>
 
-#include "common.hpp"
-#include "profiling_info.hpp"
-#include "variable_state.hpp"
+#include "openvino/runtime/common.hpp"
+#include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "openvino/runtime/variable_state.hpp"
 
 namespace InferenceEngine {
 class IInferRequestInternal;
-class Blob;
 }  // namespace InferenceEngine
 
 namespace ov {
 namespace runtime {
+
+class ExecutableNetwork;
+
 /**
  * @brief This is an interface of asynchronous infer request
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class INFERENCE_ENGINE_API_CLASS(InferRequest) {
-    std::shared_ptr<SharedObject> _so;
+class OPENVINO_RUNTIME_API InferRequest {
+    std::shared_ptr<void> _so;
     std::shared_ptr<ie::IInferRequestInternal> _impl;
 
     /**
@@ -39,8 +42,8 @@ class INFERENCE_ENGINE_API_CLASS(InferRequest) {
      * destroyed.
      * @param impl Initialized shared pointer
      */
-    InferRequest(const std::shared_ptr<SharedObject>& so, const std::shared_ptr<ie::IInferRequestInternal>& impl);
-    friend class ExecutableNetwork;
+    InferRequest(const std::shared_ptr<void>& so, const std::shared_ptr<ie::IInferRequestInternal>& impl);
+    friend class ov::runtime::ExecutableNetwork;
 
 public:
     /**
@@ -52,20 +55,20 @@ public:
      * @brief Sets input/output data to infer
      *
      * @note Memory allocation does not happen
-     * @param name Name of input or output blob.
-     * @param data Reference to input or output blob. The type of a blob must match the network input precision and
-     * size.
+     * @param name Name of input or output tensor.
+     * @param tensor Reference to input or output tensor. The type of a tensor must match the network input precision
+     * and size.
      */
-    void set_blob(const std::string& name, const std::shared_ptr<ie::Blob>& data);
+    void set_tensor(const std::string& name, const Tensor& tensor);
 
     /**
      * @brief Gets input/output data for inference
      *
      * @note Memory allocation does not happen
-     * @param name A name of Blob to get
-     * @return A shared pointer to a Blob with a name @p name. If a blob is not found, an exception is thrown.
+     * @param name A name of tensor to get
+     * @return A Tensor with a name @p name. If a tensor is not found, an exception is thrown.
      */
-    std::shared_ptr<ie::Blob> get_blob(const std::string& name);
+    Tensor get_tensor(const std::string& name);
 
     /**
      * @brief Infers specified input(s) in synchronous mode
@@ -87,31 +90,6 @@ public:
      * @return Vector of profiling information for layers in network
      */
     std::vector<ProfilingInfo> get_profiling_info() const;
-
-    /**
-     * @brief Sets input data to infer
-     *
-     * @note Memory allocation doesn't happen
-     * @param inputs A reference to a map of input blobs accessed by input names.
-     *        The type of Blob must correspond to the network input precision and size.
-     */
-    void set_input(const std::map<std::string, std::shared_ptr<ie::Blob>>& inputs);
-
-    /**
-     * @brief Sets data that will contain result of the inference
-     *
-     * @note Memory allocation doesn't happen
-     * @param results - a reference to a map of result blobs accessed by output names.
-     *        The type of Blob must correspond to the network output precision and size.
-     */
-    void set_output(const std::map<std::string, std::shared_ptr<ie::Blob>>& results);
-
-    /**
-     * @brief Sets new batch size when dynamic batching is enabled in executable network that created this request.
-     *
-     * @param batch new batch size to be used by all the following inference calls for this request.
-     */
-    void set_batch(const int batch);
 
     /**
      * @brief Start inference of specified input(s) in asynchronous mode

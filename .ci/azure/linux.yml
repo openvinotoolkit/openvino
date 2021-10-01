@@ -33,7 +33,7 @@ jobs:
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
     LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
-    SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
+    SETUPVARS: $(INSTALL_DIR)/setupvars.sh
 
   steps:
   - script: |
@@ -103,6 +103,7 @@ jobs:
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
+    # Should be after 'Install dependencies' because Git lfs is not installed
   - checkout: testdata
     clean: true
     lfs: true
@@ -140,18 +141,18 @@ jobs:
   - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
-  
+
   - task: CMake@1
     inputs:
       cmakeArgs: >
         -GNinja
         $(REPO_DIR)/tests/layer_tests
       workingDirectory: $(BUILD_LAYER_TESTS_DIR)
-      
+
   - script: ninja
     workingDirectory: $(BUILD_LAYER_TESTS_DIR)
     displayName: 'Build Layer Tests'
-    
+
   - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_LAYER_TESTS_DIR)
     displayName: 'Install Layer Tests'
@@ -166,18 +167,18 @@ jobs:
       cp -R $(REPO_DIR)/inference-engine/temp/opencv_4.5.2_ubuntu20/opencv/* $(INSTALL_DIR)/opencv/
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install tests'
-    
+
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
-  - script: $(INSTALL_DIR)/deployment_tools/inference_engine/samples/cpp/build_samples.sh
+  - script: $(INSTALL_DIR)/samples/cpp/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
 
-  - script: $(INSTALL_DIR)/deployment_tools/inference_engine/samples/c/build_samples.sh
+  - script: $(INSTALL_DIR)/samples/c/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
-  
+
   - script: rm -fr $(BUILD_DIR)
     displayName: 'Clean build dir'
     continueOnError: false
@@ -188,8 +189,8 @@ jobs:
     continueOnError: false
 
   - script: |
-      export MO_ROOT=$(INSTALL_DIR)/deployment_tools/model_optimizer
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/deployment_tools/model_optimizer/unit_tests --junitxml=TEST-ModelOptimizer.xml
+      export MO_ROOT=$(INSTALL_DIR)/tools/model_optimizer
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/tools/model_optimizer/unit_tests --junitxml=TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
     continueOnError: false
 
@@ -253,11 +254,11 @@ jobs:
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest --junitxml=TEST-PythonAPI.xml
     displayName: 'Python API Tests'
     continueOnError: false
-    
+
   - script: |
       . $(SETUPVARS)
       python3 -m pip install -r requirements.txt
-      export MO_ROOT=$(INSTALL_DIR)/deployment_tools/model_optimizer
+      export MO_ROOT=$(INSTALL_DIR)/tools/model_optimizer
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       python3 -m pytest tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=TEST-tf_Roll.xmlTEST
     workingDirectory: $(LAYER_TESTS_DIR)

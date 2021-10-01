@@ -8,12 +8,13 @@
 #include <memory>
 #include <string>
 
-#include "cpp/exception2status.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
-#include "details/ie_so_loader.h"
 #include "ie_infer_async_request_base.hpp"
+#include "ie_ngraph_utils.hpp"
 #include "ie_remote_context.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/infer_request.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
 
@@ -24,6 +25,16 @@ namespace InferenceEngine {
         __VA_ARGS__                                                       \
     } catch (...) {                                                       \
         ::InferenceEngine::details::Rethrow();                            \
+    }
+
+#define OV_INFER_REQ_CALL_STATEMENT(...)                                    \
+    OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized."); \
+    try {                                                                   \
+        __VA_ARGS__;                                                        \
+    } catch (const std::exception& ex) {                                    \
+        throw ov::Exception(ex.what());                                     \
+    } catch (...) {                                                         \
+        OPENVINO_ASSERT(false, "Unexpected exception");                     \
     }
 
 InferRequest::InferRequest(const details::SharedObjectLoader& so, const IInferRequestInternal::Ptr& impl)
@@ -196,38 +207,41 @@ bool InferRequest::operator==(const InferRequest& r) const noexcept {
 namespace ov {
 namespace runtime {
 
-InferRequest::InferRequest(const std::shared_ptr<SharedObject>& so, const ie::IInferRequestInternal::Ptr& impl)
+InferRequest::InferRequest(const std::shared_ptr<void>& so, const ie::IInferRequestInternal::Ptr& impl)
     : _so{so},
       _impl{impl} {
-    IE_ASSERT(_impl != nullptr);
+    OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
 }
 
-void InferRequest::set_blob(const std::string& name, const ie::Blob::Ptr& data) {
-    INFER_REQ_CALL_STATEMENT(_impl->SetBlob(name, data);)
-}
+void InferRequest::set_tensor(const std::string& name, const Tensor& tensor){
+    OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlob(name, tensor._impl); })}
 
-ie::Blob::Ptr InferRequest::get_blob(const std::string& name) {
-    ie::Blob::Ptr blobPtr;
-    INFER_REQ_CALL_STATEMENT(blobPtr = _impl->GetBlob(name);)
-    std::string error = "Internal error: blob with name `" + name + "` is not allocated!";
-    const bool remoteBlobPassed = blobPtr->is<ie::RemoteBlob>();
-    if (blobPtr == nullptr)
-        IE_THROW() << error;
-    if (!remoteBlobPassed && blobPtr->buffer() == nullptr)
-        IE_THROW() << error;
-    return blobPtr;
+Tensor InferRequest::get_tensor(const std::string& name) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        auto blob = _impl->GetBlob(name);
+        const bool remoteBlobPassed = blob->is<ie::RemoteBlob>();
+        if (blob == nullptr) {
+            IE_THROW(NotAllocated) << "Internal tensor implementation with name `" << name << "` is not allocated!";
+        }
+        if (!remoteBlobPassed && blob->buffer() == nullptr) {
+            IE_THROW(NotAllocated) << "Internal tensor implementation with name `" << name << "` is not allocated!";
+        }
+        auto tensorDesc = blob->getTensorDesc();
+        auto dims = tensorDesc.getDims();
+        return {_so, blob};
+    })
 }
 
 void InferRequest::infer() {
-    INFER_REQ_CALL_STATEMENT(_impl->Infer();)
+    OV_INFER_REQ_CALL_STATEMENT(_impl->Infer();)
 }
 
 void InferRequest::cancel() {
-    INFER_REQ_CALL_STATEMENT(_impl->Cancel();)
+    OV_INFER_REQ_CALL_STATEMENT(_impl->Cancel();)
 }
 
 std::vector<ProfilingInfo> InferRequest::get_profiling_info() const {
-    INFER_REQ_CALL_STATEMENT({
+    OV_INFER_REQ_CALL_STATEMENT({
         auto ieInfos = _impl->GetPerformanceCounts();
         std::vector<ProfilingInfo> infos;
         infos.reserve(ieInfos.size());
@@ -264,37 +278,25 @@ std::vector<ProfilingInfo> InferRequest::get_profiling_info() const {
     })
 }
 
-void InferRequest::set_input(const ie::BlobMap& inputs) {
-    INFER_REQ_CALL_STATEMENT(for (auto&& input : inputs) { _impl->SetBlob(input.first, input.second); })
-}
-
-void InferRequest::set_output(const ie::BlobMap& results) {
-    INFER_REQ_CALL_STATEMENT(for (auto&& result : results) { _impl->SetBlob(result.first, result.second); })
-}
-
-void InferRequest::set_batch(const int batch) {
-    INFER_REQ_CALL_STATEMENT(_impl->SetBatch(batch);)
-}
-
 void InferRequest::start_async() {
-    INFER_REQ_CALL_STATEMENT(_impl->StartAsync();)
+    OV_INFER_REQ_CALL_STATEMENT(_impl->StartAsync();)
 }
 
 void InferRequest::wait() {
-    INFER_REQ_CALL_STATEMENT(_impl->Wait(ie::InferRequest::RESULT_READY);)
+    OV_INFER_REQ_CALL_STATEMENT(_impl->Wait(ie::InferRequest::RESULT_READY);)
 }
 
 bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
-    INFER_REQ_CALL_STATEMENT(return _impl->Wait(timeout.count()) == ie::OK;)
+    OV_INFER_REQ_CALL_STATEMENT(return _impl->Wait(timeout.count()) == ie::OK;)
 }
 
 void InferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {
-    INFER_REQ_CALL_STATEMENT(_impl->SetCallback(std::move(callback));)
+    OV_INFER_REQ_CALL_STATEMENT(_impl->SetCallback(std::move(callback));)
 }
 
 std::vector<VariableState> InferRequest::query_state() {
     std::vector<VariableState> variable_states;
-    INFER_REQ_CALL_STATEMENT({
+    OV_INFER_REQ_CALL_STATEMENT({
         for (auto&& state : _impl->QueryState()) {
             variable_states.emplace_back(VariableState{_so, state});
         }

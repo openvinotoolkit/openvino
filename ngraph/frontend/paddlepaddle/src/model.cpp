@@ -14,7 +14,7 @@
 #include "node_context.hpp"
 #include "pdpd_utils.hpp"
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 #    include <codecvt>
 #    include <locale>
 #endif
@@ -148,7 +148,7 @@ std::basic_string<T> get_const_path(const std::basic_string<T>& folder_with_weig
     return folder_with_weights + pdpd::get_path_sep<T>() + name;
 }
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 template <>
 std::basic_string<wchar_t> get_const_path(const std::basic_string<wchar_t>& folder, const std::string& name) {
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
@@ -174,7 +174,7 @@ std::basic_string<T> get_model_path(const std::basic_string<T>& path, std::ifstr
     return model_file;
 }
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 template <>
 std::basic_string<wchar_t> get_model_path(const std::basic_string<wchar_t>& path, std::ifstream* weights_stream) {
     std::wstring model_file{path};
@@ -289,7 +289,14 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::basic_string<T
 
     FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file doesn't exist");
     FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(&pb_stream), "Model can't be parsed");
-
+    // According to Paddle, the saved model has the framework version
+    // For example Paddle 2.1.0 is encoded as 2001000. 0 means the latest framework.
+    // https://github.com/PaddlePaddle/Paddle/blob/develop/cmake/version.cmake
+    // https://github.com/PaddlePaddle/Paddle/blob/2100816c5190693cc7dee181e96af72e9f0fbd1d/paddle/fluid/framework/program_desc.cc#L52
+    int64_t version = m_fw_ptr->version().version();
+    FRONT_END_GENERAL_CHECK(
+        version >= 2000000 || version == 0,
+        "[Frontend]Only Support Paddle greater than 2.0.0, current version " + std::to_string(version));
     loadPlaces();
     if (weights_stream && weights_stream.is_open()) {
         loadConsts(std::basic_string<T>{}, &weights_stream);
@@ -307,7 +314,10 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::vector<std::is
                                 "Two streams are needed to load a model: model and weights streams");
     }
     FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(streams[0]), "Model can't be parsed");
-
+    int64_t version = m_fw_ptr->version().version();
+    FRONT_END_GENERAL_CHECK(
+        version >= 2000000 || version == 0,
+        "[Frontend]Only Support Paddle greater than 2.0.0, current version " + std::to_string(version));
     loadPlaces();
     if (streams.size() > 1)
         loadConsts(std::string(), streams[1]);
@@ -393,7 +403,7 @@ void InputModelPDPD::InputModelPDPDImpl::setTensorValue(Place::Ptr place, const 
 
 InputModelPDPD::InputModelPDPD(const std::string& path) : _impl{std::make_shared<InputModelPDPDImpl>(path, *this)} {}
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 InputModelPDPD::InputModelPDPD(const std::wstring& path) : _impl{std::make_shared<InputModelPDPDImpl>(path, *this)} {}
 #endif
 

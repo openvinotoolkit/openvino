@@ -22,7 +22,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Asin::type_info;
+BWDCMP_RTTI_DEFINITION(ov::op::v0::Asin);
 
 op::Asin::Asin(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
@@ -47,7 +47,6 @@ bool evaluate_asin(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_asin, boolean, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_asin, i32, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_asin, i64, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_asin, u32, arg0, out, count);
@@ -70,7 +69,6 @@ bool op::Asin::evaluate(const HostTensorVector& outputs, const HostTensorVector&
 bool op::Asin::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Asin_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::boolean:
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

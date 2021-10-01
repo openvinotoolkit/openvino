@@ -83,9 +83,9 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
         m_op_places_map[op_name] = op_place;
         if (op_type == "Placeholder") {
             auto pshape = std::dynamic_pointer_cast<VariantWrapper<ngraph::PartialShape>>(
-                node_decoder->get_attribute("shape", VariantWrapper<ngraph::PartialShape>::type_info));
+                node_decoder->get_attribute("shape", VariantWrapper<ngraph::PartialShape>::get_type_info_static()));
             auto type = std::dynamic_pointer_cast<VariantWrapper<ngraph::element::Type>>(
-                node_decoder->get_attribute("dtype", VariantWrapper<ngraph::element::Type>::type_info));
+                node_decoder->get_attribute("dtype", VariantWrapper<ngraph::element::Type>::get_type_info_static()));
             auto tmp = type->get();
             std::vector<std::string> names = {op_name};
             auto tensor_place = std::make_shared<TensorPlaceTF>(m_input_model, pshape->get(), type->get(), names);

@@ -1,24 +1,31 @@
 # Benchmark C++ Tool {#openvino_inference_engine_samples_benchmark_app_README}
 
-This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices. Performance can be measured for two inference modes: synchronous (latency-oriented) and asynchronous (throughput-oriented).
+This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices.
+Performance can be measured for two inference modes: latency- and throughput-oriented.
 
 > **NOTE:** This topic describes usage of C++ implementation of the Benchmark Tool. For the Python* implementation, refer to [Benchmark Python* Tool](../../../tools/benchmark_tool/README.md).
 
-> **TIP**: You also can work with the Benchmark Tool inside the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench).
-> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare
-> performance of deep learning models on various Intel® architecture
-> configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit components.
-> <br>
-> Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) to get started.
+> **TIP**: You can quick start with the Benchmark Tool inside the OpenVINO™ [Deep Learning Workbench](@ref openvino_docs_get_started_get_started_dl_workbench) (DL Workbench).
+> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is the OpenVINO™ toolkit UI you to
+> import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for 
+> deployment on various Intel® platforms.
+
 
 ## How It Works
 
-Upon start-up, the application reads command-line parameters and loads a network and images/binary files to the Inference Engine plugin, which is chosen depending on a specified device. The number of infer requests and execution approach depend on the mode defined with the `-api` command-line parameter.
+Upon start-up, the application reads command-line parameters and loads a network and inputs (images/binary files) to the specified device.
 
-> **NOTE**: By default, Inference Engine samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+  **NOTE**: By default, Inference Engine samples, tools and demos expect input with BGR channels order.
+  If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application
+  or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified.
+  For more information about the argument, refer to **When to Reverse Input Channels** section of
+  [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
-If you run the application in the synchronous mode, it creates one infer request and executes the `Infer` method.
-If you run the application in the asynchronous mode, it creates as many infer requests as specified in the `-nireq` command-line parameter and executes the `StartAsync` method for each of them. If `-nireq` is not set, the application will use the default value for specified device.
+Device-specific execution parameters (number of streams, threads, and so on) can be either explicitly specified through the command line
+or left default. In the last case, the sample logic will select the values for the optimal throughput.
+While experimenting with individual parameters allows to find the performance sweet spot, usually, the parameters are not very performance-portable,
+so the values from one machine or device are not necessarily optimal for another.
+From this perspective, the most portable way is experimenting only with the performance hints. To learn more, refer to the section on the command-line parameters below.
 
 A number of execution steps is defined by one of the following parameters:
 * Number of iterations specified with the `-niter` command-line argument
@@ -26,14 +33,9 @@ A number of execution steps is defined by one of the following parameters:
 * Both of them (execution will continue until both conditions are met)
 * Predefined duration if `-niter` and `-t` are not specified. Predefined duration value depends on a device.
 
-During the execution, the application collects latency for each executed infer request.
-
-Reported latency value is calculated as a median value of all collected latencies. Reported throughput value is reported
-in frames per second (FPS) and calculated as a derivative from:
-* Reported latency in the Sync mode
-* The total execution time in the Async mode
-
-Throughput value also depends on batch size.
+During the execution, the application calculates latency (if applicable) and overall throughput:
+* By default, the median latency value is reported
+* Throughput is calculated as overall_inference_time/number_of_processed_requests. Note that the throughput value also depends on batch size.
 
 The application also collects per-layer Performance Measurement (PM) counters for each executed infer request if you
 enable statistics dumping by setting the `-report_type` parameter to one of the possible values:
@@ -57,7 +59,7 @@ Note that the benchmark_app usually produces optimal performance for any device 
 ./benchmark_app -m <model> -i <input> -d CPU
 ```
 
-But it is still may be non-optimal for some cases, especially for very small networks. More details can read in [Introduction to Performance Topics](../../../docs/IE_DG/Intro_to_Performance.md).
+But it is still may be sub-optimal for some cases, especially for very small networks. More details can read in [Introduction to Performance Topics](../../../docs/IE_DG/Intro_to_Performance.md).
 
 As explained in the  [Introduction to Performance Topics](../../../docs/IE_DG/Intro_to_Performance.md) section, for all devices, including new [MULTI device](../../../docs/IE_DG/supported_plugins/MULTI.md) it is preferable to use the FP16 IR for the model.
 Also if latency of the CPU inference on the multi-socket machines is of concern, please refer to the same
@@ -84,7 +86,12 @@ Options:
     -l "<absolute_path>"        Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
           Or
     -c "<absolute_path>"        Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
-    -api "<sync/async>"         Optional. Enable Sync/Async API. Default value is "async".
+    -hint "<throughput(or just 'tput')/latency">
+                                Optional. Performance hint (optimize for latency or throughput).
+                                The hint allows the OpenVINO device to select the right network-specific settings,
+                                as opposite to just accepting specific values from the sample command line.
+                                So you can specify only the hint without setting explicit 'nstreams' or other device-specific options.
+    -api "<sync/async>"         Optional (deprecated). Enable Sync/Async API. Default value is "async".
     -niter "<integer>"          Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
     -nireq "<integer>"          Optional. Number of infer requests. Default value is determined automatically for a device.
     -b "<integer>"              Optional. Batch size value. If not specified, the batch size value is determined from Intermediate Representation.
@@ -141,39 +148,39 @@ To run the tool, you can use [public](@ref omz_models_group_public) or [Intel's]
 
 ## Examples of Running the Tool
 
-This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or FPGA devices. As an input, the `car.png` file from the `<INSTALL_DIR>/deployment_tools/demo/` directory is used.
+This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or GPU devices. As an input, the `car.png` file from the `<INSTALL_DIR>/samples/scripts/` directory is used.
 
 > **NOTE:** The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 
 1. Download the model. Go to the the Model Downloader directory and run the `downloader.py` script with specifying the model name and directory to download the model to:
    ```sh
-   cd <INSTAL_DIR>/deployment_tools/open_model_zoo/tools/downloader
+   cd <INSTAL_DIR>/extras/open_model_zoo/tools/downloader
    ```
    ```sh
    python3 downloader.py --name googlenet-v1 -o <models_dir>
    ```
 2. Convert the model to the Inference Engine IR format. Go to the Model Optimizer directory and run the `mo.py` script with specifying the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
    ```sh
-   cd <INSTALL_DIR>/deployment_tools/model_optimizer
+   cd <INSTALL_DIR>/tools/model_optimizer
    ```
    ```sh
    python3 mo.py --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
    ```
-3. Run the tool with specifying the `<INSTALL_DIR>/deployment_tools/demo/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and FPGA devices:
+3. Run the tool with specifying the `<INSTALL_DIR>/samples/scripts/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and GPU devices:
 
    * On CPU:
    ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/deployment_tools/demo/car.png  -d CPU -api async --progress true
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/samples/scripts/car.png  -d CPU -api async --progress true
    ```
-   * On FPGA:
+   * On GPU:
    ```sh
-   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/deployment_tools/demo/car.png -d HETERO:FPGA,CPU -api async --progress true
+   ./benchmark_app -m <ir_dir>/googlenet-v1.xml -i <INSTALL_DIR>/samples/scripts/car.png -d GPU -api async --progress true
    ```
 
 The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
 Additionally, if you set the `-report_type` parameter, the application outputs statistics report. If you set the `-pc` parameter, the application outputs performance counters. If you set `-exec_graph_path`, the application reports executable graph information serialized. All measurements including per-layer PM counters are reported in milliseconds.
 
-Below are fragments of sample output for CPU and FPGA devices:
+Below are fragments of sample output for CPU and GPU devices:
 
 * For CPU:
    ```
@@ -190,7 +197,7 @@ Below are fragments of sample output for CPU and FPGA devices:
    Throughput: 76.73 FPS
    ```
 
-* For FPGA:
+* For GPU:
    ```
    [Step 10/11] Measuring performance (Start inference asynchronously, 5 inference requests using 4 streams for CPU, limits: 120000 ms duration)
    Progress: [....................] 100% done

@@ -273,8 +273,12 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
 }
 
 bool MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::isSupportedOperation
-            (const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+            (const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto proposalOp = ngraph::as_type_ptr<const ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(op);
         if (!proposalOp) {
             errorMessage = "Node is not an instance of the Proposal from the operations set v0.";
@@ -327,20 +331,23 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn
         }
 
         size_t anchor_dims_size = 1;
-        for (size_t i = 0; i < getParentEdgeAt(INPUT_ANCHORS)->getShape().getRank(); i++) {
-            anchor_dims_size *= getParentEdgeAt(INPUT_ANCHORS)->getShape().getStaticDims()[i];
+        const auto &anchorDims = getParentEdgeAt(INPUT_ANCHORS)->getMemory().getStaticDims();
+        for (size_t i = 0; i < anchorDims.size(); i++) {
+            anchor_dims_size *= anchorDims[i];
         }
 
         size_t deltas_dims_size = 1;
-        for (size_t i = 0; i < getParentEdgeAt(INPUT_DELTAS)->getShape().getRank(); i++) {
-            deltas_dims_size *= getParentEdgeAt(INPUT_DELTAS)->getShape().getStaticDims()[i];
+        const auto &deltaDims = getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims();
+        for (size_t i = 0; i < deltaDims.size(); i++) {
+            deltas_dims_size *= deltaDims[i];
         }
         if (anchor_dims_size != deltas_dims_size)
             IE_THROW() << "'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!";
 
         size_t score_dims_size = 1;
-        for (size_t i = 0; i < getParentEdgeAt(INPUT_SCORES)->getShape().getRank(); i++) {
-            score_dims_size *= getParentEdgeAt(INPUT_SCORES)->getShape().getStaticDims()[i];
+        const auto &scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
+        for (size_t i = 0; i < scoreDims.size(); i++) {
+            score_dims_size *= scoreDims[i];
         }
         if (deltas_dims_size != (4 * score_dims_size))
             IE_THROW() << "'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!";
@@ -354,11 +361,11 @@ void MKLDNNExperimentalDetectronGenerateProposalsSingleImageNode::execute(mkldnn
         float *p_roi_item       = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
         float *p_roi_score_item = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->GetPtr());
 
-        const int anchors_num = getParentEdgeAt(INPUT_SCORES)->getShape().getStaticDims()[0];
+        const int anchors_num = scoreDims[0];
 
         // bottom shape: (num_anchors) x H x W
-        const int bottom_H = getParentEdgeAt(INPUT_DELTAS)->getShape().getStaticDims()[1];
-        const int bottom_W = getParentEdgeAt(INPUT_DELTAS)->getShape().getStaticDims()[2];
+        const int bottom_H = deltaDims[1];
+        const int bottom_W = deltaDims[2];
 
         // input image height & width
         const float img_H = p_img_info_cpu[0];

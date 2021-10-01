@@ -49,8 +49,15 @@ NamedOutputs make_ng_node(const std::map<pdpd::TensorName, Output<Node>>& nodes,
             named_inputs[input_port.parameter()].push_back(node_it->second);
         }
     }
+    NamedOutputs outputs;
+    // In case the conversion function throws exception
+    try {
+        outputs = creator_it->second(NodeContext(DecoderPDPDProto(op_place), named_inputs));
+    } catch (std::exception& ex) {
+        FRONT_END_OP_CONVERSION_CHECK(false, "Fail to convert " + op_desc.type() + " Exception " + ex.what());
+    }
 
-    return creator_it->second(NodeContext(DecoderPDPDProto(op_place), named_inputs));
+    return outputs;
 }
 
 NamedOutputs make_framework_node(const std::map<pdpd::TensorName, Output<Node>>& nodes,
@@ -115,7 +122,7 @@ std::istream* variant_to_stream_ptr(const std::shared_ptr<Variant>& variant, std
         const auto& model_path = ov::as_type_ptr<VariantWrapper<std::string>>(variant)->get();
         ext_stream.open(model_path, std::ios::in | std::ifstream::binary);
     }
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (ov::is_type<VariantWrapper<std::wstring>>(variant)) {
         const auto& model_path = ov::as_type_ptr<VariantWrapper<std::wstring>>(variant)->get();
         ext_stream.open(model_path, std::ios::in | std::ifstream::binary);
@@ -212,7 +219,7 @@ bool FrontEndPDPD::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
         // but it will complicate the check, while it should be as quick as possible
         return model_str && model_str.is_open();
     }
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (ov::is_type<VariantWrapper<std::wstring>>(variants[0])) {
         std::wstring suffix = L".pdmodel";
         std::wstring model_path = ov::as_type_ptr<VariantWrapper<std::wstring>>(variants[0])->get();
@@ -241,7 +248,7 @@ InputModel::Ptr FrontEndPDPD::load_impl(const std::vector<std::shared_ptr<Varian
             std::string m_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
             return std::make_shared<InputModelPDPD>(m_path);
         }
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         else if (ov::is_type<VariantWrapper<std::wstring>>(variants[0])) {
             std::wstring m_path = ov::as_type_ptr<VariantWrapper<std::wstring>>(variants[0])->get();
             return std::make_shared<InputModelPDPD>(m_path);

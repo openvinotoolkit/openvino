@@ -6,11 +6,11 @@ The OpenVINO™ toolkit installation includes the following tools:
 
 |Tool                                                                         | Location in the Installation Directory|
 |-----------------------------------------------------------------------------|---------------------------------------|
-|[Accuracy Checker Tool](@ref omz_tools_accuracy_checker)              | `<INSTALL_DIR>/deployment_tools/tools/open_model_zoo/tools/accuracy_checker`|
-|[Post-Training Optimization Tool](@ref pot_README)                           | `<INSTALL_DIR>/deployment_tools/tools/post_training_optimization_toolkit`|
-|[Model Downloader](@ref omz_tools_downloader)                         | `<INSTALL_DIR>/deployment_tools/tools/model_downloader`| 
-|[Cross Check Tool](../../inference-engine/tools/cross_check_tool/README.md)  | `<INSTALL_DIR>/deployment_tools/tools/cross_check_tool`|
-|[Compile Tool](../../inference-engine/tools/compile_tool/README.md)          | `<INSTALL_DIR>/deployment_tools/inference_engine/lib/intel64/`|
+|[Accuracy Checker Tool](@ref omz_tools_accuracy_checker)              | `<INSTALL_DIR>/tools/accuracy_checker`|
+|[Post-Training Optimization Tool](@ref pot_README)                           | `<INSTALL_DIR>/tools/post_training_optimization_toolkit`|
+|[Model Downloader](@ref omz_tools_downloader)                         | `<INSTALL_DIR>/extras/open_model_zoo/tools/downloader`| 
+|[Cross Check Tool](../../tools/cross_check_tool/README.md)  | `<INSTALL_DIR>/tools/cross_check_tool`|
+|[Compile Tool](../../tools/compile_tool/README.md)          | `<INSTALL_DIR>/tools/compile_tool`|
 
 
 ## See Also

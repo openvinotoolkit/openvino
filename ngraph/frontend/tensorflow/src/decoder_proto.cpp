@@ -27,45 +27,45 @@ std::shared_ptr<Variant> DecoderTFProto::get_attribute(const std::string& name,
         return nullptr;
     }
 
-    if (type_info == VariantWrapper<std::string>::type_info) {
+    if (type_info == VariantWrapper<std::string>::get_type_info_static()) {
         return std::make_shared<VariantWrapper<std::string>>(attrs[0].s());
-    } else if (type_info == VariantWrapper<int64_t>::type_info) {
+    } else if (type_info == VariantWrapper<int64_t>::get_type_info_static()) {
         return std::make_shared<VariantWrapper<int64_t>>(attrs[0].i());
-    } else if (type_info == VariantWrapper<std::vector<int64_t>>::type_info) {
+    } else if (type_info == VariantWrapper<std::vector<int64_t>>::get_type_info_static()) {
         std::vector<int64_t> longs;
         longs.reserve(attrs[0].list().i_size());
         for (size_t idx = 0; idx < attrs[0].list().i_size(); ++idx) {
             longs.push_back(attrs[0].list().i(idx));
         }
         return std::make_shared<VariantWrapper<std::vector<int64_t>>>(longs);
-    } else if (type_info == VariantWrapper<int32_t>::type_info) {
+    } else if (type_info == VariantWrapper<int32_t>::get_type_info_static()) {
         return std::make_shared<VariantWrapper<int32_t>>(static_cast<int32_t>(attrs[0].i()));
-    } else if (type_info == VariantWrapper<std::vector<int32_t>>::type_info) {
+    } else if (type_info == VariantWrapper<std::vector<int32_t>>::get_type_info_static()) {
         std::vector<int32_t> ints;
         ints.reserve(attrs[0].list().i_size());
         for (size_t idx = 0; idx < attrs[0].list().i_size(); ++idx) {
             ints.push_back(static_cast<int32_t>(attrs[0].list().i(idx)));
         }
         return std::make_shared<VariantWrapper<std::vector<int32_t>>>(ints);
-    } else if (type_info == VariantWrapper<float>::type_info) {
+    } else if (type_info == VariantWrapper<float>::get_type_info_static()) {
         return std::make_shared<VariantWrapper<float>>(attrs[0].f());
-    } else if (type_info == VariantWrapper<std::vector<float>>::type_info) {
+    } else if (type_info == VariantWrapper<std::vector<float>>::get_type_info_static()) {
         std::vector<float> floats;
         floats.reserve(attrs[0].list().i_size());
         for (size_t idx = 0; idx < attrs[0].list().i_size(); ++idx) {
             floats.push_back(attrs[0].list().f(idx));
         }
         return std::make_shared<VariantWrapper<std::vector<float>>>(floats);
-    } else if (type_info == VariantWrapper<ngraph::element::Type>::type_info) {
+    } else if (type_info == VariantWrapper<ngraph::element::Type>::get_type_info_static()) {
         auto data_type = attrs[0].type();
         return std::make_shared<VariantWrapper<ngraph::element::Type>>(TYPE_MAP[data_type]);
-    } else if (type_info == VariantWrapper<bool>::type_info) {
+    } else if (type_info == VariantWrapper<bool>::get_type_info_static()) {
         return std::make_shared<VariantWrapper<bool>>(attrs[0].b());
-    } else if (type_info == VariantWrapper<::tensorflow::DataType>::type_info) {
+    } else if (type_info == VariantWrapper<::tensorflow::DataType>::get_type_info_static()) {
         return std::make_shared<VariantWrapper<::tensorflow::DataType>>(attrs[0].type());
-    } else if (type_info == VariantWrapper<::tensorflow::TensorProto>::type_info) {
+    } else if (type_info == VariantWrapper<::tensorflow::TensorProto>::get_type_info_static()) {
         return std::make_shared<VariantWrapper<::tensorflow::TensorProto>>(attrs[0].tensor());
-    } else if (type_info == VariantWrapper<::ngraph::PartialShape>::type_info) {
+    } else if (type_info == VariantWrapper<::ngraph::PartialShape>::get_type_info_static()) {
         std::vector<ngraph::Dimension> dims;
         auto tf_shape = attrs[0].shape();
         for (int i = 0; i < tf_shape.dim_size(); i++) {
