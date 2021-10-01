@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <string>
@@ -14,6 +15,7 @@
 #include "ngraph_function_creation_sample.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/function.hpp"
+#include "openvino/core/layout.hpp"
 #include "openvino/core/preprocess/input_info.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
@@ -22,6 +24,7 @@
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "ngraph/util.hpp"
 #include "samples/args_helper.hpp"
 #include "samples/classification_results.h"
 #include "samples/common.hpp"
@@ -119,7 +122,6 @@ std::shared_ptr<ov::Function> createNgraphFunction() {
     std::vector<ptrdiff_t> padEnd{0, 0};
 
     auto paramNode = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape({64, 1, 28, 28}));
-    paramNode->get_output_tensor(0).set_names({"Tensor_1"});
 
     // -------convolution 1----
     auto convFirstShape = Shape{20, 1, 5, 5};
@@ -143,9 +145,8 @@ std::shared_ptr<ov::Function> createNgraphFunction() {
     Shape padBeginShape{0, 0};
     Shape padEndShape{0, 0};
 
-    auto maxPoolingNodeFirst = std::make_shared<opset8::MaxPool>(addNodeFirst->output(0),
+    auto maxPoolingNodeFirst = std::make_shared<op::v1::MaxPool>(addNodeFirst->output(0),
                                                                  Strides{2, 2},
-                                                                 Strides{1, 1},
                                                                  padBeginShape,
                                                                  padEndShape,
                                                                  Shape{2, 2},
@@ -174,9 +175,8 @@ std::shared_ptr<ov::Function> createNgraphFunction() {
         std::make_shared<opset8::Add>(convolutionNodeSecond->output(0), addSecondConstantNode->output(0));
 
     // -------MAXPOOL 2--------
-    auto maxPoolingNodeSecond = std::make_shared<opset8::MaxPool>(addNodeSecond->output(0),
+    auto maxPoolingNodeSecond = std::make_shared<op::v1::MaxPool>(addNodeSecond->output(0),
                                                                   Strides{2, 2},
-                                                                  Strides{1, 1},
                                                                   padBeginShape,
                                                                   padEndShape,
                                                                   Shape{2, 2},
@@ -189,7 +189,7 @@ std::shared_ptr<ov::Function> createNgraphFunction() {
         std::make_shared<opset8::Constant>(element::Type_t::i64, reshapeFirstShape, data + reshapeOffset);
 
     auto reshapeFirstNode =
-        std::make_shared<opset8::Reshape>(maxPoolingNodeSecond->output(0), reshapeFirstConstantNode->output(0), true);
+        std::make_shared<op::v1::Reshape>(maxPoolingNodeSecond->output(0), reshapeFirstConstantNode->output(0), true);
 
     // -------MatMul 1---------
     auto matMulFirstShape = Shape{500, 800};
@@ -216,7 +216,7 @@ std::shared_ptr<ov::Function> createNgraphFunction() {
         std::make_shared<opset8::Constant>(element::Type_t::i64, reshapeSecondShape, data + reshapeOffset);
 
     auto reshapeSecondNode =
-        std::make_shared<opset8::Reshape>(reluNode->output(0), reshapeSecondConstantNode->output(0), true);
+        std::make_shared<op::v1::Reshape>(reluNode->output(0), reshapeSecondConstantNode->output(0), true);
 
     // -------MatMul 2---------
     auto matMulSecondShape = Shape{10, 500};
@@ -238,6 +238,7 @@ std::shared_ptr<ov::Function> createNgraphFunction() {
 
     // -------softMax----------
     auto softMaxNode = std::make_shared<opset8::Softmax>(add4Node->output(0), 1);
+    softMaxNode->get_output_tensor(0).set_names({"output_tensor"});
 
     // -------ngraph function--
     auto result_full = std::make_shared<opset8::Result>(softMaxNode->output(0));
@@ -279,22 +280,24 @@ int main(int argc, char* argv[]) {
         //--------------------------- Step 2. Create network using ngraph function
 
         auto model = createNgraphFunction();
-
-        // set layout information since we are going to use preprocessing
-        model->get_parameters()[0]->set_layout("NCHW");
+        const Layout inputLayout = "NHWC";
 
         // apply preprocessing
         {
             using namespace ov::preprocess;
-            PrePostProcessor()
+            model = PrePostProcessor()
                 .input(InputInfo()
                     .tensor(
                         InputTensorInfo()
-                            .set_layout("NHWC"))
+                            .set_layout(inputLayout)
+                            .set_element_type(element::u8))
                     .preprocess(
                         PreProcessSteps()
                             .convert_layout()
-                    ))
+                            .convert_element_type(element::f32) /* TODO: remove argument */)
+                    .network(
+                        InputNetworkInfo()
+                            .set_layout("NCHW")))
                 .build(model);
         }
 
@@ -314,7 +317,8 @@ int main(int argc, char* argv[]) {
                 continue;
             }
             /** Store image data **/
-            std::shared_ptr<unsigned char> data(reader->getData(input_shape[3], input_shape[2]));
+            std::shared_ptr<unsigned char> data(reader->getData(
+                input_shape[layout::width(inputLayout)], input_shape[layout::height(inputLayout)]));
             if (data.get() != nullptr) {
                 imagesData.push_back(data);
             }
@@ -325,6 +329,7 @@ int main(int argc, char* argv[]) {
         /** Setting batch size using image count **/
         const size_t batchSize = imagesData.size();
         input_shape[0] = batchSize;
+        // TODO: it's hard to get any name
         model->reshape({{*input_port.get_tensor().get_names().begin(), input_shape}});
         slog::info << "Batch size is " << std::to_string(batchSize) << slog::endl;
 
@@ -345,27 +350,32 @@ int main(int argc, char* argv[]) {
         // --------------------------- Step 6. Prepare input
         slog::info << "Prepare input tensor" << slog::endl;
         // TODO: replace with infer_request.get_input_tensor() once it's implemented
-        runtime::Tensor input_tensor = infer_request.get_tensor(model->get_parameters()[0]->get_friendly_name());
+        const std::string inputName = model->get_parameters()[0]->get_friendly_name();
+        runtime::Tensor input_tensor = infer_request.get_tensor(inputName);
 
         /** Filling input tensor with images with BGR **/
-        size_t num_channels = input_shape[0];
-        size_t image_size = input_shape[2] * input_shape[3];
+        const size_t image_size = shape_size(input_shape) / batchSize;
 
-        auto data = input_tensor.data<float>();
+        // std::cout << input_shape << std::endl;
 
-        /** Iterate over all input images **/
+        // /** Iterate over all input images **/
         for (size_t image_id = 0; image_id < imagesData.size(); ++image_id) {
-            /** Iterate over all pixels in image (b,g,r) **/
-            for (size_t pid = 0; pid < image_size; pid++) {
-                /** Iterate over all channels **/
-                for (size_t ch = 0; ch < num_channels; ++ch) {
-                    /**          [images stride + channels stride + pixel id ] all in
-                     * bytes            **/
-                    data[image_id * image_size * num_channels + ch * image_size + pid] =
-                        imagesData.at(image_id).get()[pid * num_channels + ch];
-                }
-            }
+            std::memcpy(input_tensor.data<std::uint8_t>() + image_id * image_size,
+                imagesData[image_id].get(), image_size);
         }
+        /** Iterate over all input images **/
+        // for (size_t image_id = 0; image_id < imagesData.size(); ++image_id) {
+        //     /** Iterate over all pixels in image (b,g,r) **/
+        //     for (size_t pid = 0; pid < image_size; pid++) {
+        //         /** Iterate over all channels **/
+        //         for (size_t ch = 0; ch < num_channels; ++ch) {
+        //             /**          [images stride + channels stride + pixel id ] all in
+        //                 * bytes            **/
+        //             data[image_id * image_size * num_channels + ch * image_size + pid] =
+        //                 imagesData.at(image_id).get()[pid * num_channels + ch];
+        //         }
+        //     }
+        // }
 
         // --------------------------- Step 7. Do inference
         slog::info << "Start sync inference" << slog::endl;
@@ -375,7 +385,9 @@ int main(int argc, char* argv[]) {
         slog::info << "Processing output tensor" << slog::endl;
 
         // TODO: replace with get_output_tensor()
-        const runtime::Tensor output_tensor = infer_request.get_tensor(model->get_result()->get_friendly_name());
+        const std::string outputname =
+            model->get_result()->input_value(0).get_node_shared_ptr()->get_friendly_name();
+        const runtime::Tensor output_tensor = infer_request.get_tensor(outputname);
 
         /** Validating -nt value **/
         const size_t resultsCnt = output_tensor.get_size() / batchSize;
@@ -412,5 +424,6 @@ int main(int argc, char* argv[]) {
     slog::info << "This sample is an API example, for performance measurements, "
                   "use the dedicated benchmark_app tool"
                << slog::endl;
+
     return EXIT_SUCCESS;
 }
