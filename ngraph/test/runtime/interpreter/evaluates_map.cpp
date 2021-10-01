@@ -1500,30 +1500,32 @@ bool evaluate(const std::shared_ptr<op::v8::Slice>& op, const HostTensorVector& 
     const auto data_shape = inputs[0]->get_shape();
     const auto data_rank = data_shape.size();
 
+    PartialShape output_shape = op->calculate_output_shape(starts, stops, steps, axes, inputs[0]->get_partial_shape());
+    outputs[0]->set_shape(output_shape.to_shape());
+    outputs[0]->set_element_type(inputs[0]->get_element_type());
+
     std::vector<int64_t> full_starts(data_rank, 0);
     std::vector<int64_t> full_steps(data_rank, 1);
     std::vector<int64_t> full_stops(data_shape.begin(), data_shape.end());
-    std::for_each(full_stops.begin(), full_stops.end(), [](int64_t x){++x;}); // Exclusive end
+    std::for_each(full_stops.begin(), full_stops.end(), [](int64_t x){++x;}); // Make exclusive stop
 
     for(size_t i = 0; i < ind_size; ++i) {
-        const auto axis = axes[i];
+        const auto axis = axes[i] >= 0 ? axes[i] : axes[i] + data_rank;
         full_starts[axis] = starts[i];
         full_stops[axis] = stops[i];
         full_steps[axis] = steps[i];
     }
 
-    PartialShape output_shape = op->calculate_output_shape(starts, stops, steps, axes, inputs[0]->get_partial_shape());
-    outputs[0]->set_shape(output_shape.to_shape());
-    outputs[0]->set_element_type(inputs[0]->get_element_type());
-
-    runtime::reference::slice(inputs[0]->get_data_ptr<char>(),
-                                outputs[0]->get_data_ptr<char>(),
+    runtime::reference::slice_v8(inputs[0]->get_data_ptr<char>(),
                                 data_shape,
-                                Coordinate(full_starts.begin(), full_starts.end()),
-                                Coordinate(full_stops.begin(), full_stops.end()),
-                                Strides(full_steps.begin(), full_steps.end()),
+                                outputs[0]->get_data_ptr<char>(),
                                 output_shape.to_shape(),
-                                inputs[0]->get_element_type().size());
+                                inputs[0]->get_element_type().size(),
+                                full_starts,
+                                full_stops,
+                                full_steps,
+                                axes
+                                );
     return true;
 }
 
