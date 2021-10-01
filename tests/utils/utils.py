@@ -9,7 +9,7 @@ import yaml
 from pymongo import MongoClient
 
 # constants
-DATABASES = ['timetests', 'memcheck']
+DATABASES = ['timetests', 'memorytests']
 DB_COLLECTIONS = ["commit", "nightly", "weekly"]
 PRODUCT_NAME = 'dldt'   # product name from build manifest
 
