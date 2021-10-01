@@ -266,7 +266,7 @@ const auto miscParams = ::testing::Combine(
     ::testing::ValuesIn(maxpool1DStrides)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Decompose2DConv, Decompose2DConvTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConv, Decompose2DConvTest,
     ::testing::Combine(
         conv2DParams,
         miscParams,
@@ -311,7 +311,7 @@ const auto conv2DParamsStrides = ::testing::Combine(
     ::testing::ValuesIn(padTypesStrides)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Decompose2DConvStridesDilations, Decompose2DConvTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConvStridesDilations, Decompose2DConvTest,
     ::testing::Combine(
         conv2DParamsStrides,
         miscParams,
@@ -367,7 +367,7 @@ const auto miscParamsGNA30 = ::testing::Combine(
     ::testing::ValuesIn(maxpoo2DStridesGNA30)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Decompose2DConvGNA30, Decompose2DConvTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConvGNA30, Decompose2DConvTest,
     ::testing::Combine(
         conv2DParamsGNA30,
         miscParamsGNA30,

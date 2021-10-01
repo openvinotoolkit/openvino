@@ -106,7 +106,7 @@ namespace {
     const std::vector<int> channel_count = { 1, 2 };
 
 
-INSTANTIATE_TEST_CASE_P(smoke_ConcResizeConc,
+INSTANTIATE_TEST_SUITE_P(smoke_ConcResizeConc,
                         ConcatResizeConcatTest, ::testing::Combine(
                            ::testing::Values(ngraph::opset4::Interpolate::type_info),
                            ::testing::ValuesIn(channel_count),

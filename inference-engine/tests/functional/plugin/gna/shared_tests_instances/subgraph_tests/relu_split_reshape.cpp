@@ -33,7 +33,7 @@ std::vector<std::map<std::string, std::string>> additional_config = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_relu_split_reshape, ReluSplitReshape,
+INSTANTIATE_TEST_SUITE_P(smoke_relu_split_reshape, ReluSplitReshape,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputShape),
                                 ::testing::ValuesIn(splitAxis),

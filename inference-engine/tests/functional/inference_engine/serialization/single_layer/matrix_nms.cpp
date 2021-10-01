@@ -56,5 +56,5 @@ namespace {
                                           ::testing::ValuesIn(decayFunction),
                                           ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-    INSTANTIATE_TEST_CASE_P(smoke_MatrixNmsLayerTest, MatrixNmsLayerTest, nmsParams, MatrixNmsLayerTest::getTestCaseName);
+    INSTANTIATE_TEST_SUITE_P(smoke_MatrixNmsLayerTest, MatrixNmsLayerTest, nmsParams, MatrixNmsLayerTest::getTestCaseName);
 }  // namespace

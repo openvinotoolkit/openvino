@@ -26,7 +26,7 @@ namespace {
 
     ConfigMap config;
 
-    INSTANTIATE_TEST_CASE_P(smoke_nonzero, NonZeroLayerTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_nonzero, NonZeroLayerTest,
                             ::testing::Combine(
                                 ::testing::ValuesIn(inShapes),
                                 ::testing::ValuesIn(inputPrecisions),

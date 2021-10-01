@@ -53,7 +53,7 @@ const auto nmsParams = ::testing::Combine(
                        ::testing::ValuesIn(normalized)),
     ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(smoke_MulticlassNmsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest,
                         MulticlassNmsLayerTest,
                         nmsParams,
                         MulticlassNmsLayerTest::getTestCaseName);

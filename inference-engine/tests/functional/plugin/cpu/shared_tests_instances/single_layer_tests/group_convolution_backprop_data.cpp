@@ -54,7 +54,7 @@ const auto groupConvBackpropData1DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData1D_ExplicitPadding, GroupConvBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData1D_ExplicitPadding, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 groupConvBackpropData1DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -67,7 +67,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData1D_ExplicitPadding, GroupConv
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData1D_AutoPadValid, GroupConvBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData1D_AutoPadValid, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 groupConvBackpropData1DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
@@ -112,7 +112,7 @@ const auto groupConvBackpropData2DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_ExplicitPadding, GroupConvBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_ExplicitPadding, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 groupConvBackpropData2DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -125,7 +125,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_ExplicitPadding, GroupConv
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_AutoPadValid, GroupConvBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_AutoPadValid, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 groupConvBackpropData2DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
@@ -141,7 +141,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_AutoPadValid, GroupConvBac
 const std::vector<std::vector<size_t >> inputShape2D = {{1, 16, 9, 12}};
 const std::vector<std::vector<size_t >> outputShapes2D = {{6, 6}, {4, 9}};
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_OutputShapeDefined, GroupConvBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_OutputShapeDefined, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 groupConvBackpropData2DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
@@ -180,7 +180,7 @@ const auto conv2DParams_AutoPadValid_output_padding = ::testing::Combine(
         ::testing::ValuesIn(outputPadding2D)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_ExplicitPadding_OutputPaddingDefined, GroupConvBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_ExplicitPadding_OutputPaddingDefined, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid_output_padding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -193,7 +193,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_ExplicitPadding_OutputPadd
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_AutoPadding_OutputPaddingDefined, GroupConvBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_AutoPadding_OutputPaddingDefined, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 conv2DParams_ExplicitPadding_output_padding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -238,7 +238,7 @@ const auto groupConvBackpropData3DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_ExplicitPadding, GroupConvBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData3D_ExplicitPadding, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 groupConvBackpropData3DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -251,7 +251,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_ExplicitPadding, GroupConv
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_AutoPadValid, GroupConvBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData3D_AutoPadValid, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 groupConvBackpropData3DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
@@ -267,7 +267,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_AutoPadValid, GroupConvBac
 const std::vector<std::vector<size_t >> inputShape3D = {{1, 16, 10, 10, 10}};
 const std::vector<std::vector<size_t >> outputShapes3D = {{8, 8, 8}, {10, 10, 10}};
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_OutputShapeDefined, GroupConvBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData3D_OutputShapeDefined, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 groupConvBackpropData3DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
@@ -306,7 +306,7 @@ const auto conv3DParams_AutoPadValid_output_padding = ::testing::Combine(
         ::testing::ValuesIn(outputPadding3D)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_ExplicitPadding_OutputPaddingDefined, GroupConvBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData3D_ExplicitPadding_OutputPaddingDefined, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 conv3DParams_AutoPadValid_output_padding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -319,7 +319,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_ExplicitPadding_OutputPadd
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_AutoPadding_OutputPaddingDefined, GroupConvBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData3D_AutoPadding_OutputPaddingDefined, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 conv3DParams_ExplicitPadding_output_padding,
                                 ::testing::ValuesIn(netPrecisions),
