@@ -840,13 +840,15 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 
     const bool exec_graph = is_exec_graph(f);
 
+    std::unordered_map<ov::Node*, size_t> parameter_ids;
     for (size_t i = 0; i < f.get_parameters().size(); i++) {
         const auto& param = f.get_parameters()[i];
-        param->get_rt_info()[ov::IndexWrapper::get_type_info_static()] = std::make_shared<ov::IndexWrapper>(i);
+        parameter_ids[param.get()] = i;
     }
+    std::unordered_map<ov::Node*, size_t> result_ids;
     for (size_t i = 0; i < f.get_results().size(); i++) {
         const auto& result = f.get_results()[i];
-        result->get_rt_info()[ov::IndexWrapper::get_type_info_static()] = std::make_shared<ov::IndexWrapper>(i);
+        result_ids[result.get()] = i;
     }
     for (const auto& n : f.get_ordered_ops()) {
         ngraph::Node* node = n.get();
@@ -884,8 +886,17 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
             }
         };
 
-        if (version >= 11)
-            append_runtime_info(layer, node->get_rt_info());
+        if (version >= 11) {
+            ov::RTMap rt_map = node->get_rt_info();
+            const std::string idx_key = ov::IndexWrapper::get_type_info_static();
+            if (ov::op::util::is_parameter(node) && !node->get_rt_info().count(idx_key)) {
+                rt_map[idx_key] = std::make_shared<IndexWrapper>(parameter_ids.at(node));
+            } else if (ov::op::util::is_output(node) && !node->get_rt_info().count(idx_key)) {
+                rt_map[idx_key] = std::make_shared<IndexWrapper>(result_ids.at(node));
+            }
+
+            append_runtime_info(layer, rt_map);
+        }
 
         int port_id = 0;
         // <layers/input>
