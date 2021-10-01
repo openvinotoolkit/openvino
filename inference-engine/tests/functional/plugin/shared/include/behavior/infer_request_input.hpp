@@ -34,11 +34,20 @@ TEST_P(InferRequestInputTests, canSetInputBlobForSyncRequest) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    InferenceEngine::Blob::Ptr inputBlob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
-    ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, inputBlob));
+
+    // Collect input blob info
+    const auto  inputsInfo     = cnnNet.getInputsInfo();
+    const auto& blobName       = inputsInfo.begin()->first;
+    const auto& blobTensorDesc = inputsInfo.begin()->second->getTensorDesc();
+    // Set input blob
+    InferenceEngine::Blob::Ptr inputBlob = FuncTestUtils::createAndFillBlob(blobTensorDesc);
+    ASSERT_NO_THROW(req.SetBlob(blobName, inputBlob));
+
+    // Get input blob
     InferenceEngine::Blob::Ptr actualBlob;
-    ASSERT_NO_THROW(actualBlob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
+    ASSERT_NO_THROW(actualBlob = req.GetBlob(blobName));
+
+    // Compare the blobs
     ASSERT_EQ(inputBlob, actualBlob);
 }
 
@@ -52,12 +61,24 @@ TEST_P(InferRequestInputTests, canInferWithSetInOut) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    InferenceEngine::Blob::Ptr inputBlob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
-    req.SetBlob(cnnNet.getInputsInfo().begin()->first, inputBlob);
-    InferenceEngine::Blob::Ptr outputBlob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
-    req.SetBlob(cnnNet.getInputsInfo().begin()->first, outputBlob);
+
+    // Collect input blob info
+    const auto  inputsInfo          = cnnNet.getInputsInfo();
+    const auto& inputBlobName       = inputsInfo.begin()->first;
+    const auto& inputBlobTensorDesc = inputsInfo.begin()->second->getTensorDesc();
+    // Set input blob
+    InferenceEngine::Blob::Ptr inputBlob = FuncTestUtils::createAndFillBlob(inputBlobTensorDesc);
+    req.SetBlob(inputBlobName, inputBlob);
+
+    // Collect output blob info
+    const auto  outputsInfo          = cnnNet.getOutputsInfo();
+    const auto& outputBlobName       = outputsInfo.begin()->first;
+    const auto& outputBlobTensorDesc = outputsInfo.begin()->second->getTensorDesc();
+    // Set output blob
+    InferenceEngine::Blob::Ptr outputBlob = FuncTestUtils::createAndFillBlob(outputBlobTensorDesc);
+    req.SetBlob(outputBlobName, outputBlob); 
+
+    // Infer
     ASSERT_NO_THROW(req.Infer());
 }
 
@@ -71,19 +92,26 @@ TEST_P(InferRequestInputTests, canGetInputBlob_deprecatedAPI) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    std::shared_ptr<InferenceEngine::Blob> actualBlob;
 
-    ASSERT_NO_THROW(actualBlob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
+    // Collect input blob info
+    const auto  inputsInfo     = cnnNet.getInputsInfo();
+    const auto& blobName       = inputsInfo.begin()->first;
+    const auto& blobTensorDesc = inputsInfo.begin()->second->getTensorDesc();
+    const auto& blobPrecision  = inputsInfo.begin()->second->getPrecision();
+    const auto& blobDims       = blobTensorDesc.getDims();
+
+    // Get input blob
+    InferenceEngine::Blob::Ptr actualBlob;
+    ASSERT_NO_THROW(actualBlob = req.GetBlob(blobName));
     ASSERT_TRUE(actualBlob) << "Plugin didn't allocate input blobs";
     ASSERT_FALSE(actualBlob->buffer() == nullptr) << "Plugin didn't allocate input blobs";
+    const auto& tensorDescription = actualBlob->getTensorDesc();
+    const auto& dims = tensorDescription.getDims();
 
-    auto tensorDescription = actualBlob->getTensorDesc();
-    auto dims = tensorDescription.getDims();
-    ASSERT_TRUE(cnnNet.getInputsInfo().begin()->second->getTensorDesc().getDims() == dims)
-                                << "Input blob dimensions don't match network input";
-
-    ASSERT_EQ(execNet.GetInputsInfo().begin()->second->getPrecision(), tensorDescription.getPrecision())
-                                << "Input blob precision don't match network input";
+    ASSERT_TRUE(blobDims == dims)
+        << "Input blob dimensions don't match network input";
+    ASSERT_EQ(blobPrecision, tensorDescription.getPrecision())
+        << "Input blob precision doesn't match network input";
 }
 
 TEST_P(InferRequestInputTests, getAfterSetInputDoNotChangeInput) {
@@ -95,11 +123,21 @@ TEST_P(InferRequestInputTests, getAfterSetInputDoNotChangeInput) {
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
-    std::shared_ptr<InferenceEngine::Blob> inputBlob = FuncTestUtils::createAndFillBlob(
-            cnnNet.getInputsInfo().begin()->second->getTensorDesc());
-    ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, inputBlob));
-    std::shared_ptr<InferenceEngine::Blob> actualBlob;
-    ASSERT_NO_THROW(actualBlob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
+
+    // Collect input blob info
+    const auto  inputsInfo     = cnnNet.getInputsInfo();
+    const auto& blobName       = inputsInfo.begin()->first;
+    const auto& blobTensorDesc = inputsInfo.begin()->second->getTensorDesc();
+
+    // Set blob
+    InferenceEngine::Blob::Ptr inputBlob = FuncTestUtils::createAndFillBlob(blobTensorDesc);
+    ASSERT_NO_THROW(req.SetBlob(blobName, inputBlob));
+
+    // Get blob
+    InferenceEngine::Blob::Ptr actualBlob;
+    ASSERT_NO_THROW(actualBlob = req.GetBlob(blobName));
+
+    // Compare blobs
     ASSERT_EQ(inputBlob.get(), actualBlob.get());
 }
 
@@ -113,8 +151,18 @@ TEST_P(InferRequestInputTests, canInferWithGetInOut) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    InferenceEngine::Blob::Ptr inputBlob = req.GetBlob(cnnNet.getInputsInfo().begin()->first);
-    InferenceEngine::Blob::Ptr outputBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first);
+
+    // Get input blob
+    const auto inputsInfo  = cnnNet.getInputsInfo();
+    const auto& inputBlobName = inputsInfo.begin()->first;
+    InferenceEngine::Blob::Ptr inputBlob = req.GetBlob(inputBlobName);
+
+    // Get output blob
+    const auto outputsInfo = cnnNet.getOutputsInfo();
+    const auto& outputBlobName = outputsInfo.begin()->first;
+    InferenceEngine::Blob::Ptr outputBlob = req.GetBlob(outputBlobName);
+
+    // Infer
     ASSERT_NO_THROW(req.Infer());
 }
 
@@ -128,12 +176,22 @@ TEST_P(InferRequestInputTests, canStartAsyncInferWithGetInOut) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    InferenceEngine::Blob::Ptr inputBlob = req.GetBlob(cnnNet.getInputsInfo().begin()->first);
+
+    // Get input blob name
+    const auto inputsInfo  = cnnNet.getInputsInfo();
+    const auto& inputBlobName = inputsInfo.begin()->first;
+    // Get output blob name
+    const auto outputsInfo = cnnNet.getOutputsInfo();
+    const auto& outputBlobName = outputsInfo.begin()->first;
+
+    // Async Infer
+    InferenceEngine::Blob::Ptr inputBlob = req.GetBlob(inputBlobName); 
     InferenceEngine::StatusCode sts;
     ASSERT_NO_THROW(req.Infer());
     ASSERT_NO_THROW(req.StartAsync());
     sts = req.Wait(500);
     ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
-    InferenceEngine::Blob::Ptr outputBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first);
+    InferenceEngine::Blob::Ptr outputBlob = req.GetBlob(outputBlobName);
 }
+
 }  // namespace BehaviorTestsDefinitions
