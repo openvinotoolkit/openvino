@@ -502,11 +502,7 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(const pugi::xm
 
     // Restore the order of results and parameters
     ngraph::ParameterVector parameters(func_nodes.parameters.size());
-    enum {
-        undefined,
-        index,
-        no_index
-    } status = undefined;
+    enum { undefined, index, no_index } status = undefined;
     const std::string index_key = ov::IndexWrapper::get_type_info_static();
     for (size_t i = 0; i < func_nodes.parameters.size(); i++) {
         const auto& rt_info = func_nodes.parameters[i]->get_rt_info();
@@ -748,7 +744,6 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
             }
         }
     };
-
 
     // read runtime info only for IR v11+
     if (m_version > 10) {
