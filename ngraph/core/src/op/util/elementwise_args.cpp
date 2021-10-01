@@ -6,9 +6,7 @@
 
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 
-using namespace ngraph;
-
-std::tuple<element::Type, PartialShape> ngraph::op::util::validate_and_infer_elementwise_args(
+std::tuple<ov::element::Type, ov::PartialShape> ov::op::util::validate_and_infer_elementwise_args(
     Node* node,
     const op::AutoBroadcastSpec& autob) {
     NGRAPH_CHECK(node != nullptr, "nGraph node is empty! Cannot validate eltwise arguments.");

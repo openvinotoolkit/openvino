@@ -41,6 +41,8 @@ bool evaluate_minimum(const HostTensorPtr& arg0,
     switch (arg0->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_minimum, i32, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_minimum, i64, arg0, arg1, out, broadcast_spec);
+        NGRAPH_TYPE_CASE(evaluate_minimum, u8, arg0, arg1, out, broadcast_spec);
+        NGRAPH_TYPE_CASE(evaluate_minimum, u16, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_minimum, u32, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_minimum, u64, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_minimum, f16, arg0, arg1, out, broadcast_spec);
@@ -55,7 +57,7 @@ bool evaluate_minimum(const HostTensorPtr& arg0,
 
 // ------------------------------ v1 -------------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::Minimum, "Minimum", 1, op::util::BinaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(op::v1::Minimum);
 
 op::v1::Minimum::Minimum(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {

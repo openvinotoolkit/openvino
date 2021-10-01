@@ -14,9 +14,11 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::PriorBox, "PriorBox", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::PriorBox);
 
-op::PriorBox::PriorBox(const Output<Node>& layer_shape, const Output<Node>& image_shape, const PriorBoxAttrs& attrs)
+op::PriorBox::PriorBox(const Output<Node>& layer_shape,
+                       const Output<Node>& image_shape,
+                       const PriorBox::Attributes& attrs)
     : Op({layer_shape, image_shape}),
       m_attrs(attrs) {
     constructor_validate_and_infer_types();
@@ -56,11 +58,12 @@ void op::PriorBox::validate_and_infer_types() {
 
         auto layer_shape = const_shape->get_shape_val();
 
-        set_output_type(0,
-                        element::f32,
-                        Shape{2, 4 * layer_shape[0] * layer_shape[1] * static_cast<size_t>(number_of_priors(m_attrs))});
+        set_output_type(
+            0,
+            element::f32,
+            ov::Shape{2, 4 * layer_shape[0] * layer_shape[1] * static_cast<size_t>(number_of_priors(m_attrs))});
     } else {
-        set_output_type(0, element::f32, PartialShape{2, Dimension::dynamic()});
+        set_output_type(0, element::f32, ov::PartialShape{2, Dimension::dynamic()});
     }
 }
 
@@ -70,7 +73,7 @@ shared_ptr<Node> op::PriorBox::clone_with_new_inputs(const OutputVector& new_arg
     return make_shared<PriorBox>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
-int64_t op::PriorBox::number_of_priors(const PriorBoxAttrs& attrs) {
+int64_t op::PriorBox::number_of_priors(const PriorBox::Attributes& attrs) {
     // Starting with 0 number of prior and then various conditions on attributes will contribute
     // real number of prior boxes as PriorBox is a fat thing with several modes of
     // operation that will be checked in order in the next statements.
@@ -129,7 +132,10 @@ bool op::PriorBox::visit_attributes(AttributeVisitor& visitor) {
 
 namespace prior_box {
 template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& arg1, const HostTensorPtr& out, op::PriorBoxAttrs attrs) {
+bool evaluate(const HostTensorPtr& arg0,
+              const HostTensorPtr& arg1,
+              const HostTensorPtr& out,
+              op::PriorBox::Attributes attrs) {
     runtime::reference::prior_box(arg0->get_data_ptr<ET>(),
                                   arg1->get_data_ptr<ET>(),
                                   out->get_data_ptr<float>(),
@@ -141,7 +147,7 @@ bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& arg1, const HostTe
 bool evaluate_prior_box(const HostTensorPtr& arg0,
                         const HostTensorPtr& arg1,
                         const HostTensorPtr& out,
-                        const op::PriorBoxAttrs& attrs) {
+                        const op::PriorBox::Attributes& attrs) {
     bool rc = true;
     switch (arg0->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_prior_box, i8, arg0, arg1, out, attrs);

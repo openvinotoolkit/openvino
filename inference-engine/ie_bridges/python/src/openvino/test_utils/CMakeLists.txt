@@ -30,14 +30,14 @@ if(COMMAND ie_add_vs_version_file)
 endif()
 
 if(TARGET commonTestUtils)
-    list(APPEND InferenceEngine_LIBRARIES commonTestUtils)
+    list(APPEND link_libraries commonTestUtils)
 else()
-    list(APPEND InferenceEngine_LIBRARIES IE::commonTestUtils)
+    list(APPEND link_libraries IE::commonTestUtils)
 endif()
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../inference_engine")
-target_link_libraries(${TARGET_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
+target_link_libraries(${TARGET_NAME} PRIVATE ${link_libraries})
 
 # Compatibility with python 2.7 which has deprecated "register" specifier
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -52,3 +52,16 @@ add_custom_command(TARGET ${TARGET_NAME}
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ".*\\.cxx;.*\\.pxd;.*\\.pyx")
+
+# install
+
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/test_utils
+        COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/test_utils
+        COMPONENT tests EXCLUDE_FROM_ALL)
+
+install(PROGRAMS __init__.py
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/test_utils
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)

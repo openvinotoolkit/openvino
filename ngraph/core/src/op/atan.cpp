@@ -11,7 +11,6 @@
 #include "ngraph/axis_set.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/broadcast.hpp"
-#include "ngraph/op/constant.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -21,7 +20,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Atan, "Atan", 0, util::UnaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(ov::op::v0::Atan);
 
 op::Atan::Atan(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
@@ -46,7 +45,6 @@ bool evaluate_atan(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_atan, boolean, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_atan, i32, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_atan, i64, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_atan, u32, arg0, out, count);
@@ -69,7 +67,6 @@ bool op::Atan::evaluate(const HostTensorVector& outputs, const HostTensorVector&
 bool op::Atan::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Atan_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::boolean:
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

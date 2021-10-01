@@ -24,8 +24,8 @@ template<typename T>
 bool check_binarization(memory::ptr mem_input_low, memory::ptr mem_input_high, program& p) {
     bool is_binarization = true;
     const auto& stream = p.get_stream();
-    mem_lock<T> data_input_low_lock{mem_input_low, stream};
-    mem_lock<T> data_input_high_lock{mem_input_high, stream};
+    mem_lock<T, mem_lock_type::read> data_input_low_lock{mem_input_low, stream};
+    mem_lock<T, mem_lock_type::read> data_input_high_lock{mem_input_high, stream};
     auto data_input_low = data_input_low_lock.data();
     auto data_input_high = data_input_high_lock.data();
     const size_t number_mem_layout_elements = mem_input_high->get_layout().count();
@@ -85,7 +85,7 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
                                   std::function<float(size_t)>& get_data) {
         switch (memory->get_layout().data_type) {
             case data_types::f32: {
-                std::shared_ptr<mem_lock<float>> data_lock_ptr = std::make_shared<mem_lock<float>>(memory, stream);
+                std::shared_ptr<mem_lock<float, mem_lock_type::write>> data_lock_ptr = std::make_shared<mem_lock<float, mem_lock_type::write>>(memory, stream);
                 float* data = data_lock_ptr->data();
                 set_data = [data] (size_t idx, float value) {
                     data[idx] = value;
@@ -93,10 +93,11 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
                 get_data = [data] (size_t idx) {
                     return data[idx];
                 };
-                return std::pair<std::shared_ptr<mem_lock<float>>, std::shared_ptr<mem_lock<uint16_t>>>(data_lock_ptr, nullptr);
+                return std::pair<std::shared_ptr<mem_lock<float, mem_lock_type::write>>,
+                                 std::shared_ptr<mem_lock<uint16_t, mem_lock_type::write>>>(data_lock_ptr, nullptr);
             }
             case data_types::f16: {
-                std::shared_ptr<mem_lock<uint16_t>> data_lock_ptr = std::make_shared<mem_lock<uint16_t>>(memory, stream);
+                auto data_lock_ptr = std::make_shared<mem_lock<uint16_t, mem_lock_type::write>>(memory, stream);
                 uint16_t* data = data_lock_ptr->data();
                 set_data = [data] (size_t idx, float value) {
                     data[idx] = float_to_half(value);
@@ -104,7 +105,8 @@ void  prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& q
                 get_data = [data] (size_t idx) {
                     return half_to_float(data[idx]);
                 };
-                return std::pair<std::shared_ptr<mem_lock<float>>, std::shared_ptr<mem_lock<uint16_t>>>(nullptr, data_lock_ptr);
+                return std::pair<std::shared_ptr<mem_lock<float, mem_lock_type::write>>,
+                                 std::shared_ptr<mem_lock<uint16_t, mem_lock_type::write>>>(nullptr, data_lock_ptr);
             }
             default:
                 throw std::runtime_error("prepare_quantization: Unsupported precision of quantize output values");
@@ -378,8 +380,8 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
             auto mem0 = get_scale_shift_mem(eltwise_dep, i);
             auto mem1 = get_scale_shift_mem(eltwise_node, i);
 
-            mem_lock<uint8_t> mem0_lock{mem0, stream};
-            mem_lock<uint8_t> mem1_lock{mem1, stream};
+            mem_lock<uint8_t, mem_lock_type::read> mem0_lock{mem0, stream};
+            mem_lock<uint8_t, mem_lock_type::read> mem1_lock{mem1, stream};
             auto ptr0 = mem0_lock.data();
             auto ptr1 = mem1_lock.data();
 
@@ -487,40 +489,40 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         const auto& w_dt = wl.data_type;
         const auto& azp_dt = azp->get_layout().data_type;
 
-        mem_lock<float> comp_lock{compensation, stream};
+        mem_lock<float, mem_lock_type::write> comp_lock{compensation, stream};
 
         if (w_dt == data_types::u8 && azp_dt == data_types::u8) {
-            mem_lock<uint8_t> w_lock(w, stream);
-            mem_lock<uint8_t> azp_lock(azp, stream);
+            mem_lock<uint8_t, mem_lock_type::read> w_lock(w, stream);
+            mem_lock<uint8_t, mem_lock_type::read> azp_lock(azp, stream);
             if (wzp) {
-                mem_lock<uint8_t> wzp_lock(wzp, stream);
+                mem_lock<uint8_t, mem_lock_type::read> wzp_lock(wzp, stream);
                 fill_compensation_typed(w_lock.data(), azp_lock.data(), wzp_lock.data(), comp_lock.data(), GS, OC, IC, KS);
             } else {
                 fill_compensation_typed(w_lock.data(), azp_lock.data(), static_cast<uint8_t*>(nullptr), comp_lock.data(), GS, OC, IC, KS);
             }
         } else if (w_dt == data_types::i8 && azp_dt == data_types::u8) {
-            mem_lock<int8_t> w_lock(w, stream);
-            mem_lock<uint8_t> azp_lock(azp, stream);
+            mem_lock<int8_t, mem_lock_type::read> w_lock(w, stream);
+            mem_lock<uint8_t, mem_lock_type::read> azp_lock(azp, stream);
             if (wzp) {
-                mem_lock<int8_t> wzp_lock(wzp, stream);
+                mem_lock<int8_t, mem_lock_type::read> wzp_lock(wzp, stream);
                 fill_compensation_typed(w_lock.data(), azp_lock.data(), wzp_lock.data(), comp_lock.data(), GS, OC, IC, KS);
             } else {
                 fill_compensation_typed(w_lock.data(), azp_lock.data(), static_cast<int8_t*>(nullptr), comp_lock.data(), GS, OC, IC, KS);
             }
         } else if (w_dt == data_types::i8 && azp_dt == data_types::i8) {
-            mem_lock<int8_t> w_lock(w, stream);
-            mem_lock<int8_t> azp_lock(azp, stream);
+            mem_lock<int8_t, mem_lock_type::read> w_lock(w, stream);
+            mem_lock<int8_t, mem_lock_type::read> azp_lock(azp, stream);
             if (wzp) {
-                mem_lock<int8_t> wzp_lock(wzp, stream);
+                mem_lock<int8_t, mem_lock_type::read> wzp_lock(wzp, stream);
                 fill_compensation_typed(w_lock.data(), azp_lock.data(), wzp_lock.data(), comp_lock.data(), GS, OC, IC, KS);
             } else {
                 fill_compensation_typed(w_lock.data(), azp_lock.data(), static_cast<int8_t*>(nullptr), comp_lock.data(), GS, OC, IC, KS);
             }
         } else if (w_dt == data_types::u8 && azp_dt == data_types::i8) {
-            mem_lock<uint8_t> w_lock(w, stream);
-            mem_lock<int8_t> azp_lock(azp, stream);
+            mem_lock<uint8_t, mem_lock_type::read> w_lock(w, stream);
+            mem_lock<int8_t, mem_lock_type::read> azp_lock(azp, stream);
             if (wzp) {
-                mem_lock<uint8_t> wzp_lock(wzp, stream);
+                mem_lock<uint8_t, mem_lock_type::read> wzp_lock(wzp, stream);
                 fill_compensation_typed(w_lock.data(), azp_lock.data(), wzp_lock.data(), comp_lock.data(), GS, OC, IC, KS);
             } else {
                 fill_compensation_typed(w_lock.data(), azp_lock.data(), static_cast<uint8_t*>(nullptr), comp_lock.data(), GS, OC, IC, KS);
@@ -579,8 +581,8 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         int s = new_a_zp->get_output_layout().size.feature[0];
         auto azp_aligned = p.get_engine().allocate_memory(l);
         auto old_ptr = new_a_zp->as<data>().get_attached_memory_ptr();
-        mem_lock<int8_t> new_data{azp_aligned, stream};
-        mem_lock<int8_t> old_data{old_ptr, stream};
+        mem_lock<int8_t, mem_lock_type::write> new_data{azp_aligned, stream};
+        mem_lock<int8_t, mem_lock_type::read> old_data{old_ptr, stream};
         for (int i = 0; i < ifm_aligned; i++) {
             new_data.data()[i] = old_data.data()[i % s];
         }
@@ -602,8 +604,8 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         int s = new_w_zp->get_output_layout().size.batch[0];
         auto wzp_aligned = p.get_engine().allocate_memory(l);
         auto old_ptr = new_w_zp->as<data>().get_attached_memory_ptr();
-        mem_lock<int8_t> new_data{wzp_aligned, stream};
-        mem_lock<int8_t> old_data{old_ptr, stream};
+        mem_lock<int8_t, mem_lock_type::write> new_data{wzp_aligned, stream};
+        mem_lock<int8_t, mem_lock_type::read> old_data{old_ptr, stream};
         for (int i = 0; i < ofm_aligned; i++) {
             new_data.data()[i] = old_data.data()[i % s];
         }
@@ -657,6 +659,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
                 old_conv_prim->dilation,
                 output_size,
                 old_conv_prim->grouped_weights_shape,
+                "",
                 old_conv_prim->output_padding);
 
     auto& new_conv_node = p.get_or_create(new_conv_prim);

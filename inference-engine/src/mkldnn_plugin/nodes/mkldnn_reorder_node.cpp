@@ -11,6 +11,9 @@
 #include "ie_parallel.hpp"
 #include "utils/general_utils.h"
 #include <cpu/x64/cpu_isa_traits.hpp>
+#include "nodes/common/cpu_memcpy.h"
+#include "nodes/common/cpu_convert.h"
+#include "mkldnn_convert_node.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -22,8 +25,8 @@ MKLDNNReorderNode::MKLDNNReorderNode(const std::shared_ptr<ngraph::Node>& op, co
 }
 
 MKLDNNReorderNode::MKLDNNReorderNode(const std::string& name, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache) :
-        MKLDNNNode("Reorder", name, eng, w_cache) {
-}
+        MKLDNNNode("Reorder", name, eng, w_cache) {}
+
 void MKLDNNReorderNode::getSupportedDescriptors() {
     if (getParentEdges().size() != 1)
         IE_THROW() << "Incorrect number of input edges for layer " << getName();
@@ -51,63 +54,95 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
         config.outConfs[0].inPlace = 0;
     }
     if (input && output) {
-        config.inConfs[0].desc = input->clone();
-        config.outConfs[0].desc = output->clone();
+        config.inConfs[0].desc = input;
+        config.outConfs[0].desc = output;
     } else if (parent->getSelectedPrimitiveDescriptor() != nullptr &&
                child->getSelectedPrimitiveDescriptor() != nullptr) {
-        config.inConfs[0].desc = parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc->clone();
-        config.outConfs[0].desc = child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->clone();
+        config.inConfs[0].desc = parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc;
+        config.outConfs[0].desc = child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc;
     } else {
         IE_THROW() << "Cannot initialize supported PDs for Reorder node with name `" << getName() << "`";
     }
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::reorder);
+
+    // must be to initialize here since shapes are unknown at the time of Reorder node creation
+    isDynamic = !(config.inConfs[0].desc->isDefined() && config.outConfs[0].desc->isDefined());
+
+    if (isDynamic && (config.inConfs[0].desc->getShape().getRank() != config.outConfs[0].desc->getShape().getRank()))
+        IE_THROW() << "Reorder node doesn't support case when input and output shapes have different rank and dynamic";
+
+    if (!isOptimized) {
+        const auto &inShape = getInputShapeAtPort(0);
+        if (MKLDNNPlugin::one_of(inShape.getRank(), 4, 5) &&
+                config.inConfs[0].desc->hasLayoutType(LayoutType::nspc) &&
+                config.outConfs[0].desc->hasLayoutType(LayoutType::ncsp) &&
+                config.inConfs[0].desc->getPrecision() == Precision::FP32 &&
+                config.outConfs[0].desc->getPrecision() == Precision::FP32) {
+            // oneDNN JIT reorder shows bad perf for nspc to ncsp reorder case so we fallback on simple c++ implementation
+            isNspc2NcspCase = true;
+        } else if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) &&
+                   MKLDNNPlugin::one_of(inShape.getRank(), 4, 5) &&
+                   config.inConfs[0].desc->hasLayoutType(LayoutType::ncsp) &&
+                   config.outConfs[0].desc->hasLayoutType(LayoutType::nspc) &&
+                   config.inConfs[0].desc->getPrecision() == config.outConfs[0].desc->getPrecision() &&
+                   config.inConfs[0].desc->getPrecision().size() == 1) {
+            // oneDNN doesn't provide JIT reorder impl for non-avx2 targets so we fallback on simple c++ implementation which shows better perf
+            canUseNcsp2Nspc = true;
+        }
+    }
 }
 
 void MKLDNNReorderNode::createPrimitive() {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Destination memory didn't allocate.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Input memory didn't allocate.";
-    if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
+}
 
-    auto inDims = getParentEdgeAt(0)->getShape().getStaticDims();
-
+void MKLDNNReorderNode::prepareParams() {
     if (!isOptimized) {
-        if (MKLDNNPlugin::one_of(inDims.size(), 4, 5) &&
-                inDims[1] <= 64 &&
-                inDims[1] >= 16 &&
-                (getParentEdgeAt(0)->getMemory().GetElementsCount() / inDims[1]) >= 128 &&
-                getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nspc) &&
-                getChildEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::ncsp) &&
-                getParentEdgeAt(0)->getMemory().GetDesc().getPrecision() == Precision::FP32 &&
-                getChildEdgeAt(0)->getMemory().GetDesc().getPrecision() == Precision::FP32) {
-            // oneDNN JIT reorder shows bad perf for nspc to ncsp reorder case so we fallback on simple c++ implementation
-            canUseOptimizedNspc2Ncsp = true;
-        } else if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) &&
-                   MKLDNNPlugin::one_of(inDims.size(), 4, 5) &&
-                   getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::ncsp) &&
-                   getChildEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nspc) &&
-                   getParentEdgeAt(0)->getMemory().GetDataType() == getChildEdgeAt(0)->getMemory().GetDataType() &&
-                   MKLDNNExtensionUtils::sizeOfDataType(getParentEdgeAt(0)->getMemory().GetDataType()) == 1) {
-            // oneDNN doesn't provide JIT reorder impl for non-avx2 targets so we fallback on simple c++ implementation which shows better perf
-            canUseOptimizedNcsp2Nspc = true;
-        } else {
-            createReorderPrimitive(srcMemPtr->GetDescriptor(), srcMemPtr->GetPrimitive().get_data_handle(),
-                                   dstMemPtr->GetDescriptor(), dstMemPtr->GetPrimitive().get_data_handle());
+        if (!inputShapesDefined()) {
+            IE_THROW() << "Can't prepare params for eltwise node with name: " << getName();
+        }
+
+        auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+        auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+            IE_THROW() << "Destination memory didn't allocate.";
+        if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+            IE_THROW() << "Input memory didn't allocate.";
+        if (getSelectedPrimitiveDescriptor() == nullptr)
+            IE_THROW() << "Preferable primitive descriptor is not set.";
+
+        if (isNspc2NcspCase) {
+            const auto &inDims = srcMemPtr->getStaticDims();
+            canUseNspc2Ncsp = inDims[1] <= 64 && inDims[1] >= 16 &&
+                              (srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount() / inDims[1]) >= 128;
+        }
+        if (!canUseNcsp2Nspc && !canUseNspc2Ncsp) {
+            auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+            auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+            if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+                IE_THROW() << "Destination memory didn't allocate.";
+            if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+                IE_THROW() << "Input memory didn't allocate.";
+            if (getSelectedPrimitiveDescriptor() == nullptr)
+                IE_THROW() << "Preferable primitive descriptor is not set.";
+
+            createReorderPrimitive(srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), srcMemPtr->GetPrimitive().get_data_handle(),
+                                   dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), dstMemPtr->GetPrimitive().get_data_handle());
         }
     }
 }
 
 void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDesc, void* srcPtr, const mkldnn::memory::desc &dstDesc, void* dstPtr) {
     src_blocked = std::make_shared<MKLDNNMemory>(getEngine());
-    src_blocked->Create(MKLDNNMemoryDesc(srcDesc), srcPtr, false);
+    src_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(srcDesc), srcPtr, false);
 
     dst_blocked = std::make_shared<MKLDNNMemory>(getEngine());
-    dst_blocked->Create(MKLDNNMemoryDesc(dstDesc), dstPtr, false);
+    dst_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
 
     mkldnn::primitive_attr attr;
     auto createReorder = [&]() -> bool {
@@ -137,13 +172,13 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
         // perform such conversion if the source tensor can be reshaped to the destination rank. This is
         // useful in situations when rank in IR does not much rank that is required by the oneDNN primitive,
         // but the input tensor can be reshaped (e.g. weights for grouped convolutions, biases etc.)
-        if (src_blocked->GetDesc().hasLayoutType(LayoutType::ncsp) &&
-            src_blocked->GetDims().size() != dst_blocked->GetDims().size()) {
-            const auto newDims = dst_blocked->GetDims();
-            const auto newFormat = MKLDNNMemory::GetPlainFormatByRank(newDims.size());
+        if (src_blocked->getDesc().hasLayoutType(LayoutType::ncsp) &&
+            src_blocked->GetShape().getRank() != dst_blocked->GetShape().getRank()) {
+            const auto newDims = dst_blocked->getStaticDims();
+            const auto newFormat = MKLDNNExtensionUtils::GetPlainFormatByRank(newDims.size());
 
-            auto newDesc = mkldnn::memory::desc(newDims, src_blocked->GetDataType(), newFormat);
-            src_blocked->Create(MKLDNNMemoryDesc(newDesc), srcPtr, false);
+            auto newDesc = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(newDims), src_blocked->GetDataType(), newFormat);
+            src_blocked->Create(MKLDNNExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
 
             success = createReorder();
         }
@@ -171,7 +206,7 @@ void MKLDNNReorderNode::optimizedNcsp2Nspc() {
     auto parentEdge = getParentEdgeAt(0);
     auto childEdge = getChildEdgeAt(0);
 
-    auto inDims = parentEdge->getShape().getStaticDims();
+    auto inDims = parentEdge->getMemory().GetShape().getStaticDims();
     const size_t ndims = inDims.size();
     const size_t DIM0 = inDims[0];
     const size_t DIM1 = inDims[1];
@@ -202,7 +237,7 @@ void MKLDNNReorderNode::optimizedNspc2Ncsp() {
     auto parentEdge = getParentEdgeAt(0);
     auto childEdge = getChildEdgeAt(0);
 
-    auto inDims = parentEdge->getShape().getStaticDims();
+    auto inDims = parentEdge->getMemory().GetShape().getStaticDims();
     const size_t ndims = inDims.size();
     const size_t DIM0 = inDims[0];
     const size_t DIM1 = inDims[1];
@@ -230,9 +265,9 @@ void MKLDNNReorderNode::execute(mkldnn::stream strm) {
     if (isOptimized)
         return;
 
-    if (canUseOptimizedNspc2Ncsp) {
+    if (canUseNspc2Ncsp) {
         optimizedNspc2Ncsp();
-    } else if (canUseOptimizedNcsp2Nspc) {
+    } else if (canUseNcsp2Nspc) {
         optimizedNcsp2Nspc();
     } else {
         src_blocked->GetPrimitivePtr()->set_data_handle(getParentEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
@@ -247,8 +282,8 @@ void MKLDNNReorderNode::setDynamicBatchLim(int lim) {
     if (prim) {
         auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
         auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-        memory::desc src_d = srcMemPtr->GetDescriptor();
-        memory::desc dst_d = dstMemPtr->GetDescriptor();
+        memory::desc src_d = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+        memory::desc dst_d = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
         void *src_data_hdl = srcMemPtr->GetPrimitive().get_data_handle();
         void *dst_data_hdl = dstMemPtr->GetPrimitive().get_data_handle();
 
@@ -275,6 +310,62 @@ std::string MKLDNNReorderNode::getReorderArgs(const MemoryDesc &parentDesc, cons
         outArgs += (outArgs.empty() ? "" : "_") + formatDst;
     }
     return inArgs + "_" + outArgs;
+}
+
+void MKLDNNReorderNode::reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output, size_t size) {
+    if (!input.getDesc().isDefined() || !output.getDesc().isDefined())
+        IE_THROW() << "Can't reorder data with dynamic shapes";
+
+    if (size != 0)
+        IE_ASSERT(size <= output.GetSize());
+    if (input.getDesc().isCompatible(output.getDesc())) {
+        auto srcPtr = static_cast<uint8_t*>(input.GetPtr());
+        auto dstPtr = static_cast<uint8_t*>(output.GetPtr());
+
+        auto copySize = size == 0 ? output.GetSize() : size;
+        cpu_memcpy(dstPtr, srcPtr, copySize);
+    } else {
+        std::unique_ptr<mkldnn::reorder> pReorder;
+        std::shared_ptr<mkldnn::memory> srcMemoryPtr;
+        std::vector<uint8_t> tmpBuff;
+
+        try {
+            pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(input.GetPrimitive(), output.GetPrimitive()));
+            srcMemoryPtr = input.GetPrimitivePtr();
+        }
+        catch (const mkldnn::error& err) {
+            if (mkldnn_unimplemented == err.status && output.GetDataType() != input.GetDataType() && MKLDNNConvertNode::isSupportedDesc(input.getDesc()) &&
+                    MKLDNNConvertNode::isSupportedDesc(output.getDesc())) {
+                //we probably could not make the reorder because there is no one supporting this precision conversion
+                //lets try to convert data first using cpu_convert
+                auto data = static_cast<const uint8_t *>(input.GetPtr());
+                tmpBuff.resize(input.GetSize());
+
+                const auto outPrc = MKLDNNExtensionUtils::DataTypeToIEPrecision(output.GetDataType());
+                cpu_convert(data, tmpBuff.data(), MKLDNNExtensionUtils::DataTypeToIEPrecision(input.GetDataType()),
+                            outPrc, input.GetSize() / input.getDesc().getPrecision().size());
+
+                MKLDNNMemory tmpMem(output.getEngine());
+                auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
+                tmpMem.Create(std::move(tmpDesc), tmpBuff.data());
+
+                pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(tmpMem.GetPrimitive(), output.GetPrimitive()));
+                srcMemoryPtr = tmpMem.GetPrimitivePtr();
+            } else {
+                throw;
+            }
+        }
+        if (pReorder) {
+            mkldnn::stream loc_stream(output.getEngine(), mkldnn::stream::flags::default_order);
+            pReorder->execute(loc_stream, *srcMemoryPtr, *output.GetPrimitivePtr());
+        } else {
+            IE_THROW() << "Could not make mkldnn reorder.";
+        }
+    }
+}
+
+std::vector<VectorDims> MKLDNNReorderNode::shapeInfer() const {
+    return {getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNReorderNode, Reorder);

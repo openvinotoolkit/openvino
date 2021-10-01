@@ -19,10 +19,15 @@
 #include "ie_parallel.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
-#include <cpu_memory_desc_utils.h>
+#include <memory_desc/cpu_memory_desc_utils.h>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "utils/ngraph_utils.hpp"
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
 // #define VALIDATE_QUANTIZATION_RANGES
+
+// Uncomment it to compute scales and shifts in double precision
+// #define FQ_DOUBLE_PRECISION
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -820,6 +825,11 @@ private:
 
 bool MKLDNNFakeQuantizeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
         const auto fq = std::dynamic_pointer_cast<const ngraph::opset1::FakeQuantize>(op);
         if (!fq) {
             errorMessage = "Only opset1 FakeQuantize operation is supported";
@@ -1053,9 +1063,13 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
                                    << "inputLow = " << il << ", inputHigh = " << ih;
             }
 #endif
-
+#ifdef FQ_DOUBLE_PRECISION
+                inputScale[i] = (levels - 1.0) / (static_cast<double>(ih) - il);
+                inputShift[i] = -il * (levels - 1.0) / (static_cast<double>(ih) - il);
+#else
                 inputScale[i] = (levels - 1) / (ih - il);
                 inputShift[i] = -il * (levels - 1) / (ih - il);
+#endif
             }
 
             for (int i = 0; i < outputScale.size(); i++) {
@@ -1068,8 +1082,11 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
                                        << "outputLow = " << ol << ", outputHigh = " << oh;
                 }
 #endif
-
+#ifdef FQ_DOUBLE_PRECISION
+                outputScale[i] = (static_cast<double>(oh) - ol) / (levels - 1.0);
+#else
                 outputScale[i] = (oh - ol) / (levels - 1);
+#endif
 
                 if (outputScale[i] != 1.f)
                     quantizationOnly = false;
@@ -1093,13 +1110,13 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
 
 std::vector<LayoutType> MKLDNNFakeQuantizeNode::getDataFormats() const {
     // Special case for first FQ in the network
-    if (getParentEdgesAtPort(0)[0]->getShape().getStaticDims()[getAxis()] == 3) {
+    if (getInputShapeAtPort(0).getStaticDims()[getAxis()] == 3) {
         return { LayoutType::ncsp };
     } else {
         if (isBinarization()) {
             return { LayoutType::nspc };
         } else {
-            if (one_of(getParentEdgesAtPort(0)[0]->getShape().getRank(), 4, 5)) {
+            if (one_of(getInputShapeAtPort(0).getRank(), 4, 5)) {
                 if (getAxis() == 1) {
                     auto blkFormat = mayiuse(cpu::x64::avx512_common) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
                     return { blkFormat, LayoutType::nspc, LayoutType::ncsp };
@@ -1140,12 +1157,12 @@ void MKLDNNFakeQuantizeNode::getSupportedDescriptors() {
             IE_THROW() << errorPrefix << "has unsupported number of parent edges at port " << i;
     }
 
-    if (getParentEdgesAtPort(0)[0]->getShape().getRank() != getChildEdgesAtPort(0)[0]->getShape().getRank()) {
+    if (getInputShapeAtPort(0).getRank() != getInputShapeAtPort(0).getRank()) {
         IE_THROW() << errorPrefix << "has different ranks for input and output tensors";
     }
 
     if (isBinarization()) {
-        if (getParentEdgesAtPort(0)[0]->getShape().getRank() != 4ul) {
+        if (getInputShapeAtPort(0).getRank() != 4ul) {
             IE_THROW() << errorPrefix << "doesn't support input/output rank != 4";
         }
     }
@@ -1192,10 +1209,10 @@ void MKLDNNFakeQuantizeNode::initSupportedPrimitiveDescriptors() {
 
             if (i == 0) {
                 auto descCreator = BlockedDescCreator::getCommonCreators().at(fmt);
-                dataConfig.desc = descCreator->createUniqueDesc(getInputPrecision(), getParentEdgeAt(i)->getShape().getStaticDims());
+                dataConfig.desc = descCreator->createSharedDesc(getInputPrecision(), getInputShapeAtPort(i));
             } else {
                 auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-                dataConfig.desc = descCreator->createUniqueDesc(Precision::FP32, getParentEdgeAt(i)->getShape().getStaticDims());
+                dataConfig.desc = descCreator->createSharedDesc(Precision::FP32, getInputShapeAtPort(i));
             }
             config.inConfs.push_back(dataConfig);
         }
@@ -1204,7 +1221,7 @@ void MKLDNNFakeQuantizeNode::initSupportedPrimitiveDescriptors() {
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
         auto descCreator = BlockedDescCreator::getCommonCreators().at(fmt);
-        dataConfig.desc = descCreator->createUniqueDesc(getOutputPrecision(), getChildEdgeAt(0)->getShape().getStaticDims());
+        dataConfig.desc = descCreator->createSharedDesc(getOutputPrecision(), getOutputShapeAtPort(0));
         config.outConfs.push_back(dataConfig);
 
         supportedPrimitiveDescriptors.push_back({config, impl_type});
@@ -1222,12 +1239,12 @@ void MKLDNNFakeQuantizeNode::createPrimitive() {
     jqp.dst_prc = config.outConfs[0].desc->getPrecision();
 
     auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    jqp.s_str = srcDesc.getStrides();
+    jqp.s_str = srcDesc->getStrides();
 
     auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    jqp.d_str = dstDesc.getStrides();
+    jqp.d_str = dstDesc->getStrides();
 
-    jqp.is_planar = srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5);
+    jqp.is_planar = srcDesc->hasLayoutType(LayoutType::ncsp) && one_of(srcDesc->getShape().getRank(), 3, 4, 5);
 
     jqp.op_type = getAlgorithm();
 
@@ -1256,10 +1273,10 @@ void MKLDNNFakeQuantizeNode::createPrimitive() {
     if (quantize_kernel)
         quantize_kernel->create_ker();
 
-    size_t axisSize = getParentEdgeAt(0)->getShape().getStaticDims()[getAxis()];
+    size_t axisSize = getParentEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims()[getAxis()];
     size_t axisPaddedSize = rnd_up(axisSize, 16);
 
-    MKLDNNMemoryDesc weightsDataDesc = {{(uint32_t)axisPaddedSize}, memory::data_type::f32, memory::format_tag::x};
+    DnnlBlockedMemoryDesc weightsDataDesc(Shape(InferenceEngine::SizeVector{axisPaddedSize}), memory::data_type::f32, memory::format_tag::x);
 
     if (isBinarization()) {
         auto binarizationThresholdsDataMem = std::make_shared<MKLDNNMemory>(getEngine());
@@ -1295,8 +1312,8 @@ void MKLDNNFakeQuantizeNode::executeReference() {
 
     auto src = reinterpret_cast<const float *>(srcMemory->GetPtr());
 
-    auto srcDims = srcMemory->GetDesc().getShape().getStaticDims();
-    auto dstDims = dstMemory->GetDesc().getShape().getStaticDims();
+    auto srcDims = srcMemory->getStaticDims();
+    auto dstDims = dstMemory->getStaticDims();
 
     auto s_str = jqp.s_str;
     auto d_str = jqp.d_str;
@@ -1416,7 +1433,7 @@ void MKLDNNFakeQuantizeNode::executeBinarization() {
     auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
     auto output_mask = reinterpret_cast<const float*>(internalBlobMemory[1]->GetData());
 
-    auto src_dims = srcMemory->GetDesc().getShape().getStaticDims();
+    auto src_dims = srcMemory->getStaticDims();
 
     std::vector<size_t> s_str = jqp.s_str;
     size_t tmp = s_str[s_str.size() - 1];
@@ -1459,7 +1476,7 @@ void MKLDNNFakeQuantizeNode::executeQuantization() {
     auto output_scale = reinterpret_cast<const float*>(internalBlobMemory[4]->GetData());
     auto output_shift = reinterpret_cast<const float*>(internalBlobMemory[5]->GetData());
 
-    auto& srcDesc = srcMemory->GetDesc();
+    auto& srcDesc = srcMemory->getDesc();
     auto srcDims = srcDesc.getShape().getStaticDims();
 
     bool is_blk_format = !srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4, 5);

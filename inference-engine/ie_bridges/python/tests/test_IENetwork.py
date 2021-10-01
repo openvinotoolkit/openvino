@@ -134,12 +134,10 @@ def test_batch_size_after_reshape():
     assert net.input_info['data'].input_data.shape == [8, 3, 32, 32]
 
 
-def test_serialize(device):
-    ie = IECore()
-    if device == "CPU":
-        if ie.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-            pytest.skip("Can't run on ARM plugin due-to ngraph")
+@pytest.mark.ngraph_dependent_test
+def test_serialize():
     import ngraph as ng
+    ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.serialize("./serialized_net.xml", "./serialized_net.bin")
     serialized_net = ie.read_network(model="./serialized_net.xml", weights="./serialized_net.bin")
@@ -158,6 +156,43 @@ def test_reshape():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.reshape({"data": (2, 3, 32, 32)})
+    assert net.input_info["data"].input_data.shape == [2, 3, 32, 32]
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.parametrize("shape, p_shape", [
+    ([1, 3, 22, 22], [1, 3, -1, 25]),
+    ([1, 3, 22, 22], [-1, -1, -1, -1]),
+    ([1, 3, -1, 25], [1, 3, 22, -1])
+])
+def test_reshape_with_partial_shape(device, shape, p_shape):
+    from conftest import create_relu
+    import ngraph as ng
+    function = create_relu(shape)
+    net = ng.function_to_cnn(function)
+    net.reshape({"data": p_shape})
+    changedFunction = ng.function_from_cnn(net)
+    p_shape = ng.impl.PartialShape(p_shape)
+    assert changedFunction.get_parameters()[0].get_partial_shape().is_dynamic
+    assert changedFunction.get_results()[0].get_output_partial_shape(0).is_dynamic
+    assert function.get_parameters()[0].get_partial_shape().is_dynamic
+    assert function.get_results()[0].get_output_partial_shape(0).is_dynamic
+    assert changedFunction.get_parameters()[0].get_partial_shape() == p_shape
+    assert changedFunction.get_results()[0].get_output_partial_shape(0) == p_shape
+    assert function.get_parameters()[0].get_partial_shape() == p_shape
+    assert function.get_results()[0].get_output_partial_shape(0) == p_shape
+
+
+@pytest.mark.ngraph_dependent_test
+def test_incorrect_reshape(device):
+    from conftest import create_relu
+    import ngraph as ng
+    function = create_relu([1, 3, 22, 22])
+    net = ng.function_to_cnn(function)
+    with pytest.raises(ValueError) as e:
+        net.reshape({"data": [(2, 4, 6), 3, 22, 22]})
+    assert "Incorrect PartialShape dimension definition '(2, 4, 6)' " \
+           "in shape '[(2, 4, 6), 3, 22, 22]', expected one or two values for a dimension! " in str(e.value)
 
 
 def test_net_from_buffer_valid():
@@ -247,3 +282,18 @@ def test_tensor_names():
     assert net.get_ov_name_for_tensor("relu_t") == "activation"
     assert net.get_ov_name_for_tensor("identity_t") == "activation"
     assert net.get_ov_name_for_tensor("input") == "in1"
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+def test_create_two_exec_net():
+    from conftest import create_relu
+    import ngraph as ng
+    function = create_relu([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])
+    net = ng.function_to_cnn(function)
+    ie_core = IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net1 = ie_core.load_network(net, "TEMPLATE", num_requests=2)
+    assert ng.function_from_cnn(net) != None
+    exec_net2 = ie_core.load_network(net, "TEMPLATE", num_requests=2)
+    assert ng.function_from_cnn(net) != None

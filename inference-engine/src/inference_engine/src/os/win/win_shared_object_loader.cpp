@@ -70,216 +70,10 @@
 
 #include <windows.h>
 
-namespace InferenceEngine {
-namespace details {
-
-typedef DWORD(*GetDllDirectoryA_Fnc)(DWORD, LPSTR);
-typedef DWORD(*GetDllDirectoryW_Fnc)(DWORD, LPWSTR);
-
-static GetDllDirectoryA_Fnc IEGetDllDirectoryA;
-static GetDllDirectoryW_Fnc IEGetDllDirectoryW;
-
-/**
- * @brief WINAPI based implementation for loading a shared object
- */
-class SharedObjectLoader::Impl {
- private:
-    HMODULE shared_object;
-
-    void LoadSymbols() {
-        static std::once_flag loadFlag;
-        std::call_once(loadFlag, [&] () {
-            if (HMODULE hm = GetModuleHandleW(L"kernel32.dll")) {
-                IEGetDllDirectoryA = reinterpret_cast<GetDllDirectoryA_Fnc>(GetProcAddress(hm, "GetDllDirectoryA"));
-                IEGetDllDirectoryW = reinterpret_cast<GetDllDirectoryW_Fnc>(GetProcAddress(hm, "GetDllDirectoryW"));
-            }
-        });
-    }
-
-    // Exclude current directory from DLL search path process wise.
-    // If application specific path was configured before then
-    // current directory is already excluded.
-    // GetDLLDirectory does not distinguish if application specific
-    // path was set to "" or NULL so reset it to "" to keep
-    // application safe.
-    void ExcludeCurrentDirectoryA() {
-#if !WINAPI_PARTITION_SYSTEM
-        LoadSymbols();
-        if (IEGetDllDirectoryA && IEGetDllDirectoryA(0, NULL) <= 1) {
-            SetDllDirectoryA("");
-        }
-#endif
-    }
-
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
-    void ExcludeCurrentDirectoryW() {
-#if !WINAPI_PARTITION_SYSTEM
-        LoadSymbols();
-        if (IEGetDllDirectoryW && IEGetDllDirectoryW(0, NULL) <= 1) {
-            SetDllDirectoryW(L"");
-        }
-#endif
-    }
-#endif
-
-    static const char  kPathSeparator = '\\';
-
-    static const char* FindLastPathSeparator(LPCSTR path) {
-        const char* const last_sep = strchr(path, kPathSeparator);
-        return last_sep;
-    }
-
-    static std::string GetDirname(LPCSTR path) {
-        auto pos = FindLastPathSeparator(path);
-        if (pos == nullptr) {
-            return path;
-        }
-        std::string original(path);
-        original[pos - path] = 0;
-        return original;
-    }
-
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
-    static const wchar_t* FindLastPathSeparator(LPCWSTR path) {
-        const wchar_t* const last_sep = wcsrchr(path, kPathSeparator);
-        return last_sep;
-    }
-
-    static std::wstring GetDirname(LPCWSTR path) {
-        auto pos = FindLastPathSeparator(path);
-        if (pos == nullptr) {
-            return path;
-        }
-        std::wstring original(path);
-        original[pos - path] = 0;
-        return original;
-    }
-
-    void LoadPluginFromDirectoryW(LPCWSTR path) {
-#if !WINAPI_PARTITION_SYSTEM
-        LoadSymbols();
-        if (IEGetDllDirectoryW) {
-            DWORD nBufferLength = IEGetDllDirectoryW(0, NULL);
-            std::vector<WCHAR> lpBuffer(nBufferLength);
-            IEGetDllDirectoryW(nBufferLength, &lpBuffer.front());
-
-            auto dirname = GetDirname(path);
-            SetDllDirectoryW(dirname.c_str());
-            shared_object = LoadLibraryW(path);
-
-            SetDllDirectoryW(&lpBuffer.front());
-        }
-#endif
-    }
-#endif
-    void LoadPluginFromDirectoryA(LPCSTR path) {
-#if !WINAPI_PARTITION_SYSTEM
-        LoadSymbols();
-        if (IEGetDllDirectoryA) {
-            DWORD nBufferLength = IEGetDllDirectoryA(0, NULL);
-            std::vector<CHAR> lpBuffer(nBufferLength);
-            IEGetDllDirectoryA(nBufferLength, &lpBuffer.front());
-
-            auto dirname = GetDirname(path);
-            SetDllDirectoryA(dirname.c_str());
-            shared_object = LoadLibraryA(path);
-
-            SetDllDirectoryA(&lpBuffer.front());
-        }
-#endif
-    }
-
- public:
-    /**
-     * @brief A shared pointer to SharedObjectLoader
-     */
-    using Ptr = std::shared_ptr<SharedObjectLoader>;
-
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
-    /**
-     * @brief Loads a library with the name specified. The library is loaded according to the
-     *        WinAPI LoadLibrary rules
-     * @param pluginName Full or relative path to the plugin library
-     */
-    explicit Impl(const wchar_t* pluginName) {
-        ExcludeCurrentDirectoryW();
-        LoadPluginFromDirectoryW(pluginName);
-
-        if (!shared_object) {
-            shared_object = LoadLibraryW(pluginName);
-        }
-
-        if (!shared_object) {
-            char cwd[1024];
-            IE_THROW() << "Cannot load library '" << FileUtils::wStringtoMBCSstringChar(std::wstring(pluginName)) << "': " << GetLastError()
-                               << " from cwd: " << _getcwd(cwd, sizeof(cwd));
-        }
-    }
-#endif
-
-    explicit Impl(const char* pluginName) {
-        ExcludeCurrentDirectoryA();
-        LoadPluginFromDirectoryA(pluginName);
-
-        if (!shared_object) {
-            shared_object = LoadLibraryA(pluginName);
-        }
-
-        if (!shared_object) {
-            char cwd[1024];
-            IE_THROW() << "Cannot load library '" << pluginName << "': " << GetLastError()
-                << " from cwd: " << _getcwd(cwd, sizeof(cwd));
-        }
-    }
-
-    ~Impl() {
-        FreeLibrary(shared_object);
-    }
-
-    /**
-     * @brief Searches for a function symbol in the loaded module
-     * @param symbolName Name of function to find
-     * @return A pointer to the function if found
-     * @throws Exception if the function is not found
-     */
-    void* get_symbol(const char* symbolName) const {
-        if (!shared_object) {
-            IE_THROW() << "Cannot get '" << symbolName << "' content from unknown library!";
-        }
-        auto procAddr = reinterpret_cast<void*>(GetProcAddress(shared_object, symbolName));
-        if (procAddr == nullptr)
-            IE_THROW(NotFound)
-                << "GetProcAddress cannot locate method '" << symbolName << "': " << GetLastError();
-
-        return procAddr;
-    }
-};
-
-SharedObjectLoader::~SharedObjectLoader() {}
-
-SharedObjectLoader::SharedObjectLoader(const char * pluginName) {
-    _impl = std::make_shared<Impl>(pluginName);
-}
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
-SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName) {
-    _impl = std::make_shared<Impl>(pluginName);
-}
-#endif
-
-void* SharedObjectLoader::get_symbol(const char* symbolName) const {
-    if (_impl == nullptr) {
-        IE_THROW(NotAllocated) << "SharedObjectLoader is not initialized";
-    }
-    return _impl->get_symbol(symbolName);
-}
-
-}  // namespace details
-}  // namespace InferenceEngine
-
-
 namespace ov {
 namespace runtime {
-SharedObject::SharedObject(const char* path) {
+std::shared_ptr<void> load_shared_object(const char* path) {
+    void* shared_object = nullptr;
     using GetDllDirectoryA_Fnc = DWORD(*)(DWORD, LPSTR);
     GetDllDirectoryA_Fnc IEGetDllDirectoryA = nullptr;
     if (HMODULE hm = GetModuleHandleW(L"kernel32.dll")) {
@@ -297,7 +91,7 @@ SharedObject::SharedObject(const char* path) {
         IEGetDllDirectoryA(nBufferLength, &lpBuffer.front());
 
         // GetDirname
-        auto dirname = [&] {
+        auto dirname = [path] {
             auto pos = strchr(path, '\\');
             if (pos == nullptr) {
                 return std::string{path};
@@ -316,15 +110,21 @@ SharedObject::SharedObject(const char* path) {
     if (!shared_object) {
         shared_object = LoadLibraryA(path);
     }
+
     if (!shared_object) {
         char cwd[1024];
         IE_THROW() << "Cannot load library '" << path << "': " << GetLastError()
             << " from cwd: " << _getcwd(cwd, sizeof(cwd));
     }
+    return {shared_object,
+            [] (void* shared_object) {
+                FreeLibrary(reinterpret_cast<HMODULE>(shared_object));
+            }};
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
-SharedObject::SharedObject(const wchar_t* path) {
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+std::shared_ptr<void> load_shared_object(const wchar_t* path) {
+    void* shared_object = nullptr;
     using GetDllDirectoryW_Fnc = DWORD(*)(DWORD, LPWSTR);
     static GetDllDirectoryW_Fnc IEGetDllDirectoryW = nullptr;
     if (HMODULE hm = GetModuleHandleW(L"kernel32.dll")) {
@@ -339,8 +139,7 @@ SharedObject::SharedObject(const wchar_t* path) {
         DWORD nBufferLength = IEGetDllDirectoryW(0, NULL);
         std::vector<WCHAR> lpBuffer(nBufferLength);
         IEGetDllDirectoryW(nBufferLength, &lpBuffer.front());
-
-        auto dirname = [&] {
+        auto dirname = [path] {
             auto pos = wcsrchr(path, '\\');
             if (pos == nullptr) {
                 return std::wstring{path};
@@ -360,27 +159,74 @@ SharedObject::SharedObject(const wchar_t* path) {
     }
     if (!shared_object) {
         char cwd[1024];
-        IE_THROW() << "Cannot load library '" << FileUtils::wStringtoMBCSstringChar(std::wstring(path)) << "': " << GetLastError()
+        IE_THROW() << "Cannot load library '" << ov::util::wstring_to_string(std::wstring(path)) << "': " << GetLastError()
                             << " from cwd: " << _getcwd(cwd, sizeof(cwd));
     }
+    return {shared_object,
+            [] (void* shared_object) {
+                FreeLibrary(reinterpret_cast<HMODULE>(shared_object));
+            }};
 }
 #endif
 
-SharedObject::~SharedObject() {
-    FreeLibrary(reinterpret_cast<HMODULE>(shared_object));
-}
-
-void* SharedObject::get_symbol(const char* symbolName) const {
+void* get_symbol(const std::shared_ptr<void>& shared_object, const char* symbol_name) {
     if (!shared_object) {
-        IE_THROW() << "Cannot get '" << symbolName << "' content from unknown library!";
+        IE_THROW() << "Cannot get '" << symbol_name << "' content from unknown library!";
     }
     auto procAddr = reinterpret_cast<void*>(GetProcAddress(
-        reinterpret_cast<HMODULE>(const_cast<void*>(shared_object)), symbolName));
-    if (procAddr == nullptr)
+        reinterpret_cast<HMODULE>(const_cast<void*>(shared_object.get())), symbol_name));
+    if (procAddr == nullptr) {
         IE_THROW(NotFound)
-            << "GetProcAddress cannot locate method '" << symbolName << "': " << GetLastError();
-
+            << "GetProcAddress cannot locate method '" << symbol_name << "': " << GetLastError();
+    }
     return procAddr;
 }
 }  // namespace runtime
 }  // namespace ov
+
+namespace InferenceEngine {
+namespace details {
+struct SharedObjectLoader::Impl {
+    std::shared_ptr<void> shared_object = nullptr;
+
+    explicit Impl(const std::shared_ptr<void>& shared_object_) : shared_object{shared_object_} {}
+
+    explicit Impl(const char* pluginName) : shared_object{ov::runtime::load_shared_object(pluginName)} {}
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    explicit Impl(const wchar_t* pluginName) : shared_object{ov::runtime::load_shared_object(pluginName)} {}
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
+    void* get_symbol(const char* symbolName) const {
+        return ov::runtime::get_symbol(shared_object, symbolName);
+    }
+};
+
+SharedObjectLoader::SharedObjectLoader(const std::shared_ptr<void>& shared_object) {
+    _impl.reset(new Impl(shared_object));
+}
+
+SharedObjectLoader::~SharedObjectLoader() {}
+
+SharedObjectLoader::SharedObjectLoader(const char * pluginName) {
+    _impl = std::make_shared<Impl>(pluginName);
+}
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName) {
+    _impl = std::make_shared<Impl>(pluginName);
+}
+#endif
+
+void* SharedObjectLoader::get_symbol(const char* symbolName) const {
+    if (_impl == nullptr) {
+        IE_THROW(NotAllocated) << "SharedObjectLoader is not initialized";
+    }
+    return _impl->get_symbol(symbolName);
+}
+
+std::shared_ptr<void> SharedObjectLoader::get() const {
+    return _impl->shared_object;
+}
+
+}  // namespace details
+}  // namespace InferenceEngine

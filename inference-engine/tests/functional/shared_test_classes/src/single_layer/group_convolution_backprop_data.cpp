@@ -8,7 +8,7 @@ namespace LayerTestsDefinitions {
 
 // DEPRECATED, remove this old API when KMB (#58495) and ARM (#58496) plugins are migrated to new API
 
-std::string GroupConvBackpropDataLayerTest::getTestCaseName(testing::TestParamInfo<groupConvBackpropDataLayerTestParamsSet> obj) {
+std::string GroupConvBackpropDataLayerTest::getTestCaseName(const testing::TestParamInfo<groupConvBackpropDataLayerTestParamsSet>& obj) {
     groupConvBackpropDataSpecificParams groupConvBackpropDataParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;

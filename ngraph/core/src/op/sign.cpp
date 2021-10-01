@@ -5,15 +5,14 @@
 #include "ngraph/op/sign.hpp"
 
 #include "itt.hpp"
-
-using namespace std;
-using namespace ngraph;
-
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/sign.hpp"
 #include "ngraph/validation_util.hpp"
 
-NGRAPH_RTTI_DEFINITION(op::v0::Sign, "Sign", 0, util::UnaryElementwiseArithmetic);
+using namespace std;
+using namespace ngraph;
+
+BWDCMP_RTTI_DEFINITION(op::v0::Sign);
 
 op::Sign::Sign(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();

@@ -32,7 +32,7 @@ class ReshapeTransformation :
     public testing::WithParamInterface<ReshapeTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ReshapeTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ReshapeTransformationParams>& obj);
 
 protected:
     void SetUp() override;

@@ -22,12 +22,12 @@ inline std::string getRTInfoValue(const std::map<std::string, std::shared_ptr<ng
 
 inline std::string getPrimitivesPriorityValue(const std::shared_ptr<ngraph::Node> &node) {
     const auto &rtInfo = node->get_rt_info();
-    using PrimitivesPriorityWraper = ngraph::VariantWrapper<ngraph::PrimitivesPriority>;
+    using PrimitivesPriorityWraper = ngraph::VariantWrapper<ov::PrimitivesPriority>;
 
-    if (!rtInfo.count(PrimitivesPriorityWraper::type_info.name)) return "";
+    if (!rtInfo.count(PrimitivesPriorityWraper::get_type_info_static())) return "";
 
-    const auto &attr = rtInfo.at(PrimitivesPriorityWraper::type_info.name);
-    ngraph::PrimitivesPriority pp = ngraph::as_type_ptr<PrimitivesPriorityWraper>(attr)->get();
+    const auto &attr = rtInfo.at(PrimitivesPriorityWraper::get_type_info_static());
+    ov::PrimitivesPriority pp = ngraph::as_type_ptr<PrimitivesPriorityWraper>(attr)->get();
     return pp.getPrimitivesPriority();
 }
 
@@ -37,6 +37,14 @@ inline const std::shared_ptr<T> getNgraphOpAs(const std::shared_ptr<ngraph::Node
     if (!typedOp)
         IE_THROW() << "Can't get ngraph node " << op->get_type_name() << " with name " << op->get_friendly_name();
     return typedOp;
+}
+
+inline bool isDynamicNgraphNode(const std::shared_ptr<const ngraph::Node>& op) {
+    bool ret = op->is_dynamic();
+    for (size_t i = 0; i < op->get_output_size(); i++) {
+        ret |= op->get_output_partial_shape(i).is_dynamic();
+    }
+    return ret;
 }
 
 }  // namespace MKLDNNPlugin

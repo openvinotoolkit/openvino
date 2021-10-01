@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v1::ConvertLike, "ConvertLike", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::ConvertLike);
 
 op::v1::ConvertLike::ConvertLike(const Output<Node>& data, const Output<Node>& like) : Op({data, like}) {
     constructor_validate_and_infer_types();
@@ -37,8 +37,8 @@ shared_ptr<Node> op::v1::ConvertLike::clone_with_new_inputs(const OutputVector& 
 
 bool op::v1::ConvertLike::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "op::v1::ConvertLike::constant_fold");
-    if (auto data_const = std::dynamic_pointer_cast<op::Constant>(input_values[0].get_node_shared_ptr())) {
-        auto convert = make_shared<Convert>(input_values[0], input_values[1].get_element_type());
+    if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(input_values[0].get_node_shared_ptr())) {
+        auto convert = make_shared<ov::op::v0::Convert>(input_values[0], input_values[1].get_element_type());
         convert->constant_fold(output_values, OutputVector{data_const});
         return true;
     }

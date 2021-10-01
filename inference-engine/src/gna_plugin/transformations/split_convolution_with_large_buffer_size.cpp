@@ -13,12 +13,41 @@
 #include <ngraph/rt_info.hpp>
 #include "backend/gna_limitations.hpp"
 #include "layers/gna_split_layer.hpp"
+#include "layers/gna_convolution_layer.hpp"
 
 using namespace GNAPluginNS;
 
 NGRAPH_RTTI_DEFINITION(SplitConvolution, "SplitConvolution", 0);
 NGRAPH_RTTI_DEFINITION(SplitConvolutionWithBias, "SplitConvolutionWithBias", 0);
 NGRAPH_RTTI_DEFINITION(SplitConvolutionWithFq, "SplitConvolutionWithFq", 0);
+
+// Don't split when convolution is 2D and is not mappable to 1D
+static bool shouldSplitCnn(const ngraph::Output<ngraph::Node>& node) {
+    auto convolution = dynamic_cast<ngraph::opset7::Convolution*>(node.get_node());
+    IE_ASSERT(convolution != nullptr);
+    auto& input = convolution->get_input_shape(0);
+    auto& filters = convolution->get_input_shape(1);
+    uint32_t width = input.back();
+    uint32_t in_channels = input.at(1);
+    if (input.size() >= 4 && filters.size() >= 4) {
+        uint32_t height = input.at(2);
+        auto kH = filters.at(2);
+        auto kW = filters.at(3);
+        auto sW = convolution->get_strides().at(1);
+        if (GNAConvolutionLayer::isConv2D(height, width, in_channels, kH, kW) &&
+            !GNAConvolutionLayer::isMappableFrom2DTo1D(height, width, kW, sW)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+std::shared_ptr<ngraph::Node> getConvForMatcher() {
+    return ngraph::pattern::wrap_type<ngraph::opset7::Convolution>({ ngraph::pattern::any_input(),
+    ngraph::pattern::any_input() }, [](const ngraph::Output<ngraph::Node>& convolution) {
+            return shouldSplitCnn(convolution);
+        });
+}
 
 static bool Convert(std::shared_ptr<ngraph::Node> conv,
                     std::shared_ptr<ngraph::Node> add,
@@ -29,9 +58,9 @@ static bool Convert(std::shared_ptr<ngraph::Node> conv,
     if (input_size <= GNALimitations::bufferMaxSize) {
         return false;
     }
-
-    uint32_t width = conv->get_input_shape(0).back();
-    uint32_t in_channels = conv->get_input_shape(0).at(1);
+    auto& input = conv->get_input_shape(0);
+    uint32_t width = input.back();
+    uint32_t in_channels = input.at(1);
     auto split_sizes = GetAlignedSplitSizes(width, GNALimitations::bufferMaxSize / in_channels);
     IE_ASSERT(split_sizes.size() > 1);
     std::vector<int64_t> split_sizes_casted(split_sizes.size());
@@ -41,7 +70,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> conv,
 
     /* TODO check if it's NHWC convolution wrapped with transposes or all input dimensions except of width == 1,
         otherwise this split axis isn't supported */
-    const int64_t width_axis = conv->get_input_shape(0).size() - 1;
+    const int64_t width_axis = input.size() - 1;
     auto split_node = std::make_shared<ngraph::opset7::VariadicSplit>(conv->input_value(0),
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({1}), std::vector<int64_t>{width_axis}),
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({split_sizes_casted.size()}), split_sizes_casted));
@@ -75,9 +104,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> conv,
 
 SplitConvolution::SplitConvolution() {
     MATCHER_SCOPE(SplitConvolution);
-    auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>({ngraph::pattern::any_input(),
-        ngraph::pattern::any_input()});
-
+    auto conv = getConvForMatcher();
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         const auto& pattern_map = m.get_pattern_value_map();
         return Convert(pattern_map.at(conv).get_node_shared_ptr(), nullptr, nullptr, nullptr);
@@ -89,8 +116,7 @@ SplitConvolution::SplitConvolution() {
 
 SplitConvolutionWithBias::SplitConvolutionWithBias() {
     MATCHER_SCOPE(SplitConvolutionWithBias);
-    auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>({ngraph::pattern::any_input(),
-        ngraph::pattern::any_input()});
+    auto conv = getConvForMatcher();
     auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
     auto add = ngraph::pattern::wrap_type<ngraph::opset7::Add>({conv, bias});
 
@@ -106,8 +132,7 @@ SplitConvolutionWithBias::SplitConvolutionWithBias() {
 
 SplitConvolutionWithFq::SplitConvolutionWithFq() {
     MATCHER_SCOPE(SplitConvolutionWithFq);
-    auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>({ngraph::pattern::any_input(),
-        ngraph::pattern::any_input()});
+    auto conv = getConvForMatcher();
     auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
     auto add = ngraph::pattern::wrap_type<ngraph::opset7::Add>({conv, bias});
     auto conv_output = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{conv, add});

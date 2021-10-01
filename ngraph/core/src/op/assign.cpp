@@ -13,9 +13,8 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::AssignBase, "AssignBase", 0);
-NGRAPH_RTTI_DEFINITION(op::v3::Assign, "Assign", 3, op::Sink);
-NGRAPH_RTTI_DEFINITION(op::v6::Assign, "Assign", 6, op::Sink);
+BWDCMP_RTTI_DEFINITION(ov::op::v3::Assign);
+BWDCMP_RTTI_DEFINITION(ov::op::v6::Assign);
 
 op::v3::Assign::Assign(const Output<Node>& new_value, const std::string& variable_id)
     : AssignBase({new_value}),
@@ -54,7 +53,7 @@ void op::v3::Assign::validate_and_infer_types() {
 
         set_output_type(0, arg_t, output_shape);
     } else {
-        set_output_type(0, arg_t, PartialShape::dynamic());
+        set_output_type(0, arg_t, ov::PartialShape::dynamic());
     }
 }
 

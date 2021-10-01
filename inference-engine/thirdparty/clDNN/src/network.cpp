@@ -112,7 +112,7 @@ static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
     file_stream << "shape: " << size.to_string() << " ";
     file_stream << "(count: " << size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")" << std::endl;
 
-    mem_lock<T> lock(mem, stream);
+    mem_lock<T, mem_lock_type::read> lock(mem, stream);
     auto mem_ptr = lock.data();
     auto x_pitch = get_x_pitch(mem->get_layout());
     std::stringstream buffer;
@@ -148,7 +148,7 @@ void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream)
     file_stream << size.spatial[0] << " ";
     file_stream << "(" << size.batch[0] * size.feature[0] * size.spatial[1] * size.spatial[0] << ")" << std::endl;
 
-    mem_lock<uint32_t> lock(mem, stream);
+    mem_lock<uint32_t, mem_lock_type::read> lock(mem, stream);
     auto mem_ptr = lock.data();
 
     for (cldnn::tensor::value_type b = 0; b < size.batch[0]; ++b) {
@@ -470,12 +470,6 @@ void network::allocate_primitives() {
     for (auto node : _program->get_processing_order()) {
         nodes_to_allocate.push_back(_program->get_node_ptr(node->id()));
     }
-    std::sort(nodes_to_allocate.begin(),
-              nodes_to_allocate.end(),
-              [](std::shared_ptr<program_node> const& lhs, std::shared_ptr<program_node> const& rhs) {
-                  return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
-              });
-
     for (auto const& node : nodes_to_allocate) {
         allocate_primitive_instance(*node);
     }
@@ -660,6 +654,21 @@ const program::primitives_info& network::get_primitives_info() const {
 
 const program::graph_optimizer_info& network::get_optimizer_passes_info() const {
     return _program->get_optimizer_passes_info();
+}
+
+std::map<primitive_id, primitive_id> network::get_ext_id_mapping() const {
+    std::map<primitive_id, primitive_id> result;
+    for (auto& prim : _primitives) {
+        result.emplace(prim.first, prim.second->get_ext_prim_id());
+    }
+    for (auto& opt_id : _program->get_optimized_out()) {
+        std::string ext_id = opt_id;
+        if (opt_id.find(":") != std::string::npos) {
+            ext_id = opt_id.substr(opt_id.find(":") + 1, opt_id.length());
+        }
+        result.emplace(opt_id, ext_id);
+    }
+    return result;
 }
 
 std::shared_ptr<primitive_inst> network::get_primitive(const primitive_id& id) {

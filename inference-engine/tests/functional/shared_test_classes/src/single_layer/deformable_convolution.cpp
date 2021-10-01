@@ -4,7 +4,7 @@
 #include "shared_test_classes/single_layer/deformable_convolution.hpp"
 
 namespace LayerTestsDefinitions {
-std::string DeformableConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<deformableConvLayerTestParamsSet> obj) {
+std::string DeformableConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<deformableConvLayerTestParamsSet>& obj) {
     deformableConvSpecificParams convParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;

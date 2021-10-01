@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v1::GatherTree, "GatherTree", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::GatherTree);
 
 op::v1::GatherTree::GatherTree(const Output<Node>& step_ids,
                                const Output<Node>& parent_idx,
@@ -33,35 +33,68 @@ bool ngraph::op::v1::GatherTree::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::GatherTree::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_GatherTree_validate_and_infer_types);
-    const auto& step_ids_rank = get_input_partial_shape(0);
-    const auto& parent_idx_rank = get_input_partial_shape(1);
-    const auto& max_seq_len_rank = get_input_partial_shape(2);
-    const auto& end_token_rank = get_input_partial_shape(3);
-
-    NODE_VALIDATION_CHECK(this,
-                          step_ids_rank.rank().is_dynamic() || step_ids_rank.rank().get_length() == 3,
-                          "step_ids input rank must equal to 3 (step_ids rank: ",
-                          step_ids_rank.rank().get_length(),
-                          ")");
-
-    NODE_VALIDATION_CHECK(this,
-                          parent_idx_rank.rank().is_dynamic() || parent_idx_rank.rank().get_length() == 3,
-                          "parent_idx input rank must equal to 3 (parent_idx rank: ",
-                          parent_idx_rank.rank().get_length(),
-                          ")");
-
-    NODE_VALIDATION_CHECK(this,
-                          max_seq_len_rank.rank().is_dynamic() || max_seq_len_rank.rank().get_length() == 1,
-                          "max_seq_len input rank must equal to 1 (max_seq_len rank: ",
-                          max_seq_len_rank.rank().get_length(),
-                          ")");
-
-    NODE_VALIDATION_CHECK(this,
-                          end_token_rank.rank().is_dynamic() || end_token_rank.rank().get_length() == 0,
-                          "end_token input rank must be scalar (end_token rank: ",
-                          end_token_rank.rank().get_length(),
-                          ")");
 
     const auto& step_ids_et = get_input_element_type(0);
-    set_output_type(0, step_ids_et, step_ids_rank);
+    const auto& parent_idx_et = get_input_element_type(1);
+    const auto& max_seq_len_et = get_input_element_type(2);
+    const auto& end_token_et = get_input_element_type(3);
+
+    element::Type result_et;
+    NODE_VALIDATION_CHECK(this,
+                          element::Type::merge(result_et, step_ids_et, parent_idx_et) &&
+                              element::Type::merge(result_et, result_et, max_seq_len_et) &&
+                              element::Type::merge(result_et, result_et, end_token_et),
+                          "Inputs must have the same element type. Got: step_ids (",
+                          step_ids_et,
+                          "), parent_idx_et (",
+                          parent_idx_et,
+                          "), max_seq_len (",
+                          max_seq_len_et,
+                          "), end_token (",
+                          end_token_et,
+                          ")");
+
+    NODE_VALIDATION_CHECK(this,
+                          result_et.is_real() || result_et.is_integral_number(),
+                          "Element type of inputs must be numeric. Got: ",
+                          result_et);
+
+    const auto& step_ids_pshape = get_input_partial_shape(0);
+    const auto& parent_idx_pshape = get_input_partial_shape(1);
+    const auto& max_seq_len_pshape = get_input_partial_shape(2);
+    const auto& end_token_pshape = get_input_partial_shape(3);
+
+    PartialShape result_pshape{PartialShape::dynamic()};
+    NODE_VALIDATION_CHECK(this,
+                          PartialShape::merge_into(result_pshape, step_ids_pshape) &&
+                              PartialShape::merge_into(result_pshape, parent_idx_pshape) &&
+                              result_pshape.rank().compatible(3),
+                          "step_ids and parent_idx inputs must have the same shape with rank 3. Got: ",
+                          step_ids_pshape,
+                          " and ",
+                          parent_idx_pshape,
+                          ", respectively");
+
+    NODE_VALIDATION_CHECK(this,
+                          max_seq_len_pshape.rank().compatible(1),
+                          "max_seq_len input must have rank 1. Got: ",
+                          max_seq_len_pshape);
+
+    if (result_pshape.rank().is_static() && max_seq_len_pshape.rank().is_static()) {
+        NODE_VALIDATION_CHECK(this,
+                              Dimension::merge(result_pshape[1], result_pshape[1], max_seq_len_pshape[0]),
+                              "Number of elements of max_seq_len input must match BATCH_SIZE dimension of "
+                              "step_ids/parent_idx inputs. Got: ",
+                              result_pshape[1],
+                              " and ",
+                              max_seq_len_pshape[0],
+                              ", respectively");
+    }
+
+    NODE_VALIDATION_CHECK(this,
+                          end_token_pshape.rank().compatible(0),
+                          "end_token input must be scalar. Got: ",
+                          end_token_pshape);
+
+    set_output_type(0, result_et, result_pshape);
 }

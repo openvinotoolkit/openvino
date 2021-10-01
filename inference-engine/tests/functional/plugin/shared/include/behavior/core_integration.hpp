@@ -21,7 +21,7 @@
 #include <common_test_utils/common_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #include <iostream>
 #define GTEST_COUT std::cerr << "[          ] [ INFO ] "
 #include <codecvt>
@@ -263,7 +263,7 @@ TEST(IEClassBasicTest, smoke_createMockEngineConfigThrows) {
 
 #endif
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -280,14 +280,14 @@ TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
             bool is_copy_successfully;
             is_copy_successfully = CommonTestUtils::copyFile(pluginXML, pluginsXmlW);
             if (!is_copy_successfully) {
-                FAIL() << "Unable to copy from '" << pluginXML << "' to '" << ::FileUtils::wStringtoMBCSstringChar(pluginsXmlW) << "'";
+                FAIL() << "Unable to copy from '" << pluginXML << "' to '" << ::ov::util::wstring_to_string(pluginsXmlW) << "'";
             }
 
             GTEST_COUT << "Test " << testIndex << std::endl;
 
             Core ie = createCoreWithTemplate();
             GTEST_COUT << "Core created " << testIndex << std::endl;
-            ASSERT_NO_THROW(ie.RegisterPlugins(::FileUtils::wStringtoMBCSstringChar(pluginsXmlW)));
+            ASSERT_NO_THROW(ie.RegisterPlugins(::ov::util::wstring_to_string(pluginsXmlW)));
             CommonTestUtils::removeFile(pluginsXmlW);
 #if defined __linux__  && !defined(__APPLE__)
             ASSERT_NO_THROW(ie.GetVersions("mock")); // from pluginXML
@@ -310,7 +310,7 @@ TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     CommonTestUtils::removeFile(pluginXML);
 }
 
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 //
 // GetVersions()
@@ -431,8 +431,7 @@ TEST_P(IEClassBasicTestP, ImportNetworkThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie = createCoreWithTemplate();
 
-    if (deviceName == CommonTestUtils::DEVICE_CPU ||
-        deviceName == CommonTestUtils::DEVICE_GPU) {
+    if (deviceName == CommonTestUtils::DEVICE_GPU) {
         ASSERT_THROW(ie.ImportNetwork("model", deviceName), NetworkNotRead);
 
         const std::string modelName = "compiled_blob.blob";
@@ -489,6 +488,36 @@ TEST_P(IEClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
     ASSERT_NO_THROW(ie.LoadNetwork(actualNetwork, CommonTestUtils::DEVICE_HETERO, {{"TARGET_FALLBACK", deviceName}}));
 }
 
+TEST_P(IEClassNetworkTestP, LoadNetworkCreateDefaultExecGraphResult) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    Core ie = createCoreWithTemplate();
+    auto net = ie.LoadNetwork(actualNetwork, deviceName);
+    auto exec_function = net.GetExecGraphInfo().getFunction();
+    ASSERT_NE(nullptr, exec_function);
+    auto actual_parameters = exec_function->get_parameters();
+    auto actual_results = exec_function->get_results();
+    auto expected_parameters = actualNetwork.getFunction()->get_parameters();
+    auto expected_results = actualNetwork.getFunction()->get_results();
+    ASSERT_EQ(expected_parameters.size(), actual_parameters.size());
+    for (std::size_t i = 0; i < expected_parameters.size(); ++i) {
+        auto expected_element_type = expected_parameters[i]->get_output_element_type(0);
+        auto actual_element_type = actual_parameters[i]->get_output_element_type(0);
+        ASSERT_EQ(expected_element_type, actual_element_type) << "For index: " << i;
+        auto expected_shape = expected_parameters[i]->get_output_shape(0);
+        auto actual_shape = actual_parameters[i]->get_output_shape(0);
+        ASSERT_EQ(expected_shape, actual_shape) << "For index: " << i;
+    }
+    ASSERT_EQ(expected_results.size(), actual_results.size());
+    for (std::size_t i = 0; i < expected_results.size(); ++i) {
+        auto expected_element_type = expected_results[i]->get_input_element_type(0);
+        auto actual_element_type = actual_results[i]->get_input_element_type(0);
+        ASSERT_EQ(expected_element_type, actual_element_type) << "For index: " << i;
+        auto expected_shape = expected_results[i]->get_input_shape(0);
+        auto actual_shape = actual_results[i]->get_input_shape(0);
+        ASSERT_EQ(expected_shape, actual_shape) << "For index: " << i;
+    }
+}
+
 //
 // ImportExportNetwork
 //
@@ -528,7 +557,7 @@ TEST_P(IEClassImportExportTestP, smoke_ExportUsingFileNameImportFromStreamNoThro
     }
     {
         {
-            std::ifstream strm(fileName);
+            std::ifstream strm(fileName, std::ifstream::binary | std::ifstream::in);
             ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, deviceName));
         }
         ASSERT_EQ(0, remove(fileName.c_str()));

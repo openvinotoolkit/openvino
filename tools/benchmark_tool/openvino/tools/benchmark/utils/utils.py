@@ -30,7 +30,7 @@ def next_step(additional_info='', step_id=0):
         5: "Resizing network to match image sizes and given batch",
         6: "Configuring input of the model",
         7: "Loading the model to the device",
-        8: "Setting optimal runtime parameters",
+        8: "Querying optimal runtime parameters",
         9: "Creating infer requests and filling input blobs with images",
         10: "Measuring performance",
         11: "Dumping statistics report",
@@ -194,18 +194,18 @@ def parse_nstreams_value_per_device(devices, values_string):
     return result
 
 
-def process_help_inference_string(benchmark_app):
+def process_help_inference_string(benchmark_app, exe_network):
     output_string = f'Start inference {benchmark_app.api_type}hronously'
     if benchmark_app.api_type == 'async':
         output_string += f', {benchmark_app.nireq} inference requests'
 
         device_ss = ''
         if CPU_DEVICE_NAME in benchmark_app.device:
-            device_ss += str(benchmark_app.ie.get_config(CPU_DEVICE_NAME, 'CPU_THROUGHPUT_STREAMS'))
+            device_ss += str(exe_network.get_config('CPU_THROUGHPUT_STREAMS'))
             device_ss += f' streams for {CPU_DEVICE_NAME}'
         if GPU_DEVICE_NAME in benchmark_app.device:
             device_ss += ', ' if device_ss else ''
-            device_ss += str(benchmark_app.ie.get_config(GPU_DEVICE_NAME, 'GPU_THROUGHPUT_STREAMS'))
+            device_ss += str(exe_network.get_config('GPU_THROUGHPUT_STREAMS'))
             device_ss += f' streams for {GPU_DEVICE_NAME}'
 
         if device_ss:

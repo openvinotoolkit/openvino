@@ -15,10 +15,7 @@
     template <>                                                                           \
     class VariantWrapper<TYPE> : public VariantImpl<TYPE> {                               \
     public:                                                                               \
-        static constexpr VariantTypeInfo type_info{info, 0};                              \
-        const VariantTypeInfo& get_type_info() const override {                           \
-            return type_info;                                                             \
-        }                                                                                 \
+        OPENVINO_RTTI(info);                                                              \
         VariantWrapper<TYPE>(const value_type& value) : VariantImpl<value_type>(value) {} \
     }
 
@@ -58,7 +55,7 @@ public:
     /// Returns node attribute by name. Returns 'def' value if attribute does not exist
     template <typename T>
     T get_attribute(const std::string& name, const T& def) const {
-        auto res = m_decoder.get_attribute(name, VariantWrapper<T>::type_info);
+        auto res = m_decoder.get_attribute(name, VariantWrapper<T>::get_type_info_static());
         if (res) {
             auto ret = std::dynamic_pointer_cast<VariantWrapper<T>>(res);
             FRONT_END_GENERAL_CHECK(ret, "Attribute with name '", name, "' has invalid type");
@@ -72,7 +69,7 @@ public:
     /// Returns node attribute by name
     template <typename T>
     T get_attribute(const std::string& name) const {
-        auto res = m_decoder.get_attribute(name, VariantWrapper<T>::type_info);
+        auto res = m_decoder.get_attribute(name, VariantWrapper<T>::get_type_info_static());
         FRONT_END_GENERAL_CHECK(res, "Attribute with name '", name, "' does not exist");
         auto ret = std::dynamic_pointer_cast<VariantWrapper<T>>(res);
         FRONT_END_GENERAL_CHECK(ret, "Attribute with name '", name, "' has invalid type");
@@ -82,7 +79,7 @@ public:
     /// Check if an attribute of a given name exists
     template <typename T>
     bool has_attribute(const std::string& name) const {
-        return m_decoder.get_attribute(name, VariantWrapper<T>::type_info) != nullptr;
+        return m_decoder.get_attribute(name, VariantWrapper<T>::get_type_info_static()) != nullptr;
     }
 
     /// Detects if there is at least one input attached with a given name

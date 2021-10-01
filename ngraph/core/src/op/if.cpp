@@ -18,8 +18,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::op::v8::If, "If", 8, MultiSubGraphOp);
-
+BWDCMP_RTTI_DEFINITION(op::v8::If);
 op::v8::If::If() : MultiSubGraphOp(2) {}
 
 op::v8::If::If(const Output<Node>& execution_condition) : If() {
@@ -28,8 +27,7 @@ op::v8::If::If(const Output<Node>& execution_condition) : If() {
 
 // This function tries to calculate the output shape of the if operation by two outputs from two
 // subgraphs.
-static ngraph::PartialShape resolve_shape(const ngraph::PartialShape& then_pshape,
-                                          const ngraph::PartialShape& else_pshape) {
+static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const ov::PartialShape& else_pshape) {
     // then_pshape - shape of output from then_body
     // else_pshape - shape of output from else_body
     auto then_rank = then_pshape.rank();
@@ -38,7 +36,7 @@ static ngraph::PartialShape resolve_shape(const ngraph::PartialShape& then_pshap
     // if rangs of shapes are not equal or rang of one of them is dynamic function
     // return shape with dynamic rank
     if (then_rank.is_dynamic() || else_rank.is_dynamic() || then_rank.get_length() != else_rank.get_length()) {
-        return ngraph::PartialShape::dynamic(ngraph::Rank::dynamic());
+        return ov::PartialShape::dynamic(ngraph::Rank::dynamic());
     }
     std::vector<Dimension> new_dims;
 
@@ -49,15 +47,15 @@ static ngraph::PartialShape resolve_shape(const ngraph::PartialShape& then_pshap
         if ((*then_it).is_dynamic() || (*else_it).is_dynamic()) {
             new_dims.push_back(Dimension::dynamic());
         } else if (*then_it == *else_it) {
-            new_dims.push_back(Dimension(*then_it));
+            new_dims.emplace_back(*then_it);
         } else {
             auto dim_min = std::min((*then_it).get_min_length(), (*else_it).get_min_length());
             auto dim_max = std::max((*then_it).get_min_length(), (*else_it).get_min_length());
-            new_dims.push_back(Dimension(dim_min, dim_max));
+            new_dims.emplace_back(dim_min, dim_max);
         }
     }
 
-    return PartialShape(new_dims);
+    return ov::PartialShape(new_dims);
 }
 
 bool op::v8::If::visit_attributes(AttributeVisitor& visitor) {
@@ -125,7 +123,7 @@ void op::v8::If::validate_and_infer_types() {
         // shape and type inference for outputs from If operations
         for (const auto& output_descr : m_output_descriptions[cond_index]) {
             auto body_value = body->get_results().at(output_descr->m_body_value_index)->input_value(0);
-            auto body_value_partial_shape = body_value.get_partial_shape();
+            const auto& body_value_partial_shape = body_value.get_partial_shape();
             set_output_type(output_descr->m_output_index, body_value.get_element_type(), body_value_partial_shape);
         }
     } else  // condition is non constant
@@ -236,8 +234,8 @@ bool op::v8::If::has_evaluate() const {
 }
 
 void op::v8::If::set_input(const Output<Node>& value,
-                           const std::shared_ptr<Parameter>& then_parameter,
-                           const std::shared_ptr<Parameter>& else_parameter) {
+                           const std::shared_ptr<v0::Parameter>& then_parameter,
+                           const std::shared_ptr<v0::Parameter>& else_parameter) {
     NGRAPH_CHECK(then_parameter != nullptr || else_parameter != nullptr,
                  "Missing parameters! Both parameters are nullptr!");
     auto then_param_index = m_bodies[THEN_BODY_INDEX]->get_parameter_index(then_parameter);
@@ -253,8 +251,8 @@ void op::v8::If::set_input(const Output<Node>& value,
     set_invariant_inputs(value, {then_parameter, else_parameter});
 }
 
-Output<Node> op::v8::If::set_output(const std::shared_ptr<Result>& then_result,
-                                    const std::shared_ptr<Result>& else_result) {
+Output<Node> op::v8::If::set_output(const std::shared_ptr<v0::Result>& then_result,
+                                    const std::shared_ptr<v0::Result>& else_result) {
     NGRAPH_CHECK(then_result != nullptr, "Incorrect result in \"then_body\"! Result cant be \'nullptr\'");
     NGRAPH_CHECK(else_result != nullptr, "Incorrect result in \"else_body\"! Result cant be \'nullptr\'");
     auto then_result_id = m_bodies[THEN_BODY_INDEX]->get_result_index(then_result);

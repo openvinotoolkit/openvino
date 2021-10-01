@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v1::LogicalXor, "LogicalXor", 1, util::BinaryElementwiseLogical);
+BWDCMP_RTTI_DEFINITION(op::v1::LogicalXor);
 
 op::v1::LogicalXor::LogicalXor(const Output<Node>& arg0,
                                const Output<Node>& arg1,
@@ -75,7 +75,7 @@ bool op::v1::LogicalXor::has_evaluate() const {
     return false;
 }
 
-constexpr NodeTypeInfo op::v0::Xor::type_info;
+BWDCMP_RTTI_DEFINITION(op::v0::Xor);
 
 op::v0::Xor::Xor(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseLogical(arg0, arg1, auto_broadcast) {

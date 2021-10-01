@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::Exp, "Exp", 0, UnaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(op::v0::Exp);
 
 op::Exp::Exp(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();

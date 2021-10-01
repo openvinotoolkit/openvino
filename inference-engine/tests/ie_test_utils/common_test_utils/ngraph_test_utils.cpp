@@ -22,6 +22,8 @@
 #include <ngraph/op/util/sub_graph_base.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
+#include <ngraph_ops/type_relaxed.hpp>
+
 namespace {
 inline namespace tools {
 bool isTypeRelaxed(const std::string &type) {
@@ -43,20 +45,29 @@ bool compareTypeInfo(const ngraph::DiscreteTypeInfo &info1, const ngraph::Discre
 
 template<typename Node>
 bool compare_rt_keys(const Node &node1, const Node &node2) {
+    // The "opset" parameter in RT info is optional
+    // and mandatory only for TypeRelaxed operations.
+    // Therefore, we ignore this key when comparing RT keys.
+
     const auto &first_node_rt_info = node1->get_rt_info();
     const auto &second_node_rt_info = node2->get_rt_info();
 
-    if (first_node_rt_info.empty() && second_node_rt_info.empty()) {
-        return true;
-    }
-
-    if (first_node_rt_info.size() != second_node_rt_info.size()) {
-        return false;
-    }
-
     auto first_node_rt_info_it = first_node_rt_info.begin();
     auto second_node_rt_info_it = second_node_rt_info.begin();
-    while (first_node_rt_info_it != first_node_rt_info.end()) {
+
+    while (first_node_rt_info_it != first_node_rt_info.end()
+        && second_node_rt_info_it != second_node_rt_info.end()) {
+        bool is_continue = false;
+        if (first_node_rt_info_it->first == "opset") {
+            ++first_node_rt_info_it;
+            is_continue = true;
+        }
+        if (second_node_rt_info_it->first == "opset") {
+            ++second_node_rt_info_it;
+            is_continue = true;
+        }
+        if (is_continue)
+            continue;
         if (first_node_rt_info_it->first != second_node_rt_info_it->first) {
             return false;
         }
@@ -64,7 +75,16 @@ bool compare_rt_keys(const Node &node1, const Node &node2) {
         ++second_node_rt_info_it;
     }
 
-    return true;
+    if (first_node_rt_info_it != first_node_rt_info.end()
+        && first_node_rt_info_it->first == "opset") {
+        ++first_node_rt_info_it;
+    }
+    if (second_node_rt_info_it != second_node_rt_info.end()
+        && second_node_rt_info_it->first == "opset") {
+        ++second_node_rt_info_it;
+    }
+    return first_node_rt_info_it == first_node_rt_info.end()
+        && second_node_rt_info_it == second_node_rt_info.end();
 }
 
 bool less_by_name(
@@ -129,16 +149,16 @@ public:
             return false;
         }
 
-        if (lhs->get_type_info() == SubGraphOp::SliceInputDescription::type_info) {
+        if (lhs->get_type_info() == SubGraphOp::SliceInputDescription::get_type_info_static()) {
             using InDesc = SubGraphOp::SliceInputDescription;
             const InDesc *l_input = static_cast<const InDesc *>(lhs);
             const InDesc *r_input = static_cast<const InDesc *>(rhs);
             return l_input->m_start == r_input->m_start && l_input->m_stride == r_input->m_stride &&
                    l_input->m_part_size == r_input->m_part_size &&
                    l_input->m_end == r_input->m_end && l_input->m_axis == r_input->m_axis;
-        } else if (lhs->get_type_info() == SubGraphOp::MergedInputDescription::type_info) {
+        } else if (lhs->get_type_info() == SubGraphOp::MergedInputDescription::get_type_info_static()) {
             return true;  // noting extra to check
-        } else if (lhs->get_type_info() == SubGraphOp::InvariantInputDescription::type_info) {
+        } else if (lhs->get_type_info() == SubGraphOp::InvariantInputDescription::get_type_info_static()) {
             return true;  // noting extra to check
         }
 
@@ -179,8 +199,8 @@ public:
             }
             return true;
         } else if (
-                m_description->get_type_info() == SubGraphOp::MergedInputDescription::type_info ||
-                m_description->get_type_info() == SubGraphOp::InvariantInputDescription::type_info) {
+                m_description->get_type_info() == SubGraphOp::MergedInputDescription::get_type_info_static() ||
+                m_description->get_type_info() == SubGraphOp::InvariantInputDescription::get_type_info_static()) {
             return equal_type_and_partial_shape(*m_parameter, m_input);
         }
 
@@ -223,7 +243,7 @@ public:
             return false;
         }
 
-        if (lhs->get_type_info() == SubGraphOp::ConcatOutputDescription::type_info) {
+        if (lhs->get_type_info() == SubGraphOp::ConcatOutputDescription::get_type_info_static()) {
             using OutDesc = SubGraphOp::ConcatOutputDescription;
             const OutDesc *l_output = static_cast<const OutDesc *>(lhs);
             const OutDesc *r_output = static_cast<const OutDesc *>(rhs);
@@ -231,7 +251,7 @@ public:
                    l_output->m_stride == r_output->m_stride &&
                    l_output->m_part_size == r_output->m_part_size &&
                    l_output->m_end == r_output->m_end && l_output->m_axis == r_output->m_axis;
-        } else if (lhs->get_type_info() == SubGraphOp::BodyOutputDescription::type_info) {
+        } else if (lhs->get_type_info() == SubGraphOp::BodyOutputDescription::get_type_info_static()) {
             using OutDesc = SubGraphOp::BodyOutputDescription;
             const OutDesc *l_output = static_cast<const OutDesc *>(lhs);
             const OutDesc *r_output = static_cast<const OutDesc *>(rhs);
@@ -270,7 +290,7 @@ public:
                 }
             }
             return true;
-        } else if (m_description->get_type_info() == SubGraphOp::BodyOutputDescription::type_info) {
+        } else if (m_description->get_type_info() == SubGraphOp::BodyOutputDescription::get_type_info_static()) {
             return equal_type_and_partial_shape(m_result->output(0), m_output);
         }
 
@@ -721,11 +741,19 @@ void Comparator::compare_inputs(ngraph::Node* node1, ngraph::Node* node2, std::o
 }
 
 void Comparator::compare_outputs(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log) {
+    // Some transformations creates new tensors with autogenerated names
+    const auto& autogenerated_names = [](const std::unordered_set<std::string>& names) {
+        for (const auto& name : names) {
+            if (name.rfind("Tensor_", 0) != 0)
+                return false;
+        }
+        return true;
+    };
     for (int i = 0; i < node1->outputs().size(); ++i) {
         const auto& tensor1 = node1->output(i).get_tensor();
         const auto& tensor2 = node2->output(i).get_tensor();
 
-        if (tensor1.get_names() != tensor2.get_names()) {
+        if (tensor1.get_names() != tensor2.get_names() && (!autogenerated_names(tensor1.get_names()) || !autogenerated_names(tensor2.get_names()))) {
             err_log << "Output tensors names " << tensor_names(tensor1) << " and "
                     << tensor_names(tensor2)
                     << " are different for nodes: " << node1->get_friendly_name() << " and "
@@ -758,7 +786,7 @@ FunctionsComparator::Result FunctionsComparator::compare(
 }
 
 void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {
-    static const std::vector<std::string> attrs_to_check{"Variant::RuntimeAttribute::FusedNames"};
+    static const std::vector<std::string> attrs_to_check{"fused_names_0"};
 
     std::ostringstream err_log;
     for (auto& op : f->get_ops()) {

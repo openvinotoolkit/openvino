@@ -425,7 +425,7 @@ static Status GetStaticInputNode(
             if (node->get_op_type() != "Const") {
                 return errors::InvalidArgument("TFNodeDecoder not a Const");
             }
-            auto dt1 = node->get_attribute("dtype", ::ov::VariantWrapper<::tensorflow::DataType>::type_info);
+            auto dt1 = node->get_attribute("dtype", ::ov::VariantWrapper<::tensorflow::DataType>::get_type_info_static());
             FRONT_END_GENERAL_CHECK(dt1);
             auto dt = std::dynamic_pointer_cast<::ov::VariantWrapper<::tensorflow::DataType>>(dt1)->get();
 
@@ -442,7 +442,7 @@ static Status GetStaticInputNode(
             // <type>_val or tensor_content.
 
             auto tensor_proto_var =
-                node->get_attribute("value", ::ov::VariantWrapper<::tensorflow::TensorProto>::type_info);
+                node->get_attribute("value", ::ov::VariantWrapper<::tensorflow::TensorProto>::get_type_info_static());
             FRONT_END_GENERAL_CHECK(tensor_proto_var);
             auto tensor_proto =
                 std::dynamic_pointer_cast<::ov::VariantWrapper<::tensorflow::TensorProto>>(tensor_proto_var)->get();

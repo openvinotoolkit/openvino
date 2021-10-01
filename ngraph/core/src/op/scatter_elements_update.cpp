@@ -13,7 +13,7 @@
 using namespace ngraph;
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(op::ScatterElementsUpdate, "ScatterElementsUpdate", 3);
+BWDCMP_RTTI_DEFINITION(op::v3::ScatterElementsUpdate);
 
 op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
                                                      const Output<Node>& indices,
@@ -35,10 +35,10 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
     element::Type updates_et = get_input_element_type(2);
     element::Type axis_et = get_input_element_type(3);
 
-    const PartialShape& data_shape = get_input_partial_shape(0);
-    const PartialShape& indices_shape = get_input_partial_shape(1);
-    const PartialShape& updates_shape = get_input_partial_shape(2);
-    const PartialShape& axis_shape = get_input_partial_shape(3);
+    const ov::PartialShape& data_shape = get_input_partial_shape(0);
+    const ov::PartialShape& indices_shape = get_input_partial_shape(1);
+    const ov::PartialShape& updates_shape = get_input_partial_shape(2);
+    const ov::PartialShape& axis_shape = get_input_partial_shape(3);
 
     NODE_VALIDATION_CHECK(this,
                           indices_et.is_integral(),
@@ -56,7 +56,7 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
                           updates_et);
 
     NODE_VALIDATION_CHECK(this,
-                          axis_shape.compatible(PartialShape{}) || axis_shape.compatible(PartialShape{1}),
+                          axis_shape.compatible(ov::PartialShape{}) || axis_shape.compatible(ov::PartialShape{1}),
                           "Axis input shape are required to be scalar or 1D tensor. ",
                           "Got: ",
                           axis_shape);

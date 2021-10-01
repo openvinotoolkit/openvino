@@ -14,17 +14,17 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::PriorBoxClustered, "PriorBoxClustered", 0);
+BWDCMP_RTTI_DEFINITION(ov::op::v0::PriorBoxClustered);
 
-op::PriorBoxClustered::PriorBoxClustered(const Output<Node>& layer_shape,
-                                         const Output<Node>& image_shape,
-                                         const PriorBoxClusteredAttrs& attrs)
+ov::op::v0::PriorBoxClustered::PriorBoxClustered(const Output<Node>& layer_shape,
+                                                 const Output<Node>& image_shape,
+                                                 const Attributes& attrs)
     : Op({layer_shape, image_shape}),
       m_attrs(attrs) {
     constructor_validate_and_infer_types();
 }
 
-void op::PriorBoxClustered::validate_and_infer_types() {
+void ov::op::v0::PriorBoxClustered::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_PriorBoxClustered_validate_and_infer_types);
     // shape node should have integer data type. For now we only allow i64
     auto layer_shape_et = get_input_element_type(0);
@@ -66,19 +66,19 @@ void op::PriorBoxClustered::validate_and_infer_types() {
         auto layer_shape = const_shape->get_shape_val();
         // {Prior boxes, variances-adjusted prior boxes}
         const auto num_priors = m_attrs.widths.size();
-        set_output_type(0, element::f32, Shape{2, 4 * layer_shape[0] * layer_shape[1] * num_priors});
+        set_output_type(0, element::f32, ov::Shape{2, 4 * layer_shape[0] * layer_shape[1] * num_priors});
     } else {
-        set_output_type(0, element::f32, PartialShape::dynamic());
+        set_output_type(0, element::f32, ov::PartialShape::dynamic());
     }
 }
 
-shared_ptr<Node> op::PriorBoxClustered::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<Node> ov::op::v0::PriorBoxClustered::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v0_PriorBoxClustered_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<PriorBoxClustered>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
-bool op::PriorBoxClustered::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v0::PriorBoxClustered::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v0_PriorBoxClustered_visit_attributes);
     float step = 0;
     float step_w_tmp = m_attrs.step_widths;
@@ -110,7 +110,7 @@ template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
               const HostTensorPtr& out,
-              op::PriorBoxClusteredAttrs attrs) {
+              ov::op::v0::PriorBoxClustered::Attributes attrs) {
     runtime::reference::prior_box_clustered(arg0->get_data_ptr<ET>(),
                                             arg1->get_data_ptr<ET>(),
                                             out->get_data_ptr<float>(),
@@ -122,7 +122,7 @@ bool evaluate(const HostTensorPtr& arg0,
 bool evaluate_prior_box(const HostTensorPtr& arg0,
                         const HostTensorPtr& arg1,
                         const HostTensorPtr& out,
-                        const op::PriorBoxClusteredAttrs& attrs) {
+                        const ov::op::v0::PriorBoxClustered::Attributes& attrs) {
     bool rc = true;
     switch (arg0->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_prior_box, i8, arg0, arg1, out, attrs);
