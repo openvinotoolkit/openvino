@@ -57,9 +57,9 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
         name = graph.name
 
     if 'data_type' not in meta_data:
-        log.debug('Provided graph does not contain `data_type` parameter in `meta_info` section! Trying to '
-                  'define `data_type` parameter value from the model.')
-        # data_type = define_data_type(graph)
+        log.debug('Provided `meta_data` does not contain `data_type` parameter. Set `data_type`'
+                  ' parameter value to `FP32`.')
+        # Set data_type to FP32. All restored constants will be saved in provided data type.
         data_type = 'FP32'
 
         # We need to specify this attribute to pass graph transformations. This information will not be saved into IR.
