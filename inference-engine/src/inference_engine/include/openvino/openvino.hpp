@@ -10,4 +10,4 @@
 
 #pragma once
 
-#include "openvino/runtime/core.hpp"
+#include "openvino/runtime/runtime.hpp"
