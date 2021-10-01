@@ -309,6 +309,16 @@ def test_get_config(device):
     assert config == "NO"
 
 
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "GNA") != "GNA", reason="Device dependent test")
+def test_set_config(device):
+    ie_core = ie.IECore()
+    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    exec_net = ie_core.load_network(net, device)
+    exec_net.set_config({"DEVICE_MODE" : "GNA_SW_EXACT"})
+    parameter = exec_net.get_config("DEVICE_MODE")
+    assert parameter == "GNA_SW_EXACT"
+
+
 # issue 28996
 # checks that objects can deallocate in this order, if not - segfault happends
 def test_input_info_deallocation(device):

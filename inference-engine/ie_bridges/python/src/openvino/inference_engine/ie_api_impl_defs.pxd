@@ -161,6 +161,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void exportNetwork(const string & model_file) except +
         object getMetric(const string & metric_name) except +
         object getConfig(const string & metric_name) except +
+        void setConfig(const map[string, string]& config) except +
         int wait(int num_requests, int64_t timeout) nogil
         int getIdleRequestId() nogil
         shared_ptr[CExecutableNetwork] getPluginLink() except +

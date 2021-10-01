@@ -351,6 +351,14 @@ PyObject* InferenceEnginePython::IEExecNetwork::getConfig(const std::string& nam
     return parse_parameter(actual->GetConfig(name));
 }
 
+void InferenceEnginePython::IEExecNetwork::setConfig(const std::map<std::string, std::string>& config) {
+    std::map<std::string, InferenceEngine::Parameter> newConfig;
+    for (const auto& item : config) {
+        newConfig[item.first] = InferenceEngine::Parameter(item.second);
+    }
+    actual->SetConfig(newConfig);
+}
+
 void InferenceEnginePython::IEExecNetwork::exportNetwork(const std::string& model_file) {
     actual->Export(model_file);
 }

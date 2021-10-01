@@ -144,6 +144,7 @@ struct IEExecNetwork {
 
     PyObject* getMetric(const std::string& metric_name);
     PyObject* getConfig(const std::string& name);
+    void setConfig(const std::map<std::string, std::string>& config);
 
     int wait(int num_requests, int64_t timeout);
     int getIdleRequestId();
