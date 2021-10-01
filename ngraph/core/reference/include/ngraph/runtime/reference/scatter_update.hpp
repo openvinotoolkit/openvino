@@ -55,7 +55,6 @@ void scatter_update(const char* input_data,
     //     for d_coord in slice data[..., i_idx, ...],
     //         u_coord in slice updates[..., i_coord, ...]
     //          data[index(d_coord)] = updates[index(u_coord)]
-
     CoordinateTransformBasic indices_transform{indices_shape};
     const auto indices_in_strides = row_major_strides(indices_shape);
 
@@ -63,20 +62,21 @@ void scatter_update(const char* input_data,
     size_t updates_ndim = updates_shape.size();
     size_t data_ndim = data_shape.size();
 
-    int num_axis_jumps{0};
-    for (size_t i = axis + 1; i <= updates_ndim - 1; ++i) {
-        if (updates_shape[i] == 1)
-            ++num_axis_jumps;
-    }
-    const auto same_dims = data_ndim == updates_ndim;
     const auto size_after_axis = shape_size(Shape(data_shape.begin() + axis + 1, data_shape.end()));
-    const auto updates_size_after_axis = shape_size(Shape(updates_shape.begin() + axis + 1, updates_shape.end()));
+    int num_axis_jumps{0};
+    int num_unary_moves{0};
+    for (size_t i = axis + 1; i < updates_ndim; ++i) {
+        const auto updates_size_after_axis = shape_size(Shape(updates_shape.begin() + i, updates_shape.end()));
+        if (updates_size_after_axis > size_after_axis)
+            ++num_axis_jumps;
+        if (updates_shape[i] == 1)
+            ++num_unary_moves;
+    }
 
-    auto unary_shift = size_after_axis >= updates_size_after_axis ? 0 : 1;
-    if ((!unary_shift) && (!same_dims))
-        unary_shift = 1;
-    const auto updates_last_axis_dim = updates_ndim - axis == 1;
-    auto updates_axis_dim = updates_last_axis_dim ? axis : axis + unary_shift + num_axis_jumps;
+    if (!num_axis_jumps)
+        num_axis_jumps = updates_ndim - data_ndim;
+
+    auto updates_axis_dim = axis + num_axis_jumps + num_unary_moves;
 
     if (updates_axis_dim >= updates_ndim)
         updates_axis_dim = updates_ndim - 1;
@@ -90,7 +90,6 @@ void scatter_update(const char* input_data,
 
     const auto updates_indices_transform =
         get_target_shape(updates_shape, updates_indices_start_corner, updates_indices_end_corner);
-
     auto updates_indices_coord_iter = updates_indices_transform.begin();
 
     int iteration{0};
@@ -123,7 +122,6 @@ void scatter_update(const char* input_data,
         for (const Coordinate& out_cord : out_transform) {
             if (updates_update_coord_iter == updates_update_transform.end())
                 break;
-
             Coordinate update_cord = *updates_update_coord_iter;
             Coordinate out_coord = out_cord;
             out_coord.at(axis) = slice_index;
