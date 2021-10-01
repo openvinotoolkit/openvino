@@ -76,7 +76,7 @@ TEST_P(InferRequestInputTests, canInferWithSetInOut) {
     const auto& outputBlobTensorDesc = outputsInfo.begin()->second->getTensorDesc();
     // Set output blob
     InferenceEngine::Blob::Ptr outputBlob = FuncTestUtils::createAndFillBlob(outputBlobTensorDesc);
-    req.SetBlob(outputBlobName, outputBlob); 
+    req.SetBlob(outputBlobName, outputBlob);
 
     // Infer
     ASSERT_NO_THROW(req.Infer());
@@ -185,7 +185,7 @@ TEST_P(InferRequestInputTests, canStartAsyncInferWithGetInOut) {
     const auto& outputBlobName = outputsInfo.begin()->first;
 
     // Async Infer
-    InferenceEngine::Blob::Ptr inputBlob = req.GetBlob(inputBlobName); 
+    InferenceEngine::Blob::Ptr inputBlob = req.GetBlob(inputBlobName);
     InferenceEngine::StatusCode sts;
     ASSERT_NO_THROW(req.Infer());
     ASSERT_NO_THROW(req.StartAsync());

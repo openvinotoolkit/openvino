@@ -39,11 +39,11 @@ TEST_P(InferRequestOutputTests, canGetOutputBlobForSyncRequest) {
     const auto  outputsInfo    = cnnNet.getOutputsInfo();
     const auto& blobName       = outputsInfo.begin()->first;
     const auto& blobTensorDesc = outputsInfo.begin()->second->getTensorDesc();
-    
+
     // Set output blob
     InferenceEngine::Blob::Ptr OutputBlob = FuncTestUtils::createAndFillBlob(blobTensorDesc);
     ASSERT_NO_THROW(req.SetBlob(blobName, OutputBlob));
-    
+
     // Get output blob
     InferenceEngine::Blob::Ptr actualBlob;
     ASSERT_NO_THROW(actualBlob = req.GetBlob(blobName));
@@ -62,22 +62,22 @@ TEST_P(InferRequestOutputTests, canInferWithSetInOut) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    
-    // Collect input blob info 
+
+    // Collect input blob info
     const auto  inputsInfo          = cnnNet.getInputsInfo();
     const auto& inputBlobName       = inputsInfo.begin()->first;
     const auto& inputBlobTensorDesc = inputsInfo.begin()->second->getTensorDesc();
     // Set input blob
     InferenceEngine::Blob::Ptr inputBlob = FuncTestUtils::createAndFillBlob(inputBlobTensorDesc);
     req.SetBlob(inputBlobName, inputBlob);
-    
-    // Collect output blob info 
+
+    // Collect output blob info
     const auto  outputsInfo          = cnnNet.getOutputsInfo();
     const auto& outputBlobName       = outputsInfo.begin()->first;
     const auto& outputBlobTensorDesc = outputsInfo.begin()->second->getTensorDesc();
     // Set output blob
     InferenceEngine::Blob::Ptr outputBlob = FuncTestUtils::createAndFillBlob(outputBlobTensorDesc);
-    req.SetBlob(outputBlobName, outputBlob);   
+    req.SetBlob(outputBlobName, outputBlob);
 
     // Infer
     ASSERT_NO_THROW(req.Infer());
@@ -93,7 +93,7 @@ TEST_P(InferRequestOutputTests, canGetOutputBlob_deprecatedAPI) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    
+
     // Collect output blob info
     const auto  outputsInfo    = cnnNet.getOutputsInfo();
     const auto& blobName       = outputsInfo.begin()->first;
@@ -130,11 +130,11 @@ TEST_P(InferRequestOutputTests, getOutputAfterSetOutputDoNotChangeOutput) {
     const auto outputsInfo = cnnNet.getOutputsInfo();
     const auto& blobName = outputsInfo.begin()->first;
     const auto& blobTensorDesc = outputsInfo.begin()->second->getTensorDesc();
-    
-    // Set output blob 
+
+    // Set output blob
     InferenceEngine::Blob::Ptr outputBlob = FuncTestUtils::createAndFillBlob(blobTensorDesc);
     ASSERT_NO_THROW(req.SetBlob(blobName, outputBlob));
-    
+
     // Get output blob
     InferenceEngine::Blob::Ptr actualBlob;
     ASSERT_NO_THROW(actualBlob = req.GetBlob(blobName));
@@ -153,19 +153,19 @@ TEST_P(InferRequestOutputTests, canInferWithGetInOut) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    
+
     // Get input blob
     const auto inputsInfo  = cnnNet.getInputsInfo();
     const auto& inputBlobName = inputsInfo.begin()->first;
     InferenceEngine::Blob::Ptr inputBlob = req.GetBlob(inputBlobName);
-    
+
     // Get output blob
     const auto outputsInfo = cnnNet.getOutputsInfo();
     const auto& outputBlobName = outputsInfo.begin()->first;
     InferenceEngine::Blob::Ptr outputBlob = req.GetBlob(outputBlobName);
 
     // Infer
-    ASSERT_NO_THROW(req.Infer()); 
+    ASSERT_NO_THROW(req.Infer());
 }
 
 TEST_P(InferRequestOutputTests, canStartAsyncInferWithGetInOut) {
@@ -178,7 +178,7 @@ TEST_P(InferRequestOutputTests, canStartAsyncInferWithGetInOut) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    
+
     // Collect input blob info
     const auto inputsInfo = cnnNet.getInputsInfo();
     const auto& inputBlobName = inputsInfo.begin()->first;
