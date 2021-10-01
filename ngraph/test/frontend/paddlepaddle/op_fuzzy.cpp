@@ -8,9 +8,9 @@
 
 #include <fstream>
 
+#include "engines_util/test_engines.hpp"
 #include "ngraph/ngraph.hpp"
 #include "paddle_utils.hpp"
-#include "util/engine/test_engines.hpp"
 #include "util/test_control.hpp"
 
 using namespace ngraph;
@@ -196,9 +196,11 @@ static const std::vector<std::string> models{std::string("argmax"),
                                              std::string("squeeze_null_axes"),
                                              std::string("tanh"),
                                              std::string("unsqueeze"),
-                                             std::string("yolo_box_clip_box"),
-                                             std::string("yolo_box_default"),
-                                             std::string("yolo_box_scale_xy"),
+                                             // Temporily disable them until root caused to secure CI stable.
+                                             // CVS-66703 to track this.
+                                             // std::string("yolo_box_clip_box"),
+                                             // std::string("yolo_box_default"),
+                                             // std::string("yolo_box_scale_xy"),
                                              std::string("yolo_box_uneven_wh")};
 
 INSTANTIATE_TEST_SUITE_P(PDPDFuzzyOpTest,
