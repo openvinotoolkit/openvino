@@ -64,6 +64,7 @@ jobs:
       call install_ib_console.bat
     workingDirectory: $(WORK_DIR)
     displayName: 'Install IncrediBuild'
+    enabled: false
 
   - checkout: self
     clean: true
