@@ -12,19 +12,19 @@
 #include "util/visitor.hpp"
 
 using namespace std;
-using namespace ov;
+using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, convolution_op) {
-    NodeBuilder::get_ops().register_factory<op::v1::Convolution>();
-    auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 16, 124, 124});
-    auto filters = make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 16, 3, 3});
+    NodeBuilder::get_ops().register_factory<opset1::Convolution>();
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 16, 124, 124});
+    auto filters = make_shared<op::Parameter>(element::f32, PartialShape{2, 16, 3, 3});
     auto strides = Strides{1, 1};
     auto pads_begin = CoordinateDiff{1, 2};
     auto pads_end = CoordinateDiff{1, 2};
     auto dilations = Strides{1, 1};
-    auto convolution = make_shared<op::v1::Convolution>(data,
+    auto convolution = make_shared<opset1::Convolution>(data,
                                                         filters,
                                                         strides,
                                                         pads_begin,
@@ -32,7 +32,7 @@ TEST(attributes, convolution_op) {
                                                         dilations,
                                                         op::PadType::VALID);
     NodeBuilder builder(convolution);
-    auto g_convolution = ov::as_type_ptr<op::v1::Convolution>(builder.create());
+    auto g_convolution = ov::as_type_ptr<opset1::Convolution>(builder.create());
 
     // attribute count
     const auto expected_attr_count = 5;
