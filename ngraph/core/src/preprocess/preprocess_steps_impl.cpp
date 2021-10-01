@@ -153,9 +153,9 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_layout_impl(const Layout&
             OPENVINO_ASSERT(nodes.size() == 1,
                             "Can't convert layout for multi-plane input. Suggesting to convert current image to "
                             "RGB/BGR color format using 'convert_color'");
-            Layout dst_layout = layout == Layout() ? context.network_layout() : layout;
+            Layout dst_layout = layout.empty() ? context.network_layout() : layout;
             auto permutation =
-                layout::find_permutation(context.layout(), nodes[0]->get_output_partial_shape(0), dst_layout);
+                layout::find_permutation(context.layout(), nodes[0]->get_output_partial_shape(0).rank(), dst_layout);
             auto perm_constant =
                 op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
             auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);

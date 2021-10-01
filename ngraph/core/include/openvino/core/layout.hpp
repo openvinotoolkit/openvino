@@ -19,9 +19,7 @@ class Layout;
 
 namespace layout {
 
-std::vector<int64_t> find_permutation(const Layout& src_layout,
-                                      const PartialShape& src_shape,
-                                      const Layout& dst_layout);
+std::vector<int64_t> find_permutation(const Layout& src_layout, const Rank& src_shape_rank, const Layout& dst_layout);
 
 }
 
@@ -70,6 +68,10 @@ public:
     /// \brief String representation of Layout
     std::string to_string() const;
 
+    bool empty() const {
+        return *this == Layout();
+    }
+
 private:
     /// stores dimension names map to index in a layout
     std::unordered_map<std::string, std::int64_t> m_names;
@@ -83,7 +85,7 @@ private:
     int64_t m_right_size = 0;
 
     friend std::vector<int64_t> layout::find_permutation(const Layout& src_layout,
-                                                         const PartialShape& src_shape,
+                                                         const Rank& src_shape_rank,
                                                          const Layout& dst_layout);
 };
 

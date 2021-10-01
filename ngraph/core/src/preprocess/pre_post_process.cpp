@@ -55,29 +55,15 @@ public:
     }
 
     void set_spatial_dynamic_shape() {
-        OPENVINO_ASSERT(!m_full_shape_set, "Spatial shape shall not be set together with data full shape");
         m_spatial_shape_set = true;
         m_spatial_width = -1;
         m_spatial_height = -1;
     }
 
     void set_spatial_static_shape(size_t height, size_t width) & {
-        OPENVINO_ASSERT(!m_full_shape_set, "Spatial shape shall not be set together with data full shape");
         m_spatial_shape_set = true;
         m_spatial_height = static_cast<int>(height);
         m_spatial_width = static_cast<int>(width);
-    }
-
-    void set_shape(const std::vector<int64_t>& shape) {
-        OPENVINO_ASSERT(!m_spatial_shape_set, "Spatial shape shall not be set together with data full shape");
-        m_full_shape = shape;
-        m_full_shape_set = true;
-    }
-    bool is_full_shape_set() const {
-        return m_full_shape_set;
-    }
-    const std::vector<int64_t>& get_full_shape() const {
-        return m_full_shape;
     }
 
 private:
@@ -90,9 +76,6 @@ private:
     int m_spatial_width = -1;
     int m_spatial_height = -1;
     bool m_spatial_shape_set = false;
-
-    std::vector<int64_t> m_full_shape = {};
-    bool m_full_shape_set = false;
 };
 
 /// \brief InputNetworkInfoImpl - internal data structure
@@ -214,7 +197,7 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
             param = function->get_parameters().front();
         }
         // Set parameter layout from 'network' information
-        if (input->m_network_data && input->m_network_data->is_layout_set() && param->get_layout() == Layout()) {
+        if (input->m_network_data && input->m_network_data->is_layout_set() && param->get_layout().empty()) {
             param->set_layout(input->m_network_data->get_layout());
         }
         auto consumers = param->output(0).get_target_inputs();
@@ -229,18 +212,11 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         }
         auto net_shape = param->get_partial_shape();
         auto new_param_shape = net_shape;
-        if (input->m_tensor_data->is_full_shape_set()) {
-            const auto& sh = input->m_tensor_data->get_full_shape();
-            std::vector<ov::Dimension> dims(sh.size());
-            std::transform(sh.begin(), sh.end(), dims.begin(), [](int64_t dim) {
-                return dim > 0 ? ov::Dimension(dim) : ov::Dimension::dynamic();
-            });
-            new_param_shape = PartialShape(dims);
-        } else if (input->m_tensor_data->is_layout_set() && param->get_layout() != Layout() &&
-                   param->get_layout() != input->m_tensor_data->get_layout()) {
+        if (input->m_tensor_data->is_layout_set() && param->get_layout() != Layout() &&
+            param->get_layout() != input->m_tensor_data->get_layout()) {
             // Find transpose between network and tensor layouts and update tensor shape
             auto net_to_tensor =
-                layout::find_permutation(param->get_layout(), net_shape, input->m_tensor_data->get_layout());
+                layout::find_permutation(param->get_layout(), net_shape.rank(), input->m_tensor_data->get_layout());
             std::vector<ov::Dimension> dims(new_param_shape.size());
             std::transform(net_to_tensor.begin(), net_to_tensor.end(), dims.begin(), [&](int64_t v) {
                 return new_param_shape[v];
@@ -344,16 +320,6 @@ InputTensorInfo& InputTensorInfo::set_spatial_static_shape(size_t height, size_t
 
 InputTensorInfo&& InputTensorInfo::set_spatial_static_shape(size_t height, size_t width) && {
     m_impl->set_spatial_static_shape(height, width);
-    return std::move(*this);
-}
-
-InputTensorInfo& InputTensorInfo::set_data_shape(const std::vector<int64_t>& shape) & {
-    m_impl->set_shape(shape);
-    return *this;
-}
-
-InputTensorInfo&& InputTensorInfo::set_data_shape(const std::vector<int64_t>& shape) && {
-    m_impl->set_shape(shape);
     return std::move(*this);
 }
 

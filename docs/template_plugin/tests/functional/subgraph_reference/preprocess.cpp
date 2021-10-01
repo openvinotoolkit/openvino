@@ -419,40 +419,18 @@ static RefPreprocessParams resize_lvalues() {
     return res;
 }
 
-static RefPreprocessParams convert_layout_nhwc_to_nchw_shape_lvalue() {
-    RefPreprocessParams res("convert_layout_nhwc_to_nchw_shape_lvalue");
+static RefPreprocessParams convert_layout_nhwc_to_nchw_lvalue() {
+    RefPreprocessParams res("convert_layout_nhwc_to_nchw_lvalue");
     res.function = []() {
         auto f = create_simple_function(element::u8, {1, 3, 2, 2});
         f->get_parameters()[0]->set_layout("NCHW");
-        auto t = InputTensorInfo();
-        t.set_layout("NHWC");
-        t.set_data_shape({1, 2, 2, 3});
-        f = PrePostProcessor()
-                .input(InputInfo()
-                               .tensor(std::move(t))
-                               .preprocess(PreProcessSteps().convert_layout("NCHW")))
-                .build(f);
-        return f;
-    };
-    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
-                                                                                 4,  5,  6,       // [H=0, W=1]
-                                                                                 7,  8,  9,       // [H=1, W=0]
-                                                                                 10, 11, 12});    // [H=1, W=1]
-    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::u8, std::vector<uint8_t>{1, 4, 7, 10,    // R
-                                                                                   2, 5, 8, 11,    // G
-                                                                                   3, 6, 9, 12});  // B
-    return res;
-}
+        auto p = PreProcessSteps();
+        p.convert_layout("NCHW");
 
-static RefPreprocessParams convert_layout_nhwc_to_nchw_shape() {
-    RefPreprocessParams res("convert_layout_nhwc_to_nchw_shape");
-    res.function = []() {
-        auto f = create_simple_function(element::u8, {1, 3, 2, 2});
-        f->get_parameters()[0]->set_layout("NCHW");
         f = PrePostProcessor()
                 .input(InputInfo()
-                               .tensor(InputTensorInfo().set_layout("NHWC").set_data_shape({1, 2, 2, 3}))
-                               .preprocess(PreProcessSteps().convert_layout("NCHW")))
+                               .tensor(InputTensorInfo().set_layout("NHWC"))
+                               .preprocess(std::move(p)))
                 .build(f);
         return f;
     };
@@ -545,8 +523,7 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
         resize_to_network_width_height(),
         resize_to_specified_width_height(),
         resize_lvalues(),
-        convert_layout_nhwc_to_nchw_shape(),
-        convert_layout_nhwc_to_nchw_shape_lvalue(),
+        convert_layout_nhwc_to_nchw_lvalue(),
         convert_layout_nhwc_to_net_no_tensor_shape(),
         resize_and_convert_layout()
              };

@@ -78,9 +78,6 @@ public:
     /// input image has dynamic spatial dimensions (width & height). This can be useful for adding resize preprocessing
     /// from any input image to network's expected dimensions.
     ///
-    /// \note It shall not be used together with 'set_data_shape' to avoid ambiguity. Method 'set_data_shape' offers
-    /// wider functionality for setting all dimensions, not only spatial ones
-    ///
     /// This version allows chaining for Lvalue objects.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
@@ -90,9 +87,6 @@ public:
     /// input image has dynamic spatial dimensions (width & height). This can be useful for adding resize preprocessing
     /// from any input image to network's expected dimensions.
     ///
-    /// \note It shall not be used together with 'set_data_shape' to avoid ambiguity. Method 'set_data_shape' offers
-    /// wider functionality for setting all dimensions, not only spatial ones
-    ///
     /// This version allows chaining for Rvalue objects.
     ///
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
@@ -101,9 +95,6 @@ public:
     /// \brief By default, input image shape is inherited from network input shape. Use this method to specify different
     /// width and height of user's input image. In case if input image size is not known, use
     /// `set_spatial_dynamic_shape` method.
-    ///
-    /// \note It shall not be used together with 'set_data_shape' to avoid ambiguity. Method 'set_data_shape' offers
-    /// wider functionality for setting all dimensions, not only spatial ones
     ///
     /// This version allows chaining for Lvalue objects.
     ///
@@ -118,9 +109,6 @@ public:
     /// width and height of user's input image. In case if input image size is not known, use
     /// `set_spatial_dynamic_shape` method.
     ///
-    /// \note It shall not be used together with 'set_data_shape' to avoid ambiguity. Method 'set_data_shape' offers
-    /// wider functionality for setting all dimensions, not only spatial ones
-    ///
     /// This version allows chaining for Rvalue objects.
     ///
     /// \param height Set fixed user's input image height.
@@ -129,28 +117,6 @@ public:
     ///
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
     InputTensorInfo&& set_spatial_static_shape(size_t height, size_t width) &&;
-
-    /// \brief Manually set shape for user's input tensor. In many cases tensor's shape is calculated based on layout,
-    /// color format, spatial dimensions, however user has possibility to manually set of input shape.
-    ///
-    /// This version allows chaining for Lvalue objects
-    ///
-    /// \param shape Array of dimensions representing input shape, e.g. {-1, 3, 224, 224}. Value 0 or -1 indicates
-    /// 'dynamic' dimension
-    ///
-    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
-    InputTensorInfo& set_data_shape(const std::vector<int64_t>& shape) &;
-
-    /// \brief Manually set shape for user's input tensor. In many cases tensor's shape is calculated based on layout,
-    /// color format, spatial dimensions, however user has possibility to manually set of input shape.
-    ///
-    /// This version allows chaining for Rvalue objects
-    ///
-    /// \param shape Array of dimensions representing input shape, e.g. {-1, 3, 224, 224}. Value 0 or -1 indicates
-    /// 'dynamic' dimension
-    ///
-    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
-    InputTensorInfo&& set_data_shape(const std::vector<int64_t>& shape) &&;
 };
 
 }  // namespace preprocess
