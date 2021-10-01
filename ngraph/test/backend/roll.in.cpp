@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset7.hpp"

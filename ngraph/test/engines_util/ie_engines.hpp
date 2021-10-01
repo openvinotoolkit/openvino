@@ -6,11 +6,11 @@
 
 #include <ie_core.hpp>
 
+#include "all_close.hpp"
+#include "all_close_f.hpp"
+#include "engine_traits.hpp"
 #include "ngraph/function.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/engine/engine_traits.hpp"
-#include "util/engine/test_case_engine.hpp"
+#include "test_case_engine.hpp"
 
 namespace ngraph {
 namespace test {

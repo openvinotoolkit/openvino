@@ -13,10 +13,10 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset4.hpp"
 
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
+#include "engines_util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
+#include "engines_util/execute_tools.hpp"
 
 using namespace std;
 using namespace ngraph;

@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/opsets/opset7.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -24,7 +25,6 @@
 #include "util/all_close_f.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 static std::string s_manifest = "${MANIFEST}";
 

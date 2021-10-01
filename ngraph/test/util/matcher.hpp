@@ -2,14 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/log.hpp"
+#include "ngraph/pattern/matcher.hpp"
+
 // this is for more nuanced testing
 class TestMatcher : public ngraph::pattern::Matcher {
     using ngraph::pattern::Matcher::Matcher;
 
 public:
-    TestMatcher() {}
-    bool virtual match_value(const ngraph::Output<ngraph::Node>& pattern_value,
-                             const ngraph::Output<ngraph::Node>& graph_value) override {
+    TestMatcher() = default;
+    bool match_value(const ngraph::Output<ngraph::Node>& pattern_value,
+                     const ngraph::Output<ngraph::Node>& graph_value) override {
         if (ngraph::is_type<::ngraph::op::Parameter>(pattern_value.get_node_shared_ptr())) {
             bool result = pattern_value == graph_value;
             if (result) {

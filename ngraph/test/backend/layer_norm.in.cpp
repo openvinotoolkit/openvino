@@ -27,15 +27,14 @@
 #include "util/all_close_f.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
+#include "engines_util/execute_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, layer_norm_affine_stats)
-{
+NGRAPH_TEST(${BACKEND_NAME}, layer_norm_affine_stats) {
     auto p_data = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto p_scale = make_shared<op::Parameter>(element::f32, Shape{4});
     auto p_bias = make_shared<op::Parameter>(element::f32, Shape{4});
