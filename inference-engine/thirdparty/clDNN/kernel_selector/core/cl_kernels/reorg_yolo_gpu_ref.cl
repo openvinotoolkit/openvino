@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
-#include "include/data_types.cl"
+#include "include/batch_headers/common.cl"
+#include "include/batch_headers/data_types.cl"
 
 #if OUTPUT_LAYOUT_BFYX
     #define IW INPUT0_SIZES[0]
