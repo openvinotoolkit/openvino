@@ -30,6 +30,11 @@ void color_convert_nv12(const T* arg_y,
         } u = {0x00000001};
         return static_cast<int>(u.c[0]);
     };
+    std::cout << "color_convert_nv12_dbg start " << little_endian << std::endl;
+    std::cout << "Y=" << static_cast<const void*>(arg_y) << " UV=" << static_cast<const void*>(arg_uv)
+              << " out=" << static_cast<const void*>(out_ptr) << std::endl;
+    std::cout << "N=" << batch_size << " h=" << image_h << " w=" << image_w << " sY = " << stride_y
+              << " sUV=" << stride_uv << std::endl;
     auto is_little_endian = little_endian();
     for (int batch = 0; batch < batch_size; batch++) {
         T* out = out_ptr + batch * image_w * image_h;
@@ -56,6 +61,10 @@ void color_convert_nv12(const T* arg_y,
                 auto b = clip(1.164f * c + 2.018f * d);
                 auto g = clip(1.164f * c - 0.391f * d - 0.813f * e);
                 auto r = clip(1.164f * c + 1.596f * e);
+                std::cout << y_index << "[" << static_cast<float>(y_val) << " " << static_cast<float>(u_val) << " "
+                          << static_cast<float>(v_val) << "][ " << static_cast<float>(r) << " " << static_cast<float>(g)
+                          << " " << static_cast<float>(b) << "] " << std::endl;
+                std::flush(std::cout);
                 if (color_format == ov::op::util::ConvertColorNV12Base::ColorConversion::NV12_TO_RGB) {
                     out[y_index * 3] = r;
                     out[y_index * 3 + 1] = g;
