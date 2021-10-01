@@ -30,6 +30,7 @@ struct RefPreprocessParams {
 class ReferencePreprocessTest : public testing::TestWithParam<RefPreprocessParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         const auto& params = GetParam();
         function = params.function();
         for (const auto& inp : params.inputs) {
