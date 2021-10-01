@@ -25,6 +25,9 @@ class GroupConvolutionBackpropData_extender(Extender):
 
 
 def common_backpropdata_extender(op: Node):
+    for attr in ['strides', 'output_padding', 'pads_begin', 'pads_end', 'dilations']:
+        Extender.attr_to_list(op, attr)
+
     if op.has_valid('output_padding'):
         op.output_padding = int64_array([0, 0] + op.output_padding)
 
