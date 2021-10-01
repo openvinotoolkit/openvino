@@ -73,8 +73,7 @@ public:
 
     virtual void validate(int = 10);
 
-    StatusCode reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
-                       ResponseDesc* resp) noexcept override;
+    StatusCode reshape(const std::map<std::string, SizeVector>& inputShapes, ResponseDesc* resp) noexcept override;
     StatusCode reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes,
                        ResponseDesc* resp) noexcept override;
 

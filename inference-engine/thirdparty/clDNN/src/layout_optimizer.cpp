@@ -24,6 +24,59 @@
 
 using namespace cldnn;
 
+static size_t get_post_ops_count(const program_node& node) {
+    size_t onednn_post_ops_count = 0;
+    for (auto& fo : node.get_fused_primitives()) {
+        if (fo.node->is_type<activation>() || fo.node->is_type<eltwise>()) {
+            onednn_post_ops_count++;
+        } else if (fo.node->is_type<quantize>()) {
+            auto& q = fo.node->as<quantize>();
+
+            // pre-scale, pre-shift
+            if (q.get_per_tensor_input_scale() && q.get_per_tensor_input_shift()) {
+                onednn_post_ops_count++;
+            } else {
+                onednn_post_ops_count += 2;
+            }
+
+            // post-scale, post-shift
+            if (q.get_need_post_scale() && q.get_need_post_shift() &&
+                q.get_per_tensor_output_scale() && q.get_per_tensor_output_shift()) {
+                onednn_post_ops_count++;
+            } else {
+                onednn_post_ops_count += 2;
+            }
+
+            auto out_dt = fo.output_layout.data_type;
+            auto output_type_is_int8 = out_dt == data_types::u8 || out_dt == data_types::i8;
+            auto out_range_usage = q.get_per_tensor_output_range() && q.get_output_lo_val() < q.get_output_hi_val();
+
+            if (out_range_usage) {
+                // round
+                if (!output_type_is_int8) {
+                    onednn_post_ops_count++;
+                }
+
+                // clamp
+                if (q.get_need_clamp()) {
+                    onednn_post_ops_count++;
+                }
+            } else {
+                // clamp
+                if (q.get_need_clamp()) {
+                    onednn_post_ops_count += 2;
+                }
+                // round
+                {
+                    onednn_post_ops_count++;
+                }
+            }
+        }
+    }
+
+    return onednn_post_ops_count;
+}
+
 std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
                                                                        const layout& in_layout,
                                                                        const layout& out_layout
@@ -843,7 +896,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node) {
         const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
         preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
     } else if (node.is_type<reorder>()) {
-        if (!node.get_program().get_engine().get_device_info().supports_immad)
+        if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
 
         std::vector<format> onednn_optimized_fmt = {
@@ -973,6 +1026,9 @@ void layout_optimizer::set_optimization_attribute(optimization_attributes_type a
             break;
         case optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network:
             _optimization_attributes.bs_fs_yx_bsv16_fsv16_network = val;
+            break;
+        case optimization_attributes_type::use_onednn_impls:
+            _optimization_attributes.use_onednn_impls = val;
             break;
         default:
             throw std::out_of_range("unsupported layout optimization attribute");
