@@ -116,30 +116,19 @@ void MKLDNNReorderNode::prepareParams() {
         if (getSelectedPrimitiveDescriptor() == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set.";
 
-        auto inDims = srcMemPtr->GetShape().getStaticDims();
-
-        useDirectCopy = canUseDirectCopy();
-        if (useDirectCopy) {
-            directCopyParams.srcMem = srcMemPtr;
-            directCopyParams.dstMem = dstMemPtr;
-            auto dstBlockedDesc = dstMemPtr->GetDescWithType<BlockedMemoryDesc>();
-            directCopyParams.dataSize = dstBlockedDesc->getPaddedElementsCount() * dstBlockedDesc->getPrecision().size();
-       } else {
-            if (isNspc2NcspCase) {
-                const auto &inDims = srcMemPtr->getStaticDims();
-                canUseNspc2Ncsp = inDims[1] <= 64 && inDims[1] >= 16 &&
-                                  (srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount() / inDims[1]) >= 128;
-            }
-            if (!canUseNcsp2Nspc && !canUseNspc2Ncsp) {
-                auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-                auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-                if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-                    IE_THROW() << "Destination memory didn't allocate.";
-                if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-                    IE_THROW() << "Input memory didn't allocate.";
-                if (getSelectedPrimitiveDescriptor() == nullptr)
-                    IE_THROW() << "Preferable primitive descriptor is not set.";
-
+        if (isNspc2NcspCase) {
+            const auto &inDims = srcMemPtr->getStaticDims();
+            canUseNspc2Ncsp = inDims[1] <= 64 && inDims[1] >= 16 &&
+                              (srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount() / inDims[1]) >= 128;
+        }
+        if (!canUseNcsp2Nspc && !canUseNspc2Ncsp) {
+            useDirectCopy = canUseDirectCopy();
+            if (useDirectCopy) {
+                directCopyParams.srcMem = srcMemPtr;
+                directCopyParams.dstMem = dstMemPtr;
+                auto dstBlockedDesc = dstMemPtr->GetDescWithType<BlockedMemoryDesc>();
+                directCopyParams.dataSize = dstBlockedDesc->getPaddedElementsCount() * dstBlockedDesc->getPrecision().size();
+            } else {
                 createReorderPrimitive(srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), srcMemPtr->GetPrimitive().get_data_handle(),
                                        dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), dstMemPtr->GetPrimitive().get_data_handle());
             }
@@ -330,14 +319,19 @@ bool MKLDNNReorderNode::canUseDirectCopy() {
     const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     const auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
 
+    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+        IE_THROW() << "Destination memory didn't allocate.";
+    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+        IE_THROW() << "Input memory didn't allocate.";
+
     auto isSupportedDesc = [](const MemoryDesc& desc) {
+        if (!desc.isDefined()) {
+            return false;
+        }
         if (!(desc.getType() & MemoryDescType::Blocked)) {
             return false;
         }
         if ((desc.getType() & MemoryDescType::Mkldnn) && !desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData()) {
-            return false;
-        }
-        if (!desc.isDefined()) {
             return false;
         }
         return true;
