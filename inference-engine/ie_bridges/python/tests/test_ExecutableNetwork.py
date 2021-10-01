@@ -309,7 +309,7 @@ def test_get_config(device):
     assert config == "NO"
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "GNA") != "GNA", reason="Device dependent test")
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "GNA", reason="Device dependent test")
 def test_set_config(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
