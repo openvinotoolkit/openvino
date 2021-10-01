@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
+#include "include/batch_headers/common.cl"
 
 // ==============================================================================================================================
 // DECLARE_SG_PACKED_REDUCE_ADD(Name, Type, VecSize, PostOp)

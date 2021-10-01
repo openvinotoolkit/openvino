@@ -102,7 +102,7 @@ TEST_P(IEClassImportExportTestP, smoke_ExportUsingFileNameImportFromStreamNoThro
     }
     {
         {
-            std::ifstream strm(fileName);
+            std::ifstream strm(fileName, std::ifstream::binary | std::ifstream::in);
             ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, deviceName));
         }
         ASSERT_EQ(0, remove(fileName.c_str()));

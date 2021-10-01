@@ -15,7 +15,7 @@ std::vector<std::string> disabledTestPatterns() {
         //
         R"(.*ExclusiveAsyncRequests.*)",
         R"(.*ReusableCPUStreamsExecutor.*)",
-        R"(.*SplitLayerTest.*numSplits\=30.*)",
+        R"(.*SplitLayerTest.*numSplits=30.*)",
         // CVS-51758
         R"(.*InferRequestPreprocessConversionTest.*oLT=(NHWC|NCHW).*)",
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*)",
@@ -27,5 +27,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(CanCreateTwoExeNetworksAndCheckFunction).*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
+        // Issue 62174
+        R"(.*CompareWithHardcodedRefs_batch_fp32_two_bgr.*)",
     };
 }

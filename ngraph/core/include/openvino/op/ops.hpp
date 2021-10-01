@@ -103,6 +103,8 @@
 #include "openvino/op/non_zero.hpp"
 #include "openvino/op/normalize_l2.hpp"
 #include "openvino/op/not_equal.hpp"
+#include "openvino/op/nv12_to_bgr.hpp"
+#include "openvino/op/nv12_to_rgb.hpp"
 #include "openvino/op/one_hot.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/parameter.hpp"

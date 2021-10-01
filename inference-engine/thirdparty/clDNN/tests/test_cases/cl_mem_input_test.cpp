@@ -9,7 +9,6 @@
 #include <cldnn/primitives/data.hpp>
 #include <cldnn/runtime/device_query.hpp>
 
-
 #include <ocl/ocl_wrapper.hpp>
 
 using namespace cldnn;
@@ -303,4 +302,80 @@ TEST(cl_mem_check, check_input) {
         EXPECT_NEAR(reference_results[i], output_ptr[i], 1.001f);
     }
     checkStatus(clReleaseMemObject(img), "clReleaseMemObject");
+}
+
+TEST(cl_mem_check, check_write_access_type) {
+    device_query query(engine_types::ocl, runtime_types::ocl);
+    auto devices = query.get_available_devices();
+    cldnn::device::ptr device = devices.begin()->second;
+    for (auto& dev : devices) {
+        if (dev.second->get_info().dev_type == device_type::discrete_gpu)
+            device = dev.second;
+    }
+
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
+    auto stream = engine->create_stream();
+
+    size_t values_count = 100;
+    size_t values_bytes_count = values_count * sizeof(float);
+    std::vector<float> src_buffer(values_count);
+    std::iota(src_buffer.begin(), src_buffer.end(), 0.0f);
+
+    cldnn::layout linear_layout = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(1, 1, int32_t(values_count), 1));
+    auto cldnn_mem_src = engine->allocate_memory(linear_layout, cldnn::allocation_type::cl_mem);
+    {
+        cldnn::mem_lock<float, cldnn::mem_lock_type::write> lock(cldnn_mem_src, *stream);
+        std::copy(src_buffer.begin(), src_buffer.end(), lock.data());
+    }
+
+    std::vector<float> dst_buffer(values_count);
+    {
+        cldnn::mem_lock<float, cldnn::mem_lock_type::read> lock(cldnn_mem_src, *stream);
+        std::memcpy(dst_buffer.data(), lock.data(), values_bytes_count);
+    }
+
+    bool are_equal = std::equal(src_buffer.begin(), src_buffer.begin() + values_count, dst_buffer.begin());
+    ASSERT_TRUE(are_equal);
+}
+
+TEST(cl_mem_check, check_read_access_type) {
+    device_query query(engine_types::ocl, runtime_types::ocl);
+    auto devices = query.get_available_devices();
+    cldnn::device::ptr device = devices.begin()->second;
+    for (auto& dev : devices) {
+        if (dev.second->get_info().dev_type == device_type::discrete_gpu)
+            device = dev.second;
+    }
+    if (device->get_info().dev_type == device_type::integrated_gpu) {
+        GTEST_SKIP();
+    }
+
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
+    auto stream = engine->create_stream();
+
+    size_t values_count = 100;
+    size_t values_bytes_count = values_count * sizeof(float);
+    std::vector<float> src_buffer(values_count);
+    std::iota(src_buffer.begin(), src_buffer.end(), 0.0f);
+
+    cldnn::layout linear_layout = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(1, 1, int32_t(values_count), 1));
+    auto cldnn_mem_src = engine->allocate_memory(linear_layout, cldnn::allocation_type::cl_mem);
+    {
+        cldnn::mem_lock<float, cldnn::mem_lock_type::write> lock(cldnn_mem_src, *stream);
+        std::copy(src_buffer.begin(), src_buffer.end(), lock.data());
+    }
+
+    {
+        cldnn::mem_lock<float, cldnn::mem_lock_type::read> lock(cldnn_mem_src, *stream);
+        std::copy(src_buffer.rbegin(), src_buffer.rend(), lock.data());
+    }
+
+    std::vector<float> dst_buffer(values_count);
+    {
+        cldnn::mem_lock<float, cldnn::mem_lock_type::read> lock(cldnn_mem_src, *stream);
+        std::memcpy(dst_buffer.data(), lock.data(), values_bytes_count);
+    }
+
+    bool are_equal = std::equal(src_buffer.begin(), src_buffer.begin() + values_count, dst_buffer.begin());
+    ASSERT_TRUE(are_equal);
 }
