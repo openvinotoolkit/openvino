@@ -176,6 +176,37 @@ public:
     ///
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
     PreProcessSteps&& resize(ResizeAlgorithm alg) &&;
+
+    /// \brief Add 'convert layout' operation to specified layout - Lvalue version.
+    ///
+    /// \details Adds appropriate 'transpose' operation between user layout and target layout.
+    /// Current implementation requires source and destination layout to have same number of dimensions
+    ///
+    /// \example Example: when user data has 'NHWC' layout (example is RGB image, [1, 224, 224, 3]) but network expects
+    /// planar input image ('NCHW', [1, 3, 224, 224]). Preprocessing may look like this:
+    ///
+    /// \code{.cpp} auto proc =
+    /// PrePostProcessor()
+    ///     .input(InputInfo()
+    ///            .tensor(InputTensorInfo().set_layout("NHWC")) // User data is NHWC
+    ///            .preprocess(PreProcessSteps()
+    ///                        .convert_layout("NCHW")) // Network expects input as NCHW
+    ///     );
+    /// \endcode
+    ///
+    /// \param dst_layout New layout after conversion. If not specified - destination layout is obtained from
+    /// appropriate network input properties.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps& convert_layout(const Layout& dst_layout = {}) &;
+
+    /// \brief Add resize operation to network dimensions - Rvalue version.
+    ///
+    /// \param dst_layout New layout after conversion. If not specified - destination layout is obtained from
+    /// appropriate network input properties.
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps&& convert_layout(const Layout& dst_layout = {}) &&;
 };
 
 }  // namespace preprocess

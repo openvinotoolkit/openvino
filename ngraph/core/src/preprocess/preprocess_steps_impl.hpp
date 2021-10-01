@@ -116,6 +116,7 @@ public:
     void add_mean_impl(const std::vector<float>& values);
     void add_convert_impl(const element::Type& type);
     void add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_width);
+    void add_convert_layout_impl(const Layout& layout);
 
     const std::list<std::tuple<InternalPreprocessOp, bool>>& actions() const {
         return m_actions;
