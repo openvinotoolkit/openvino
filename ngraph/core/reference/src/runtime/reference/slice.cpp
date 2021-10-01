@@ -37,47 +37,18 @@ void slice_v8(const char* data,
               std::vector<int64_t>& steps,
               std::vector<int64_t>& axes) {
     normalize_indices(starts, stops, steps, data_shape);
+    const auto in_data_strides = row_major_strides(data_shape);
+    const auto out_data_strides = row_major_strides(out_shape);
 
-    constexpr int max_rank = 5;
-    std::vector<int64_t> unsqueezed_shape(max_rank - data_shape.size(), 1);
-    unsqueezed_shape.insert(unsqueezed_shape.end(), data_shape.begin(), data_shape.end());
-
-    std::vector<int64_t> unsqueezed_starts(max_rank - data_shape.size(), 0);
-    unsqueezed_starts.insert(unsqueezed_starts.end(), starts.begin(), starts.end());
-
-    std::vector<int64_t> unsqueezed_stops(max_rank - data_shape.size(), 1);
-    unsqueezed_stops.insert(unsqueezed_stops.end(), stops.begin(), stops.end());
-
-    std::vector<int64_t> unsqueezed_steps(max_rank - data_shape.size(), 1);
-    unsqueezed_steps.insert(unsqueezed_steps.end(), steps.begin(), steps.end());
-
-    const auto unsqueezed_data_shape_strides = row_major_strides(unsqueezed_shape);
-    auto dst_mem = out;
-
-    for (int64_t i = unsqueezed_starts[0]; unsqueezed_steps[0] > 0 ? i < unsqueezed_stops[0] : i > unsqueezed_stops[0];
-         i += unsqueezed_steps[0]) {
-        for (int64_t j = unsqueezed_starts[1];
-             unsqueezed_steps[1] > 0 ? j < unsqueezed_stops[1] : j > unsqueezed_stops[1];
-             j += unsqueezed_steps[1]) {
-            for (int64_t k = unsqueezed_starts[2];
-                 unsqueezed_steps[2] > 0 ? k < unsqueezed_stops[2] : k > unsqueezed_stops[2];
-                 k += unsqueezed_steps[2]) {
-                for (int64_t l = unsqueezed_starts[3];
-                     unsqueezed_steps[3] > 0 ? l < unsqueezed_stops[3] : l > unsqueezed_stops[3];
-                     l += unsqueezed_steps[3]) {
-                    for (int64_t m = unsqueezed_starts[4];
-                         unsqueezed_steps[4] > 0 ? m < unsqueezed_stops[4] : m > unsqueezed_stops[4];
-                         m += unsqueezed_steps[4]) {
-                        std::vector<int64_t> coord{i, j, k, l, m};
-                        const auto data_idx =
-                            std::inner_product(coord.begin(), coord.end(), unsqueezed_data_shape_strides.begin(), 0);
-                        const auto src_mem = data + data_idx * elem_size;
-                        std::memcpy(dst_mem, src_mem, elem_size);
-                        dst_mem += elem_size;
-                    }
-                }
-            }
+    std::vector<int64_t> in_data_coord(starts);
+    for (size_t out_idx = 0; out_idx < shape_size(out_shape); ++out_idx) {
+        for (size_t i = 0; i < in_data_coord.size(); ++i) {
+            in_data_coord[i] = starts[i] + (out_idx / out_data_strides[i] % out_shape[i]) * steps[i];
         }
+        const auto in_idx = std::inner_product(in_data_coord.begin(), in_data_coord.end(), in_data_strides.begin(), 0);
+        const auto in_mem = data + in_idx * elem_size;
+        std::memcpy(out, in_mem, elem_size);
+        out += elem_size;
     }
 }
 
