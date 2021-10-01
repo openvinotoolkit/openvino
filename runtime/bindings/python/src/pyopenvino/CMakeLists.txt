@@ -3,11 +3,8 @@
 
 project (pyopenvino)
 
-if(DEFINED OpenVINO_SOURCE_DIR)
-    set(InferenceEngine_LIBRARIES inference_engine)
-else()
-    find_package(InferenceEngine REQUIRED)
-    set(InferenceEngine_LIBRARIES IE::inference_engine)
+if(NOT DEFINED OpenVINO_SOURCE_DIR)
+    find_package(OpenVINO REQUIRED)
 endif()
 
 # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
@@ -16,9 +13,9 @@ message(STATUS "Python version=${PYTHON_VERSION}")
 
 if(OpenVINO_SOURCE_DIR)
     if(WIN32)
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/openvino)
     else()
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/openvino)
     endif()
 
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
@@ -34,7 +31,7 @@ file(GLOB_RECURSE SOURCES *.cpp)
 pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES} openvino::core)
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime)
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)
