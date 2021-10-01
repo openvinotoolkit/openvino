@@ -511,10 +511,12 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(const pugi::xm
                 throw ov::Exception("Incorrect IR! Some parameters have undefined indexes.");
             const auto var_index = std::dynamic_pointer_cast<ov::IndexWrapper>(rt_info.at(index_key));
             parameters[var_index->get()] = func_nodes.parameters[i];
+            status = index;
         } else {
             if (status == index)
                 throw ov::Exception("Incorrect IR! Some parameters have undefined indexes.");
             parameters[i] = func_nodes.parameters[i];
+            status = no_index;
         }
     }
     status = undefined;
@@ -526,10 +528,12 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(const pugi::xm
                 throw ov::Exception("Incorrect IR! Some results have undefined indexes.");
             const auto var_index = std::dynamic_pointer_cast<ov::IndexWrapper>(rt_info.at(index_key));
             results[var_index->get()] = func_nodes.results[i];
+            status = index;
         } else {
             if (status == index)
                 throw ov::Exception("Incorrect IR! Some results have undefined indexes.");
             results[i] = func_nodes.results[i];
+            status = no_index;
         }
     }
 

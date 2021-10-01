@@ -394,11 +394,11 @@ TEST(RTInfoDeserialization, IndexesInputAndOutputV11) {
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset8">
             <data element_type="f32" shape="1,3,22,22"/>
+            <rt_info>
+                <attribute name="index" version="0" value="0"/>
+            </rt_info>
             <output>
                 <port id="0" precision="FP32">
-                    <rt_info>
-                        <attribute name="index" version="0" value="0"/>
-                    </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
@@ -408,11 +408,11 @@ TEST(RTInfoDeserialization, IndexesInputAndOutputV11) {
         </layer>
         <layer name="in2" type="Parameter" id="1" version="opset8">
             <data element_type="f32" shape="1,3,22,22"/>
+            <rt_info>
+                <attribute name="index" version="0" value="1"/>
+            </rt_info>
             <output>
                 <port id="0" precision="FP32">
-                    <rt_info>
-                        <attribute name="index" version="0" value="1"/>
-                    </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
@@ -445,11 +445,11 @@ TEST(RTInfoDeserialization, IndexesInputAndOutputV11) {
             </output>
         </layer>
         <layer name="output1" type="Result" id="3" version="opset8">
+            <rt_info>
+                <attribute name="index" version="0" value="1"/>
+            </rt_info>
             <input>
                 <port id="0" precision="FP32">
-                    <rt_info>
-                        <attribute name="index" version="0" value="1"/>
-                    </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
@@ -476,11 +476,11 @@ TEST(RTInfoDeserialization, IndexesInputAndOutputV11) {
             </output>
         </layer>
         <layer name="output2" type="Result" id="5" version="opset8">
+            <rt_info>
+                <attribute name="index" version="0" value="0"/>
+            </rt_info>
             <input>
                 <port id="0" precision="FP32">
-                    <rt_info>
-                        <attribute name="index" version="0" value="0"/>
-                    </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
@@ -528,4 +528,226 @@ TEST(RTInfoDeserialization, IndexesInputAndOutputV11) {
     ASSERT_EQ(2, f->get_results().size());
     check_fused_names(f->get_results()[0], 0, "output2");
     check_fused_names(f->get_results()[1], 1, "output1");
+}
+
+TEST(RTInfoDeserialization, IncorrectInputIndexesV11) {
+    std::string model = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset8">
+            <data element_type="f32" shape="1,3,22,22"/>
+            <rt_info>
+                <attribute name="index" version="0" value="0"/>
+            </rt_info>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in2" type="Parameter" id="1" version="opset8">
+            <data element_type="f32" shape="1,3,22,22"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="sum" type="Add" version="opset1">
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output1" type="Result" id="3" version="opset8">
+            <rt_info>
+                <attribute name="index" version="0" value="1"/>
+            </rt_info>
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+        <layer id="4" name="relu" type="Relu" version="opset8">
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output2" type="Result" id="5" version="opset8">
+            <rt_info>
+                <attribute name="index" version="0" value="0"/>
+            </rt_info>
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
+        <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+        <edge from-layer="2" from-port="2" to-layer="4" to-port="0"/>
+        <edge from-layer="4" from-port="2" to-layer="5" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    auto core = InferenceEngine::Core();
+    ASSERT_THROW(core.ReadNetwork(model, InferenceEngine::Blob::Ptr()), ov::Exception);
+}
+
+TEST(RTInfoDeserialization, IncorrectOutputIndexesV11) {
+    std::string model = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset8">
+            <data element_type="f32" shape="1,3,22,22"/>
+            <rt_info>
+                <attribute name="index" version="0" value="0"/>
+            </rt_info>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in2" type="Parameter" id="1" version="opset8">
+            <data element_type="f32" shape="1,3,22,22"/>
+            <rt_info>
+                <attribute name="index" version="0" value="1"/>
+            </rt_info>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="sum" type="Add" version="opset1">
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output1" type="Result" id="3" version="opset8">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+        <layer id="4" name="relu" type="Relu" version="opset8">
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output2" type="Result" id="5" version="opset8">
+            <rt_info>
+                <attribute name="index" version="0" value="0"/>
+            </rt_info>
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
+        <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+        <edge from-layer="2" from-port="2" to-layer="4" to-port="0"/>
+        <edge from-layer="4" from-port="2" to-layer="5" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    auto core = InferenceEngine::Core();
+    ASSERT_THROW(core.ReadNetwork(model, InferenceEngine::Blob::Ptr()), ov::Exception);
 }
