@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <list>
 #include <memory>
+#include <string>
+#include <unordered_map>
 
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
@@ -14,10 +16,15 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset7.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/op/util/variable_extension.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/smart_reshape/smart_reshape.hpp"
 
 using namespace std;
 
@@ -639,4 +646,67 @@ ov::Output<ov::Node> ov::Function::input(const std::string& tensor_name) {
             return param;
     }
     throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
+}
+
+void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partial_shapes) {
+    if (partial_shapes.empty())
+        return;
+
+    const auto& params = get_parameters();
+    std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Parameter>> tensor_param_map;
+
+    // Check that we need to do reshape only if input shapes will be changed
+    bool need_reshape = false;
+    for (const auto& partial_shape : partial_shapes) {
+        bool shape_is_used = false;
+
+        for (const auto& param : params) {
+            const auto& tensor_names = param->get_output_tensor(0).get_names();
+
+            if (tensor_names.count(partial_shape.first)) {
+                shape_is_used = true;
+                tensor_param_map[partial_shape.first] = param;
+                if (param->get_output_partial_shape(0).is_dynamic() ||
+                    param->get_output_partial_shape(0) != partial_shape.second) {
+                    need_reshape = true;
+                }
+                break;
+            }
+        }
+
+        OPENVINO_ASSERT(shape_is_used,
+                        "PartialShape for tensor with name '",
+                        partial_shape.first,
+                        "' is not used in ov::Function::reshape");
+    }
+
+    if (!need_reshape)
+        return;
+
+    // save original parameters shape
+    std::map<std::string, ov::PartialShape> original_input_shapes;
+    for (const auto& param : params) {
+        std::string any_tensor_name = *param->get_output_tensor(0).get_names().begin();
+        original_input_shapes[any_tensor_name] = param->get_output_partial_shape(0);
+    }
+
+    auto reshape_only = [&](const std::map<std::string, ov::PartialShape>& pshapes) {
+        for (const auto& pshape : pshapes) {
+            tensor_param_map[pshape.first]->set_partial_shape(pshape.second);
+        }
+
+        validate_nodes_and_infer_types();
+    };
+
+    try {
+        ov::pass::Manager ssr_manager;
+        ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+        ssr_manager.run_passes(shared_from_this());
+
+        reshape_only(partial_shapes);
+    } catch (std::exception& ex) {
+        // restore shapes to original ones
+        reshape_only(original_input_shapes);
+        throw ex;
+    }
 }

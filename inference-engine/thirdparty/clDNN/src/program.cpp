@@ -423,9 +423,17 @@ void program::build_program(bool is_internal) {
     { pre_optimize_graph(is_internal); }
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
-    prepare_memory_dependencies();
-    compile();
-    init_kernels();
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+#ifdef GPU_DEBUG_CONFIG
+    if (debug_config->dry_run_path.empty()) {
+#else
+    {
+#endif
+        prepare_memory_dependencies();
+        compile();
+        init_kernels();
+    }
 
     if (!is_internal) {
         prim_info = get_current_stage_info();
@@ -1017,9 +1025,10 @@ void program::fuse_nodes(program_node &fused_node, program_node &peer_node, std:
             quantize_node& q_node = peer_node.as<quantize>();
             if (q_node.get_scale_shift_opt()) {
                 bool can_drop_input = false;
+                bool out_range_usage = q_node.get_per_tensor_output_range() && q_node.get_output_lo_val() < q_node.get_output_hi_val();
 
-                // Drop input range if clamp is not needed
-                can_drop_input |= (i == 1 || i == 2) && !q_node.get_need_clamp();
+                // Drop input range if we use output per-tensor range or if clamp is used for input range
+                can_drop_input |= (i == 1 || i == 2) && (out_range_usage || (!out_range_usage && !q_node.get_need_clamp()));
                 // Drop output range - it's not used in scale-shift-opt quantize kernel
                 can_drop_input |= i == 3 || i == 4;
                 // Drop tensor with input scale when we have per-tensor parameter
@@ -1374,4 +1383,10 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
     if (should_use_bs_fs_yx_bsv16_fsv16)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network, 1);
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    auto& engine = get_engine();
+    if (engine.get_device_info().supports_immad && engine.configuration().queue_type == queue_types::in_order)
+        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
+#endif
 }
