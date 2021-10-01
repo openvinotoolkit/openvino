@@ -57,6 +57,10 @@ class TestSliceOp(unittest.TestCase):
             # steps are non-constant
             ([[4, 5, 6, 7], [2, 3, 5, 6], [5, 6, 8, 9], [5, 6, 8, 9]], [4, 4], [0, 1], [3, -2], [0, 1], None, None,
              [dynamic_dimension_value, dynamic_dimension_value]),
+            # 1D input with negative starts
+            (None, [20], [1], [-1], [0], [-2], None, [0]),
+            # case when output shape has zero elements
+            (None, [4], [1], [1], [0], [1], None, [0])
         ])
         def test_slice_infer(self, inp_value, inp_shape, starts, ends, axes, steps, expected_value, expected_shape):
             if inp_value is None:
@@ -103,44 +107,3 @@ class TestSliceOp(unittest.TestCase):
             if expected_value is not None:
                 self.assertTrue(strict_compare_tensors(slice_node.out_node().value, expected_value))
             self.assertTrue(strict_compare_tensors(slice_node.out_node().shape, expected_shape))
-
-        # negative tests
-        @generate(*[
-            # 1D input with negative starts
-            (None, [1], [-1], [0], [-2], [-6], [20]),
-            # case when output shape has zero elements
-            (None, [1], [1], [0], [1], [0], [4])
-        ])
-        def test_slice_infer_negative(self, inp_value, starts, ends, axes, steps, expected, inp_shape=None):
-            if inp_value is None:
-                input_node = shaped_data('data_1', int64_array(inp_shape))
-            else:
-                input_node = valued_data('data_1', int64_array(inp_value))
-
-            def convert_args(val, name=''):
-                if val is not None:
-                    return valued_const_with_data(name, int64_array(val))
-                else:
-                    return shaped_const_with_data(name, [0])  #fake shape
-
-            starts = convert_args(starts, 'starts')
-            ends = convert_args(ends, 'ends')
-            axes = convert_args(axes, 'axes')
-            steps = convert_args(steps, 'steps')
-
-            nodes = {**input_node,
-                     **regular_op_with_empty_data('slice', {'op': 'Slice'}),
-                     **starts, **ends, **axes, **steps
-                     }
-
-            graph = build_graph(nodes,
-                                [('data_1', 'slice'),
-                                 *connect('starts', '1:slice'),
-                                 *connect('ends', '2:slice'),
-                                 *connect('axes', '3:slice'),
-                                 *connect('steps', '4:slice'),
-                                 *connect('slice', 'slice_d')])
-
-            graph.stage = 'middle'
-            slice_node = Node(graph, 'slice')
-            self.assertRaises(Error, Slice.infer, slice_node)
