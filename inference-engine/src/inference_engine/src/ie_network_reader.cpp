@@ -261,9 +261,6 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
     if (is_ir) {
         const int64_t ir_version = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second)->get();
 
-        // reset IR version information, needed only on read stage
-        rt_info.erase(it);
-
         if (ir_version == 10 && newAPI) {
             using namespace ov::preprocess;
             PrePostProcessor prepost;

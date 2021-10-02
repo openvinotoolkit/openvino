@@ -4,10 +4,10 @@
 
 set (TARGET_NAME "clDNNPlugin")
 
-if(CMAKE_COMPILER_IS_GNUCXX)
+if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wno-all)
     ie_add_compiler_flags(-msse4.1 -msse4.2)
-    if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
+    if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
         ie_add_compiler_flags(-Wno-error=terminate)
     endif()
 endif()
