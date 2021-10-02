@@ -9,6 +9,7 @@
 #include <cassert>
 #include <map>
 #include <memory>
+#include <openvino/core/except.hpp>
 #include <set>
 #include <string>
 #include <unordered_set>
@@ -105,6 +106,21 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
     }
 }
 
+ngraph::element::Type details::toLegacyType(const ngraph::element::Type& ngraph_type, bool input) {
+    if (input) {
+        return ngraph_type == ngraph::element::f16 ? ngraph::element::f32 : ngraph_type;
+    } else {
+        if (ngraph_type == ngraph::element::i64) {
+            return ngraph::element::i32;
+        } else if (ngraph_type != ngraph::element::f32 &&
+                   ngraph_type != ngraph::element::i32) {
+            return ngraph::element::f32;
+        }
+    }
+
+    return ngraph_type;
+}
+
 CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph,
                                            const std::vector<IExtensionPtr>& exts,
                                            bool newAPI)
@@ -124,7 +140,8 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
                       ? Precision::I16
                       : prc == Precision::FP16 ? Precision::FP32 : static_cast<Precision::ePrecision>(prc);
 
-            info->setPrecision(prc);
+            info->setPrecision(details::convertPrecision(toLegacyType(
+                details::convertPrecision(prc), true)));
         }
 
         network.setInputInfo(info);
@@ -151,12 +168,8 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
     if (!_new_api) {
         for (auto& output : _outputData) {
             // Convert precision into native format. Be consistent with possible conversion to CNNNetwork later.
-            if (output.second->getPrecision() == Precision::I64) {
-                output.second->setPrecision(Precision::I32);
-            } else if (output.second->getPrecision() != Precision::FP32 &&
-                       output.second->getPrecision() != Precision::I32) {
-                output.second->setPrecision(Precision::FP32);
-            }
+            output.second->setPrecision(details::convertPrecision(toLegacyType(
+                details::convertPrecision(output.second->getPrecision()), false)));
         }
     }
 }

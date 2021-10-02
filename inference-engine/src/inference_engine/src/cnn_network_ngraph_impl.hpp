@@ -13,6 +13,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <ngraph/type/element_type.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -31,6 +32,8 @@
 
 namespace InferenceEngine {
 namespace details {
+
+ngraph::element::Type toLegacyType(const ngraph::element::Type& ngraph_type, bool input);
 
 IE_SUPPRESS_DEPRECATED_START
 

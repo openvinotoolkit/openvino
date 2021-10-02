@@ -10,6 +10,7 @@
 #include <memory>
 #include <mutex>
 #include <ngraph/function.hpp>
+#include <ngraph/type/element_type.hpp>
 #include <ngraph/variant.hpp>
 #include <openvino/core/preprocess/input_tensor_info.hpp>
 #include <openvino/core/preprocess/pre_post_process.hpp>
@@ -269,27 +270,32 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function> & function,
 
             const auto & parameters = function->get_parameters();
             for (size_t i = 0; i < parameters.size(); ++i) {
+                const auto ngraph_type = parameters[i]->get_element_type();
+                const auto legacy_type = details::toLegacyType(ngraph_type, true);
                 prepost.input(
                     ov::preprocess::InputInfo(i).
                         tensor(
-                            // TODO take actual information
-                            InputTensorInfo().set_element_type(ngraph::element::f32)).
+                            InputTensorInfo().set_element_type(legacy_type)).
                         preprocess(
-                            PreProcessSteps().convert_element_type(parameters[i]->get_element_type())
+                            // TODO: remove explicit type
+                            PreProcessSteps().convert_element_type(ngraph_type)
                         ));
             }
 
-            // TODO: implement post-processing
-            // const auto & results = function->get_results();
-            // for (size_t i = 0; i < results.size(); ++i) {
-            //     prepost.input(
-            //         ov::preprocess::InputInfo(i).
-            //             tensor(
-            //                 InputTensorInfo().set_element_type(ngraph::element::f32)).
-            //             preprocess(
-            //                 PreProcessSteps().convert_element_type(results[i]->get_element_type())
-            //             ));
-            // }
+            const auto & results = function->get_results();
+            for (size_t i = 0; i < results.size(); ++i) {
+                const auto ngraph_type = results[i]->get_element_type();
+                const auto legacy_type = details::toLegacyType(ngraph_type, false);
+                (void)legacy_type;
+                // TODO: implement post-processing
+                // prepost.input(
+                //     ov::preprocess::InputInfo(i).
+                //         tensor(
+                //             InputTensorInfo().set_element_type(ngraph::element::f32)).
+                //         preprocess(
+                //             PreProcessSteps().convert_element_type()
+                //         ));
+            }
 
             function = prepost.build(function);
         } else if (ir_version == 11 && !newAPI) {
