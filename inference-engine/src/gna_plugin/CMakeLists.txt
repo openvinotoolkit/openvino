@@ -50,7 +50,7 @@ target_compile_definitions(${TARGET_NAME}
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
-if(UNIX AND NOT CMAKE_CROSSCOMPILING)
+if(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CROSSCOMPILING)
     target_link_options(${TARGET_NAME} PRIVATE -Wl,--unresolved-symbols=ignore-all)
 endif()
 

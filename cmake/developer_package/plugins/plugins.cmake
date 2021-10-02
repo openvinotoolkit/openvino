@@ -71,7 +71,7 @@ function(ie_add_plugin)
             set_target_properties(${IE_PLUGIN_NAME} PROPERTIES COMPILE_PDB_NAME ${IE_PLUGIN_NAME})
         endif()
 
-        if(UNIX AND NOT CMAKE_CROSSCOMPILING)
+        if(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CROSSCOMPILING)
             target_link_options(${IE_PLUGIN_NAME} PRIVATE -Wl,--unresolved-symbols=report-all)
         endif()
 
