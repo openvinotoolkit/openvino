@@ -9,9 +9,12 @@
 #include <map>
 #include <mutex>
 
+#include "cpp/ie_cnn_network.h"
 #include "details/ie_so_pointer.hpp"
 #include "file_utils.h"
 #include "frontend_manager/frontend_manager.hpp"
+#include "ie_api.h"
+#include "ie_icnn_network.hpp"
 #include "ie_ir_version.hpp"
 #include "ie_itt.hpp"
 #include "ie_reader.hpp"
@@ -109,7 +112,6 @@ void registerReaders() {
     if (initialized)
         return;
 
-    // TODO: Read readers info from XML
     auto create_if_exists = [](const std::string name, const std::string library_name) {
         ov::util::FilePath libraryName = ov::util::to_file_path(library_name);
         ov::util::FilePath readersLibraryPath =
@@ -138,6 +140,7 @@ void assertIfIRv7LikeModel(std::istream& modelStream) {
 
     for (auto&& kvp : readers) {
         Reader::Ptr reader = kvp.second;
+        // if we have reader for IR v7
         if (reader->getName() == "IRv7") {
             return;
         }
@@ -162,20 +165,16 @@ ov::Extensions get_extensions_map(const std::vector<InferenceEngine::IExtensionP
     return extensions;
 }
 
-}  // namespace
-
-CNNNetwork details::ReadNetwork(const std::string& modelPath,
-                                const std::string& binPath,
-                                const std::vector<IExtensionPtr>& exts) {
-    // Register readers if it is needed
-    registerReaders();
-
+CNNNetwork load_ir_v7_network(const std::string& modelPath,
+                              const std::string& binPath,
+                              const std::vector<IExtensionPtr>& exts) {
     // Fix unicode name
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring model_path = ov::util::string_to_wstring(modelPath.c_str());
 #else
     std::string model_path = modelPath;
 #endif
+
     // Try to open model file
     std::ifstream modelStream(model_path, std::ios::binary);
     if (!modelStream.is_open())
@@ -183,7 +182,6 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
     assertIfIRv7LikeModel(modelStream);
 
-    // TODO: this code is needed only by V7 IR reader. So we need to remove it in future.
     auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
     for (auto it = readers.lower_bound(fileExt); it != readers.upper_bound(fileExt); it++) {
         auto reader = it->second;
@@ -240,6 +238,34 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
         }
     }
 
+    return {};
+}
+
+}  // namespace
+
+CNNNetwork details::ReadNetwork(const std::string& modelPath,
+                                const std::string& binPath,
+                                const std::vector<IExtensionPtr>& exts) {
+    // IR v7 obsolete code
+    {
+        // Register readers if it is needed
+        registerReaders();
+        auto cnnnetwork = load_ir_v7_network(modelPath, binPath, exts);
+
+        IE_SUPPRESS_DEPRECATED_START
+        if (static_cast<ICNNNetwork::Ptr>(cnnnetwork) != nullptr) {
+            return cnnnetwork;
+        }
+        IE_SUPPRESS_DEPRECATED_END
+    }
+
+    // Fix unicode name
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    std::wstring model_path = ov::util::string_to_wstring(modelPath.c_str());
+#else
+    std::string model_path = modelPath;
+#endif
+
     // Try to load with FrontEndManager
     auto& manager = get_frontend_manager();
     ngraph::frontend::FrontEnd::Ptr FE;
@@ -267,6 +293,8 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
         auto ngFunc = FE->convert(inputModel);
         return CNNNetwork(ngFunc, exts);
     }
+
+    const auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
     IE_THROW(NetworkNotRead) << "Unable to read the model: " << modelPath
                              << " Please check that model format: " << fileExt
                              << " is supported and the model is correct.";
@@ -275,19 +303,23 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 CNNNetwork details::ReadNetwork(const std::string& model,
                                 const Blob::CPtr& weights,
                                 const std::vector<IExtensionPtr>& exts) {
-    // Register readers if it is needed
-    registerReaders();
     std::istringstream modelStringStream(model);
     std::istream& modelStream = modelStringStream;
 
-    assertIfIRv7LikeModel(modelStream);
+    // IR v7 obsolete code
+    {
+        // Register readers if it is needed
+        registerReaders();
 
-    for (auto it = readers.begin(); it != readers.end(); it++) {
-        auto reader = it->second;
-        if (reader->supportModel(modelStream)) {
-            if (weights)
-                return reader->read(modelStream, weights, exts);
-            return reader->read(modelStream, exts);
+        assertIfIRv7LikeModel(modelStream);
+
+        for (auto it = readers.begin(); it != readers.end(); it++) {
+            auto reader = it->second;
+            if (reader->supportModel(modelStream)) {
+                if (weights)
+                    return reader->read(modelStream, weights, exts);
+                return reader->read(modelStream, exts);
+            }
         }
     }
 
