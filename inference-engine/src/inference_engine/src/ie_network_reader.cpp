@@ -7,14 +7,22 @@
 #include <fstream>
 #include <istream>
 #include <map>
+#include <memory>
 #include <mutex>
+#include <ngraph/function.hpp>
+#include <ngraph/variant.hpp>
+#include <openvino/core/preprocess/input_tensor_info.hpp>
+#include <openvino/core/preprocess/pre_post_process.hpp>
 
+#include "cnn_network_ngraph_impl.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "details/ie_so_pointer.hpp"
 #include "file_utils.h"
 #include "frontend_manager/frontend_manager.hpp"
 #include "ie_api.h"
+#include "ie_common.h"
 #include "ie_icnn_network.hpp"
+#include "ie_input_info.hpp"
 #include "ie_ir_version.hpp"
 #include "ie_itt.hpp"
 #include "ie_reader.hpp"
@@ -241,11 +249,65 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
     return {};
 }
 
+CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function> & function,
+                                 const std::vector<IExtensionPtr>& exts,
+                                 bool newAPI) {
+    auto & rt_info = function->get_rt_info();
+    const auto it = rt_info.find("version");
+    const bool is_ir = it != rt_info.end();
+
+    // only for IR cases we need preprocessing or postprocessing steps
+    if (is_ir) {
+        const int64_t ir_version = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second)->get();
+
+        // reset IR version information, needed only on read stage
+        rt_info.erase(it);
+
+        if (ir_version == 10 && newAPI) {
+            using namespace ov::preprocess;
+            PrePostProcessor prepost;
+
+            const auto & parameters = function->get_parameters();
+            for (size_t i = 0; i < parameters.size(); ++i) {
+                prepost.input(
+                    ov::preprocess::InputInfo(i).
+                        tensor(
+                            // TODO take actual information
+                            InputTensorInfo().set_element_type(ngraph::element::f32)).
+                        preprocess(
+                            PreProcessSteps().convert_element_type(parameters[i]->get_element_type())
+                        ));
+            }
+
+            // TODO: implement post-processing
+            // const auto & results = function->get_results();
+            // for (size_t i = 0; i < results.size(); ++i) {
+            //     prepost.input(
+            //         ov::preprocess::InputInfo(i).
+            //             tensor(
+            //                 InputTensorInfo().set_element_type(ngraph::element::f32)).
+            //             preprocess(
+            //                 PreProcessSteps().convert_element_type(results[i]->get_element_type())
+            //             ));
+            // }
+
+            function = prepost.build(function);
+        } else if (ir_version == 11 && !newAPI) {
+            // TODO: apply old_api_map
+        }
+    }
+
+    IE_SUPPRESS_DEPRECATED_START
+    return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(function, exts, newAPI));
+    IE_SUPPRESS_DEPRECATED_END
+}
+
 }  // namespace
 
 CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::string& binPath,
-                                const std::vector<IExtensionPtr>& exts) {
+                                const std::vector<IExtensionPtr>& exts,
+                                bool newAPI) {
     // IR v7 obsolete code
     {
         // Register readers if it is needed
@@ -254,6 +316,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
         IE_SUPPRESS_DEPRECATED_START
         if (static_cast<ICNNNetwork::Ptr>(cnnnetwork) != nullptr) {
+            OPENVINO_ASSERT(!newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
             return cnnnetwork;
         }
         IE_SUPPRESS_DEPRECATED_END
@@ -291,7 +354,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return CNNNetwork(ngFunc, exts);
+        return convert_to_cnnnetwork(ngFunc, exts, newAPI);
     }
 
     const auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
@@ -302,7 +365,8 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
 CNNNetwork details::ReadNetwork(const std::string& model,
                                 const Blob::CPtr& weights,
-                                const std::vector<IExtensionPtr>& exts) {
+                                const std::vector<IExtensionPtr>& exts,
+                                bool newAPI) {
     std::istringstream modelStringStream(model);
     std::istream& modelStream = modelStringStream;
 
@@ -316,6 +380,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
         for (auto it = readers.begin(); it != readers.end(); it++) {
             auto reader = it->second;
             if (reader->supportModel(modelStream)) {
+                OPENVINO_ASSERT(!newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
                 if (weights)
                     return reader->read(modelStream, weights, exts);
                 return reader->read(modelStream, exts);
@@ -344,7 +409,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
         inputModel = FE->load(params);
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return CNNNetwork(ngFunc, exts);
+        return convert_to_cnnnetwork(ngFunc, exts, newAPI);
     }
 
     IE_THROW(NetworkNotRead)
