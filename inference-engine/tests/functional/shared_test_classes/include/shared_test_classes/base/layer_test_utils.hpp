@@ -61,11 +61,13 @@ public:
 
     static void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
                         const std::vector<InferenceEngine::Blob::Ptr> &actual,
-                        float threshold);
+                        float threshold,
+                        float abs_threshold = -1.f);
 
     static void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
                         const InferenceEngine::Blob::Ptr &actual,
-                        float threshold);
+                        float threshold,
+                        float abs_threshold = -1.f);
 
     virtual void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                          const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
@@ -90,11 +92,16 @@ public:
 #endif
 
     template<class T_IE, class T_NGRAPH>
-    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold) {
+    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float abs_threshold = -1.f) {
         for (std::size_t i = 0; i < size; ++i) {
             const T_NGRAPH &ref = expected[i];
             const auto &res = actual[i];
             const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
+            if (abs_threshold > 0.f && absoluteDifference > abs_threshold) {
+                IE_THROW() << "Absolute comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
+                           << " at index " << i << " with absolute threshold " << abs_threshold
+                           << " failed";
+            }
             if (absoluteDifference <= threshold) {
                 continue;
             }
@@ -145,6 +152,7 @@ protected:
     InferenceEngine::ExecutableNetwork executableNetwork;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
     float threshold;
+    float abs_threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
     std::shared_ptr<InferenceEngine::Core> core;
     std::vector<ngraph::PartialShape> inputDynamicShapes;
