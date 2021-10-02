@@ -250,10 +250,10 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
     return {};
 }
 
-CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function> & function,
+CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                                  const std::vector<IExtensionPtr>& exts,
                                  bool newAPI) {
-    auto & rt_info = function->get_rt_info();
+    auto& rt_info = function->get_rt_info();
     const auto it = rt_info.find("version");
     const bool is_ir = it != rt_info.end();
 
@@ -268,21 +268,18 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function> & function,
             using namespace ov::preprocess;
             PrePostProcessor prepost;
 
-            const auto & parameters = function->get_parameters();
+            const auto& parameters = function->get_parameters();
             for (size_t i = 0; i < parameters.size(); ++i) {
                 const auto ngraph_type = parameters[i]->get_element_type();
                 const auto legacy_type = details::toLegacyType(ngraph_type, true);
-                prepost.input(
-                    ov::preprocess::InputInfo(i).
-                        tensor(
-                            InputTensorInfo().set_element_type(legacy_type)).
-                        preprocess(
-                            // TODO: remove explicit type
-                            PreProcessSteps().convert_element_type(ngraph_type)
-                        ));
+                prepost.input(ov::preprocess::InputInfo(i)
+                                  .tensor(InputTensorInfo().set_element_type(legacy_type))
+                                  .preprocess(
+                                      // TODO: remove explicit type
+                                      PreProcessSteps().convert_element_type(ngraph_type)));
             }
 
-            const auto & results = function->get_results();
+            const auto& results = function->get_results();
             for (size_t i = 0; i < results.size(); ++i) {
                 const auto ngraph_type = results[i]->get_element_type();
                 const auto legacy_type = details::toLegacyType(ngraph_type, false);

@@ -112,8 +112,7 @@ ngraph::element::Type details::toLegacyType(const ngraph::element::Type& ngraph_
     } else {
         if (ngraph_type == ngraph::element::i64) {
             return ngraph::element::i32;
-        } else if (ngraph_type != ngraph::element::f32 &&
-                   ngraph_type != ngraph::element::i32) {
+        } else if (ngraph_type != ngraph::element::f32 && ngraph_type != ngraph::element::i32) {
             return ngraph::element::f32;
         }
     }
@@ -140,8 +139,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
                       ? Precision::I16
                       : prc == Precision::FP16 ? Precision::FP32 : static_cast<Precision::ePrecision>(prc);
 
-            info->setPrecision(details::convertPrecision(toLegacyType(
-                details::convertPrecision(prc), true)));
+            info->setPrecision(details::convertPrecision(toLegacyType(details::convertPrecision(prc), true)));
         }
 
         network.setInputInfo(info);
@@ -168,8 +166,8 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
     if (!_new_api) {
         for (auto& output : _outputData) {
             // Convert precision into native format. Be consistent with possible conversion to CNNNetwork later.
-            output.second->setPrecision(details::convertPrecision(toLegacyType(
-                details::convertPrecision(output.second->getPrecision()), false)));
+            output.second->setPrecision(details::convertPrecision(
+                toLegacyType(details::convertPrecision(output.second->getPrecision()), false)));
         }
     }
 }
