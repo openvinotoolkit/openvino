@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "test_tools.hpp"
+#include "ngraph/runtime/tensor.hpp"
 
 static constexpr int BFLOAT_MANTISSA_BITS = 8;
 static constexpr int FLOAT_MANTISSA_BITS = 24;

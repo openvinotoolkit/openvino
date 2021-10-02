@@ -484,6 +484,8 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
 
         WeightIndexFuncDesc() = default;
         WeightIndexFuncDesc(std::string tensor_name, const WeightsLayout l) {
+            if (tensor_name == "FILTER")
+                return;
             const auto layout_name = toString(l);
             using args = std::initializer_list<std::string>;
             if (l == WeightsLayout::oiyx ||
