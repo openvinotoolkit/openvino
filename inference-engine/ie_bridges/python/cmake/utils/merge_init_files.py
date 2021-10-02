@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import os
+
 
 parser = argparse.ArgumentParser()
 
@@ -10,7 +12,8 @@ parser.add_argument('-o', '--output_file', type=str, required=True)
 
 args = parser.parse_args()
 
-with open(args.input_file) as input_file, open(args.output_file, 'a') as output_file:
+mode = 'a' if os.path.exists(args.output_file) else 'w'
+with open(args.input_file) as input_file, open(args.output_file, mode) as output_file:
     lines = input_file.readlines()
     count = 0
     copied_lines = ["\n"]
