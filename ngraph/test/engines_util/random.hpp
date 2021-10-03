@@ -7,8 +7,9 @@
 #include <functional>
 #include <random>
 
+#include "execute_tools.hpp"
+#include "ngraph/runtime/tensor.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "test_tools.hpp"
 
 namespace ngraph {
 namespace test {

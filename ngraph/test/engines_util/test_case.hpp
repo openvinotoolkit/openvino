@@ -8,10 +8,11 @@
 
 #include "all_close.hpp"
 #include "all_close_f.hpp"
+#include "engine_factory.hpp"
+#include "ngraph/file_util.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/ngraph.hpp"
 #include "test_tools.hpp"
-#include "util/engine/engine_factory.hpp"
 
 namespace ngraph {
 namespace test {

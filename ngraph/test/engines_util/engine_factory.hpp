@@ -4,8 +4,8 @@
 
 #pragma once
 
+#include "engine_traits.hpp"
 #include "ngraph/function.hpp"
-#include "util/engine/engine_traits.hpp"
 
 namespace ngraph {
 namespace test {
