@@ -96,8 +96,6 @@ TEST(CNNNGraphImplTests, TestInvalidReshape) {
     ASSERT_NO_THROW(net.reshape({{"input", SizeVector({1, 1000, 4})}}));
 }
 
-IE_SUPPRESS_DEPRECATED_START
-
 TEST(CNNNGraphImplTests, TestNMS5OutputNames) {
     std::shared_ptr<ngraph::Function> f;
     {
@@ -119,6 +117,8 @@ TEST(CNNNGraphImplTests, TestNMS5OutputNames) {
     ASSERT_EQ(outputs_info.count("nms.1"), 1);
     ASSERT_EQ(outputs_info.count("nms.2"), 1);
 }
+
+IE_SUPPRESS_DEPRECATED_START
 
 TEST(CNNNGraphImplTests, TestConvertWithRemoveLastLayerNetwork) {
     std::shared_ptr<ngraph::Function> ngraph;
@@ -1948,4 +1948,4 @@ TEST(CNNNGraphImplTests, CheckNonUniqueNewResultName) {
     ASSERT_THROW(cnnNet.addOutput("nms", 1), InferenceEngine::Exception);
 }
 
-IE_SUPPRESS_DEPRECATED_END
+// IE_SUPPRESS_DEPRECATED_END

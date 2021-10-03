@@ -29,6 +29,7 @@
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "ie_common.h"
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -71,14 +72,18 @@ TEST_F(NGraphReshapeTests, ReshapedDynamicShapeLayout) {
 
     CNNNetwork cnnNetwork(ngraph);
     ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["A"]->getLayout());
+    IE_SUPPRESS_DEPRECATED_START
     ASSERT_TRUE(cnnNetwork.getInputsInfo()["A"]->getInputData()->isDynamic());
+    IE_SUPPRESS_DEPRECATED_END
 
     ICNNNetwork::InputShapes new_shape;
-    new_shape["A"] = ngraph::Shape{1, 3, 22, 22};
+    new_shape["A"] = {1, 3, 22, 22};
     cnnNetwork.reshape(new_shape);
 
     ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["A"]->getLayout());
+    IE_SUPPRESS_DEPRECATED_START
     ASSERT_FALSE(cnnNetwork.getInputsInfo()["A"]->getInputData()->isDynamic());
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLU) {
@@ -101,7 +106,7 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLU) {
     ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
 
     CNNNetwork cnnNetwork(ngraph::clone_function(*ngraph));
-    std::map<std::string, std::vector<size_t>> shapes;
+    std::map<std::string, SizeVector> shapes;
     shapes["data"] = {1, 3, 25, 25};
 
     ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
@@ -134,7 +139,7 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUWithoutCloneFunction) {
     ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
 
     CNNNetwork cnnNetwork(ngraph);
-    std::map<std::string, std::vector<size_t>> shapes;
+    std::map<std::string, SizeVector> shapes;
     shapes["data"] = {1, 3, 25, 25};
 
     ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
@@ -171,7 +176,9 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUStaticToDynamic) {
     std::map<std::string, ngraph::PartialShape> shapes;
     shapes["data"] = refShape;
 
+    IE_SUPPRESS_DEPRECATED_START
     ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
+    IE_SUPPRESS_DEPRECATED_END
 
     auto changedFunction = cnnNetwork.getFunction();
     ASSERT_NE(nullptr, changedFunction);
@@ -209,7 +216,9 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUStaticToFullyDynamic) {
     std::map<std::string, ngraph::PartialShape> shapes;
     shapes["data"] = refShape;
 
+    IE_SUPPRESS_DEPRECATED_START
     ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
+    IE_SUPPRESS_DEPRECATED_END
 
     auto changedFunction = cnnNetwork.getFunction();
     ASSERT_NE(nullptr, changedFunction);
@@ -247,7 +256,9 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUDynamicToDynamic) {
     std::map<std::string, ngraph::PartialShape> shapes;
     shapes["data"] = refShape;
 
+    IE_SUPPRESS_DEPRECATED_START
     ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
+    IE_SUPPRESS_DEPRECATED_END
 
     auto changedFunction = cnnNetwork.getFunction();
     ASSERT_NE(nullptr, changedFunction);

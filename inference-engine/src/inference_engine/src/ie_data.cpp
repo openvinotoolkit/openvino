@@ -8,6 +8,7 @@
 
 #include "blob_factory.hpp"
 #include "cnn_network_ngraph_impl.hpp"
+#include "ie_api.h"
 
 using namespace InferenceEngine;
 
@@ -68,6 +69,8 @@ public:
      * It is useful for recursive NN graph traversal.
      */
     std::map<std::string, CNNLayerPtr> inputTo;
+
+    ngraph::PartialShape pShape;
 };
 
 Data::Data(const std::string& name, Precision _precision, Layout layout)
@@ -77,23 +80,20 @@ Data::Data(const std::string& name, Precision _precision, Layout layout)
     _impl = std::make_shared<Impl>();
 }
 
-Data::Data(const std::string& name, const TensorDesc& desc)
-    : name(name),
-      userObject({0}),
-      tensorDesc(desc),
-      pShape(desc.getDims()) {
+Data::Data(const std::string& name, const TensorDesc& desc) : name(name), userObject({0}), tensorDesc(desc) {
     _impl = std::make_shared<Impl>();
+    _impl->pShape = ngraph::PartialShape(desc.getDims());
 }
 
 Data::Data(const std::string& name, Precision _precision, const ngraph::PartialShape& shape, Layout layout)
     : name(name),
       userObject({0}),
-      tensorDesc(_precision, layout),
-      pShape(shape) {
-    if (pShape.is_static()) {
-        tensorDesc.reshape(pShape.to_shape(), tensorDesc.getLayout());
+      tensorDesc(_precision, layout) {
+    if (shape.is_static()) {
+        tensorDesc.reshape(shape.to_shape(), tensorDesc.getLayout());
     }
     _impl = std::make_shared<Impl>();
+    _impl->pShape = ngraph::PartialShape(tensorDesc.getDims());
 }
 
 const Precision& Data::getPrecision() const {
@@ -110,24 +110,17 @@ bool Data::isInitialized() const {
 
 void Data::setDims(const SizeVector& a_dims) {
     tensorDesc.setDims(a_dims);
-    pShape = ngraph::PartialShape(a_dims);
+    _impl->pShape = ngraph::PartialShape(a_dims);
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
 bool Data::isDynamic() const {
-    return tensorDesc.getDims().empty() && tensorDesc.getLayout() != SCALAR && pShape.is_dynamic();
+    return tensorDesc.getDims().empty() && tensorDesc.getLayout() != SCALAR && _impl->pShape.is_dynamic();
 }
 
 const ngraph::PartialShape& Data::getPartialShape() const {
-    return pShape;
-}
-
-void Data::setLayout(Layout layout) {
-    tensorDesc.setLayout(layout);
-}
-
-void Data::reshape(const SizeVector& a_dims, Layout a_layout) {
-    tensorDesc.reshape(a_dims, a_layout);
-    pShape = ngraph::PartialShape(a_dims);
+    return _impl->pShape;
 }
 
 void Data::reshape(const std::initializer_list<size_t>& dims, Layout layout) {
@@ -139,18 +132,26 @@ void Data::reshape(const ngraph::PartialShape& dims, Layout layout) {
         reshape(SizeVector(dims.to_shape()), layout);
     } else {
         tensorDesc = TensorDesc(tensorDesc.getPrecision(), layout);
-        pShape = dims;
+        _impl->pShape = dims;
     }
 }
 
-Data::Data(const Data& data)
-    : name(data.name),
-      userObject(data.userObject),
-      tensorDesc(data.tensorDesc),
-      pShape(data.pShape) {
+IE_SUPPRESS_DEPRECATED_END
+
+void Data::setLayout(Layout layout) {
+    tensorDesc.setLayout(layout);
+}
+
+void Data::reshape(const SizeVector& a_dims, Layout a_layout) {
+    tensorDesc.reshape(a_dims, a_layout);
+    _impl->pShape = ngraph::PartialShape(a_dims);
+}
+
+Data::Data(const Data& data) : name(data.name), userObject(data.userObject), tensorDesc(data.tensorDesc) {
     _impl = std::make_shared<Impl>();
     _impl->creatorLayer = data._impl->creatorLayer;
     _impl->inputTo = data._impl->inputTo;
+    _impl->pShape = data._impl->pShape;
 }
 
 Data& Data::operator=(const Data& data) {
@@ -158,10 +159,10 @@ Data& Data::operator=(const Data& data) {
         name = data.name;
         userObject = data.userObject;
         tensorDesc = data.tensorDesc;
-        pShape = data.pShape;
 
         _impl->creatorLayer = data._impl->creatorLayer;
         _impl->inputTo = data._impl->inputTo;
+        _impl->pShape = data._impl->pShape;
     }
 
     return *this;
@@ -188,10 +189,12 @@ void Data::setPrecision(const Precision& precision) {
 }
 
 const SizeVector& Data::getDims() const {
+    IE_SUPPRESS_DEPRECATED_START
     if (isDynamic())
         IE_THROW() << "Cannot return dims for Data with dynamic shapes!";
+    IE_SUPPRESS_DEPRECATED_END
     if (tensorDesc.getDims().empty() && tensorDesc.getLayout() != SCALAR) {
-        tensorDesc.setDims(pShape.to_shape());
+        tensorDesc.setDims(_impl->pShape.to_shape());
     }
     return tensorDesc.getDims();
 }

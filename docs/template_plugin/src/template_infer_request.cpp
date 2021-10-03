@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "blob_factory.hpp"
+#include "ie_api.h"
 #include "ie_ngraph_utils.hpp"
 #include "template_executable_network.hpp"
 #include "template_itt.hpp"
@@ -101,7 +102,9 @@ static void AllocateImpl(const BlobDataMap& userDataMap,
                          GetNetworkPrecisionF&& GetNetworkPrecision,
                          bool isInputBlob = true) {
     for (const auto& userData : userDataMap) {
+        IE_SUPPRESS_DEPRECATED_START
         auto partialShape = userData.second->getPartialShape();
+        IE_SUPPRESS_DEPRECATED_END
         SizeVector dims;
         if (partialShape.is_static()) {
             dims = userData.second->getTensorDesc().getDims();
@@ -371,6 +374,7 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
     } else {
         data = _outputs[name];
         SizeVector dims;
+        IE_SUPPRESS_DEPRECATED_START
         if (!foundOutput->isDynamic()) {
             dims = foundOutput->getTensorDesc().getDims();
         } else if (_outputTensors[_executableNetwork->_outputIndex.at(name)]->get_partial_shape().is_static()) {
@@ -379,6 +383,7 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
             IE_THROW() << "Output blob dimensions are not all known for output name " << name
                        << " with partial shape: " << foundOutput->getPartialShape();
         }
+        IE_SUPPRESS_DEPRECATED_END
 
         if (data) {
             if (data->getTensorDesc().getDims() != dims) {
@@ -438,11 +443,13 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
         auto devDims = devBlob->getTensorDesc().getDims();
         auto devLayout = devBlob->getTensorDesc().getLayout();
         auto devPrecision = devBlob->getTensorDesc().getPrecision();
+        IE_SUPPRESS_DEPRECATED_START
         if (foundInput->getInputData()->isDynamic() && (devDims != usrDims || devLayout != usrLayout)) {
             devBlob = make_blob_with_precision({devPrecision, usrDims, TensorDesc::getLayoutByDims(usrDims)});
             devBlob->allocate();
             _deviceInputs[name] = devBlob;
         }
+        IE_SUPPRESS_DEPRECATED_END
         const bool preProcRequired = preProcessingRequired(foundInput, userBlob, devBlob);
         if (compoundBlobPassed && !preProcRequired) {
             IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
@@ -471,11 +478,13 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
         auto devDims = devBlob->getTensorDesc().getDims();
         auto devLayout = devBlob->getTensorDesc().getLayout();
         auto devPrecision = devBlob->getTensorDesc().getPrecision();
+        IE_SUPPRESS_DEPRECATED_START
         if (foundOutput->isDynamic() && (devDims != usrDims || devLayout != usrLayout)) {
             devBlob = make_blob_with_precision({devPrecision, usrDims, TensorDesc::getLayoutByDims(usrDims)});
             devBlob->allocate();
             _networkOutputBlobs[name] = devBlob;
         }
+        IE_SUPPRESS_DEPRECATED_END
         size_t outputSize = devBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
                                 ? details::product(devBlob->getTensorDesc().getDims())
                                 : 1;
