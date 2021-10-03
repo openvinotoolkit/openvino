@@ -72,7 +72,7 @@ function(ie_add_plugin)
         endif()
 
         if(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CROSSCOMPILING)
-            target_link_options(${IE_PLUGIN_NAME} PRIVATE -Wl,--unresolved-symbols=report-all)
+            target_link_options(${IE_PLUGIN_NAME} PRIVATE -Wl,--unresolved-symbols=ignore-in-shared-libs)
         endif()
 
         set(custom_filter "")
