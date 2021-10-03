@@ -5,17 +5,14 @@
 #pragma once
 
 #include "graph.h"
-#include "nodes/eltwise.h"
-#include <vector>
 
 namespace ov {
 namespace intel_cpu {
 
 class GraphOptimizer {
 public:
-    GraphOptimizer();
+    GraphOptimizer() = default;
 
-public:
     void ApplyCommonGraphOptimizations(Graph& graph);
     void ApplyImplSpecificGraphOptimizations(Graph& graph);
 

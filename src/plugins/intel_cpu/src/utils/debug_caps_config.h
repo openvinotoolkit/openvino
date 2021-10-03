@@ -9,6 +9,7 @@
 
 #include <bitset>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace ov {
 namespace intel_cpu {
@@ -61,6 +62,7 @@ public:
                                                                                 }));
         }
     };
+
     struct IrFormatFilter {
         enum Type : uint8_t {
             Xml = 0, XmlBin, Dot, Svg, NumOfTypes
@@ -75,6 +77,18 @@ public:
                                                                                  {"dot", {Dot}},
                                                                                  {"svg", {Svg}},
                                                                                 }));
+        }
+    };
+
+    struct FusingFilter {
+        FusingFilter(const std::string&& filterKind) :
+            filterKind(std::move(filterKind)) {}
+
+        std::string filterKind;
+        std::unordered_set<std::string> filter;
+
+        PropertySetterPtr getPropertySetter() {
+            return PropertySetterPtr(new SetFilterPropertySetter(filterKind, filter));
         }
     };
 
@@ -115,15 +129,32 @@ public:
         }
     };
 
-    struct : PropertyGroup {
+    struct Disable : PropertyGroup {
+        Disable() :
+            fusingFilterByTargetType("fusing_by_target_type"),
+            fusingFilterByFusedType("fusing_by_fused_type"),
+            fusingFilterByTargetName("fusing_by_target_name"),
+            fusingFilterByFusedName("fusing_by_fused_name")
+        {}
+
         TransformationFilter transformations;
+        FusingFilter fusingFilterByTargetType;
+        FusingFilter fusingFilterByFusedType;
+        FusingFilter fusingFilterByTargetName;
+        FusingFilter fusingFilterByFusedName;
 
         std::vector<PropertySetterPtr> getPropertySetters(void) override {
-            return { transformations.getPropertySetter() };
+            return {
+                transformations.getPropertySetter(),
+                fusingFilterByTargetType.getPropertySetter(),
+                fusingFilterByFusedType.getPropertySetter(),
+                fusingFilterByTargetName.getPropertySetter(),
+                fusingFilterByFusedName.getPropertySetter(),
+            };
         }
     } disable;
 
-    struct : PropertyGroup {
+    struct DumpIR : PropertyGroup {
         std::string dir = "intel_cpu_dump";
         IrFormatFilter format = { 1 << IrFormatFilter::Xml };
         TransformationFilter transformations;
@@ -160,8 +191,8 @@ private:
         std::string& property;
         const std::string propertyValueDescription;
     };
-    template<std::size_t NumOfBits>
 
+    template<std::size_t NumOfBits>
     struct BitsetFilterPropertySetter : PropertySetter {
         struct Token {
             std::string name;
@@ -202,6 +233,29 @@ private:
     private:
         std::bitset<NumOfBits>& property;
         const std::vector<Token> propertyTokens;
+    };
+
+    struct SetFilterPropertySetter : PropertySetter {
+        SetFilterPropertySetter(const std::string& name, std::unordered_set<std::string>& fusingFilters)
+            : PropertySetter(std::move(name)),
+              filterSet(fusingFilters)
+        {}
+
+        bool parseAndSet(const std::string& str) override {
+            const auto& tokens = str.empty() ?
+                std::vector<std::string>{"*"} : ov::util::split(str, ',');
+            for (const auto& tokenName : tokens) {
+                filterSet.insert(tokenName);
+            }
+            return true;
+        }
+        std::string getPropertyValueDescription(void) const override {
+            std::string supportedTokens = "comma separated list of names / types";
+            return supportedTokens;
+        }
+
+    private:
+        std::unordered_set<std::string>& filterSet;
     };
 
     void readProperties();

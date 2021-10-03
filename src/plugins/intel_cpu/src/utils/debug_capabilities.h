@@ -146,6 +146,16 @@ static inline std::ostream& write_all_to_stream(std::ostream& os, const T& arg, 
 
 #define CPU_DEBUG_CAP_ENABLE(...) __VA_ARGS__
 #define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) true
+#define CPU_DEBUG_CAP_CONTINUE(_x) \
+    if (_x) {                      \
+        continue;                  \
+    }
+
+#define CPU_DEBUG_CAP_INCREMENT_AND_CONTINUE_IF(_x, it) \
+    if (_x) {                      \
+        it++;                      \
+        continue;                  \
+    }
 
 #define DEBUG_LOG(...) DEBUG_LOG_EXT(nullptr, std::cout, "[ DEBUG ] ", __VA_ARGS__)
 #define ERROR_LOG(...) DEBUG_LOG_EXT(nullptr, std::cerr, "[ ERROR ] ", __VA_ARGS__)
@@ -156,6 +166,8 @@ static inline std::ostream& write_all_to_stream(std::ostream& os, const T& arg, 
 
 #define CPU_DEBUG_CAP_ENABLE(...)
 #define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) x
+#define CPU_DEBUG_CAP_CONTINUE(_x)
+#define CPU_DEBUG_CAP_INCREMENT_AND_CONTINUE_IF(_x, it)
 
 #define DEBUG_LOG(...)
 #define ERROR_LOG(...)

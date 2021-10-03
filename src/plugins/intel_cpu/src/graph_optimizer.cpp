@@ -24,11 +24,14 @@
 #include "nodes/common/cpu_convert.h"
 
 #include "onednn/dnnl.h"
+#include "itt.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 
 #include <blob_factory.hpp>
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/fusing_filter.h"
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
@@ -50,17 +53,12 @@
 #include <set>
 #include <algorithm>
 
-#include "itt.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
-
 using namespace dnnl;
 using namespace InferenceEngine;
 using namespace ov::intel_cpu::node;
 
 namespace ov {
 namespace intel_cpu {
-
-GraphOptimizer::GraphOptimizer() {}
 
 void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     FuseConvMatmulFCDeconvAndDQScales(graph);
@@ -269,6 +267,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
         if (!isDQScaleGraphPattern(mul)) continue;
 
         CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvMatmulFCDeconvAndDQScales);
+        CPU_DEBUG_CAP_CONTINUE(isFusingDisabled(mul->getParentEdgeAt(0)->getParent(), mul, graph.getConfig().debugCaps));
 
         auto node = mul->getParentEdgesAtPort(0)[0]->getParent();
         auto scales = mul->getParentEdgesAtPort(1)[0]->getParent();
@@ -363,6 +362,8 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
         }
 
         CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvolutionMatMulDeconvAndBias_ChildNode);
+        CPU_DEBUG_CAP_INCREMENT_AND_CONTINUE_IF(
+            isFusingDisabled(parentNode, childNode, graph.getConfig().debugCaps), parent);
 
         auto childs = childNode->childEdges;
         auto parents = childNode->parentEdges;
@@ -468,6 +469,8 @@ void GraphOptimizer::FuseDeconvolutionAndSimpleOperation(Graph &graph) {
         }
 
         CPU_GRAPH_OPTIMIZER_SCOPE(FuseDeconvolutionAndSimpleOperation_ChildNode);
+        CPU_DEBUG_CAP_INCREMENT_AND_CONTINUE_IF(
+            isFusingDisabled(parentNode, childNode, graph.getConfig().debugCaps), parent);
 
         childNode->fuseInto(parentNode);
 
@@ -550,6 +553,8 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph &graph) {
         }
 
         CPU_GRAPH_OPTIMIZER_SCOPE(FuseMultiplyAndAdd_ChildNode);
+        CPU_DEBUG_CAP_INCREMENT_AND_CONTINUE_IF(
+            isFusingDisabled(parentNode, childNode, graph.getConfig().debugCaps), parent);
 
         auto childs = childNode->childEdges;
         auto parents = childNode->parentEdges;
@@ -645,6 +650,7 @@ void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
         }
 
         CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndScaleShift_ChildNode);
+        CPU_DEBUG_CAP_INCREMENT_AND_CONTINUE_IF(isFusingDisabled(parentNode, childNode, graph.getConfig().debugCaps), parent);
 
         auto parents = parentNode->parentEdges;
         for (size_t i = 0; i < parents.size(); i++) {
@@ -845,6 +851,9 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
 
         auto dataEltwise = conv->getParentEdgesAtPort(0)[0]->getParent();
         auto weightsEltwise = conv->getParentEdgesAtPort(1)[0]->getParent();
+
+        CPU_DEBUG_CAP_CONTINUE(isFusingDisabled(conv, dataEltwise, graph.getConfig().debugCaps));
+
         if (initializeInputZeroPoints(conv, dataEltwise, weightsEltwise)) {
             auto p_edge = dataEltwise->getParentEdgesAtPort(1)[0];
             graph.RemoveEdge(p_edge);
@@ -876,6 +885,9 @@ void GraphOptimizer::FuseFullyConnectedAndSimpleOperation(Graph &graph) {
             parent++;
             continue;
         }
+
+        CPU_DEBUG_CAP_INCREMENT_AND_CONTINUE_IF(
+            isFusingDisabled(parentNode, childNode, graph.getConfig().debugCaps), parent);
 
         childNode->fuseInto(parentNode);
 
@@ -916,6 +928,9 @@ void GraphOptimizer::FuseMatMulAndSimpleOperation(Graph &graph) {
             parent++;
             continue;
         }
+
+        CPU_DEBUG_CAP_INCREMENT_AND_CONTINUE_IF(
+            isFusingDisabled(parentNode, childNode, graph.getConfig().debugCaps), parent);
 
         childNode->fuseInto(parentNode);
 
@@ -1066,6 +1081,8 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
 
         if (!isFusingWorthwhile(parentConvNode, childConvNode)) continue;
 
+        CPU_DEBUG_CAP_CONTINUE(isFusingDisabled(parentConvNode, childConvNode, graph.getConfig().debugCaps));
+
         parentConvNode->addFusedNode(childConvNode);
 
         for (auto node : childConvNode->getFusedWith()) {
@@ -1112,6 +1129,10 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperationThroughMaxPool(Graph &grap
             parent++;
             continue;
         }
+
+        CPU_DEBUG_CAP_INCREMENT_AND_CONTINUE_IF(
+            isFusingDisabled(parentNode, fuseCandidate, graph.getConfig().debugCaps), parent);
+
         parentNode->addFusedNode(fuseCandidate);
         parentNode->addOriginalLayer(fuseCandidate->getOriginalLayers());
         auto parentEdges = fuseCandidate->parentEdges;
@@ -1150,6 +1171,9 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperation(Graph &graph) {
             parent++;
             continue;
         }
+
+        CPU_DEBUG_CAP_INCREMENT_AND_CONTINUE_IF(
+            isFusingDisabled(parentNode, childNode, graph.getConfig().debugCaps), parent);
 
         childNode->fuseInto(parentNode);
 
@@ -1194,6 +1218,7 @@ void GraphOptimizer::FusePoolingAndFakeQuantize(Graph &graph) {
         if (!isSuitableChildNode(child)) continue;
 
         CPU_GRAPH_OPTIMIZER_SCOPE(FusePoolingAndFakeQuantize_ChildNode);
+        CPU_DEBUG_CAP_CONTINUE(isFusingDisabled(parent, child, graph.getConfig().debugCaps));
 
         child->fuseInto(parent);
 
@@ -1435,6 +1460,8 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
             sum->fuseInto(mergedConv);
         }
 
+        CPU_DEBUG_CAP_CONTINUE(isFusingDisabled(mergedConv, lastNode, graph.getConfig().debugCaps));
+
         lastNode->fuseInto(mergedConv);
 
         if (mergedConv->fusedWith.size() > 0 &&
@@ -1517,6 +1544,9 @@ void GraphOptimizer::FuseMVNAndSimpleOperation(Graph &graph) {
             continue;
         }
 
+        CPU_DEBUG_CAP_INCREMENT_AND_CONTINUE_IF(
+            isFusingDisabled(parentNode, childNode, graph.getConfig().debugCaps), parent);
+
         childNode->fuseInto(parentNode);
 
         if (childNode->getType() == Type::FakeQuantize || childNode->getType() == Type::Eltwise) {
@@ -1575,6 +1605,8 @@ void GraphOptimizer::FuseInterpolateAndSimpleOperation(Graph &graph) {
         }
 
         CPU_GRAPH_OPTIMIZER_SCOPE(FuseInterpolateAndSimpleOperation_ChildNode);
+        CPU_DEBUG_CAP_INCREMENT_AND_CONTINUE_IF(
+            isFusingDisabled(parentNode, childNode, graph.getConfig().debugCaps), parent);
 
         childNode->fuseInto(parentNode);
 
@@ -1616,6 +1648,9 @@ void GraphOptimizer::FuseNormalizeL2AndSimpleOperation(Graph &graph) {
             continue;
         }
 
+        CPU_DEBUG_CAP_INCREMENT_AND_CONTINUE_IF(
+            isFusingDisabled(parentNode, childNode, graph.getConfig().debugCaps), parent);
+
         childNode->fuseInto(parentNode);
 
         if (childNode->getType() == Type::FakeQuantize || childNode->getType() == Type::Eltwise) {
@@ -1655,6 +1690,9 @@ void GraphOptimizer::FuseReduceAndSimpleOperation(Graph &graph) {
             parent++;
             continue;
         }
+
+        CPU_DEBUG_CAP_INCREMENT_AND_CONTINUE_IF(
+            isFusingDisabled(parentNode, childNode, graph.getConfig().debugCaps), parent);
 
         childNode->fuseInto(parentNode);
 
@@ -1727,6 +1765,8 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph &graph) {
         }
 
         CPU_GRAPH_OPTIMIZER_SCOPE(FuseEltwiseAndSimple_ChildNode);
+        CPU_DEBUG_CAP_INCREMENT_AND_CONTINUE_IF(
+            isFusingDisabled(parentNode, childNode, graph.getConfig().debugCaps), parent);
 
         childNode->fuseInto(parentNode);
 
@@ -1863,6 +1903,9 @@ void GraphOptimizer::FuseBroadcastAndEltwise(Graph &graph) {
 
         NodePtr& broadcastNode = graphNode;
         NodePtr eltwiseNode = broadcastNode->getChildEdgeAt(0)->getChild();
+
+        CPU_DEBUG_CAP_CONTINUE(isFusingDisabled(eltwiseNode, broadcastNode, graph.getConfig().debugCaps));
+
         eltwiseNode->inputShapes[broadcastNode->getChildEdgeAt(0)->getOutputNum()]
                 = broadcastNode->getInputShapeAtPort(0);
 
@@ -1927,6 +1970,7 @@ void GraphOptimizer::FuseClampAndFakeQuantize(Graph &graph) {
         if (!isSuitableFakeQuantizeNode(child)) continue;
 
         CPU_GRAPH_OPTIMIZER_SCOPE(FuseClampAndFakeQuantize_QuantizeNode);
+        CPU_DEBUG_CAP_CONTINUE(isFusingDisabled(child, parent, graph.getConfig().debugCaps));
 
         if (fuseClampAndFakeQuantizeNodes(parent, child)) {
             graph.DropNode(parent);
@@ -2089,6 +2133,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
         if (!isSuitableFakeQuantizeNode(child)) continue;
 
         CPU_GRAPH_OPTIMIZER_SCOPE(FusePerformedAsScaleShiftAndFakeQuantize_QuantizeNode);
+        CPU_DEBUG_CAP_CONTINUE(isFusingDisabled(child, parent, graph.getConfig().debugCaps));
 
         if (fuseScaleShiftAndFakeQuantizeNodes(parent, child)) {
             auto parentEdges = parent->parentEdges;
@@ -2302,6 +2347,7 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         }
 
         CPU_GRAPH_OPTIMIZER_SCOPE(MergeTransposeAndReorder_ChildNode);
+        CPU_DEBUG_CAP_CONTINUE(isFusingDisabled(parentNode, childNode, graph.getConfig().debugCaps));
 
         if (checkAscendingSummaryOrder(parentNode, childNode)) {
             mergeTransposeAndReorder(parentNode, childNode);
