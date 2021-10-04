@@ -624,6 +624,44 @@ void DetectionOutputImpl::nms_mx(const float* conf_data,
 
     int num_output_scores = (_top_k == -1 ? count : (std::min)(_top_k, count));
 
+#ifdef __clang__
+    std::partial_sort_copy(indices, indices + count,
+                        buffer, buffer + count,
+                        ConfidenceComparator(conf_data));
+
+    int total_detections = 0;
+    std::vector<int> kept_vec, kept_cls_vec;
+    for (int i = 0; i < count; ++i) {
+        const int idx = buffer[i];
+        const int cls = idx/_num_priors;
+        const int prior = idx%_num_priors;
+
+        int &ndetection = detections[cls];
+        int *pindices = indices + cls*_num_priors;
+
+        bool keep = true;
+        for (int j = 0; j < total_detections; j++) {
+            const int kept_idx = kept_vec[j];
+            const int kept_cls = kept_cls_vec[j];
+            float overlap = 0.0f;
+            if (_share_location) {
+                overlap = JaccardOverlap(bboxes, sizes, prior, kept_idx);
+            } else {
+                overlap = JaccardOverlap(bboxes, sizes, cls*_num_priors + prior, kept_cls*_num_priors + kept_idx);
+            }
+            if (overlap > _nms_threshold) {
+                keep = false;
+                break;
+            }
+        }
+        if (keep) {
+            pindices[ndetection++] = prior;
+            kept_vec.push_back(prior);
+            kept_cls_vec.push_back(cls);
+            ++total_detections;
+        }
+    }
+#else
     std::partial_sort_copy(indices, indices + count,
                            buffer, buffer + num_output_scores,
                            ConfidenceComparator(conf_data));
@@ -654,6 +692,7 @@ void DetectionOutputImpl::nms_mx(const float* conf_data,
             pindices[ndetection++] = prior;
         }
     }
+#endif
 }
 
 REG_FACTORY_FOR(DetectionOutputImpl, DetectionOutput);
