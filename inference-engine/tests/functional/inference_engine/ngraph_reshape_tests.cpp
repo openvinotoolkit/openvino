@@ -30,6 +30,8 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "ie_common.h"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;

@@ -74,6 +74,7 @@ void BinaryConvolutionLayerTest::SetUp() {
                                                           padValue);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(binConv)};
     function = std::make_shared<ngraph::Function>(results, params, "BinaryConvolution");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 }   // namespace LayerTestsDefinitions

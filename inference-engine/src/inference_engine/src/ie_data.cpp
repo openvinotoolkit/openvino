@@ -93,7 +93,7 @@ Data::Data(const std::string& name, Precision _precision, const ngraph::PartialS
         tensorDesc.reshape(shape.to_shape(), tensorDesc.getLayout());
     }
     _impl = std::make_shared<Impl>();
-    _impl->pShape = ngraph::PartialShape(tensorDesc.getDims());
+    _impl->pShape = shape;
 }
 
 const Precision& Data::getPrecision() const {

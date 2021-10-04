@@ -63,6 +63,8 @@ protected:
         }
         selectedType.push_back('_');
         selectedType += netPrecision.name();
+
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 
