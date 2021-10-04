@@ -7,19 +7,19 @@
 #include <algorithm>
 #include <chrono>
 #include <condition_variable>
+#include <functional>
 #include <iostream>
 #include <iterator>
 #include <list>
 #include <map>
 #include <mutex>
+#include <numeric>
 #include <queue>
 #include <set>
 #include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
-#include <numeric>
-#include <functional>
 
 #include "Python.h"
 #include "ie_core.hpp"
