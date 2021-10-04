@@ -18,7 +18,7 @@ Inference Engine uses a plugin architecture. Inference Engine plugin is a softwa
  
 The scheme below illustrates the typical workflow for deploying a trained deep learning model: 
 
-![](img/ie_workflow_steps.png)
+![](img/BASIC_FLOW_IE_C.svg)
 
 \\* _nGraph_ is the internal graph representation in the OpenVINO™ toolkit. Use it to [build a model from source code](https://docs.openvinotoolkit.org/latest/openvino_docs_nGraph_DG_build_function.html).
 

@@ -141,10 +141,10 @@ function(build_docs)
     if(EXISTS "${OMZ_DOCS_DIR}")
         get_filename_component(OMZ_DOCS_DIR "${OMZ_DOCS_DIR}" ABSOLUTE)
         list(APPEND commands
-        COMMAND ${PYTHON_EXECUTABLE} ${OMZ_DOCS_DIR}/ci/prepare-documentation.py ${OMZ_DOCS_DIR}/omz)
+        COMMAND ${PYTHON_EXECUTABLE} ${OMZ_DOCS_DIR}/ci/prepare-documentation.py ${CMAKE_BINARY_DIR}/open_model_zoo)
         list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
-            --input_dir=${OMZ_DOCS_DIR}/omz
-            --output_dir=${DOCS_BUILD_DIR}/omz)
+            --input_dir=${CMAKE_BINARY_DIR}/open_model_zoo
+            --output_dir=${DOCS_BUILD_DIR}/open_model_zoo)
     endif()
 
     # workbench doc files

@@ -37,32 +37,25 @@ To convert models from certain frameworks, you will also need to install
 additional dependencies.
 
 
-@sphinxdirective
-
-.. tab:: Caffe2
-
-.. code-block:: 
+Caffe2
 
 ```sh
 python3 -mpip install --user -r ./requirements-caffe2.in
 ```
 
-.. tab:: Pytorch
-
-.. code-block:: 
+Pytorch
 
 ```sh
 python3 -mpip install --user -r ./requirements-pytorch.in
 ```
 
-.. tab:: TensorFlow
-
-.. code-block:: 
+TensorFlow
 
 ```sh
+
 python3 -mpip install --user -r ./requirements-tensorflow.in
 ```
-@endsphinxdirective
+
 
 ## Model Downloader 
 
@@ -78,14 +71,24 @@ section.
 
 ### Model Downloader Starting Parameters
 
-Parameter | Explanation | Example
----|---|---
-`-o`/`--output_dir` | By default, the script will download models into a directory tree rooted in the current directory. Use this parameter to download into a different directory.| `./downloader.py --all --output_dir my/download/directory`
-`--precisions` | Specify comma separated precisions of weights to be downloaded| `./downloader.py --name face-detection-retail-0004 --precisions FP16,FP16-INT8`
-`--num_attempts` | By default, the script will attempt to download each file only once. Use this parameter to change that and increase the robustness of the download process | `./downloader.py --all --num_attempts 5 # attempt each download five times`
-`--cache_dir` |  Make the script use the specified directory as a cache. The script will place a copy of each downloaded file in the cache, or, if it is already there, retrieve it from the cache instead of downloading it again. The cache format is intended to remain compatible in future Open Model Zoo versions, so you can use a cache to avoid redownloading most files when updating Open Model Zoo.| `./downloader.py --all --cache_dir my/cache/directory`
-`-j`/`--jobs`|  The script downloads files for multiple models concurrently. | `./downloader.py --all -j8 # download up to 8 models at a time`
-`--progress_format`|  By default, the script outputs progress information as unstructured, human-readable text. Use this option, if you want to consume progress information programmatically. | `./downloader.py --all --progress_format=json`
+@sphinxdirective
+
++---------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------+
+| Parameter                 | Explanation                                                                                                                                                                                                                                                                                                                                                                                      | Example                                                                             |
++===========================+==================================================================================================================================================================================================================================================================================================================================================================================================+=====================================================================================+
+| ``-o``/``--output_dir``   | By default, the script will download models into a directory tree rooted in the current directory. Use this parameter to download into a different directory.                                                                                                                                                                                                                                    | ``./downloader.py --all --output_dir my/download/directory``                        |
++---------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------+
+| ``--precisions``          | Specify comma separated precisions of weights to be downloaded                                                                                                                                                                                                                                                                                                                                   | ``./downloader.py --name face-detection-retail-0004 --precisions FP16,FP16-INT8``   |
++---------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------+
+| ``--num_attempts``        | By default, the script will attempt to download each file only once. Use this parameter to change that and increase the robustness of the download process                                                                                                                                                                                                                                       | ``./downloader.py --all --num_attempts 5 # attempt each download five times``       |
++---------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------+
+| ``--cache_dir``           | Make the script use the specified directory as a cache. The script will place a copy of each downloaded file in the cache, or, if it is already there, retrieve it from the cache instead of downloading it again. The cache format is intended to remain compatible in future Open Model Zoo versions, so you can use a cache to avoid redownloading most files when updating Open Model Zoo.   | ``./downloader.py --all --cache_dir my/cache/directory``                            |
++---------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------+
+| ``-j``/``--jobs``         | The script downloads files for multiple models concurrently.                                                                                                                                                                                                                                                                                                                                     | ``./downloader.py --all -j8 # download up to 8 models at a time``                   |
++---------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------+
+| ``--progress_format``     | By default, the script outputs progress information as unstructured, human-readable text. Use this option, if you want to consume progress information programmatically.                                                                                                                                                                                                                         | ``./downloader.py --all --progress_format=json``                                    |
++---------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------------------------------------------------+
+@endsphinxdirective
 
 When this option is set to `json`, the script's standard output is replaced by
 a machine-readable progress report, whose format is documented in the
@@ -109,15 +112,27 @@ by a line containing a JSON-encoded object. Each event has a member with the
 name `$type` whose value determines the type of the event, as well as which
 additional members it contains.
 
-Event type| Additional members | Explanation
----|---|---
-`model_download_begin` | `model` (string), `num_files` (integer)|The script started downloading the model named by `model`. `num_files` is the number of files that will be downloaded for this model. This event will always be followed by a corresponding `model_download_end` event.
-`model_download_end` | `model` (string), `successful` (boolean)|The script stopped downloading the model named by `model`. `successful` is true if every file was downloaded successfully.
-`model_file_download_begin` | `model` (string), `model_file` (string), `size` (integer)|The script started downloading the file named by `model_file` of the model named by `model`. `size` is the size of the file in bytes. This event will always occur between `model_download_begin` and `model_download_end` events for the model, and will always be followed by a corresponding `model_file_download_end` event.
-`model_file_download_end` | `model` (string), `model_file` (string), `successful` (boolean)|The script stopped downloading the file named by `model_file` of the model named by `model`. `successful` is true if the file was downloaded successfully.
-`model_file_download_progress` | `model` (string), `model_file` (string), `size` (integer)|The script downloaded `size` bytes of the file named by `model_file` of the model named by `model` so far. Note that `size` can decrease in a subsequent event if the download is interrupted and retried. This event will always occur between `model_file_download_begin` and `model_file_download_end` events for the file.
-`model_postprocessing_begin` | `model`| The script started post-download processing on the model named by `model`. This event will always be followed by a corresponding `model_postprocessing_end` event.
-`model_postprocessing_end` | `model`| The script stopped post-download processing on the model named by `model`.
+@sphinxdirective
+
++------------------------------------+-------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Event type                         | Additional members                                                      | Explanation                                                                                                                                                                                                                                                                                                                                    |
++====================================+=========================================================================+================================================================================================================================================================================================================================================================================================================================================+
+| ``model_download_begin``           | ``model`` (string), ``num_files`` (integer)                             | The script started downloading the model named by ``model``. ``num_files`` is the number of files that will be downloaded for this model. This event will always be followed by a corresponding ``model_download_end`` event.                                                                                                                  |
++------------------------------------+-------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ``model_download_end``             | ``model`` (string), ``successful`` (boolean)                            | The script stopped downloading the model named by ``model``. ``successful`` is true if every file was downloaded successfully.                                                                                                                                                                                                                 |
++------------------------------------+-------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ``model_file_download_begin``      | ``model`` (string), ``model_file`` (string), ``size`` (integer)         | The script started downloading the file named by ``model_file`` of the model named by ``model``. ``size`` is the size of the file in bytes. This event will always occur between ``model_download_begin`` and ``model_download_end`` events for the model, and will always be followed by a corresponding ``model_file_download_end`` event.   |
++------------------------------------+-------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ``model_file_download_end``        | ``model`` (string), ``model_file`` (string), ``successful`` (boolean)   | The script stopped downloading the file named by ``model_file`` of the model named by ``model``. ``successful`` is true if the file was downloaded successfully.                                                                                                                                                                               |
++------------------------------------+-------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ``model_file_download_progress``   | ``model`` (string), ``model_file`` (string), ``size`` (integer)         | The script downloaded ``size`` bytes of the file named by ``model_file`` of the model named by ``model`` so far. Note that ``size`` can decrease in a subsequent event if the download is interrupted and retried. This event will always occur between ``model_file_download_begin`` and ``model_file_download_end`` events for the file.     |
++------------------------------------+-------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ``model_postprocessing_begin``     | ``model``                                                               | The script started post-download processing on the model named by ``model``. This event will always be followed by a corresponding ``model_postprocessing_end`` event.                                                                                                                                                                         |
++------------------------------------+-------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ``model_postprocessing_end``       | ``model``                                                               | The script stopped post-download processing on the model named by ``model``.                                                                                                                                                                                                                                                                   |
++------------------------------------+-------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+@endsphinxdirective
+
 
 Additional event types and members may be added in the future.
 
@@ -149,15 +164,27 @@ a subset of models. See the "Shared options" section.
 
 ### Model Converter Starting Parameters
 
-Parameter | Explanation | Example
----|---|---
-`-d`/`--download_dir` | The current directory must be the root of a download tree created by the model downloader. Use this parameter to specify a different download tree path.| `./converter.py --all --download_dir my/download/directory`
-`-o`/`--output_dir` | By default, the script will download models into a directory tree rooted in the current directory. Use this parameter to download into a different directory. Note: models in intermediate format are placed to this directory too.| `./converter.py --all --output_dir my/output/directory`
-`--precisions` | By default, the script will produce models in every precision that is supported for conversion. Use this parameter to only produce models in a specific precision. If the specified precision is not supported for a model, that model will be skipped.| `./converter.py --all --precisions=FP16`
-`--add_mo_arg` | Add extra Model Optimizer arguments to the ones specified in the model configuration.  The option can be repeated to add multiple arguments | `./converter.py --name=caffenet --add_mo_arg=--reverse_input_channels --add_mo_arg=--silent`
-`-j`/`--jobs` |  Run multiple conversion commands concurrently. The argument to the option must be either a maximum number of concurrently executed commands, or "auto", in which case the number of CPUs in the system is used. By default, all commands are run sequentially.| `./converter.py --all -j8 # run up to 8 commands at a time`
-`--dry_run` | Print the conversion commands without actually running them.. | `./converter.py --all --dry_run`
-`-p`/`--python` | By default, the script will run Model Optimizer using the same Python executable that was used to run the script itself. Apply this parameter to use a different Python executable. | `./converter.py --all --python my/python`
+@sphinxdirective
+
++-----------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------+
+| Parameter                   | Explanation                                                                                                                                                                                                                                                      | Example                                                                                          |
++=============================+==================================================================================================================================================================================================================================================================+==================================================================================================+
+| ``-d``/``--download_dir``   | The current directory must be the root of a download tree created by the model downloader. Use this parameter to specify a different download tree path.                                                                                                         | ``./converter.py --all --download_dir my/download/directory``                                    |
++-----------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------+
+| ``-o``/``--output_dir``     | By default, the script will download models into a directory tree rooted in the current directory. Use this parameter to download into a different directory. Note: models in intermediate format are placed to this directory too.                              | ``./converter.py --all --output_dir my/output/directory``                                        |
++-----------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------+
+| ``--precisions``            | By default, the script will produce models in every precision that is supported for conversion. Use this parameter to only produce models in a specific precision. If the specified precision is not supported for a model, that model will be skipped.          | ``./converter.py --all --precisions=FP16``                                                       |
++-----------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------+
+| ``--add_mo_arg``            | Add extra Model Optimizer arguments to the ones specified in the model configuration. The option can be repeated to add multiple arguments                                                                                                                       | ``./converter.py --name=caffenet --add_mo_arg=--reverse_input_channels --add_mo_arg=--silent``   |
++-----------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------+
+| ``-j``/``--jobs``           | Run multiple conversion commands concurrently. The argument to the option must be either a maximum number of concurrently executed commands, or "auto", in which case the number of CPUs in the system is used. By default, all commands are run sequentially.   | ``./converter.py --all -j8 # run up to 8 commands at a time``                                    |
++-----------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------+
+| ``--dry_run``               | Print the conversion commands without actually running them..                                                                                                                                                                                                    | ``./converter.py --all --dry_run``                                                               |
++-----------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------+
+| ``-p``/``--python``         | By default, the script will run Model Optimizer using the same Python executable that was used to run the script itself. Apply this parameter to use a different Python executable.                                                                              | ``./converter.py --all --python my/python``                                                      |
++-----------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------+
+@endsphinxdirective
+
 
 The Python script will attempt to locate Model Optimizer using several methods:
 
@@ -202,14 +229,25 @@ a subset of models. See the "Shared options" section.
 
 ### Model Quantizer Starting Parameters
 
-Parameter | Explanation | Example
----|---|---
-`--model_dir` | The current directory must be the root of a tree of model files create by the model converter. Use this parameter to specify a different model tree path| `./quantizer.py --all --dataset_dir <DATASET_DIR> --model_dir my/model/directory`
-`-o`/`--output_dir` | By default, the script will download models into a directory tree rooted in the current directory. Use this parameter to download into a different directory. Note: models in intermediate format are placed to this directory too.| `./quantizer.py --all --dataset_dir <DATASET_DIR> --output_dir my/output/directory`
-`--precisions` |By default, the script will produce models in every precision that is supported as a quantization output. Use this parameter to only produce models in a specific precision.| `./quantizer.py --all --dataset_dir <DATASET_DIR> --precisions=FP16-INT8`
-`--target_device`  | It's possible to specify a target device for Post-Training Optimization Toolkitto optimize for. The supported values are those accepted by the "target_device" option in Post-Training Optimization Toolkit's config files. If this option is unspecified, Post-Training Optimization Toolkit's default is used.| `../quantizer.py --all --dataset_dir <DATASET_DIR> --target_device VPU`
-`--dry_run` | The script can print the quantization commands without actually running them. With this option specified, the configuration file for Post-Training Optimization Toolkit will still be created, so that you can inspect it.| `./quantizer.py --all --dataset_dir <DATASET_DIR> --dry_run`
-`-p`/`--python` | By default, the script will run Model Optimizer using the same Python executable that was used to run the script itself. Apply this parameter to use a different Python executable. | `./quantizer.py --all --dataset_dir <DATASET_DIR> --python my/python`
+@sphinxdirective
+
++---------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------+
+| Parameter                 | Explanation                                                                                                                                                                                                                                                                                                         | Example                                                                                 |
++===========================+=====================================================================================================================================================================================================================================================================================================================+=========================================================================================+
+| ``--model_dir``           | The current directory must be the root of a tree of model files create by the model converter. Use this parameter to specify a different model tree path                                                                                                                                                            | ``./quantizer.py --all --dataset_dir <DATASET_DIR> --model_dir my/model/directory``     |
++---------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------+
+| ``-o``/``--output_dir``   | By default, the script will download models into a directory tree rooted in the current directory. Use this parameter to download into a different directory. Note: models in intermediate format are placed to this directory too.                                                                                 | ``./quantizer.py --all --dataset_dir <DATASET_DIR> --output_dir my/output/directory``   |
++---------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------+
+| ``--precisions``          | By default, the script will produce models in every precision that is supported as a quantization output. Use this parameter to only produce models in a specific precision.                                                                                                                                        | ``./quantizer.py --all --dataset_dir <DATASET_DIR> --precisions=FP16-INT8``             |
++---------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------+
+| ``--target_device``       | It's possible to specify a target device for Post-Training Optimization Toolkitto optimize for. The supported values are those accepted by the "target\_device" option in Post-Training Optimization Toolkit's config files. If this option is unspecified, Post-Training Optimization Toolkit's default is used.   | ``../quantizer.py --all --dataset_dir <DATASET_DIR> --target_device VPU``               |
++---------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------+
+| ``--dry_run``             | The script can print the quantization commands without actually running them. With this option specified, the configuration file for Post-Training Optimization Toolkit will still be created, so that you can inspect it.                                                                                          | ``./quantizer.py --all --dataset_dir <DATASET_DIR> --dry_run``                          |
++---------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------+
+| ``-p``/``--python``       | By default, the script will run Model Optimizer using the same Python executable that was used to run the script itself. Apply this parameter to use a different Python executable.                                                                                                                                 | ``./quantizer.py --all --dataset_dir <DATASET_DIR> --python my/python``                 |
++---------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------------------------------------------------+
+@endsphinxdirective
+
 
 The script will attempt to locate Post-Training Optimization Toolkit using several methods:
 
@@ -249,16 +287,29 @@ section.
 The script's output is a JSON array, each element of which is a JSON object
 describing a single model. Each such object has the following keys:
 
-Parameter | Explanation
----|---
-`name` | the identifier of the model, as accepted by the `--name` option.
-`composite_model_name`| the identifier of the composite model name, if the model is a part of composition of several models (e.g. encoder-decoder), otherwise - `null`
-`description` | text describing the model. Paragraphs are separated by line feed characters.
-`framework` |  a string identifying the framework whose format the model is downloaded in. Current possible values are `dldt` (Inference Engine IR), `caffe`, `caffe2`, `mxnet`, `onnx`, `pytorch` and `tf` (TensorFlow). Additional possible values might be added in the future.
-`license_url`|  a URL for the license that the model is distributed under.
-`quantization_output_precisions`|  the list of precisions that the model can be quantized to by the model quantizer. Current possible values are `FP16-INT8` and `FP32-INT8`; additional possible values might be added in the future.
-`quantization_output_precisions`|  the list of precisions that the model can be quantized to by the model quantizer. Current possible values are `FP16-INT8` and `FP32-INT8`; additional possible values might be added in the future.
-`subdirectory`|the subdirectory of the output tree into which the downloaded or converted files will be placed by the downloader or the converter, respectively.
+@sphinxdirective
+
++--------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Parameter                            | Explanation                                                                                                                                                                                                                                                                         |
++======================================+=====================================================================================================================================================================================================================================================================================+
+| ``name``                             | the identifier of the model, as accepted by the ``--name`` option.                                                                                                                                                                                                                  |
++--------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ``composite_model_name``             | the identifier of the composite model name, if the model is a part of composition of several models (e.g. encoder-decoder), otherwise - ``null``                                                                                                                                    |
++--------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ``description``                      | text describing the model. Paragraphs are separated by line feed characters.                                                                                                                                                                                                        |
++--------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ``framework``                        | a string identifying the framework whose format the model is downloaded in. Current possible values are ``dldt`` (Inference Engine IR), ``caffe``, ``caffe2``, ``mxnet``, ``onnx``, ``pytorch`` and ``tf`` (TensorFlow). Additional possible values might be added in the future.   |
++--------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ``license_url``                      | a URL for the license that the model is distributed under.                                                                                                                                                                                                                          |
++--------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ``quantization_output_precisions``   | the list of precisions that the model can be quantized to by the model quantizer. Current possible values are ``FP16-INT8`` and ``FP32-INT8``; additional possible values might be added in the future.                                                                             |
++--------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ``quantization_output_precisions``   | the list of precisions that the model can be quantized to by the model quantizer. Current possible values are ``FP16-INT8`` and ``FP32-INT8``; additional possible values might be added in the future.                                                                             |
++--------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ``subdirectory``                     | the subdirectory of the output tree into which the downloaded or converted files will be placed by the downloader or the converter, respectively.                                                                                                                                   |
++--------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+@endsphinxdirective
+
 
 * `precisions`: the list of precisions that the model has IR files for. For models downloaded
   in a format other than the Inference Engine IR format, these are the precisions that the model
@@ -339,10 +390,17 @@ The are certain options that all tools accept.
 There are several mutually exclusive filter options that select the models the
 tool will process:
 
-Parameter | Explanation | Example
----|---|---
-`--all`| Selects all models| `./TOOL.py --all`
-`--name` |takes a comma-separated list of patterns and selects models that match at least one of these patterns. The patterns may contain shell-style wildcards. For composite models, the name of composite model is accepted, as well as the names of individual models it consists of.| ` ./TOOL.py --name 'mtcnn,densenet-*'`
+@sphinxdirective
+
++--------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+| Parameter    | Explanation                                                                                                                                                                                                                                                                       | Example                                   |
++==============+===================================================================================================================================================================================================================================================================================+===========================================+
+| ``--all``    | Selects all models                                                                                                                                                                                                                                                                | ``./TOOL.py --all``                       |
++--------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+| ``--name``   | takes a comma-separated list of patterns and selects models that match at least one of these patterns. The patterns may contain shell-style wildcards. For composite models, the name of composite model is accepted, as well as the names of individual models it consists of.   | ``./TOOL.py --name 'mtcnn,densenet-*'``   |
++--------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+@endsphinxdirective
+
 
  See https://docs.python.org/3/library/fnmatch.html for a full description of
 the pattern syntax.

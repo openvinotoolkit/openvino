@@ -7,7 +7,7 @@ Before exploring optimization techniques, let us first define what performance i
 
 Performance means how fast the model is in deployment. Two key metrics are used to measure performance: latency and throughput. 
 
-![](../img/latency_throughput_1.png)
+![](../img/LATENCY_VS_THROUGHPUT.svg)
 
 Latency measures inference time (ms) required to process a single input. When it comes to batch input need to measure throughput (images per second or frames per second, FPS). To calculate throughput, divide number of frames that were processed by the processing time.   
 
@@ -19,22 +19,23 @@ Latency measures inference time (ms) required to process a single input. When it
 
 Inside OpenVINO there are two ways how to get better performance number: during developing and deployment your model. **It is possible to combine both developing and deployment optimizations**. 
 
-- developing step includes model modification. Inside developing optimization there are three ways to optimize your model:  
+- **developing step** includes model modification. Inside developing optimization there are three ways to optimize your model:  
 
-    - Post-training Optimization tool (POT) is designed to optimize the inference of deep learning models by applying special methods without model retraining or fine-tuning, like post-training quantization.  
+    - **Post-training Optimization tool** (POT) is designed to optimize the inference of deep learning models by applying special methods without model retraining or fine-tuning, like post-training quantization.  
 
-    - Neural Network Compression Framework (NNCF) provides a suite of advanced algorithms for Neural Networks inference optimization with minimal accuracy drop.  
+    - **Neural Network Compression Framework (NNCF)** provides a suite of advanced algorithms for Neural Networks inference optimization with minimal accuracy drop, available quantization, pruning and sparsity optimization alorithms.
 
-    - Model Optimizer implement some optimization to a model, most of them added by default, but you can configure some parameters to speed-up preprocess of a model ([Additional Optimization Use Cases](../MO_DG/prepare_model/Additional_Optimizations.md)) 
+    - **Model Optimizer** implement some optimization to a model, most of them added by default, but you can configure mean/scale values, batch size RGB vs BGR input channels and other parameters to speed-up preprocess of a model ([Additional Optimization Use Cases](../MO_DG/prepare_model/Additional_Optimizations.md)) 
 
-- deployment step, that includes tuning inference parameters and optimizing model execution, to read more visit [Deployment Optimization Guide](../optimization_guide/dldt_deployment_optimization_guide.md).
+- **deployment step**  includes tuning inference parameters and optimizing model execution, to read more visit [Deployment Optimization Guide](../optimization_guide/dldt_deployment_optimization_guide.md).
 
 More detailed workflow: 
 
-![](../img/development_deployment.png)
+![](../img/DEVELOPMENT_FLOW_V3_crunch.svg)
 
 To understand when to use each development optimization tool, follow this diagram: 
 
 POT is the easiest way to get optimized models and it is also really fast and usually takes several minutes depending on the model size and used HW. NNCF can be considered as an alternative or an addition when the first does not give accurate results. 
 
-![](../img/select_optimization_1.png)
+![](../img/WHAT_TO_USE.svg)
+

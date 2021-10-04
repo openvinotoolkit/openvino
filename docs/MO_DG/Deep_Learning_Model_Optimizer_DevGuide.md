@@ -7,11 +7,11 @@
    :hidden:
    
    openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model
+   openvino_docs_MO_DG_Additional_Optimization_Use_Cases
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
    openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
    openvino_docs_MO_DG_Known_Issues_Limitations
    openvino_docs_MO_DG_Default_Model_Optimizer_Optimizations
-   openvino_docs_MO_DG_Additional_Optimization_Use_Cases
 
 @endsphinxdirective
 
@@ -25,7 +25,7 @@ Model Optimizer process assumes you have a network model trained using supported
 
 The scheme below illustrates the typical workflow for deploying a trained deep learning model: 
 
-![](img/workflow_steps.png)
+![](img/BASIC_FLOW_MO_simplified.svg)
 
 The IR is a pair of files describing the model: 
 
