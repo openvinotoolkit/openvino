@@ -727,7 +727,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
           That transormations fuse bias into convolution and recognizes const node as [1, C, 1, 1].
           TODO: move that transformation just beyond RemoveSingleInputConcat pass after removing ConvertOpSet1ToLegacy
               transormations
-         */
+        */
         manager.register_pass<BroadcastAddMultiplyConst>();
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
@@ -740,9 +740,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         pass_config->disable<ngraph::pass::AddFakeQuantizeFusion>();
         // TransposeReduction can be enabled when Transpose-Conv-Transpose patterns will be handled in ngraph transformations
         pass_config->disable<ngraph::pass::TransposeReduction>();
-
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
+
         isNgraphPassesUsed = true;
     }
     IE_SUPPRESS_DEPRECATED_START
@@ -848,8 +848,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     auto inputLayers = CNNNetGetAllInputLayers(newNet);
-
-
 
 #ifdef PLOT
     std::ofstream file("gna_passes.dot");
