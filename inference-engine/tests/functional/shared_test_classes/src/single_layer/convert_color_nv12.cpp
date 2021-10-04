@@ -27,7 +27,8 @@ void ConvertColorNV12LayerTest::SetUp() {
     ov::Shape inputShape;
     ov::element::Type ngPrc;
     bool conversionToRGB, singlePlane;
-    threshold = 2.0f; // NV12 color conversion can use various of algorithms, thus some deviation is allowed
+    abs_threshold = 2.0f; // NV12 conversion can use various algorithms, thus some absolute deviation is allowed
+    threshold = 1.f; // Ignore relative comparison for NV12 convert (allow 100% relative deviation)
     std::tie(inputShape, ngPrc, conversionToRGB, singlePlane, targetDevice) = GetParam();
     if (singlePlane) {
         inputShape[1] = inputShape[1] * 3 / 2;

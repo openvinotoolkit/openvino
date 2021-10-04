@@ -254,6 +254,22 @@ inline std::shared_ptr<Function> resize_cubic() {
     return function;
 }
 
+inline std::shared_ptr<Function> resize_and_convert_layout() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_1input(element::f32, PartialShape{1, 30, 20, 3});
+    function = PrePostProcessor()
+            .input(InputInfo()
+                           .tensor(InputTensorInfo()
+                                           .set_layout("NHWC")
+                                           .set_spatial_static_shape(40, 30))
+                           .preprocess(PreProcessSteps()
+                                               .convert_layout()
+                                               .resize(ResizeAlgorithm::RESIZE_LINEAR))
+                           .network(InputNetworkInfo().set_layout("NCHW")))
+            .build(function);
+    return function;
+}
+
 inline std::vector<preprocess_func> generic_preprocess_functions() {
     return std::vector<preprocess_func> {
             preprocess_func(mean_only, "mean_only", 0.01f),
@@ -273,6 +289,7 @@ inline std::vector<preprocess_func> generic_preprocess_functions() {
             preprocess_func(resize_nearest, "resize_nearest", 0.01f),
             preprocess_func(resize_linear_nhwc, "resize_linear_nhwc", 0.01f),
             preprocess_func(resize_cubic, "resize_cubic", 0.01f),
+            preprocess_func(resize_and_convert_layout, "resize_and_convert_layout", 0.01f),
     };
 }
 
