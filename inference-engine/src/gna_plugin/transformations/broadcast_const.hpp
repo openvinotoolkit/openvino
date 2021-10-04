@@ -26,7 +26,12 @@ namespace GNAPluginNS {
  *
  * If eltwise node inputs have different shapes and one the inputs is Constant node
  * we can update (broadcast) Constant to have the same shape as another input.
- * Broadcasting may be done if shapes are compartible - suitable for that.
+ * Transformation doesn't modify graph structure, but modifies Constant
+ * examples:
+ * Eltwise non-constant shape | Constant prev shape/values | Constant new shape/values
+ *         {3,2}                       {2}/{1,2}             {3,2}/{1, 2, 1, 2, 1, 2}
+ *         {2,3}                       {2,1}/{1,2}           {2,3}/{1, 1, 1, 2, 2, 2}
+ *
  */
 class BroadcastAddMultiplyConst : public ngraph::pass::MatcherPass {
 public:
