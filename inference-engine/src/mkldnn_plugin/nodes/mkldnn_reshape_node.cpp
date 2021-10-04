@@ -154,17 +154,7 @@ void MKLDNNReshapeNode::executeDynamicImpl(mkldnn::stream strm) {
     const auto count = srcMemPtr->GetShape().getElementsCount();
     if (count != dstMemPtr->GetShape().getElementsCount())
         IE_THROW() << errorPrefix << " has different elements number in input and output buffers";
-    // std::cout << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" << std::endl;
-    // const float * in = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
-    // for (size_t i = 0; i < count; i++)
-    //     std::cout << in[i] << " ";
-    // std::cout << std::endl;
     cpu_memcpy(dstMemPtr->GetPtr(), srcMemPtr->GetPtr(), count * MKLDNNExtensionUtils::sizeOfDataType(srcMemPtr->GetDataType()));
-    // const float * out = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
-    // for (size_t i = 0; i < count; i++)
-    //     std::cout << out[i] << " ";
-    // std::cout << std::endl;
-    // std::cout << "BBBBBBBBBBBBBBBBBBBBBBBBBBBBB" << std::endl;
 }
 
 bool MKLDNNReshapeNode::created() const {
