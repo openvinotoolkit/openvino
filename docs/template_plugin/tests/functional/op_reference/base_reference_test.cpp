@@ -28,7 +28,6 @@ void CommonReferenceTest::Exec() {
 }
 
 void CommonReferenceTest::LoadNetwork() {
-    function->validate_nodes_and_infer_types();
 
     executableNetwork = core->compile_model(function, targetDevice);
 }
@@ -38,8 +37,8 @@ void CommonReferenceTest::FillInputs() {
     ASSERT_EQ(functionParams.size(), inputData.size());
     for (size_t i = 0; i < functionParams.size(); i++) {
         const auto& param = functionParams[i];
-        auto param_shape_is_static = param->get_partial_shape().is_static();
-        const auto& blob_shape = (param_shape_is_static) ? param->get_shape() : inputData[i].get_shape();
+        const auto& blob_shape =
+            (param->get_partial_shape().is_static()) ? param->get_shape() : inputData[i].get_shape();
         
         ov::runtime::Tensor blob(param->get_element_type(), blob_shape);
 
