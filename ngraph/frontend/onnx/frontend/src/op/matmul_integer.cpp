@@ -10,7 +10,6 @@
 
 #include "dequantize_linear.hpp"
 #include "matmul.hpp"
-#include "ngraph/opsets/opset6.hpp"
 #include "quantize_linear.hpp"
 
 namespace ngraph {
@@ -25,17 +24,17 @@ OutputVector matmul_integer(const Node& node) {
     const auto& A_zero_point = (inputs.size() > 2) ? inputs.at(2) : ngraph::op::Constant::create(ngraph::element::i64, {1}, {0});
     const auto& B_zero_point = (inputs.size() > 3) ? inputs.at(3) : ngraph::op::Constant::create(ngraph::element::i64, {1}, {0});
 
-    const auto& converted_A = std::make_shared<opset6::Convert>(A, element::i32);
-    const auto& converted_B = std::make_shared<opset6::Convert>(B, element::i32);
+    const auto& converted_A = std::make_shared<default_opset::Convert>(A, element::i32);
+    const auto& converted_B = std::make_shared<default_opset::Convert>(B, element::i32);
 
-    const auto& converted_A_zero_point = std::make_shared<opset6::Convert>(A_zero_point, element::i32);
-    const auto& converted_B_zero_point = std::make_shared<opset6::Convert>(B_zero_point, element::i32);
+    const auto& converted_A_zero_point = std::make_shared<default_opset::Convert>(A_zero_point, element::i32);
+    const auto& converted_B_zero_point = std::make_shared<default_opset::Convert>(B_zero_point, element::i32);
 
     const auto& one_node = ngraph::op::Constant::create(ngraph::element::i64, {1}, {1});
-    const auto& reshaped_A_zero_point = std::make_shared<opset6::Unsqueeze>(converted_A_zero_point, one_node);
+    const auto& reshaped_A_zero_point = std::make_shared<default_opset::Unsqueeze>(converted_A_zero_point, one_node);
 
-    const auto& shifted_A = std::make_shared<opset6::Subtract>(converted_A, reshaped_A_zero_point);
-    const auto& shifted_B = std::make_shared<opset6::Subtract>(converted_B, converted_B_zero_point);
+    const auto& shifted_A = std::make_shared<default_opset::Subtract>(converted_A, reshaped_A_zero_point);
+    const auto& shifted_B = std::make_shared<default_opset::Subtract>(converted_B, converted_B_zero_point);
 
     const auto& result = op::detail::matmul(shifted_A, shifted_B);
 
