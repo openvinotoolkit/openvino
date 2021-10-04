@@ -12,9 +12,6 @@ using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
 enum OffsetType {ZERO, NATURAL, REAL_POSITIVE, REAL_NEGATIVE, REAL_MISC};
-namespace {
-    OffsetType offsetType;
-}  // namespace
 
 typedef std::tuple<
     bool,       // with_bilinear_interpolation_pad
@@ -56,6 +53,7 @@ typedef std::tuple<
 class DefConvLayerCPUTest : public testing::WithParamInterface<DefConvLayerCPUTestParamsSet>,
         virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
 public:
+    OffsetType offsetType;
     static std::string getTestCaseName(testing::TestParamInfo<DefConvLayerCPUTestParamsSet> obj) {
         CPULayerTestsDefinitions::DefConvLayerTestParams basicParamsSet;
         std::string td;
@@ -78,7 +76,8 @@ public:
         size_t groups, deformableGroups, inGrCh, outGrCh;
         std::tie(groups, deformableGroups, inGrCh, outGrCh) = chParams;
         bool withBilinearInterpolationPad, withModulation;
-        std::tie(withBilinearInterpolationPad, withModulation, offsetType) = dcSpecificParams;
+        OffsetType offType;
+        std::tie(withBilinearInterpolationPad, withModulation, offType) = dcSpecificParams;
         std::ostringstream result;
         result << "DefConvTest(";
         result << std::to_string(obj.index) << ")_";
@@ -96,7 +95,7 @@ public:
         result << "outPRC=" << outPrc.name() << "_";
         result << "withBilPad=" << withBilinearInterpolationPad << "_";
         result << "withMod=" << withModulation << "_";
-        result << "offsetType=" << offsetType << "_";
+        result << "offsetType=" << offType << "_";
         result << "trgDev=" << td;
         result << CPUTestsBase::getTestCaseName(cpuParams);
         return result.str();
@@ -194,9 +193,7 @@ protected:
                                                                                       padType, groups, deformableGroups, withBilinearInterpolationPad);
         }
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(deformable_conv)};
-        function = std::make_shared<ngraph::Function>(results, parameters, "deformable_convolution");
-        threshold = 1e-2;
+        function = makeNgraphFunction(ngPrc, parameters, deformable_conv, "deformable_convolution");
     }
 };
 

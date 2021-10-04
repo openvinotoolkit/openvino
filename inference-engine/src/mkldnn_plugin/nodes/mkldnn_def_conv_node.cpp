@@ -27,6 +27,8 @@ template <cpu_isa_t isa>
 struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_def_conv_kernel_f32)
 
+    constexpr static int sampledPointsPerPixel = MKLDNNDeformableConvolutionNode::sampledPointsPerPixel;
+
     explicit jit_uni_def_conv_kernel_f32(jit_def_conv_params jcp) : jit_uni_def_conv_kernel(jcp), jit_generator() {}
 
     void create_ker() override {
@@ -45,11 +47,13 @@ struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_
         if (jcp_.with_bias)
             mov(reg_bias, ptr[this->param1 + GET_OFF(bias)]);
         mov(reg_output, ptr[this->param1 + GET_OFF(dst)]);
-        mov(reg_input_buffer, ptr[this->param1 + GET_OFF(buf)]);
+        mov(reg_input_buffer_temp, ptr[this->param1 + GET_OFF(buf)]);
         mov(oh_pos_temp, ptr[param1 + GET_OFF(oh_pos)]);
 
         // need to save temporary to prevent using of %rdi during GET_OFF(...)
         mov(reg_oh_pos, oh_pos_temp);
+        // prevents mismatching param1 == %rcx (on windows) and reg_input_buffer
+        mov(reg_input_buffer, reg_input_buffer_temp);
 
         ow_loop();
 
@@ -96,6 +100,7 @@ private:
     reg64_t reg_sampled_offs = aux2_reg_input_buffer;
     reg64_t aux3_reg_input_buffer = reg_input;
     reg64_t aux_reg_sampled_offs = r13;
+    reg64_t reg_input_buffer_temp = aux_reg_sampled_offs;
 
     Xbyak::Opmask ktail_mask = Xbyak::Opmask(2);
 
@@ -122,8 +127,8 @@ private:
 
             oc_loop(jcp_.ur_w);
             add(reg_input, jcp_.ur_w * jcp_.stride_w * jcp_.ic * jcp_.typesize_in);
-            add(reg_sampled_wei, jcp_.ur_w * jcp_.kh * jcp_.kw * 4 * jcp_.typesize_sampled_wei);  // type = float
-            add(reg_sampled_offs, jcp_.ur_w * jcp_.kh * jcp_.kw * 4 * jcp_.typesize_sampled_offsets);  // type = int
+            add(reg_sampled_wei, jcp_.ur_w * jcp_.kh * jcp_.kw * sampledPointsPerPixel * jcp_.typesize_sampled_wei);  // type = float
+            add(reg_sampled_offs, jcp_.ur_w * jcp_.kh * jcp_.kw * sampledPointsPerPixel * jcp_.typesize_sampled_offsets);  // type = int
 
             add(reg_output, jcp_.ur_w * jcp_.oc * jcp_.typesize_out);
 
@@ -308,39 +313,28 @@ private:
                         Vmm vmm_v4 = Vmm(xmm_v4.getIdx());
 
                         // offsets computation
-                        size_t ind_off_hh = 4 * (((size_t) kh * jcp_.kw + kw) + ow * (jcp_.kh * jcp_.kw));
+                        size_t ind_off_hh = sampledPointsPerPixel * (((size_t) kh * jcp_.kw + kw) + ow * (jcp_.kh * jcp_.kw));
                         size_t ind_off_hl = ind_off_hh + 1;
                         size_t ind_off_lh = ind_off_hl + 1;
                         size_t ind_off_ll = ind_off_lh + 1;
 
-                        mov(reg_tmp_64, ptr[aux_reg_sampled_offs + ind_off_ll * jcp_.typesize_sampled_offsets]);
-                        movq(xmm_v1_off, reg_tmp_64);
-                        mov(reg_tmp_64, ptr[aux_reg_sampled_offs + ind_off_hl * jcp_.typesize_sampled_offsets]);
-                        movq(xmm_v2_off, reg_tmp_64);
-                        mov(reg_tmp_64, ptr[aux_reg_sampled_offs + ind_off_lh * jcp_.typesize_sampled_offsets]);
-                        movq(xmm_v3_off, reg_tmp_64);
-                        mov(reg_tmp_64, ptr[aux_reg_sampled_offs + ind_off_hh * jcp_.typesize_sampled_offsets]);
-                        movq(xmm_v4_off, reg_tmp_64);
+                        movq(xmm_v1_off, qword[aux_reg_sampled_offs + ind_off_ll * jcp_.typesize_sampled_offsets]);
+                        movq(xmm_v2_off, qword[aux_reg_sampled_offs + ind_off_hl * jcp_.typesize_sampled_offsets]);
+                        movq(xmm_v3_off, qword[aux_reg_sampled_offs + ind_off_lh * jcp_.typesize_sampled_offsets]);
+                        movq(xmm_v4_off, qword[aux_reg_sampled_offs + ind_off_hh * jcp_.typesize_sampled_offsets]);
 
                         // w's computation
                         // w22 ~ h_high * w_high
                         // w21 ~ h_high * w_low
                         // w12 ~ h_low * w_high
                         // w11 ~ h_low * w_low
-                        mov(reg_tmp_32, ptr[aux_reg_sampled_wei + ind_off_ll * jcp_.typesize_sampled_wei]);
-                        movd(xmm_w1, reg_tmp_32);
+                        movd(xmm_w1, dword[aux_reg_sampled_wei + ind_off_ll * jcp_.typesize_sampled_wei]);
                         uni_vbroadcastss(vmm_w1, xmm_w1);
-
-                        mov(reg_tmp_32, ptr[aux_reg_sampled_wei + ind_off_hl * jcp_.typesize_sampled_wei]);
-                        movd(xmm_w2, reg_tmp_32);
+                        movd(xmm_w2, dword[aux_reg_sampled_wei + ind_off_hl * jcp_.typesize_sampled_wei]);
                         uni_vbroadcastss(vmm_w2, xmm_w2);
-
-                        mov(reg_tmp_32, ptr[aux_reg_sampled_wei + ind_off_lh * jcp_.typesize_sampled_wei]);
-                        movd(xmm_w3, reg_tmp_32);
+                        movd(xmm_w3, dword[aux_reg_sampled_wei + ind_off_lh * jcp_.typesize_sampled_wei]);
                         uni_vbroadcastss(vmm_w3, xmm_w3);
-
-                        mov(reg_tmp_32, ptr[aux_reg_sampled_wei + ind_off_hh * jcp_.typesize_sampled_wei]);
-                        movd(xmm_w4, reg_tmp_32);
+                        movd(xmm_w4, dword[aux_reg_sampled_wei + ind_off_hh * jcp_.typesize_sampled_wei]);
                         uni_vbroadcastss(vmm_w4, xmm_w4);
 
                         int simd_w = vlen / jcp_.typesize_in;
@@ -443,8 +437,8 @@ private:
                 }
             }
 
-            add(aux_reg_sampled_wei, 4 * jcp_.kh * jcp_.kw * jcp_.oh * jcp_.ow * jcp_.typesize_sampled_wei);
-            add(aux_reg_sampled_offs, 4 * jcp_.kh * jcp_.kw * jcp_.oh * jcp_.ow * jcp_.typesize_sampled_offsets);
+            add(aux_reg_sampled_wei, sampledPointsPerPixel * jcp_.kh * jcp_.kw * jcp_.oh * jcp_.ow * jcp_.typesize_sampled_wei);
+            add(aux_reg_sampled_offs, sampledPointsPerPixel * jcp_.kh * jcp_.kw * jcp_.oh * jcp_.ow * jcp_.typesize_sampled_offsets);
             add(aux_reg_input, ic_per_def_group * jcp_.typesize_in);
             add(aux2_reg_input_buffer, ic_per_def_group * jcp_.typesize_in);
             inc(reg_dg_iter);
@@ -782,10 +776,10 @@ void MKLDNNDeformableConvolutionNode::prepareSamplingWeights(
     const bool with_bi_pad = jcp.with_bi_pad;
 
     // prepare weights and indices
-    sampledCoordsVector.resize(MB * DG * KH * KW * OH * OW * 4);
-    interpWeightsVector.resize(MB * DG * KH * KW * OH * OW * 4);
+    sampledCoordsVector.resize(MB * DG * KH * KW * OH * OW * sampledPointsPerPixel);
+    interpWeightsVector.resize(MB * DG * KH * KW * OH * OW * sampledPointsPerPixel);
     auto precompKer = [&](int mb, int dg, int oh, int ow) {
-        int sampledCoordIndex = (mb * DG * OH * OW + dg * OH * OW + oh * OW + ow) * KH * KW * 4;
+        int sampledCoordIndex = (mb * DG * OH * OW + dg * OH * OW + oh * OW + ow) * KH * KW * sampledPointsPerPixel;
         const int h_in = oh * KSH - padT;
         const int w_in = ow * KSW - padL;
 
@@ -871,7 +865,7 @@ void MKLDNNDeformableConvolutionNode::prepareSamplingWeights(
                     interpWeightsVector[sampledCoordIndex + 2] = 0;
                     interpWeightsVector[sampledCoordIndex + 3] = 0;
                 }
-                sampledCoordIndex += 4;
+                sampledCoordIndex += sampledPointsPerPixel;
             }
         }
     };
@@ -979,7 +973,7 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
         for (int ic = 0; ic < IC; ic++) {
             const float *data_im_ptr = src + mb * src_strides[0] + (g * IC + ic) * src_strides[1];
             const int deformable_group_index = (IC * g + ic) / channel_per_deformable_group;
-            int sampledCoordIndex = (mb * DGHW + deformable_group_index * HW + oh * OW + ow) * ker_size * 4;
+            int sampledCoordIndex = (mb * DGHW + deformable_group_index * HW + oh * OW + ow) * ker_size * sampledPointsPerPixel;
             size_t weiIndex = (size_t) g * group_wei_stride + oc * wei_strides[0] + ic * wei_strides[1];
             for (int kh_off = 0; kh_off < KH * wei_strides[2]; kh_off += wei_strides[2]) {
                 for (int kw_off = 0; kw_off < KW * wei_strides[3]; kw_off += wei_strides[3]) {
@@ -995,7 +989,7 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
                         val += interpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];  // v22
                         d += val * weights[weiIndex + kh_off + kw_off];
                     } else {
-                        sampledCoordIndex += 4;
+                        sampledCoordIndex += sampledPointsPerPixel;
                     }
                 }
             }
@@ -1027,8 +1021,8 @@ void MKLDNNDeformableConvolutionNode::executeOptimized(const float* src, const f
 
         par_conv.src = &src[n * src_strides[0] + _ic*jcp.ic_block * src_strides[1] +
                             (oh * jcp.stride_h - jcp.t_pad) * src_strides[2] - jcp.l_pad * src_strides[3]];
-        par_conv.sampledWei = interpWeightsVector.data() + (n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * 4;
-        par_conv.sampledCoords = sampledCoordsVector.data() + (n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * 4;
+        par_conv.sampledWei = &interpWeightsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel];
+        par_conv.sampledCoords = &sampledCoordsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel];
         par_conv.filt = &weights[g * jcp.nb_oc * jcp.nb_ic * jcp.kh * jcp.kw * jcp.ic_block * jcp.oc_block];
         par_conv.dst = &dst[n * dst_strides[0] + _oc * jcp.oc_block * dst_strides[1] + oh * dst_strides[2]];
         par_conv.buf = input_buffer_ptr + ithr * jcp.ur_w * jcp.kh * jcp.kw * jcp.ic;

@@ -81,6 +81,7 @@ public:
         return false;
     }
     bool enforceRef = false;
+    constexpr static int sampledPointsPerPixel = 4;  // count of sampling points ({top|bottom}, {left|right})
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
