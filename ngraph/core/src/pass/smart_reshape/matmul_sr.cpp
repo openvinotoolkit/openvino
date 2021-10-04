@@ -13,8 +13,6 @@
 #include <numeric>
 
 #include "itt.hpp"
-#include "transformations/smart_reshape/utils.hpp"
-#include "transformations/utils/utils.hpp"
 
 bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap& pattern_to_output,
                                          const std::shared_ptr<ngraph::Node>& matmul_label,
@@ -36,7 +34,12 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap&
     const auto& raw_idx =
         reshape_is_A_input ? (matmul->get_transpose_b() ? -1 : -2) : (matmul->get_transpose_a() ? -2 : -1);
     const auto& idx = ngraph::normalize_axes(matmul->description(), {raw_idx}, reshape_rank);
-    const auto& C = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(shape_source, idx);
+
+    const auto shape_node = std::make_shared<ngraph::opset4::ShapeOf>(shape_source);
+    const auto& C = std::make_shared<ngraph::opset4::Gather>(shape_node,
+        ngraph::opset4::Constant::create(ngraph::element::i64, { idx.size() }, idx),
+        ngraph::opset4::Constant::create(ngraph::element::i64, {}, { 0 }));
+
     const auto& N = ngraph::opset4::Constant::create(ngraph::element::i64, {1}, {-1});
     const auto& pattern_vector =
         reshape_is_A_input ? (matmul->get_transpose_a() ? ngraph::OutputVector({C, N}) : ngraph::OutputVector({N, C}))
