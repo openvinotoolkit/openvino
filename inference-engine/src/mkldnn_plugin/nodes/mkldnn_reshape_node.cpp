@@ -14,14 +14,34 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNReshapeNode::MKLDNNReshapeNode(const std::string& name, const Shape& inDims, const Shape& outDims, Precision precision,
-        const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &wCache)
-        : MKLDNNNode("Reshape", name, eng, wCache) {
-    this->inputShapes.push_back(inDims);
-    this->outputShapes.push_back(outDims);
+MKLDNNReshapeNode::MKLDNNReshapeNode(const std::string& name,
+                      const Shape& inShape,
+                      const std::shared_ptr<MKLDNNInputNode>& secondInput,
+                      InferenceEngine::Precision precision,
+                      const std::string& type,
+                      const mkldnn::engine& eng,
+                      MKLDNNWeightsSharing::Ptr &wCache) : MKLDNNNode(type, name, eng, wCache) {
+    if (type != "Squeeze")
+        IE_THROW() << "Can't create MKLDNNReshapeNode with type: " << type;
+    if (secondInput->getType() != Type::Input || !secondInput->isConstant())
+        IE_THROW() << "Can't create MKLDNNReshapeNode with non constant second input";
+    inputShapes.push_back(inShape);
+    
+    outputShapes.push_back(outDims);
     addOriginalInputPrecision(precision);
+    addOriginalInputPrecision(secondInput.);
     addOriginalOutputPrecision(precision);
+    
 }
+
+// MKLDNNReshapeNode::MKLDNNReshapeNode(const std::string& name, const Shape& inDims, const Shape& outDims, Precision precision,
+//         const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &wCache)
+//         : MKLDNNNode("Reshape", name, eng, wCache) {
+//     this->inputShapes.push_back(inDims);
+//     this->outputShapes.push_back(outDims);
+//     addOriginalInputPrecision(precision);
+//     addOriginalOutputPrecision(precision);
+// }
 
 bool MKLDNNReshapeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -78,7 +98,7 @@ bool MKLDNNReshapeNode::needShapeInfer() const {
     }
     if (lastSecondInputValues.empty())
         return true;
-    const int32_t *sndInput = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(0)[0]->getMemory().GetPtr());
+    const int32_t *sndInput = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(1)[0]->getMemory().GetPtr());
     for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
         if (lastSecondInputValues[i] != sndInput[i])
             return true;
