@@ -50,8 +50,6 @@ public:
     void nmsWithoutSoftSigma(const float *boxes, const float *scores, const SizeVector &boxesStrides,
                              const SizeVector &scoresStrides, std::vector<filteredBoxes> &filtBoxes);
 
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
-
     bool needShapeInfer() const override { return false; }
     bool needPrepareParams() const override { return false; }
 

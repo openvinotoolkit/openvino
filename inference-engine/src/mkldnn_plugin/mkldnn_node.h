@@ -699,10 +699,8 @@ protected:
     bool inputShapesModified() const;
     virtual bool needShapeInfer() const;
     virtual std::vector<VectorDims> shapeInfer() const;
-    // TODO [DS] : make pure after all nodes will be support dynamic shapes
-    virtual void executeDynamicImpl(mkldnn::stream strm) {
-        IE_THROW(NotImplemented) << "[DS] executeDynamicImpl not implemented for node with type: " << getTypeStr();
-    }
+    
+    virtual void executeDynamicImpl(mkldnn::stream strm) { execute(strm); }
 
     virtual bool needPrepareParams() const;
     // TODO [mandrono]: add description
