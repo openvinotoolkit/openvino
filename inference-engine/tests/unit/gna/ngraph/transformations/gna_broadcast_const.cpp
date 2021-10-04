@@ -31,9 +31,9 @@ TEST(TransformationTests, BroadcastConstTestFakeQuantize) {
 
     auto create_graph = [](const ngraph::Shape& data_shape, const ngraph::Shape& const_shape_dims,
                            const ngraph::Shape& const_shape_values) {
-        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, data_shape);
+        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, data_shape);
 
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
+        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::i64,
                                                          ngraph::Shape{const_shape_dims}, const_shape_values);
 
         auto fakeQuantize1 = createFakeQuantizeNode(input_params);
@@ -70,9 +70,9 @@ TEST(TransformationTests, BroadcastConstTestFakeQuantizeSwapFq) {
 
     auto create_graph = [](const ngraph::Shape& data_shape, const ngraph::Shape& const_shape_dims,
                            const ngraph::Shape& const_shape_values) {
-        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, data_shape);
+        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, data_shape);
 
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
+        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::i64,
                                                          ngraph::Shape{const_shape_dims}, const_shape_values);
 
         auto fakeQuantize1 = createFakeQuantizeNode(input_params);
@@ -109,9 +109,9 @@ TEST(TransformationTests, BroadcastConstTestFakeQuantizeEltwise) {
 
     auto create_graph = [](const ngraph::Shape& data_shape, const ngraph::Shape& const_shape_dims,
                            const ngraph::Shape& const_shape_values) {
-        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, data_shape);
+        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, data_shape);
 
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
+        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::i64,
                                                          ngraph::Shape{const_shape_dims}, const_shape_values);
 
         auto fakeQuantize1 = createFakeQuantizeNode(input_params);
@@ -148,9 +148,9 @@ TEST(TransformationTests, BroadcastConstTestMain) {
 
     auto create_graph = [](const ngraph::Shape& data_shape, const ngraph::Shape& const_shape_dims,
                            const ngraph::Shape& const_shape_values) {
-        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, data_shape);
+        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, data_shape);
 
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
+        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::i64,
                                                          const_shape_dims, const_shape_values);
 
         auto add = std::make_shared<ngraph::opset8::Add>(constant, input_params);
@@ -184,9 +184,9 @@ TEST(TransformationTests, BroadcastConstTestMainSwapInputs) {
 
     auto create_graph = [](const ngraph::Shape& data_shape, const ngraph::Shape& const_shape_dims,
                            const ngraph::Shape& const_shape_values) {
-        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, data_shape);
+        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, data_shape);
 
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
+        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::i64,
                                                          const_shape_dims, const_shape_values);
 
         auto add = std::make_shared<ngraph::opset8::Add>(input_params, constant);
@@ -220,12 +220,12 @@ TEST(TransformationTests, BroadcastConstTestConvolution) {
     const ngraph::Shape data_shape{2, 2, 1, 1};
 
     {
-        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, data_shape);
+        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, data_shape);
 
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
+        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::i64,
                                                          ngraph::Shape{1, 2, 1, 1}, {1});
 
-        auto kernel = ngraph::opset8::Constant::create(ngraph::element::f32,
+        auto kernel = ngraph::opset8::Constant::create(ngraph::element::i64,
                                                        {2, 2, 1, 1}, {1});
 
         auto convolution = std::make_shared<ngraph::opset8::Convolution>(input_params,
@@ -261,12 +261,12 @@ TEST(TransformationTests, BroadcastConstTestConvolutionSwapInputs) {
     const ngraph::Shape data_shape{2, 2, 1, 1};
 
     {
-        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, data_shape);
+        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, data_shape);
 
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
+        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::i64,
                                                          ngraph::Shape{1, 2, 1, 1}, {1});
 
-        auto kernel = ngraph::opset8::Constant::create(ngraph::element::f32,
+        auto kernel = ngraph::opset8::Constant::create(ngraph::element::i64,
                                                        {2, 2, 1, 1}, {1});
 
         auto convolution = std::make_shared<ngraph::opset8::Convolution>(input_params,

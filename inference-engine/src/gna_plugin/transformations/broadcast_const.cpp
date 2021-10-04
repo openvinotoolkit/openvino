@@ -14,6 +14,7 @@
 #include "legacy/ngraph_ops/eltwise.hpp"
 #include "ngraph_ops/convolution_ie.hpp"
 #include "ngraph/runtime/reference/broadcast.hpp"
+#include <transformations/utils/utils.hpp>
 
 #include <vector>
 #include <functional>
