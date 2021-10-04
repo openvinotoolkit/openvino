@@ -12,7 +12,8 @@ namespace v3 {
 /// \brief Operation that returns the shape of its input argument as a tensor.
 class OPENVINO_API ShapeOf : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ShapeOf", "opset3", op::Op, 3);
+    BWDCMP_RTTI_DECLARATION;
     ShapeOf() = default;
     /// \brief Constructs a shape-of operation.
     ShapeOf(const Output<Node>& arg, const element::Type output_type = element::i64);
@@ -46,7 +47,8 @@ namespace v0 {
 /// \brief Operation that returns the shape of its input argument as a tensor.
 class OPENVINO_API ShapeOf : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ShapeOf", "opset1");
+    BWDCMP_RTTI_DECLARATION;
     ShapeOf() = default;
     /// \brief Constructs a shape-of operation.
     ShapeOf(const Output<Node>& arg);

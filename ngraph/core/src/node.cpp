@@ -10,6 +10,7 @@
 #include <typeindex>
 #include <typeinfo>
 
+#include "atomic_guard.hpp"
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/constant.hpp"
@@ -161,7 +162,9 @@ void ov::Node::set_arguments(const OutputVector& arguments) {
     // Add this node as a user of each argument.
     size_t i = 0;
     for (auto& output : arguments) {
-        set_argument(i++, output);
+        auto output_node = output.get_node();
+        auto& output_descriptor = output_node->m_outputs.at(output.get_index());
+        m_inputs.emplace_back(this, i++, output_descriptor);
     }
 }
 
@@ -238,9 +241,9 @@ const std::string& ov::Node::get_friendly_name() const {
 }
 
 const std::string& ov::Node::get_name() const {
-    if (m_unique_name.empty()) {
-        const_cast<Node*>(this)->m_unique_name = description() + "_" + to_string(m_instance_id);
-    }
+    AtomicGuard lock(m_name_changing);
+    if (m_unique_name.empty())
+        m_unique_name = description() + "_" + to_string(m_instance_id);
     return m_unique_name;
 }
 
@@ -802,7 +805,7 @@ bool ov::Node::evaluate_upper(const HostTensorVector& output_values) const {
 bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Node::constant_fold");
 
-    if (m_rt_info.count("DISABLED_CONSTANT_FOLDING")) {
+    if (m_rt_info.count("disabled_constant_folding_0")) {
         return false;
     }
 

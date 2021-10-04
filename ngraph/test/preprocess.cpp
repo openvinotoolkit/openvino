@@ -40,25 +40,7 @@ static std::shared_ptr<Function> create_2inputs(element::Type type, const Partia
 TEST(pre_post_process, simple_mean_scale) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
     f = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().mean(1.f).scale(2.f))).build(f);
-
-    auto result = std::make_shared<HostTensor>();
-    f->evaluate(
-        {result},
-        {make_host_tensor<element::f32>(Shape{1, 3, 2, 2}, {1., 3., 5., 7., 9., 11., 13., 15., 17., 19., 21., 23.})});
-    auto result_val = read_vector<float>(result);
-    EXPECT_TRUE(all_close_f(std::vector<float>{0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11.}, result_val));
-}
-
-TEST(pre_post_process, scale_then_mean) {
-    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
-    f = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().scale(2.0f).mean(2.0f))).build(f);
-
-    auto result = std::make_shared<HostTensor>();
-    f->evaluate({result},
-                {make_host_tensor<element::f32>(Shape{1, 3, 2, 2},
-                                                {2., 4., 6., 8., 10., 12., 14., 16., 18., 20., 100., 200.})});
-    auto result_val = read_vector<float>(result);
-    EXPECT_TRUE(all_close_f(std::vector<float>{-1., 0, 1., 2., 3., 4., 5., 6., 7., 8., 48., 98.}, result_val));
+    EXPECT_EQ(f->get_output_element_type(0), element::f32);
 }
 
 TEST(pre_post_process, convert_element_type_and_scale) {
@@ -73,12 +55,6 @@ TEST(pre_post_process, convert_element_type_and_scale) {
             .build(f);
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::i16);
     EXPECT_EQ(f->get_output_element_type(0), element::i8);
-
-    auto result = std::make_shared<HostTensor>();
-    f->evaluate({result},
-                {make_host_tensor<element::i16>(Shape{1, 3, 2, 2}, {2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 10000, 200})});
-    auto result_val = read_vector<int8_t>(result);
-    EXPECT_TRUE(all_close(std::vector<int8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, (int8_t)5000, 100}, result_val));
 }
 
 TEST(pre_post_process, convert_element_type_from_unknown) {
@@ -129,11 +105,6 @@ TEST(pre_post_process, tensor_element_type_and_scale) {
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::f32);
     EXPECT_EQ(f->get_output_element_type(0), element::i8);
     EXPECT_EQ(f->get_parameters().front()->get_layout(), Layout());
-
-    auto result = std::make_shared<HostTensor>();
-    f->evaluate({result}, {make_host_tensor<element::f32>(Shape{1, 3, 1, 1}, {2., 4., 6.})});
-    auto result_val = read_vector<int8_t>(result);
-    EXPECT_TRUE(all_close(std::vector<int8_t>{1, 2, 3}, result_val));
 }
 
 TEST(pre_post_process, custom_preprocessing) {
@@ -145,11 +116,7 @@ TEST(pre_post_process, custom_preprocessing) {
                 return abs;
             })))
             .build(f);
-
-    auto result = std::make_shared<HostTensor>();
-    f->evaluate({result}, {make_host_tensor<element::i32>(Shape{1, 3, 1, 1}, {0, 4, -6})});
-    auto result_val = read_vector<int32_t>(result);
-    EXPECT_TRUE(all_close(std::vector<int32_t>{0, 4, 6}, result_val));
+    EXPECT_EQ(f->get_output_element_type(0), element::i32);
 }
 
 TEST(pre_post_process, test_lvalue) {
@@ -193,27 +160,13 @@ TEST(pre_post_process, test_lvalue) {
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "?CHW");
     EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
     EXPECT_EQ(f->get_output_element_type(0), element::i8);
-
-    auto result = std::make_shared<HostTensor>();
-    f->evaluate({result}, {make_host_tensor<element::f32>(Shape{1, 3, 1, 1}, {-9., 17., -1.})});
-    auto result_val = read_vector<int8_t>(result);
-    EXPECT_TRUE(all_close(std::vector<int8_t>{3, 2, 1}, result_val));
 }
 
 TEST(pre_post_process, test_2_inputs_basic) {
     auto f = create_2inputs(element::f32, Shape{1, 3, 1, 1});
     { f = PrePostProcessor().input(InputInfo(1).preprocess(PreProcessSteps().mean(1.f).scale(2.0f))).build(f); }
-    auto result1 = std::make_shared<HostTensor>();
-    auto result2 = std::make_shared<HostTensor>();
-    auto input1 = make_host_tensor<element::f32>(Shape{1, 3, 1, 1}, {3., 5., 7.});
-    auto input2 = make_host_tensor<element::f32>(Shape{1, 3, 1, 1}, {3., 5., 7.});
-    f->evaluate({result1, result2}, {input1, input2});
-
-    auto result1_val = read_vector<float>(result1);
-    EXPECT_TRUE(all_close_f(std::vector<float>{3, 5, 7}, result1_val));
-
-    auto result2_val = read_vector<float>(result2);
-    EXPECT_TRUE(all_close_f(std::vector<float>{1, 2, 3}, result2_val));
+    EXPECT_EQ(f->get_output_element_type(0), element::f32);
+    EXPECT_EQ(f->get_output_element_type(1), element::f32);
 }
 
 TEST(pre_post_process, reuse_network_layout_no_tensor_info) {
@@ -252,11 +205,6 @@ TEST(pre_post_process, mean_scale_vector_tensor_layout) {
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "NC??");
     EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
     EXPECT_EQ(f->get_output_element_type(0), element::f32);
-
-    auto result = std::make_shared<HostTensor>();
-    f->evaluate({result}, {make_host_tensor<ngraph::element::f32>(Shape{1, 3, 2, 1}, {5., 1., 5., 11., 11., -1.})});
-    auto result_val = read_vector<float>(result);
-    EXPECT_TRUE(all_close_f(std::vector<float>{2., 0., 1., 3., 2., -1.}, result_val));
 }
 
 TEST(pre_post_process, mean_scale_dynamic_layout) {
@@ -274,11 +222,6 @@ TEST(pre_post_process, mean_scale_dynamic_layout) {
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "N...C");
     EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
     EXPECT_EQ(f->get_output_element_type(0), element::f32);
-
-    auto result = std::make_shared<HostTensor>();
-    f->evaluate({result}, {make_host_tensor<ngraph::element::f32>(Shape{1, 2, 1, 3}, {5., 2., 7., 7., 8., -1.})});
-    auto result_val = read_vector<float>(result);
-    EXPECT_TRUE(all_close_f(std::vector<float>{2., 0., 1., 3., 2., -1.}, result_val));
 }
 
 TEST(pre_post_process, scale_vector_no_channels_layout) {
@@ -327,14 +270,60 @@ TEST(pre_post_process, mean_vector_dynamic_channels_shape) {
         element::f32,
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()});
     EXPECT_EQ(f->get_output_element_type(0), element::f32);
-    f = PrePostProcessor()
-            .input(InputInfo()
-                       .tensor(InputTensorInfo().set_layout("NCHW"))
-                       .preprocess(PreProcessSteps().mean({0.1f, 0.2f, 0.3f})))
-            .build(f);
+    EXPECT_NO_THROW(f = PrePostProcessor()
+                            .input(InputInfo()
+                                       .tensor(InputTensorInfo().set_layout("NCHW"))
+                                       .preprocess(PreProcessSteps().mean({0.1f, 0.2f, 0.3f})))
+                            .build(f));
     EXPECT_EQ(f->get_output_element_type(0), element::f32);
-    auto result = std::make_shared<HostTensor>();
-    EXPECT_NO_THROW(f->evaluate({result}, {make_host_tensor<ngraph::element::f32>(Shape{1, 3, 1, 1}, {1., 2., 3.})}));
-    EXPECT_ANY_THROW(
-        f->evaluate({result}, {make_host_tensor<ngraph::element::f32>(Shape{1, 4, 1, 1}, {1., 2., 3., 4.})}));
+}
+
+// Error cases for 'resize'
+TEST(pre_post_process, resize_no_network_layout) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_layout("NHWC"))
+                                    .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_CUBIC)))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
+TEST(pre_post_process, tensor_spatial_shape_no_layout_dims) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_layout("NC?W").set_spatial_static_shape(480, 640))
+                                    .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_CUBIC)))
+                         .build(f),
+                 ov::AssertFailure);
+
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_layout("NCH?").set_spatial_static_shape(480, 640))
+                                    .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_CUBIC)))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
+TEST(pre_post_process, resize_no_tensor_height) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_layout("N?WC"))
+                                    .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
+                                    .network(InputNetworkInfo().set_layout("NHWC")))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
+TEST(pre_post_process, resize_no_tensor_width) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_layout("NH?C"))
+                                    .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
+                                    .network(InputNetworkInfo().set_layout("NHWC")))
+                         .build(f),
+                 ov::AssertFailure);
 }

@@ -184,22 +184,22 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingReduces, TransposeSinking, testing::Com
             TransposeReduceParams{{10, 20, 30, 40, 50, 60, 70}, {0, 6, 1, 5, 2, 4, 3}, {1, -4, 6}, false, {6, 5, 3}, {0, 1, 2, 3}},
             TransposeReduceParams{{1, 3, 240, 140}, {0, 1, 2, 3}, {0, 1, 2, -1}, false, {0, 1, 2, 3}, {}}),
         testing::Values(
-            ngraph::opset6::ReduceMax::type_info,
-            ngraph::opset6::ReduceMean::type_info,
-            ngraph::opset6::ReduceMin::type_info,
-            ngraph::opset6::ReduceProd::type_info,
-            ngraph::opset6::ReduceSum::type_info,
-            ngraph::opset6::ReduceL1::type_info,
-            ngraph::opset6::ReduceL2::type_info,
-            ngraph::opset6::ReduceLogicalAnd::type_info,
-            ngraph::opset6::ReduceLogicalOr::type_info)));
+            ngraph::opset6::ReduceMax::get_type_info_static(),
+            ngraph::opset6::ReduceMean::get_type_info_static(),
+            ngraph::opset6::ReduceMin::get_type_info_static(),
+            ngraph::opset6::ReduceProd::get_type_info_static(),
+            ngraph::opset6::ReduceSum::get_type_info_static(),
+            ngraph::opset6::ReduceL1::get_type_info_static(),
+            ngraph::opset6::ReduceL2::get_type_info_static(),
+            ngraph::opset6::ReduceLogicalAnd::get_type_info_static(),
+            ngraph::opset6::ReduceLogicalOr::get_type_info_static())));
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingSqueeze, TransposeSinking, testing::Combine(
         testing::Values(
             TransposeReduceParams{{2, 3, 1, 1}, {0, 2, 3, 1}, {1, 2}, false, {2, 3}, {0, 1}},
             TransposeReduceParams{{10, 20, 30, 1, 50, 1, 1}, {0, 6, 1, 5, 2, 4, 3}, {1, 3, 6}, false, {6, 5, 3}, {0, 1, 2, 3}}),
         testing::Values(
-            ngraph::opset6::Squeeze::type_info)));
+            ngraph::opset6::Squeeze::get_type_info_static())));
 
 TEST(TransformationTests, TransposeFuseEliminatesTranspose) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);

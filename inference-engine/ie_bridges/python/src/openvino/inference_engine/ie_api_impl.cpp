@@ -96,7 +96,7 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
         auto val = param.as<std::vector<std::string>>();
         PyObject* list = PyList_New(0);
         for (const auto& it : val) {
-            PyObject* str_val = PyUnicode_FromString(it.c_str());
+            PyObject* str_val = PyUnicode_InternFromString(it.c_str());
             PyList_Append(list, str_val);
         }
         return list;

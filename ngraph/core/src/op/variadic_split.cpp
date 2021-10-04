@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::VariadicSplit, "VariadicSplit", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::VariadicSplit);
 
 op::v1::VariadicSplit::VariadicSplit(const Output<Node>& data,
                                      const Output<Node>& axis,

@@ -9,6 +9,7 @@
 #include <mutex>
 #include <set>
 
+#include "ngraph/deprecated.hpp"
 #include "ngraph/factory.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/node.hpp"
@@ -36,7 +37,9 @@ public:
     /// \brief Insert OP_TYPE into the opset with the default name and factory
     template <typename OP_TYPE, typename std::enable_if<ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
     void insert() {
+        NGRAPH_SUPPRESS_DEPRECATED_START
         ov::OpSet::insert<OP_TYPE>(OP_TYPE::type_info.name);
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
     template <typename OP_TYPE, typename std::enable_if<!ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
