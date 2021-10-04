@@ -1178,7 +1178,6 @@ cdef class InferRequest:
         else:
             deref(self.impl).setBlob(blob_name.encode(), blob._ptr)
         self._user_blobs[blob_name] = blob
-
     ## Starts synchronous inference of the infer request and fill outputs array
     #
     #  @param inputs: A dictionary that maps input layer names to `numpy.ndarray` objects of proper shape with
