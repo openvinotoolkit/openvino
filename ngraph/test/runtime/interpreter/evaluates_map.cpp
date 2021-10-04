@@ -1497,33 +1497,23 @@ bool evaluate(const std::shared_ptr<op::v8::Slice>& op, const HostTensorVector& 
         axes = host_tensor_2_vector<int64_t>(inputs[4]);
     }
 
-    const auto data_shape = inputs[0]->get_shape();
-    const auto data_rank = data_shape.size();
-
+    // We need to be able calculate static output shape based on HostTensor inputs
     PartialShape output_shape = op->calculate_output_shape(starts, stops, steps, axes, inputs[0]->get_partial_shape());
+    OPENVINO_ASSERT(output_shape.is_static(), "Can't calculate static output shape for Slice operation.");
+    // Static HostTensor data shape is needed to clamp and normalize starts values
+    const auto data_shape = inputs[0]->get_partial_shape();
+    OPENVINO_ASSERT(data_shape.is_static(), "Can't evaluate Slice elements without static HostTensor data shape.");
+
     outputs[0]->set_shape(output_shape.to_shape());
     outputs[0]->set_element_type(inputs[0]->get_element_type());
 
-    std::vector<int64_t> full_starts(data_rank, 0);
-    std::vector<int64_t> full_steps(data_rank, 1);
-    std::vector<int64_t> full_stops(data_shape.begin(), data_shape.end());
-    std::for_each(full_stops.begin(), full_stops.end(), [](int64_t x){++x;}); // Make exclusive stop
-
-    for(size_t i = 0; i < ind_size; ++i) {
-        const auto axis = axes[i] >= 0 ? axes[i] : axes[i] + data_rank;
-        full_starts[axis] = starts[i];
-        full_stops[axis] = stops[i];
-        full_steps[axis] = steps[i];
-    }
-
-    runtime::reference::slice_v8(inputs[0]->get_data_ptr<char>(),
-                                data_shape,
+    runtime::reference::slice(inputs[0]->get_data_ptr<char>(),
+                                data_shape.to_shape(),
                                 outputs[0]->get_data_ptr<char>(),
                                 output_shape.to_shape(),
                                 inputs[0]->get_element_type().size(),
-                                full_starts,
-                                full_stops,
-                                full_steps,
+                                starts,
+                                steps,
                                 axes
                                 );
     return true;

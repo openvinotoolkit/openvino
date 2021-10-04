@@ -13,37 +13,33 @@ namespace ngraph {
 namespace runtime {
 namespace reference {
 
-void normalize_indices(std::vector<int64_t>& start_ind,
-                       std::vector<int64_t>& stop_ind,
-                       std::vector<int64_t>& steps,
-                       const Shape& data_shape) {
-    for (size_t i = 0; i < start_ind.size(); ++i) {
-        start_ind[i] = start_ind[i] >= 0
-                           ? std::min<int64_t>(start_ind[i], steps[i] < 0 ? data_shape[i] - 1 : data_shape[i])
-                           : std::min<int64_t>(std::max<int64_t>(0, start_ind[i] + data_shape[i]), data_shape[i] - 1);
-        stop_ind[i] = stop_ind[i] >= 0
-                          ? std::min<int64_t>(stop_ind[i], data_shape[i])
-                          : std::min<int64_t>(std::max<int64_t>(-1, stop_ind[i] + data_shape[i]), data_shape[i]);
+void slice(const char* data,
+           const Shape& data_shape,
+           char* out,
+           const Shape& out_shape,
+           size_t elem_size,
+           const std::vector<int64_t>& starts,
+           const std::vector<int64_t>& steps,
+           const std::vector<int64_t>& axes) {
+    // Align inputs rank with data shape and normalize
+    const auto data_rank = data_shape.size();
+    std::vector<int64_t> aligned_starts(data_rank, 0);
+    std::vector<int64_t> aligned_steps(data_rank, 1);
+    for (size_t i = 0; i < axes.size(); ++i) {
+        const auto axis = axes[i] >= 0 ? axes[i] : axes[i] + data_rank;
+        const auto dim = data_shape[axis];
+        aligned_starts[axis] = starts[i] >= 0 ? std::min<int64_t>(starts[i], steps[i] < 0 ? dim - 1 : dim)
+                                              : std::min<int64_t>(std::max<int64_t>(0, starts[i] + dim), dim - 1);
+        aligned_steps[axis] = steps[i];
     }
-}
 
-void slice_v8(const char* data,
-              const Shape& data_shape,
-              char* out,
-              const Shape& out_shape,
-              size_t elem_size,
-              std::vector<int64_t>& starts,
-              std::vector<int64_t>& stops,
-              std::vector<int64_t>& steps,
-              std::vector<int64_t>& axes) {
-    normalize_indices(starts, stops, steps, data_shape);
+    // Slice elements
     const auto in_data_strides = row_major_strides(data_shape);
     const auto out_data_strides = row_major_strides(out_shape);
-
-    std::vector<int64_t> in_data_coord(starts);
+    std::vector<int64_t> in_data_coord(aligned_starts);
     for (size_t out_idx = 0; out_idx < shape_size(out_shape); ++out_idx) {
         for (size_t i = 0; i < in_data_coord.size(); ++i) {
-            in_data_coord[i] = starts[i] + (out_idx / out_data_strides[i] % out_shape[i]) * steps[i];
+            in_data_coord[i] = aligned_starts[i] + (out_idx / out_data_strides[i] % out_shape[i]) * aligned_steps[i];
         }
         const auto in_idx = std::inner_product(in_data_coord.begin(), in_data_coord.end(), in_data_strides.begin(), 0);
         const auto in_mem = data + in_idx * elem_size;
@@ -64,6 +60,7 @@ void slice(const char* arg,
     const CoordinateTransform input_transform(arg_shape, lower_bounds, upper_bounds, strides);
 
     const CoordinateTransform output_transform(out_shape);
+
     NGRAPH_CHECK(shape_size(input_transform.get_target_shape()) == shape_size(output_transform.get_target_shape()));
 
     auto dst_mem = out;
