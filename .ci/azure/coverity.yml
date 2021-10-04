@@ -119,7 +119,8 @@ jobs:
         -DENABLE_PYTHON=ON
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_WHEEL=ON
-        -DENABLE_TESTS=ON
+      # Skipping tests from static analysis
+      # -DENABLE_TESTS=ON
         -DNGRAPH_ONNX_FRONTEND_ENABLE=ON
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
@@ -131,9 +132,26 @@ jobs:
   - script: ls -alR $(REPO_DIR)/inference-engine/temp/
     displayName: 'List temp SDKs'
 
-  - script: ninja
+  - script: |
+        wget https://scan.coverity.com/download/linux64 --post-data "token=$(COVERITY_TOKEN)&project=openvino" -O coverity_tool.tgz
+        tar xvf coverity_tool.tgz --directory $(Agent.ToolsDirectory)
+        rm coverity_tool.tgz
+    workingDirectory: $(TEMP)
+
+  - script: $(Agent.ToolsDirectory)/cov-analysis*/bin/cov-build --dir cov-int ninja
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Lin'
+  
+  - script: |
+        tar czvf openvino.tgz cov-int
+        curl --form token=$(COVERITY_TOKEN) \
+          --form email=$(COVERITY_USER) \
+          --form file=@openvino.tgz \
+          --form version="$(Build.SourceVersion)" \
+          --form description="https://github.com/openvinotoolkit/openvino/runs/$(Build.BuildNumber)" \
+          https://scan.coverity.com/builds?project=openvino
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Submit for analysis'
 
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
