@@ -65,8 +65,7 @@ runtime::dynamic::DynamicExecutable::DynamicExecutable(shared_ptr<Function> wrap
 // Due to clang++-3.9 bugs, this needs to be a non-static separate function from
 // count_dyn_nodes.
 bool is_dynamic_op(const std::shared_ptr<Node>& op) {
-    return ov::is_type<op::Range>(op) || ov::is_type<op::v1::ConvolutionBackpropData>(op) ||
-           ov::is_type<op::v3::Broadcast>(op);
+    return ov::is_type<op::Range>(op) || ov::is_type<op::v3::Broadcast>(op);
 }
 
 // Helper for a vile hack in DynamicExecutable::call. See body of that function for details.
