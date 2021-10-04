@@ -449,8 +449,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_int8) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_complex_zero_point) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_complex_zero_point.onnx"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_vectorized_zero_point) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_vectorized_zero_point.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
 
