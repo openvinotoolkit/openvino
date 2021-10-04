@@ -18,6 +18,7 @@ This plugin adds the following command-line options:
 import hashlib
 import json
 import logging
+import tempfile
 # pylint:disable=import-error
 import os
 import sys
@@ -33,11 +34,10 @@ from jsonschema import validate, ValidationError
 UTILS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "utils")
 sys.path.insert(0, str(UTILS_DIR))
 
-from plugins.conftest import *
 from path_utils import check_positive_int
 from proc_utils import cmd_exec
 from platform_utils import get_os_name, get_os_version, get_cpu_info
-from utils import metadata_from_manifest, DATABASES, DB_COLLECTIONS
+from utils import metadata_from_manifest, DATABASES, DB_COLLECTIONS, upload_data
 
 MEMORY_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
 sys.path.append(MEMORY_TESTS_DIR)
@@ -56,8 +56,6 @@ def abs_path(relative_path):
 
 
 # -------------------- CLI options --------------------
-
-
 def pytest_addoption(parser):
     """Specify command-line options for all plugins"""
     test_args_parser = parser.getgroup("test run")
@@ -177,9 +175,17 @@ def executable(request):
 def niter(request):
     """Fixture function for command-line option."""
     return request.config.getoption('niter')
-
-
 # -------------------- CLI options --------------------
+
+
+@pytest.fixture(scope="function")
+def temp_dir(pytestconfig):
+    """Create temporary directory for test purposes.
+    It will be cleaned up after every test run.
+    """
+    temp_dir = tempfile.TemporaryDirectory()
+    yield Path(temp_dir.name)
+    temp_dir.cleanup()
 
 
 @pytest.fixture(scope="function")
@@ -204,8 +210,9 @@ def omz_models_conversion(instance, request):
             model_precision = instance["instance"]["model"]["precision"]
 
             # get full model info
-            cmd = f'"{sys.executable}" "{info_dumper_path}" --name {model_name}'
-            _, info = cmd_exec([cmd], shell=True, log=logging)
+            cmd = [f'{sys.executable}', f'{info_dumper_path}', '--name', f'{model_name}']
+            return_code, info = cmd_exec(cmd, log=logging)
+            assert return_code == 0, "Getting information about OMZ models has failed!"
 
             model_info = json.loads(info)[0]
 
@@ -213,29 +220,27 @@ def omz_models_conversion(instance, request):
                 logging.error(f"Please specify precision for the model "
                               f"{model_name} from the list: {model_info['precisions']}")
 
-            model_path = Path(model_info["subdirectory"]) / model_precision / (model_name + ".xml")
+            model_out_path = Path(omz_models_out_dir / model_info["subdirectory"]) / model_precision / (
+                    model_name + ".xml")
             model_full_path = omz_irs_out_dir / model_info["subdirectory"] / model_precision / (model_name + ".xml")
 
             # prepare models and convert models to IRs
-            cmd = f'{sys.executable} {downloader_path}' \
-                  f' --name {model_name}' \
-                  f' --precisions={model_precision}' \
-                  f' --num_attempts {OMZ_NUM_ATTEMPTS}' \
-                  f' --output_dir {omz_models_out_dir}' \
-                  f' --cache_dir {cache_dir}'
-            cmd_exec([cmd], shell=True, log=logging)
+            cmd = [f'{sys.executable}', f'{downloader_path}', '--name', f'{model_name}',
+                   '--precisions', f'{model_precision}', '--num_attempts', f'{OMZ_NUM_ATTEMPTS}',
+                   '--output_dir', f'{omz_models_out_dir}', '--cache_dir', f'{cache_dir}']
 
-            cmd = f'{sys.executable} {converter_path}' \
-                  f' --name {model_name}' \
-                  f' -p {sys.executable}' \
-                  f' --precisions={model_precision}' \
-                  f' --output_dir {omz_irs_out_dir}' \
-                  f' --download_dir {omz_models_out_dir}' \
-                  f' --mo {mo_path}'
-            cmd_exec([cmd], shell=True, log=logging)
+            return_code, _ = cmd_exec(cmd, log=logging)
+            assert return_code == 0, "Downloading OMZ models has failed!"
+
+            cmd = [f'{sys.executable}', f'{converter_path}', '--name', f'{model_name}', '-p', f'{sys.executable}',
+                   '--precisions', f'{model_precision}', '--output_dir', f'{omz_irs_out_dir}',
+                   '--download_dir', f'{omz_models_out_dir}', '--mo', f'{mo_path}']
+
+            return_code, _ = cmd_exec(cmd, log=logging)
+            assert return_code == 0, "Converting OMZ models has failed!"
 
             instance["instance"]["model"]["framework"] = model_info["framework"]
-            instance["instance"]["model"]["path"] = model_path
+            instance["instance"]["model"]["path"] = model_out_path
             instance["instance"]["model"]["full_path"] = model_full_path
 
 
@@ -294,6 +299,8 @@ def prepare_db_info(request, instance, executable, niter, manifest_metadata):
         yield
         return
 
+    instance["db"] = {}
+
     # add db_metadata
     db_meta_path = request.config.getoption("db_metadata")
     if db_meta_path:
@@ -317,10 +324,10 @@ def prepare_db_info(request, instance, executable, niter, manifest_metadata):
         "references": instance["instance"].get("references", {}),  # upload actual references that were used
         "ref_factor": REFS_FACTOR,
     }
-    info['_id'] = hashlib.sha256(
-        ''.join([str(info[key]) for key in FIELDS_FOR_ID]).encode()).hexdigest()
-    instance["db"] = info
+    info['_id'] = hashlib.sha256(''.join([str(info[key]) for key in FIELDS_FOR_ID]).encode()).hexdigest()
 
+    # add metadata
+    instance["db"].update(info)
     # add manifest metadata
     instance["db"].update(manifest_metadata)
 
@@ -433,7 +440,7 @@ def prepare_timeline_report(pytestconfig):
 
         env = jinja2.Environment(
             loader=jinja2.FileSystemLoader(
-                searchpath=Path().absolute() / 'memory-template'),
+                searchpath=Path().absolute() / 'memory_template'),
             autoescape=False)
         template = env.get_template('timeline_report.html')
         template.stream(records=records, timelines=timelines).dump(report_path)
@@ -539,7 +546,7 @@ def pytest_runtest_makereport(item, call):
                 instance["db"]["status"] = "passed"
         instance["db"]["results"] = instance["results"]
         instance["db"]["raw_results"] = instance["raw_results"]
-        logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, db_name, db_collection, instance["db"]))
 
-        # TODO: upload to new DB (memcheck -> memory_tests)
-        # upload_data(data, db_url, db_name, db_collection)
+        logging.info(f"Upload data to {db_url}/{db_name}.{db_collection}. "
+                     f"Data: {instance['db']}")
+        upload_data(instance["db"], db_url, db_name, db_collection)

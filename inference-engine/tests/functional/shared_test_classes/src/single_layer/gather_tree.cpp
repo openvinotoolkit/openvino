@@ -62,6 +62,7 @@ void GatherTreeLayerTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(operationResult)};
     function = std::make_shared<ngraph::Function>(results, paramsIn, "GatherTree");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 InferenceEngine::Blob::Ptr GatherTreeLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {

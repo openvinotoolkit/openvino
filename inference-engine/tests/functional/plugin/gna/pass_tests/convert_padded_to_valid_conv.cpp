@@ -200,6 +200,7 @@ protected:
 
         auto result = std::make_shared<Result>(lastOp);
         function = std::make_shared<Function>(ResultVector{result}, ParameterVector{input});
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 
@@ -331,7 +332,7 @@ const auto misc2DParams = ::testing::Combine(
     ::testing::ValuesIn(maxpool2DStrides)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_1DPaddedToValid, PaddedToValidConvTest,
+INSTANTIATE_TEST_SUITE_P(smoke_1DPaddedToValid, PaddedToValidConvTest,
     ::testing::Combine(
         conv1DParams,
         misc1DParams,
@@ -342,7 +343,7 @@ INSTANTIATE_TEST_CASE_P(smoke_1DPaddedToValid, PaddedToValidConvTest,
         ::testing::ValuesIn(models)),
     PaddedToValidConvTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_1DPaddedToValid, Gna30PaddedToValidConvTest,
+INSTANTIATE_TEST_SUITE_P(smoke_1DPaddedToValid, Gna30PaddedToValidConvTest,
     ::testing::Combine(
         conv1DParams,
         misc1DParams,
@@ -353,7 +354,7 @@ INSTANTIATE_TEST_CASE_P(smoke_1DPaddedToValid, Gna30PaddedToValidConvTest,
         ::testing::ValuesIn(models)),
     Gna30PaddedToValidConvTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_2DPaddedToValid, Gna30PaddedToValidConvTest,
+INSTANTIATE_TEST_SUITE_P(smoke_2DPaddedToValid, Gna30PaddedToValidConvTest,
     ::testing::Combine(
         conv2DParams,
         misc2DParams,

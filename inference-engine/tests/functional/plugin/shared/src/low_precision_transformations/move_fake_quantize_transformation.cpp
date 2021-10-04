@@ -56,6 +56,7 @@ void MoveFakeQuantizeTransformation::SetUp() {
         {},
         {},
         param.axis);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void MoveFakeQuantizeTransformation::Run() {

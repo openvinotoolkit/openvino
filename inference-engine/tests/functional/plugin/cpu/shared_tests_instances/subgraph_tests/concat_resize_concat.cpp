@@ -92,6 +92,7 @@ protected:
         ngraph::ResultVector outputs;
         outputs.push_back(std::make_shared<ngraph::opset1::Result>(outputNode));
         function = std::make_shared<ngraph::Function>(outputs, inputs);
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 
@@ -106,7 +107,7 @@ namespace {
     const std::vector<int> channel_count = { 1, 2 };
 
 
-INSTANTIATE_TEST_CASE_P(smoke_ConcResizeConc,
+INSTANTIATE_TEST_SUITE_P(smoke_ConcResizeConc,
                         ConcatResizeConcatTest, ::testing::Combine(
                            ::testing::Values(ngraph::opset4::Interpolate::type_info),
                            ::testing::ValuesIn(channel_count),
