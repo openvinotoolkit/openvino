@@ -18,6 +18,9 @@ std::vector<InferenceEngine::Precision> precisions = {InferenceEngine::Precision
 std::vector<std::map<std::string, std::string>> additionalConfig = {
     {
         {"GNA_DEVICE_MODE", "GNA_SW_FP32"}
+    },
+    {
+        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"}
     }
 };
 

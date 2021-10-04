@@ -32,7 +32,6 @@ void SplitConcatMultiInputsTest::SetUp() {
     size_t splitsNum;
     std::map<std::string, std::string> tempConfig;
     InferenceEngine::Precision netPrecision;
-    //std::string targetDevice;
     bool withFC;
     std::tie(netPrecision, targetDevice, tempConfig, inputShape, splitsNum, withFC) = this->GetParam();
     configuration.insert(tempConfig.begin(), tempConfig.end());
@@ -44,15 +43,19 @@ void SplitConcatMultiInputsTest::SetUp() {
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, splitsNum, 1);
     ngraph::OutputVector concatInputs = split->outputs();
 
-    auto concat = std::make_shared<ngraph::opset1::Concat>(concatInputs, 1);
+    auto concat = std::make_shared<ngraph::opset7::Concat>(concatInputs, 1);
 
     if (withFC) {
         auto mul_const = ngraph::builder::makeConstant<float>(ngPrc, { 10, inputShape[1] },
-            CommonTestUtils::generate_float_numbers(10 * inputShape[1], -0.5f, 0.5f), false);
+            CommonTestUtils::generate_float_numbers(10 * inputShape[1], -0.2f, 0.2f), false);
         auto matmul = std::make_shared<ngraph::op::MatMul>(concat, mul_const, false, true);
         function = std::make_shared<ngraph::Function>(matmul, params, "SplitConcatMultiInputs");
     } else {
         function = std::make_shared<ngraph::Function>(concat, params, "SplitConcatMultiInputs");
     }
+}
+
+InferenceEngine::Blob::Ptr SplitConcatMultiInputsTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), -0.2f, 0.4f, 100);
 }
 }  // namespace SubgraphTestsDefinitions
