@@ -26,6 +26,9 @@
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
 
+#include <ngraph/opsets/opset1.hpp>
+#include <ie_ngraph_utils.hpp>
+
 // WA for xbyak.h
 #ifdef _WIN32
 # ifndef _WINSOCKAPI_
@@ -1877,22 +1880,25 @@ void MKLDNNGraphOptimizer::reshapeRnnSeq(MKLDNNGraph &graph) {
         }
 
         auto childrenEdges = parentNode->getChildEdgesAtPort(0);
-        auto newRnnOutDims = parentNode->outputShapes[0].getDims();
-        newRnnOutDims.erase(newRnnOutDims.begin() + 1);
-        parentNode->outputShapes[0] = Shape{newRnnOutDims};
 
         for (size_t i = 0; i < childrenEdges.size(); i++) {
             auto edge = childrenEdges[i];
             auto childNode = edge->getChild();
 
-            const MKLDNNNodePtr newReshape = std::make_shared<MKLDNNReshapeNode>(
-                    parentNode->getName() + "_abc_a1bc_" + std::to_string(i),
-                    parentNode->outputShapes[0],
-                    childNode->inputShapes[edge->getOutputNum()],
-                    parentNode->getOriginalOutputPrecisionAtPort(0),
-                    graph.getEngine(), graph.weightsCache);
+            const auto secondInput = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ngraph::Shape{1}, std::vector<int>{1});
+            const auto squeeze = std::make_shared<ngraph::opset1::Squeeze>(
+                std::make_shared<ngraph::opset1::Parameter>(details::convertPrecision(parentNode->getOriginalOutputPrecisionAtPort(0)),
+                                                            parentNode->getOutputShapeAtPort(0).toPartialShape()), secondInput);
+            squeeze->set_friendly_name(parentNode->getName() + "_a1bc_abc_" + std::to_string(i));
 
-            graph.InsertNode(parentNode, childNode, newReshape, edge->getInputNum(), edge->getOutputNum(), false);
+            const auto cpuSqueeze = std::make_shared<MKLDNNReshapeNode>(squeeze, graph.getEngine(), graph.weightsCache);
+            const auto cpuConstant = std::make_shared<MKLDNNInputNode>(secondInput, graph.getEngine(), graph.weightsCache);
+            MKLDNNEdgePtr newEdge(new MKLDNNEdge(cpuConstant, cpuSqueeze, 0, 1));
+            auto &graphEdges = graph.GetEdges();
+            graphEdges.push_back(newEdge);
+            graphNodes.push_back(cpuConstant);
+
+            graph.InsertNode(parentNode, childNode, cpuSqueeze, edge->getInputNum(), edge->getOutputNum(), false);
 
             edge->drop();
             graph.RemoveEdge(edge);
