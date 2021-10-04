@@ -49,6 +49,7 @@ void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {
         testValues.fqOnData,
         testValues.fqOnWeights1,
         testValues.fqOnWeights2);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation, CompareWithRefImpl) {

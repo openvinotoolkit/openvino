@@ -51,7 +51,7 @@ enum RefMode {
 
 class LayerTestsCommon : public CommonTestUtils::TestsCommon {
 public:
-    virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const;
+    virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &inputInfo) const;
 
     virtual void Run();
 
@@ -142,6 +142,7 @@ protected:
 
     TargetDevice targetDevice;
     std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ngraph::Function> functionRefs = nullptr;
     std::map<std::string, std::string> configuration;
     // Non default values of layouts/precisions will be set to CNNNetwork
     InferenceEngine::Layout inLayout = InferenceEngine::Layout::ANY;
@@ -154,6 +155,12 @@ protected:
     float abs_threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
     std::shared_ptr<InferenceEngine::Core> core;
+    // dynamic input shapes
+    std::vector<ngraph::PartialShape> inputDynamicShapes;
+    // index for targetStaticShape
+    size_t index = 0;
+    // target static input shapes which is used for reshape ngraph function & generate input blobs
+    std::vector<std::vector<ngraph::Shape>> targetStaticShapes;
 
     virtual void Validate();
 
@@ -164,6 +171,7 @@ protected:
     InferenceEngine::InferRequest inferRequest;
 
 private:
+    void ResizeNgraphFunction();
     RefMode refMode = RefMode::INTERPRETER;
 };
 
