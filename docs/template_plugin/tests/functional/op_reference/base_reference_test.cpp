@@ -28,7 +28,6 @@ void CommonReferenceTest::Exec() {
 }
 
 void CommonReferenceTest::LoadNetwork() {
-
     executableNetwork = core->compile_model(function, targetDevice);
 }
 
