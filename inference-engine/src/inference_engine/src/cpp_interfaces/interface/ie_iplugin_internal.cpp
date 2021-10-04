@@ -139,7 +139,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     const std::string& modelPath,
     const std::map<std::string, std::string>& config) {
     auto cnnNet = GetCore()->ReadNetwork(modelPath, std::string());
-    return GetCore()->LoadNetwork(cnnNet, GetName(), config);
+    return GetCore()->LoadNetwork(cnnNet, GetName(), config)._ptr;
 }
 
 void IInferencePlugin::AddExtension(const std::shared_ptr<IExtension>&) {

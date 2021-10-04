@@ -27,7 +27,7 @@ class InferRequestVariableStateTests : public ::testing::Test {
     shared_ptr<MockIVariableStateInternal> mockVariableStateInternal;
     MockIInferencePlugin*                           mockIPlugin;
     InferencePlugin                                 plugin;
-    SoExecutableNetworkInternal                     net;
+    ov::runtime::SoPtr<IExecutableNetworkInternal>  net;
     IInferRequestInternal::Ptr                      req;
 
     void SetUp() override {
@@ -38,7 +38,7 @@ class InferRequestVariableStateTests : public ::testing::Test {
         auto mockIPluginPtr = std::make_shared<MockIInferencePlugin>();
         ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockExeNetworkInternal));
         plugin = InferenceEngine::InferencePlugin{{}, mockIPluginPtr};
-        net = plugin.LoadNetwork(CNNNetwork{}, {});
+        net = {{}, plugin.LoadNetwork(CNNNetwork{}, {})};
         req = net->CreateInferRequest();
     }
 };
