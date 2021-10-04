@@ -78,5 +78,6 @@ void SplitConcatMemory::SetUp() {
             ngraph::NodeVector      {plus},
             ngraph::ParameterVector {input},
             "CyclicBuffer4");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

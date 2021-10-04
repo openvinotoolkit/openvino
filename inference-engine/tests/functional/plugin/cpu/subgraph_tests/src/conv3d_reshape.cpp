@@ -75,6 +75,7 @@ protected:
         }
 
         function = std::make_shared<ngraph::Function>(results, inputParams, "Conv3dReshape");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

@@ -57,6 +57,7 @@ protected:
         auto normalize = builder::makeNormalizeL2(paramOuts[0], axes, eps, eps_mode);
 
         function = makeNgraphFunction(netPrc, params, normalize, "Normalize");
+        functionRefs = ngraph::clone_function(*function);
 
         selectedType = "unknown_" + std::string(inPrc.name());
         threshold = 0.015f;

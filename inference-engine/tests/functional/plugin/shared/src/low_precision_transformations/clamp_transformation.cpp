@@ -41,6 +41,7 @@ void ClampTransformation::SetUp() {
         param.fakeQuantize,
         param.clampLowConst,
         param.clampHighConst);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(ClampTransformation, CompareWithRefImpl) {

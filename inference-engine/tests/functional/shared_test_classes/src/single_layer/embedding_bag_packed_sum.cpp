@@ -47,5 +47,6 @@ void EmbeddingBagPackedSumLayerTest::SetUp() {
                 ngPrc, ngIdxPrc, emb_table_node, indices, withWeights));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(embBag)};
     function = std::make_shared<ngraph::Function>(results, params, "embeddingBagPackedSum");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

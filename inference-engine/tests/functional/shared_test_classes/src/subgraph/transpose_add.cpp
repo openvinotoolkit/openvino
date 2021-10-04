@@ -44,6 +44,7 @@ void TransposeAdd::SetUp() {
     auto add = std::make_shared<ngraph::opset8::Add>(transpose_in, add_const);
 
     function = std::make_shared<ngraph::Function>(add, params, "transpose_add");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 } // namespace SubgraphTestsDefinitions

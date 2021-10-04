@@ -48,6 +48,7 @@ void FuseTransposeAndReorderTest::SetUp() {
 
     std::tie(inputShape, inPrec) = this->GetParam();
     CreateGraph();
+    functionRefs = ngraph::clone_function(*function);
 }
 
 const auto fuseTransposeAndReorderCommonParams = ::testing::Combine(

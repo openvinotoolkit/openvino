@@ -60,6 +60,7 @@ protected:
         s2b->get_rt_info() = getCPUInfo();
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(s2b)};
         function = std::make_shared<ngraph::Function>(results, params, "SpaceToBatch");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

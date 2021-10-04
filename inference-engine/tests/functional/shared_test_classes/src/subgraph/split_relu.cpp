@@ -38,5 +38,6 @@ namespace SubgraphTestsDefinitions {
             results.push_back(std::make_shared<ngraph::opset1::Result>(relu));
         }
         function = std::make_shared<ngraph::Function>(results, input, "split_relu");
+        functionRefs = ngraph::clone_function(*function);
     }
 } // namespace SubgraphTestsDefinitions

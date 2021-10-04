@@ -38,5 +38,6 @@ void ConcatLayerTest::SetUp() {
     auto concat = std::make_shared<ngraph::opset1::Concat>(paramOuts, axis);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, params, "concat");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

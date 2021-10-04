@@ -87,6 +87,7 @@ protected:
                                      std::make_shared<ngraph::opset1::Result>(lstm_cell->output(1))};
 
         function = makeNgraphFunction(ngPrc, params, lstm_cell, "lstm_cell");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

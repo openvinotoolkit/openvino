@@ -72,6 +72,7 @@ class Eltwise4dBroadcast : public testing::WithParamInterface<eltwiseParams>,
 
             ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape2) };
             function = std::make_shared<ngraph::Function>(results, params, "Eltwise4dBroadcast");
+            functionRefs = ngraph::clone_function(*function);
         }
 };
 
@@ -120,6 +121,7 @@ protected:
 
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape3) };
         function = std::make_shared<ngraph::Function>(results, params, "Eltwise4dMultipleInput");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

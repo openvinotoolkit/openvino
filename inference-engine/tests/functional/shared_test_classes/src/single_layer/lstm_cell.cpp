@@ -66,5 +66,6 @@ void LSTMCellTest::SetUp() {
         m.register_pass<ngraph::pass::LSTMCellDecomposition>();
         m.run_passes(function);
     }
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

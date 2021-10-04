@@ -72,5 +72,6 @@ void GRUCellTest::SetUp() {
         m.register_pass<ngraph::pass::GRUCellDecomposition>();
         m.run_passes(function);
     }
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

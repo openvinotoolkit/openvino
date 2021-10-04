@@ -49,5 +49,6 @@ void MultipleConcatTest::SetUp() {
     auto act = ngraph::builder::makeActivation(concat_2, ngPrc, ngraph::helpers::ActivationTypes::Relu);
 
     function = std::make_shared<ngraph::Function>(act, input_parameter, "multiple_concat");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

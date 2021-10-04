@@ -86,6 +86,7 @@ protected:
 
 
         function = makeNgraphFunction(ngPrc, params, pooling, "Pooling");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

@@ -21,6 +21,7 @@ std::string MultipleAllocations::getTestCaseName(const testing::TestParamInfo<Mu
 void MultipleAllocations::SetUp() {
     std::tie(targetDevice, m_allocationsCount) = this->GetParam();
     function = ngraph::builder::subgraph::makeSplitConvConcat();
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(MultipleAllocations, InferWorksCorrectAfterAllocations) {

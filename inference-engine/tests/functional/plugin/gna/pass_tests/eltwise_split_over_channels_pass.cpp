@@ -56,6 +56,7 @@ protected:
 
         auto mul = ngraph::builder::makeEltwise(params[0], const_mult2, ngraph::helpers::EltwiseTypes::MULTIPLY);
         function = std::make_shared<ngraph::Function>(mul, params, "EltwiseSplitOverChannelsPassTest");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

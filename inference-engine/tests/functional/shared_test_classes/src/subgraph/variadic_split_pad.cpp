@@ -47,5 +47,6 @@ void VariadicSplitPad::SetUp() {
         results.push_back(std::make_shared<ngraph::opset1::Result>(pad));
     }
     function = std::make_shared<ngraph::Function>(results, input, "variadic_split_pad");
+    functionRefs = ngraph::clone_function(*function);
 }
 } // namespace SubgraphTestsDefinitions

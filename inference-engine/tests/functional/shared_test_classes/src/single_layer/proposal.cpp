@@ -171,6 +171,7 @@ void ProposalLayerTest::SetUp() {
         std::make_shared<ngraph::opset1::Result>(proposal->output(0)),
         std::make_shared<ngraph::opset1::Result>(proposal->output(1))};
     function = std::make_shared<ngraph::Function>(results, params, "proposal");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 InferenceEngine::Blob::Ptr ProposalLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {

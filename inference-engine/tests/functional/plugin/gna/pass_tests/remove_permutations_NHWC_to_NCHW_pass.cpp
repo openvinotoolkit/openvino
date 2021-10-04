@@ -102,6 +102,7 @@ class RemovePermutationsNHWCToNCHWPassTest : public testing::WithParamInterface<
 
             ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape2) };
             function = std::make_shared<ngraph::Function>(results, params, "RemovePermutationPass");
+            functionRefs = ngraph::clone_function(*function);
         }
 };
 
@@ -145,6 +146,7 @@ protected:
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(permute2) };
 
         function = std::make_shared<ngraph::Function>(results, params, "RemovePermutationPass4DOutput");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 
@@ -240,6 +242,7 @@ class RemovePermutationsWithPoolAndActTest : public testing::WithParamInterface<
 
             ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape2) };
             function = std::make_shared<ngraph::Function>(results, params, "RemovePermutationPass");
+            functionRefs = ngraph::clone_function(*function);
         }
 };
 
@@ -330,6 +333,7 @@ class RemovePermutationsWithTwoConvTest : public testing::WithParamInterface<rem
 
             ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape2) };
             function = std::make_shared<ngraph::Function>(results, params, "RemovePermutationPass");
+            functionRefs = ngraph::clone_function(*function);
         }
 };
 
@@ -428,6 +432,7 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
 
             ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape3) };
             function = std::make_shared<ngraph::Function>(results, params, "RemovePermutationPass");
+            functionRefs = ngraph::clone_function(*function);
         }
 };
 

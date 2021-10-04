@@ -49,5 +49,6 @@ void LrnLayerTest::SetUp() {
     auto lrn = std::make_shared<ngraph::opset3::LRN>(paramIn[0], axes_node, alpha, beta, bias, size);
     ngraph::ResultVector results {std::make_shared<ngraph::opset3::Result>(lrn)};
     function = std::make_shared<ngraph::Function>(results, params, "lrn");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

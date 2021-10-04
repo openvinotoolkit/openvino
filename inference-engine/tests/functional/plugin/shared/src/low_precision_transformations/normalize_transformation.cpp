@@ -59,6 +59,7 @@ void NormalizeL2Transformation::SetUp() {
         axes,
         fuseMultiply,
         shift);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(NormalizeL2Transformation, CompareWithRefImpl) {

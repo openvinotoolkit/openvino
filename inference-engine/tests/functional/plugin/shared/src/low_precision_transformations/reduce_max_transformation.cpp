@@ -43,6 +43,7 @@ void ReduceMaxTransformation::SetUp() {
         param.fakeQuantize,
         param.constantValues,
         param.keepDims);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void ReduceMaxTransformation::Run() {

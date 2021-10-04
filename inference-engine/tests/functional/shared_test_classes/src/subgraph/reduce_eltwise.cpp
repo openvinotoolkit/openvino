@@ -62,5 +62,6 @@ void ReduceEltwiseTest::SetUp() {
     auto eltw = ngraph::builder::makeEltwise(reduce, constant, ngraph::helpers::EltwiseTypes::MULTIPLY);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(eltw)};
     function = std::make_shared<ngraph::Function>(results, params, "ReduceEltwise");
+    functionRefs = ngraph::clone_function(*function);
 }
 } // namespace SubgraphTestsDefinitions

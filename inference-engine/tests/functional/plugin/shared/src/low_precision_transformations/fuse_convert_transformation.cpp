@@ -48,6 +48,7 @@ void FuseConvertTransformation::SetUp() {
         precision,
         deqOperations,
         constInput);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(FuseConvertTransformation, CompareWithRefImpl) {

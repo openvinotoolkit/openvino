@@ -70,6 +70,7 @@ protected:
                 ngraph::NodeVector      {bias_2},
                 ngraph::ParameterVector {input},
                 "SimpleNet");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

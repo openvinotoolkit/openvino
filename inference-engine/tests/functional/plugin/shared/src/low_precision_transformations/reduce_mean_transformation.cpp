@@ -43,6 +43,7 @@ void ReduceMeanTransformation::SetUp() {
         param.fakeQuantize,
         param.constantValues,
         param.keepDims);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void ReduceMeanTransformation::Run() {

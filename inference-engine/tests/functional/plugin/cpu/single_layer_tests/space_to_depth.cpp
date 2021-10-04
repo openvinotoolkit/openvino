@@ -55,6 +55,7 @@ protected:
         d2s->get_rt_info() = getCPUInfo();
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(d2s)};
         function = std::make_shared<ngraph::Function>(results, params, "SpaceToDepth");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

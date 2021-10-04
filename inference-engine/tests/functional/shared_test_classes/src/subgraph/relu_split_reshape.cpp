@@ -46,5 +46,6 @@ void ReluSplitReshape::SetUp() {
     auto reshape = std::make_shared<ngraph::opset1::Reshape>(split->output(0), reshape_const, false);
 
     function = std::make_shared<ngraph::Function>(reshape, params, "ReluSplitReshape");
+    functionRefs = ngraph::clone_function(*function);
 }
 } // namespace SubgraphTestsDefinitions

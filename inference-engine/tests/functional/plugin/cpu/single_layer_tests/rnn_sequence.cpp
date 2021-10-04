@@ -117,6 +117,7 @@ protected:
             bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, false);
         }
+        functionRefs = ngraph::clone_function(*function);
     }
 
     void GenerateInputs() override {

@@ -40,6 +40,7 @@ namespace SubgraphTestsDefinitions {
         relu2->add_control_dependency(mem_w);
 
         function = std::make_shared<ngraph::Function>(relu2, input, "delayed_copy_layer_memory");
+        functionRefs = ngraph::clone_function(*function);
     }
 
     void DelayedCopyTest::switchToNgraphFriendlyModel() {

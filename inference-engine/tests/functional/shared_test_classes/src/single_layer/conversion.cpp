@@ -41,5 +41,6 @@ void ConversionLayerTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(conversion)};
     function = std::make_shared<ngraph::Function>(results, params, "Conversion");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

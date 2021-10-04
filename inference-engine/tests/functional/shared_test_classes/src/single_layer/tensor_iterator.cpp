@@ -220,5 +220,6 @@ namespace LayerTestsDefinitions {
             m.register_pass<ngraph::pass::UnrollTensorIterator>();
             m.run_passes(function);
         }
+        functionRefs = ngraph::clone_function(*function);
     }
 }  // namespace LayerTestsDefinitions

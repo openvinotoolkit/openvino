@@ -55,5 +55,6 @@ void CascadeConcat::SetUp() {
         results = ngraph::ResultVector{std::make_shared<ngraph::opset1::Result>(concat2)};
     }
     function = std::make_shared<ngraph::Function>(results, input, "concat_reshape_reshape_concat_mul");
+    functionRefs = ngraph::clone_function(*function);
 }
 } // namespace SubgraphTestsDefinitions

@@ -82,6 +82,7 @@ protected:
             WRB, hidden_size, activations, {}, {}, clip);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(rnn_cell)};
         function = makeNgraphFunction(ngPrc, params, rnn_cell, "rnn_cell");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

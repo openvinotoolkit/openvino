@@ -67,6 +67,7 @@ namespace LayerTestsDefinitions {
             // it should be some topological order to pass parameters for reference code to be executed correctly
             ngraph::ParameterVector{input1, input2, c0, input3},
             "CodegenBert");
+        functionRefs = ngraph::clone_function(*function);
     }
 
 TEST_P(CodegenBert, CompareWithRefImpl) {

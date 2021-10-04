@@ -51,6 +51,7 @@ void Crop4dTest::SetUp() {
                                                 ssParams.endMask, ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ss)};
     function = std::make_shared<ngraph::Function>(results, params, "crop4d");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace SubgraphTestsDefinitions

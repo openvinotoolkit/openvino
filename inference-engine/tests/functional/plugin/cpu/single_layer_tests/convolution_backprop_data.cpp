@@ -95,6 +95,7 @@ protected:
         }
 
         function = makeNgraphFunction(ngPrc, inputParams, deconvolutionNode, "convolutionBackpropData");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

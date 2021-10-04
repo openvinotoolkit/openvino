@@ -64,6 +64,7 @@ protected:
         auto add = std::make_shared<ngraph::opset1::Add>(fakeQuantize1, fakeQuantize2);
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(add)};
         function = std::make_shared<ngraph::Function>(results, params, "BroadcastConstWithFq");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

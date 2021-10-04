@@ -141,6 +141,7 @@ void LoadNetworkCacheTestBase::SetUp() {
     } catch (...) {
         GTEST_SKIP();
     }
+    functionRefs = ngraph::clone_function(*function);
 
     std::stringstream ss;
     auto hash = std::hash<std::string>()(GetTestName());

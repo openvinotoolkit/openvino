@@ -92,5 +92,6 @@ void QuantGroupConvLayerTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConv)};
     function = std::make_shared<ngraph::Function>(results, params, "QuantGroupConvolution");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

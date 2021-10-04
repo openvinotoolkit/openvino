@@ -43,5 +43,6 @@ namespace SubgraphTestsDefinitions {
         std::string squeezeType;
 
         function = std::make_shared<ngraph::Function>(func, input, "reshape_squeeze_reshape_relu");
+        functionRefs = ngraph::clone_function(*function);
     }
 } // namespace SubgraphTestsDefinitions

@@ -53,5 +53,6 @@ void GatherNDLayerTest::SetUp() {
             ngraph::builder::makeGatherND(dataNode, indicesShape, ngIPrc, batchDims));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gather)};
     function = std::make_shared<ngraph::Function>(results, params, "gatherND");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

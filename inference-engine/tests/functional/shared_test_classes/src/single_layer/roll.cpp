@@ -42,5 +42,6 @@ void RollLayerTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(roll)};
     function = std::make_shared<ngraph::Function>(results, paramVector, "roll");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

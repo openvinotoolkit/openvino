@@ -28,6 +28,7 @@ void ReorgYoloLayerTest::SetUp() {
     auto param = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, inputShape);
     auto reorg_yolo = std::make_shared<ngraph::op::v0::ReorgYolo>(param, stride);
     function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(reorg_yolo), ngraph::ParameterVector{param}, "ReorgYolo");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 } // namespace LayerTestsDefinitions

@@ -40,6 +40,7 @@ void TransposeTransformation::SetUp() {
         testValues.transposeConstValues,
         testValues.precisionBeforeFq,
         testValues.fqOnData);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(TransposeTransformation, CompareWithRefImpl) {

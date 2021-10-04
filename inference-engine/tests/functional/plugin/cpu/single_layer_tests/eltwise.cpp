@@ -16,7 +16,7 @@ typedef std::tuple<
         CPUSpecificParams> EltwiseLayerCPUTestParamsSet;
 
 class EltwiseLayerCPUTest : public testing::WithParamInterface<EltwiseLayerCPUTestParamsSet>,
-                                     virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
+                            virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<EltwiseLayerCPUTestParamsSet> obj) {
         LayerTestsDefinitions::EltwiseTestParams basicParamsSet;
@@ -37,24 +37,26 @@ protected:
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = this->GetParam();
 
-        std::vector<std::vector<size_t>> inputShapes;
+        std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> shapes;
         InferenceEngine::Precision netPrecision;
         ngraph::helpers::InputLayerType secondaryInputType;
         CommonTestUtils::OpType opType;
         ngraph::helpers::EltwiseTypes eltwiseType;
         std::map<std::string, std::string> additional_config;
-        std::tie(inputShapes, eltwiseType, secondaryInputType, opType, netPrecision, inPrc, outPrc, inLayout, targetDevice, additional_config) = basicParamsSet;
+        std::tie(shapes, eltwiseType, secondaryInputType, opType, netPrecision, inPrc, outPrc, inLayout, targetDevice, additional_config) = basicParamsSet;
+        targetStaticShapes = shapes.second;
+        inputDynamicShapes = shapes.first;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         selectedType = getPrimitiveType() + "_" + netPrecision.name();
 
-        std::vector<size_t> inputShape1, inputShape2;
-        if (inputShapes.size() == 1) {
-            inputShape1 = inputShape2 = inputShapes.front();
-        } else if (inputShapes.size() == 2) {
-            inputShape1 = inputShapes.front();
-            inputShape2 = inputShapes.back();
+        ngraph::Shape inputShape1 = targetStaticShapes.front().front(), inputShape2 = targetStaticShapes.front().back();
+        if (targetStaticShapes.front().size() == 1) {
+            inputShape1 = inputShape2 = targetStaticShapes.front().front();
+        } else if (targetStaticShapes.front().size() == 2) {
+            inputShape1 = targetStaticShapes.front().front();
+            inputShape2 = targetStaticShapes.front().back();
         } else {
             IE_THROW() << "Incorrect number of input shapes";
         }
@@ -100,6 +102,8 @@ protected:
         auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
 
         function = makeNgraphFunction(ngPrc, input, eltwise, "Eltwise");
+        functionRefs = ngraph::clone_function(*function);
+        functionRefs->set_friendly_name("EltwiseRefs");
     }
 };
 
@@ -140,11 +144,11 @@ std::map<std::string, std::string> additional_config;
 std::vector<Precision> netPrc = {Precision::BF16, Precision::FP32};
 
 
-std::vector<std::vector<std::vector<size_t>>> inShapes_4D = {
-        {{2, 4, 4, 1}},
-        {{2, 17, 5, 4}},
-        {{2, 17, 5, 4}, {1, 17, 1, 1}},
-        {{2, 17, 5, 1}, {1, 17, 1, 4}},
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes_4D = {
+        {{}, {{{2, 4, 4, 1}}}},
+        {{}, {{{2, 17, 5, 4}}}},
+        {{}, {{{2, 17, 5, 4}, {1, 17, 1, 1}}}},
+        {{}, {{{2, 17, 5, 1}, {1, 17, 1, 4}}}},
 };
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
@@ -185,11 +189,11 @@ const auto params_4D_emptyCPUSpec = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_emptyCPUSpec, EltwiseLayerCPUTest, params_4D_emptyCPUSpec, EltwiseLayerCPUTest::getTestCaseName);
 
-std::vector<std::vector<std::vector<size_t>>> inShapes_5D = {
-        {{2, 4, 3, 4, 1}},
-        {{2, 17, 7, 5, 4}},
-        {{2, 17, 6, 5, 4}, {1, 17, 6, 1, 1}},
-        {{2, 17, 6, 5, 1}, {1, 17, 1, 1, 4}},
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes_5D = {
+        {{}, {{{2, 4, 3, 4, 1}}}},
+        {{}, {{{2, 17, 7, 5, 4}}}},
+        {{}, {{{2, 17, 6, 5, 4}, {1, 17, 6, 1, 1}}}},
+        {{}, {{{2, 17, 6, 5, 1}, {1, 17, 1, 1, 4}}}},
 };
 
 std::vector<CPUSpecificParams> cpuParams_5D = {
@@ -230,9 +234,9 @@ const auto params_5D_emptyCPUSpec = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D, EltwiseLayerCPUTest, params_5D_emptyCPUSpec, EltwiseLayerCPUTest::getTestCaseName);
 
-std::vector<std::vector<std::vector<size_t>>> inShapes_4D_Blocked_Planar = {
-        {{2, 17, 31, 3}, {2, 1, 31, 3}},
-        {{2, 17, 5, 1}, {2, 1, 1, 4}},
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes_4D_Blocked_Planar = {
+        {{}, {{{2, 17, 31, 3}, {2, 1, 31, 3}}}},
+        {{}, {{{2, 17, 5, 1}, {2, 1, 1, 4}}}},
 };
 
 std::vector<CPUSpecificParams> cpuParams_4D_Blocked_Planar = {
@@ -256,9 +260,9 @@ const auto params_4D_Blocked_Planar = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Blocked_Planar, EltwiseLayerCPUTest, params_4D_Blocked_Planar, EltwiseLayerCPUTest::getTestCaseName);
 
 
-std::vector<std::vector<std::vector<size_t>>> inShapes_4D_Planar_Blocked = {
-        {{2, 1, 31, 3}, {2, 17, 31, 3}},
-        {{2, 1, 1, 4}, {2, 17, 5, 1}},
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes_4D_Planar_Blocked = {
+        {{}, {{{2, 1, 31, 3}, {2, 17, 31, 3}}}},
+        {{}, {{{2, 1, 1, 4}, {2, 17, 5, 1}}}},
 };
 
 std::vector<CPUSpecificParams> cpuParams_4D_Planar_Blocked = {
@@ -282,9 +286,9 @@ const auto params_4D_Planar_Blocked = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Planar_Blocked, EltwiseLayerCPUTest, params_4D_Planar_Blocked, EltwiseLayerCPUTest::getTestCaseName);
 
 
-std::vector<std::vector<std::vector<size_t>>> inShapes_5D_Blocked_Planar = {
-        {{2, 17, 31, 4, 3}, {2, 1, 31, 1, 3}},
-        {{2, 17, 5, 3, 1}, {2, 1, 1, 3, 4}},
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes_5D_Blocked_Planar = {
+        {{}, {{{2, 17, 31, 4, 3}, {2, 1, 31, 1, 3}}}},
+        {{}, {{{2, 17, 5, 3, 1}, {2, 1, 1, 3, 4}}}},
 };
 
 std::vector<CPUSpecificParams> cpuParams_5D_Blocked_Planar = {
@@ -308,9 +312,9 @@ const auto params_5D_Blocked_Planar = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_Blocked_Planar, EltwiseLayerCPUTest, params_5D_Blocked_Planar, EltwiseLayerCPUTest::getTestCaseName);
 
 
-std::vector<std::vector<std::vector<size_t>>> inShapes_5D_Planar_Blocked = {
-        {{2, 1, 31, 1, 3}, {2, 17, 31, 4, 3}},
-        {{2, 1, 1, 3, 4}, {2, 17, 5, 3, 1}},
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes_5D_Planar_Blocked = {
+        {{}, {{{2, 1, 31, 1, 3}, {2, 17, 31, 4, 3}}}},
+        {{}, {{{2, 1, 1, 3, 4}, {2, 17, 5, 3, 1}}}},
 };
 
 std::vector<CPUSpecificParams> cpuParams_5D_Planar_Blocked = {
@@ -334,9 +338,9 @@ const auto params_5D_Planar_Blocked = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_Planar_Blocked, EltwiseLayerCPUTest, params_5D_Planar_Blocked, EltwiseLayerCPUTest::getTestCaseName);
 
 
-std::vector<std::vector<std::vector<size_t>>> inShapes_4D_1D = {
-        {{2, 17, 5, 4}, {4}},
-        {{1, 3, 3, 3}, {3}},
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes_4D_1D = {
+        {{}, {{{2, 17, 5, 4}, {4}}}},
+        {{}, {{{1, 3, 3, 3}, {3}}}},
 };
 
 std::vector<CPUSpecificParams> cpuParams_4D_1D = {
@@ -361,9 +365,9 @@ const auto params_4D_1D = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D, EltwiseLayerCPUTest, params_4D_1D, EltwiseLayerCPUTest::getTestCaseName);
 
-std::vector<std::vector<std::vector<size_t>>> inShapes_5D_1D = {
-        {{2, 17, 5, 4, 10}, {10}},
-        {{1, 3, 3, 3, 3}, {3}},
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes_5D_1D = {
+        {{}, {{{2, 17, 5, 4, 10}, {10}}}},
+        {{}, {{{1, 3, 3, 3, 3}, {3}}}},
 };
 
 std::vector<CPUSpecificParams> cpuParams_5D_1D = {

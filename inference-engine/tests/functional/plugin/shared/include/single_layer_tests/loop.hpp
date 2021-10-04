@@ -69,6 +69,7 @@ TEST_P(TrivialLoopTest, PassThroughBody) {
     function = std::make_shared<ngraph::Function>(
             ngraph::OutputVector    {loop},
             ngraph::ParameterVector {start});
+    functionRefs = ngraph::clone_function(*function);
 
     // Precalculated ref blobs
     auto blob = make_blob_with_precision({iePrc, ieShape, InferenceEngine::TensorDesc::getLayoutByDims(ieShape)});
@@ -113,6 +114,7 @@ TEST_P(TrivialLoopTest, UnusedInputBody) {
     function = std::make_shared<ngraph::Function>(
             ngraph::OutputVector    {loop},
             ngraph::ParameterVector {start});
+    functionRefs = ngraph::clone_function(*function);
 
     // Precalculated ref blobs
     auto blob = make_blob_with_precision({iePrc, ieShape, InferenceEngine::TensorDesc::getLayoutByDims(ieShape)});

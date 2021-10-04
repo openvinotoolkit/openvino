@@ -92,6 +92,7 @@ protected:
         ngraph::ResultVector outputs;
         outputs.push_back(std::make_shared<ngraph::opset1::Result>(outputNode));
         function = std::make_shared<ngraph::Function>(outputs, inputs);
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

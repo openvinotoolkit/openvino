@@ -29,6 +29,7 @@ void FuseMulAddAndEwSimpleTest::SetUp() {
 
     std::tie(inputShape, inPrec) = this->GetParam();
     CreateGraph();
+    functionRefs = ngraph::clone_function(*function);
 }
 
 const auto mulAddAndEwSimpleCommonParams = ::testing::Combine(

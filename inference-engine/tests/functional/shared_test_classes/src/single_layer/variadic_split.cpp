@@ -45,6 +45,7 @@ namespace LayerTestsDefinitions {
             results.push_back(std::make_shared<ngraph::opset3::Result>(VariadicSplit->output(i)));
         }
         function = std::make_shared<ngraph::Function>(results, params, "VariadicSplit");
+        functionRefs = ngraph::clone_function(*function);
     }
 
 }  // namespace LayerTestsDefinitions

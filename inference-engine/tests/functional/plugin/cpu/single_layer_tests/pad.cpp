@@ -58,6 +58,7 @@ protected:
         pad->get_rt_info() = getCPUInfo();
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pad)};
         function = std::make_shared<ngraph::Function>(results, params, "pad");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

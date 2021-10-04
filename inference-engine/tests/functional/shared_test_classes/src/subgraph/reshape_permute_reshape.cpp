@@ -40,5 +40,6 @@ namespace SubgraphTestsDefinitions {
                                                                        std::vector<size_t>{1, input_dim});
         auto reshape2 = std::make_shared<ngraph::op::v1::Reshape>(permute, reshape2_pattern, false);
         function = std::make_shared<ngraph::Function>(reshape2, input, "reshape_permute_reshape");
+        functionRefs = ngraph::clone_function(*function);
     }
 } // namespace SubgraphTestsDefinitions

@@ -78,5 +78,6 @@ void LogicalLayerTest::SetUp() {
     }
 
     function = std::make_shared<ngraph::Function>(logicalNode, inputs, "Logical");
+    functionRefs = ngraph::clone_function(*function);
 }
 } // namespace LayerTestsDefinitions

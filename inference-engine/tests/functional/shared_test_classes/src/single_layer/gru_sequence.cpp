@@ -96,6 +96,7 @@ namespace LayerTestsDefinitions {
             bool ti_found = is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, false);
         }
+        functionRefs = ngraph::clone_function(*function);
     }
 
     void GRUSequenceTest::GenerateInputs() {

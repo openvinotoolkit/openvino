@@ -106,6 +106,7 @@ void SetBlobTest::SetUp() {
     auto cumSum = std::dynamic_pointer_cast<ngraph::opset4::CumSum>(ngraph::builder::makeCumSum(paramOuts[0], axisNode, false, false));
     ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(cumSum)};
     function = std::make_shared<ngraph::Function>(results, params, "InferSetBlob");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(SetBlobTest, CompareWithRefs) {
