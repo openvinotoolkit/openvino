@@ -49,5 +49,6 @@ void LogSoftmaxLayerTest::SetUp() {
     const ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(logSoftmax)};
 
     function = std::make_shared<ngraph::Function>(results, params, "logSoftmax");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

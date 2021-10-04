@@ -11,10 +11,11 @@
 #include <unordered_set>
 
 #include <ngraph/variant.hpp>
+#include <transformations/rt_info/disable_constant_folding.hpp>
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/opsets/opset1.hpp"
-#include "ngraph_ops/framework_node.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "ngraph_ops/type_relaxed.hpp"
 #include "pugixml.hpp"
 #include "transformations/serialize.hpp"
@@ -64,7 +65,7 @@ std::string translate_type_name(const std::string& name) {
 
 size_t hash_combine(const void* v, int64_t size) {
     constexpr auto cel_size = sizeof(size_t);
-    size_t seed = static_cast<size_t>(size);
+    auto seed = static_cast<size_t>(size);
     const auto data = static_cast<const size_t*>(v);
     const auto d_end = std::next(data, size / cel_size);
     // The constant value used as a magic number has been
@@ -271,7 +272,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
         std::vector<std::string> output;
         for (pugi::xml_node node : xml_node.child(body_name.c_str()).child("layers")) {
             if (!map_type.compare(node.attribute("type").value())) {
-                output.push_back(node.attribute("id").value());
+                output.emplace_back(node.attribute("id").value());
             }
         }
 
@@ -429,7 +430,7 @@ public:
                 m_xml_node.append_attribute("offset").set_value(offset);
                 m_xml_node.append_attribute("size").set_value(size);
             }
-        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
             const auto & attrs = a->get();
 
             // Update type and version attributes
@@ -740,7 +741,7 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
     for (size_t id = 0; id < f_ops.size(); ++id) {
         auto & op = f_ops[id];
         auto & clone_op = f_clone_ops[id];
-
+        enable_constant_folding(clone_op); // to be able to fold ShapeOfs
         if (auto op_subgraph = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(op)) {
             resolve_dynamic_shapes(*op_subgraph->get_function());
         }
@@ -787,6 +788,56 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
         }
     }
     return true;
+}
+
+void auto_pad_resolving(ov::Node* node) {
+    const std::set<ov::op::PadType> pad_agnostic_types = {
+            ov::op::PadType::SAME_LOWER,
+            ov::op::PadType::SAME_UPPER,
+            ov::op::PadType::VALID,
+            ov::op::PadType::AUTO,
+    };
+    if (auto op = as_type<opset1::Convolution>(node)) {
+        if (pad_agnostic_types.count(op->get_auto_pad())) {
+            op->set_pads_begin(CoordinateDiff(op->get_pads_begin().size(), 0));
+            op->set_adding_above(CoordinateDiff(op->get_pads_end().size(), 0));
+        }
+    } else if (auto op = as_type<opset1::GroupConvolution>(node)) {
+        if (pad_agnostic_types.count(op->get_auto_pad())) {
+            op->set_pads_begin(CoordinateDiff(op->get_pads_begin().size(), 0));
+            op->set_adding_above(CoordinateDiff(op->get_pads_end().size(), 0));
+        }
+    } else if (auto op = as_type<opset1::ConvolutionBackpropData>(node)) {
+        if (pad_agnostic_types.count(op->get_auto_pad())) {
+            op->set_pads_begin(CoordinateDiff(op->get_pads_begin().size(), 0));
+            op->set_pads_end(CoordinateDiff(op->get_pads_end().size(), 0));
+        }
+    } else if (auto op = as_type<opset1::GroupConvolutionBackpropData>(node)) {
+        if (pad_agnostic_types.count(op->get_auto_pad())) {
+            op->set_pads_begin(CoordinateDiff(op->get_pads_begin().size(), 0));
+            op->set_pads_end(CoordinateDiff(op->get_pads_end().size(), 0));
+        }
+    } else if (auto op = as_type<ngraph::op::util::DeformableConvolutionBase>(node)) {
+        if (pad_agnostic_types.count(op->get_auto_pad())) {
+            op->set_pads_begin(CoordinateDiff(op->get_pads_begin().size(), 0));
+            op->set_pads_end(CoordinateDiff(op->get_pads_end().size(), 0));
+        }
+    } else if (auto op = as_type<opset1::BinaryConvolution>(node)) {
+        if (pad_agnostic_types.count(op->get_auto_pad())) {
+            op->set_pads_begin(CoordinateDiff(op->get_pads_begin().size(), 0));
+            op->set_adding_above(CoordinateDiff(op->get_pads_end().size(), 0));
+        }
+    } else if (auto op = as_type<opset1::AvgPool>(node)) {
+        if (pad_agnostic_types.count(op->get_auto_pad())) {
+            op->set_pads_begin(Shape(op->get_pads_begin().size(), 0));
+            op->set_pads_end(Shape(op->get_pads_end().size(), 0));
+        }
+    } else if (auto op = as_type<ngraph::op::util::MaxPoolBase>(node)) {
+        if (pad_agnostic_types.count(op->get_auto_pad())) {
+            op->set_pads_begin(Shape(op->get_pads_begin().size(), 0));
+            op->set_adding_above(Shape(op->get_pads_end().size(), 0));
+        }
+    }
 }
 
 void ngfunction_2_irv10(pugi::xml_node& netXml,
@@ -927,6 +978,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         }
 
         // fill <data> general attributes
+        auto_pad_resolving(node); // Backward compatibility: clear padding values for nodes with auto_pad
         XmlSerializer visitor(data, node_type_name, custom_opsets, constant_node_write_handler);
         NGRAPH_CHECK(node->visit_attributes(visitor), "Visitor API is not supported in ", node);
         rt_info::XmlSerializer{data}.serialize(node->get_rt_info());

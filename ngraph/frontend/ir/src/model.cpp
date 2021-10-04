@@ -8,7 +8,7 @@
 
 #include <ir_deserializer.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph_ops/framework_node.hpp>
+#include <openvino/op/util/framework_node.hpp>
 #include <pugixml.hpp>
 
 using namespace ngraph;

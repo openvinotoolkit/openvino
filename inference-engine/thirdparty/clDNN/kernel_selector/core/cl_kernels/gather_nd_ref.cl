@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/fetch_data.cl"
+#include "include/batch_headers/fetch_data.cl"
 
 #define GET_UPDATES_INDEX(prefix, idx_order) CAT(prefix, _GET_INDEX)(idx_order)
 #define GET_OUTPUT_INDEX(out_order) OUTPUT_GET_INDEX(out_order)
