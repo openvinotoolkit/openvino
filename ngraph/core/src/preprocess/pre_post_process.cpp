@@ -197,7 +197,7 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
             param = function->get_parameters().front();
         }
         // Set parameter layout from 'network' information
-        if (input->m_network_data && input->m_network_data->is_layout_set() && param->get_layout() == Layout()) {
+        if (input->m_network_data && input->m_network_data->is_layout_set() && param->get_layout().empty()) {
             param->set_layout(input->m_network_data->get_layout());
         }
         auto consumers = param->output(0).get_target_inputs();
@@ -210,7 +210,19 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         if (!input->m_tensor_data->is_element_type_set()) {
             input->m_tensor_data->set_element_type(param->get_element_type());
         }
-        auto new_param_shape = param->get_partial_shape();
+        auto net_shape = param->get_partial_shape();
+        auto new_param_shape = net_shape;
+        if (input->m_tensor_data->is_layout_set() && param->get_layout() != Layout() &&
+            param->get_layout() != input->m_tensor_data->get_layout()) {
+            // Find transpose between network and tensor layouts and update tensor shape
+            auto net_to_tensor =
+                layout::find_permutation(param->get_layout(), net_shape.rank(), input->m_tensor_data->get_layout());
+            std::vector<ov::Dimension> dims(new_param_shape.size());
+            std::transform(net_to_tensor.begin(), net_to_tensor.end(), dims.begin(), [&](int64_t v) {
+                return new_param_shape[v];
+            });
+            new_param_shape = PartialShape(dims);
+        }
         if (input->m_tensor_data->is_spatial_shape_set()) {
             auto height_idx = get_and_check_height_idx(input->m_tensor_data->get_layout(), new_param_shape);
             auto width_idx = get_and_check_width_idx(input->m_tensor_data->get_layout(), new_param_shape);
@@ -407,6 +419,16 @@ PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg) & {
 
 PreProcessSteps&& PreProcessSteps::resize(ResizeAlgorithm alg) && {
     m_impl->add_resize_impl(alg, -1, -1);
+    return std::move(*this);
+}
+
+PreProcessSteps& PreProcessSteps::convert_layout(const Layout& dst_layout) & {
+    m_impl->add_convert_layout_impl(dst_layout);
+    return *this;
+}
+
+PreProcessSteps&& PreProcessSteps::convert_layout(const Layout& dst_layout) && {
+    m_impl->add_convert_layout_impl(dst_layout);
     return std::move(*this);
 }
 

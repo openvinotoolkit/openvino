@@ -45,6 +45,7 @@ void ShuffleChannelsTransformation::SetUp() {
         param.fakeQuantizeOnData,
         param.axis,
         param.group);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void ShuffleChannelsTransformation::Run() {
