@@ -115,35 +115,34 @@ void MKLDNNReorderNode::prepareParams() {
         if (getSelectedPrimitiveDescriptor() == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set.";
 
+        const auto&  parentDesc = srcMemPtr->getDesc();
         const auto&  childDesc = dstMemPtr->getDesc();
-        if ((isNspc2NcspCase || isNcsp2NspcCase) && (childDesc.getType() == MemoryDescType::Blocked)) {
+        if ((isNspc2NcspCase || isNcsp2NspcCase) &&
+            childDesc.getType() == MemoryDescType::Blocked &&
+            parentDesc.getType() == MemoryDescType::Blocked) {
             const auto &inDims = srcMemPtr->getStaticDims();
-            const auto ndims = inDims.size();
-            const auto P_size = inDims[ndims-1];
-            const auto SxP_size = inDims[ndims-2] * P_size;
-            const auto GxSxP_size = (ndims == 5) ? inDims[ndims-3] * SxP_size : 0;
-            const auto& dst_strides = childDesc.as<BlockedMemoryDesc>()->getStrides();
+            // Check that child strides are consistent with parent dims, if the child is inplace.
+            // The strides must be dense except for the post-channel one (since the child num channels might differ)
+            const auto checkChildStrides = [&]() {
+                const auto& dstStrides = childDesc.as<BlockedMemoryDesc>()->getStrides();
+                const auto& dstOrder = childDesc.as<BlockedMemoryDesc>()->getOrder();
+                const size_t channelDim = 1;
+                if (!getChildEdgeAt(0)->getChild()->isInplace())
+                    return true;
+                size_t validStride = 1;
+                for (int i = inDims.size() - 1; i >= 0; i--) {
+                    if (dstStrides[i] != validStride)
+                        return false;
+                    // Note: it is implied that i > 0 for (dst_order[i] == channelDim), since only NSPC and NCSP are supported
+                    validStride = dstOrder[i] != channelDim ? validStride * inDims[dstOrder[i]] : dstStrides[i-1];
+                }
+                return true;
+            };
             if (isNspc2NcspCase) {
-                // If child is inplace check that its strides are consistent with parent dims
-                auto checkChildStrides = [&](){
-                        return (!getChildEdgeAt(0)->getChild()->isInplace()) ||
-                               ( (dst_strides[ndims-1] == 1) &&
-                                 (dst_strides[ndims-2] == P_size) &&
-                                 (dst_strides[ndims-3] == SxP_size) &&
-                                 (GxSxP_size != 0 && dst_strides[ndims-4] == GxSxP_size) );
-                };
                 canUseNspc2Ncsp = inDims[1] <= 64 && inDims[1] >= 16 &&
-                                  (srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount() /
-                                   inDims[1]) >= 128 &&
+                                  (parentDesc.as<BlockedMemoryDesc>()->getPaddedElementsCount() / inDims[1]) >= 128 &&
                                   checkChildStrides();
             } else if (isNcsp2NspcCase) {
-                auto checkChildStrides = [&](){
-                    return (!getChildEdgeAt(0)->getChild()->isInplace()) ||
-                            ( (dst_strides[ndims-1] == 1) &&
-                              (dst_strides[ndims-3] == dst_strides[ndims-2] * P_size) &&
-                              (dst_strides[ndims-4] == dst_strides[ndims-2] * SxP_size) &&
-                              (GxSxP_size != 0 && dst_strides[ndims-5] == dst_strides[ndims-2] * GxSxP_size) );
-                };
                 canUseNcsp2Nspc = checkChildStrides();
             }
         }

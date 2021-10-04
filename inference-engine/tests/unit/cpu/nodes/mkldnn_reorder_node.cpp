@@ -87,11 +87,11 @@ protected:
                                                             getBlockedDims(srcDims, dstOrder), dstOrder,
                                                             0, offsetPaddingToData, dstStrides);
 
-        auto parent_memory = std::make_shared<MKLDNNPlugin::MKLDNNMemory>(cpuEngine);
+        auto parentMemory = std::make_shared<MKLDNNPlugin::MKLDNNMemory>(cpuEngine);
         auto childMemory = std::make_shared<MKLDNNPlugin::MKLDNNMemory>(cpuEngine);
-        parent_memory->Create(inputDesc, srcData);
+        parentMemory->Create(inputDesc, srcData);
         childMemory->Create(outputDesc, dstData);
-        parentEdge->reuse(parent_memory);
+        parentEdge->reuse(parentMemory);
         childEdge->reuse(childMemory);
 
         reorderNode->setDescs(inputDesc, outputDesc);
