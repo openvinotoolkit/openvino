@@ -580,8 +580,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_3d) {
                                               5,  4,  3,   2,
                                               1,  0, -1,  -2});                             // B
     test_case.add_input(std::vector<uint8_t>{150});                                         // a_zero_point
-    test_case.add_input(std::vector<int8_t>{5, 10, 15, 20,
-                                            -5, -10, -15, -20});                            // b_zero_point
+    test_case.add_input(std::vector<int8_t>{5,  10,  15,  20,
+                                           -5, -10, -15, -20});                             // b_zero_point
 
     test_case.add_expected_output({2, 2, 4}, std::vector<int32_t>{545,  545,  545,  545,
                                                                   340,  300,  260,  220,
@@ -600,32 +600,33 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d)
 
     // don't change style for better readibility
     // clang-format off
-    test_case.add_input(std::vector<uint8_t>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
-                                             12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}); // a
-    test_case.add_input(std::vector<uint8_t>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
-                                             12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}); // b
-    test_case.add_input(std::vector<uint8_t>{0}); // a_zero_point
-    test_case.add_input(std::vector<uint8_t>{0}); // b_zero_point
+    test_case.add_input(std::vector<uint8_t>{0, 1,  2,  3,
+                                             4, 5,  6,  7,
+                                             8, 9, 10, 11,
 
-    test_case.add_expected_output<int32_t>({1, 2, 3, 3}, std::vector<int32_t>
-                                           {42,
-                                            48,
-                                            54,
-                                            114,
-                                            136,
-                                            158,
-                                            186,
-                                            224,
-                                            262,
-                                            906,
-                                            960,
-                                            1014,
-                                            1170,
-                                            1240,
-                                            1310,
-                                            1434,
-                                            1520,
-                                            1606}); // y
+                                             12, 13, 14,
+                                             15, 16, 17,
+                                             18, 19, 20,
+                                             21, 22, 23});                                      // A
+    test_case.add_input(std::vector<uint8_t>{0,  1,  2,
+                                             3,  4,  5,
+                                             6,  7,  8,
+                                             9,  10, 11,
+
+                                             12, 13, 14,
+                                             15, 16, 17,
+                                             18, 19, 20,
+                                             21, 22, 23});                                      // B
+    test_case.add_input(std::vector<uint8_t>{0});                                               // a_zero_point
+    test_case.add_input(std::vector<uint8_t>{0});                                               // b_zero_point
+
+    test_case.add_expected_output<int32_t>({1, 2, 3, 3}, std::vector<int32_t> {42,  48,  54,
+                                                                              114, 136, 158,
+                                                                              186, 224, 262,
+
+                                                                               906,  960, 1014,
+                                                                              1170, 1240, 1310,
+                                                                              1434, 1520, 1606});  // Y
     // clang-format on
     test_case.run();
 }
@@ -638,32 +639,32 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d_zero_point)
 
     // don't change style for better readibility
     // clang-format off
-    test_case.add_input(std::vector<uint8_t>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
-                                             12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}); // a
-    test_case.add_input(std::vector<uint8_t>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
-                                             12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}); // b
-    test_case.add_input(std::vector<uint8_t>{1}); // a_zero_point
-    test_case.add_input(std::vector<uint8_t>{1}); // b_zero_point
+    test_case.add_input(std::vector<uint8_t>{0,  1,  2,  3,
+                                             4,  5,  6,  7,
+                                             8,  9, 10, 11,
 
-    test_case.add_expected_output<int32_t>({1, 2, 3, 3}, std::vector<int32_t>
-                                           {22,
-                                            24,
-                                            26,
-                                            78,
-                                            96,
-                                            114,
-                                            134,
-                                            168,
-                                            202,
-                                            790,
-                                            840,
-                                            890,
-                                            1038,
-                                            1104,
-                                            1170,
-                                            1286,
-                                            1368,
-                                            1450}); // y
+                                            12, 13, 14, 15,
+                                            16, 17, 18, 19,
+                                            20, 21, 22, 23});                                   // A
+    test_case.add_input(std::vector<uint8_t>{0,  1,  2,
+                                             3,  4,  5,
+                                             6,  7,  8,
+                                             9, 10, 11,
+
+                                            12, 13, 14,
+                                            15, 16, 17,
+                                            18, 19, 20,
+                                            21, 22, 23});                                       // B
+    test_case.add_input(std::vector<uint8_t>{1});                                               // a_zero_point
+    test_case.add_input(std::vector<uint8_t>{1});                                               // b_zero_point
+
+    test_case.add_expected_output<int32_t>({1, 2, 3, 3}, std::vector<int32_t>{22,   24,   26,
+                                                                              78,   96,  114,
+                                                                             134,  168,  202,
+
+                                                                             790,  840,  890,
+                                                                            1038, 1104, 1170,
+                                                                            1286, 1368, 1450}); // Y
     // clang-format on
     test_case.run();
 }

@@ -2,14 +2,14 @@ ir_version: 5
 producer_name: "nGraph ONNX Importer"
 graph {
   node {
-    input: "a"
-    input: "b"
-    output: "y"
+    input: "A"
+    input: "B"
+    output: "Y"
     op_type: "MatMulInteger"
   }
   name: "test"
   input {
-    name: "a"
+    name: "A"
     type {
       tensor_type {
         elem_type: 2
@@ -31,7 +31,7 @@ graph {
     }
   }
   input {
-    name: "b"
+    name: "B"
     type {
       tensor_type {
         elem_type: 2
@@ -53,7 +53,7 @@ graph {
     }
   }
   output {
-    name: "y"
+    name: "Y"
     type {
       tensor_type {
         elem_type: 6
