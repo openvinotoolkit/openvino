@@ -193,7 +193,6 @@ void MultipleLSTMCellTest::SetUp() {
                                           SinkVector{cell_memory_write, hidden_memory_write, cell_memory_2_write, hidden_memory_2_write},
                                           input_parameter,
                                           "TI_with_memory");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void MultipleLSTMCellTest::switchToNgraphFriendlyModel() {
@@ -267,7 +266,6 @@ void MultipleLSTMCellTest::switchToNgraphFriendlyModel() {
     // Body 2 - end
 
     function = std::make_shared<Function>(final_reshape, input_parameter, "TI_unrolled_without_memory");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void MultipleLSTMCellTest::CreatePureTensorIteratorModel() {
@@ -393,7 +391,6 @@ void MultipleLSTMCellTest::CreatePureTensorIteratorModel() {
     auto final_reshape = std::make_shared<Reshape>(out_unsqueeze_2, final_reshape_pattern, false);
 
     function = std::make_shared<Function>(final_reshape, input_parameter, "PureTI");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void MultipleLSTMCellTest::InitMemory() {
@@ -476,6 +473,7 @@ void MultipleLSTMCellTest::ApplyLowLatency() {
 
 void MultipleLSTMCellTest::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    functionRefs = ngraph::clone_function(*function);
     if (transformation != ngraph::helpers::MemoryTransformation::NONE) {
         ApplyLowLatency();
     } else {

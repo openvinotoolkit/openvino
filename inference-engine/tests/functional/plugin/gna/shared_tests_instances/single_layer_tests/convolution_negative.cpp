@@ -125,6 +125,7 @@ protected:
 
         if (!GnaLayerTestCheck::skipTest) {
             try {
+                functionRefs = ngraph::clone_function(*function);
                 ConvolutionLayerTest::LoadNetwork();
                 FAIL() << "GNA's unsupported configuration of Convolution2D was not detected in ConvolutionLayerTest::LoadNetwork()";
             }

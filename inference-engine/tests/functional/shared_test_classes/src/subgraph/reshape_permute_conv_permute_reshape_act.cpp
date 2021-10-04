@@ -74,11 +74,11 @@ namespace SubgraphTestsDefinitions {
         auto tanh = std::make_shared<ngraph::op::Tanh>(reshape_out);
 
         function = std::make_shared<ngraph::Function>(tanh, input_parameter, "conv_reshape_act");
-        functionRefs = ngraph::clone_function(*function);
     }
 
     void ConvReshapeAct::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        functionRefs = ngraph::clone_function(*function);
 
         LoadNetwork();
 

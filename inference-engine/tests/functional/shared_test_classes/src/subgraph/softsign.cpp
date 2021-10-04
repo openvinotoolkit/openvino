@@ -47,11 +47,11 @@ void SoftsignTest::SetUp() {
     auto mul = std::make_shared<ngraph::op::v1::Multiply>(power, params[0]);
     ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(mul) };
     function = std::make_shared<ngraph::Function>(results, params, "SoftSignTest");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void SoftsignTest::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    functionRefs = ngraph::clone_function(*function);
 
     LoadNetwork();
     GenerateInputs();

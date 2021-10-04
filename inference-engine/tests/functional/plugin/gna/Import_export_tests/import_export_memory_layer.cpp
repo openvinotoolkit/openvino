@@ -50,6 +50,7 @@ public:
 
     void Run() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        functionRefs = ngraph::clone_function(*function);
 
         configuration.insert(exportConfiguration.begin(), exportConfiguration.end());
         LoadNetwork();
@@ -96,7 +97,6 @@ protected:
         relu->add_control_dependency(mem_w);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(relu)};
         function = std::make_shared<ngraph::Function>(results, params, "ExportImportNetwork");
-        functionRefs = ngraph::clone_function(*function);
     }
 
 private:

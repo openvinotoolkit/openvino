@@ -44,6 +44,5 @@ namespace SubgraphTestsDefinitions {
 
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{reshape_1, reshape_2}, 1);
         function = std::make_shared<ngraph::Function>(concat, input, "copy_before_squeeze");
-        functionRefs = ngraph::clone_function(*function);
     }
 } // namespace SubgraphTestsDefinitions

@@ -9,6 +9,7 @@
 namespace SubgraphTestsDefinitions {
 
 TEST_P(ScaleShiftAfterConvTest, CompareWithRefImpl) {
+    functionRefs = ngraph::clone_function(*function);
     LoadNetwork();
     GenerateInputs();
     Infer();
@@ -18,6 +19,7 @@ TEST_P(ScaleShiftAfterConvTest, CompareWithRefImpl) {
 };
 
 TEST_P(ScaleShiftBeforeConvTest, CompareWithRefImpl) {
+    functionRefs = ngraph::clone_function(*function);
     LoadNetwork();
     GenerateInputs();
     Infer();

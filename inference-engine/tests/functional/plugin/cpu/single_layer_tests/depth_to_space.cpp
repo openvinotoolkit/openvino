@@ -54,8 +54,6 @@ protected:
         auto d2s = ngraph::builder::makeDepthToSpace(paramOuts[0], mode, blockSize);
         d2s->get_rt_info() = getCPUInfo();
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(d2s)};
-        function = std::make_shared<ngraph::Function>(results, params, "DepthToSpace");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

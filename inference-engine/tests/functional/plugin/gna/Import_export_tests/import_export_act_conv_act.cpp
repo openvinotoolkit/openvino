@@ -52,6 +52,7 @@ public:
     }
 
     void Run() override {
+        functionRefs = ngraph::clone_function(*function);
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
         configuration.insert(exportConfiguration.begin(), exportConfiguration.end());
@@ -131,7 +132,6 @@ protected:
         auto relu2 = std::make_shared<ngraph::opset1::Relu>(conv);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(relu2)};
         function = std::make_shared<ngraph::Function>(results, params, "ExportImportNetwork");
-        functionRefs = ngraph::clone_function(*function);
     }
 
 private:

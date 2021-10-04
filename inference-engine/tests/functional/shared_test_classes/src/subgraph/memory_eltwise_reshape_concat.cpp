@@ -82,7 +82,6 @@ void MemoryEltwiseReshapeConcatTest::initTestModel() {
     auto final_reshape = std::make_shared<ngraph::opset5::Reshape>(concat, final_reshape_pattern, false);
 
     function = std::make_shared<ngraph::Function>(final_reshape, input_parameter, "memory_multiply_reshape_concat");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void MemoryEltwiseReshapeConcatTest::initNgraphFriendlyModel() {
@@ -111,12 +110,12 @@ void MemoryEltwiseReshapeConcatTest::initNgraphFriendlyModel() {
     auto concat = ngraph::builder::makeConcat({concat_constant, squeeze}, 0);
 
     function = std::make_shared<ngraph::Function>(concat, input_parameter, "memory_multiply_reshape_concat");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void MemoryEltwiseReshapeConcatTest::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     initTestModel();
+    functionRefs = ngraph::clone_function(*function);
     LoadNetwork();
 
     InferenceEngine::TensorDesc state_description(InferenceEngine::Precision::FP32,

@@ -60,7 +60,8 @@ void LayerTestsCommon::Run() {
 
     try {
         LoadNetwork();
-        for (size_t i = 0; i < targetStaticShapes.size(); i++) {
+        size_t i = 0;
+        do {
             index = i;
             try {
                 if (!inputDynamicShapes.empty()) {
@@ -74,7 +75,7 @@ void LayerTestsCommon::Run() {
             } catch (const std::exception &ex) {
                 THROW_IE_EXCEPTION << "Incorrect target static shape: " << CommonTestUtils::vec2str(targetStaticShapes[i]) << std::endl << ex.what();
             }
-        }
+        } while (++i < targetStaticShapes.size());
     }
     catch (const std::runtime_error &re) {
         s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
@@ -430,11 +431,6 @@ void LayerTestsCommon::Infer() {
 }
 
 std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTestsCommon::CalculateRefs() {
-    //TODO: w/a: to identify gaps with functionRefs and init it
-    if (functionRefs == nullptr) {
-        functionRefs = ngraph::clone_function(*function);
-    }
-    // nGraph interpreter does not support f16/bf16
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
 
