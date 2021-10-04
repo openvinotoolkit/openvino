@@ -127,7 +127,8 @@ void ngfunction_2_ir(pugi::xml_node& node,
                      const ngraph::Function& f,
                      const std::map<std::string, ngraph::OpSet>& custom_opsets,
                      ConstantWriter& constant_write_handler,
-                     int64_t version);
+                     int64_t version,
+                     bool with_order = true);
 
 // Some of the operators were added to wrong opsets. This is a mapping
 // that allows such operators to be serialized with proper opsets.
@@ -496,7 +497,7 @@ public:
             // to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (m_xml_node) with empty attributes
             // is removed.
             pugi::xml_node xml_body = m_xml_node.parent().append_child(name.c_str());
-            ngfunction_2_ir(xml_body, *adapter.get(), m_custom_opsets, m_constant_write_handler, m_version);
+            ngfunction_2_ir(xml_body, *adapter.get(), m_custom_opsets, m_constant_write_handler, m_version, false);
             xml_body.remove_attribute("name");
             xml_body.remove_attribute("version");
         } else if (name == "net") {
@@ -826,7 +827,8 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                      const ngraph::Function& f,
                      const std::map<std::string, ngraph::OpSet>& custom_opsets,
                      ConstantWriter& constant_node_write_handler,
-                     int64_t version) {
+                     int64_t version,
+                     bool with_order) {
     netXml.append_attribute("name").set_value(f.get_friendly_name().c_str());
     netXml.append_attribute("version").set_value(version);
     pugi::xml_node layers = netXml.append_child("layers");
@@ -888,11 +890,13 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 
         if (version >= 11) {
             ov::RTMap rt_map = node->get_rt_info();
-            const std::string idx_key = ov::IndexWrapper::get_type_info_static();
-            if (ov::op::util::is_parameter(node) && !node->get_rt_info().count(idx_key)) {
-                rt_map[idx_key] = std::make_shared<IndexWrapper>(parameter_ids.at(node));
-            } else if (ov::op::util::is_output(node) && !node->get_rt_info().count(idx_key)) {
-                rt_map[idx_key] = std::make_shared<IndexWrapper>(result_ids.at(node));
+            if (with_order) {
+                const std::string idx_key = ov::IndexWrapper::get_type_info_static();
+                if (ov::op::util::is_parameter(node) && !node->get_rt_info().count(idx_key)) {
+                    rt_map[idx_key] = std::make_shared<IndexWrapper>(parameter_ids.at(node));
+                } else if (ov::op::util::is_output(node) && !node->get_rt_info().count(idx_key)) {
+                    rt_map[idx_key] = std::make_shared<IndexWrapper>(result_ids.at(node));
+                }
             }
 
             append_runtime_info(layer, rt_map);
