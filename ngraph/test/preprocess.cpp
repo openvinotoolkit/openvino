@@ -156,12 +156,12 @@ TEST(pre_post_process, convert_color_nv12_bgr_2_planes) {
 
     EXPECT_EQ(f->get_parameters().size(), 2);
     EXPECT_EQ(f->get_parameters()[0]->get_friendly_name(), "input1/TestY");
-    EXPECT_EQ(*f->get_parameters()[0]->output(0).get_tensor().get_names().begin(), "input1/TestY");
+    EXPECT_EQ(*f->get_parameters()[0]->output(0).get_tensor().get_names().begin(), "tensor_input1/TestY");
     EXPECT_EQ(f->get_parameters()[0]->get_element_type(), element::f32);
     EXPECT_EQ(f->get_parameters()[0]->get_partial_shape(), (PartialShape{5, 2, 2, 1}));
 
     EXPECT_EQ(f->get_parameters()[1]->get_friendly_name(), "input1/TestUV");
-    EXPECT_EQ(*f->get_parameters()[1]->output(0).get_tensor().get_names().begin(), "input1/TestUV");
+    EXPECT_EQ(*f->get_parameters()[1]->output(0).get_tensor().get_names().begin(), "tensor_input1/TestUV");
     EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::f32);
     EXPECT_EQ(f->get_parameters()[1]->get_partial_shape(), (PartialShape{5, 1, 1, 2}));
 }
