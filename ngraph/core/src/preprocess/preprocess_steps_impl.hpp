@@ -7,6 +7,7 @@
 #include <list>
 
 #include "openvino/core/layout.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/preprocess/color_format.hpp"
 #include "openvino/core/preprocess/preprocess_steps.hpp"
@@ -54,6 +55,17 @@ inline size_t get_and_check_channels_idx(const Layout& layout, const PartialShap
                     "Channels dimension is out of bounds ",
                     std::to_string(idx));
     return idx;
+}
+
+inline void inherit_friendly_names(const std::shared_ptr<ov::Node>& src_node, const std::shared_ptr<ov::Node>& dst_node, const std::string& suffix) {
+    OPENVINO_ASSERT(src_node->get_output_size() == 1 && dst_node->get_output_size() == 1,
+                    "Internal error. Preprocessing steps must contain nodes with one output");
+    dst_node->set_friendly_name(src_node->get_friendly_name() + suffix);
+    std::unordered_set<std::string> new_names;
+    for (const auto& tensor_name: src_node->output(0).get_tensor().get_names()) {
+        new_names.emplace(tensor_name + suffix);
+    }
+    dst_node->output(0).get_tensor().set_names(new_names);
 }
 
 /// \brief Preprocessing context passed to each preprocessing operation.

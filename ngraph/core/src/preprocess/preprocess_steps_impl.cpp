@@ -46,10 +46,10 @@ void PreProcessSteps::PreProcessStepsImpl::add_scale_impl(const std::vector<floa
                 shape = construct_mean_scale_shape(nodes[0], values.size(), context);
             }
             auto constant = op::v0::Constant::create(element::f32, shape, values);
-            constant->set_friendly_name(nodes[0]->get_friendly_name() + "/scale/Divide_Factor");
+            inherit_friendly_names(nodes[0], constant, "/scale/Divide_Factor");
 
             auto new_op = std::make_shared<op::v1::Divide>(nodes[0], constant);
-            new_op->set_friendly_name(nodes[0]->get_friendly_name() + "/scale/Divide");
+            inherit_friendly_names(nodes[0], new_op, "/scale/Divide");
             return {new_op};
         },
         false));
@@ -70,10 +70,10 @@ void PreProcessSteps::PreProcessStepsImpl::add_mean_impl(const std::vector<float
                 shape = construct_mean_scale_shape(nodes[0], values.size(), context);
             }
             auto constant = op::v0::Constant::create(element::f32, shape, values);
-            constant->set_friendly_name(nodes[0]->get_friendly_name() + "/mean/Mean_Const");
+            inherit_friendly_names(nodes[0], constant, "/mean/Mean_Const");
 
             auto new_op = std::make_shared<op::v1::Subtract>(nodes[0], constant);
-            new_op->set_friendly_name(nodes[0]->get_friendly_name() + "/mean/Subtract");
+            inherit_friendly_names(nodes[0], new_op, "/mean/Subtract");
             return {new_op};
         },
         false));
@@ -89,7 +89,7 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_impl(const ov::element::T
                 OPENVINO_ASSERT(node->get_element_type().is_static(),
                                 "Can't insert 'convert_element_type' for dynamic source tensor type.");
                 auto convert = std::make_shared<op::v0::Convert>(node, type);
-                convert->set_friendly_name(node->get_friendly_name() + "/convert_element_type");
+                inherit_friendly_names(node, convert, "/convert_element_type");
                 res.emplace_back(convert);
             }
             return res;
@@ -147,7 +147,7 @@ void PreProcessSteps::PreProcessStepsImpl::add_resize_impl(ResizeAlgorithm alg, 
                                                         {0, 0});
 
             auto interp = std::make_shared<op::v4::Interpolate>(node, target_spatial_shape, scales, axes, attrs);
-            interp->set_friendly_name(nodes[0]->get_friendly_name() + "/resize");
+            inherit_friendly_names(nodes[0], interp, "/resize");
             return {interp};
         },
         true));
@@ -167,7 +167,7 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_layout_impl(const Layout&
             auto perm_constant =
                 op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
             auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
-            transpose->set_friendly_name(nodes[0]->get_friendly_name() + "/convert_layout");
+            inherit_friendly_names(nodes[0], transpose, "/convert_layout");
             context.layout() = dst_layout;  // Update context's current layout
             return {transpose};
         },
@@ -192,7 +192,7 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_color_impl(const ColorFor
                 default:
                     OPENVINO_ASSERT(false, "Unsupported NV12 conversion format");
                 }
-                convert->set_friendly_name(nodes[0]->get_friendly_name() + "/convert_color_nv12_single");
+                inherit_friendly_names(nodes[0], convert, "/convert_color_nv12_single");
                 context.color_format() = dst_format;
                 return {convert};
             } else if (context.color_format() == ColorFormat::NV12_TWO_PLANES) {
@@ -208,7 +208,7 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_color_impl(const ColorFor
                 default:
                     OPENVINO_ASSERT(false, "Unsupported NV12 conversion format");
                 }
-                convert->set_friendly_name(nodes[0]->get_friendly_name() + "/convert_color_nv12_two_planes");
+                inherit_friendly_names(nodes[0], convert, "/convert_color_nv12_two_planes");
                 context.color_format() = dst_format;
                 return {convert};
             }

@@ -279,15 +279,10 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
                 std::make_shared<op::v0::Parameter>(input->m_tensor_data->get_element_type(), plane_shape);
             if (plane < input->m_tensor_data->planes_sub_names().size()) {
                 auto sub_name = std::string("/") + input->m_tensor_data->planes_sub_names()[plane];
-                plane_param->set_friendly_name(param->get_friendly_name() + sub_name);
-                std::unordered_set<std::string> plane_names;
-                for (const auto& name : param->get_output_tensor(0).get_names()) {
-                    plane_names.insert(name + sub_name);
-                }
-                plane_param->get_output_tensor(0).set_names(plane_names);
+                inherit_friendly_names(param, plane_param, sub_name);
             } else {
-                plane_param->set_friendly_name(color_info->friendly_name(plane, param->get_friendly_name()));
-                plane_param->get_output_tensor(0).set_names(param->get_output_tensor(0).get_names());
+                auto sub_name = color_info->friendly_suffix(plane);
+                inherit_friendly_names(param, plane_param, sub_name);
             }
             if (input->m_tensor_data->get_layout() != Layout()) {
                 plane_param->set_layout(input->m_tensor_data->get_layout());

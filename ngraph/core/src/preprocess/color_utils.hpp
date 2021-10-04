@@ -38,18 +38,18 @@ public:
         return calculate_shape(plane_num, image_src_shape);
     }
 
-    std::string friendly_name(size_t plane_num, const std::string& original_name) const {
+    std::string friendly_suffix(size_t plane_num) const {
         OPENVINO_ASSERT(plane_num < planes_count(),
                         "Internal error: incorrect plane number specified for color format");
-        return calc_friendly_name(plane_num, original_name);
+        return calc_name_suffix(plane_num);
     }
 
 protected:
     virtual PartialShape calculate_shape(size_t plane_num, const PartialShape& image_shape) const {
         return image_shape;
     }
-    virtual std::string calc_friendly_name(size_t plane_num, const std::string& original_name) const {
-        return original_name;
+    virtual std::string calc_name_suffix(size_t plane_num) const {
+        return {};
     }
     explicit ColorFormatInfo(ColorFormat format) : m_format(format) {}
     ColorFormat m_format;
@@ -105,11 +105,11 @@ protected:
         }
         return result;
     }
-    std::string calc_friendly_name(size_t plane_num, const std::string& original_name) const override {
+    std::string calc_name_suffix(size_t plane_num) const override {
         if (plane_num == 0) {
-            return original_name + "/Y";
+            return "/Y";
         }
-        return original_name + "/UV";
+        return "/UV";
     }
 
     Layout default_layout() const override {

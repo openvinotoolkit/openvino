@@ -109,6 +109,8 @@ TEST(pre_post_process, tensor_element_type_and_scale) {
 
 TEST(pre_post_process, convert_color_nv12_rgb_single) {
     auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 3});
+    auto name = f->get_parameters()[0]->get_friendly_name();
+    auto tensor_names = f->get_parameters().front()->get_output_tensor(0).get_names();
     f = PrePostProcessor()
             .input(
                 InputInfo()
@@ -122,10 +124,14 @@ TEST(pre_post_process, convert_color_nv12_rgb_single) {
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::u8);
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "NHWC");
     EXPECT_EQ(f->get_parameters().front()->get_partial_shape(), (PartialShape{Dimension::dynamic(), 3, 2, 1}));
+    EXPECT_EQ(f->get_parameters().front()->get_friendly_name(), name);
+    EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
 }
 
 TEST(pre_post_process, convert_color_nv12_bgr_single) {
     auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 3});
+    auto name = f->get_parameters()[0]->get_friendly_name();
+    auto tensor_names = f->get_parameters().front()->get_output_tensor(0).get_names();
     f = PrePostProcessor()
             .input(InputInfo()
                        .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_SINGLE_PLANE))
@@ -136,6 +142,8 @@ TEST(pre_post_process, convert_color_nv12_bgr_single) {
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::f32);
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "NHWC");
     EXPECT_EQ(f->get_parameters().front()->get_partial_shape(), (PartialShape{Dimension::dynamic(), 3, 2, 1}));
+    EXPECT_EQ(f->get_parameters().front()->get_friendly_name(), name);
+    EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
 }
 
 TEST(pre_post_process, convert_color_nv12_bgr_2_planes) {
@@ -148,10 +156,13 @@ TEST(pre_post_process, convert_color_nv12_bgr_2_planes) {
 
     EXPECT_EQ(f->get_parameters().size(), 2);
     EXPECT_EQ(f->get_parameters()[0]->get_friendly_name(), "input1/TestY");
+    EXPECT_EQ(*f->get_parameters()[0]->output(0).get_tensor().get_names().begin(), "input1/TestY");
     EXPECT_EQ(f->get_parameters()[0]->get_element_type(), element::f32);
-    EXPECT_EQ(f->get_parameters()[1]->get_friendly_name(), "input1/TestUV");
-    EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::f32);
     EXPECT_EQ(f->get_parameters()[0]->get_partial_shape(), (PartialShape{5, 2, 2, 1}));
+
+    EXPECT_EQ(f->get_parameters()[1]->get_friendly_name(), "input1/TestUV");
+    EXPECT_EQ(*f->get_parameters()[1]->output(0).get_tensor().get_names().begin(), "input1/TestUV");
+    EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::f32);
     EXPECT_EQ(f->get_parameters()[1]->get_partial_shape(), (PartialShape{5, 1, 1, 2}));
 }
 
