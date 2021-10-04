@@ -36,9 +36,20 @@ python converter.py
 4. Run Model Optimizer to converter the model from the TensorFlow 2 format to an IR:
 
 > **NOTE:** Before you run the convertion, make sure you have installed all the Model Optimizer dependencies for TensorFlow 2.
-```sh
-python mo.py --saved_model_dir yolov4 --output_dir models/IRs --input_shape [1,608,608,3] --model_name yolov4 
-```
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      python3 mo.py --saved_model_dir yolov4 --output_dir models/IRs --input_shape [1,608,608,3] --model_name yolov4
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --saved_model_dir yolov4 --output_dir models/IRs --input_shape [1,608,608,3] --model_name yolov4
+
+@endsphinxdirective
 
 ## <a name="yolov3-to-ir"></a>Convert YOLOv3 Model to IR
 

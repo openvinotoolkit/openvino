@@ -642,10 +642,10 @@ This section explains how to build and use the sample and demo applications prov
 To build all the demos and samples:
 
 ```sh
-cd $INTEL_OPENVINO_DIR\inference_engine_samples\cpp
+cd %INTEL_OPENVINO_DIR%\inference_engine_samples\cpp
 # to compile C samples, go here also: cd <INSTALL_DIR>\inference_engine\samples\c
 build_samples_msvc.bat
-cd $INTEL_OPENVINO_DIR\deployment_tools\open_model_zoo\demos
+cd %INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\demos
 build_demos_msvc.bat
 ```
 
