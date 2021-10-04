@@ -60,5 +60,6 @@ void RNNCellTest::SetUp() {
         m.register_pass<ngraph::pass::RNNCellDecomposition>();
         m.run_passes(function);
     }
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

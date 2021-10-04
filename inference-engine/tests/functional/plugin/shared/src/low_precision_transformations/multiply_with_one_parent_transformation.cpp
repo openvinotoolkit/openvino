@@ -38,6 +38,7 @@ void MultiplyWithOneParentTransformation::SetUp() {
     std::tie(netPrecision, inputShape, targetDevice, values) = this->GetParam();
 
     function = ngraph::builder::subgraph::MultiplyWithOneParentFunction::getOriginal(netPrecision, inputShape, values.fakeQuantize);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(MultiplyWithOneParentTransformation, CompareWithRefImpl) {

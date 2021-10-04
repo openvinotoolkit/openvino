@@ -74,6 +74,7 @@ void LowPrecisionTest::SetUp() {
     function = std::make_shared<ngraph::Function>(ngraph::ResultVector{std::make_shared<ngraph::opset1::Result>(add1)},
                                                   ngraph::ParameterVector{input},
                                                   "LowPrecisionTest");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace LowPrecisionTestDefinitions
