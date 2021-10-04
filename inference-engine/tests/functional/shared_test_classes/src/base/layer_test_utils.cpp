@@ -77,7 +77,7 @@ void LayerTestsCommon::Run() {
             } catch (const std::exception &ex) {
                 THROW_IE_EXCEPTION << "Incorrect target static shape: " << CommonTestUtils::vec2str(targetStaticShapes[i]) << std::endl << ex.what();
             }
-        } while (i++ < targetStaticShapes.size());
+        } while (++i < targetStaticShapes.size());
     }
     catch (const std::runtime_error &re) {
         s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
