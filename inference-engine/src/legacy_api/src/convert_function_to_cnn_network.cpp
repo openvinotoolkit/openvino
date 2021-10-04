@@ -1981,12 +1981,12 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         CNNLayerPtr cnnLayer = createCNNLayer(layer);
 
         // Set originalLayersNames from FusedNames
-        std::string originalNames = ::ngraph::getFusedNames(layer);
+        std::string originalNames = ngraph::getFusedNames(layer);
         if (!originalNames.empty()) {
             cnnLayer->params[ExecGraphInfoSerialization::ORIGINAL_NAMES] = originalNames;
         }
 
-        std::string primitivesPriority = ::ngraph::getPrimitivesPriority(layer);
+        std::string primitivesPriority = ov::getPrimitivesPriority(layer);
         if (!primitivesPriority.empty()) {
             cnnLayer->params["PrimitivesPriority"] = primitivesPriority;
         }

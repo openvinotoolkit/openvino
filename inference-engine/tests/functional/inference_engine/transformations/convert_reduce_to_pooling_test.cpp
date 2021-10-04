@@ -102,9 +102,12 @@ public:
 
         // TODO: handle multiply_value for ReduceSum case when set_keep_dims is ready
 
-        if (!params.reshape_end.empty()) {
+        //Convert std::vector<int64_t> -> ov::Shape
+        ov::Shape reshape_end(params.reshape_end.begin(), params.reshape_end.end());
+
+        if (reshape_end != input.get_shape()) {
             input = std::make_shared<ngraph::opset1::Reshape>(input,
-                    ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{params.reshape_end.size()}, params.reshape_end), true);
+                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{reshape_end.size()}, reshape_end), true);
         }
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{input.get_node_shared_ptr()}, ngraph::ParameterVector{param});
@@ -122,23 +125,23 @@ TEST_P(ConvertReduceToPoolingTests, CompareFunctions) {
 #define MAX std::make_shared<ngraph::opset1::ReduceMax>()
 
 INSTANTIATE_TEST_SUITE_P(ReduceToMaxPooling, ConvertReduceToPoolingTests,
-        testing::Values(std::make_tuple(MAX, InputShape{2, 3, 64, 64},  ReduceAxes{3},    KeepDims{true}, ReduceToPoolParams({}, {1, 64}, {})),
-                        std::make_tuple(MAX, InputShape{2, 3, 64, 64},  ReduceAxes{3, 2}, KeepDims{true}, ReduceToPoolParams({}, {64, 64}, {}))));
+        testing::Values(std::make_tuple(MAX, InputShape{2, 3, 64, 64},  ReduceAxes{3},    KeepDims{true}, ReduceToPoolParams({}, {1, 64},  {1, 3, 64, 1})),
+                        std::make_tuple(MAX, InputShape{2, 3, 64, 64},  ReduceAxes{3, 2}, KeepDims{true}, ReduceToPoolParams({}, {64, 64}, {1, 3,  1, 1}))));
 
 INSTANTIATE_TEST_SUITE_P(ReduceToReshape, ConvertReduceToPoolingTests,
-        testing::Values(std::make_tuple(MAX, InputShape{2, 3, 64, 1}, ReduceAxes{3},       KeepDims{false}, ReduceToPoolParams({1, 3, 64}, {}, {})),
-                        std::make_tuple(MAX, InputShape{2, 3},        ReduceAxes{-2},      KeepDims{false}, ReduceToPoolParams({3}, {}, {})),
-                        std::make_tuple(MAX, InputShape{2, 3, 1},     ReduceAxes{2},       KeepDims{false}, ReduceToPoolParams({1, 3}, {}, {})),
-                        std::make_tuple(MAX, InputShape{2, 3, 1, 1},  ReduceAxes{0, 3, 2}, KeepDims{false}, ReduceToPoolParams({3}, {}, {}))));
+        testing::Values(std::make_tuple(MAX, InputShape{2, 3, 64, 1}, ReduceAxes{3},       KeepDims{false}, ReduceToPoolParams({1, 3, 64}, {}, { 1, 3, 64 })),
+                        std::make_tuple(MAX, InputShape{2, 3},        ReduceAxes{-2},      KeepDims{false}, ReduceToPoolParams({3}, {}, {3})),
+                        std::make_tuple(MAX, InputShape{2, 3, 1},     ReduceAxes{2},       KeepDims{false}, ReduceToPoolParams({1, 3}, {}, {1, 3})),
+                        std::make_tuple(MAX, InputShape{2, 3, 1, 1},  ReduceAxes{0, 3, 2}, KeepDims{false}, ReduceToPoolParams({3}, {}, {3}))));
 
 INSTANTIATE_TEST_SUITE_P(ReduceToReshapePoolReshape, ConvertReduceToPoolingTests,
         testing::Values(std::make_tuple(MAX, InputShape{2, 3, 3},    ReduceAxes{1, 2},    KeepDims{false}, ReduceToPoolParams({1, 1, 9, 1}, {9, 1}, {1})),
                         std::make_tuple(MAX, InputShape{2, 9},       ReduceAxes{-1},      KeepDims{true},  ReduceToPoolParams({1, 1, 9, 1}, {9, 1}, {1, 1})),
-                        std::make_tuple(MAX, InputShape{2, 3, 4, 1}, ReduceAxes{1, 3, 2}, KeepDims{false}, ReduceToPoolParams({1, 1, 12, 1}, {12, 1}, {1}))));
+                        std::make_tuple(MAX, InputShape{2, 3, 4, 1}, ReduceAxes{1, 3, 2}, KeepDims{false}, ReduceToPoolParams({1, 1, 12, 1}, {12, 1}, {1})),
+                        std::make_tuple(MAX, InputShape{20, 4},      ReduceAxes{0, 1},    KeepDims{false}, ReduceToPoolParams({1, 1, 40, 1}, {40, 1}, {}))));
 
 TEST(ConvertReduceToPooling, Negative) {
-    auto f = ConvertReduceToPoolingTests::get_initial_function(
-            ngraph::PartialShape::dynamic(), {3}, MAX, true);
+    auto f = ConvertReduceToPoolingTests::get_initial_function(ngraph::PartialShape::dynamic(), {3}, MAX, true);
     ASSERT_NO_THROW(ngraph::pass::ConvertReduceToPooling().run_on_function(f));
 }
 

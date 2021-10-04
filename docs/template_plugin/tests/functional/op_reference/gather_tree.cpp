@@ -4,26 +4,19 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <limits>
-#include <algorithm>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
+#include "openvino/op/gather_tree.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace {
 struct GatherTreeParams {
     template <class IN_ET>
-    GatherTreeParams(const ngraph::Shape inShape, std::vector<IN_ET> stepIds, const std::vector<IN_ET> parentIds,
+    GatherTreeParams(const ov::Shape inShape, std::vector<IN_ET> stepIds, const std::vector<IN_ET> parentIds,
         const std::vector<IN_ET> maxSeqLen, const std::vector<IN_ET> endToken, std::vector<IN_ET> output) :
         stepIdsTensor(inShape, element::from<IN_ET>(), stepIds), parentIdsTensor(inShape, element::from<IN_ET>(), parentIds),
-        maxSeqLenTensor(ngraph::Shape{inShape[1]}, element::from<IN_ET>(), maxSeqLen), endTokenTensor(ngraph::Shape{}, element::from<IN_ET>(), endToken),
+        maxSeqLenTensor(ov::Shape{inShape[1]}, element::from<IN_ET>(), maxSeqLen), endTokenTensor(ov::Shape{}, element::from<IN_ET>(), endToken),
         expectedTensor(inShape, element::from<IN_ET>(), output) {}
     Tensor stepIdsTensor;
     Tensor parentIdsTensor;
@@ -50,12 +43,12 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const GatherTreeParams& params) {
-        const auto stepIds = std::make_shared<op::Parameter>(params.stepIdsTensor.type, params.stepIdsTensor.shape);
-        const auto parentIds = std::make_shared<op::Parameter>(params.parentIdsTensor.type, params.parentIdsTensor.shape);
-        const auto maxSeqLen = std::make_shared<op::Parameter>(params.maxSeqLenTensor.type, params.maxSeqLenTensor.shape);
-        const auto endToken = std::make_shared<op::Parameter>(params.endTokenTensor.type, params.endTokenTensor.shape);
+        const auto stepIds = std::make_shared<op::v0::Parameter>(params.stepIdsTensor.type, params.stepIdsTensor.shape);
+        const auto parentIds = std::make_shared<op::v0::Parameter>(params.parentIdsTensor.type, params.parentIdsTensor.shape);
+        const auto maxSeqLen = std::make_shared<op::v0::Parameter>(params.maxSeqLenTensor.type, params.maxSeqLenTensor.shape);
+        const auto endToken = std::make_shared<op::v0::Parameter>(params.endTokenTensor.type, params.endTokenTensor.shape);
         const auto gatherTree = std::make_shared<op::v1::GatherTree>(stepIds, parentIds, maxSeqLen, endToken);
-        return std::make_shared<Function>(NodeVector {gatherTree}, ParameterVector {stepIds, parentIds, maxSeqLen, endToken});
+        return std::make_shared<ov::Function>(NodeVector {gatherTree}, ParameterVector {stepIds, parentIds, maxSeqLen, endToken});
     }
 };
 

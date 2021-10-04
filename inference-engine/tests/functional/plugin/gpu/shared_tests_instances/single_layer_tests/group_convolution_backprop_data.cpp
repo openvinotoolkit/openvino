@@ -53,7 +53,7 @@ const auto groupConvBackpropData2DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_ExplicitPadding, GroupConvBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_ExplicitPadding, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 groupConvBackpropData2DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -66,7 +66,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_ExplicitPadding, GroupConv
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_AutoPadValid, GroupConvBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData2D_AutoPadValid, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 groupConvBackpropData2DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
@@ -111,7 +111,7 @@ const auto groupConvBackpropData3DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_ExplicitPadding, GroupConvBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData3D_ExplicitPadding, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 groupConvBackpropData3DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -124,7 +124,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_ExplicitPadding, GroupConv
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         GroupConvBackpropLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_AutoPadValid, GroupConvBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData3D_AutoPadValid, GroupConvBackpropLayerTest,
                         ::testing::Combine(
                                 groupConvBackpropData3DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),

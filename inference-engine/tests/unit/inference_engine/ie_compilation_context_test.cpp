@@ -131,16 +131,21 @@ static std::shared_ptr<ngraph::Function> create_simple_function() {
     // Create opset6::Parameter operation with static shape
     auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i8, ngraph::Shape{3, 1, 2});
     data->set_friendly_name("Parameter");
+    data->get_output_tensor(0).set_names({"parameter"});
 
     auto mul_constant = ngraph::opset6::Constant::create(ngraph::element::i8, ngraph::Shape{1}, {3});
     mul_constant->set_friendly_name("mul_constant");
+    mul_constant->get_output_tensor(0).set_names({"mul_constant"});
     auto mul = std::make_shared<ngraph::opset6::Multiply>(data, mul_constant);
     mul->set_friendly_name("mul");
+    mul->get_output_tensor(0).set_names({"mul"});
 
     auto add_constant = ngraph::opset6::Constant::create(ngraph::element::i8, ngraph::Shape{1}, {2});
     add_constant->set_friendly_name("add_constant");
+    add_constant->get_output_tensor(0).set_names({"add_constant"});
     auto add = std::make_shared<ngraph::opset6::Add>(mul, add_constant);
     add->set_friendly_name("add");
+    add->get_output_tensor(0).set_names({"add"});
 
     // Create opset3::Result operation
     auto res = std::make_shared<ngraph::opset6::Result>(add);
@@ -220,24 +225,24 @@ TEST(NetworkContext_CNNNetwork, HashWithPrimitivesPriority) {
 
 TEST(NetworkContext_CNNNetwork, HashWithFusedNames) {
     auto setFusedEmpty = [&](Node::RTMap& rtInfo) {
-        rtInfo[VariantWrapper<FusedNames>::get_type_info_static().name] =
-                std::make_shared<VariantWrapper<FusedNames>>(FusedNames());
+        rtInfo[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
+                std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames());
     };
     auto setFused = [&](Node::RTMap& rtInfo, const std::string& name) {
-        rtInfo[VariantWrapper<FusedNames>::get_type_info_static().name] =
-                std::make_shared<VariantWrapper<FusedNames>>(FusedNames(name));
+        rtInfo[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
+                std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames(name));
     };
     checkCustomRt(setFusedEmpty, setFused);
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithPrimitivesPriorityType) {
     auto setPrimEmpty = [&](Node::RTMap& rtInfo) {
-        rtInfo[VariantWrapper<PrimitivesPriority>::get_type_info_static().name] =
-                std::make_shared<VariantWrapper<PrimitivesPriority>>(PrimitivesPriority());
+        rtInfo[ov::PrimitivesPriority::get_type_info_static()] =
+                std::make_shared<ov::PrimitivesPriority>("");
     };
     auto setPrim = [&](Node::RTMap& rtInfo, const std::string& name) {
-        rtInfo[VariantWrapper<PrimitivesPriority>::get_type_info_static().name] =
-                std::make_shared<VariantWrapper<PrimitivesPriority>>(PrimitivesPriority(name));
+        rtInfo[ov::PrimitivesPriority::get_type_info_static()] =
+                std::make_shared<ov::PrimitivesPriority>(name);
     };
     checkCustomRt(setPrimEmpty, setPrim);
 }
