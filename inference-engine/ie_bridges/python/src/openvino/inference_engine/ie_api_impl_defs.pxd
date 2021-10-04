@@ -231,4 +231,4 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
 
     cdef object getPartialShape_capsule(DataPtr)
 
-    cdef size_t size(const CTensorDesc& tensor_desc)
+    cdef size_t product(const SizeVector& dims)
