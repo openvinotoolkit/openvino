@@ -57,7 +57,7 @@ and *GatherND* starts to gather from the `b+1` dimension.
 It requires the first `b` dimensions in `data` and `indices` tensors to be equal.
 In case non default value for *batch_dims* the output shape is calculated as
 `(multiplication of indices.shape[:b]) + indices.shape[b:-1] + data.shape[(indices.shape[-1] + b):]`.
-    **NOTE: the calculation of output shape is incorrect for non-default *batch_dims* value**
+    **NOTE: the calculation of output shape is incorrect for non-default *batch_dims* value. For correct calculations use [GatherND_8](GatherND_8.md) operation**
   * **Range of values**: integer number and belongs to `[0; min(data.rank, indices.rank))`
   * **Type**: int
   * **Default value**: 0
