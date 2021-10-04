@@ -1342,7 +1342,7 @@ class ScaleFactorCalculator {
     template<class T>
     static int GetMandatoryWeightsBytesSize(T ptr) {
         auto info = LayerInfo(ptr);
-        if (info.isConvolution() || info.isScaleShift()) {
+        if (info.isConvolution() || info.isScaleShift() || info.isConcatAlignFilter()) {
             return GetOptionalWeightsBytesSize();
         }
 

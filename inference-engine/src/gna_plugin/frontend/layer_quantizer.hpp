@@ -642,7 +642,11 @@ class DataQuantizer<Desc, InferenceEngine::WeightableLayer *> : public DataQuant
  public:
     explicit DataQuantizer(float scaleFactor) : DataQuantizerBase(scaleFactor) {}
     bool operator()(InferenceEngine::WeightableLayer *wl) const {
-        (*this)(wl, typename Desc::MandatoryType());
+        if (LayerInfo(wl).isConcatAlignFilter()) {
+            (*this)(wl, typename Desc::OptionalType());
+        } else {
+            (*this)(wl, typename Desc::MandatoryType());
+        }
         return true;
     }
 
