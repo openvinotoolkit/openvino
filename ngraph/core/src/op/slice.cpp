@@ -241,13 +241,13 @@ PartialShape op::v8::Slice::calculate_output_shape(const std::vector<int64_t>& s
                                                    const std::vector<int64_t>& steps,
                                                    const std::vector<int64_t>& axes,
                                                    const PartialShape& data_shape) {
+    std::unordered_set<int64_t> axes_set(axes.begin(), axes.end());
+    NODE_VALIDATION_CHECK(this, axes_set.size() == axes.size(), "Slice values in `axes` input must be unique.");
+
     PartialShape output_shape(data_shape);
     if (data_shape.rank().is_dynamic()) {
         return output_shape;
     }
-
-    std::unordered_set<int64_t> axes_set(axes.begin(), axes.end());
-    NODE_VALIDATION_CHECK(this, axes_set.size() == axes.size(), "Slice values in `axes` input must be unique.");
 
     const auto data_static_rank = data_shape.rank().get_length();
     for (size_t i = 0; i < axes.size(); ++i) {
@@ -272,6 +272,7 @@ PartialShape op::v8::Slice::calculate_output_shape(const std::vector<int64_t>& s
         const auto min_dim_size = get_sliced_dim_size(start, stop, step, axis_min_dim_length);
         if (axis_dim.is_static()) {
             output_shape[norm_axis] = min_dim_size;
+            // continue;
         }
 
         // Avoid negative index normalization without upper bounds
