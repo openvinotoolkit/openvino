@@ -1565,3 +1565,6 @@ IE_GPU.deformable_convolution_opset8_2D_integral_offsets_groups_and_deforgroups
 
 # Not yet implemented - refer PR#6601
 IE_CPU.onnx_model_gather_float_2D_neg_indices
+
+# CPU plug-in doesn't support operation with dynamic rank
+onnx_model_skip_layer_normalization_dynamic_shapes

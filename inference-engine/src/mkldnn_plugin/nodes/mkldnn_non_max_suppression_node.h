@@ -52,9 +52,8 @@ public:
 
     void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
 
-    std::vector<VectorDims> shapeInfer() const override {
-        return std::vector<VectorDims>();
-    }
+    bool needShapeInfer() const override { return false; }
+    bool needPrepareParams() const override { return false; }
 
 private:
     // input

@@ -122,7 +122,7 @@ quantize_clamp_int32
 minimum_u16
 
 # Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronROIFeatureExtractor
-INTERPRETER.onnx_model_experimental_detectron_roi_feature_extractor
+# INTERPRETER.onnx_model_experimental_detectron_roi_feature_extractor
 
 # No evaluator for DeformableConv2D
 onnx_model_deformable_conv_2d

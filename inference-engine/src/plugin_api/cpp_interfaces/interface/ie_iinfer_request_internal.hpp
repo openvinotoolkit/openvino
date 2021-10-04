@@ -13,6 +13,7 @@
 #include "ie_common.h"
 #include "ie_input_info.hpp"
 #include "ie_preprocess_data.hpp"
+#include "so_ptr.hpp"
 
 namespace InferenceEngine {
 
@@ -248,6 +249,6 @@ private:
 /**
  * @brief SOPointer to IInferRequestInternal.
  */
-using SoIInferRequestInternal = details::SOPointer<IInferRequestInternal>;
+using SoIInferRequestInternal = ov::runtime::SoPtr<IInferRequestInternal>;
 
 }  // namespace InferenceEngine
