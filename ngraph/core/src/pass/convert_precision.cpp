@@ -331,7 +331,11 @@ bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, element::Ty
 
 bool fuse_type_to_nms3(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
     if (auto nms = ov::as_type_ptr<opset3::NonMaxSuppression>(node)) {
-        nms->set_output_type(to);
+        if (to == element::i32 || to == element::i64) {
+            nms->set_output_type(to);
+        } else {
+            throw ngraph_error("Type: " + to.get_type_name() + " is not supported for NMS3");
+        }
         return true;
     }
     return false;
@@ -339,18 +343,41 @@ bool fuse_type_to_nms3(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
 
 bool fuse_type_to_nms4(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
     if (auto nms = ov::as_type_ptr<opset4::NonMaxSuppression>(node)) {
-        nms->set_output_type(to);
+        if (to == element::i32 || to == element::i64) {
+            nms->set_output_type(to);
+        } else {
+            throw ngraph_error("Type: " + to.get_type_name() + " is not supported for NMS4");
+        }
         return true;
     }
     return false;
 }
 
 bool fuse_type_to_nms5(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
-    if (auto nms = ov::as_type_ptr<opset5::NonMaxSuppression>(node)) {
+    auto nms = ov::as_type_ptr<opset5::NonMaxSuppression>(node);
+    if (!nms) {
+        return false;
+    }
+
+    if ((idx == 0 || idx == 2) && (to == element::i32 || to == element::i64)) {
         nms->set_output_type(to);
         return true;
     }
-    return false;
+
+    if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
+        type_relaxed->set_overridden_output_type(to, idx);
+        return true;
+    }
+
+    element::TypeVector output_types;
+    for (const auto& output : nms->outputs()) {
+        output_types.emplace_back(output.get_element_type());
+    }
+    output_types[idx] = to;
+    auto relaxed_op =
+        std::make_shared<ngraph::op::TypeRelaxed<opset5::NonMaxSuppression>>(*nms, element::TypeVector{}, output_types);
+    replace_node(node, relaxed_op);
+    return true;
 }
 
 bool fuse_type_to_topk(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {

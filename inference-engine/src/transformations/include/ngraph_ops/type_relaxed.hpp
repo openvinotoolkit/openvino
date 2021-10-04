@@ -116,7 +116,7 @@ protected:
         for (size_t i = 0; i < node.get_output_size(); ++i) {
             auto overridden_output_type = get_overridden_output_type(i);
             if (overridden_output_type != element::undefined) {
-                node.set_output_type(0, overridden_output_type, node.get_output_partial_shape(i));
+                node.set_output_type(i, overridden_output_type, node.get_output_partial_shape(i));
             }
         }
     }

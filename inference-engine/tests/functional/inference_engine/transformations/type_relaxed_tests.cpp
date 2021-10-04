@@ -182,6 +182,27 @@ TEST_F(TypeRelaxedTests, notSupportedTypeOverridePartially) {
     ASSERT_EQ(4, ngraph->get_ops().size());
 }
 
+TEST_F(TypeRelaxedTests, multiOutputTypeOverride) {
+    auto overriden_type = element::f16;
+    auto orig_type = element::f32;
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        auto param1 = make_shared<ngraph::opset1::Parameter>(orig_type, shape);
+        auto op = ngraph::opset1::Split(param1, ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, {1}), 3);
+        auto relaxed_op = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Split>>(
+                op, TypeVector{}, TypeVector{overriden_type, overriden_type, overriden_type});
+        auto result = make_shared<ngraph::opset1::Result>(relaxed_op);
+
+        ngraph = make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1});
+
+        for (size_t i = 0; i < 3; ++i) {
+            ASSERT_EQ(overriden_type, relaxed_op->get_output_element_type(i));
+            ASSERT_EQ(ngraph::Shape({1, 1, 22, 22}), relaxed_op->get_output_shape(i));
+        }
+    }
+}
+
 TEST_F(TypeRelaxedTests, setGetTypes) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
