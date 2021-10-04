@@ -78,6 +78,15 @@ TEST(RTInfoDeserialization, NodeV10) {
         ASSERT_FALSE(info.count(key));
     };
 
+    auto check_version = [](const std::shared_ptr<ov::Function>& f) {
+        auto& rt_info = f->get_rt_info();
+        ASSERT_TRUE(rt_info.count("version"));
+        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
+        ASSERT_NE(version, nullptr);
+        ASSERT_EQ(version->get(), 10);
+    };
+    check_version(f);
+
     auto param = f->get_parameters()[0];
     check_rt_info(param->get_rt_info());
 
@@ -167,6 +176,15 @@ TEST(RTInfoDeserialization, InputAndOutputV10) {
         ASSERT_FALSE(info.count(key));
     };
 
+    auto check_version = [](const std::shared_ptr<ov::Function>& f) {
+        auto& rt_info = f->get_rt_info();
+        ASSERT_TRUE(rt_info.count("version"));
+        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
+        ASSERT_NE(version, nullptr);
+        ASSERT_EQ(version->get(), 10);
+    };
+    check_version(f);
+
     auto param = f->get_parameters()[0];
     check_rt_info(param->output(0).get_rt_info());
 
@@ -247,6 +265,15 @@ TEST(RTInfoDeserialization, NodeV11) {
         ASSERT_TRUE(fused_names_attr);
         ASSERT_EQ(fused_names_attr->get().getNames(), names);
     };
+
+    auto check_version = [](const std::shared_ptr<ov::Function>& f) {
+        auto& rt_info = f->get_rt_info();
+        ASSERT_TRUE(rt_info.count("version"));
+        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
+        ASSERT_NE(version, nullptr);
+        ASSERT_EQ(version->get(), 11);
+    };
+    check_version(f);
 
     auto param = f->get_parameters()[0];
     check_fused_names(param->get_rt_info(), "in1");
@@ -331,6 +358,15 @@ TEST(RTInfoDeserialization, InputAndOutputV11) {
     auto core = InferenceEngine::Core();
     auto net = core.ReadNetwork(model, InferenceEngine::Blob::Ptr());
     auto f = net.getFunction();
+
+    auto check_version = [](const std::shared_ptr<ov::Function>& f) {
+        auto& rt_info = f->get_rt_info();
+        ASSERT_TRUE(rt_info.count("version"));
+        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
+        ASSERT_NE(version, nullptr);
+        ASSERT_EQ(version->get(), 11);
+    };
+    check_version(f);
 
     auto check_fused_names = [](const RTMap & info, const std::string & names) {
         const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
@@ -453,6 +489,15 @@ TEST(RTInfoDeserialization, IndexesInputAndOutputV11) {
     auto core = InferenceEngine::Core();
     auto net = core.ReadNetwork(model, InferenceEngine::Blob::Ptr());
     auto f = net.getFunction();
+
+    auto check_version = [](const std::shared_ptr<ov::Function>& f) {
+        auto& rt_info = f->get_rt_info();
+        ASSERT_TRUE(rt_info.count("version"));
+        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
+        ASSERT_NE(version, nullptr);
+        ASSERT_EQ(version->get(), 11);
+    };
+    check_version(f);
 
     ASSERT_EQ(2, f->get_parameters().size());
     ASSERT_EQ(f->get_parameters()[0]->get_friendly_name(), "in1");

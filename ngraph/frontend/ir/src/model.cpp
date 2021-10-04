@@ -236,6 +236,7 @@ std::shared_ptr<Function> InputModelIR::InputModelIRImpl::convert() {
     visitor.use_framework_node(opsets.count("framework_node_ext"));
     std::shared_ptr<ngraph::Function> function;
     visitor.on_attribute("net", function);
+    function->get_rt_info()["version"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(version);
     ParsePreProcess(m_root, m_weights, function);
 
     return function;
