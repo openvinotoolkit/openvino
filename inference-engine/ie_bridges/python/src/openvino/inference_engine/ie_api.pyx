@@ -1066,6 +1066,7 @@ cdef class InferRequest:
     #  method of the `IECore` class with specified number of requests to get `ExecutableNetwork` instance
     #  which stores infer requests.
     def __init__(self):
+        self._user_blobs = {}
         self._inputs_list = []
         self._outputs_list = []
         self._py_callback = lambda *args, **kwargs: None
@@ -1111,9 +1112,13 @@ cdef class InferRequest:
     def input_blobs(self):
         input_blobs = {}
         for input in self._inputs_list:
-            blob = Blob()
-            blob._ptr = deref(self.impl).getBlobPtr(input.encode())
-            input_blobs[input] = blob
+            # TODO: will not work for setting data via .inputs['data'][:]
+            if input in self._user_blobs:
+                input_blobs[input] = self._user_blobs[input]
+            else:
+                blob = Blob()
+                blob._ptr = deref(self.impl).getBlobPtr(input.encode())
+                input_blobs[input] = blob
         return input_blobs
 
     ## Dictionary that maps output layer names to corresponding Blobs
@@ -1172,6 +1177,7 @@ cdef class InferRequest:
             deref(self.impl).setBlob(blob_name.encode(), blob._ptr, deref(preprocess_info._ptr))
         else:
             deref(self.impl).setBlob(blob_name.encode(), blob._ptr)
+        self._user_blobs[blob_name] = blob
 
     ## Starts synchronous inference of the infer request and fill outputs array
     #
