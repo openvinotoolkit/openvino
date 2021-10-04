@@ -238,10 +238,7 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
         for (const auto& i : item.second.blobShape) {
             slog::info << i << " ";
         }
-        slog::info << " [ dynamic: ";
-        for (const auto& i : item.second.partialShape) {
-            slog::info << i << " ";
-        }
+        slog::info << " [ dynamic: " << (item.second.partialShape);
         slog::info << "]";
         slog::info << slog::endl;
     }

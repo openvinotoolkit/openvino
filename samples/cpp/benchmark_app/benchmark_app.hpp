@@ -157,7 +157,7 @@ static const char dump_config_message[] =
 static const char shape_message[] =
     "Optional. Set shape for network input. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
     " in case of one input size. This parameter affect model Parameter shape, can be dynamic. For dynamic dimesions"
-    " use symbol `?`.";
+    " use symbol `?` or '-1'.";
 
 static const char blob_shape_message[] =
     "Optional if network shapes are all static (original ones or set by -shape."
