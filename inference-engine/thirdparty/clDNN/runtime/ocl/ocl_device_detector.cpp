@@ -44,6 +44,7 @@ return true;
 namespace cldnn {
 namespace ocl {
 static constexpr auto INTEL_PLATFORM_VENDOR = "Intel(R) Corporation";
+static constexpr auto INTEL_D3D11_SHARING_EXT_NAME = "cl_khr_d3d11_sharing";
 
 static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
     cl_uint maxSubDevices;
@@ -205,6 +206,11 @@ std::vector<device::ptr>  ocl_device_detector::create_device_list_from_user_devi
 
         std::vector<cl::Device> devices;
 #ifdef _WIN32
+        const std::string& ext = platform.getInfo<CL_PLATFORM_EXTENSIONS>();
+        if (ext.empty() || ext.find(INTEL_D3D11_SHARING_EXT_NAME) == std::string::npos) {
+            continue;
+        }
+
         platform.getDevices(CL_D3D11_DEVICE_KHR,
             user_device,
             CL_PREFERRED_DEVICES_FOR_D3D11_KHR,
