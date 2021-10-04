@@ -1948,4 +1948,4 @@ TEST(CNNNGraphImplTests, CheckNonUniqueNewResultName) {
     ASSERT_THROW(cnnNet.addOutput("nms", 1), InferenceEngine::Exception);
 }
 
-// IE_SUPPRESS_DEPRECATED_END
+IE_SUPPRESS_DEPRECATED_END
