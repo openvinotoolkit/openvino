@@ -110,10 +110,6 @@ if not "%bitness%"=="64" (
 
 set PYTHONPATH=%INTEL_OPENVINO_DIR%\python\python%pyversion_major%.%pyversion_minor%;%INTEL_OPENVINO_DIR%\python\python3;%PYTHONPATH%
 
-if exist %INTEL_OPENVINO_DIR%\tools\accuracy_checker (
-    set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\accuracy_checker;%PYTHONPATH%
-)
-
 if exist %INTEL_OPENVINO_DIR%\tools\post_training_optimization_toolkit (
     set PYTHONPATH=%INTEL_OPENVINO_DIR%\tools\post_training_optimization_toolkit;%PYTHONPATH%
 )
