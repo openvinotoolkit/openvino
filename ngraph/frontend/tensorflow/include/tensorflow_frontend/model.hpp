@@ -6,6 +6,7 @@
 
 #include <frontend_manager/input_model.hpp>
 #include <frontend_manager/place.hpp>
+#include <tensorflow_frontend/graph_iterator.hpp>
 #include <tensorflow_frontend/utility.hpp>
 
 namespace ngraph {
@@ -19,17 +20,11 @@ class TF_API InputModelTF : public InputModel {
     class InputModelTFImpl;
     std::shared_ptr<InputModelTFImpl> _impl;
 
-public:
-    // TODO: move to private once GraphTranslation will be a part of FrontEndTF component
     std::vector<std::shared_ptr<OpPlaceTF>> get_op_places() const;
     std::map<std::string, std::shared_ptr<TensorPlaceTF>> get_tensor_places() const;
     std::map<std::string, Output<Node>> get_tensor_values() const;
-
-    explicit InputModelTF(const std::string& path);
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    explicit InputModelTF(const std::wstring& path);
-#endif
-    explicit InputModelTF(const std::vector<std::istream*>& streams);
+public:
+    explicit InputModelTF(const GraphIterator::Ptr& graph_iterator);
 
     std::vector<Place::Ptr> get_inputs() const override;
     std::vector<Place::Ptr> get_outputs() const override;

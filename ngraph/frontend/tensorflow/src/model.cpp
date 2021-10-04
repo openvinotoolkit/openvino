@@ -18,17 +18,12 @@
 using namespace google;
 using namespace ngraph::frontend;
 
-using ::tensorflow::GraphDef;
-using ::tensorflow::ngraph_bridge::GraphIteratorProto;
-
 namespace ngraph {
 namespace frontend {
 
 class InputModelTF::InputModelTFImpl {
 public:
-    template <typename T>
-    InputModelTFImpl(const std::basic_string<T>& path, const InputModel& input_model);
-    InputModelTFImpl(const std::vector<std::istream*>& streams, const InputModel& input_model);
+    InputModelTFImpl(const GraphIterator::Ptr& graph_iterator, const InputModel& input_model);
     std::vector<Place::Ptr> getInputs() const;
     std::vector<Place::Ptr> getOutputs() const;
     Place::Ptr getPlaceByTensorName(const std::string& tensorName) const;
@@ -60,7 +55,6 @@ private:
     std::vector<Place::Ptr> m_outputs;
     std::map<std::string, Output<Node>> m_tensor_values;
 
-    std::shared_ptr<::tensorflow::GraphDef> m_graph_def;
     std::shared_ptr<::ngraph::frontend::GraphIterator> m_graph_iterator;
     const InputModel& m_input_model;
 
@@ -213,29 +207,12 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
     return new_ops;
 }
 
-template <typename T>
-InputModelTF::InputModelTFImpl::InputModelTFImpl(const std::basic_string<T>& path, const InputModel& input_model)
-    : m_input_model(input_model),
-      m_graph_def(std::make_shared<GraphDef>()) {
-    std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
-
-    FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");
-    FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(&pb_stream), "Model cannot be parsed");
-
-    m_graph_iterator = std::make_shared<::ngraph::frontend::tf::GraphIteratorProto>(m_graph_def.get());
-    loadPlaces();
-}
-
-InputModelTF::InputModelTFImpl::InputModelTFImpl(const std::vector<std::istream*>& streams,
+InputModelTF::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
                                                  const InputModel& input_model)
     : m_input_model(input_model),
-      m_graph_def(std::make_shared<GraphDef>()) {
-    // TODO: convert any format variant to GraphIterator and pass it to the single constuctor
-    // InputModelTF with GraphIterator
+      m_graph_iterator(graph_iterator) {
 
-    FRONT_END_GENERAL_CHECK(streams.size() == 1, "One stream is needed to load a model in .pb format");
-    FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(streams[0]), "Model can't be parsed");
-    m_graph_iterator = std::make_shared<::ngraph::frontend::tf::GraphIteratorProto>(m_graph_def.get());
+    FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     loadPlaces();
 }
 
@@ -361,14 +338,8 @@ void InputModelTF::InputModelTFImpl::setTensorValue(Place::Ptr place, const void
     m_tensor_values[name] = constant;
 }
 
-InputModelTF::InputModelTF(const std::string& path) : _impl{std::make_shared<InputModelTFImpl>(path, *this)} {}
-
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-InputModelTF::InputModelTF(const std::wstring& path) : _impl{std::make_shared<InputModelTFImpl>(path, *this)} {}
-#endif
-
-InputModelTF::InputModelTF(const std::vector<std::istream*>& streams)
-    : _impl{std::make_shared<InputModelTFImpl>(streams, *this)} {}
+InputModelTF::InputModelTF(const GraphIterator::Ptr& graph_iterator)
+    : _impl{std::make_shared<InputModelTFImpl>(graph_iterator, *this)} {}
 
 std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::get_op_places() const {
     return _impl->get_op_places();
