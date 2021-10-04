@@ -63,7 +63,6 @@ void LayerTestsCommon::Run() {
         LoadNetwork();
         size_t i = 0;
         do {
-            std::cout << i << std::endl;
             index = i;
             try {
                 if (!inputDynamicShapes.empty()) {
