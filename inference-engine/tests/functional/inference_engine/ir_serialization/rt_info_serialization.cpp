@@ -135,7 +135,7 @@ TEST_F(RTInfoSerializationTest, all_attributes_v11) {
     }
 
     pass::Manager m;
-    m.register_pass<pass::Serialize>(m_out_xml_path, m_out_bin_path, pass::Serialize::Version::IR_V11);
+    m.register_pass<pass::Serialize>(m_out_xml_path, m_out_bin_path);
     m.run_passes(function);
 
     auto core = InferenceEngine::Core();
