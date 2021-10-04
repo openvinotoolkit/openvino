@@ -78,14 +78,6 @@ public:
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
-class OPENVINO_API IndexWrapper : public VariantImpl<uint64_t> {
-public:
-    OPENVINO_RTTI("index", "0");
-    IndexWrapper() = default;
-    IndexWrapper(const uint64_t& value) : VariantImpl<uint64_t>(value) {}
-    bool visit_attributes(AttributeVisitor& visitor) override;
-};
-
 template <typename T>
 inline std::shared_ptr<Variant> make_variant(const T& p) {
     return std::dynamic_pointer_cast<VariantImpl<T>>(std::make_shared<VariantWrapper<T>>(p));

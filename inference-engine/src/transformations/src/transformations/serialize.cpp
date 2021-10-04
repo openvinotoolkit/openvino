@@ -127,8 +127,7 @@ void ngfunction_2_ir(pugi::xml_node& node,
                      const ngraph::Function& f,
                      const std::map<std::string, ngraph::OpSet>& custom_opsets,
                      ConstantWriter& constant_write_handler,
-                     int64_t version,
-                     bool with_order = true);
+                     int64_t version);
 
 // Some of the operators were added to wrong opsets. This is a mapping
 // that allows such operators to be serialized with proper opsets.
@@ -497,7 +496,9 @@ public:
             // to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (m_xml_node) with empty attributes
             // is removed.
             pugi::xml_node xml_body = m_xml_node.parent().append_child(name.c_str());
-            ngfunction_2_ir(xml_body, *adapter.get(), m_custom_opsets, m_constant_write_handler, m_version, false);
+            // FIXME: the issue with TensorIteratorTest.Serialize doesn't allow to use v11 order of operations
+            // Need to use m_version instead of 10
+            ngfunction_2_ir(xml_body, *adapter.get(), m_custom_opsets, m_constant_write_handler, 10);
             xml_body.remove_attribute("name");
             xml_body.remove_attribute("version");
         } else if (name == "net") {
@@ -827,8 +828,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                      const ngraph::Function& f,
                      const std::map<std::string, ngraph::OpSet>& custom_opsets,
                      ConstantWriter& constant_node_write_handler,
-                     int64_t version,
-                     bool with_order) {
+                     int64_t version) {
     netXml.append_attribute("name").set_value(f.get_friendly_name().c_str());
     netXml.append_attribute("version").set_value(version);
     pugi::xml_node layers = netXml.append_child("layers");
@@ -842,17 +842,30 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 
     const bool exec_graph = is_exec_graph(f);
 
-    std::unordered_map<ov::Node*, size_t> parameter_ids;
-    for (size_t i = 0; i < f.get_parameters().size(); i++) {
-        const auto& param = f.get_parameters()[i];
-        parameter_ids[param.get()] = i;
+    // change the order for parameters/results/sinks
+    // It should be a part of get_ordered_ops method
+    // FIXME: TensorIteratorTest.Serialize tests
+    auto sorted_ops = f.get_ordered_ops();
+    if (version >= 11) {
+        std::vector<std::shared_ptr<ov::Node>> result;
+        result.reserve(sorted_ops.size());
+        for (const auto& param : f.get_parameters()) {
+            result.emplace_back(param);
+        }
+        for (auto&& node : sorted_ops) {
+            if (!ov::op::util::is_parameter(node) && !ov::op::util::is_output(node) && !ov::op::util::is_sink(node))
+                result.emplace_back(node);
+        }
+        for (const auto& sink : f.get_sinks()) {
+            result.emplace_back(sink);
+        }
+        for (const auto& res : f.get_results()) {
+            result.emplace_back(res);
+        }
+        sorted_ops = result;
     }
-    std::unordered_map<ov::Node*, size_t> result_ids;
-    for (size_t i = 0; i < f.get_results().size(); i++) {
-        const auto& result = f.get_results()[i];
-        result_ids[result.get()] = i;
-    }
-    for (const auto& n : f.get_ordered_ops()) {
+
+    for (const auto& n : sorted_ops) {
         ngraph::Node* node = n.get();
         const std::string & node_type_name{node->get_type_name()};
 
@@ -889,17 +902,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         };
 
         if (version >= 11) {
-            ov::RTMap rt_map = node->get_rt_info();
-            if (with_order) {
-                const std::string idx_key = ov::IndexWrapper::get_type_info_static();
-                if (ov::op::util::is_parameter(node) && !node->get_rt_info().count(idx_key)) {
-                    rt_map[idx_key] = std::make_shared<IndexWrapper>(parameter_ids.at(node));
-                } else if (ov::op::util::is_output(node) && !node->get_rt_info().count(idx_key)) {
-                    rt_map[idx_key] = std::make_shared<IndexWrapper>(result_ids.at(node));
-                }
-            }
-
-            append_runtime_info(layer, rt_map);
+            append_runtime_info(layer, node->get_rt_info());
         }
 
         int port_id = 0;
@@ -1056,18 +1059,7 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
 
     auto serializeFunc = [&] (std::ostream & xml_file, std::ostream & bin_file) {
         auto version = static_cast<int64_t>(m_version);
-        auto& rt_info = f->get_rt_info();
-        if (rt_info.count("version")) {
-            auto version_var = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
-            version = version_var->get();
-        }
 
-        if (version != static_cast<int64_t>(m_version) && m_version != Serialize::Version::UNSPECIFIED)
-            throw ngraph_error("Cannot serialize function to incompatible IR version");
-
-        if (version == static_cast<int64_t>(Serialize::Version::UNSPECIFIED)) {
-            version = static_cast<int64_t>(Serialize::Version::IR_V11);
-        }
         if (version != static_cast<int64_t>(Serialize::Version::IR_V10) &&
             version != static_cast<int64_t>(Serialize::Version::IR_V11)) {
             throw ngraph_error("Unsupported version");
@@ -1154,8 +1146,7 @@ ngraph::pass::StreamSerialize::StreamSerialize(std::ostream & stream,
     , m_custom_opsets(std::move(custom_opsets))
     , m_custom_data_serializer(custom_data_serializer)
     , m_version(version) {
-    if (version != Serialize::Version::UNSPECIFIED &&
-        version != Serialize::Version::IR_V10 &&
+    if (version != Serialize::Version::IR_V10 &&
         version != Serialize::Version::IR_V11) {
         throw ngraph_error("Unsupported version");
     }
@@ -1175,18 +1166,6 @@ bool ngraph::pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Func
         m_stream.write((const char*)&hdr, sizeof hdr);
     };
     auto version = static_cast<int64_t>(m_version);
-    auto& rt_info = f->get_rt_info();
-    if (rt_info.count("version")) {
-        auto version_var = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
-        version = version_var->get();
-    }
-
-    if (version != static_cast<int64_t>(m_version) && m_version != Serialize::Version::UNSPECIFIED)
-        throw ngraph_error("Cannot serialize function to incompatible IR version");
-
-    if (version == static_cast<int64_t>(Serialize::Version::UNSPECIFIED)) {
-        version = static_cast<int64_t>(Serialize::Version::IR_V11);
-    }
 
     // Header
     const size_t header_offset = m_stream.tellp();
