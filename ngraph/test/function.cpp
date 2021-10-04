@@ -519,7 +519,7 @@ TEST(function_reshape, ReshapedDynamicShapeLayout) {
         ov::PartialShape shape({-1, 3, 22, 22});
         ov::element::Type type(ov::element::Type_t::f32);
         auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
-        param->get_output_tensor(0).set_names({"tensor"});
+        param->get_output_tensor(0).set_names({"tensor", "tensor2"});
         auto relu = std::make_shared<ov::op::v0::Relu>(param);
 
         ov::ParameterVector params = {param};
@@ -542,7 +542,7 @@ TEST(function_reshape, ReshapeBatchReLU) {
         ov::PartialShape shape({1, 3, 22, 22});
         ov::element::Type type(ov::element::Type_t::f32);
         auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
-        param->get_output_tensor(0).set_names({"tensor"});
+        param->get_output_tensor(0).set_names({"tensor", "tensor2"});
         auto relu = std::make_shared<ov::op::v0::Relu>(param);
         auto result = std::make_shared<ov::op::v0::Result>(relu);
 
@@ -557,7 +557,7 @@ TEST(function_reshape, ReshapeBatchReLU) {
 
     {
         std::map<std::string, ov::PartialShape> new_shape;
-        new_shape["tensor"] = ov::PartialShape{2, 3, 22, 22};
+        new_shape["tensor2"] = ov::PartialShape{2, 3, 22, 22};
         ASSERT_NO_THROW(ngraph->reshape(new_shape));
     }
 
@@ -751,4 +751,19 @@ TEST(function_reshape, TestReshapeWithInvalidTensorName) {
 
     // operation name does not work
     ASSERT_ANY_THROW(f->reshape({{"param", ov::Shape({4, 4, 4})}}));
+}
+
+TEST(function_reshape, TestReshapeWithInvalidShapesForTheSameTensor) {
+    std::shared_ptr<ov::Function> f;
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1000, 4});
+        input->set_friendly_name("param");
+        input->get_output_tensor(0).set_names({"tensor1", "tensor2"});
+        auto shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {1, 4000});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(input, shape, true);
+        f = std::make_shared<ov::Function>(ov::OutputVector{reshape}, ov::ParameterVector{input});
+    }
+
+    // both tensor names are specified, but have different shapes
+    ASSERT_ANY_THROW(f->reshape({{"tensor1", ov::Shape({2, 500, 4})}, {"tensor2", ov::Shape({4, 250, 4})}}));
 }

@@ -32,6 +32,11 @@ TEST_F(OVTensorTest, canCreateTensor) {
     ASSERT_THROW(t.data<std::int32_t>(), ov::Exception);
 }
 
+TEST_F(OVTensorTest, emptySize) {
+    ov::runtime::Tensor t(ov::element::f32, {0});
+    ASSERT_NE(nullptr, t.data());
+}
+
 TEST_F(OVTensorTest, operators) {
     ov::runtime::Tensor t;
     ASSERT_FALSE(t);

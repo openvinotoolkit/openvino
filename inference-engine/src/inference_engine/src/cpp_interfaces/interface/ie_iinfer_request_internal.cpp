@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <openvino/core/partial_shape.hpp>
 #include <string>
 
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
@@ -343,7 +344,7 @@ bool IInferRequestInternal::preProcessingRequired(const InputInfo::Ptr& info,
 }
 
 void IInferRequestInternal::addInputPreProcessingFor(const std::string& name,
-                                                     Blob::Ptr const& from,
+                                                     const Blob::Ptr& from,
                                                      const Blob::Ptr& to) {
     auto ppDataIt = _preProcData.find(name);
     if (ppDataIt == _preProcData.end()) {
