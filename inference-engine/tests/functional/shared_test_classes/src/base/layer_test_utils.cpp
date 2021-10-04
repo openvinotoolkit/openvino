@@ -26,12 +26,13 @@ LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f), abs_threshold(-1.f) {
 }
 void LayerTestsCommon::ResizeNgraphFunction() {
     auto params = function->get_parameters();
+    std::map<std::string, ngraph::PartialShape> shapes;
     ASSERT_LE(params.size(), targetStaticShapes[index].size());
     for (size_t i = 0; i < params.size(); i++) {
-        params[i]->set_partial_shape(targetStaticShapes[index][i]);
+        shapes.insert({*params[i]->get_output_tensor(0).get_names().begin(), targetStaticShapes[index][i]});
     }
-    functionRefs = ngraph::clone_function(*function);
-    functionRefs->set_friendly_name("FunctionRefs");
+    function->reshape(shapes);
+    functionRefs->reshape(shapes);
 }
 
 void LayerTestsCommon::Run() {
@@ -362,7 +363,7 @@ void LayerTestsCommon::ConfigureNetwork() {
         ASSERT_EQ(params.size(), inputDynamicShapes.size());
         for (size_t i = 0; i < inputDynamicShapes.size(); i++) {
             ngraph::PartialShape dynamicShape = inputDynamicShapes[i];
-            if (dynamicShape.rank() == 0) {
+            if (dynamicShape.rank() == 0 && dynamicShape.is_static()) {
                 continue;
             }
             std::string inputName = params[i]->get_friendly_name();
