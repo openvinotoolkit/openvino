@@ -35,6 +35,7 @@ public:
         auto gather = std::make_shared<ngraph::opset3::Gather>(paramOuts[0], indicesNode, axisNode);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather)};
         function = std::make_shared<ngraph::Function>(results, params, "gather");
+        functionRefs = ngraph::clone_function(*function);
     }
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override {
         // Convert the second input constant precision to i64 to run the reference function

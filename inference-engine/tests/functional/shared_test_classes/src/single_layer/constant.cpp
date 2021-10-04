@@ -41,5 +41,6 @@ void ConstantLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(constant)};
 
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "constant");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

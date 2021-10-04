@@ -36,6 +36,7 @@ protected:
 
         NodeVector results{postOpCandidate, secondConsumpt};
         function = std::make_shared<ngraph::Function>(results, inputParams, "NotFusedConvSimpleOp");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 
