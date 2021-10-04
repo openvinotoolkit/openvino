@@ -84,13 +84,4 @@ INFERENCE_ENGINE_API_CPP(void) LowLatency(InferenceEngine::CNNNetwork& network);
  * Loop operation by a given number. Does not affect TensorIterators.
  */
 INFERENCE_ENGINE_API_CPP(void) lowLatency2(InferenceEngine::CNNNetwork& network, bool use_const_initializer = true);
-
-/**
- * @brief The transformation replaces the provided pairs of Parameter and Results with ngraph Memory layers
- * ReadValue and Assign
- * @param network A network to apply LowLatency transformation
- * @param in_out_names Parameter/Result node names to replace.
- */
-INFERENCE_ENGINE_API_CPP(void)
-makeStateful(InferenceEngine::CNNNetwork& network, std::map<std::string, std::string>& in_out_names);
 }  // namespace InferenceEngine

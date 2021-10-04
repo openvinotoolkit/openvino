@@ -6,7 +6,6 @@
 
 #include "ngraph/pass/low_latency.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "openvino/pass/make_stateful.hpp"
 
 using namespace InferenceEngine;
 
@@ -23,13 +22,5 @@ void InferenceEngine::lowLatency2(InferenceEngine::CNNNetwork& network, bool use
     auto function = network.getFunction();
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::LowLatency2>(use_const_initializer);
-    manager.run_passes(function);
-}
-
-INFERENCE_ENGINE_API_CPP(void)
-InferenceEngine::makeStateful(InferenceEngine::CNNNetwork& network, std::map<std::string, std::string>& in_out_names) {
-    auto function = network.getFunction();
-    ngraph::pass::Manager manager;
-    manager.register_pass<ov::pass::MakeStateful>(in_out_names);
     manager.run_passes(function);
 }
