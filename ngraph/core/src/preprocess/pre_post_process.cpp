@@ -230,16 +230,21 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         if (!input->m_tensor_data) {
             input->create_tensor_data(param->get_element_type(), param->get_layout());
         }
-        if (!input->m_tensor_data->is_layout_set() && param->get_layout() != Layout()) {
-            input->m_tensor_data->set_layout(param->get_layout());
-        }
         if (!input->m_tensor_data->is_element_type_set()) {
             input->m_tensor_data->set_element_type(param->get_element_type());
+        }
+        auto color_info = ColorFormatInfo::get(input->m_tensor_data->get_color_format());
+        if (!input->m_tensor_data->is_layout_set()) {
+            if (!color_info->default_layout().empty()) {
+                input->m_tensor_data->set_layout(color_info->default_layout());
+            } else if (!param->get_layout().empty()) {
+                input->m_tensor_data->set_layout(param->get_layout());
+            }
         }
 
         auto net_shape = param->get_partial_shape();
         auto new_param_shape = net_shape;
-        if (input->m_tensor_data->is_layout_set() && param->get_layout() != Layout() &&
+        if (input->m_tensor_data->is_layout_set() && !param->get_layout().empty() &&
             param->get_layout() != input->m_tensor_data->get_layout()) {
             // Find transpose between network and tensor layouts and update tensor shape
             auto net_to_tensor =
@@ -268,7 +273,6 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         std::vector<std::shared_ptr<op::v0::Parameter>> new_params;
 
         // Create separate parameter for each plane. Shape and friendly name is based on color format
-        auto color_info = ColorFormatInfo::get(input->m_tensor_data->get_color_format());
         for (size_t plane = 0; plane < color_info->planes_count(); plane++) {
             auto plane_shape = color_info->shape(plane, new_param_shape);
             auto plane_param =
@@ -513,11 +517,12 @@ PreProcessSteps&& PreProcessSteps::convert_color(const ov::preprocess::ColorForm
 PreProcessSteps& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_cb) & {
     // 'true' indicates that custom preprocessing step will trigger validate_and_infer_types
     m_impl->actions().emplace_back(std::make_tuple(
-        [preprocess_cb](const std::vector<std::shared_ptr<ov::Node>>& nodes, PreprocessingContext&) {
+        [preprocess_cb](const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                        PreprocessingContext&) -> std::vector<std::shared_ptr<ov::Node>> {
             OPENVINO_ASSERT(nodes.size() == 1,
                             "Can't apply custom preprocessing step for multi-plane input. Suggesting to convert "
                             "current image to RGB/BGR color format using 'convert_color'");
-            return preprocess_cb(nodes[0]);
+            return {preprocess_cb(nodes[0])};
         },
         true));
     return *this;
@@ -526,11 +531,12 @@ PreProcessSteps& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_cb
 PreProcessSteps&& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_cb) && {
     // 'true' indicates that custom preprocessing step will trigger validate_and_infer_types
     m_impl->actions().emplace_back(std::make_tuple(
-        [preprocess_cb](const std::vector<std::shared_ptr<ov::Node>>& nodes, PreprocessingContext&) {
+        [preprocess_cb](const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                        PreprocessingContext&) -> std::vector<std::shared_ptr<ov::Node>> {
             OPENVINO_ASSERT(nodes.size() == 1,
                             "Can't apply custom preprocessing step for multi-plane input. Suggesting to convert "
                             "current image to RGB/BGR color format using 'convert_color'");
-            return preprocess_cb(nodes[0]);
+            return {preprocess_cb(nodes[0])};
         },
         true));
     return std::move(*this);

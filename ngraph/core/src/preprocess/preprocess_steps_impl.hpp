@@ -116,8 +116,8 @@ private:
 };
 
 using InternalPreprocessOp =
-    std::function<std::shared_ptr<ov::Node>(const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                                            PreprocessingContext& context)>;
+    std::function<std::vector<std::shared_ptr<ov::Node>>(const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                                                         PreprocessingContext& context)>;
 
 /// \brief PreProcessStepsImpl - internal data structure
 class PreProcessSteps::PreProcessStepsImpl {

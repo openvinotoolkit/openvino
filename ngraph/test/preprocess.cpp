@@ -108,7 +108,7 @@ TEST(pre_post_process, tensor_element_type_and_scale) {
 }
 
 TEST(pre_post_process, convert_color_nv12_rgb_single) {
-    auto f = create_simple_function(element::f32, Shape{1, 2, 2, 3});
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 3});
     f = PrePostProcessor()
             .input(
                 InputInfo()
@@ -119,12 +119,27 @@ TEST(pre_post_process, convert_color_nv12_rgb_single) {
             .build(f);
 
     EXPECT_EQ(f->get_parameters().size(), 1);
-    auto result = std::make_shared<HostTensor>();
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_parameters().front()->get_layout(), "NHWC");
+    EXPECT_EQ(f->get_parameters().front()->get_partial_shape(), (PartialShape{Dimension::dynamic(), 3, 2, 1}));
+}
+
+TEST(pre_post_process, convert_color_nv12_bgr_single) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 3});
+    f = PrePostProcessor()
+            .input(InputInfo()
+                       .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_SINGLE_PLANE))
+                       .preprocess(PreProcessSteps().convert_color(ColorFormat::BGR)))
+            .build(f);
+
+    EXPECT_EQ(f->get_parameters().size(), 1);
+    EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters().front()->get_layout(), "NHWC");
+    EXPECT_EQ(f->get_parameters().front()->get_partial_shape(), (PartialShape{Dimension::dynamic(), 3, 2, 1}));
 }
 
 TEST(pre_post_process, convert_color_nv12_bgr_2_planes) {
-    auto f = create_simple_function(element::f32, Shape{1, 2, 2, 3});
+    auto f = create_simple_function(element::f32, Shape{5, 2, 2, 3});
     f = PrePostProcessor()
             .input(InputInfo()
                        .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES, {"TestY", "TestUV"}))
@@ -136,6 +151,23 @@ TEST(pre_post_process, convert_color_nv12_bgr_2_planes) {
     EXPECT_EQ(f->get_parameters()[0]->get_element_type(), element::f32);
     EXPECT_EQ(f->get_parameters()[1]->get_friendly_name(), "input1/TestUV");
     EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters()[0]->get_partial_shape(), (PartialShape{5, 2, 2, 1}));
+    EXPECT_EQ(f->get_parameters()[1]->get_partial_shape(), (PartialShape{5, 1, 1, 2}));
+}
+
+TEST(pre_post_process, convert_color_nv12_rgb_2_planes) {
+    auto f = create_simple_function(element::f32, Shape{5, 2, 2, 3});
+    f = PrePostProcessor()
+            .input(InputInfo()
+                       .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES))
+                       .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB)))
+            .build(f);
+
+    EXPECT_EQ(f->get_parameters().size(), 2);
+    EXPECT_EQ(f->get_parameters()[0]->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters()[0]->get_partial_shape(), (PartialShape{5, 2, 2, 1}));
+    EXPECT_EQ(f->get_parameters()[1]->get_partial_shape(), (PartialShape{5, 1, 1, 2}));
 }
 
 TEST(pre_post_process, convert_color_nv12_bgr_2_planes_u8_lvalue) {
@@ -150,7 +182,49 @@ TEST(pre_post_process, convert_color_nv12_bgr_2_planes_u8_lvalue) {
 
     EXPECT_EQ(f->get_parameters().size(), 2);
     EXPECT_EQ(f->get_parameters()[0]->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_parameters()[0]->get_partial_shape(), (PartialShape{1, 2, 2, 1}));
     EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_parameters()[1]->get_partial_shape(), (PartialShape{1, 1, 1, 2}));
+}
+
+TEST(pre_post_process, convert_color_nv12_bgr_2_planes_el_type) {
+    auto f = create_simple_function(element::u8, Shape{1, 2, 2, 3});
+    EXPECT_NO_THROW(
+        f = PrePostProcessor()
+                .input(InputInfo()
+                           .tensor(InputTensorInfo()
+                                       .set_element_type(element::f32)
+                                       .set_color_format(ColorFormat::NV12_TWO_PLANES))
+                           .preprocess(
+                               PreProcessSteps().convert_element_type(element::u8).convert_color(ColorFormat::BGR)))
+                .build(f));
+
+    EXPECT_EQ(f->get_parameters().size(), 2);
+    EXPECT_EQ(f->get_parameters()[0]->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::f32);
+}
+
+TEST(pre_post_process, convert_color_unsupported) {
+    // Feel free to update this test when more color conversions are supported in future
+    auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_SINGLE_PLANE))
+                                    .preprocess(PreProcessSteps().convert_color(ColorFormat::UNDEFINED)))
+                         .build(f),
+                 ov::AssertFailure);
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES))
+                                    .preprocess(PreProcessSteps().convert_color(ColorFormat::UNDEFINED)))
+                         .build(f),
+                 ov::AssertFailure);
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_color_format(ColorFormat::UNDEFINED))
+                                    .preprocess(PreProcessSteps().convert_color(ColorFormat::NV12_SINGLE_PLANE)))
+                         .build(f),
+                 ov::AssertFailure);
 }
 
 TEST(pre_post_process, custom_preprocessing) {

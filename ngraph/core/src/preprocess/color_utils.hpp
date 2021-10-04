@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/layout.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/preprocess/color_format.hpp"
 
@@ -25,6 +26,11 @@ public:
     virtual size_t planes_count() const {
         return 1;
     }
+
+    virtual Layout default_layout() const {
+        return {};
+    }
+
     // Calculate shape of plane based image shape in NHWC format
     PartialShape shape(size_t plane_num, const PartialShape& image_src_shape) const {
         OPENVINO_ASSERT(plane_num < planes_count(),
@@ -65,6 +71,10 @@ protected:
         }
         return result;
     }
+
+    Layout default_layout() const override {
+        return "NHWC";
+    }
 };
 
 class ColorFormatInfoNV12_TwoPlanes : public ColorFormatInfo {
@@ -100,6 +110,10 @@ protected:
             return original_name + "/Y";
         }
         return original_name + "/UV";
+    }
+
+    Layout default_layout() const override {
+        return "NHWC";
     }
 };
 
