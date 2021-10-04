@@ -49,5 +49,6 @@ void PadLayerTest::SetUp() {
     auto pad = ngraph::builder::makePad(paramOuts[0], padsBegin, padsEnd, argPadValue, padMode);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pad)};
     function = std::make_shared<ngraph::Function>(results, params, "pad");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

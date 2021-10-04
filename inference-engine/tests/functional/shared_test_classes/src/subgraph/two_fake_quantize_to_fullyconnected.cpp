@@ -138,6 +138,7 @@ void FakeQuantizeSubgraphTest::SetUp() {
         results.push_back(std::make_shared<ngraph::opset1::Result>(sigmoid_2));
     }
     function = std::make_shared<ngraph::Function>(results, params, "fakeQuantizeSubgraph");
+    functionRefs = ngraph::clone_function(*function);
 
     configuration = config.second;
 }

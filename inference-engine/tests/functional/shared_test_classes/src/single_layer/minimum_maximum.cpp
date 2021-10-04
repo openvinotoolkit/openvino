@@ -46,5 +46,6 @@ namespace LayerTestsDefinitions {
 
         auto op = ngraph::builder::makeMinMax(input[0], secondaryInput, opType);
         function = std::make_shared<ngraph::Function>(op, input, "MinMax");
+        functionRefs = ngraph::clone_function(*function);
     }
 } // namespace LayerTestsDefinitions
