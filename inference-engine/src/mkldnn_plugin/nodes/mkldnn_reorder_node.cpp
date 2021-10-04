@@ -115,35 +115,45 @@ void MKLDNNReorderNode::prepareParams() {
         if (getSelectedPrimitiveDescriptor() == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set.";
 
+        auto isSupportedDesc = [](const MemoryDesc& desc) {
+            if (!desc.isDefined()) {
+                return false;
+            }
+            if (!(desc.getType() & MemoryDescType::Blocked)) {
+                return false;
+            }
+            if ((desc.getType() & MemoryDescType::Mkldnn) && !desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData()) {
+                return false;
+            }
+            return true;
+        };
+
         const auto&  parentDesc = srcMemPtr->getDesc();
         const auto&  childDesc = dstMemPtr->getDesc();
-        if ((isNspc2NcspCase || isNcsp2NspcCase) &&
-            childDesc.getType() == MemoryDescType::Blocked &&
-            parentDesc.getType() == MemoryDescType::Blocked) {
+        if ((isNspc2NcspCase || isNcsp2NspcCase) && isSupportedDesc(childDesc) && isSupportedDesc(parentDesc)) {
             const auto &inDims = srcMemPtr->getStaticDims();
-            // Check that child strides are consistent with parent dims, if the child is inplace.
-            // The strides must be dense except for the post-channel one (since the child num channels might differ)
-            const auto checkChildStrides = [&]() {
+            // Check that child strides are consistent with parent dims if the child is inplace.
+            // The strides must be dense except for the channel one (since the child num channels might differ)
+            const auto childStridesAreDense = [&]() {
+                if (!getChildEdgeAt(0)->getChild()->isInplace())
+                    return true;
                 const auto& dstStrides = childDesc.as<BlockedMemoryDesc>()->getStrides();
                 const auto& dstOrder = childDesc.as<BlockedMemoryDesc>()->getOrder();
                 const size_t channelDim = 1;
-                if (!getChildEdgeAt(0)->getChild()->isInplace())
-                    return true;
-                size_t validStride = 1;
-                for (int i = inDims.size() - 1; i >= 0; i--) {
-                    if (dstStrides[i] != validStride)
+                if (dstStrides.back() != 1)
+                    return false;
+                for (int i = inDims.size() - 1; i > 0; i--) {
+                    if (dstStrides[i-1] != dstStrides[i] * inDims[dstOrder[i]] && dstOrder[i] != channelDim)
                         return false;
-                    // Note: it is implied that i > 0 for (dst_order[i] == channelDim), since only NSPC and NCSP are supported
-                    validStride = dstOrder[i] != channelDim ? validStride * inDims[dstOrder[i]] : dstStrides[i-1];
                 }
                 return true;
             };
             if (isNspc2NcspCase) {
                 canUseNspc2Ncsp = inDims[1] <= 64 && inDims[1] >= 16 &&
                                   (parentDesc.as<BlockedMemoryDesc>()->getPaddedElementsCount() / inDims[1]) >= 128 &&
-                                  checkChildStrides();
+                                  childStridesAreDense();
             } else if (isNcsp2NspcCase) {
-                canUseNcsp2Nspc = checkChildStrides();
+                canUseNcsp2Nspc = childStridesAreDense();
             }
         }
         if (!canUseNcsp2Nspc && !canUseNspc2Ncsp) {
