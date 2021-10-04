@@ -211,7 +211,6 @@ InputModelTF::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph
                                                  const InputModel& input_model)
     : m_input_model(input_model),
       m_graph_iterator(graph_iterator) {
-
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     loadPlaces();
 }

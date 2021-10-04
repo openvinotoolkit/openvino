@@ -22,8 +22,7 @@ class GraphIteratorProto : public ::ngraph::frontend::GraphIterator {
 
 public:
     template <typename T>
-    GraphIteratorProto(const std::basic_string<T>& path)
-        : m_graph_def(std::make_shared<::tensorflow::GraphDef>()) {
+    GraphIteratorProto(const std::basic_string<T>& path) : m_graph_def(std::make_shared<::tensorflow::GraphDef>()) {
         std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
 
         FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");

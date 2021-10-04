@@ -23,6 +23,7 @@ class TF_API InputModelTF : public InputModel {
     std::vector<std::shared_ptr<OpPlaceTF>> get_op_places() const;
     std::map<std::string, std::shared_ptr<TensorPlaceTF>> get_tensor_places() const;
     std::map<std::string, Output<Node>> get_tensor_values() const;
+
 public:
     explicit InputModelTF(const GraphIterator::Ptr& graph_iterator);
 
