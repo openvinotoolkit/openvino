@@ -15,6 +15,12 @@
 
 namespace testing {
 
+
+
+// ------------------------------------------------------------------------------------------------
+
+namespace {
+
 std::shared_ptr<ngraph::opset8::FakeQuantize> createFakeQuantizeNode(std::shared_ptr<ngraph::op::Op> parent_node) {
     auto input_low = ngraph::opset8::Constant::create(ngraph::element::f32, {}, {-0.5});
     auto input_high = ngraph::opset8::Constant::create(ngraph::element::f32, {}, {0.5});
@@ -25,277 +31,148 @@ std::shared_ptr<ngraph::opset8::FakeQuantize> createFakeQuantizeNode(std::shared
                                                           output_high, 0);
 }
 
-TEST(TransformationTests, BroadcastConstTestFakeQuantize) {
-    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
-    const ngraph::Shape data_shape{3, 2};
+using Node = std::shared_ptr<ov::op::Op>;
 
-    auto create_graph = [](const ngraph::Shape& data_shape, const ngraph::Shape& const_shape_dims,
-                           const ngraph::Shape& const_shape_values) {
-        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::Type_t::f32, data_shape);
+// ------------------------------------------------------------------------------------------------
 
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
-                                                         ngraph::Shape{const_shape_dims}, const_shape_values);
+class IEltwiseFactory {
+public:
+    virtual ~IEltwiseFactory() = default;
+    virtual Node CreateNode(Node left_input, Node right_input) = 0;
+};
 
-        auto fakeQuantize1 = createFakeQuantizeNode(input_params);
-        auto fakeQuantize2 = createFakeQuantizeNode(constant);
+using EltwiseFactoryPtr = std::shared_ptr<IEltwiseFactory>;
 
-        auto add = std::make_shared<ngraph::opset8::Add>(fakeQuantize1, fakeQuantize2);
+template <typename EltwiseT>
+class EltwiseFactory : public IEltwiseFactory {
+public:
+    Node CreateNode(Node left_input, Node right_input) override { return std::make_shared<EltwiseT>(left_input, right_input); }
+};
 
-        auto result = std::make_shared<ngraph::opset8::Result>(add);
-        return std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{input_params});
-    };
+template <>
+class EltwiseFactory<ngraph::op::Eltwise> : public IEltwiseFactory {
+public:
+    Node CreateNode(Node left_input, Node right_input) override { return std::make_shared<ngraph::op::Eltwise>(left_input, right_input, ELTWISE_TYPE::Sum); }
+};
 
-    {
-        func = create_graph(data_shape, {2}, {1, 2});
+template <typename EltwiseT>
+EltwiseFactoryPtr CreateEltwiseFactory() {
+    return std::make_shared<EltwiseFactory<EltwiseT>>();
+}
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<GNAPluginNS::BroadcastConst>();
-        manager.run_passes(func);
-        ASSERT_NO_THROW(check_rt_info(func));
+// ------------------------------------------------------------------------------------------------
+
+std::shared_ptr<ngraph::Function> CreateFunction(const ngraph::Shape& data_shape,
+                                                 const ngraph::Shape& const_shape_dims,
+                                                 const ngraph::Shape& const_shape_values,
+                                                 bool add_input_fake_quantize,
+                                                 bool add_const_fake_quantize,
+                                                 bool swap_outputs,
+                                                 EltwiseFactoryPtr eltwise_factory) {
+    auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::Type_t::f32, data_shape);
+
+    auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
+                                                     ngraph::Shape{const_shape_dims},
+                                                     const_shape_values);
+    Node const_last_node = constant;
+
+    if (add_const_fake_quantize) {
+        auto fake_quantize = createFakeQuantizeNode(const_last_node);
+        const_last_node = fake_quantize;
     }
 
-    reference_func = create_graph(data_shape, {3, 2}, {1, 2, 1, 2, 1, 2});
+    Node input_last_node = input_params;
+    if (add_input_fake_quantize) {
+        auto fake_quantize = createFakeQuantizeNode(input_params);
+        input_last_node = fake_quantize;
+    }
+
+    Node left_node = input_last_node;
+    Node right_node = const_last_node;
+
+    if (swap_outputs)
+        left_node.swap(right_node);
+
+    auto add = eltwise_factory->CreateNode(left_node, right_node);
+
+    auto result = std::make_shared<ngraph::opset8::Result>(add);
+    return std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                  ngraph::ParameterVector{input_params});
+}
+
+} // namespace
+
+// ------------------------------------------------------------------------------------------------
+
+class BroadcastConstTestFixture: public CommonTestUtils::TestsCommon,
+                                        public ::testing::WithParamInterface<std::tuple<EltwiseFactoryPtr,
+                                                                                        bool /* add_input_fake_quantize */,
+                                                                                        bool /* add_const_fake_quantize */,
+                                                                                        bool /* swap_outputs */>> {
+public:
+    void SetUp() override;
+public:
+    std::shared_ptr<ngraph::Function> function, reference_function;
+};
+
+void BroadcastConstTestFixture::SetUp() {
+    // TODO: use auto & [ ... ] = this->GetParam() when C++17
+    EltwiseFactoryPtr eltwise_factory;
+    bool add_input_fake_quantize;
+    bool add_const_fake_quantize;
+    bool swap_outputs;
+    std::tie(eltwise_factory, add_input_fake_quantize, add_const_fake_quantize, swap_outputs) = this->GetParam();
+
+    function = CreateFunction({3, 2} /* data_shape */,
+                              {2}, /* const_shape_dims */
+                              {1, 2} /* const_shape_values */,
+                              add_input_fake_quantize,
+                              add_const_fake_quantize,
+                              swap_outputs,
+                              eltwise_factory);
+    reference_function = CreateFunction({3, 2} /* data_shape */,
+                              {3, 2}, /* const_shape_dims */
+                              {1, 2, 1, 2, 1, 2} /* const_shape_values */,
+                              add_input_fake_quantize,
+                              add_const_fake_quantize,
+                              swap_outputs,
+                              eltwise_factory);
+}
+
+void execute_test(std::shared_ptr<ngraph::Function> function,
+                  std::shared_ptr<ngraph::Function> reference_function) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<GNAPluginNS::BroadcastAddMultiplyConst>();
+    manager.run_passes(function);
+    ASSERT_NO_THROW(check_rt_info(function));
 
     FunctionsComparator func_comparator = FunctionsComparator::with_default();
     func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    const FunctionsComparator::Result result = func_comparator(func, reference_func);
+    const FunctionsComparator::Result result = func_comparator(function, reference_function);
     ASSERT_TRUE(result.valid);
 }
 
-TEST(TransformationTests, BroadcastConstTestFakeQuantizeSwapFq) {
-    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
-    const ngraph::Shape data_shape{3, 2};
+// ------------------------------------------------------------------------------------------------
 
-    auto create_graph = [](const ngraph::Shape& data_shape, const ngraph::Shape& const_shape_dims,
-                           const ngraph::Shape& const_shape_values) {
-        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::Type_t::f32, data_shape);
+namespace {
+std::vector<EltwiseFactoryPtr> eltwise_factories = {
+    CreateEltwiseFactory<ngraph::opset8::Add>(),
+    CreateEltwiseFactory<ngraph::opset8::Subtract>(),
+    CreateEltwiseFactory<ngraph::opset8::Multiply>(),
+    CreateEltwiseFactory<ngraph::op::Eltwise>()
+};
+} // namespace
 
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
-                                                         ngraph::Shape{const_shape_dims}, const_shape_values);
-
-        auto fakeQuantize1 = createFakeQuantizeNode(input_params);
-        auto fakeQuantize2 = createFakeQuantizeNode(constant);
-
-        auto add = std::make_shared<ngraph::opset8::Add>(fakeQuantize2, fakeQuantize1);
-
-        auto result = std::make_shared<ngraph::opset8::Result>(add);
-        return std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{input_params});
-    };
-
-    {
-        func = create_graph(data_shape, {2}, {1, 2});
-
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<GNAPluginNS::BroadcastConst>();
-        manager.run_passes(func);
-        ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    reference_func = create_graph(data_shape, {3, 2}, {1, 2, 1, 2, 1, 2});
-
-    FunctionsComparator func_comparator = FunctionsComparator::with_default();
-    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    const FunctionsComparator::Result result = func_comparator(func, reference_func);
-    ASSERT_TRUE(result.valid);
+TEST_P(BroadcastConstTestFixture, CompareFunctions) {
+    execute_test(function, reference_function);
 }
 
-TEST(TransformationTests, BroadcastConstTestFakeQuantizeEltwise) {
-    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
-    const ngraph::Shape data_shape{3, 2};
+INSTANTIATE_TEST_SUITE_P(BroadcastConstTestSuite, BroadcastConstTestFixture,
+                         ::testing::Combine(::testing::ValuesIn(eltwise_factories),
+                                            ::testing::ValuesIn({ true, false }),
+                                            ::testing::ValuesIn({ true, false }),
+                                            ::testing::ValuesIn({ true, false })));
 
-    auto create_graph = [](const ngraph::Shape& data_shape, const ngraph::Shape& const_shape_dims,
-                           const ngraph::Shape& const_shape_values) {
-        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::Type_t::f32, data_shape);
-
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
-                                                         ngraph::Shape{const_shape_dims}, const_shape_values);
-
-        auto fakeQuantize1 = createFakeQuantizeNode(input_params);
-        auto fakeQuantize2 = createFakeQuantizeNode(constant);
-
-        auto add = std::make_shared<ngraph::op::Eltwise>(fakeQuantize1, fakeQuantize2, ELTWISE_TYPE::Sum);
-
-        auto result = std::make_shared<ngraph::opset8::Result>(add);
-        return std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{input_params});
-    };
-
-    {
-        func = create_graph(data_shape, {2}, {1, 2});
-
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<GNAPluginNS::BroadcastConst>();
-        manager.run_passes(func);
-        ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    reference_func = create_graph(data_shape, {3, 2}, {1, 2, 1, 2, 1, 2});
-
-    FunctionsComparator func_comparator = FunctionsComparator::with_default();
-    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    const FunctionsComparator::Result result = func_comparator(func, reference_func);
-    ASSERT_TRUE(result.valid);
-}
-
-TEST(TransformationTests, BroadcastConstTestMain) {
-    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
-    const ngraph::Shape data_shape{3, 2};
-
-    auto create_graph = [](const ngraph::Shape& data_shape, const ngraph::Shape& const_shape_dims,
-                           const ngraph::Shape& const_shape_values) {
-        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, data_shape);
-
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::i64,
-                                                         const_shape_dims, const_shape_values);
-
-        auto add = std::make_shared<ngraph::opset8::Add>(constant, input_params);
-
-        auto result = std::make_shared<ngraph::opset8::Result>(add);
-        return std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{input_params});
-    };
-
-    {
-        func = create_graph(data_shape, {2}, {1, 2});
-
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<GNAPluginNS::BroadcastConst>();
-        manager.run_passes(func);
-        ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    reference_func = create_graph(data_shape, {3, 2}, {1, 2, 1, 2, 1, 2});
-
-    FunctionsComparator func_comparator = FunctionsComparator::with_default();
-    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    const FunctionsComparator::Result result = func_comparator(func, reference_func);
-    ASSERT_TRUE(result.valid);
-}
-
-TEST(TransformationTests, BroadcastConstTestMainSwapInputs) {
-    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
-    const ngraph::Shape data_shape{3, 2};
-
-    auto create_graph = [](const ngraph::Shape& data_shape, const ngraph::Shape& const_shape_dims,
-                           const ngraph::Shape& const_shape_values) {
-        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, data_shape);
-
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::i64,
-                                                         const_shape_dims, const_shape_values);
-
-        auto add = std::make_shared<ngraph::opset8::Add>(input_params, constant);
-
-        auto result = std::make_shared<ngraph::opset8::Result>(add);
-        return std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{input_params});
-    };
-
-    {
-        func = create_graph(data_shape, {2}, {1, 2});
-
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<GNAPluginNS::BroadcastConst>();
-        manager.run_passes(func);
-        ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    reference_func = create_graph(data_shape, {3, 2}, {1, 2, 1, 2, 1, 2});
-
-    FunctionsComparator func_comparator = FunctionsComparator::with_default();
-    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    const FunctionsComparator::Result result = func_comparator(func, reference_func);
-    ASSERT_TRUE(result.valid);
-}
-
-#ifdef GNA_LEGACY
-TEST(TransformationTests, BroadcastConstTestConvolution) {
-    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
-    const ngraph::Shape data_shape{2, 2, 1, 1};
-
-    {
-        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, data_shape);
-
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::i64,
-                                                         ngraph::Shape{1, 2, 1, 1}, {1});
-
-        auto kernel = ngraph::opset8::Constant::create(ngraph::element::i64,
-                                                       {2, 2, 1, 1}, {1});
-
-        auto convolution = std::make_shared<ngraph::opset8::Convolution>(input_params,
-                                                         kernel,
-                                                         ngraph::Strides{1, 1},
-                                                         ngraph::CoordinateDiff{0, 0},
-                                                         ngraph::CoordinateDiff{0, 0},
-                                                         ngraph::Strides{1, 1});
-
-        auto add = std::make_shared<ngraph::opset8::Add>(constant, convolution);
-
-        auto result = std::make_shared<ngraph::opset8::Result>(add);
-        func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{input_params});
-
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<GNAPluginNS::BroadcastConst>();
-        manager.run_passes(func);
-        ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    reference_func = ngraph::clone_function(*func);
-
-    FunctionsComparator func_comparator = FunctionsComparator::with_default();
-    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    const FunctionsComparator::Result result = func_comparator(func, reference_func);
-    ASSERT_TRUE(result.valid);
-}
-
-TEST(TransformationTests, BroadcastConstTestConvolutionSwapInputs) {
-    std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
-    const ngraph::Shape data_shape{2, 2, 1, 1};
-
-    {
-        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, data_shape);
-
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::i64,
-                                                         ngraph::Shape{1, 2, 1, 1}, {1});
-
-        auto kernel = ngraph::opset8::Constant::create(ngraph::element::i64,
-                                                       {2, 2, 1, 1}, {1});
-
-        auto convolution = std::make_shared<ngraph::opset8::Convolution>(input_params,
-                                                         kernel,
-                                                         ngraph::Strides{1, 1},
-                                                         ngraph::CoordinateDiff{0, 0},
-                                                         ngraph::CoordinateDiff{0, 0},
-                                                         ngraph::Strides{1, 1});
-
-        auto add = std::make_shared<ngraph::opset8::Add>(constant, convolution);
-
-        auto result = std::make_shared<ngraph::opset8::Result>(add);
-        func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                  ngraph::ParameterVector{input_params});
-
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<GNAPluginNS::BroadcastConst>();
-        manager.run_passes(func);
-        ASSERT_NO_THROW(check_rt_info(func));
-    }
-
-    reference_func = ngraph::clone_function(*func);
-
-    FunctionsComparator func_comparator = FunctionsComparator::with_default();
-    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    const FunctionsComparator::Result result = func_comparator(func, reference_func);
-    ASSERT_TRUE(result.valid);
-}
-#endif
 
 } // namespace testing

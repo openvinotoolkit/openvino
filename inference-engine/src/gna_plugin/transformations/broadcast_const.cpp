@@ -12,7 +12,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "legacy/ngraph_ops/eltwise.hpp"
-#include "ngraph_ops/convolution_ie.hpp"
 #include <transformations/utils/utils.hpp>
 
 #include <vector>
@@ -21,7 +20,7 @@
 
 using namespace GNAPluginNS;
 
-NGRAPH_RTTI_DEFINITION(BroadcastConst, "BroadcastConst", 0);
+NGRAPH_RTTI_DEFINITION(BroadcastAddMultiplyConst, "BroadcastAddMultiplyConst", 0);
 
 using Node = std::shared_ptr<ngraph::Node>;
 using Nodes = std::vector<Node>;
@@ -40,7 +39,7 @@ bool DoTransformation(Node const_node, Node eltwise_node) {
     if (HasDynamicShape(const_node) || HasDynamicShape(eltwise_node))
         return false;
     const ngraph::Shape & eltwise_out_shape = eltwise_node->get_output_tensor(0).get_shape();
-    
+
     auto broadcast_const = ngraph::opset8::Constant::create(ngraph::element::Type_t::i64,
                                          ngraph::Shape{eltwise_out_shape.size()}, eltwise_out_shape);
 
@@ -58,8 +57,8 @@ bool DoTransformation(Node const_node, Node eltwise_node) {
  * nodes between Const, FakeQuantize and Eltwise layers
  */
 
-BroadcastConst::BroadcastConst() {
-    MATCHER_SCOPE(BroadcastConst);
+BroadcastAddMultiplyConst::BroadcastAddMultiplyConst() {
+    MATCHER_SCOPE(BroadcastAddMultiplyConst);
 
     auto constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
     auto fake_quantize = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({constant,
@@ -81,7 +80,7 @@ BroadcastConst::BroadcastConst() {
      ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto const_node = pattern_map.at(constant).get_node_shared_ptr();
-        
+
         auto eltwise_node_it = pattern_map.find(eltwise_left_const);
         if (eltwise_node_it == pattern_map.end())
             eltwise_node_it = pattern_map.find(eltwise_right_const);

@@ -28,10 +28,10 @@ namespace GNAPluginNS {
  * we can update (broadcast) Constant to have the same shape as another input.
  * Broadcasting may be done if shapes are compartible - suitable for that.
  */
-class BroadcastConst : public ngraph::pass::MatcherPass {
+class BroadcastAddMultiplyConst : public ngraph::pass::MatcherPass {
 public:
   NGRAPH_RTTI_DECLARATION;
-  BroadcastConst();
+  BroadcastAddMultiplyConst();
 };
 
 } // namespace GNAPluginNS

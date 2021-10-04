@@ -721,14 +721,14 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
         manager.register_pass<RemoveExtraReshapes>();
         /*
-          Put BroadcastConst here after ConvertOpSet..() transformations since there are conficts with them.
+          Put BroadcastAddMultiplyConst here after ConvertOpSet..() transformations since there are conficts with them.
           ngraph::pass::ConvertOpSet1ToLegacy -> ngraph::pass::BiasFusions ->
                                                     ngraph::pass::ConvAddFusion, ngraph::pass::ConvMultiplyFusion
           That transormations fuse bias into convolution and recognizes const node as [1, C, 1, 1].
           TODO: move that transformation just beyond RemoveSingleInputConcat pass after removing ConvertOpSet1ToLegacy
               transormations
          */
-        manager.register_pass<BroadcastConst>();
+        manager.register_pass<BroadcastAddMultiplyConst>();
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         const auto& pass_config = manager.get_pass_config();
