@@ -96,6 +96,10 @@ std::vector<std::string> disabledTestPatterns() {
 
         // Issue: 62746
         R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
+
+        // TODO: Issue CVS-51680
+        R"(.*BehaviorTests.*canRun3SyncRequestsConsistentlyFromThreads.*CPU_THROUGHPUT.*)",
+
         // Issue 66685
         R"(smoke_PrePostProcess.*resize_linear_nhwc.*)",
     };

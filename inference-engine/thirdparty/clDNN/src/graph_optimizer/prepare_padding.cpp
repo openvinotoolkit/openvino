@@ -17,6 +17,10 @@ void prepare_padding::run(program& p) {
     if (output_size_handling_enabled) {
         // Prepare upper padding for primitives that support output_size parameter.
         for (const auto& node : p.get_processing_order()) {
+            // Padded offsets aren't supported by onednn kernels
+            if (node->get_preferred_impl_type() == impl_types::onednn)
+                continue;
+
             if (node->is_type<convolution>()) {
                 auto& prim_node = node->as<convolution>();
                 const auto& prim = prim_node.get_primitive();
@@ -28,6 +32,7 @@ void prepare_padding::run(program& p) {
                 if (format == format::b_fs_zyx_fsv16 ||
                     format == format::bs_fs_zyx_bsv16_fsv16 ||
                     format == format::bs_fs_yx_bsv16_fsv16 ||
+                    format == format::bs_fs_yx_bsv32_fsv32 ||
                     format == format::b_fs_zyx_fsv32)
                     continue;
 
@@ -145,6 +150,13 @@ void prepare_padding::run(program& p) {
 
         // We shoudn't apply any padding to nodes which are marked as outputs or have type as data
         if (conv_input_node.is_output() || conv_input_node.is_type<data>())
+            continue;
+
+        // Padded offsets aren't supported by onednn kernels
+        if (conv_input_node.get_preferred_impl_type() == impl_types::onednn)
+            continue;
+
+        if (node.get_preferred_impl_type() == impl_types::onednn)
             continue;
 
         // Calculating input padding needed for convolution
