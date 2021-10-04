@@ -60,7 +60,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(${TARGET_NAME} PRIVATE "-Wno-error=register")
 endif()
 
-find_package(PythonInterp 3 REQUIRED)
+find_package(Python COMPONENTS Interpreter Development)
 
 # perform copy
 # merge __init__.py files of new and old python api
