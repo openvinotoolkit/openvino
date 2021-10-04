@@ -92,7 +92,9 @@ int XLink_sem_wait(XLink_sem_t* sem)
     XLINK_RET_ERR_IF(sem == NULL, -1);
 
     XLINK_RET_IF_FAIL(XLink_sem_inc(sem));
-    int ret = sem_wait(&sem->psem);
+    int ret;
+    while(((ret = sem_wait(&sem->psem) == -1) && errno == EINTR))
+        continue;
     XLINK_RET_IF_FAIL(XLink_sem_dec(sem));
 
     return ret;

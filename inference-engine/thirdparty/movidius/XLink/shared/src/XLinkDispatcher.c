@@ -11,6 +11,7 @@
 #define _GNU_SOURCE // fix for warning: implicit declaration of function ‘pthread_setname_np’
 #endif
 
+#include <errno.h>
 #include "stdio.h"
 #include "stdint.h"
 #include "stdlib.h"
@@ -261,7 +262,8 @@ XLinkError_t DispatcherStart(xLinkDeviceHandle_t *deviceHandle)
     }
 #endif
 
-    sem_wait(&addSchedulerSem);
+    while(((sem_wait(&addSchedulerSem) == -1) && errno == EINTR))
+        continue;
     mvLog(MVLOG_DEBUG,"%s() starting a new thread - schedulerId %d \n", __func__, idx);
     int sc = pthread_create(&schedulerState[idx].xLinkThreadId,
                             &attr,
