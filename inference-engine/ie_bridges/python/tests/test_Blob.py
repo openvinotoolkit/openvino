@@ -25,6 +25,7 @@ def test_init_with_numpy():
     array = np.ones(shape=(1, 3, 127, 127), dtype=np.float32)
     blob = Blob(tensor_desc, array)
     assert isinstance(blob.buffer, np.ndarray)
+    assert np.shares_memory(blob.buffer, array)
     assert blob.tensor_desc == tensor_desc
 
 
