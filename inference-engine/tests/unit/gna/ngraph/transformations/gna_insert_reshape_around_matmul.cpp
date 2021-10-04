@@ -114,14 +114,6 @@ void RunTest(const std::shared_ptr<ngraph::Function>& func, const std::shared_pt
         ASSERT_NO_THROW(check_rt_info(func));
     }
 
-    {
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::Serialize>("model_khurtin_r.xml", "model_khurtin.bin");
-        m.run_passes(reference_func);
-        ASSERT_NO_THROW(check_rt_info(reference_func));
-    }
-
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);
     ASSERT_TRUE(result.valid);
