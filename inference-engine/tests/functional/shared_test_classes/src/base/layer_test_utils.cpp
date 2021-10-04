@@ -61,7 +61,9 @@ void LayerTestsCommon::Run() {
 
     try {
         LoadNetwork();
-        for (size_t i = 0; i < targetStaticShapes.size(); i++) {
+        size_t i = 0;
+        do {
+            std::cout << i << std::endl;
             index = i;
             try {
                 if (!inputDynamicShapes.empty()) {
@@ -75,7 +77,7 @@ void LayerTestsCommon::Run() {
             } catch (const std::exception &ex) {
                 THROW_IE_EXCEPTION << "Incorrect target static shape: " << CommonTestUtils::vec2str(targetStaticShapes[i]) << std::endl << ex.what();
             }
-        }
+        } while (i++ < targetStaticShapes.size());
     }
     catch (const std::runtime_error &re) {
         s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
