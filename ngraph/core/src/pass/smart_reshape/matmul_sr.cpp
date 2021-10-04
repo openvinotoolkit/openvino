@@ -34,12 +34,10 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap&
     const auto& raw_idx =
         reshape_is_A_input ? (matmul->get_transpose_b() ? -1 : -2) : (matmul->get_transpose_a() ? -2 : -1);
     const auto& idx = ngraph::normalize_axes(matmul->description(), {raw_idx}, reshape_rank);
-
-    const auto shape_node = std::make_shared<ngraph::opset4::ShapeOf>(shape_source);
-    const auto& C = std::make_shared<ngraph::opset4::Gather>(shape_node,
+    const auto& C = std::make_shared<ngraph::opset4::Gather>(
+        std::make_shared<ngraph::opset4::ShapeOf>(shape_source),
         ngraph::opset4::Constant::create(ngraph::element::i64, { idx.size() }, idx),
         ngraph::opset4::Constant::create(ngraph::element::i64, {}, { 0 }));
-
     const auto& N = ngraph::opset4::Constant::create(ngraph::element::i64, {1}, {-1});
     const auto& pattern_vector =
         reshape_is_A_input ? (matmul->get_transpose_a() ? ngraph::OutputVector({C, N}) : ngraph::OutputVector({N, C}))
