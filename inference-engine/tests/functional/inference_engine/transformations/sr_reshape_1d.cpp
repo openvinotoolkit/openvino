@@ -23,7 +23,7 @@ TEST(SmartReshapeTests, Reshape1d) {
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible(ngraph::PartialShape::dynamic()));
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({5}));
 
-    ASSERT_NO_THROW(network.reshape({{"input", {1, 3, 300, 300}}}));
+    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{{"input", {1, 3, 300, 300}}}));
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({270000}));
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 3, 300, 300}));
@@ -44,7 +44,7 @@ TEST(SmartReshapeTests, Reshape1d_negative) {
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible(ngraph::PartialShape::dynamic()));
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().is_dynamic());
 
-    ASSERT_NO_THROW(network.reshape({{"input", {1, 3, 300, 300}}}));
+    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{{"input", {1, 3, 300, 300}}}));
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({270000}));
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({1, 3, 300, 300}));

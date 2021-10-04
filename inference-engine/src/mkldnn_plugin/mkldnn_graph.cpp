@@ -219,8 +219,10 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
             const auto inInfo = inputsInfo.find(node->getName());
             if (inInfo != inputsInfo.end()) {
                 inputNodesMap[node->getName()] = node;
+                IE_SUPPRESS_DEPRECATED_START
                 if (inInfo->second->getInputData()->isDynamic())
                     graphHasDynamicInput = true;
+                IE_SUPPRESS_DEPRECATED_END
             }
         }
 

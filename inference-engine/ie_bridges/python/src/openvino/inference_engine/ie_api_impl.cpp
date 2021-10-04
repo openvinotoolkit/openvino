@@ -212,7 +212,9 @@ InferenceEnginePython::IENetwork InferenceEnginePython::read_network(std::string
 
 PyObject* InferenceEnginePython::getPartialShape_capsule(InferenceEngine::CDataPtr data) {
     const char* py_capsule_name = "ngraph_partial_shape";
+    IE_SUPPRESS_DEPRECATED_START
     auto ngraph_pShape_ptr = std::make_shared<ngraph::PartialShape>(data->getPartialShape());
+    IE_SUPPRESS_DEPRECATED_END
     auto* sp_copy = new std::shared_ptr<const ngraph::PartialShape>(ngraph_pShape_ptr);
     auto sp_deleter = [](PyObject* capsule) {
         auto* capsule_ptr = PyCapsule_GetPointer(capsule, "ngraph_partial_shape");
