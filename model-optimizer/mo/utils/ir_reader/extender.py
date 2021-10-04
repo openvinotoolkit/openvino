@@ -60,5 +60,8 @@ class Extender(object):
 
         # Set all output shapes the same as restored from IR
         for num in node.out_ports():
-            node.out_port(num).data.set_shape(int64_array(node.ports[i][0]))
+            if i in node.ports:
+                node.out_port(num).data.set_shape(int64_array(node.ports[i][0]))
+            else:
+                assert node.out_port(num).data.get_shape() is not None, "New added port have not set shape"
             i += 1
