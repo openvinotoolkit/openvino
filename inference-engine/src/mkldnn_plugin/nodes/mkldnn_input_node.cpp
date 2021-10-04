@@ -363,6 +363,26 @@ MKLDNNInputNode::MKLDNNInputNode(const Shape& shape, const InferenceEngine::Prec
     }
 }
 
+MKLDNNInputNode::MKLDNNInputNode(const Shape& shape, const std::string &name, const std::vector<int> &data, const mkldnn::engine& eng,
+                                 MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode("Constant", name, eng, cache) {
+    if (shape.isDynamic())
+        IE_THROW() << "Can't create MKLDNNInputNode with constant type and dynamic shape";
+    if (shape.getElementsCount() != data.size())
+        IE_THROW() << "Data elements count and shape elements count mistmatch";
+    
+    InferenceEngine::Precision prc{InferenceEngine::Precision::I32};
+    constant = ConstantType::Const;
+    outputShapes.emplace_back(shape);
+    addOriginalOutputPrecision(prc);
+
+    DnnlBlockedMemoryDesc memDesc(prc, shape);
+    auto ptr = new MKLDNNMemory(getEngine());
+    ptr->Create(memDesc);
+    cpu_memcpy(ptr->GetPtr(), data.data(), data.size() * sizeof(int));
+    memoryPtr = MKLDNNMemoryCPtr(ptr);
+}
+
 void MKLDNNInputNode::withMeanImage() {
     isMeanImage = true;
 }
