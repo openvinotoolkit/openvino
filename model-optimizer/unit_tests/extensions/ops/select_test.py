@@ -6,8 +6,10 @@ import unittest
 import numpy as np
 
 from extensions.ops.select import Select
+from mo.front.common.partial_infer.utils import dynamic_dimension, shape_array
 from mo.front.common.partial_infer.utils import strict_compare_tensors, int64_array
 from mo.graph.graph import Node
+from mo.utils.error import Error
 from unit_tests.utils.graph import build_graph, valued_const_with_data, result, regular_op_with_empty_data, \
     connect
 
@@ -16,7 +18,8 @@ class TestSelect(unittest.TestCase):
 
     @staticmethod
     def build_select_graph_and_infer(condition_value, then_value, else_value, out_value,
-                                     condition_shape=None, then_shape=None, else_shape=None, out_shape=None):
+                                     condition_shape=None, then_shape=None, else_shape=None, out_shape=None,
+                                     auto_broadcast='numpy'):
         if then_value is not None:
             then_shape = int64_array(then_value.shape)
         if else_value is not None:
@@ -26,7 +29,7 @@ class TestSelect(unittest.TestCase):
             **valued_const_with_data('then', then_value, then_shape),
             **valued_const_with_data('else', else_value, else_shape),
             **valued_const_with_data('condition', condition_value, condition_shape),
-            **regular_op_with_empty_data('select', {'op': 'Select'}),
+            **regular_op_with_empty_data('select', {'op': 'Select', 'auto_broadcast': auto_broadcast}),
             **result('out'),
         }
         edges = [
@@ -138,7 +141,7 @@ class TestSelect(unittest.TestCase):
 
     def test_select_broadcast_1(self):
         flag, msg = self.build_select_graph_and_infer(condition_value=np.ones([2, 3, 4, 5], dtype=bool),
-                                                      then_value= np.ones([], dtype=np.float),
+                                                      then_value=np.ones([], dtype=np.float),
                                                       else_value=np.zeros([2, 3, 4, 5], dtype=np.float),
                                                       out_value=np.ones([2, 3, 4, 5], dtype=np.float))
         self.assertTrue(flag, msg)
@@ -165,23 +168,30 @@ class TestSelect(unittest.TestCase):
         self.assertTrue(flag, msg)
 
     def test_select_infer_assert_shapes(self):
-        with self.assertRaisesRegex(AssertionError, "Input shapes for node select are not broadcast-able"):
+        with self.assertRaisesRegex(AssertionError, "must be broadcastable"):
             self.build_select_graph_and_infer(condition_value=None, condition_shape=[2, 2],
                                               then_value=None, then_shape=[2, 2],
                                               else_value=None, else_shape=[3, 3],
                                               out_value=None, out_shape=[42, 42])
 
+    def test_select_infer_assert_shapes_2(self):
+        with self.assertRaisesRegex(AssertionError, "must be broadcastable"):
+            self.build_select_graph_and_infer(condition_value=None, condition_shape=[2, 300],
+                                              then_value=None, then_shape=[2, 2],
+                                              else_value=None, else_shape=[2, 1],
+                                              out_value=None, out_shape=[42, 42])
+
     def test_select_infer_masked_1(self):
         flag, msg = self.build_select_graph_and_infer(condition_value=np.ma.array([True, True], mask=[1, 1]),
                                                       then_value=None, then_shape=[2],
-                                                      else_value=np.zeros((2, 2), dtype=np.int64), else_shape=[2],
+                                                      else_value=np.zeros((2, 2), dtype=np.int64),
                                                       out_value=np.ma.array([[1, 1], [1, 1]], mask=[[1, 1], [1, 1]]))
         self.assertTrue(flag, msg)
 
     def test_select_infer_masked_2(self):
         flag, msg = self.build_select_graph_and_infer(condition_value=np.ma.array([False, False], mask=[1, 1]),
                                                       then_value=None, then_shape=[2],
-                                                      else_value=np.zeros((2, 2), dtype=np.int64), else_shape=[2],
+                                                      else_value=np.zeros((2, 2), dtype=np.int64),
                                                       out_value=np.ma.array([[1, 1], [1, 1]], mask=[[1, 1], [1, 1]]))
         self.assertTrue(flag, msg)
 
@@ -194,8 +204,40 @@ class TestSelect(unittest.TestCase):
 
     def test_select_infer_masked_4(self):
         flag, msg = self.build_select_graph_and_infer(condition_value=np.ma.array([True, False], mask=[0, 1]),
-                                                      then_value=np.ones((2, 2), dtype=np.int64), then_shape=[2],
-                                                      else_value=np.zeros((2, 2), dtype=np.int64), else_shape=[2],
+                                                      then_value=np.ones((2, 2), dtype=np.int64),
+                                                      else_value=np.zeros((2, 2), dtype=np.int64),
                                                       out_value=np.ma.array([[1, 42], [1, 42]], mask=[[0, 1], [0, 1]]))
         self.assertTrue(flag, msg)
+
+    def test_select_infer_no_broadcast_dynamic_then_else_shapes(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=None, condition_shape=shape_array([100, 100]),
+                                                      then_value=None, then_shape=shape_array([100, dynamic_dimension]),
+                                                      else_value=None, else_shape=shape_array([dynamic_dimension, 100]),
+                                                      out_value=None, out_shape=shape_array([100, 100]),
+                                                      auto_broadcast='none')
+        self.assertTrue(flag, msg)
+
+    def test_select_infer_no_broadcast_dynamic_then_else_shapes_2(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=None, condition_shape=shape_array([100, 100]),
+                                                      then_value=None, then_shape=shape_array([dynamic_dimension, 100]),
+                                                      else_value=None, else_shape=shape_array([100, dynamic_dimension]),
+                                                      out_value=None, out_shape=shape_array([100, 100]),
+                                                      auto_broadcast='none')
+        self.assertTrue(flag, msg)
+
+    def test_select_infer_no_broadcast_dynamic_shapes(self):
+        flag, msg = self.build_select_graph_and_infer(condition_value=None, condition_shape=shape_array([100, 100]),
+                                                      then_value=None, then_shape=shape_array([100, dynamic_dimension]),
+                                                      else_value=None, else_shape=shape_array([dynamic_dimension, 100]),
+                                                      out_value=None, out_shape=shape_array([100, 100]),
+                                                      auto_broadcast='none')
+        self.assertTrue(flag, msg)
+
+    def test_select_infer_assert_pdpd(self):
+        with self.assertRaisesRegex(Error, "PDPD broadcasting rule is not implemented yet"):
+            self.build_select_graph_and_infer(condition_value=None, condition_shape=[2, 2],
+                                              then_value=None, then_shape=[2, 2],
+                                              else_value=None, else_shape=[3, 3],
+                                              out_value=None, out_shape=[42, 42],
+                                              auto_broadcast='pdpd')
 

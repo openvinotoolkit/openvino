@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import compatible_shapes, dynamic_dimension, shape_array
 from mo.graph.graph import Node, Graph, Error
 from mo.ops.op import Op
 from mo.utils.broadcasting import bi_directional_shape_broadcasting, bi_directional_broadcasting
@@ -34,6 +35,7 @@ class Select(Op):
             "Select operation must have 3 inputs: 'condition', 'then' and 'else' tensors for node {}".format(node_name)
 
         condition_value = node.in_port(0).data.get_value()
+        condition_shape = node.in_port(0).data.get_shape()
         resulting_tensors = [node.in_port(1).data.get_value(), node.in_port(2).data.get_value()]
 
         a_shape = node.in_port(1).data.get_shape()
@@ -41,18 +43,22 @@ class Select(Op):
         broadcast_rule = node.soft_get('auto_broadcast', 'numpy')
         if broadcast_rule == 'numpy':
             output_shape = bi_directional_shape_broadcasting(a_shape, b_shape)
+            msg = 'In node \'{}\' for Select operation condition and then/else values shapes must '\
+                  'be broadcastable. But instead got: cond_shape={}, then_shape={}, else_shape={}'.format(
+                      node_name, condition_shape, a_shape, b_shape)
+            assert output_shape is not None, msg
+            assert bi_directional_shape_broadcasting(output_shape, condition_shape) is not None, msg
         elif broadcast_rule == 'pdpd':
             # todo: add pdpd broadcasting rule
             # note that additionally to output_shape resulting_tensors must be broadcasted as well
             raise Error("PDPD broadcasting rule is not implemented yet")
         else:  # broadcasting is not allowed
-            assert np.array_equal(a_shape, b_shape) and condition_value is not None and np.array_equal(condition_value.shape, a_shape), \
+            assert compatible_shapes(a_shape, b_shape) and compatible_shapes(condition_shape, a_shape), \
                 'In node \'{}\' for Select operation when broadcasting is off all inputs must be of the same shape. ' \
                 'But instead got: cond_shape={}, then_shape={}, else_shape={}'.format(
-                    node_name, condition_value.shape, a_shape, b_shape)
-            output_shape = a_shape
+                    node_name, condition_shape, a_shape, b_shape)
+            output_shape = shape_array([i if i is not dynamic_dimension else j for i, j in zip(a_shape, b_shape)])
 
-        assert output_shape is not None, 'Input shapes for node {} are not broadcast-able'.format(node_name)
         node.out_port(0).data.set_shape(output_shape)
 
         if condition_value is not None:
