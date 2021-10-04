@@ -36,7 +36,6 @@ void LayerTestsCommon::ResizeNgraphFunction() {
 }
 
 void LayerTestsCommon::Run() {
-    //TODO: w/a: to identify gaps with functionRefs and init it
     if (functionRefs == nullptr) {
         functionRefs = ngraph::clone_function(*function);
         functionRefs->set_friendly_name("refFunction");
