@@ -1482,18 +1482,19 @@ bool evaluate(const shared_ptr<op::v1::AvgPool>& op, const HostTensorVector& out
 }
 
 template <element::Type_t ET>
-bool evaluate(const std::shared_ptr<op::v8::Slice>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+bool evaluate(const std::shared_ptr<op::v8::Slice>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
     const auto ind_size = inputs[1]->get_shape()[0];
 
-    std::vector<int64_t>starts = host_tensor_2_vector<int64_t>(inputs[1]);
-    std::vector<int64_t>stops = host_tensor_2_vector<int64_t>(inputs[2]);
-    std::vector<int64_t>steps = host_tensor_2_vector<int64_t>(inputs[3]);
+    std::vector<int64_t> starts = host_tensor_2_vector<int64_t>(inputs[1]);
+    std::vector<int64_t> stops = host_tensor_2_vector<int64_t>(inputs[2]);
+    std::vector<int64_t> steps = host_tensor_2_vector<int64_t>(inputs[3]);
 
-    std::vector<int64_t>axes(ind_size);
-    if (inputs.size() < 5){
+    std::vector<int64_t> axes(ind_size);
+    if (inputs.size() < 5) {
         std::iota(axes.begin(), axes.end(), 0);
-    }
-    else {
+    } else {
         axes = host_tensor_2_vector<int64_t>(inputs[4]);
     }
 
@@ -1508,17 +1509,15 @@ bool evaluate(const std::shared_ptr<op::v8::Slice>& op, const HostTensorVector& 
     outputs[0]->set_element_type(inputs[0]->get_element_type());
 
     runtime::reference::slice(inputs[0]->get_data_ptr<char>(),
-                                data_shape.to_shape(),
-                                outputs[0]->get_data_ptr<char>(),
-                                output_shape.to_shape(),
-                                inputs[0]->get_element_type().size(),
-                                starts,
-                                steps,
-                                axes
-                                );
+                              data_shape.to_shape(),
+                              outputs[0]->get_data_ptr<char>(),
+                              output_shape.to_shape(),
+                              inputs[0]->get_element_type().size(),
+                              starts,
+                              steps,
+                              axes);
     return true;
 }
-
 
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::HardSigmoid>& op,
