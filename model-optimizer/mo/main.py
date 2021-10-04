@@ -104,7 +104,7 @@ def get_moc_frontends(argv: argparse.Namespace):
     use_new_frontend = argv.use_new_frontend
 
     if use_legacy_frontend and use_new_frontend:
-        raise Error('Ambiguous arguments provided. Please do not use --use_legacy_frontend and  '
+        raise Error('Ambiguous arguments provided. Please do not use --use_legacy_frontend and '
                     '--use_new_frontend flags at the same time.')
 
     if not fem or use_legacy_frontend:
