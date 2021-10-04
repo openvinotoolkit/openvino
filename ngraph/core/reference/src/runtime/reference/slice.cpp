@@ -8,6 +8,7 @@
 
 #include "ngraph/check.hpp"
 #include "ngraph/coordinate_range.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ngraph {
 namespace runtime {
@@ -21,13 +22,20 @@ void slice(const char* data,
            const std::vector<int64_t>& starts,
            const std::vector<int64_t>& steps,
            const std::vector<int64_t>& axes) {
+    const auto ind_size = starts.size();
+    OPENVINO_ASSERT(steps.size() == ind_size && axes.size() == ind_size,
+                    "Slice starts, steps, axes args need to have the same size.");
+    OPENVINO_ASSERT(data_shape.size() == out_shape.size(),
+                    "Slice output data rank need to be equal to input data rank.");
+
     // Align inputs rank with data shape and normalize
     const auto data_rank = data_shape.size();
     std::vector<int64_t> aligned_starts(data_rank, 0);
     std::vector<int64_t> aligned_steps(data_rank, 1);
     for (size_t i = 0; i < axes.size(); ++i) {
         const auto axis = axes[i] >= 0 ? axes[i] : axes[i] + data_rank;
-        const auto dim = data_shape[axis];
+        OPENVINO_ASSERT(axis >= 0 && axis < data_rank, "Slice `axes` arg has out of range value.");
+        const auto& dim = data_shape[axis];
         aligned_starts[axis] = starts[i] >= 0 ? std::min<int64_t>(starts[i], steps[i] < 0 ? dim - 1 : dim)
                                               : std::min<int64_t>(std::max<int64_t>(0, starts[i] + dim), dim - 1);
         aligned_steps[axis] = steps[i];

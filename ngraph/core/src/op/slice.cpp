@@ -241,6 +241,12 @@ PartialShape op::v8::Slice::calculate_output_shape(const std::vector<int64_t>& s
                                                    const std::vector<int64_t>& steps,
                                                    const std::vector<int64_t>& axes,
                                                    const PartialShape& data_shape) {
+    NGRAPH_OP_SCOPE(v8_Slice_calculate_output_shape);
+    const auto ind_size = starts.size();
+    NODE_VALIDATION_CHECK(this,
+                          stops.size() == ind_size && steps.size() == ind_size && axes.size() == ind_size,
+                          "Slice `start`, `stop`, `step`, `axes` inputs need to have the same size.");
+
     std::unordered_set<int64_t> axes_set(axes.begin(), axes.end());
     NODE_VALIDATION_CHECK(this, axes_set.size() == axes.size(), "Slice values in `axes` input must be unique.");
 
@@ -272,7 +278,7 @@ PartialShape op::v8::Slice::calculate_output_shape(const std::vector<int64_t>& s
         const auto min_dim_size = get_sliced_dim_size(start, stop, step, axis_min_dim_length);
         if (axis_dim.is_static()) {
             output_shape[norm_axis] = min_dim_size;
-            // continue;
+            continue;
         }
 
         // Avoid negative index normalization without upper bounds

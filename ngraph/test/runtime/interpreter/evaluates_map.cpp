@@ -1485,25 +1485,23 @@ template <element::Type_t ET>
 bool evaluate(const std::shared_ptr<op::v8::Slice>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
-    const auto ind_size = inputs[1]->get_shape()[0];
-
     std::vector<int64_t> starts = host_tensor_2_vector<int64_t>(inputs[1]);
     std::vector<int64_t> stops = host_tensor_2_vector<int64_t>(inputs[2]);
     std::vector<int64_t> steps = host_tensor_2_vector<int64_t>(inputs[3]);
 
-    std::vector<int64_t> axes(ind_size);
+    std::vector<int64_t> axes(starts.size());
     if (inputs.size() < 5) {
         std::iota(axes.begin(), axes.end(), 0);
     } else {
         axes = host_tensor_2_vector<int64_t>(inputs[4]);
     }
 
-    // We need to be able calculate static output shape based on HostTensor inputs
-    PartialShape output_shape = op->calculate_output_shape(starts, stops, steps, axes, inputs[0]->get_partial_shape());
-    OPENVINO_ASSERT(output_shape.is_static(), "Can't calculate static output shape for Slice operation.");
-    // Static HostTensor data shape is needed to clamp and normalize starts values
+    // Static HostTensor data shape is needed to clamp and normalize `start` values
     const auto data_shape = inputs[0]->get_partial_shape();
     OPENVINO_ASSERT(data_shape.is_static(), "Can't evaluate Slice elements without static HostTensor data shape.");
+    // We need calculate static output shape based on HostTensor inputs
+    PartialShape output_shape = op->calculate_output_shape(starts, stops, steps, axes, data_shape);
+    OPENVINO_ASSERT(output_shape.is_static(), "Can't calculate static output shape for Slice evaluation.");
 
     outputs[0]->set_shape(output_shape.to_shape());
     outputs[0]->set_element_type(inputs[0]->get_element_type());
