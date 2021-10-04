@@ -302,7 +302,7 @@ InputModel::Ptr FrontEndTF::load_impl(const std::vector<std::shared_ptr<Variant>
         if (ov::is_type<VariantWrapper<std::string>>(variants[0])) {
             std::string suffix = ".pb";
             std::string model_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
-            if (tf::endsWith(model_path, suffix)) {
+            if (ov::util::ends_with(model_path, suffix)) {
                 return std::make_shared<InputModelTF>(
                     std::make_shared<::ngraph::frontend::tf::GraphIteratorProto>(model_path));
             }
