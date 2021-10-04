@@ -85,6 +85,13 @@ if not "%python_ver%"=="okay" (
     goto error
 )
 
+:: Check if OMZ tools are installed
+omz_downloader --print_all >NUL
+if errorlevel 1 (
+    echo Error^: Open Model Zoo Tools are not installed. It is required to download and convert a model. Check https://pypi.org/project/openvino-dev/ to install it.
+    goto error
+)
+
 for /F "tokens=* usebackq" %%d in (
     `omz_info_dumper --name "%model_name%" ^|
         python -c "import sys, json; print(json.load(sys.stdin)[0]['subdirectory'])"`

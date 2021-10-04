@@ -106,6 +106,11 @@ if ! command -v $python_binary &>/dev/null; then
     exit 1
 fi
 
+if ! command -v omz_downloader &>/dev/null; then
+    echo -ne "\n\nOpen Model Zoo Tools are not installed. It is required to download and convert a model. Check https://pypi.org/project/openvino-dev/ to install it. ${run_again}"
+    exit 2
+fi
+
 # Step 1. Download the Caffe model and the prototxt of the model
 echo -ne "\n###############|| Downloading the Caffe model and the prototxt ||###############\n\n"
 
