@@ -31,9 +31,9 @@ TEST(TransformationTests, BroadcastConstTestFakeQuantize) {
 
     auto create_graph = [](const ngraph::Shape& data_shape, const ngraph::Shape& const_shape_dims,
                            const ngraph::Shape& const_shape_values) {
-        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, data_shape);
+        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::Type_t::f32, data_shape);
 
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::i64,
+        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
                                                          ngraph::Shape{const_shape_dims}, const_shape_values);
 
         auto fakeQuantize1 = createFakeQuantizeNode(input_params);
@@ -70,9 +70,9 @@ TEST(TransformationTests, BroadcastConstTestFakeQuantizeSwapFq) {
 
     auto create_graph = [](const ngraph::Shape& data_shape, const ngraph::Shape& const_shape_dims,
                            const ngraph::Shape& const_shape_values) {
-        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, data_shape);
+        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::Type_t::f32, data_shape);
 
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::i64,
+        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
                                                          ngraph::Shape{const_shape_dims}, const_shape_values);
 
         auto fakeQuantize1 = createFakeQuantizeNode(input_params);
@@ -109,9 +109,9 @@ TEST(TransformationTests, BroadcastConstTestFakeQuantizeEltwise) {
 
     auto create_graph = [](const ngraph::Shape& data_shape, const ngraph::Shape& const_shape_dims,
                            const ngraph::Shape& const_shape_values) {
-        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, data_shape);
+        auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::Type_t::f32, data_shape);
 
-        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::i64,
+        auto constant = ngraph::opset8::Constant::create(ngraph::element::Type_t::f32,
                                                          ngraph::Shape{const_shape_dims}, const_shape_values);
 
         auto fakeQuantize1 = createFakeQuantizeNode(input_params);

@@ -13,7 +13,6 @@
 #include <ngraph/pattern/op/or.hpp>
 #include "legacy/ngraph_ops/eltwise.hpp"
 #include "ngraph_ops/convolution_ie.hpp"
-#include "ngraph/runtime/reference/broadcast.hpp"
 #include <transformations/utils/utils.hpp>
 
 #include <vector>
@@ -32,55 +31,23 @@ using AxisSet = std::set<size_t>;
 
 namespace {
 
-Node CreateTiledConst(Node const_node, const ngraph::Shape & shape) {
-    std::shared_ptr<ngraph::opset8::Constant> old_const_node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(const_node);
-
-    const ngraph::Shape const_node_shape = const_node->get_output_tensor(0).get_shape();
-    const auto elem_type = old_const_node->get_element_type();
-    std::vector<char> new_const_values(elem_type.size() * ngraph::shape_size(shape), 0);
-
-    AxisSet broadcast_axes;
-    ngraph::Shape new_const_shape = const_node_shape;
-    new_const_shape.insert(new_const_shape.begin(), shape.size() - new_const_shape.size(), 1);
-    for (size_t i = 0; i < new_const_shape.size(); ++i) {
-        if (new_const_shape[i] == shape[i])
-            continue;
-        if (shape[i] % new_const_shape[i]) {
-            return {};
-        }
-        broadcast_axes.insert(i);
-    }
-
-    ngraph::runtime::reference::broadcast(static_cast<const char*>(old_const_node->get_data_ptr()),
-                        new_const_values.data(),
-                        new_const_shape,
-                        shape,
-                        broadcast_axes,
-                        elem_type.size());
-
-    return ngraph::opset8::Constant::create(old_const_node->get_output_element_type(0),
-                                            shape,
-                                            new_const_values.data());
-}
-
 bool HasDynamicShape(Node node) {
     const auto & shape = node->get_output_partial_shape(0);
     return shape.is_dynamic();
 }
 
 bool DoTransformation(Node const_node, Node eltwise_node) {
-
     if (HasDynamicShape(const_node) || HasDynamicShape(eltwise_node))
         return false;
-
     const ngraph::Shape & eltwise_out_shape = eltwise_node->get_output_tensor(0).get_shape();
-    auto new_const_node = CreateTiledConst(const_node, eltwise_out_shape);
+    
+    auto broadcast_const = ngraph::opset8::Constant::create(ngraph::element::Type_t::i64,
+                                         ngraph::Shape{eltwise_out_shape.size()}, eltwise_out_shape);
 
-    if (!new_const_node)
-        return false;
-
+    auto new_const_node = ngraph::op::util::make_try_fold<ngraph::opset8::Broadcast>(const_node,
+                                                                                     broadcast_const,
+                                                                                     ov::op::BroadcastType::NUMPY);
     ngraph::replace_node(const_node, new_const_node);
-
     return true;
 }
 
