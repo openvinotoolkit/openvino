@@ -4,6 +4,7 @@
 
 #include "openvino/core/preprocess/pre_post_process.hpp"
 
+#include "color_utils.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "openvino/core/function.hpp"
 #include "preprocess_steps_impl.hpp"
@@ -66,7 +67,26 @@ public:
         m_spatial_width = static_cast<int>(width);
     }
 
+    const ColorFormat& get_color_format() const {
+        return m_color_format;
+    }
+
+    void set_color_format(ColorFormat format) noexcept {
+        m_color_format = format;
+    }
+
+    const std::vector<std::string>& planes_sub_names() const {
+        return m_planes_sub_names;
+    }
+
+    void set_planes_sub_names(const std::vector<std::string>& names) {
+        m_planes_sub_names = names;
+    }
+
 private:
+    ColorFormat m_color_format = ColorFormat::UNDEFINED;
+    std::vector<std::string> m_planes_sub_names;
+
     element::Type m_type = element::dynamic;
     bool m_type_set = false;
 
@@ -120,6 +140,7 @@ struct InputInfo::InputInfoImpl {
     std::unique_ptr<InputTensorInfo::InputTensorInfoImpl> m_tensor_data;
     std::unique_ptr<PreProcessSteps::PreProcessStepsImpl> m_preprocess;
     std::unique_ptr<InputNetworkInfo::InputNetworkInfoImpl> m_network_data;
+    std::shared_ptr<op::v0::Parameter> m_resolved_param;
 };
 
 //-------------- InputInfo ------------------
@@ -200,6 +221,11 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         if (input->m_network_data && input->m_network_data->is_layout_set() && param->get_layout().empty()) {
             param->set_layout(input->m_network_data->get_layout());
         }
+        input->m_resolved_param = param;
+    }
+
+    for (const auto& input : m_impl->in_contexts) {
+        auto param = input->m_resolved_param;
         auto consumers = param->output(0).get_target_inputs();
         if (!input->m_tensor_data) {
             input->create_tensor_data(param->get_element_type(), param->get_layout());
@@ -210,6 +236,7 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         if (!input->m_tensor_data->is_element_type_set()) {
             input->m_tensor_data->set_element_type(param->get_element_type());
         }
+
         auto net_shape = param->get_partial_shape();
         auto new_param_shape = net_shape;
         if (input->m_tensor_data->is_layout_set() && param->get_layout() != Layout() &&
@@ -236,26 +263,53 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
                 new_param_shape[width_idx] = input->m_tensor_data->get_spatial_width();
             }
         }
-        auto new_param = std::make_shared<op::v0::Parameter>(input->m_tensor_data->get_element_type(), new_param_shape);
-        if (input->m_tensor_data->is_layout_set()) {
-            new_param->set_layout(input->m_tensor_data->get_layout());
+
+        std::vector<std::shared_ptr<ov::Node>> nodes;
+        std::vector<std::shared_ptr<op::v0::Parameter>> new_params;
+
+        // Create separate parameter for each plane. Shape and friendly name is based on color format
+        auto color_info = ColorFormatInfo::get(input->m_tensor_data->get_color_format());
+        for (size_t plane = 0; plane < color_info->planes_count(); plane++) {
+            auto plane_shape = color_info->shape(plane, new_param_shape);
+            auto plane_param =
+                std::make_shared<op::v0::Parameter>(input->m_tensor_data->get_element_type(), plane_shape);
+            if (plane < input->m_tensor_data->planes_sub_names().size()) {
+                auto sub_name = std::string("/") + input->m_tensor_data->planes_sub_names()[plane];
+                plane_param->set_friendly_name(param->get_friendly_name() + sub_name);
+                std::unordered_set<std::string> plane_names;
+                for (const auto& name : param->get_output_tensor(0).get_names()) {
+                    plane_names.insert(name + sub_name);
+                }
+                plane_param->get_output_tensor(0).set_names(plane_names);
+            } else {
+                plane_param->set_friendly_name(color_info->friendly_name(plane, param->get_friendly_name()));
+                plane_param->get_output_tensor(0).set_names(param->get_output_tensor(0).get_names());
+            }
+            if (input->m_tensor_data->get_layout() != Layout()) {
+                plane_param->set_layout(input->m_tensor_data->get_layout());
+            }
+            new_params.push_back(plane_param);
+            nodes.push_back(plane_param);
         }
-        // Old param will be removed, so friendly name can be reused
-        new_param->set_friendly_name(param->get_friendly_name());
 
-        // Also reuse names of original tensor
-        new_param->get_output_tensor(0).set_names(param->get_output_tensor(0).get_names());
-
-        std::shared_ptr<Node> node = new_param;
-        PreprocessingContext context(new_param->get_layout());
+        PreprocessingContext context(input->m_tensor_data->get_layout());
+        context.color_format() = input->m_tensor_data->get_color_format();
         context.network_layout() = param->get_layout();
         context.network_shape() = param->get_partial_shape();
+
         // 2. Apply preprocessing
         for (const auto& action : input->m_preprocess->actions()) {
-            node = std::get<0>(action)({node}, context);
+            auto node = std::get<0>(action)(nodes, context);
+            nodes = {node};
             tensor_data_updated |= std::get<1>(action);
         }
 
+        OPENVINO_ASSERT(nodes.size() == 1,
+                        "Multiple plane input is not allowed as network input. Consider using of convert_color "
+                        "preprocessing operation");
+        OPENVINO_ASSERT(is_rgb_family(context.color_format()) || context.color_format() == ColorFormat::UNDEFINED,
+                        "Final input color format is incorrect");
+        auto node = nodes[0];
         // Check final type
         OPENVINO_ASSERT(node->get_element_type() == param->get_element_type(),
                         std::string("Element type after preprocessing {") + node->get_element_type().c_type_string() +
@@ -267,7 +321,7 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         for (auto consumer : consumers) {
             consumer.replace_source_output(node);
         }
-        function->add_parameters({new_param});
+        function->add_parameters(new_params);
         // remove old parameter
         function->remove_parameter(param);
     }
@@ -336,6 +390,20 @@ InputNetworkInfo& InputNetworkInfo::set_layout(const Layout& layout) & {
 
 InputNetworkInfo&& InputNetworkInfo::set_layout(const Layout& layout) && {
     m_impl->set_layout(layout);
+    return std::move(*this);
+}
+
+InputTensorInfo& InputTensorInfo::set_color_format(const ov::preprocess::ColorFormat& format,
+                                                   const std::vector<std::string>& sub_names) & {
+    m_impl->set_planes_sub_names(sub_names);
+    m_impl->set_color_format(format);  // noexcept
+    return *this;
+}
+
+InputTensorInfo&& InputTensorInfo::set_color_format(const ov::preprocess::ColorFormat& format,
+                                                    const std::vector<std::string>& sub_names) && {
+    m_impl->set_planes_sub_names(sub_names);
+    m_impl->set_color_format(format);  // noexcept
     return std::move(*this);
 }
 
@@ -429,6 +497,16 @@ PreProcessSteps& PreProcessSteps::convert_layout(const Layout& dst_layout) & {
 
 PreProcessSteps&& PreProcessSteps::convert_layout(const Layout& dst_layout) && {
     m_impl->add_convert_layout_impl(dst_layout);
+    return std::move(*this);
+}
+
+PreProcessSteps& PreProcessSteps::convert_color(const ov::preprocess::ColorFormat& dst_format) & {
+    m_impl->add_convert_color_impl(dst_format);
+    return *this;
+}
+
+PreProcessSteps&& PreProcessSteps::convert_color(const ov::preprocess::ColorFormat& dst_format) && {
+    m_impl->add_convert_color_impl(dst_format);
     return std::move(*this);
 }
 

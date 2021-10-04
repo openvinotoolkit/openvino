@@ -7,6 +7,8 @@
 #include "ngraph/opsets/opset1.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/op/nv12_to_bgr.hpp"
+#include "openvino/op/nv12_to_rgb.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -162,6 +164,50 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_layout_impl(const Layout&
             transpose->set_friendly_name(nodes[0]->get_friendly_name() + "/convert_layout");
             context.layout() = dst_layout;  // Update context's current layout
             return transpose;
+        },
+        true));
+}
+
+void PreProcessSteps::PreProcessStepsImpl::add_convert_color_impl(const ColorFormat& dst_format) {
+    m_actions.emplace_back(std::make_tuple(
+        [&, dst_format](const std::vector<std::shared_ptr<Node>>& nodes, PreprocessingContext& context) {
+            if (context.color_format() == ColorFormat::NV12_SINGLE_PLANE) {
+                OPENVINO_ASSERT(nodes.size() == 1,
+                                "Internal error: single plane NV12 image can't have multiple inputs");
+                std::shared_ptr<Node> convert;
+                switch (dst_format) {
+                case ColorFormat::RGB:
+                    convert = std::make_shared<op::v8::NV12toRGB>(nodes[0]);
+                    break;
+                case ColorFormat::BGR:
+                    convert = std::make_shared<op::v8::NV12toBGR>(nodes[0]);
+                    break;
+                default:
+                    OPENVINO_ASSERT(false, "Unsupported NV12 conversion format");
+                }
+                convert->set_friendly_name(nodes[0]->get_friendly_name() + "/convert_color_nv12_single");
+                context.color_format() = dst_format;
+                return convert;
+            } else if (context.color_format() == ColorFormat::NV12_TWO_PLANES) {
+                OPENVINO_ASSERT(nodes.size() == 2, "Internal error: two-plane NV12 image must have exactly two inputs");
+                std::shared_ptr<Node> convert;
+                switch (dst_format) {
+                case ColorFormat::RGB:
+                    convert = std::make_shared<op::v8::NV12toRGB>(nodes[0], nodes[1]);
+                    break;
+                case ColorFormat::BGR:
+                    convert = std::make_shared<op::v8::NV12toBGR>(nodes[0], nodes[1]);
+                    break;
+                default:
+                    OPENVINO_ASSERT(false, "Unsupported NV12 conversion format");
+                }
+                convert->set_friendly_name(nodes[0]->get_friendly_name() + "/convert_color_nv12_two_planes");
+                context.color_format() = dst_format;
+                return convert;
+            }
+            // Throw even if source_format == dst_format, because we don't want to deal with multiple output nodes
+            // here
+            OPENVINO_ASSERT(false, "Source color format is not convertible to any other");
         },
         true));
 }

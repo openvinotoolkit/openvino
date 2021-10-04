@@ -107,6 +107,52 @@ TEST(pre_post_process, tensor_element_type_and_scale) {
     EXPECT_EQ(f->get_parameters().front()->get_layout(), Layout());
 }
 
+TEST(pre_post_process, convert_color_nv12_rgb_single) {
+    auto f = create_simple_function(element::f32, Shape{1, 2, 2, 3});
+    f = PrePostProcessor()
+            .input(
+                InputInfo()
+                    .tensor(InputTensorInfo()
+                                .set_element_type(element::u8)
+                                .set_color_format(ColorFormat::NV12_SINGLE_PLANE))
+                    .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB).convert_element_type(element::f32)))
+            .build(f);
+
+    EXPECT_EQ(f->get_parameters().size(), 1);
+    auto result = std::make_shared<HostTensor>();
+    EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::u8);
+}
+
+TEST(pre_post_process, convert_color_nv12_bgr_2_planes) {
+    auto f = create_simple_function(element::f32, Shape{1, 2, 2, 3});
+    f = PrePostProcessor()
+            .input(InputInfo()
+                       .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES, {"TestY", "TestUV"}))
+                       .preprocess(PreProcessSteps().convert_color(ColorFormat::BGR)))
+            .build(f);
+
+    EXPECT_EQ(f->get_parameters().size(), 2);
+    EXPECT_EQ(f->get_parameters()[0]->get_friendly_name(), "input1/TestY");
+    EXPECT_EQ(f->get_parameters()[0]->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters()[1]->get_friendly_name(), "input1/TestUV");
+    EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::f32);
+}
+
+TEST(pre_post_process, convert_color_nv12_bgr_2_planes_u8_lvalue) {
+    auto f = create_simple_function(element::u8, Shape{1, 2, 2, 3});
+    auto input_tensor_info = InputTensorInfo();
+    input_tensor_info.set_color_format(ColorFormat::NV12_TWO_PLANES);
+    auto steps = PreProcessSteps();
+    steps.convert_color(ColorFormat::BGR);
+    f = PrePostProcessor()
+            .input(InputInfo().tensor(std::move(input_tensor_info)).preprocess(std::move(steps)))
+            .build(f);
+
+    EXPECT_EQ(f->get_parameters().size(), 2);
+    EXPECT_EQ(f->get_parameters()[0]->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::u8);
+}
+
 TEST(pre_post_process, custom_preprocessing) {
     auto f = create_simple_function(element::i32, Shape{1, 3, 1, 1});
     f = PrePostProcessor()

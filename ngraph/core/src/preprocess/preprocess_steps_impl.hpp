@@ -8,6 +8,7 @@
 
 #include "openvino/core/layout.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/preprocess/color_format.hpp"
 #include "openvino/core/preprocess/preprocess_steps.hpp"
 
 namespace ov {
@@ -59,7 +60,7 @@ inline size_t get_and_check_channels_idx(const Layout& layout, const PartialShap
 /// This is internal structure which is not shared to custom operations yet.
 class PreprocessingContext {
 public:
-    explicit PreprocessingContext(const Layout& layout) : m_layout(layout) {}
+    explicit PreprocessingContext(Layout layout) : m_layout(std::move(layout)) {}
 
     const Layout& layout() const {
         return m_layout;
@@ -99,10 +100,19 @@ public:
         return network_shape()[network_width_idx].get_length();
     }
 
+    const ColorFormat& color_format() const {
+        return m_color_format;
+    }
+
+    ColorFormat& color_format() {
+        return m_color_format;
+    }
+
 private:
     Layout m_layout;
     PartialShape m_network_shape;
     Layout m_network_layout;
+    ColorFormat m_color_format = ColorFormat::UNDEFINED;
 };
 
 using InternalPreprocessOp =
@@ -117,6 +127,7 @@ public:
     void add_convert_impl(const element::Type& type);
     void add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_width);
     void add_convert_layout_impl(const Layout& layout);
+    void add_convert_color_impl(const ColorFormat& dst_format);
 
     const std::list<std::tuple<InternalPreprocessOp, bool>>& actions() const {
         return m_actions;
