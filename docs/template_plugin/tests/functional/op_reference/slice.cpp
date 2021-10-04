@@ -4,18 +4,12 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <tuple>
-
 #include "base_reference_test.hpp"
+#include "openvino/opsets/opset8.hpp"
 
-using namespace reference_tests;
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 
+namespace reference_tests {
 namespace {
 struct SliceParams {
     SliceParams(const Tensor& data,
@@ -31,7 +25,23 @@ struct SliceParams {
           m_step(step),
           m_axes(axes),
           m_output(output),
-          m_test_name(test_name) {}
+          m_test_name(test_name),
+          m_default_axes(false) {}
+
+    // Default `axes` input
+    SliceParams(const Tensor& data,
+                const Tensor& start,
+                const Tensor& stop,
+                const Tensor& step,
+                const Tensor& output,
+                const std::string& test_name = "")
+        : m_data(data),
+          m_start(start),
+          m_stop(stop),
+          m_step(step),
+          m_output(output),
+          m_test_name(test_name),
+          m_default_axes(true) {}
 
     Tensor m_data;
     Tensor m_start;
@@ -40,18 +50,26 @@ struct SliceParams {
     Tensor m_axes;
     Tensor m_output;
     std::string m_test_name;
+    bool m_default_axes = false;
 };
 
 class ReferenceSliceLayerTest : public testing::TestWithParam<SliceParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
-        function = CreateFunction(params.m_data, params.m_start, params.m_stop, params.m_step, params.m_axes);
-        inputData = {params.m_data.data,
-                     params.m_start.data,
-                     params.m_stop.data,
-                     params.m_step.data,
-                     params.m_axes.data};
+        if (params.m_default_axes) {
+            function = CreateFunction(params.m_data, params.m_start, params.m_stop, params.m_step);
+            inputData = {params.m_data.data, params.m_start.data, params.m_stop.data, params.m_step.data};
+
+        } else {
+            function = CreateFunction(params.m_data, params.m_start, params.m_stop, params.m_step, params.m_axes);
+            inputData = {params.m_data.data,
+                         params.m_start.data,
+                         params.m_stop.data,
+                         params.m_step.data,
+                         params.m_axes.data};
+        }
+
         refOutData = {params.m_output.data};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<SliceParams>& obj) {
@@ -60,9 +78,19 @@ public:
         result << "test_name=" << param.m_test_name << "__";
         result << "data_shape=" << param.m_data.shape << "_";
         result << "data_type=" << param.m_data.type << "_";
-        result << "axes_shape=" << param.m_axes.shape << "_";
-        result << "axes_type=" << param.m_axes.type << "_";
         result << "ind_type=" << param.m_start.type << "_";
+        if (param.m_default_axes) {
+            result << "axes_shape="
+                   << "default"
+                   << "_";
+            result << "axes_type="
+                   << "default"
+                   << "_";
+        } else {
+            result << "axes_shape=" << param.m_axes.shape << "_";
+            result << "axes_type=" << param.m_axes.type << "_";
+        }
+
         return result.str();
     }
 
@@ -72,21 +100,38 @@ private:
                                                     const Tensor& stop,
                                                     const Tensor& step,
                                                     const Tensor& axes) {
-        const auto data_param = std::make_shared<op::Parameter>(data.type, data.shape);
-        const auto start_param = std::make_shared<op::Parameter>(start.type, start.shape);
-        const auto stop_param = std::make_shared<op::Parameter>(stop.type, stop.shape);
-        const auto step_param = std::make_shared<op::Parameter>(step.type, step.shape);
-        const auto axes_param = std::make_shared<op::Parameter>(axes.type, axes.shape);
+        const auto data_param = std::make_shared<opset8::Parameter>(data.type, data.shape);
+        const auto start_param = std::make_shared<opset8::Parameter>(start.type, start.shape);
+        const auto stop_param = std::make_shared<opset8::Parameter>(stop.type, stop.shape);
+        const auto step_param = std::make_shared<opset8::Parameter>(step.type, step.shape);
+        const auto axes_param = std::make_shared<opset8::Parameter>(axes.type, axes.shape);
 
-        const auto slice = std::make_shared<op::v8::Slice>(data_param, start_param, stop_param, step_param, axes_param);
+        const auto slice = std::make_shared<opset8::Slice>(data_param, start_param, stop_param, step_param, axes_param);
         return std::make_shared<Function>(NodeVector{slice},
                                           ParameterVector{data_param, start_param, stop_param, step_param, axes_param});
+    }
+
+    // Default `axes` input
+    static std::shared_ptr<Function> CreateFunction(const Tensor& data,
+                                                    const Tensor& start,
+                                                    const Tensor& stop,
+                                                    const Tensor& step) {
+        const auto data_param = std::make_shared<opset8::Parameter>(data.type, data.shape);
+        const auto start_param = std::make_shared<opset8::Parameter>(start.type, start.shape);
+        const auto stop_param = std::make_shared<opset8::Parameter>(stop.type, stop.shape);
+        const auto step_param = std::make_shared<opset8::Parameter>(step.type, step.shape);
+
+        const auto slice = std::make_shared<opset8::Slice>(data_param, start_param, stop_param, step_param);
+        return std::make_shared<Function>(NodeVector{slice},
+                                          ParameterVector{data_param, start_param, stop_param, step_param});
     }
 };
 
 TEST_P(ReferenceSliceLayerTest, CompareWithHardcodedRefs) {
     Exec();
 }
+
+}  // namespace
 
 template <element::Type_t DATA_ET, element::Type_t IND_ET, element::Type_t AXIS_ET>
 std::vector<SliceParams> generateSliceParams(const element::Type& data_type,
@@ -97,6 +142,25 @@ std::vector<SliceParams> generateSliceParams(const element::Type& data_type,
     using AXIS_T = typename element_type_traits<AXIS_ET>::value_type;
 
     std::vector<SliceParams> opParams{
+        SliceParams(Tensor{{4}, data_type, std::vector<DATA_T>{1, 2, 3, 4}},
+                    Tensor{{1}, ind_type, std::vector<IND_T>{0}},
+                    Tensor{{1}, ind_type, std::vector<IND_T>{5}},
+                    Tensor{{1}, ind_type, std::vector<IND_T>{1}},
+                    Tensor{{1}, axis_type, std::vector<AXIS_T>{0}},
+                    Tensor{{4}, data_type, std::vector<DATA_T>{1, 2, 3, 4}},
+                    "1D_full_axes"),
+        SliceParams(Tensor{{4}, data_type, std::vector<DATA_T>{1, 2, 3, 4}},
+                    Tensor{{1}, ind_type, std::vector<IND_T>{0}},
+                    Tensor{{1}, ind_type, std::vector<IND_T>{5}},
+                    Tensor{{1}, ind_type, std::vector<IND_T>{1}},
+                    Tensor{{4}, data_type, std::vector<DATA_T>{1, 2, 3, 4}},
+                    "1D_default_axes"),
+        SliceParams(Tensor{{4}, data_type, std::vector<DATA_T>{1, 2, 3, 4}},
+                    Tensor{{1}, ind_type, std::vector<IND_T>{5}},
+                    Tensor{{1}, ind_type, std::vector<IND_T>{-6}},
+                    Tensor{{1}, ind_type, std::vector<IND_T>{-1}},
+                    Tensor{{4}, data_type, std::vector<DATA_T>{4, 3, 2, 1}},
+                    "1D_negative_step"),
         SliceParams(Tensor{{2, 2}, data_type, std::vector<DATA_T>{1, 2, 3, 4}},
                     Tensor{{2}, ind_type, std::vector<IND_T>{0, 0}},
                     Tensor{{2}, ind_type, std::vector<IND_T>{2, 2}},
@@ -104,6 +168,12 @@ std::vector<SliceParams> generateSliceParams(const element::Type& data_type,
                     Tensor{{2}, axis_type, std::vector<AXIS_T>{0, 1}},
                     Tensor{{2, 2}, data_type, std::vector<DATA_T>{1, 2, 3, 4}},
                     "2D_full_axes"),
+        SliceParams(Tensor{{2, 2}, data_type, std::vector<DATA_T>{1, 2, 3, 4}},
+                    Tensor{{2}, ind_type, std::vector<IND_T>{0, 0}},
+                    Tensor{{2}, ind_type, std::vector<IND_T>{2, 2}},
+                    Tensor{{2}, ind_type, std::vector<IND_T>{1, 1}},
+                    Tensor{{2, 2}, data_type, std::vector<DATA_T>{1, 2, 3, 4}},
+                    "2D_default_axes"),
         SliceParams(Tensor{{2, 4}, data_type, std::vector<DATA_T>{1, 2, 3, 4, 5, 6, 7, 8}},
                     Tensor{{2}, ind_type, std::vector<IND_T>{1, 0}},
                     Tensor{{2}, ind_type, std::vector<IND_T>{2, 3}},
@@ -125,6 +195,26 @@ std::vector<SliceParams> generateSliceParams(const element::Type& data_type,
                     Tensor{{2}, axis_type, std::vector<AXIS_T>{0, 1}},
                     Tensor{{2, 2}, data_type, std::vector<DATA_T>{4, 3, 2, 1}},
                     "2D_negative_step_only"),
+        SliceParams(Tensor{{3, 16}, data_type, std::vector<DATA_T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+                                                                   12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+                                                                   24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+                                                                   36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47}},
+                    Tensor{{2}, ind_type, std::vector<IND_T>{0, 0}},
+                    Tensor{{2}, ind_type, std::vector<IND_T>{3, 16}},
+                    Tensor{{2}, ind_type, std::vector<IND_T>{1, 15}},
+                    Tensor{{2}, axis_type, std::vector<AXIS_T>{0, 1}},
+                    Tensor{{3, 2}, data_type, std::vector<DATA_T>{0, 15, 16, 31, 32, 47}},
+                    "2D_big_step"),
+        SliceParams(Tensor{{3, 16}, data_type, std::vector<DATA_T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+                                                                   12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+                                                                   24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+                                                                   36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47}},
+                    Tensor{{2}, ind_type, std::vector<IND_T>{2, 15}},
+                    Tensor{{2}, ind_type, std::vector<IND_T>{-4, -17}},
+                    Tensor{{2}, ind_type, std::vector<IND_T>{-1, -15}},
+                    Tensor{{2}, axis_type, std::vector<AXIS_T>{0, 1}},
+                    Tensor{{3, 2}, data_type, std::vector<DATA_T>{47, 32, 31, 16, 15, 0}},
+                    "2D_negaitve_big_step"),
         SliceParams(Tensor{{2, 2, 2}, data_type, std::vector<DATA_T>{1, 2, 3, 4, 5, 6, 7, 8}},
                     Tensor{{3}, ind_type, std::vector<IND_T>{0, 0, 0}},
                     Tensor{{3}, ind_type, std::vector<IND_T>{2, 2, 2}},
@@ -132,6 +222,12 @@ std::vector<SliceParams> generateSliceParams(const element::Type& data_type,
                     Tensor{{3}, axis_type, std::vector<AXIS_T>{0, 1, 2}},
                     Tensor{{2, 2, 2}, data_type, std::vector<DATA_T>{1, 2, 3, 4, 5, 6, 7, 8}},
                     "3D_full_axes"),
+        SliceParams(Tensor{{2, 2, 2}, data_type, std::vector<DATA_T>{1, 2, 3, 4, 5, 6, 7, 8}},
+                    Tensor{{3}, ind_type, std::vector<IND_T>{0, 0, 0}},
+                    Tensor{{3}, ind_type, std::vector<IND_T>{2, 2, 2}},
+                    Tensor{{3}, ind_type, std::vector<IND_T>{1, 1, 1}},
+                    Tensor{{2, 2, 2}, data_type, std::vector<DATA_T>{1, 2, 3, 4, 5, 6, 7, 8}},
+                    "3D_default_axes"),
         SliceParams(Tensor{{2, 2, 2}, data_type, std::vector<DATA_T>{1, 2, 3, 4, 5, 6, 7, 8}},
                     Tensor{{2}, ind_type, std::vector<IND_T>{0, 0}},
                     Tensor{{2}, ind_type, std::vector<IND_T>{2, 2}},
@@ -168,6 +264,19 @@ std::vector<SliceParams> generateSliceParams(const element::Type& data_type,
                                                                 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
                                                                 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47}},
             "4D_full_axes"),
+        SliceParams(
+            Tensor{{4, 2, 3, 2}, data_type, std::vector<DATA_T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+                                                                12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+                                                                24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+                                                                36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47}},
+            Tensor{{4}, ind_type, std::vector<IND_T>{0, 0, 0, 0}},
+            Tensor{{4}, ind_type, std::vector<IND_T>{4, 2, 3, 2}},
+            Tensor{{4}, ind_type, std::vector<IND_T>{1, 1, 1, 1}},
+            Tensor{{4, 2, 3, 2}, data_type, std::vector<DATA_T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+                                                                12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+                                                                24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+                                                                36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47}},
+            "4D_default_axes"),
 
         SliceParams(
             Tensor{{4, 2, 3, 2}, data_type, std::vector<DATA_T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
@@ -265,4 +374,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_Slice_With_Hardcoded_Refs,
                          ReferenceSliceLayerTest,
                          ::testing::ValuesIn(generateSliceCombinedParams()),
                          ReferenceSliceLayerTest::getTestCaseName);
-}  // namespace
+
+}  // namespace reference_tests
