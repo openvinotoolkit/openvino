@@ -32,7 +32,7 @@ namespace {
         {1, 4, 2}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_StaticShapeLoop_axis_0, StaticShapeLoopTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_StaticShapeLoop_axis_0, StaticShapeLoopTest,
                             testing::Combine(
                             /* unrolling */ testing::ValuesIn(std::vector<bool>{false}),
                             /* static_continue_cond */ testing::Values(true),
@@ -54,7 +54,7 @@ namespace {
         {2, 1, 4, 6}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_StaticShapeLoop_axis_1, StaticShapeLoopTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_StaticShapeLoop_axis_1, StaticShapeLoopTest,
                             testing::Combine(
                             /* unrolling */ testing::ValuesIn(std::vector<bool>{false}),
                             /* static_continue_cond */ testing::Values(true),
@@ -76,7 +76,7 @@ namespace {
         {2, 4, 1, 6}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_StaticShapeLoop_axis_2, StaticShapeLoopTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_StaticShapeLoop_axis_2, StaticShapeLoopTest,
                             testing::Combine(
                             /* unrolling */ testing::ValuesIn(std::vector<bool>{false}),
                             /* static_continue_cond */ testing::Values(true),
@@ -98,7 +98,7 @@ namespace {
         {4, 20, 12}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_StaticShapeLoop_no_auto_concat, StaticShapeLoopTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_StaticShapeLoop_no_auto_concat, StaticShapeLoopTest,
                             testing::Combine(
                             /* unrolling */ testing::ValuesIn(std::vector<bool>{false}),
                             /* static_continue_cond */ testing::Values(true),
@@ -125,7 +125,7 @@ namespace {
         {4, 1, 2}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_StaticShapeLoop_dynamic_exit, StaticShapeLoopTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_StaticShapeLoop_dynamic_exit, StaticShapeLoopTest,
                             testing::Combine(
                             /* unrolling */ testing::ValuesIn(std::vector<bool>{false}),
                             /* static_continue_cond */ testing::Values(true),

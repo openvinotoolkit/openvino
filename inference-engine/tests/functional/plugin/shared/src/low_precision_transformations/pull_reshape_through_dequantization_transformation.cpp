@@ -77,6 +77,7 @@ void PullReshapeThroughDequantizationTransformation::SetUp() {
         testValues.reshape2,
         testValues.dequantizationAfter,
         "GroupConvolution");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void PullReshapeThroughDequantizationTransformation::Run() {
