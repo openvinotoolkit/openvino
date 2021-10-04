@@ -42,6 +42,7 @@ public:
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(concat)};
         function = std::make_shared<ngraph::Function>(results, inputParams, "ConcatConstantInPlace");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

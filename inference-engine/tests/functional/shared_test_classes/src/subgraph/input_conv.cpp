@@ -95,5 +95,6 @@ void InputConvTest::SetUp() {
         ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(conv0) };
         function = std::make_shared<ngraph::Function>(results, params, "InputConvTest");
     }
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions
