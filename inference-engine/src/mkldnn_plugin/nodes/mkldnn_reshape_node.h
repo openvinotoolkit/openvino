@@ -15,20 +15,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNReshapeNode : public MKLDNNNode {
 public:
-    enum class shapeTypeNode {
-        RESHAPE,
-        SQUEEZE,
-        UNSQUEEZE
-    } opType;
-
     MKLDNNReshapeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    MKLDNNReshapeNode(const std::string& name,
-                      const Shape& inShape,
-                      const MKLDNNInputNode& secondInput,
-                      InferenceEngine::Precision precision,
-                      const std::string& type,
-                      const mkldnn::engine& eng,
-                      MKLDNNWeightsSharing::Ptr &wCache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -46,7 +33,6 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    VectorDims outputShape;
     mutable std::vector<int> lastSecondInputValues;
 
     std::string errorPrefix;

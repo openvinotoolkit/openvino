@@ -14,35 +14,6 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNReshapeNode::MKLDNNReshapeNode(const std::string& name,
-                      const Shape& inShape,
-                      const std::shared_ptr<MKLDNNInputNode>& secondInput,
-                      InferenceEngine::Precision precision,
-                      const std::string& type,
-                      const mkldnn::engine& eng,
-                      MKLDNNWeightsSharing::Ptr &wCache) : MKLDNNNode(type, name, eng, wCache) {
-    if (type != "Squeeze")
-        IE_THROW() << "Can't create MKLDNNReshapeNode with type: " << type;
-    if (secondInput->getType() != Type::Input || !secondInput->isConstant())
-        IE_THROW() << "Can't create MKLDNNReshapeNode with non constant second input";
-    inputShapes.push_back(inShape);
-    
-    outputShapes.push_back(outDims);
-    addOriginalInputPrecision(precision);
-    addOriginalInputPrecision(secondInput.);
-    addOriginalOutputPrecision(precision);
-    
-}
-
-// MKLDNNReshapeNode::MKLDNNReshapeNode(const std::string& name, const Shape& inDims, const Shape& outDims, Precision precision,
-//         const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &wCache)
-//         : MKLDNNNode("Reshape", name, eng, wCache) {
-//     this->inputShapes.push_back(inDims);
-//     this->outputShapes.push_back(outDims);
-//     addOriginalInputPrecision(precision);
-//     addOriginalOutputPrecision(precision);
-// }
-
 bool MKLDNNReshapeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!std::dynamic_pointer_cast<const ngraph::opset1::Reshape>(op) &&
@@ -74,18 +45,12 @@ MKLDNNReshapeNode::MKLDNNReshapeNode(const std::shared_ptr<ngraph::Node>& op, co
 
         if (std::dynamic_pointer_cast<const ngraph::opset1::Reshape>(op)) {
             checkSecondInput(op, "Reshape");
-            opType = shapeTypeNode::RESHAPE;
-            outputShape.resize(inputShapes[1].getStaticDims()[0]);
         } else if (std::dynamic_pointer_cast<const ngraph::opset1::Squeeze>(op)) {
             if (op->get_input_size() == 1)
                 IE_THROW() << "CPU plug-in doesn't support Squeeze node with inputs num equal 1";
             checkSecondInput(op, "Squeeze");
-            opType = shapeTypeNode::SQUEEZE;
-            outputShape.resize(inputShapes[0].getRank() - inputShapes[1].getStaticDims()[0]);
         } else if (std::dynamic_pointer_cast<const ngraph::opset1::Unsqueeze>(op)) {
             checkSecondInput(op, "Unsqueeze");
-            opType = shapeTypeNode::UNSQUEEZE;
-            outputShape.resize(inputShapes[0].getRank() + inputShapes[1].getStaticDims()[0]);
         } else {
             IE_THROW() << "Unsupported operation type via reshape node";
         }
@@ -122,7 +87,7 @@ std::vector<VectorDims> MKLDNNReshapeNode::shapeInfer() const {
                                                                               getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape()));
     inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i32, memPtr.getStaticDims(), lastSecondInputValues));
     opToShapeInfer = opToShapeInfer->clone_with_new_inputs(inputsForShapeInfer);
-    
+
     opToShapeInfer->validate_and_infer_types();
 
     std::vector<VectorDims> newOutputShapes(outputShapes.size());

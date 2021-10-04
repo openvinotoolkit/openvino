@@ -17,9 +17,6 @@ public:
     MKLDNNInputNode(const Shape& shape, const InferenceEngine::Precision &prc, const std::string &name,
                     const std::string &type, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
-    // ctor for constant
-    MKLDNNInputNode(const Shape& shape, const std::string &name, const std::vector<int> &data, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
