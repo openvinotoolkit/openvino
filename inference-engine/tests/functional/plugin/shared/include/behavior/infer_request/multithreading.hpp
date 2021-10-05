@@ -5,11 +5,24 @@
 #pragma once
 
 #include <future>
+#include <memory>
 
 #include "base/behavior_test_utils.hpp"
+#include "threading/ie_cpu_streams_executor.hpp"
 
 namespace BehaviorTestsDefinitions {
-using InferRequestMultithreadingTests = BehaviorTestsUtils::InferRequestTests;
+struct InferRequestMultithreadingTests : BehaviorTestsUtils::InferRequestTests {
+    InferRequestMultithreadingTests() : executor{
+        InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded({})} {}
+    template<typename F>
+    std::future<void> async(F&& f) {
+        auto p = std::make_shared<std::packaged_task<void()>>(std::forward<F>(f));
+        auto future = p->get_future();
+        executor.run([p] () mutable {(*p)();});
+        return future;
+    }
+    InferenceEngine::CPUStreamsExecutor executor;
+};
 
 TEST_P(InferRequestMultithreadingTests, canRun3SyncRequestsConsistentlyFromThreads) {
     // Create InferRequest
@@ -18,9 +31,13 @@ TEST_P(InferRequestMultithreadingTests, canRun3SyncRequestsConsistentlyFromThrea
     auto req3 = execNet.CreateInferRequest();
 
 
-    auto f1 = std::async(std::launch::async, [&] { req1.Infer(); });
-    auto f2 = std::async(std::launch::async, [&] { req2.Infer(); });
-    auto f3 = std::async(std::launch::async, [&] { req3.Infer(); });
+    auto f1 = async([&] { req1.Infer(); });
+    auto f2 = async([&] { req2.Infer(); });
+    auto f3 = async([&] { req3.Infer(); });
+
+    f1.wait();
+    f2.wait();
+    f3.wait();
 
     ASSERT_NO_THROW(f1.get());
     ASSERT_NO_THROW(f2.get());
@@ -32,32 +49,22 @@ TEST_P(InferRequestMultithreadingTests, canRun3AsyncRequestsConsistentlyFromThre
     auto req1 = execNet.CreateInferRequest();
     auto req2 = execNet.CreateInferRequest();
     auto req3 = execNet.CreateInferRequest();
-    InferenceEngine::StatusCode sts1, sts2, sts3;
 
     req1.Infer();
     req2.Infer();
     req3.Infer();
 
-    std::thread t1([&] {
-        req1.StartAsync();
-        sts1 = req1.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
-    });
-    std::thread t2([&] {
-        req2.StartAsync();
-        sts2 = req2.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
-    });
-    std::thread t3([&] {
-        req3.StartAsync();
-        sts3 = req3.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
-    });
+    auto f1 = async([&] { req1.StartAsync(); });
+    auto f2 = async([&] { req2.StartAsync(); });
+    auto f3 = async([&] { req3.StartAsync(); });
 
-    t1.join();
-    t2.join();
-    t3.join();
+    f1.wait();
+    f2.wait();
+    f3.wait();
 
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts1);
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts2);
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts3);
+    ASSERT_NO_THROW(f1.get());
+    ASSERT_NO_THROW(f2.get());
+    ASSERT_NO_THROW(f3.get());
 }
 
 TEST_P(InferRequestMultithreadingTests, canRun3AsyncRequestsConsistentlyWithWait) {
@@ -69,10 +76,10 @@ TEST_P(InferRequestMultithreadingTests, canRun3AsyncRequestsConsistentlyWithWait
     req1.StartAsync();
     ASSERT_NO_THROW(req1.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY));
 
-    req2.Infer();
+    req2.StartAsync();
     ASSERT_NO_THROW(req2.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY));
 
-    req3.Infer();
+    req3.StartAsync();
     ASSERT_NO_THROW(req3.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY));
 }
 } // namespace BehaviorTestsDefinitions
