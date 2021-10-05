@@ -43,8 +43,7 @@ class ReferenceScatterUpdate6LayerTest : public testing::TestWithParam<ScatterUp
 public:
     void SetUp() override {
         auto params = GetParam();
-        function = CreateFunction(params.data.shape, params.indices.shape, params.updates.shape, params.axis.shape,
-                                  params.data.type, params.indices.type, params.axis.type);
+        function = CreateFunction(params);
         inputData = {params.data.data, params.indices.data, params.updates.data, params.axis.data};
         refOutData = {params.expected.data};
     }
@@ -65,10 +64,15 @@ public:
     }
 
 private:
-    static std::shared_ptr<ngraph::Function> CreateFunction(const ngraph::PartialShape& data_shape, const ngraph::PartialShape& indices_shape,
-                                                            const ngraph::PartialShape& updates_shape, const ngraph::PartialShape& axis_shape,
-                                                            const ngraph::element::Type& numeric_type, const ngraph::element::Type& indices_type,
-                                                            const ngraph::element::Type& axis_type) {
+    static std::shared_ptr<ngraph::Function> CreateFunction(const ScatterUpdate3Params& params) {
+        const auto data_shape = params.data.shape;
+        const auto indices_shape = params.indices.shape;
+        const auto updates_shape = params.updates.shape;
+        const auto axis_shape = params.axis.shape;
+        const auto numeric_type = params.data.type;
+        const auto indices_type = params.indices.type;
+        const auto axis_type = params.axis.type;
+
         const auto data = std::make_shared<ngraph::op::Parameter>(numeric_type, data_shape);
         const auto indices = std::make_shared<ngraph::op::Parameter>(indices_type, indices_shape);
         const auto updates = std::make_shared<ngraph::op::Parameter>(numeric_type, updates_shape);
