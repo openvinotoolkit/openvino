@@ -783,21 +783,14 @@ bool ov::Node::evaluate(const HostTensorVector& output_values,
 }
 
 namespace {
-class HostTensorWrapper : public ngraph::runtime::HostTensor {
-public:
-    HostTensorWrapper(const ov::runtime::Tensor::Ptr& ptr)
-        : ngraph::runtime::HostTensor(ptr->get_element_type(), ptr->get_shape(), ptr->data()),
-          tensor(ptr) {}
-
-private:
-    ov::runtime::Tensor::Ptr tensor;
-};
 
 inline ngraph::HostTensorVector copy_tensors(const ov::runtime::TensorVector& tensors) {
     ngraph::HostTensorVector result;
     result.reserve(tensors.size());
     for (const auto& tensor : tensors) {
-        result.emplace_back(std::make_shared<HostTensorWrapper>(tensor));
+        result.emplace_back(std::make_shared<ngraph::runtime::HostTensor>(tensor.get_element_type(),
+                                                                          tensor.get_shape(),
+                                                                          tensor.data()));
     }
     return std::move(result);
 }

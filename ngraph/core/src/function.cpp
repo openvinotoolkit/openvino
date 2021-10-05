@@ -431,21 +431,13 @@ int64_t ov::Function::get_result_index(const Output<Node>& value) const {
 }
 
 namespace {
-class OVTensorWrapper : public ov::runtime::Tensor {
-public:
-    OVTensorWrapper(const std::shared_ptr<ngraph::runtime::HostTensor>& ptr)
-        : ov::runtime::Tensor(ptr->get_element_type(), ptr->get_shape(), ptr->get_data_ptr()),
-          tensor(ptr) {}
-
-private:
-    std::shared_ptr<ngraph::runtime::HostTensor> tensor;
-};
 
 inline ov::runtime::TensorVector copy_tensor(const ngraph::HostTensorVector& tensors) {
     ov::runtime::TensorVector result;
     result.reserve(tensors.size());
     for (const auto& tensor : tensors) {
-        result.emplace_back(std::make_shared<OVTensorWrapper>(tensor));
+        result.emplace_back(
+            ov::runtime::Tensor(tensor->get_element_type(), tensor->get_shape(), tensor->get_data_ptr()));
     }
     return std::move(result);
 }
@@ -465,12 +457,12 @@ bool ov::Function::evaluate(const ov::runtime::TensorVector& output_tensors,
     if (evaluation_context.find("VariableContext") == evaluation_context.end())
         evaluation_context["VariableContext"] =
             std::make_shared<VariantWrapper<ov::op::util::VariableContext>>(ov::op::util::VariableContext());
-    std::map<RawNodeOutput, ov::runtime::Tensor::Ptr> value_map;
+    std::map<RawNodeOutput, ov::runtime::Tensor> value_map;
     for (size_t i = 0; i < m_parameters.size(); ++i) {
         value_map[m_parameters.at(i)->output(0)] = input_tensors.at(i);
     }
     OutputVector outputs;
-    std::map<RawNodeOutput, ov::runtime::Tensor::Ptr> output_tensor_map;
+    std::map<RawNodeOutput, ov::runtime::Tensor> output_tensor_map;
     for (size_t i = 0; i < m_results.size(); ++i) {
         auto result = m_results.at(i)->output(0);
         output_tensor_map[result] = output_tensors.at(i);
@@ -481,15 +473,15 @@ bool ov::Function::evaluate(const ov::runtime::TensorVector& output_tensors,
     }
     // evaluate nodes
     OPENVINO_SUPPRESS_DEPRECATED_START
-    ngraph::Evaluator<ov::runtime::Tensor::Ptr> evaluator({}, value_map);
-    evaluator.set_univeral_handler(
+    ngraph::Evaluator<ov::runtime::Tensor> evaluator({}, value_map);
+    evaluator.set_universal_handler(
         [&output_tensor_map,
          &evaluation_context](Node* node, const ov::runtime::TensorVector& input_tensors) -> ov::runtime::TensorVector {
             ov::runtime::TensorVector output_tensors;
             for (const auto& v : node->outputs()) {
                 auto it = output_tensor_map.find(v);
                 if (it == output_tensor_map.end()) {
-                    auto c = make_shared<ov::runtime::Tensor>(v.get_element_type(), v.get_shape());
+                    ov::runtime::Tensor c(v.get_element_type(), v.get_shape());
                     output_tensors.push_back(c);
                 } else {
                     output_tensors.push_back(it->second);
