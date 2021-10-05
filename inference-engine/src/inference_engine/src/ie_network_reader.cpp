@@ -302,6 +302,8 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
         } else if (ir_version == 11 && !newAPI) {
             const std::string & old_api_map_key = ov::OldApiMap::get_type_info_static();
 
+            const Layout identityLayout;
+
             const auto& inputs = function->inputs();
             for (size_t i = 0; i < inputs.size(); ++i) {
                 const ov::RTMap & rtInfo = inputs[i].get_rt_info();
