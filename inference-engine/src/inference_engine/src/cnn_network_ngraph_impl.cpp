@@ -74,6 +74,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
             IE_THROW() << outName << " has zero dimension which is not allowed";
     }
 
+    IE_SUPPRESS_DEPRECATED_START
     const Layout rankLayout = rank < 0 ? Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
     if (ptr) {
         const auto origLayout = ptr->getTensorDesc().getLayout();
@@ -83,6 +84,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
         const auto precision = details::convertPrecision(output.get_element_type());
         ptr.reset(new Data(outName, precision, shape, rankLayout));
     }
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 void CNNNetworkNGraphImpl::validateFunctionNames() const {
@@ -189,14 +191,18 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
         InputInfo::Ptr info = std::make_shared<InputInfo>();
         const auto& name = inputInfo.second->getInputData()->getName();
         const auto& inData = inputInfo.second->getInputData();
+        IE_SUPPRESS_DEPRECATED_START
         DataPtr input =
             std::make_shared<Data>(name, inData->getPrecision(), inData->getPartialShape(), inData->getLayout());
+        IE_SUPPRESS_DEPRECATED_END
         _data[name] = input;
         info->setInputData(input);
         info->getPreProcess() = inputInfo.second->getPreProcess();
         info->setPrecision(inputInfo.second->getPrecision());
+        IE_SUPPRESS_DEPRECATED_START
         if (!inData->isDynamic())
             info->setLayout(inputInfo.second->getLayout());
+        IE_SUPPRESS_DEPRECATED_END
         _inputData[name] = info;
     }
 }
@@ -491,8 +497,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::Serialize>(xmlPath,
                                                        binPath,
-                                                       ngraph::pass::Serialize::Version::IR_V10,
-                                                       custom_opsets);
+                                                       custom_opsets,
+                                                       ngraph::pass::Serialize::Version::IR_V10);
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -515,8 +521,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::Serialize>(xmlBuf,
                                                        binBuf,
-                                                       ngraph::pass::Serialize::Version::IR_V10,
-                                                       custom_opsets);
+                                                       custom_opsets,
+                                                       ngraph::pass::Serialize::Version::IR_V10);
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -541,8 +547,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binB
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::Serialize>(xmlBuf,
                                                        binBuf,
-                                                       ngraph::pass::Serialize::Version::IR_V10,
-                                                       custom_opsets);
+                                                       custom_opsets,
+                                                       ngraph::pass::Serialize::Version::IR_V10);
         manager.run_passes(_ngraph_function);
 
         std::streambuf* pbuf = binBuf.rdbuf();
