@@ -35,7 +35,7 @@ TEST_F(RTInfoSerializationTest, all_attributes) {
         info[ov::PrimitivesPriority::get_type_info_static()] =
                 std::make_shared<ov::PrimitivesPriority>("priority");
         info[ov::OldApiMap::get_type_info_static()] =
-                std::make_shared<ov::OldApiMap>(ov::OldApiMapAttr(std::vector<uint64_t>{0, 2, 3, 1}, ngraph::element::Type_t::f32));
+                std::make_shared<ov::OldApiMap>(ov::OldApiMapAttr(std::vector<int64_t>{0, 2, 3, 1}, ngraph::element::Type_t::f32));
     };
 
     std::shared_ptr<ngraph::Function> function;

@@ -33,7 +33,7 @@ class OldApiMap;
  */
 class TRANSFORMATIONS_API OldApiMapAttr {
 private:
-    std::vector<uint64_t> m_order;
+    std::vector<int64_t> m_order;
     ngraph::element::Type m_type;
 
 public:
@@ -44,12 +44,12 @@ public:
      */
     OldApiMapAttr() = default;
 
-    explicit OldApiMapAttr(std::vector<uint64_t> order, ngraph::element::Type type) {
+    explicit OldApiMapAttr(std::vector<int64_t> order, ngraph::element::Type type) {
         m_order = std::move(order);
         m_type = type;
     }
 
-    std::vector<uint64_t> get_order() const {
+    std::vector<int64_t> get_order() const {
         return m_order;
     }
 
