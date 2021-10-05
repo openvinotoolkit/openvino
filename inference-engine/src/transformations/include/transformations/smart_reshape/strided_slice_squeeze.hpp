@@ -7,16 +7,14 @@
 #include <vector>
 #include <memory>
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API StridedSliceSqueeze;
-class TRANSFORMATIONS_API SqueezeStridedSlice;
-class TRANSFORMATIONS_API SharedSqueeze;
+class NGRAPH_API StridedSliceSqueeze;
+class NGRAPH_API SqueezeStridedSlice;
+class NGRAPH_API SharedSqueeze;
 
 }  // namespace pass
 }  // namespace ngraph

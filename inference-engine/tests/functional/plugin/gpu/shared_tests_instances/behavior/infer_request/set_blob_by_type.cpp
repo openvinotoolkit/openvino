@@ -17,15 +17,14 @@ const std::vector<FuncTestUtils::BlobType> BlobTypes = {
     FuncTestUtils::BlobType::NV12
 };
 
-const std::map<std::string, std::string> cpuConfig{}; //nothing special
-const std::map<std::string, std::string> autoConfig{};
+const std::map<std::string, std::string> gpuConfig{}; //nothing special
 const std::map<std::string, std::string> multiConfig{{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_GPU}};
 const std::map<std::string, std::string> heteroConfig{{ "TARGET_FALLBACK", CommonTestUtils::DEVICE_GPU }};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior, InferRequestSetBlobByType,
     ::testing::Combine(::testing::ValuesIn(BlobTypes),
                        ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                       ::testing::Values(cpuConfig)),
+                       ::testing::Values(gpuConfig)),
     InferRequestSetBlobByType::getTestCaseName);
 
 
@@ -37,8 +36,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Behavior_Multi, InferRequestSetBlobByType,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior_Auto, InferRequestSetBlobByType,
     ::testing::Combine(::testing::ValuesIn(BlobTypes),
-                       ::testing::Values(CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_CPU),
-                       ::testing::Values(autoConfig)),
+                       ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                       ::testing::Values(multiConfig)),
     InferRequestSetBlobByType::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior_Hetero, InferRequestSetBlobByType,

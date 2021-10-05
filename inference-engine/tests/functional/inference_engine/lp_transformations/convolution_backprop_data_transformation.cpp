@@ -194,6 +194,8 @@ TEST_P(ConvolutionBackpropDataTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 const std::vector<element::Type> netPrecisions = {
@@ -282,7 +284,7 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
         {
             ngraph::element::u8,
             {{}, { { 128.f }, ngraph::element::f32, {}, false }, {}},
-            {{}, { { 2.f }, ngraph::element::f32, {1, 2, 1, 1}, true, 1ul, element::i8, false, { "DISABLED_CONSTANT_FOLDING" }  }, {}},
+            {{}, { { 2.f }, ngraph::element::f32, {1, 2, 1, 1}, true, 1ul, element::i8, false, { "disabled_constant_folding_0" }  }, {}},
             {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f }),
             true

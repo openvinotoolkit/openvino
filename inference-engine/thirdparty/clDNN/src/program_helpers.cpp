@@ -23,8 +23,8 @@ void program_helpers::merge_buffers(engine& engine,
 
     for (size_t i = begin_offset; i < end_offset; i++) {
         auto& weights = node.get_dependency(i).as<data>();
-        mem_lock<char> src{weights.get_attached_memory_ptr(), stream};
-        mem_lock<char> dst{data_to_allocate, stream};
+        mem_lock<char, mem_lock_type::read> src{weights.get_attached_memory_ptr(), stream};
+        mem_lock<char, mem_lock_type::write> dst{data_to_allocate, stream};
         std::copy(src.begin(), src.end(), dst.begin() + (i - begin_offset) * src.size());
     }
 

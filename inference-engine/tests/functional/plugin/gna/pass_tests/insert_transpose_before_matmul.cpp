@@ -91,6 +91,7 @@ protected:
 
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(matmul)};
         function = std::make_shared<ngraph::Function>(results, params, "InsertTransposeBeforeMatmul");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

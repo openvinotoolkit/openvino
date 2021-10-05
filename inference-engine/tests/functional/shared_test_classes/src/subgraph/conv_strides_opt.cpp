@@ -40,5 +40,6 @@ void ConvStridesOpt::SetUp() {
     auto conv2 = std::make_shared<opset4::Convolution>(conv1, weights2, strides2, pad_begin2, pad_end2,
             dilations);
     function = std::make_shared<Function>(OutputVector{conv2}, ParameterVector{param});
+    functionRefs = ngraph::clone_function(*function);
 }
 } // namespace SubgraphTestsDefinitions
