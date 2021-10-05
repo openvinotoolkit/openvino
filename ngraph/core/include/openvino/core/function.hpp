@@ -21,6 +21,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/variant.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 /// A user-defined function.
@@ -196,6 +197,15 @@ public:
     bool evaluate(const ngraph::HostTensorVector& output_tensors,
                   const ngraph::HostTensorVector& input_tensors,
                   ngraph::EvaluationContext evaluation_context = ngraph::EvaluationContext()) const;
+
+    /// \brief Evaluate the function on inputs, putting results in outputs.
+    /// \param output_tensors Tensors for the outputs to compute. One for each result
+    /// \param input_tensors Tensors for the inputs. One for each inputs.
+    /// \param evaluation_context Storage of additional settings and attributes that can be used
+    /// when evaluating the function. This additional information can be shared across nodes.
+    bool evaluate(const ov::runtime::TensorVector& output_tensors,
+                  const ov::runtime::TensorVector& input_tensors,
+                  ov::EvaluationContext evaluation_context = ov::EvaluationContext()) const;
 
     /// \brief Return a list of function's sinks.
     const ngraph::SinkVector& get_sinks() const {

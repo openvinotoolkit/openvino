@@ -11,6 +11,7 @@
 #include <unordered_map>
 
 #include "itt.hpp"
+#include "ngraph/evaluator.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/ops.hpp"
@@ -429,18 +430,47 @@ int64_t ov::Function::get_result_index(const Output<Node>& value) const {
     return -1;
 }
 
+namespace {
+class OVTensorWrapper : public ov::runtime::Tensor {
+public:
+    OVTensorWrapper(const std::shared_ptr<ngraph::runtime::HostTensor>& ptr)
+        : ov::runtime::Tensor(ptr->get_element_type(), ptr->get_shape(), ptr->get_data_ptr()),
+          tensor(ptr) {}
+
+private:
+    std::shared_ptr<ngraph::runtime::HostTensor> tensor;
+};
+
+inline ov::runtime::TensorVector copy_tensor(const ngraph::HostTensorVector& tensors) {
+    ov::runtime::TensorVector result;
+    result.reserve(tensors.size());
+    for (const auto& tensor : tensors) {
+        result.emplace_back(std::make_shared<OVTensorWrapper>(tensor));
+    }
+    return std::move(result);
+}
+}  // namespace
+
 bool ov::Function::evaluate(const HostTensorVector& output_tensors,
                             const HostTensorVector& input_tensors,
                             EvaluationContext evaluation_context) const {
+    ov::runtime::TensorVector outputs = copy_tensor(output_tensors);
+    ov::runtime::TensorVector inputs = copy_tensor(input_tensors);
+    return evaluate(outputs, inputs, std::move(evaluation_context));
+}
+
+bool ov::Function::evaluate(const ov::runtime::TensorVector& output_tensors,
+                            const ov::runtime::TensorVector& input_tensors,
+                            ov::EvaluationContext evaluation_context) const {
     if (evaluation_context.find("VariableContext") == evaluation_context.end())
         evaluation_context["VariableContext"] =
             std::make_shared<VariantWrapper<ov::op::util::VariableContext>>(ov::op::util::VariableContext());
-    std::map<RawNodeOutput, HostTensorPtr> value_map;
+    std::map<RawNodeOutput, ov::runtime::Tensor::Ptr> value_map;
     for (size_t i = 0; i < m_parameters.size(); ++i) {
         value_map[m_parameters.at(i)->output(0)] = input_tensors.at(i);
     }
     OutputVector outputs;
-    std::map<RawNodeOutput, HostTensorPtr> output_tensor_map;
+    std::map<RawNodeOutput, ov::runtime::Tensor::Ptr> output_tensor_map;
     for (size_t i = 0; i < m_results.size(); ++i) {
         auto result = m_results.at(i)->output(0);
         output_tensor_map[result] = output_tensors.at(i);
@@ -449,7 +479,32 @@ bool ov::Function::evaluate(const HostTensorVector& output_tensors,
     for (const auto& m_sink : m_sinks) {
         outputs.push_back(m_sink);
     }
-    ngraph::evaluate_nodes(value_map, output_tensor_map, outputs, evaluation_context);
+    // evaluate nodes
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    ngraph::Evaluator<ov::runtime::Tensor::Ptr> evaluator({}, value_map);
+    evaluator.set_univeral_handler(
+        [&output_tensor_map,
+         &evaluation_context](Node* node, const ov::runtime::TensorVector& input_tensors) -> ov::runtime::TensorVector {
+            ov::runtime::TensorVector output_tensors;
+            for (const auto& v : node->outputs()) {
+                auto it = output_tensor_map.find(v);
+                if (it == output_tensor_map.end()) {
+                    auto c = make_shared<ov::runtime::Tensor>(v.get_element_type(), v.get_shape());
+                    output_tensors.push_back(c);
+                } else {
+                    output_tensors.push_back(it->second);
+                }
+            }
+            if (node->evaluate(output_tensors, input_tensors, evaluation_context)) {
+                return output_tensors;
+            } else {
+                OPENVINO_ASSERT(false, "Evaluation failed on ", node);
+            }
+        });
+    for (const auto& value : outputs) {
+        evaluator.evaluate(value);
+    }
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return true;
 }
 

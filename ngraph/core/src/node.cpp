@@ -782,6 +782,42 @@ bool ov::Node::evaluate(const HostTensorVector& output_values,
     return evaluate(output_values, input_values);
 }
 
+namespace {
+class HostTensorWrapper : public ngraph::runtime::HostTensor {
+public:
+    HostTensorWrapper(const ov::runtime::Tensor::Ptr& ptr)
+        : ngraph::runtime::HostTensor(ptr->get_element_type(), ptr->get_shape(), ptr->data()),
+          tensor(ptr) {}
+
+private:
+    ov::runtime::Tensor::Ptr tensor;
+};
+
+inline ngraph::HostTensorVector copy_tensors(const ov::runtime::TensorVector& tensors) {
+    ngraph::HostTensorVector result;
+    result.reserve(tensors.size());
+    for (const auto& tensor : tensors) {
+        result.emplace_back(std::make_shared<HostTensorWrapper>(tensor));
+    }
+    return std::move(result);
+}
+}  // namespace
+
+bool ov::Node::evaluate(const ov::runtime::TensorVector& output_values,
+                        const ov::runtime::TensorVector& input_values) const {
+    HostTensorVector output = copy_tensors(output_values);
+    HostTensorVector input = copy_tensors(input_values);
+    return evaluate(output, input);
+}
+
+bool ov::Node::evaluate(const ov::runtime::TensorVector& output_values,
+                        const ov::runtime::TensorVector& input_values,
+                        const ov::EvaluationContext& evaluationContext) const {
+    HostTensorVector output = copy_tensors(output_values);
+    HostTensorVector input = copy_tensors(input_values);
+    return evaluate(output, input, evaluationContext);
+}
+
 bool ov::Node::evaluate_lower(const HostTensorVector& output_values) const {
     const auto& inputs = input_values();
     bool dyn_inputs = std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& output) {

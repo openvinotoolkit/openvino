@@ -224,7 +224,7 @@ op::v8::If::OutputMap op::v8::If::get_mapping_outputs_on_body_description(
 
 bool op::v8::If::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v8_If_evaluate);
-    runtime::reference::if_reference(m_bodies, m_output_descriptions, m_input_descriptions, outputs, inputs);
+    ngraph::runtime::reference::if_reference(m_bodies, m_output_descriptions, m_input_descriptions, outputs, inputs);
     return true;
 }
 

@@ -50,10 +50,12 @@ protected:
     friend class ov::runtime::VariableState;
 
 public:
+    using Ptr = std::shared_ptr<Tensor>;
     /**
      * @brief Default constructor
      */
     Tensor() = default;
+    virtual ~Tensor() = default;
 
     /**
      * @brief Constructs Tensor using element type and shape. Allocate internal host storage using default allocator
@@ -149,5 +151,7 @@ public:
      */
     explicit operator bool() const noexcept;
 };
+
+using TensorVector = std::vector<Tensor::Ptr>;
 }  // namespace runtime
 }  // namespace ov
