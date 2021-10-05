@@ -294,7 +294,6 @@ class Op(object):
         """
         return self.attrs.get('version', 'extension')
 
-
     @classmethod
     def update_node_stat(cls, node: Node, attrs: dict = None):
         if attrs is None:
@@ -329,6 +328,18 @@ class Op(object):
         for idx in range(dims_to_add):
             node.value = np.expand_dims(node.value, axis=-1)
         node.shape = np.array(node.value.shape)
+
+    @staticmethod
+    def normalize_outputs(node: Node):
+        if node.has_valid('out_ports_count') and len(node.out_edges()) < node.out_ports_count:
+            from mo.ops.result import Result    # Import is here to avoid circular import error
+            for p in range(node.out_ports_count):
+                if p not in node.out_ports():
+                    node.add_output_port(p)
+                if node.out_port(p).disconnected():
+                    res_node = Result(node.graph, {'name': node.name + '/Fake_output_{}/'.format(p),
+                                                   'keep_output_port': True}).create_node()
+                    node.out_port(p).connect(res_node.in_port(0))
 
 
 class PermuteAttrs:
