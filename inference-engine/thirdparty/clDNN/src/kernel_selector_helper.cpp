@@ -833,7 +833,7 @@ void set_params(const program_node& node, kernel_selector::params& params) {
     params.engineInfo.maxImage2dHeight = device_info.max_image2d_height;
     params.engineInfo.computeUnitsCount = device_info.execution_units_count;
     params.engineInfo.maxThreadsPerExecutionUnit = device_info.num_threads_per_eu > 0 ? device_info.num_threads_per_eu : 7;
-    params.engineInfo.maxThreadsPerDevice = params.engineInfo.maxThreadsPerDevice * device_info.execution_units_count;
+    params.engineInfo.maxThreadsPerDevice = params.engineInfo.maxThreadsPerExecutionUnit * device_info.execution_units_count;
     params.engineInfo.deviceCache = program.get_tuning_cache();
     params.engineInfo.driverVersion = device_info.driver_version;
 

@@ -223,6 +223,9 @@ device_info init_device_info(const cl::Device& device) {
     info.supports_subgroups_short = extensions.find("cl_intel_subgroups_short") != std::string::npos;
     info.supports_subgroups_char = extensions.find("cl_intel_subgroups_char") != std::string::npos;
 
+    info.supports_imad = get_imad_support(device);
+    info.supports_immad = false;
+
     info.supports_usm = extensions.find("cl_intel_unified_shared_memory") != std::string::npos;
 
     info.supports_local_block_io = extensions.find("cl_intel_subgroup_local_block_io") != std::string::npos &&
@@ -250,9 +253,6 @@ device_info init_device_info(const cl::Device& device) {
         info.num_sub_slices_per_slice = 0;
         info.num_eus_per_sub_slice = 0;
         info.num_threads_per_eu = 0;
-
-        info.supports_imad = get_imad_support(device);
-        info.supports_immad = false;
     }
 
     return info;
