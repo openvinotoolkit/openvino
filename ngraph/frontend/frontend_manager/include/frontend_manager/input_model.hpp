@@ -79,7 +79,7 @@ public:
     /// \brief Returns an input port place by operation name and appropriate port index
     /// \param operation_name Name of operation
     /// \param output_port_index Index of input port for this operation
-    /// \return Place representing input port of operation
+    /// \return Place representing input port of operation or nullptr if not exists
     virtual Place::Ptr get_place_by_operation_name_and_input_port(const std::string& operation_name,
                                                                   int input_port_index);
 
