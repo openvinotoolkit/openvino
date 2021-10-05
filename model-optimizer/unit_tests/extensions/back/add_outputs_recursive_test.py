@@ -26,7 +26,7 @@ main_graph_nodes = {
                                                               'axis': None},
                                                              {'external_port_id': 3, 'internal_layer_id': 1,
                                                               'axis': None}],
-                                          'output_port_map': [{'external_port_id': 4, 'internal_layer_id': 4,
+                                          'output_port_map': [{'external_port_id': 0, 'internal_layer_id': 4,
                                                                'axis': None},
                                                               {'external_port_id': -1, 'internal_layer_id': 5,
                                                                'axis': None, 'purpose': "execution_condition"}],
@@ -45,7 +45,7 @@ sub_graph_1_nodes = {
                                                                 'axis': None},
                                                                {'external_port_id': 2, 'internal_layer_id': 2,
                                                                 'axis': None}],
-                                            'output_port_map': [{'external_port_id': 3, 'internal_layer_id': 7,
+                                            'output_port_map': [{'external_port_id': 0, 'internal_layer_id': 7,
                                                                  'axis': None},
                                                                 {'external_port_id': -1, 'internal_layer_id': 6,
                                                                  'axis': None,
@@ -56,8 +56,8 @@ sub_graph_1_nodes = {
     **regular_op_with_empty_data('Loop_2_out', {'op': 'Result', 'type': 'Result', 'infer': lambda x: None,
                                                 'internal_layer_id': 3}),
     **shaped_parameter("in_1_int", int64_array([1, 4, 64, 54]), {'internal_layer_id': 1}),
-    **regular_op_with_empty_data("in_1_int_out", {'op': 'Result', 'type': 'Result', 'infer': lambda x: None,
-                                                  'internal_layer_id': 4}),
+    **regular_op_with_empty_data("in_1_int_out",
+                                  {'op': 'Result', 'type': 'Result', 'infer': lambda x: None, 'internal_layer_id': 4}),
     **shaped_parameter("cond_1_int", int64_array([1]), {'internal_layer_id': 2}),
     **regular_op_with_empty_data("cond_1_int_out", {'op': 'Result', 'type': 'Result', 'infer': lambda x: None,
                                                     'internal_layer_id': 5}),
@@ -68,11 +68,11 @@ sub_graph_2_nodes = {
     **result("cond_2_int_out"),
     **shaped_parameter('in_2_int', [1, 4, 64, 54], {'internal_layer_id': 1}),
     **shaped_const_with_data('ones', int64_array([1, 4, 64, 54])),
-    **regular_op_with_empty_data('OUT_2', {'op': "Add", 'infer': copy_shape_infer}),
-    **regular_op_with_empty_data('OUT_2_out', {'op': 'Result', 'type': 'Result', 'infer': lambda x: None,
-                                               'internal_layer_id': 7}),
-    **regular_op_with_empty_data('in_2_int_out', {'op': 'Result', 'type': 'Result', 'infer': lambda x: None,
-                                                  'internal_layer_id': 6})
+    **regular_op_with_shaped_data('OUT_2', int64_array([1, 4, 64, 54]), {'op': "Add", 'infer': copy_shape_infer}),
+    **regular_op_with_empty_data('OUT_2_out',
+                                  {'op': 'Result', 'type': 'Result', 'infer': lambda x: None, 'internal_layer_id': 7}),
+    **regular_op_with_shaped_data('in_2_int_out', int64_array([1, 4, 64, 54]),
+                                  {'op': 'Result', 'type': 'Result', 'infer': lambda x: None, 'internal_layer_id': 6})
 }
 
 
@@ -91,7 +91,7 @@ class AddOutputRecursiveTest(unittest.TestCase):
                                   edges=[*connect('M_2', '0:Loop_2'),
                                          *connect('cond_2', '1:Loop_2'),
                                          *connect('IN_2', '2:Loop_2'),
-                                         *connect('Loop_2:3', 'Loop_2_out'),
+                                         *connect('Loop_2:0', 'Loop_2_out'),
                                          *connect('in_1_int', 'in_1_int_out'),
                                          *connect('cond_1_int', 'cond_1_int_out')],
                                   nodes_with_edges_only=True)
@@ -103,7 +103,7 @@ class AddOutputRecursiveTest(unittest.TestCase):
                                         *connect('cond', '1:Loop'),
                                         *connect('IN_2', '2:Loop'),
                                         *connect('IN_1', "3:Loop"),
-                                        *connect('Loop:4', 'OUT_1')],
+                                        *connect('Loop:0', 'OUT_1')],
                                  nodes_with_edges_only=True)
         loop_node = Node(main_graph, 'Loop')
         loop_node.body = sub_graph_1
@@ -113,11 +113,11 @@ class AddOutputRecursiveTest(unittest.TestCase):
         loop_node = Node(main_graph, 'Loop')
         self.assertEqual(len(loop_node.output_port_map), 3)
         self.assertEqual(len(loop_node.out_ports()), 2)
-        self.assertEqual(loop_node.out_port(5).get_destination().node.op, 'Result')
-        self.assertTrue(np.all(loop_node.out_port(5).data.get_shape() == int64_array([5, 1, 4, 64, 54])))
+        self.assertEqual(loop_node.out_port(1).get_destination().node.op, 'Result')
+        self.assertTrue(np.all(loop_node.out_port(1).data.get_shape() == int64_array([5, 1, 4, 64, 54])))
         last_node = Node(sub_graph_1, 'Loop_2')
         self.assertEqual(len(last_node.out_ports()), 1)
-        unsq_node = last_node.out_port(3).get_destinations()[1].node
+        unsq_node = last_node.out_port(0).get_destinations()[1].node
         self.assertEqual(unsq_node.op, 'Unsqueeze')
         self.assertEqual(unsq_node.out_port(0).get_destination().node.op, 'Result')
         self.assertTrue(np.all(unsq_node.out_port(0).data.get_shape() == int64_array([1, 1, 4, 64, 54])))
@@ -255,13 +255,13 @@ if_sub_graph_1_nodes = {
     **regular_op_with_empty_data('If_2_out', {'op': 'Result', 'type': 'Result', 'infer': lambda x: None}),
     **shaped_parameter("in_1_int", int64_array([1, 4, 64, 54]), {'input_id': 1}),
     **regular_op_with_empty_data("in_1_int_out", {'op': 'Result', 'type': 'Result', 'infer': lambda x: None,
-                                                  'output_id': 3})
+                                                  'output_id': 0})
 }
 
 if_sub_graph_1_else_nodes = {
     **shaped_parameter("in_1_int", int64_array([1, 4, 64, 54]), {'input_id': 1}),
     **regular_op_with_empty_data("in_1_int_out", {'op': 'Result', 'type': 'Result', 'infer': lambda x: None,
-                                                  'output_id': 3})
+                                                  'output_id': 0})
 }
 
 if_sub_graph_2_nodes = {
@@ -269,7 +269,7 @@ if_sub_graph_2_nodes = {
     **shaped_const_with_data('ones', int64_array([1, 4, 64, 54])),
     **regular_op_with_empty_data('OUT_2', {'op': "Add", 'infer': copy_shape_infer}),
     **regular_op_with_empty_data('OUT_2_out', {'op': 'Result', 'type': 'Result', 'infer': lambda x: None,
-                                               'output_id': 2}),
+                                               'output_id': 0}),
 }
 
 if_sub_graph_2_else_nodes = {
@@ -277,7 +277,7 @@ if_sub_graph_2_else_nodes = {
     **shaped_const_with_data('ones_else', int64_array([1, 4, 64, 54])),
     **regular_op_with_empty_data('OUT_2_else', {'op': "Sub", 'infer': copy_shape_infer}),
     **regular_op_with_empty_data('OUT_2_out_else', {'op': 'Result', 'type': 'Result', 'infer': lambda x: None,
-                                                    'output_id': 2}),
+                                                    'output_id': 0}),
 }
 
 
@@ -299,7 +299,7 @@ class IF_AddOutputRecursiveTest(unittest.TestCase):
         sub_graph_1 = build_graph(nodes_attrs=if_sub_graph_1_nodes,
                                   edges=[*connect('cond_2', '0:If_2'),
                                          *connect('IN_2', '1:If_2'),
-                                         *connect('If_2:2', 'If_2_out'),
+                                         *connect('If_2:0', 'If_2_out'),
                                          *connect('in_1_int', 'in_1_int_out')],
                                   nodes_with_edges_only=True)
         if_node_1 = Node(sub_graph_1, 'If_2')
@@ -314,7 +314,7 @@ class IF_AddOutputRecursiveTest(unittest.TestCase):
                                  edges=[*connect('cond', '0:If'),
                                         *connect('IN_1', '1:If'),
                                         *connect('IN_2', "2:If"),
-                                        *connect('If:3', 'OUT_1')],
+                                        *connect('If:0', 'OUT_1')],
                                  nodes_with_edges_only=True)
         if_node = Node(main_graph, 'If')
         if_node.then_graph = sub_graph_1
@@ -325,12 +325,12 @@ class IF_AddOutputRecursiveTest(unittest.TestCase):
         AddOutputRecursive().find_and_replace_pattern(main_graph)
         if_node = Node(main_graph, 'If')
         self.assertEqual(len(if_node.out_ports()), 2)
-        self.assertEqual(if_node.out_port(3).get_destination().node.op, 'Result')
-        self.assertTrue(np.all(if_node.out_port(3).data.get_shape() == int64_array([1, 4, 64, 54])))
+        self.assertEqual(if_node.out_port(1).get_destination().node.op, 'Result')
+        self.assertTrue(np.all(if_node.out_port(1).data.get_shape() == int64_array([1, 4, 64, 54])))
         last_node = Node(sub_graph_1, 'If_2')
         self.assertEqual(len(last_node.out_ports()), 1)
-        self.assertEqual(last_node.out_port(2).get_destinations()[1].node.op, 'Result')
-        self.assertTrue(np.all(last_node.out_port(2).data.get_shape() == int64_array([1, 4, 64, 54])))
+        self.assertEqual(last_node.out_port(0).get_destinations()[1].node.op, 'Result')
+        self.assertTrue(np.all(last_node.out_port(0).data.get_shape() == int64_array([1, 4, 64, 54])))
 
 
 class SplitUserPathTest(unittest.TestCase):
@@ -351,22 +351,30 @@ class SplitUserPathTest(unittest.TestCase):
         sub_graph_1 = build_graph(nodes_attrs=if_sub_graph_1_nodes,
                                   edges=[*connect('cond_2', '0:If_2'),
                                          *connect('IN_2', '1:If_2'),
-                                         *connect('If_2:2', 'If_2_out'),
+                                         *connect('If_2:0', 'If_2_out'),
                                          *connect('in_1_int', 'in_1_int_out')],
                                   nodes_with_edges_only=True)
         if_node_1 = Node(sub_graph_1, 'If_2')
         if_node_1.then_graph = sub_graph_2
         if_node_1.else_graph = sub_graph_2_else
+        out_node = Node(sub_graph_1, 'If_2_out')
+        out_node['internal_layer_id'] = 4
 
         main_graph = build_graph(nodes_attrs=ti_main_graph_nodes,
                                  edges=[*connect('M', '0:Loop'),
                                         *connect('cond', '1:Loop'),
                                         *connect('IN_2', '2:Loop'),
                                         *connect('IN_1', "3:Loop"),
-                                        *connect('Loop:4', 'OUT_1')],
+                                        *connect('Loop:0', 'OUT_1')],
                                  nodes_with_edges_only=True)
-        if_node = Node(main_graph, 'Loop')
-        if_node.body = sub_graph_1
+        loop_node = Node(main_graph, 'Loop')
+        loop_node.body = sub_graph_1
+        loop_node.in_edge(0)['external_port_id'] = 0
+        loop_node.in_edge(1)['external_port_id'] = 1
+        loop_node.in_edge(2)['external_port_id'] = 2
+        loop_node.in_edge(3)['external_port_id'] = 3
+        loop_node.out_edge(0)['external_port_id'] = 4
+
         return main_graph
 
     def test_linear_graph_change(self):
@@ -400,3 +408,26 @@ class SplitUserPathTest(unittest.TestCase):
         self.assertTrue(np.all(tracks[1]['nodes'] == ref_nodes_path[1]))
         self.assertTrue(np.all(tracks[0]['graphs'] == [graph, loop_node.body, if_node.then_graph]))
         self.assertTrue(np.all(tracks[1]['graphs'] == [graph, loop_node.body, if_node.else_graph]))
+
+    def test_1_if_graph_change_add_output(self):
+        graph = self.create_graph()
+        graph.graph['additional_outputs'] = ['Loop', 'If_2', ['OUT_2', 'OUT_2_else']]
+
+        AddOutputRecursive().find_and_replace_pattern(graph)
+
+        loop_node = Node(graph, 'Loop')
+        if_node = Node(loop_node.body, 'If_2')
+        left_node = Node(if_node.then_graph, 'OUT_2')
+        right_node = Node(if_node.else_graph, 'OUT_2_else')
+        self.assertEqual(len(left_node.out_port(0).get_destinations()), 2)
+        self.assertEqual(left_node.out_port(0).get_destinations()[1].node.op, 'Result')
+
+        self.assertEqual(len(right_node.out_port(0).get_destinations()), 2)
+        self.assertEqual(right_node.out_port(0).get_destinations()[1].node.op, 'Result')
+
+        self.assertTrue(len(if_node.out_ports()), 2)
+        self.assertTrue(if_node.out_port(1).get_destination().node.op, 'Result')
+
+        self.assertTrue(len(loop_node.out_ports()), 2)
+        self.assertTrue(loop_node.out_port(1).get_destination().node.op, 'Result')
+

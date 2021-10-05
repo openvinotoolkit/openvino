@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
 
+from extensions.ops.loop import Loop
 from extensions.ops.tensor_iterator import TensorIterator
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
@@ -44,6 +45,23 @@ def ti_infer(step_node, port_num):
     step_node.out_port(port_num).data.set_shape(out_shape)
 
 
+def loop_infer(step_node, port_num):
+    out_port_map = step_node.output_port_map
+    int_layer_id = None
+    iterations_count = Loop.iterations_count(step_node)
+    for om in out_port_map:
+        if om['external_port_id'] == port_num:
+            int_layer_id = om['internal_layer_id']
+
+    int_node_name = TensorIterator.find_internal_layer_id(step_node.body, int_layer_id)
+    int_node = Node(step_node.body, int_node_name)
+    assert int_node.op == 'Result'
+    out_shape = int_node.in_port(0).data.get_shape().copy()
+
+    out_shape[0] = iterations_count
+    step_node.out_port(port_num).data.set_shape(out_shape)
+
+
 class AddOutputRecursive(BackReplacementPattern):
     """
     """
@@ -81,11 +99,15 @@ class AddOutputRecursive(BackReplacementPattern):
                     nodes_path.insert(i, unsq_node)
                     graphs_path.insert(i, cur_graph)
                     graphs_path.insert(i, cur_graph)
-                    new_port_id = len(cur_loop_node.out_ports()) + len(cur_loop_node.in_ports())
+                    # IR reader fix output port map for Loop, but have not change for TensorIterator
+                    if cur_loop_node.op != 'Loop':
+                        new_port_id = len(cur_loop_node.out_ports()) + len(cur_loop_node.in_ports())
+                    else:
+                        new_port_id = len(cur_loop_node.out_ports())
                     cur_loop_node.output_port_map.append({'axis': 0, 'stride': 1, 'part_size': 1, 'start': 0,
                                                           'end': -1, 'external_port_id': new_port_id,
                                                           'internal_layer_id': res_node['internal_layer_id']})
-                    if cur_loop_node.op == 'TensorIterator':
+                    if cur_loop_node.op in ['TensorIterator']:
                         port_id = new_port_id - len(cur_loop_node.in_ports())
                     else:
                         port_id = new_port_id
@@ -101,8 +123,9 @@ class AddOutputRecursive(BackReplacementPattern):
                     cur_max_layer_id += 1
                     nodes_path.insert(i, res_node)
                     graphs_path.insert(i, cur_graph)
+
                     if cur_loop_node.then_graph == cur_graph:
-                        new_port_id = len(cur_loop_node.in_ports()) + len(cur_loop_node.out_ports())
+                        new_port_id = len(cur_loop_node.out_ports()) #len(cur_loop_node.in_ports()) +
                         res_node['output_id'] = new_port_id
                         cur_loop_node.add_output_port(new_port_id)
                         new_out_ports.append(new_port_id)
@@ -130,10 +153,12 @@ class AddOutputRecursive(BackReplacementPattern):
             step_node = nodes_path[i]
             cur_graph = graphs_path[i]
             # infer shapes for new nodes
-            if step_node.op == 'TensorIterator':
-                for p_num in step_node.out_ports():
-                    if not step_node.out_port(p_num).disconnected():
+            for p_num in step_node.out_ports():
+                if not step_node.out_port(p_num).disconnected():
+                    if step_node.op == 'TensorIterator':
                         ti_infer(step_node, p_num)
+                    elif step_node.op == 'Loop':
+                        loop_infer(step_node, p_num)
             else:
                 step_node.infer(step_node)
 
