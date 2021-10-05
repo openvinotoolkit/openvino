@@ -7,7 +7,7 @@ import numpy as np
 import os
 
 from openvino.inference_engine import TensorDesc, Blob, IECore
-from ..conftest import image_path
+from runtime.bindings.python.tests.conftest import image_path
 
 
 path_to_image = image_path()

@@ -66,10 +66,6 @@ set (PYTHON_BRIDGE_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory (src/openvino/inference_engine)
 add_subdirectory (src/openvino/offline_transformations)
 
-if (ENABLE_TESTS)
-    add_subdirectory(src/openvino/test_utils)
-endif()
-
 if(TARGET _pyngraph)
     add_dependencies(ie_api _pyngraph)
 endif()
@@ -89,14 +85,3 @@ install(FILES requirements.txt
 install(PROGRAMS src/openvino/__init__.py
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino
         COMPONENT ${PYTHON_COMPONENT})
-
-# install Python samples
-
-ie_cpack_add_component(python_samples)
-
-install(DIRECTORY sample/
-        DESTINATION samples/python
-        USE_SOURCE_PERMISSIONS
-        COMPONENT python_samples)
-
-ie_cpack(${PYTHON_COMPONENT} python_samples)

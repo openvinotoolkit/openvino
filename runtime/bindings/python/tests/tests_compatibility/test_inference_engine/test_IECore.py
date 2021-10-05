@@ -10,7 +10,7 @@ from time import sleep, time
 from queue import Queue
 
 from openvino.inference_engine import IENetwork, IECore, ExecutableNetwork
-from ..conftest import model_path, plugins_path, model_onnx_path
+from runtime.bindings.python.tests.conftest import model_path, plugins_path, model_onnx_path
 
 
 test_net_xml, test_net_bin = model_path()

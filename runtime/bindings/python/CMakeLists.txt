@@ -23,6 +23,11 @@ if(ENABLE_WHEEL)
     add_subdirectory(wheel)
 endif()
 
+if(ENABLE_TESTS)
+    add_subdirectory(tests/tests_compatibility/test_inference_engine/test_utils)
+endif()
+
+
 if(NGRAPH_UNIT_TEST_ENABLE)
     add_subdirectory(tests/mock/mock_py_ngraph_frontend)
     add_dependencies(_pyngraph mock_py_ngraph_frontend)
@@ -40,8 +45,9 @@ endif()
 
 ie_cpack_add_component(python_samples)
 
-install(DIRECTORY sample/
+install(DIRECTORY samples/
         DESTINATION ${IE_CPACK_IE_DIR}/samples/python
+        USE_SOURCE_PERMISSIONS
         COMPONENT python_samples)
 
 ie_cpack(${PYTHON_COMPONENT} python_samples)
