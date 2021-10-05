@@ -2,26 +2,25 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
-from argparse import Namespace
 
 import numpy as np
 from generator import generator, generate
 
-from mo.graph.graph import Node
-from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.utils.graph import build_graph, result, connect, regular_op_with_shaped_data, valued_const_with_data, const, regular_op, regular_op_with_empty_data
 from extensions.middle.PreserveRuntimeInfo import PreserveRuntimeInfo
+from mo.graph.graph import Node
 from mo.ops.op import PermuteAttrs
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.runtime_info import RTInfo
+from unit_tests.utils.graph import build_graph, connect, valued_const_with_data, regular_op_with_empty_data
 
 nodes = {
     **regular_op_with_empty_data('placeholder1', {'type': 'Parameter', 'rt_info': RTInfo()}),
     **regular_op_with_empty_data('placeholder2', {'type': 'Parameter'}),
-    **regular_op_with_empty_data('add',  {'type': 'Add', 'op': 'Add'}),
+    **regular_op_with_empty_data('add', {'type': 'Add', 'op': 'Add'}),
     **regular_op_with_empty_data('result', {'type': 'Result', 'rt_info': RTInfo()}),
 
     **regular_op_with_empty_data('transpose_parameter', {'type': 'Transpose', 'op': 'Transpose'}),
-    **regular_op_with_empty_data('transpose_result',{'type': 'Transpose', 'op': 'Transpose'}),
+    **regular_op_with_empty_data('transpose_result', {'type': 'Transpose', 'op': 'Transpose'}),
 }
 
 edges = [*connect('placeholder1', '0:add'), *connect('placeholder2', '1:add'), *connect('add', 'result')]
@@ -76,6 +75,3 @@ class PreserveRuntimeInfoTest(unittest.TestCase):
             rt_info = result_node.rt_info.info
             old_api_map = rt_info[('old_api_map', 0)].info
             self.assertTrue(np.array_equal(old_api_map['order'], nhwc_to_nchw_order))
-
-
-
