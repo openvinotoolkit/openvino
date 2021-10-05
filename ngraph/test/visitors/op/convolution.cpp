@@ -16,7 +16,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, convolution_backprop_op) {
+TEST(attributes, convolution) {
     NodeBuilder::get_ops().register_factory<opset1::Convolution>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 124, 124});
     auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 16, 3, 3});
@@ -25,12 +25,12 @@ TEST(attributes, convolution_backprop_op) {
     auto pads_end = CoordinateDiff{1, 2};
     auto dilations = Strides{1, 1};
     auto convolution = make_shared<opset1::Convolution>(data,
-                                                                    filters,
-                                                                    strides,
-                                                                    pads_begin,
-                                                                    pads_end,
-                                                                    dilations,
-                                                                    op::PadType::VALID);
+                                                        filters,
+                                                        strides,
+                                                        pads_begin,
+                                                        pads_end,
+                                                        dilations,
+                                                        op::PadType::VALID);
     NodeBuilder builder(convolution);
     auto g_convolution = ov::as_type_ptr<opset1::Convolution>(builder.create());
 
