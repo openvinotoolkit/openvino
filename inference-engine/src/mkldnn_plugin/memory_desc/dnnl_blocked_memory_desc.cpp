@@ -694,8 +694,27 @@ mkldnn::memory::format_tag DnnlBlockedMemoryDesc::getFormat() const {
 }
 
 std::string DnnlBlockedMemoryDesc::serializeFormat() const {
-    auto fmt = getFormat();
-    return mkldnn::utils::fmt2str(fmt);
+    // WA, waiting Egor's PR
+    std::stringstream result;
+    char startLetter = 'a';
+    std::unordered_map<size_t, size_t> mapAxisBlockSize;
+    for (size_t i = shape.getRank(); i < order.size(); ++i) {
+        mapAxisBlockSize.insert({order[i], blockedDims[i]});
+    }
+
+    for (size_t i = 0; i < shape.getRank(); ++i) {
+        char nextLetter = startLetter + order[i];
+        if (mapAxisBlockSize.count(i)) {
+            nextLetter = toupper(nextLetter);
+        }
+        result << nextLetter;
+    }
+
+    for (auto& item : mapAxisBlockSize) {
+        result << item.second << char(startLetter + item.first);
+    }
+
+    return result.str();
 }
 
 size_t DnnlBlockedMemoryDesc::getMaxMemSize() const {
