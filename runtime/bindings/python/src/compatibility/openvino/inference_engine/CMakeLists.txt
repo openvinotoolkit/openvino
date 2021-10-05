@@ -9,7 +9,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_e
 set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_engine)
 set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_engine)
 
-file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx
+file(GLOB SOURCES ie_api.pyx
                   ${CMAKE_CURRENT_SOURCE_DIR}/*.pxd
                   ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
                   ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
@@ -23,14 +23,14 @@ cython_add_module(${TARGET_NAME} ${SOURCES})
 ov_python_disable_intel_warnings(${TARGET_NAME})
 
 set(INSTALLED_TARGETS ${TARGET_NAME})
-list(REMOVE_ITEM PYX_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx")
+list(REMOVE_ITEM PYX_SOURCES "ie_api.pyx")
 
 foreach(PYX_FILE IN LISTS PYX_SOURCES)
     get_filename_component(PYX_NAME "${PYX_FILE}" NAME_WE)
     cython_add_module(${PYX_NAME} ${PYX_FILE})
     ov_python_disable_intel_warnings(${PYX_NAME})
     add_dependencies(${TARGET_NAME} ${PYX_NAME})
-    target_include_directories(${PYX_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_include_directories(${PYX_NAME} PRIVATE ".")
     target_link_libraries(${PYX_NAME} PRIVATE openvino::runtime)
     list(APPEND INSTALLED_TARGETS ${PYX_NAME})
     ie_python_minimal_api(${PYX_NAME})
@@ -52,7 +52,7 @@ endfunction()
 python_disable_deprecated_warnings()
 ie_python_minimal_api(${TARGET_NAME})
 
-target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(${TARGET_NAME} PRIVATE ".")
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
 
 # Compatibility with python 2.7 which has deprecated "register" specifier
@@ -66,7 +66,7 @@ find_package(Python COMPONENTS Interpreter Development)
 # merge __init__.py files of new and old python api
 add_custom_command(TARGET ${TARGET_NAME}
     POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
+    COMMAND ${CMAKE_COMMAND} -E copy __init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
     COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../../requirements.txt
     COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/requirements.txt ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/../../requirements.txt
     COMMAND ${Python_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/utils/merge_init_files.py

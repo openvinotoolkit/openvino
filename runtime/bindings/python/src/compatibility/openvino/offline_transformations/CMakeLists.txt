@@ -9,12 +9,12 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/offline_tra
 set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/offline_transformations)
 set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/offline_transformations)
 
-set(SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl_defs.pxd
-            ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api.pyx
-            ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl.hpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api_impl.cpp)
+set(SOURCES offline_transformations_api_impl_defs.pxd
+        offline_transformations_api.pyx
+        offline_transformations_api_impl.hpp
+        offline_transformations_api_impl.cpp)
 
-set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_api.pyx
+set_source_files_properties(offline_transformations_api.pyx
                             PROPERTIES CYTHON_IS_CXX ON)
 
 # create target
@@ -35,8 +35,8 @@ else()
     list(APPEND link_libraries IE::offline_transformations)
 endif()
 
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../inference_engine")
-target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "../inference_engine")
+target_include_directories(${TARGET_NAME} PRIVATE ".")
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime ${link_libraries})
 
 # Compatibility with python 2.7 which has deprecated "register" specifier

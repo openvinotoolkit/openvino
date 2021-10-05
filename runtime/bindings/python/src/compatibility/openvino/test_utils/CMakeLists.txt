@@ -9,12 +9,12 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/test_utils)
 set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/test_utils)
 set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/test_utils)
 
-file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/test_utils_api.pyx
-                  ${CMAKE_CURRENT_SOURCE_DIR}/test_utils_api_impl.cpp
-                  ${CMAKE_CURRENT_SOURCE_DIR}/test_utils_api_impl.hpp
-                  ${CMAKE_CURRENT_SOURCE_DIR}/test_utils_api_impl_defs.pxd)
+file(GLOB SOURCES test_utils_api.pyx
+        test_utils_api_impl.cpp
+        test_utils_api_impl.hpp
+        test_utils_api_impl_defs.pxd)
 
-set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/test_utils_api.pyx
+set_source_files_properties(test_utils_api.pyx
                             PROPERTIES CYTHON_IS_CXX ON)
 
 # create target
@@ -35,8 +35,8 @@ else()
     list(APPEND link_libraries IE::commonTestUtils)
 endif()
 
-target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../inference_engine")
+target_include_directories(${TARGET_NAME} PRIVATE ".")
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "../inference_engine")
 target_link_libraries(${TARGET_NAME} PRIVATE ${link_libraries})
 
 # Compatibility with python 2.7 which has deprecated "register" specifier
