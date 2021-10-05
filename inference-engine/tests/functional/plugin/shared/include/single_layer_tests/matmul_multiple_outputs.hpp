@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/matmul_multiple_outputs.hpp"
+#include "shared_test_classes/single_layer/matmul_multiple_outputs.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace LayerTestsDefinitions {
 
 TEST_P(MatMulMultipleOutputsTest, CompareWithRefs) {
     Run();
 };
 
-} // namespace SubgraphTestsDefinitions
+} // namespace LayerTestsDefinitions

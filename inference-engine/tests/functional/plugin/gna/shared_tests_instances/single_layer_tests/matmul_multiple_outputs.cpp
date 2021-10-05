@@ -4,10 +4,10 @@
 
 #include <vector>
 
-#include "subgraph_tests/matmul_multiple_outputs.hpp"
+#include "single_layer_tests/matmul_multiple_outputs.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace LayerTestsDefinitions {
 namespace {
 const std::vector<size_t> input_sizes = {
     25,
@@ -33,4 +33,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulMultipleOutputs, MatMulMultipleOutputsTest,
                                 ::testing::Values(additional_config)),
                         MatMulMultipleOutputsTest::getTestCaseName);
 
-} // namespace SubgraphTestsDefinitions
+} // namespace LayerTestsDefinitions

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/subgraph/matmul_multiple_outputs.hpp"
+#include "shared_test_classes/single_layer/matmul_multiple_outputs.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace LayerTestsDefinitions {
 std::string MatMulMultipleOutputsTest::getTestCaseName(const testing::TestParamInfo<MatMulMultipleOutputsParams> &obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
@@ -33,15 +33,14 @@ void MatMulMultipleOutputsTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, { {1, inputSize} });
     std::vector<size_t> outFormShapes = {1,  2 * inputSize};
 
-    auto constant_1 = ngraph::builder::makeConstant<float>(ngPrc, { outFormShapes[1], inputSize },
+    auto mul_const = ngraph::builder::makeConstant<float>(ngPrc, { outFormShapes[1], inputSize },
         CommonTestUtils::generate_float_numbers(outFormShapes[1] * inputSize, -0.5f, 0.5f), false);
 
-    auto matmul_1 = std::make_shared<ngraph::op::MatMul>(params[0], constant_1, false, true);
+    auto matmul = std::make_shared<ngraph::op::MatMul>(params[0], mul_const, false, true);
 
-    auto tanh2 = ngraph::builder::makeActivation(matmul_1, ngPrc, ngraph::helpers::ActivationTypes::Tanh);
+    auto tanh = ngraph::builder::makeActivation(matmul, ngPrc, ngraph::helpers::ActivationTypes::Tanh);
 
-    auto eltw = ngraph::builder::makeEltwise(matmul_1, tanh2, ngraph::helpers::EltwiseTypes::ADD);
-
-    function = std::make_shared<ngraph::Function>(eltw, params, "Muliple_Activations");
+    ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(matmul), std::make_shared<ngraph::op::Result>(tanh)};
+    function = std::make_shared<ngraph::Function>(results, params, "MatMul_Multiple_Outputs");
 }
-} // namespace SubgraphTestsDefinitions
+} // namespace LayerTestsDefinitions

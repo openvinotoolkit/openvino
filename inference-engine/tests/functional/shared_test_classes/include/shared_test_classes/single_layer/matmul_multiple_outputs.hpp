@@ -13,7 +13,7 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace LayerTestsDefinitions {
 
 typedef std::tuple<
         std::size_t,                        // Input Size
@@ -31,4 +31,4 @@ protected:
     void SetUp() override;
 };
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace LayerTestsDefinitions
