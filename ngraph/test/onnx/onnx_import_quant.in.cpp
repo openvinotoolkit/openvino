@@ -672,6 +672,45 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d_zero_point) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_matrix_zero_point) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_matrix_zero_point.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input(std::vector<uint8_t>{0, 1, 2, 3,
+                                             4, 5, 6, 7,
+
+                                             8,  9, 10, 11,
+                                            12, 13, 14, 15});                                   // A
+    test_case.add_input(std::vector<uint8_t>{0,  1,  2,
+                                             3,  4,  5,
+                                             6,  7,  8,
+                                             9, 10, 11,
+
+                                            12, 13, 14,
+                                            15, 16, 17,
+                                            18, 19, 20,
+                                            21, 22, 23});                                       // B
+    test_case.add_input(std::vector<uint8_t>{1,
+                                             2,
+
+                                             3,
+                                             4});                                               // a_zero_point
+    test_case.add_input(std::vector<uint8_t>{1, 2, 3,
+
+                                             4, 5, 6});                                               // b_zero_point
+
+    test_case.add_expected_output<int32_t>({1, 2, 2, 3}, std::vector<int32_t>{22,  22,  22,
+                                                                              64,  64,  64,
+
+                                                                             340, 340, 340,
+                                                                             490, 490, 490}); // Y
+    // clang-format on
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_qlinear_matmul_3d) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/qlinear_matmul_3d.onnx"));
 
