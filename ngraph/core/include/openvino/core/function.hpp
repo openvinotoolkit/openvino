@@ -14,6 +14,7 @@
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rtti.hpp"
+#include "openvino/core/variant.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/read_value.hpp"
@@ -257,6 +258,12 @@ public:
 
     /// \brief Return a variable by specified variable_id.
     ov::op::util::Variable::Ptr get_variable_by_id(const std::string& variable_id) const;
+    RTMap& get_rt_info() {
+        return m_rt_info;
+    }
+    const RTMap& get_rt_info() const {
+        return m_rt_info;
+    }
 
 private:
     Function(const Function&) = delete;
@@ -284,6 +291,7 @@ private:
     ov::SinkVector m_sinks;
     ov::ParameterVector m_parameters;
     ov::op::util::VariableVector m_variables;
+    RTMap m_rt_info;
 };
 
 template <>
