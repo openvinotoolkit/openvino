@@ -10,6 +10,15 @@
 #include <inference_engine.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include "frontend_manager/frontend_manager.hpp"
+#include "graph_comparator.hpp"
+#include "ie_blob.h"
+#include "ngraph/node.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/shape.hpp"
+#include "ngraph/type/element_type.hpp"
+#include "openvino/runtime/core.hpp"
+#include <ngraph/opsets/opset8.hpp>
+#include <transformations/rt_info/old_api_map_attribute.hpp>
 
 using namespace ngraph;
 
@@ -43,12 +52,13 @@ TEST_F(RTInfoDeserialization, NodeV10) {
 <net name="Network" version="10">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset8">
-            <data element_type="f32" shape="1,3,22,22"/>
+            <data element_type="f16" shape="1,3,22,22"/>
             <rt_info>
                 <attribute name="fused_names" version="0" value="in1"/>
+                <attribute name="old_api_map" version="0" order="0,2,3,1" element_type="f16"/>
             </rt_info>
             <output>
-                <port id="0" precision="FP32">
+                <port id="0" precision="FP16" names="input_tensor">
                     <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
@@ -62,7 +72,7 @@ TEST_F(RTInfoDeserialization, NodeV10) {
                 <attribute name="fused_names" version="0" value="Round1,Round2"/>
             </rt_info>
             <input>
-                <port id="1" precision="FP32">
+                <port id="1" precision="FP16">
                     <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
@@ -70,7 +80,7 @@ TEST_F(RTInfoDeserialization, NodeV10) {
                 </port>
             </input>
             <output>
-                <port id="2" precision="FP32">
+                <port id="2" precision="FP16" names="output_tensor">
                     <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
@@ -80,7 +90,7 @@ TEST_F(RTInfoDeserialization, NodeV10) {
         </layer>
         <layer name="output" type="Result" id="2" version="opset8">
             <input>
-                <port id="0" precision="FP32">
+                <port id="0" precision="FP16">
                     <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
@@ -100,7 +110,10 @@ TEST_F(RTInfoDeserialization, NodeV10) {
 
     auto check_rt_info = [](const RTMap & info) {
         const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
-        ASSERT_FALSE(info.count(key));
+        EXPECT_FALSE(info.count(key));
+
+        const std::string & key_old_api = ov::OldApiMap::get_type_info_static();
+        EXPECT_FALSE(info.count(key_old_api));
     };
 
     auto check_version = [](const std::shared_ptr<ov::Function>& f) {
@@ -118,6 +131,58 @@ TEST_F(RTInfoDeserialization, NodeV10) {
     auto result = f->get_results()[0];
     auto round = result->get_input_node_ptr(0);
     check_rt_info(round->get_rt_info());
+
+    // read IR v10 with old API
+    {
+        InferenceEngine::Core core;
+        auto f_10 = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
+        ASSERT_NE(nullptr, f_10.getFunction());
+
+        auto res = compare_functions(f, f_10.getFunction());
+        EXPECT_TRUE(res.first) << res.second;
+    }
+
+    // read IR v10 with new API and check that CNNNetwork precision conversions are applied
+    {
+        ngraph::Shape shape{1, 3, 22, 22};
+        auto type = ngraph::element::f32;
+        auto param = std::make_shared<ngraph::opset8::Parameter>(type, shape);
+        param->set_friendly_name("in1");
+        param->get_output_tensor(0).set_names({"input_tensor"});
+
+        auto convert_param = std::make_shared<opset8::Convert>(param, ngraph::element::f16);
+
+        auto round = std::make_shared<opset8::Round>(convert_param,
+            ngraph::opset8::Round::RoundMode::HALF_TO_EVEN);
+        round->set_friendly_name("Round");
+
+        // TODO: enable once post-processing is added
+        // auto convert_result = std::make_shared<opset8::Convert>(round, type);
+
+        auto result = std::make_shared<opset8::Result>(round);
+        result->set_friendly_name("output");
+        result->get_output_tensor(0).set_names({"output_tensor"});
+
+        auto f_10_ref = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                           ngraph::ParameterVector{param});
+        f_10_ref->set_friendly_name("Network");
+
+        ov::runtime::Core core;
+        auto f_10_core = core.read_model(model, InferenceEngine::Blob::CPtr());
+        ASSERT_NE(nullptr, f_10_core);
+
+        auto& rt_info = f_10_core->get_rt_info();
+        EXPECT_EQ(0, rt_info.count("version"));
+
+        const auto fc = FunctionsComparator::with_default()
+                .enable(FunctionsComparator::ATTRIBUTES)
+                .enable(FunctionsComparator::PRECISIONS)
+                .enable(FunctionsComparator::RUNTIME_KEYS)
+                .enable(FunctionsComparator::NAMES)
+                .enable(FunctionsComparator::CONST_VALUES);
+        auto res = fc.compare(f_10_core, f_10_ref);
+        EXPECT_TRUE(res.valid) << res.message;
+    }
 }
 
 TEST_F(RTInfoDeserialization, InputAndOutputV10) {
@@ -125,9 +190,9 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
 <net name="Network" version="10">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset8">
-            <data element_type="f32" shape="1,3,22,22"/>
+            <data element_type="i64" shape="1,3,22,22"/>
             <output>
-                <port id="0" precision="FP32">
+                <port id="0" precision="I64" names="input_tensor">
                     <rt_info>
                         <attribute name="fused_names" version="0" value="test1,test2"/>
                     </rt_info>
@@ -160,7 +225,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
                 </port>
             </input>
             <output>
-                <port id="2" precision="FP32">
+                <port id="2" precision="I64" names="output_tensor">
                     <rt_info>
                         <attribute name="fused_names" version="0" value="test4,test5"/>
                     </rt_info>
@@ -173,7 +238,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
         </layer>
         <layer name="output" type="Result" id="2" version="opset8">
             <input>
-                <port id="0" precision="FP32">
+                <port id="0" precision="I64">
                     <rt_info>
                         <attribute name="fused_names" version="0" value="test5,test6"/>
                     </rt_info>
@@ -219,6 +284,55 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
     check_rt_info(add->input(0).get_rt_info());
     check_rt_info(add->input(1).get_rt_info());
     check_rt_info(add->output(0).get_rt_info());
+
+    // read IR v10 with old API
+    {
+        InferenceEngine::Core core;
+        auto f_10 = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
+        ASSERT_NE(nullptr, f_10.getFunction());
+
+        auto res = compare_functions(f, f_10.getFunction());
+        EXPECT_TRUE(res.first) << res.second;
+    }
+
+    // read IR v10 with new API and check that CNNNetwork precision conversions are applied
+    {
+        const ngraph::Shape shape{1, 3, 22, 22};
+        const auto type = ngraph::element::i64;
+        auto param = std::make_shared<ngraph::opset8::Parameter>(type, shape);
+        param->set_friendly_name("in1");
+        param->get_output_tensor(0).set_names({"input_tensor"});
+
+        auto sum = std::make_shared<opset8::Add>(param, param);
+        sum->set_friendly_name("sum");
+
+        // TODO: enable once post-processing is added
+        // auto convert_result = std::make_shared<opset8::Convert>(sum, ngraph::element::i32);
+
+        auto result = std::make_shared<opset8::Result>(sum);
+        result->set_friendly_name("output");
+        result->get_output_tensor(0).set_names({"output_tensor"});
+
+        auto f_10_ref = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                           ngraph::ParameterVector{param});
+        f_10_ref->set_friendly_name("Network");
+
+        ov::runtime::Core core;
+        auto f_10_core = core.read_model(model, InferenceEngine::Blob::CPtr());
+        ASSERT_NE(nullptr, f_10_core);
+
+        auto& rt_info = f_10_core->get_rt_info();
+        EXPECT_EQ(0, rt_info.count("version"));
+
+        const auto fc = FunctionsComparator::with_default()
+                .enable(FunctionsComparator::ATTRIBUTES)
+                .enable(FunctionsComparator::PRECISIONS)
+                .enable(FunctionsComparator::RUNTIME_KEYS)
+                .enable(FunctionsComparator::NAMES)
+                .enable(FunctionsComparator::CONST_VALUES);
+        auto res = fc.compare(f_10_core, f_10_ref);
+        EXPECT_TRUE(res.valid) << res.message;
+    }
 }
 
 TEST_F(RTInfoDeserialization, NodeV11) {
@@ -262,6 +376,9 @@ TEST_F(RTInfoDeserialization, NodeV11) {
             </output>
         </layer>
         <layer name="output" type="Result" id="2" version="opset8">
+            <rt_info>
+                <attribute name="old_api_map" version="0" order="0,3,1,2" element_type="undefined"/>
+            </rt_info>
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -286,24 +403,49 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         ASSERT_TRUE(info.count(key));
         auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(info.at(key));
         ASSERT_TRUE(fused_names_attr);
-        ASSERT_EQ(fused_names_attr->get().getNames(), names);
+        EXPECT_EQ(fused_names_attr->get().getNames(), names);
     };
 
+    auto check_old_api_map = [](const RTMap & info, const std::vector<uint64_t> & order, ngraph::element::Type type) {
+        const std::string & old_api_map_key = ov::OldApiMap::get_type_info_static();
+        ASSERT_TRUE(info.count(old_api_map_key));
+        auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
+        ASSERT_TRUE(old_api_map_attr);
+        auto old_api_map_attr_val = old_api_map_attr->get();
+        EXPECT_EQ(old_api_map_attr_val.get_order(), order);
+        EXPECT_EQ(old_api_map_attr_val.get_type(), type);
+    };
     auto check_version = [](const std::shared_ptr<ov::Function>& f) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
         auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
         ASSERT_NE(version, nullptr);
-        ASSERT_EQ(version->get(), 11);
+        EXPECT_EQ(version->get(), 11);
     };
     check_version(f);
 
     auto param = f->get_parameters()[0];
     check_fused_names(param->get_rt_info(), "in1");
+    // check_old_api_map(param->get_rt_info(),
+    //                             std::vector<uint64_t>({0, 2, 3, 1}),
+    //                             ngraph::element::Type_t::f32);
 
     auto result = f->get_results()[0];
+    // check_old_api_map(result->get_rt_info(),
+    //                   std::vector<uint64_t>({0, 3, 1, 2}),
+    //                   ngraph::element::Type_t::undefined);
     auto round = result->get_input_node_ptr(0);
     check_fused_names(round->get_rt_info(), "Round1,Round2");
+
+    // read IR v11 with new API
+    {
+        ov::runtime::Core core;
+        auto f_11 = core.read_model(model, InferenceEngine::Blob::CPtr());
+        ASSERT_NE(nullptr, f_11);
+
+        auto res = compare_functions(f, f_11);
+        EXPECT_TRUE(res.first) << res.second;
+    }
 }
 
 TEST_F(RTInfoDeserialization, InputAndOutputV11) {
@@ -312,6 +454,9 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset8">
             <data element_type="f32" shape="1,3,22,22"/>
+            <rt_info>
+                <attribute name="old_api_map" version="0" order="" element_type="u8"/>
+            </rt_info>
             <output>
                 <port id="0" precision="FP32">
                     <rt_info>
@@ -398,8 +543,21 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
         ASSERT_EQ(fused_names_attr->get().getNames(), names);
     };
 
+    auto check_old_api_map = [](const RTMap & info, const std::vector<uint64_t> & order, ngraph::element::Type type) {
+        const std::string & old_api_map_key = ov::OldApiMap::get_type_info_static();
+        ASSERT_TRUE(info.count(old_api_map_key));
+        auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
+        ASSERT_TRUE(old_api_map_attr);
+        auto old_api_map_attr_val = old_api_map_attr->get();
+        ASSERT_EQ(old_api_map_attr_val.get_order(), order);
+        ASSERT_EQ(old_api_map_attr_val.get_type(), type);
+    };
+
     auto param = f->get_parameters()[0];
     check_fused_names(param->output(0).get_rt_info(), "test1,test2");
+    check_old_api_map(param->get_rt_info(),
+                      std::vector<uint64_t>({}),
+                      ngraph::element::Type_t::u8);
 
     auto result = f->get_results()[0];
     check_fused_names(result->input(0).get_rt_info(), "test5,test6");

@@ -77,16 +77,20 @@ void PreProcessSteps::PreProcessStepsImpl::add_mean_impl(const std::vector<float
 
 void PreProcessSteps::PreProcessStepsImpl::add_convert_impl(const ov::element::Type& type) {
     m_actions.emplace_back(std::make_tuple(
-        [type](const std::vector<std::shared_ptr<Node>>& nodes, PreprocessingContext&) {
+        [type](const std::vector<std::shared_ptr<Node>>& nodes, PreprocessingContext&)
+            -> std::shared_ptr<Node> {
             OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't set element type for empty input.");
             OPENVINO_ASSERT(nodes.size() == 1,
                             "Can't set element type for multi-plane input. Suggesting to convert current image to "
                             "RGB/BGR color format using 'convert_color'");
             OPENVINO_ASSERT(nodes[0]->get_element_type().is_static(),
                             "Can't insert 'convert_element_type' for dynamic source tensor type.");
-            auto convert = std::make_shared<op::v0::Convert>(nodes[0], type);
-            convert->set_friendly_name(nodes[0]->get_friendly_name() + "/convert_element_type");
-            return convert;
+            if (nodes[0]->get_element_type() != type) {
+                auto convert = std::make_shared<op::v0::Convert>(nodes[0], type);
+                convert->set_friendly_name(nodes[0]->get_friendly_name() + "/convert_element_type");
+                return convert;
+            }
+            return nodes[0];
         },
         true));
 }

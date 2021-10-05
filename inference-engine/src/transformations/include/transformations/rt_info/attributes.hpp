@@ -19,9 +19,9 @@
 #include <transformations/rt_info/disable_constant_folding.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/rt_info/nms_selected_indices.hpp>
+#include <transformations/rt_info/old_api_map_attribute.hpp>
 #include <transformations/rt_info/primitives_priority_attribute.hpp>
 #include <transformations/rt_info/strides_property.hpp>
-#include <transformations/rt_info/old_api_map_attribute.hpp>
 
 namespace ov {
 namespace pass {

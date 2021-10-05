@@ -114,9 +114,9 @@ ngraph::element::Type details::toLegacyType(const ngraph::element::Type& ngraph_
     if (input) {
         return ngraph_type == ngraph::element::f16 ? ngraph::element::f32 : ngraph_type;
     } else {
-        if (ngraph_type == ngraph::element::i64) {
+        if (ngraph_type == ngraph::element::i64 || ngraph_type == ngraph::element::i32) {
             return ngraph::element::i32;
-        } else if (ngraph_type != ngraph::element::f32 && ngraph_type != ngraph::element::i32) {
+        } else if (ngraph_type != ngraph::element::f32) {
             return ngraph::element::f32;
         }
     }
