@@ -17,7 +17,7 @@ namespace ov {
 inline bool is_tensor_name_available(const std::string& tensor_name, const std::shared_ptr<Function>& function) {
     for (const auto& node : function->get_ordered_ops()) {
         for (const auto& output : node->outputs()) {
-            const auto &tensor = output.get_tensor();
+            const auto& tensor = output.get_tensor();
             if (tensor.get_names().count(tensor_name)) {
                 return false;
             }

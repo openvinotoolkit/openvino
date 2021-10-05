@@ -5,10 +5,10 @@
 #include "openvino/core/preprocess/pre_post_process.hpp"
 
 #include "color_utils.hpp"
+#include "function_guard.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "openvino/core/function.hpp"
 #include "preprocess_steps_impl.hpp"
-#include "function_guard.hpp"
 
 namespace ov {
 namespace preprocess {

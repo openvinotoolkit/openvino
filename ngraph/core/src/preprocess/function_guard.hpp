@@ -15,8 +15,9 @@ class FunctionGuard {
     ParameterVector m_parameters;
     std::map<std::shared_ptr<op::v0::Parameter>, std::set<Input<Node>>> m_backup;
     bool m_done = false;
+
 public:
-    FunctionGuard(const std::shared_ptr<Function>& f): m_function (f) {
+    FunctionGuard(const std::shared_ptr<Function>& f) : m_function(f) {
         m_parameters = f->get_parameters();
         for (const auto& param : f->get_parameters()) {
             m_backup.insert({param, param->output(0).get_target_inputs()});
@@ -27,18 +28,18 @@ public:
             try {
                 auto params = m_function->get_parameters();
                 // Remove parameters added by preprocessing
-                for (const auto &param: params) {
+                for (const auto& param : params) {
                     m_function->remove_parameter(param);
                 }
                 // Insert old parameters and update consumers
-                for (const auto &item: m_backup) {
+                for (const auto& item : m_backup) {
                     // Replace consumers
-                    for (auto consumer: item.second) {
+                    for (auto consumer : item.second) {
                         consumer.replace_source_output(item.first);
                     }
                 }
                 m_function->add_parameters(m_parameters);
-            } catch (std::exception &ex) {
+            } catch (std::exception& ex) {
                 // Stress condition, can't recover function to original state
                 std::cerr << "Unrecoverable error occurred during preprocessing. Function is corrupted, exiting\n";
                 exit(EXIT_FAILURE);
