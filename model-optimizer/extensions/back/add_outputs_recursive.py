@@ -12,10 +12,13 @@ from mo.ops.result import Result
 from mo.ops.unsqueeze import Unsqueeze
 
 
+# shape inference for TensorIterator
+# copy shapes from internal nodes + insert correct iterations count where needed
 def ti_infer(step_node, port_num):
     out_port_map = step_node.output_port_map
     int_layer_id = None
     port_num = port_num + len(step_node.in_ports())
+    # find out iterations count for TensorIterator to set output shape correctly
     iterations_count = 1
     for om in out_port_map:
         if om['external_port_id'] == port_num:
@@ -45,6 +48,8 @@ def ti_infer(step_node, port_num):
     step_node.out_port(port_num).data.set_shape(out_shape)
 
 
+# shape inference for Loop
+# copy shapes from internal nodes + insert correct iterations count where needed
 def loop_infer(step_node, port_num):
     out_port_map = step_node.output_port_map
     int_layer_id = None
@@ -53,6 +58,7 @@ def loop_infer(step_node, port_num):
         if om['external_port_id'] == port_num:
             int_layer_id = om['internal_layer_id']
 
+    # used method from TensorIterator to find out node with needed internal layer id
     int_node_name = TensorIterator.find_internal_layer_id(step_node.body, int_layer_id)
     int_node = Node(step_node.body, int_node_name)
     assert int_node.op == 'Result'
@@ -62,14 +68,28 @@ def loop_infer(step_node, port_num):
     step_node.out_port(port_num).data.set_shape(out_shape)
 
 
+def max_internal_layer_id(graph):
+    max_int_layer_id = 0
+    for n in graph.get_op_nodes():
+        if n.has_and_set('internal_layer_id'):
+            if n.internal_layer_id > max_int_layer_id:
+                max_int_layer_id = n.internal_layer_id
+    return max_int_layer_id
+
+
 class AddOutputRecursive(BackReplacementPattern):
     """
+    Add output to node inside loops. Path to node set in 'additional_outputs' attribute of graph.
+    Path structure: [node_loop_1, loop_2_in_loop_1,.., if_node, [then_list, else_list]]
+    After if operation should be sub-list with 2 elements then_list and else_list where each is one node or list of
+    nodes in according path
     """
     enabled = True
     run_not_recursively = True
 
     @staticmethod
     def add_output_for_path(nodes_path, graphs_path):
+        # add output to nodes according to path
         step_node = nodes_path[-1]
         cur_graph = graphs_path[-1]
         ports_to_add_nodes = []
@@ -78,10 +98,11 @@ class AddOutputRecursive(BackReplacementPattern):
 
         # update internal_layer_id for new Results
         for i in range(len(nodes_path)-1, 0, -1):
-            cur_max_layer_id = len(cur_graph.nodes) + 1  # fix by finding real maximal internal_layer_id
+            cur_max_layer_id = max_internal_layer_id(cur_graph) + 1
             cur_loop_node = nodes_path[i-1]
             new_out_ports = []
             if cur_loop_node.op is not 'If':
+                # add Unsqueeze and Result for TensorIterator and Loop and update output_port_map
                 for p_num in ports_to_add_nodes:
                     port = step_node.out_port(p_num)
                     unsq_name = port.node.soft_get('name', port.node.id) + "/Unsqueeze"
@@ -100,20 +121,21 @@ class AddOutputRecursive(BackReplacementPattern):
                     graphs_path.insert(i, cur_graph)
                     graphs_path.insert(i, cur_graph)
                     # IR reader fix output port map for Loop, but have not change for TensorIterator
-                    if cur_loop_node.op != 'Loop':
+                    if cur_loop_node.op == 'TensorIterator':
                         new_port_id = len(cur_loop_node.out_ports()) + len(cur_loop_node.in_ports())
                     else:
                         new_port_id = len(cur_loop_node.out_ports())
                     cur_loop_node.output_port_map.append({'axis': 0, 'stride': 1, 'part_size': 1, 'start': 0,
                                                           'end': -1, 'external_port_id': new_port_id,
                                                           'internal_layer_id': res_node['internal_layer_id']})
-                    if cur_loop_node.op in ['TensorIterator']:
+                    if cur_loop_node.op == 'TensorIterator':
                         port_id = new_port_id - len(cur_loop_node.in_ports())
                     else:
                         port_id = new_port_id
                     new_out_ports.append(port_id)
                     cur_loop_node.add_output_port(port_id)
             else:
+                # add Result nodes for If and update output_id
                 for p_num in ports_to_add_nodes:
                     port = step_node.out_port(p_num)
                     out_name = step_node.soft_get('name', step_node.id) + ":" + str(p_num)
@@ -125,7 +147,7 @@ class AddOutputRecursive(BackReplacementPattern):
                     graphs_path.insert(i, cur_graph)
 
                     if cur_loop_node.then_graph == cur_graph:
-                        new_port_id = len(cur_loop_node.out_ports()) #len(cur_loop_node.in_ports()) +
+                        new_port_id = len(cur_loop_node.out_ports())
                         res_node['output_id'] = new_port_id
                         cur_loop_node.add_output_port(new_port_id)
                         new_out_ports.append(new_port_id)
@@ -140,18 +162,18 @@ class AddOutputRecursive(BackReplacementPattern):
             out_name = port.node.soft_get('name', step_node.id) + ":" + str(p_num)
             res_node = Result(cur_graph, {'name': out_name}).create_node()
             port.connect(res_node.in_port(0))
-            if step_node.op in ['TensorIterator']:
-                step_node.out_edges()[len(step_node.out_edges())-1]['external_port_id'] = p_num + len(step_node.in_ports())
-            nodes_path.insert(i, res_node)
-            graphs_path.insert(i, cur_graph)
+            if step_node.op == 'TensorIterator':
+                step_node.out_edges()[len(step_node.out_edges())-1]['external_port_id'] = p_num + \
+                                                                                          len(step_node.in_ports())
+            nodes_path.insert(len(nodes_path)-1, res_node)
+            graphs_path.insert(len(nodes_path)-1, cur_graph)
         return nodes_path, graphs_path
 
     @staticmethod
-    def infer_shapes_of_nodes_in_path(nodes_path, graphs_path):
-        # update internal_layer_id for new Results
+    def infer_shapes_of_nodes_in_path(nodes_path):
+        # update shape for new or updated nodes
         for i in range(len(nodes_path)-1, -1, -1):
             step_node = nodes_path[i]
-            cur_graph = graphs_path[i]
             # infer shapes for new nodes
             for p_num in step_node.out_ports():
                 if not step_node.out_port(p_num).disconnected():
@@ -164,7 +186,14 @@ class AddOutputRecursive(BackReplacementPattern):
 
     @staticmethod
     def split_path_to_simple_tracks(graph, path):
-        # list of paths with 2 fields : list of nodes on current path and list of according graphs
+        # Split complex path into simple linear tracks.
+        # Track is looks like list of paths with 2 fields : list of nodes on current path and list of according graphs
+        # Example:
+        # input path : [loop_1, loop_2, if_1, [[loop3_1, node_1], [node_2]]]
+        # output track: [{'nodes': [loop_1, loop_2, if_1, loop3_1, node_1],
+        #                 'graphs':[graph, loop_1.body, loop_2.body, if.then_graph, loop3_1.body]},
+        #                {'nodes': [loop_1, loop_2, if_1, node_2],
+        #                 'graphs':[graph, loop_1.body, loop_2.body, if.else_graph]}]
         paths_nodes_graphs = []
         cur_graph = [graph]
         path_idx = 0
@@ -215,12 +244,7 @@ class AddOutputRecursive(BackReplacementPattern):
         return paths_nodes_graphs
 
     def find_and_replace_pattern(self, graph: Graph):
-        """
-        If graph have 'additional_outputs' attribute, read list of nodes and add it to real result
-        List structure: [node_loop_1, loop_2_in_loop_1, if_node, [then_list, else_list],..,node_in_last_loop]
-        After if operation should be sub-list with 2 elements then_list and else_list where each is one node or list of
-        nodes in according path
-        """
+
         if 'additional_outputs' not in graph.graph:
             return
 
@@ -232,4 +256,4 @@ class AddOutputRecursive(BackReplacementPattern):
                 paths_nodes_graphs[i]['nodes'], paths_nodes_graphs[i]['graphs'])
 
         for i in range(len(paths_nodes_graphs)):
-            self.infer_shapes_of_nodes_in_path(paths_nodes_graphs[i]['nodes'], paths_nodes_graphs[i]['graphs'])
+            self.infer_shapes_of_nodes_in_path(paths_nodes_graphs[i]['nodes'])

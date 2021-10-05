@@ -57,7 +57,7 @@ sub_graph_1_nodes = {
                                                 'internal_layer_id': 3}),
     **shaped_parameter("in_1_int", int64_array([1, 4, 64, 54]), {'internal_layer_id': 1}),
     **regular_op_with_empty_data("in_1_int_out",
-                                  {'op': 'Result', 'type': 'Result', 'infer': lambda x: None, 'internal_layer_id': 4}),
+                                 {'op': 'Result', 'type': 'Result', 'infer': lambda x: None, 'internal_layer_id': 4}),
     **shaped_parameter("cond_1_int", int64_array([1]), {'internal_layer_id': 2}),
     **regular_op_with_empty_data("cond_1_int_out", {'op': 'Result', 'type': 'Result', 'infer': lambda x: None,
                                                     'internal_layer_id': 5}),
@@ -70,7 +70,7 @@ sub_graph_2_nodes = {
     **shaped_const_with_data('ones', int64_array([1, 4, 64, 54])),
     **regular_op_with_shaped_data('OUT_2', int64_array([1, 4, 64, 54]), {'op': "Add", 'infer': copy_shape_infer}),
     **regular_op_with_empty_data('OUT_2_out',
-                                  {'op': 'Result', 'type': 'Result', 'infer': lambda x: None, 'internal_layer_id': 7}),
+                                 {'op': 'Result', 'type': 'Result', 'infer': lambda x: None, 'internal_layer_id': 7}),
     **regular_op_with_shaped_data('in_2_int_out', int64_array([1, 4, 64, 54]),
                                   {'op': 'Result', 'type': 'Result', 'infer': lambda x: None, 'internal_layer_id': 6})
 }
@@ -120,6 +120,7 @@ class AddOutputRecursiveTest(unittest.TestCase):
         unsq_node = last_node.out_port(0).get_destinations()[1].node
         self.assertEqual(unsq_node.op, 'Unsqueeze')
         self.assertEqual(unsq_node.out_port(0).get_destination().node.op, 'Result')
+        self.assertEqual(unsq_node.out_port(0).get_destination().node.internal_layer_id, 8)
         self.assertTrue(np.all(unsq_node.out_port(0).data.get_shape() == int64_array([1, 1, 4, 64, 54])))
 
 
@@ -134,14 +135,11 @@ ti_main_graph_nodes = {
                                           'input_port_map': [{'external_port_id': 1, 'internal_layer_id': 2, 'axis': None},
                                                              {'external_port_id': 2, 'internal_layer_id': 0, 'axis': None},
                                                              {'external_port_id': 3, 'internal_layer_id': 1, 'axis': None}],
-                                          'output_port_map': [{'external_port_id': 4, 'internal_layer_id': 4,
-                                                                'axis': None},
-                                                              {'external_port_id': -1, 'internal_layer_id': 5,
-                                                               'axis': None, 'purpose': "execution_condition"}],
+                                          'output_port_map': [{'external_port_id': 4, 'internal_layer_id': 4, 'axis': None},
+                                                              {'external_port_id': -1, 'internal_layer_id': 5, 'axis': None, 'purpose': "execution_condition"}],
                                           'back_edges': [{'from_layer': 8, 'to_layer': 7},
                                                          {'from_layer': 10, 'to_layer': 9}],
-                                 'infer': TensorIterator.infer
-}),
+                                 'infer': TensorIterator.infer}),
     **result("OUT_1")
 }
 
@@ -234,6 +232,7 @@ class TI_AddOutputRecursiveTest(unittest.TestCase):
         unsq_node = last_node.out_port(0).get_destinations()[1].node
         self.assertEqual(unsq_node.op, 'Unsqueeze')
         self.assertEqual(unsq_node.out_port(0).get_destination().node.op, 'Result')
+        self.assertEqual(unsq_node.out_port(0).get_destination().node.internal_layer_id, 8)
         self.assertTrue(np.all(unsq_node.out_port(0).data.get_shape() == int64_array([1, 1, 4, 64, 54])))
 
 
@@ -335,7 +334,8 @@ class IF_AddOutputRecursiveTest(unittest.TestCase):
 
 class SplitUserPathTest(unittest.TestCase):
 
-    def create_graph(self):
+    @staticmethod
+    def create_graph():
         sub_graph_2 = build_graph(nodes_attrs=if_sub_graph_2_nodes,
                                   edges=[*connect('in_2_int', 'OUT_2'),
                                          *connect('ones', 'OUT_2'),
@@ -430,4 +430,3 @@ class SplitUserPathTest(unittest.TestCase):
 
         self.assertTrue(len(loop_node.out_ports()), 2)
         self.assertTrue(loop_node.out_port(1).get_destination().node.op, 'Result')
-
