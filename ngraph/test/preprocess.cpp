@@ -275,6 +275,31 @@ TEST(pre_post_process, convert_color_unsupported) {
     }
 }
 
+TEST(pre_post_process, convert_color_incorrect_subnames) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 3});
+    auto name = f->get_parameters()[0]->get_friendly_name();
+    auto tensor_names = f->get_parameters().front()->get_output_tensor(0).get_names();
+    EXPECT_THROW(
+        f = PrePostProcessor()
+                .input(InputInfo()
+                           .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_SINGLE_PLANE, {"Test"}))
+                           .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB)))
+                .build(f),
+        ov::AssertFailure);
+
+    EXPECT_THROW(
+        f = PrePostProcessor()
+                .input(InputInfo().tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES, {"Test"})))
+                .build(f),
+        ov::AssertFailure);
+
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo().tensor(
+                             InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES, {"1", "2", "3"})))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
 TEST(pre_post_process, unsupported_network_color_format) {
     auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
     EXPECT_THROW(f = PrePostProcessor()

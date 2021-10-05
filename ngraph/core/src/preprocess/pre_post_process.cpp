@@ -71,16 +71,29 @@ public:
         return m_color_format;
     }
 
-    void set_color_format(ColorFormat format) noexcept {
+    void set_color_format(ColorFormat format, const std::vector<std::string>& sub_names) {
+        auto info = ColorFormatInfo::get(format);
+        if (info->planes_count() == 1) {
+            OPENVINO_ASSERT(sub_names.empty(),
+                            "Plane names are not allowed for single plane color format '",
+                            color_format_name(format),
+                            "'");
+        } else if (!sub_names.empty()) {
+            OPENVINO_ASSERT(sub_names.size() == info->planes_count(),
+                            "Number of sub-names (",
+                            sub_names.size(),
+                            ") shall match with number of planes for '",
+                            color_format_name(format),
+                            "' color format (",
+                            info->planes_count(),
+                            ")");
+        }
+        m_planes_sub_names = sub_names;
         m_color_format = format;
     }
 
     const std::vector<std::string>& planes_sub_names() const {
         return m_planes_sub_names;
-    }
-
-    void set_planes_sub_names(const std::vector<std::string>& names) {
-        m_planes_sub_names = names;
     }
 
 private:
@@ -401,15 +414,13 @@ InputNetworkInfo&& InputNetworkInfo::set_layout(const Layout& layout) && {
 
 InputTensorInfo& InputTensorInfo::set_color_format(const ov::preprocess::ColorFormat& format,
                                                    const std::vector<std::string>& sub_names) & {
-    m_impl->set_planes_sub_names(sub_names);
-    m_impl->set_color_format(format);  // noexcept
+    m_impl->set_color_format(format, sub_names);
     return *this;
 }
 
 InputTensorInfo&& InputTensorInfo::set_color_format(const ov::preprocess::ColorFormat& format,
                                                     const std::vector<std::string>& sub_names) && {
-    m_impl->set_planes_sub_names(sub_names);
-    m_impl->set_color_format(format);  // noexcept
+    m_impl->set_color_format(format, sub_names);
     return std::move(*this);
 }
 
