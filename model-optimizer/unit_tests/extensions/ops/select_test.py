@@ -174,13 +174,6 @@ class TestSelect(unittest.TestCase):
                                               else_value=None, else_shape=[3, 3],
                                               out_value=None, out_shape=[42, 42])
 
-    def test_select_infer_assert_shapes_2(self):
-        with self.assertRaisesRegex(AssertionError, "must be broadcastable"):
-            self.build_select_graph_and_infer(condition_value=None, condition_shape=[2, 300],
-                                              then_value=None, then_shape=[2, 2],
-                                              else_value=None, else_shape=[2, 1],
-                                              out_value=None, out_shape=[42, 42])
-
     def test_select_infer_masked_1(self):
         flag, msg = self.build_select_graph_and_infer(condition_value=np.ma.array([True, True], mask=[1, 1]),
                                                       then_value=None, then_shape=[2],

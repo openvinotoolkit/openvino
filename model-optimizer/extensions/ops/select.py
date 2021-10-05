@@ -43,11 +43,10 @@ class Select(Op):
         broadcast_rule = node.soft_get('auto_broadcast', 'numpy')
         if broadcast_rule == 'numpy':
             output_shape = bi_directional_shape_broadcasting(a_shape, b_shape)
-            msg = 'In node \'{}\' for Select operation condition and then/else values shapes must '\
-                  'be broadcastable. But instead got: cond_shape={}, then_shape={}, else_shape={}'.format(
-                      node_name, condition_shape, a_shape, b_shape)
-            assert output_shape is not None, msg
-            assert bi_directional_shape_broadcasting(output_shape, condition_shape) is not None, msg
+            assert output_shape is not None, \
+                'In node \'{}\' for Select operation then/else values shapes must be broadcastable. ' \
+                'But instead got: then_shape={}, else_shape={}'.format(
+                    node_name, a_shape, b_shape)
         elif broadcast_rule == 'pdpd':
             # todo: add pdpd broadcasting rule
             # note that additionally to output_shape resulting_tensors must be broadcasted as well
