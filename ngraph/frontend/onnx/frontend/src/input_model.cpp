@@ -72,6 +72,13 @@ Place::Ptr InputModelONNX::get_place_by_operation_name_and_input_port(const std:
         m_editor);
 }
 
+Place::Ptr InputModelONNX::get_place_by_operation_name_and_output_port(const std::string& operation_name,
+                                                                      int output_port_index) {
+    return std::make_shared<PlaceOutputEdgeONNX>(
+        m_editor->find_output_edge(onnx_editor::EditorNode(operation_name), output_port_index),
+        m_editor);
+}
+
 void InputModelONNX::set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape) {
     std::map<std::string, ngraph::PartialShape> m;
     m[place->get_names()[0]] = shape;
