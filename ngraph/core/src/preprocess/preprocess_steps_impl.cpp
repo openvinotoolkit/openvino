@@ -4,6 +4,7 @@
 
 #include "preprocess_steps_impl.hpp"
 
+#include "color_utils.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
@@ -160,7 +161,9 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_layout_impl(const Layout&
             OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't convert layout for empty input.");
             OPENVINO_ASSERT(nodes.size() == 1,
                             "Can't convert layout for multi-plane input. Suggesting to convert current image to "
-                            "RGB/BGR color format using 'convert_color'");
+                            "RGB/BGR color format using 'convert_color'. Current format is '",
+                            color_format_name(context.color_format()),
+                            "'");
             Layout dst_layout = layout.empty() ? context.network_layout() : layout;
             auto permutation =
                 layout::find_permutation(context.layout(), nodes[0]->get_output_partial_shape(0).rank(), dst_layout);
@@ -178,6 +181,9 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_color_impl(const ColorFor
     m_actions.emplace_back(std::make_tuple(
         [&, dst_format](const std::vector<std::shared_ptr<Node>>& nodes,
                         PreprocessingContext& context) -> std::vector<std::shared_ptr<ov::Node>> {
+            if (context.color_format() == dst_format) {
+                return nodes;
+            }
             if (context.color_format() == ColorFormat::NV12_SINGLE_PLANE) {
                 OPENVINO_ASSERT(nodes.size() == 1,
                                 "Internal error: single plane NV12 image can't have multiple inputs");
@@ -190,7 +196,10 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_color_impl(const ColorFor
                     convert = std::make_shared<op::v8::NV12toBGR>(nodes[0]);
                     break;
                 default:
-                    OPENVINO_ASSERT(false, "Unsupported NV12 conversion format");
+                    OPENVINO_ASSERT(false,
+                                    "Unsupported conversion from NV12 to '",
+                                    color_format_name(dst_format),
+                                    "' format:");
                 }
                 inherit_friendly_names(nodes[0], convert, "/convert_color_nv12_single");
                 context.color_format() = dst_format;
@@ -206,15 +215,19 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_color_impl(const ColorFor
                     convert = std::make_shared<op::v8::NV12toBGR>(nodes[0], nodes[1]);
                     break;
                 default:
-                    OPENVINO_ASSERT(false, "Unsupported NV12 conversion format");
+                    OPENVINO_ASSERT(false,
+                                    "Unsupported conversion from NV12 to '",
+                                    color_format_name(dst_format),
+                                    "' format:");
                 }
                 inherit_friendly_names(nodes[0], convert, "/convert_color_nv12_two_planes");
                 context.color_format() = dst_format;
                 return {convert};
             }
-            // Throw even if source_format == dst_format, because we don't want to deal with multiple output nodes
-            // here
-            OPENVINO_ASSERT(false, "Source color format is not convertible to any other");
+            OPENVINO_ASSERT(false,
+                            "Source color format '",
+                            color_format_name(context.color_format()),
+                            "' is not convertible to any other");
         },
         true));
 }

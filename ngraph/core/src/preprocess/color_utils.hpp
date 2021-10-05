@@ -16,6 +16,28 @@ inline bool is_rgb_family(const ColorFormat& format) {
     return format == ColorFormat::RGB || format == ColorFormat::BGR;
 }
 
+inline std::string color_format_name(ColorFormat format) {
+    std::string name;
+    switch (format) {
+    case ColorFormat::RGB:
+        name = "RGB";
+        break;
+    case ColorFormat::BGR:
+        name = "BGR";
+        break;
+    case ColorFormat::NV12_TWO_PLANES:
+        name = "NV12 (multi-plane)";
+        break;
+    case ColorFormat::NV12_SINGLE_PLANE:
+        name = "NV12 (single plane)";
+        break;
+    default:
+        name = "Unknown";
+        break;
+    }
+    return name;
+}
+
 /// \brief Internal helper class to get information depending on color format
 class ColorFormatInfo {
 public:

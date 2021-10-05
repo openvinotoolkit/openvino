@@ -57,6 +57,13 @@ TEST(pre_post_process, convert_element_type_and_scale) {
     EXPECT_EQ(f->get_output_element_type(0), element::i8);
 }
 
+TEST(pre_post_process, empty_preprocess) {
+    auto f = create_simple_function(element::i8, Shape{1, 3, 2, 2});
+    f = PrePostProcessor().input(InputInfo().tensor(InputTensorInfo().set_element_type(element::i8))).build(f);
+    EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::i8);
+    EXPECT_EQ(f->get_output_element_type(0), element::i8);
+}
+
 TEST(pre_post_process, convert_element_type_from_unknown) {
     auto f = create_simple_function(element::i32, Shape{1, 3, 224, 224});
     ASSERT_THROW(
@@ -179,6 +186,12 @@ TEST(pre_post_process, convert_color_nv12_rgb_2_planes) {
     EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::f32);
     EXPECT_EQ(f->get_parameters()[0]->get_partial_shape(), (PartialShape{5, 2, 2, 1}));
     EXPECT_EQ(f->get_parameters()[1]->get_partial_shape(), (PartialShape{5, 1, 1, 2}));
+
+    EXPECT_EQ(f->get_parameters()[0]->get_friendly_name(), "input1/Y");
+    EXPECT_EQ(*f->get_parameters()[0]->output(0).get_tensor().get_names().begin(), "tensor_input1/Y");
+
+    EXPECT_EQ(f->get_parameters()[1]->get_friendly_name(), "input1/UV");
+    EXPECT_EQ(*f->get_parameters()[1]->output(0).get_tensor().get_names().begin(), "tensor_input1/UV");
 }
 
 TEST(pre_post_process, convert_color_nv12_bgr_2_planes_u8_lvalue) {
@@ -215,6 +228,18 @@ TEST(pre_post_process, convert_color_nv12_bgr_2_planes_el_type) {
     EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::f32);
 }
 
+TEST(pre_post_process, convert_color_same_type) {
+    auto f = create_simple_function(element::u8, Shape{1, 2, 2, 3});
+    EXPECT_NO_THROW(f = PrePostProcessor()
+                            .input(InputInfo()
+                                       .tensor(InputTensorInfo().set_color_format(ColorFormat::RGB))
+                                       .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB)))
+                            .build(f));
+
+    EXPECT_EQ(f->get_parameters().size(), 1);
+    EXPECT_EQ(f->get_parameters()[0]->get_partial_shape(), (PartialShape{1, 2, 2, 3}));
+}
+
 TEST(pre_post_process, convert_color_unsupported) {
     // Feel free to update this test when more color conversions are supported in future
     auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
@@ -224,16 +249,63 @@ TEST(pre_post_process, convert_color_unsupported) {
                                     .preprocess(PreProcessSteps().convert_color(ColorFormat::UNDEFINED)))
                          .build(f),
                  ov::AssertFailure);
+
     EXPECT_THROW(f = PrePostProcessor()
                          .input(InputInfo()
                                     .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES))
                                     .preprocess(PreProcessSteps().convert_color(ColorFormat::UNDEFINED)))
                          .build(f),
                  ov::AssertFailure);
+
+    auto colors = {ColorFormat::NV12_TWO_PLANES, ColorFormat::NV12_SINGLE_PLANE, ColorFormat::RGB, ColorFormat::BGR};
+    for (const auto& color : colors) {
+        EXPECT_THROW(f = PrePostProcessor()
+                             .input(InputInfo()
+                                        .tensor(InputTensorInfo().set_color_format(ColorFormat::UNDEFINED))
+                                        .preprocess(PreProcessSteps().convert_color(color)))
+                             .build(f),
+                     ov::AssertFailure);
+
+        EXPECT_THROW(f = PrePostProcessor()
+                             .input(InputInfo()
+                                        .tensor(InputTensorInfo().set_color_format(color))
+                                        .preprocess(PreProcessSteps().convert_color(ColorFormat::UNDEFINED)))
+                             .build(f),
+                     ov::AssertFailure);
+    }
+}
+
+TEST(pre_post_process, unsupported_network_color_format) {
+    auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo().tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_SINGLE_PLANE)))
+                         .build(f),
+                 ov::AssertFailure);
+
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo().tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES)))
+                         .build(f),
+                 ov::AssertFailure);
+
+    EXPECT_THROW(
+        f = PrePostProcessor()
+                .input(InputInfo()
+                           .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES))
+                           .preprocess(PreProcessSteps().convert_layout("NCHW").convert_color(ColorFormat::RGB)))
+                .build(f),
+        ov::AssertFailure);
+
     EXPECT_THROW(f = PrePostProcessor()
                          .input(InputInfo()
-                                    .tensor(InputTensorInfo().set_color_format(ColorFormat::UNDEFINED))
-                                    .preprocess(PreProcessSteps().convert_color(ColorFormat::NV12_SINGLE_PLANE)))
+                                    .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES))
+                                    .preprocess(PreProcessSteps().mean(0.1f).convert_color(ColorFormat::RGB)))
+                         .build(f),
+                 ov::AssertFailure);
+
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES))
+                                    .preprocess(PreProcessSteps().scale(2.1f).convert_color(ColorFormat::RGB)))
                          .build(f),
                  ov::AssertFailure);
 }

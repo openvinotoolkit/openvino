@@ -284,7 +284,7 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
                 auto sub_name = color_info->friendly_suffix(plane);
                 inherit_friendly_names(param, plane_param, sub_name);
             }
-            if (input->m_tensor_data->get_layout() != Layout()) {
+            if (!input->m_tensor_data->get_layout().empty()) {
                 plane_param->set_layout(input->m_tensor_data->get_layout());
             }
             new_params.push_back(plane_param);
@@ -297,17 +297,24 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         context.network_shape() = param->get_partial_shape();
 
         // 2. Apply preprocessing
-        for (const auto& action : input->m_preprocess->actions()) {
-            auto node = std::get<0>(action)(nodes, context);
-            nodes = {node};
-            tensor_data_updated |= std::get<1>(action);
+        if (input->m_preprocess) {
+            for (const auto& action : input->m_preprocess->actions()) {
+                auto node = std::get<0>(action)(nodes, context);
+                nodes = {node};
+                tensor_data_updated |= std::get<1>(action);
+            }
         }
 
         OPENVINO_ASSERT(nodes.size() == 1,
                         "Multiple plane input is not allowed as network input. Consider using of convert_color "
-                        "preprocessing operation");
+                        "preprocessing operation. Current format is '",
+                        color_format_name(context.color_format()),
+                        "'");
         OPENVINO_ASSERT(is_rgb_family(context.color_format()) || context.color_format() == ColorFormat::UNDEFINED,
-                        "Final input color format is incorrect");
+                        "Network shall have RGB/BGR color format. Consider add 'convert_color' preprocessing operation "
+                        "to convert current color format '",
+                        color_format_name(context.color_format()),
+                        "'to RGB/BGR");
         auto node = nodes[0];
         // Check final type
         OPENVINO_ASSERT(node->get_element_type() == param->get_element_type(),
