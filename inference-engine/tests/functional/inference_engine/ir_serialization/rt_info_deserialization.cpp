@@ -9,10 +9,36 @@
 
 #include <inference_engine.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+#include "frontend_manager/frontend_manager.hpp"
 
 using namespace ngraph;
 
-TEST(RTInfoDeserialization, NodeV10) {
+class RTInfoDeserialization : public testing::Test {
+protected:
+    std::shared_ptr<ngraph::Function> getWithIRFrontend(const std::string& model) {
+        std::istringstream modelStringStream(model);
+        std::istream& modelStream = modelStringStream;
+
+        ngraph::frontend::FrontEnd::Ptr FE;
+        ngraph::frontend::InputModel::Ptr inputModel;
+
+        ov::VariantVector params{ov::make_variant(&modelStream)};
+
+        FE = manager.load_by_model(params);
+        if (FE)
+            inputModel = FE->load(params);
+
+        if (inputModel)
+            return FE->convert(inputModel);
+
+        return nullptr;
+    }
+
+private:
+    ngraph::frontend::FrontEndManager manager;
+};
+
+TEST_F(RTInfoDeserialization, NodeV10) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -69,9 +95,8 @@ TEST(RTInfoDeserialization, NodeV10) {
     </edges>
 </net>
 )V0G0N";
-    auto core = InferenceEngine::Core();
-    auto net = core.ReadNetwork(model, InferenceEngine::Blob::Ptr());
-    auto f = net.getFunction();
+    auto f = getWithIRFrontend(model);
+    ASSERT_NE(nullptr, f);
 
     auto check_rt_info = [](const RTMap & info) {
         const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
@@ -95,7 +120,7 @@ TEST(RTInfoDeserialization, NodeV10) {
     check_rt_info(round->get_rt_info());
 }
 
-TEST(RTInfoDeserialization, InputAndOutputV10) {
+TEST_F(RTInfoDeserialization, InputAndOutputV10) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -167,9 +192,8 @@ TEST(RTInfoDeserialization, InputAndOutputV10) {
     </edges>
 </net>
 )V0G0N";
-    auto core = InferenceEngine::Core();
-    auto net = core.ReadNetwork(model, InferenceEngine::Blob::Ptr());
-    auto f = net.getFunction();
+    auto f = getWithIRFrontend(model);
+    ASSERT_NE(nullptr, f);
 
     auto check_rt_info = [](const RTMap & info) {
         const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
@@ -197,7 +221,7 @@ TEST(RTInfoDeserialization, InputAndOutputV10) {
     check_rt_info(add->output(0).get_rt_info());
 }
 
-TEST(RTInfoDeserialization, NodeV11) {
+TEST_F(RTInfoDeserialization, NodeV11) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -254,9 +278,8 @@ TEST(RTInfoDeserialization, NodeV11) {
     </edges>
 </net>
 )V0G0N";
-    auto core = InferenceEngine::Core();
-    auto net = core.ReadNetwork(model, InferenceEngine::Blob::Ptr());
-    auto f = net.getFunction();
+    auto f = getWithIRFrontend(model);
+    ASSERT_NE(nullptr, f);
 
     auto check_fused_names = [](const RTMap & info, const std::string & names) {
         const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
@@ -283,7 +306,7 @@ TEST(RTInfoDeserialization, NodeV11) {
     check_fused_names(round->get_rt_info(), "Round1,Round2");
 }
 
-TEST(RTInfoDeserialization, InputAndOutputV11) {
+TEST_F(RTInfoDeserialization, InputAndOutputV11) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -355,9 +378,8 @@ TEST(RTInfoDeserialization, InputAndOutputV11) {
     </edges>
 </net>
 )V0G0N";
-    auto core = InferenceEngine::Core();
-    auto net = core.ReadNetwork(model, InferenceEngine::Blob::Ptr());
-    auto f = net.getFunction();
+    auto f = getWithIRFrontend(model);
+    ASSERT_NE(nullptr, f);
 
     auto check_version = [](const std::shared_ptr<ov::Function>& f) {
         auto& rt_info = f->get_rt_info();
@@ -388,7 +410,7 @@ TEST(RTInfoDeserialization, InputAndOutputV11) {
     check_fused_names(add->output(0).get_rt_info(), "test4,test5");
 }
 
-TEST(RTInfoDeserialization, IndexesInputAndOutputV11) {
+TEST_F(RTInfoDeserialization, IndexesInputAndOutputV11) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
     <layers>
@@ -486,9 +508,8 @@ TEST(RTInfoDeserialization, IndexesInputAndOutputV11) {
     </edges>
 </net>
 )V0G0N";
-    auto core = InferenceEngine::Core();
-    auto net = core.ReadNetwork(model, InferenceEngine::Blob::Ptr());
-    auto f = net.getFunction();
+    auto f = getWithIRFrontend(model);
+    ASSERT_NE(nullptr, f);
 
     auto check_version = [](const std::shared_ptr<ov::Function>& f) {
         auto& rt_info = f->get_rt_info();

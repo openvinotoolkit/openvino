@@ -399,6 +399,11 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
         }
     }
 
+    // need to remove information about IR version since it's needed only on read stage
+    if (is_ir) {
+        rt_info.erase(it);
+    }
+
     IE_SUPPRESS_DEPRECATED_START
     return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(function, exts, newAPI));
     IE_SUPPRESS_DEPRECATED_END
