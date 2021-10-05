@@ -183,6 +183,7 @@ public:
         nodes.push_back(A);
         nodes.push_back(B);
         nodes.push_back(C);
+        func->get_rt_info()["version"] = std::make_shared<VariantWrapper<int64_t>>(10);
     }
 
     bool CompareNodeVector(const std::vector<std::shared_ptr<ngraph::Node>>& orig,
@@ -234,6 +235,11 @@ TEST_F(CloneTest, clone_nodes_partial) {
 TEST_F(CloneTest, clone_function_full) {
     auto cloned_func = clone_function(*func, node_map);
     ASSERT_TRUE(CompareNodeVector(func->get_ops(), cloned_func->get_ops(), node_map));
+    ASSERT_EQ(cloned_func->get_rt_info().size(), func->get_rt_info().size());
+    ASSERT_TRUE(cloned_func->get_rt_info().count("version"));
+    auto ver = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(cloned_func->get_rt_info().at("version"));
+    ASSERT_NE(nullptr, ver);
+    ASSERT_EQ(10, ver->get());
 }
 
 TEST(graph_util, clone_multiple_results) {
