@@ -42,7 +42,6 @@ set(SRC
     float16.cpp
     function.cpp
     graph_rewrite.cpp
-    includes.cpp
     input_output_assign.cpp
     int4.cpp
     intervals.cpp
@@ -382,14 +381,7 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
                                 PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
 endif()
 
-set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
-    NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
-
 list(APPEND UNIT_TESTS_DEPENDENCIES template_ov_extension)
-target_compile_definitions(unit-test
-    PRIVATE
-        SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
-        SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
 
 if (ENABLE_MKL_DNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
@@ -614,8 +606,10 @@ target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime
 get_target_property(NGRAPH_SRC_DIR openvino::core SOURCE_DIR)
 target_include_directories(unit-test PRIVATE ${NGRAPH_SRC_DIR}/src)
 
-add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
-add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")
+target_compile_definitions(unit-test
+    PRIVATE
+        SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
+        SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 if(UNIT_TESTS_DEPENDENCIES)
     add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
