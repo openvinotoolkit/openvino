@@ -56,7 +56,7 @@ The tool finds one input node with name `input`, type `float32`, fixed image siz
 Step 4. Convert the model with the Model Optimizer:
 
 ```sh
-<MODEL_OPTIMIZER_INSTALL_DIR>/mo_tf.py --input_model ./inception_v1_inference_graph.pb --input_checkpoint ./inception_v1.ckpt -b 1 --mean_value [127.5,127.5,127.5] --scale 127.5
+<MODEL_OPTIMIZER_INSTALL_DIR>/mo --input_model ./inception_v1_inference_graph.pb --input_checkpoint ./inception_v1.ckpt -b 1 --mean_value [127.5,127.5,127.5] --scale 127.5
 ```
 
 The `-b` command line parameter is required because the Model Optimizer cannot convert a model with undefined input size.

@@ -6,7 +6,7 @@ These instructions are applicable only to the [Mask R-CNN model](https://onnxzoo
 
 **Step 2**. To generate the Intermediate Representation (IR) of the model, change your current working directory to the Model Optimizer installation directory and run the Model Optimizer with the following parameters:
 ```sh
-python3 ./mo_onnx.py
+ mo
 --input_model mask_rcnn_R_50_FPN_1x.onnx \
 --input "0:2" \
 --input_shape [1,3,800,800] \

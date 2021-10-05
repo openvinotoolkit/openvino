@@ -350,15 +350,15 @@ The specified input shape cannot be parsed. Please, define it in one of the foll
 
 *   
 ```shell
-python3 mo.py --input_model <INPUT_MODEL>.caffemodel --input_shape (1,3,227,227)
+ mo --input_model <INPUT_MODEL>.caffemodel --input_shape (1,3,227,227)
 ```
 *
 ```shell
-python3 mo.py --input_model <INPUT_MODEL>.caffemodel --input_shape [1,3,227,227]
+ mo --input_model <INPUT_MODEL>.caffemodel --input_shape [1,3,227,227]
 ```
 *   In case of multi input topology you should also specify inputs:
 ```shell
-python3 mo.py --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),(1,6,1,1)
+ mo --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),(1,6,1,1)
 ```
 
 Keep in mind that there is no space between and inside the brackets for input shapes.

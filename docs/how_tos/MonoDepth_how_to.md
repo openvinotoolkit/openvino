@@ -3,7 +3,7 @@
 This tutorial describes the example from the following YouTube* video:
 ///
 
-To learn more about how to run the MonoDepth Python* demo application, refer to the [documentation](https://docs.openvinotoolkit.org/latest/omz_demos_monodepth_demo_python.html).
+To learn more about how to run the MonoDepth Python* demo application, refer to the [documentation](https://docs.openvinotoolkit.org/latest/omz_demos_monodepth_demothon.html).
 
 Tested on OpenVINO™ 2021, Ubuntu 18.04.
 
@@ -61,7 +61,7 @@ Install required Python modules, for example, kiwisolver or cycler, if you get m
 
 Use your input image:
 ```
-python3 $OV/inference_engine/demos/python_demos/monodepth_demo/monodepth_demo.py -m $WD/public/midasnet/FP32/midasnet.xml -i input-image.jpg
+python3 $OV/inference_engine/demos/python_demos/monodepth_demo/monodepth_demo -m $WD/public/midasnet/FP32/midasnet.xml -i input-image.jpg
 ```
 Check the result depth image:
 ```

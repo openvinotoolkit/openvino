@@ -163,7 +163,7 @@ python3 eval.py \
 **Step 4**. Convert the model to the IR:
 
 ```sh
-python path/to/model_optimizer/mo.py --input_model /path/to/yolact.onnx
+python path/to/model_optimizer/mo --input_model /path/to/yolact.onnx
 ```
 
 **Step 4**. Embed input preprocessing into the IR:
@@ -173,7 +173,7 @@ To get performance gain by offloading to the OpenVINO application of mean/scale 
 * If the backbone of the model is Resnet50-FPN or Resnet101-FPN, use the following MO command line:
 
 ```sh
-python path/to/model_optimizer/mo.py \
+python path/to/model_optimizer/mo \
     --input_model /path/to/yolact.onnx \
     --reverse_input_channels \
     --mean_values "[123.68, 116.78, 103.94]" \
@@ -183,7 +183,7 @@ python path/to/model_optimizer/mo.py \
 * If the backbone of the model is Darknet53-FPN, use the following MO command line:
 
 ```sh
-python path/to/model_optimizer/mo.py \
+python path/to/model_optimizer/mo \
     --input_model /path/to/yolact.onnx \
     --reverse_input_channels \
     --scale 255

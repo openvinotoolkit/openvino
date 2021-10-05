@@ -147,7 +147,7 @@ The Model Optimizer is a key component of the IntelÂ® Distribution of OpenVINOâ„
 
 The Inference Engine reads, loads, and infers the IR files, using a common API across the CPU, GPU, or VPU hardware.  
 
-The Model Optimizer is a Python*-based command line tool (`mo.py`), which is located in `C:\Program Files (x86)\Intel\openvino_2022\tools\model_optimizer`. Use this tool on models trained with popular deep learning frameworks such as Caffe\*, TensorFlow\*, MXNet\*, and ONNX\* to convert them to an optimized IR format that the Inference Engine can use.
+The Model Optimizer is a Python*-based command line tool (`mo`), which is located in `C:\Program Files (x86)\Intel\openvino_2022\tools\model_optimizer`. Use this tool on models trained with popular deep learning frameworks such as Caffe\*, TensorFlow\*, MXNet\*, and ONNX\* to convert them to an optimized IR format that the Inference Engine can use.
 
 This section explains how to use scripts to configure the Model Optimizer either for all of the supported frameworks at the same time or for individual frameworks. If you want to manually configure the Model Optimizer instead of using scripts, see the **Using Manual Configuration Process** section on the [Configuring the Model Optimizer](../MO_DG/prepare_model/Config_Model_Optimizer.md) page.
 

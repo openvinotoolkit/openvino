@@ -37,7 +37,7 @@ python converter.py
 
 > **NOTE:** Before you run the convertion, make sure you have installed all the Model Optimizer dependencies for TensorFlow 2.
 ```sh
-python mo.py --saved_model_dir yolov4 --output_dir models/IRs --input_shape [1,608,608,3] --model_name yolov4 
+ mo --saved_model_dir yolov4 --output_dir models/IRs --input_shape [1,608,608,3] --model_name yolov4 
 ```
 
 ## <a name="yolov3-to-ir"></a>Convert YOLOv3 Model to IR
@@ -124,7 +124,7 @@ where:
 
 To generate an IR of the YOLOv3 TensorFlow model, run:<br>
 ```sh
-python3 mo_tf.py                                                   \
+ mo                                                   \
 --input_model /path/to/yolo_v3.pb                                  \
 --transformations_config $MO_ROOT/extensions/front/tf/yolo_v3.json \
 --batch 1                                                          \
@@ -133,7 +133,7 @@ python3 mo_tf.py                                                   \
 
 To generate an IR of the YOLOv3-tiny TensorFlow model, run:<br>
 ```sh
-python3 mo_tf.py                                                        \
+ mo                                                        \
 --input_model /path/to/yolo_v3_tiny.pb                                  \
 --transformations_config $MO_ROOT/extensions/front/tf/yolo_v3_tiny.json \
 --batch 1                                                               \
@@ -213,7 +213,7 @@ create another configuration file with custom operations and use it for conversi
 
 To generate the IR of the YOLOv1 model, provide TensorFlow YOLOv1 or YOLOv2 model to the Model Optimizer with the following parameters:<br>
 ```sh
-python3 ./mo_tf.py
+ mo
 --input_model <path_to_model>/<model_name>.pb       \
 --batch 1                                       \
 --scale 255 \
