@@ -4,28 +4,22 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <tuple>
-
+#include "openvino/op/sign.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 
 struct SignParams {
     template <class IT, class OT>
     SignParams(const PartialShape& shape, const element::Type& iType, const element::Type& oType, const std::vector<IT>& iValues,
                   const std::vector<OT>& oValues)
-        : pshape(shape), inType(iType), outType(oType), inputData(CreateBlob(iType, iValues)), refData(CreateBlob(oType, oValues)) {}
+        : pshape(shape), inType(iType), outType(oType), inputData(CreateTensor(iType, iValues)), refData(CreateTensor(oType, oValues)) {}
     PartialShape pshape;
     element::Type inType;
     element::Type outType;
-    Blob::Ptr inputData;
-    Blob::Ptr refData;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
 };
 
 class ReferenceSignLayerTest : public testing::TestWithParam<SignParams>, public CommonReferenceTest {
@@ -47,9 +41,9 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
-        const auto sign = std::make_shared<op::Sign>(in);
-        return std::make_shared<Function>(NodeVector {sign}, ParameterVector {in});
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        const auto sign = std::make_shared<op::v0::Sign>(in);
+        return std::make_shared<ov::Function>(NodeVector {sign}, ParameterVector {in});
     }
 };
 

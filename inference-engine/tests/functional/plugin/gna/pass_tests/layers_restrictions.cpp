@@ -75,6 +75,7 @@ protected:
         InferenceEngine::Precision netPrecision;
         std::tie(netPrecision, configuration, targetDevice) = this->GetParam();
         function = T::createTopology(netPrecision);
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 
