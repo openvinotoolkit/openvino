@@ -24,23 +24,23 @@ TEST(attributes, convolution) {
     auto pads_begin = CoordinateDiff{1, 2};
     auto pads_end = CoordinateDiff{1, 2};
     auto dilations = Strides{1, 1};
-    auto convolution = make_shared<opset1::ConvolutionBackpropData>(data,
-                                                                    filters,
-                                                                    strides,
-                                                                    pads_begin,
-                                                                    pads_end,
-                                                                    dilations,
-                                                                    op::PadType::VALID);
-    NodeBuilder builder(convolution);
+    auto f_convolution = make_shared<opset1::Convolution>(data,
+                                                          filters,
+                                                          strides,
+                                                          pads_begin,
+                                                          pads_end,
+                                                          dilations,
+                                                          op::PadType::VALID);
+    NodeBuilder builder(f_convolution);
     auto g_convolution = ov::as_type_ptr<opset1::Convolution>(builder.create());
 
     // attribute count
     const auto expected_attr_count = 5;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
-    EXPECT_EQ(g_convolution->get_strides(), convolution->get_strides());
-    EXPECT_EQ(g_convolution->get_pads_begin(), convolution->get_pads_begin());
-    EXPECT_EQ(g_convolution->get_pads_end(), convolution->get_pads_end());
-    EXPECT_EQ(g_convolution->get_dilations(), convolution->get_dilations());
-    EXPECT_EQ(g_convolution->get_auto_pad(), convolution->get_auto_pad());
+    EXPECT_EQ(g_convolution->get_strides(), f_convolution->get_strides());
+    EXPECT_EQ(g_convolution->get_pads_begin(), f_convolution->get_pads_begin());
+    EXPECT_EQ(g_convolution->get_pads_end(), f_convolution->get_pads_end());
+    EXPECT_EQ(g_convolution->get_dilations(), f_convolution->get_dilations());
+    EXPECT_EQ(g_convolution->get_auto_pad(), f_convolution->get_auto_pad());
 }
