@@ -21,7 +21,6 @@ TEST(RTInfoDeserialization, NodeV10) {
             <data element_type="f32" shape="1,3,22,22"/>
             <rt_info>
                 <attribute name="fused_names" version="0" value="in1"/>
-                <attribute name="old_api_map" version="0" order="0,2,3,1" element_type="f32"/>
             </rt_info>
             <output>
                 <port id="0" precision="FP32">
@@ -207,6 +206,7 @@ TEST(RTInfoDeserialization, NodeV11) {
             <data element_type="f32" shape="1,3,22,22"/>
             <rt_info>
                 <attribute name="fused_names" version="0" value="in1"/>
+                <attribute name="old_api_map" version="0" order="0,2,3,1" element_type="f32"/>
             </rt_info>
             <output>
                 <port id="0" precision="FP32">
