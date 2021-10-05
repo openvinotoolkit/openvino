@@ -135,7 +135,7 @@ TEST_F(RTInfoSerializationTest, all_attributes_v11) {
     }
 
     pass::Manager m;
-    m.register_pass<pass::Serialize>(m_out_xml_path, m_out_bin_path, pass::Serialize::Version::IR_V11);
+    m.register_pass<pass::Serialize>(m_out_xml_path, m_out_bin_path);
     m.run_passes(function);
 
     auto core = InferenceEngine::Core();
@@ -195,18 +195,12 @@ TEST_F(RTInfoSerializationTest, parameter_result_v11) {
     auto net = core.ReadNetwork(m_out_xml_path, m_out_bin_path);
     auto f = net.getFunction();
 
-    auto check_info = [](const RTMap & info, size_t index) {
-        const std::string & pkey = ov::IndexWrapper::get_type_info_static();
-        ASSERT_TRUE(info.count(pkey));
-        auto index_attr = std::dynamic_pointer_cast<ov::IndexWrapper>(info.at(pkey));
-        ASSERT_TRUE(index_attr);
-        ASSERT_EQ(index_attr->get(), index);
-    };
-
+    ASSERT_EQ(function->get_results().size(), f->get_results().size());
+    ASSERT_EQ(function->get_parameters().size(), f->get_parameters().size());
     for (size_t i = 0; i < f->get_parameters().size(); i++) {
-        check_info(f->get_parameters()[i]->get_rt_info(), i);
+        ASSERT_EQ(function->get_parameters()[i]->get_friendly_name(), f->get_parameters()[i]->get_friendly_name());
     }
     for (size_t i = 0; i < f->get_results().size(); i++) {
-        check_info(f->get_results()[i]->get_rt_info(), i);
+        ASSERT_EQ(function->get_results()[i]->get_friendly_name(), f->get_results()[i]->get_friendly_name());
     }
 }

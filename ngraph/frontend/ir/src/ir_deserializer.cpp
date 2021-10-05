@@ -500,48 +500,11 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(const pugi::xm
         func_nodes.all.emplace_back(node);
     }
 
-    // Restore the order of results and parameters
-    ngraph::ParameterVector parameters(func_nodes.parameters.size());
-    enum { undefined, index, no_index } status = undefined;
-    const std::string index_key = ov::IndexWrapper::get_type_info_static();
-    for (size_t i = 0; i < func_nodes.parameters.size(); i++) {
-        const auto& rt_info = func_nodes.parameters[i]->get_rt_info();
-        if (rt_info.count(index_key)) {
-            if (status == no_index)
-                throw ov::Exception("Incorrect IR! Some parameters have undefined indexes.");
-            const auto var_index = std::dynamic_pointer_cast<ov::IndexWrapper>(rt_info.at(index_key));
-            parameters[var_index->get()] = func_nodes.parameters[i];
-            status = index;
-        } else {
-            if (status == index)
-                throw ov::Exception("Incorrect IR! Some parameters have undefined indexes.");
-            parameters[i] = func_nodes.parameters[i];
-            status = no_index;
-        }
-    }
-    status = undefined;
-    ngraph::ResultVector results(func_nodes.results.size());
-    for (size_t i = 0; i < func_nodes.results.size(); i++) {
-        const auto& rt_info = func_nodes.results[i]->get_rt_info();
-        if (rt_info.count(index_key)) {
-            if (status == no_index)
-                throw ov::Exception("Incorrect IR! Some results have undefined indexes.");
-            const auto var_index = std::dynamic_pointer_cast<ov::IndexWrapper>(rt_info.at(index_key));
-            results[var_index->get()] = func_nodes.results[i];
-            status = index;
-        } else {
-            if (status == index)
-                throw ov::Exception("Incorrect IR! Some results have undefined indexes.");
-            results[i] = func_nodes.results[i];
-            status = no_index;
-        }
-    }
-
     // OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "ConstructNgraphFunction");
 
-    auto function = std::make_shared<ngraph::Function>(results,
+    auto function = std::make_shared<ngraph::Function>(func_nodes.results,
                                                        func_nodes.sinks,
-                                                       parameters,
+                                                       func_nodes.parameters,
                                                        XMLParseUtils::GetStrAttr(root, "name", ""));
     for (const auto& sink : func_nodes.sinks) {
         if (const auto& assign = std::dynamic_pointer_cast<ngraph::op::AssignBase>(sink)) {
