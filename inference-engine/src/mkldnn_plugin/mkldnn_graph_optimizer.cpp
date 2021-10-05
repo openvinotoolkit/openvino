@@ -1880,25 +1880,38 @@ void MKLDNNGraphOptimizer::reshapeRnnSeq(MKLDNNGraph &graph) {
         }
 
         auto childrenEdges = parentNode->getChildEdgesAtPort(0);
+        const auto &origShape = parentNode->getOutputShapeAtPort(0);
+        const auto &origMinDims = origShape.getMinDims();
+        const auto &origMaxDims = origShape.getMaxDims();
+        std::vector<ov::Dimension> newDims;
+        for (size_t i = 0; i < origMinDims.size(); i++) {
+            if (i == 1) {
+                continue;
+            }
+            newDims.emplace_back(origMinDims[i], origMaxDims[i]);
+        }
+        const auto newShape = Shape(ov::PartialShape(newDims));
+        parentNode->outputShapes[0] = newShape;
 
         for (size_t i = 0; i < childrenEdges.size(); i++) {
             auto edge = childrenEdges[i];
             auto childNode = edge->getChild();
 
             const auto secondInput = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ngraph::Shape{1}, std::vector<int>{1});
-            const auto squeeze = std::make_shared<ngraph::opset1::Squeeze>(
+            const auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze>(
                 std::make_shared<ngraph::opset1::Parameter>(details::convertPrecision(parentNode->getOriginalOutputPrecisionAtPort(0)),
                                                             parentNode->getOutputShapeAtPort(0).toPartialShape()), secondInput);
-            squeeze->set_friendly_name(parentNode->getName() + "_a1bc_abc_" + std::to_string(i));
+            unsqueeze->set_friendly_name(parentNode->getName() + "_abc_a1bc_" + std::to_string(i));
 
-            const auto cpuSqueeze = std::make_shared<MKLDNNReshapeNode>(squeeze, graph.getEngine(), graph.weightsCache);
+            const auto cpuUnsqueeze = std::make_shared<MKLDNNReshapeNode>(unsqueeze, graph.getEngine(), graph.weightsCache);
+            graph.InsertNode(parentNode, childNode, cpuUnsqueeze, edge->getInputNum(), edge->getOutputNum(), false);
+
             const auto cpuConstant = std::make_shared<MKLDNNInputNode>(secondInput, graph.getEngine(), graph.weightsCache);
-            MKLDNNEdgePtr newEdge(new MKLDNNEdge(cpuConstant, cpuSqueeze, 0, 1));
+            MKLDNNEdgePtr newEdge(new MKLDNNEdge(cpuConstant, cpuUnsqueeze, 0, 1));
+            cpuUnsqueeze->addEdge(newEdge);
             auto &graphEdges = graph.GetEdges();
             graphEdges.push_back(newEdge);
             graphNodes.push_back(cpuConstant);
-
-            graph.InsertNode(parentNode, childNode, cpuSqueeze, edge->getInputNum(), edge->getOutputNum(), false);
 
             edge->drop();
             graph.RemoveEdge(edge);
