@@ -6,10 +6,11 @@ cmake_minimum_required (VERSION 3.13)
 
 project(OpenVINOPython DESCRIPTION "OpenVINO Runtime Python bindings")
 
+add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
+
 set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
-add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
-add_subdirectory(src/compatibility)
+add_subdirectory(src)
 
 if(NGRAPH_UNIT_TEST_ENABLE)
     add_subdirectory(tests/mock/mock_py_ngraph_frontend)
