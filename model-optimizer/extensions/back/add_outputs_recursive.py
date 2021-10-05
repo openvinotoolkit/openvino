@@ -84,7 +84,7 @@ class AddOutputRecursive(BackReplacementPattern):
     After if operation should be sub-list with 2 elements then_list and else_list where each is one node or list of
     nodes in according path
     """
-    enabled = True
+    enabled = False
     run_not_recursively = True
 
     @staticmethod
