@@ -655,6 +655,28 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
     check_fused_names(add->input(0).get_rt_info(), "test2,test3");
     check_fused_names(add->input(1).get_rt_info(), "test3,test4");
     check_fused_names(add->output(0).get_rt_info(), "test4,test5");
+
+    // read IR v11 with old API - the function is the same since no old_api_map is applied
+    {
+        InferenceEngine::Core core;
+        auto cnn = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
+        auto f_10 = cnn.getFunction();
+        ASSERT_NE(nullptr, f_10);
+
+        EXPECT_EQ(0, f_10->get_rt_info().count("version"));
+
+        // check that old api map is removed once applied
+        auto check_old_api_rt_info = [](const RTMap & info) {
+            const std::string & key = ov::OldApiMap::get_type_info_static();
+            EXPECT_FALSE(info.count(key));
+        };
+
+        check_old_api_rt_info(f_10->get_parameters()[0]->get_rt_info());
+        check_old_api_rt_info(f_10->get_result()->get_rt_info());
+
+        auto res = compare_functions(f, f_10);
+        EXPECT_TRUE(res.first) << res.second;
+    }
 }
 
 TEST_F(RTInfoDeserialization, IndexesInputAndOutputV11) {

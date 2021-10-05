@@ -333,16 +333,19 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                     networkLayout << old_api_transpose_args[i];
                 }
 
+                PreProcessSteps steps;
+                // TODO: remove explicit type
+                steps.convert_element_type(parameter->get_element_type());
+                // TODO: move steps directly to builder once we allow Layout() -> Layout transpose
+                if (!old_api_transpose_args.empty())
+                    steps.convert_layout();
+
                 prepost.input(ov::preprocess::InputInfo(i)
                                   .tensor(InputTensorInfo()
                                             .set_element_type(old_api_type)
                                             .set_layout(ov::Layout(tensorLayout.str()))
                                   )
-                                  .preprocess(PreProcessSteps()
-                                            // TODO: remove explicit type
-                                            .convert_element_type(parameter->get_element_type())
-                                            .convert_layout()
-                                  )
+                                  .preprocess(std::move(steps))
                                   .network(InputNetworkInfo()
                                             .set_layout(ov::Layout(networkLayout.str()))
                                   )

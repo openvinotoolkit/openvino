@@ -68,7 +68,11 @@ Layout Layout::scalar() {
 // 3. partial layout specialization "NC?"
 Layout::Layout(const std::string& layout_str) {
     auto layout = ngraph::trim(layout_str);
-    OPENVINO_ASSERT(layout.length() > 0, "Cannot parse ov::Layout from an empty string");
+    if (layout.length() == 0) {
+        m_dynamic = true;
+        m_left_size = m_right_size = 0;
+        return;
+    }
     if (layout == SCALAR) {
         m_scalar = true;
         m_dynamic = false;
