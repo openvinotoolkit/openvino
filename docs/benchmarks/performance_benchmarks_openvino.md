@@ -13,96 +13,34 @@ Measuring inference performance involves many variables and is extremely use-cas
 - **Efficiency** - System power is a key consideration from the edge to the data center. When selecting deep learning solutions, power efficiency (throughput/watt) is a critical factor to consider. Intel designs provide excellent power efficiency for running deep learning workloads.
 - **Latency** - This measures the synchronous execution of inference requests and is reported in milliseconds. Each inference request (for example: preprocess, infer, postprocess) is allowed to complete before the next is started. This performance metric is relevant in usage scenarios where a single image input needs to be acted upon as soon as possible. An example would be the healthcare sector where medical personnel only request analysis of a single ultra sound scanning image or in real-time or near real-time applications for example an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles. 
 
+@sphinxdirective
+.. raw:: html
 
-\htmlonly
-<!-- these CDN links and scripts are required.  Add them to the <head> of your website -->
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;600;700;900&display=swap" rel="stylesheet" type="text/css">
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" type="text/css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/0.5.7/chartjs-plugin-annotation.min.js"></script> 
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-barchart-background@1.3.0/build/Plugin.Barchart.Background.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-deferred@1"></script>
-<!-- download this file and place on your server (or include the styles inline) -->
-<link rel="stylesheet" href="ovgraphs.css" type="text/css">
-\endhtmlonly
+    <div class="chart-block" data-loadcsv="csv/bert-large-uncased-whole-word-masking-squad-int8-0001-384.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/brain-tumor-segmentation-0001-MXNET-128x128x128.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/brain-tumor-segmentation-0002-CF2-128x128x128.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/deeplabv3-TF-513x513.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/densenet-121-TF-224x224.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/facenet-20180408-102900-TF-160x160.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/faster_rcnn_resnet50_coco-TF-600x1024.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/googlenet-v1-TF-224x224.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/mobilenet-ssd-CF-300x300.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/mobilenet-v1-1.0-224-TF-224x224.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/mobilenet-v2-1.0-224-TF-224x224.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/mobilenet-v2-pytorch-224x224.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/resnet-18-pytorch-224x224.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/resnet-50-PYTORCH-224x224.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/resnet-50-TF.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/se-resnext-50-CF-224x224.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/squeezenet1.1-CF-227x227.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/ssd300-CF-300x300.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/ssdlite_mobilenet_v2-TF-300x300.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/ssd_mobilenet_v1_coco-TF-300x300.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/unet-camvid-onnx-0001-368x480.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/yolo_v3-TF.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/yolo_v4-tf-608x608.csv"></div>
 
-
-\htmlonly
-<script src="bert-large-uncased-whole-word-masking-squad-int8-0001-384-ov-2021-4-569.js" id="bert-large-uncased-whole-word-masking-squad-int8-0001-384-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="deeplabv3-tf-513x513-ov-2021-4-569.js" id="deeplabv3-tf-513x513-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="densenet-121-tf-224x224-ov-2021-4-569.js" id="densenet-121-tf-224x224-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="faster-rcnn-resnet50-coco-tf-600x1024-ov-2021-4-569.js" id="faster-rcnn-resnet50-coco-tf-600x1024-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="inception-v3-tf-299x299-ov-2021-4-569.js" id="inception-v3-tf-299x299-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="inception-v4-tf-299x299-ov-2021-4-569.js" id="inception-v4-tf-299x299-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="mobilenet-ssd-cf-300x300-ov-2021-4-569.js" id="mobilenet-ssd-cf-300x300-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="mobilenet-v2-pytorch-224x224-ov-2021-4-569.js" id="mobilenet-v2-pytorch-224x224-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="resnet-18-pytorch-224x224-ov-2021-4-569.js" id="resnet-18-pytorch-224x224-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="resnet-50-tf-224x224-ov-2021-4-569.js" id="resnet-50-tf-224x224-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="se-resnext-50-cf-224x224-ov-2021-4-569.js" id="se-resnext-50-cf-224x224-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="squeezenet1-1-cf-227x227-ov-2021-4-569.js" id="squeezenet1-1-cf-227x227-ov-2021-4-569"></script>
-\endhtmlonly
-
-
-\htmlonly
-<script src="ssd300-cf-300x300-ov-2021-4-569.js" id="ssd300-cf-300x300-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="yolo-v3-tiny-tf-416x416-ov-2021-4-569.js" id="yolo-v3-tiny-tf-416x416-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="yolo-v4-tf-608x608-ov-2021-4-569.js" id="yolo-v4-tf-608x608-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="unet-camvid-onnx-0001-368x480-ov-2021-4-569.js" id="unet-camvid-onnx-0001-368x480-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="ssd-resnet34-1200-onnx-1200x1200-ov-2021-4-569.js" id="ssd-resnet34-1200-onnx-1200x1200-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="vgg19-caffe-224x224-ov-2021-4-569.js" id="vgg19-caffe-224x224-ov-2021-4-569"></script>
-\endhtmlonly
-
-
-
+@endsphinxdirective
 
 ## Platform Configurations
 

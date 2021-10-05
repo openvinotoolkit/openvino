@@ -9,36 +9,21 @@ $(document).ready(function() {
     initViewerJS();
 });
 
-(function() {
-    var prevScroll = 0;
-    $(window).scroll(function() {
-        var curScroll = $(this).scrollTop();
-        if (curScroll < prevScroll) {
-            showSwitcherPanel();
-        }
-        else {
-            hideSwitcherPanel();
-        }
-        prevScroll = curScroll;
-    });
-}());
-
 function initViewerJS() {
     try {
         var images =$('main img[src*="_images"]');
-        new Viewer(images);
+        images.each(function() {
+            try{
+                new Viewer($(this).get(0));
+            }
+            catch (err) {
+                console.log(err);
+            }
+        });
     }
     catch(err) {
         console.log(err);
     }
-}
-
-function hideSwitcherPanel() {
-    $('.switcher-set').css('display', 'none');
-}
-
-function showSwitcherPanel() {
-    $('.switcher-set').css('display', 'flex');
 }
 
 function init_col_sections() {
@@ -71,6 +56,12 @@ function init_switchers() {
     var switcherAnchors = $('.switcher-anchor');
     var switcherPanel = $('<div></div>');
     switcherPanel.addClass('switcher-set');
+    switcherPanel.css('top', $('#navbar-main').height());
+    switcherPanel.css('left', $('main').offset().left);
+    switcherPanel.width($('main').width() +
+                        parseFloat($('main').css('padding-left')) +
+                        parseFloat($('main').css('padding-right')) +
+                        parseFloat($('.bd-toc').css('padding-left')));
     for (var i = 0; i < switcherAnchors.length; i++) {
         var anchor = $(switcherAnchors[i]);
         var option = $(anchor).text();
@@ -92,6 +83,6 @@ function init_switchers() {
         }
     }
 
-    $('main').append(switcherPanel);
+    $('main').prepend(switcherPanel);
     switcherAnchors.remove();
 }

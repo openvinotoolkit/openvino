@@ -12,6 +12,8 @@
 #
 import os
 import sys
+import shutil
+from sphinx.util import logging
 from sphinx.ext.autodoc import ClassDocumenter
 
 sys.path.insert(0, os.path.abspath('_themes'))
@@ -127,7 +129,13 @@ ClassDocumenter.add_line = add_line_no_base_object
 
 
 def setup(app):
+    logger = logging.getLogger(__name__)
     app.add_css_file('css/viewer.min.css')
     app.add_css_file('css/custom.css')
     app.add_js_file('js/viewer.min.js')
     app.add_js_file('js/custom.js')
+    app.add_js_file('js/graphs.js')
+    try:
+        shutil.copytree(os.path.join(app.srcdir, 'csv'), os.path.join(app.outdir, 'csv'), dirs_exist_ok=True)
+    except FileNotFoundError:
+        logger.warning('csv directory not found.')
