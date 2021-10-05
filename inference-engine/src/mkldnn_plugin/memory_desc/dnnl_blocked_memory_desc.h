@@ -69,6 +69,7 @@ private:
                           const VectorDims& strides = {});
 
     explicit DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc);
+    DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc, const Shape& shape);
 
     MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const override;
 
@@ -98,6 +99,7 @@ private:
     mkldnn::memory::format_tag getFormat() const;
 
     friend DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc);
+    friend std::shared_ptr<DnnlBlockedMemoryDesc> MKLDNNExtensionUtils::makeUndefinedDesc(const mkldnn::memory::desc &desc, const Shape& shape);
     friend class MemoryDescUtils;
 };
 

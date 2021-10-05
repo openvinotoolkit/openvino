@@ -73,6 +73,14 @@ public:
     static InferenceEngine::TensorDesc convertToTensorDesc(const MemoryDesc& desc);
 
     /**
+     * @brief Makes a dummy descriptor where all undefined values are replaced with the upper bound (if defined) or the parameter value
+     * @param desc MemoryDesc from which the new descriptor is generated
+     * @param dummyVal Dim value to replace undefined dimensions
+     * @return a new MemoryDesc with dummy values instead of undefined dims
+     */
+     static std::shared_ptr<MemoryDesc> makeDummyDesc(const MemoryDesc& desc, Dim dummyVal = 64);
+
+    /**
      * @brief Converts dim to string, undefined dim represented as ?
      * @param dim Dim to be converted
      * @return dim as string

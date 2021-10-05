@@ -17,10 +17,6 @@ using namespace InferenceEngine;
 
 bool MKLDNNSoftMaxNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         if (!std::dynamic_pointer_cast<const ngraph::opset1::Softmax>(op)) {
             errorMessage = "Only opset1 Softmax operation is supported";
             return false;
@@ -71,38 +67,11 @@ void MKLDNNSoftMaxNode::getSupportedDescriptors() {
 }
 
 void MKLDNNSoftMaxNode::createPrimitive() {
-    if (prim)
-        return;
-
-    auto in_candidate = getParentEdgeAt(0)->getMemory().GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-    MKLDNNDescriptor desc(std::shared_ptr<softmax_forward::desc>(
-            new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
-    descs[0] = desc;
-    std::shared_ptr<softmax_forward::desc> selected_desc_ptr = descs[0];
-
-    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
-
-    auto prim_desc = softmax_forward::primitive_desc(*selected_desc_ptr, getEngine());
-    primitive_desc_iterator itpd = descs[0].createPrimitiveDescriptorIterator(getEngine());
-
-    while (itpd) {
-        impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-        auto primitiveDescriptor = getSelectedPrimitiveDescriptor();
-        if ((primitiveDescriptor != nullptr) && (impl_type == primitiveDescriptor->getImplementationType())) {
-            prim_desc = itpd.get();
-            break;
-        }
-        if (!itpd.next_impl())
-            break;
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
     }
-
-    prim.reset(new softmax_forward(prim_desc));
-
-    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
 }
 
 bool MKLDNNSoftMaxNode::created() const {
@@ -136,10 +105,52 @@ void MKLDNNSoftMaxNode::initOptimalPrimitiveDescriptor() {
 
 void MKLDNNSoftMaxNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
                                          const std::vector<MemoryDescPtr> &outputDesc) {
-    auto in_candidate = MemoryDescUtils::convertToDnnlMemoryDesc(inputDesc[0])->getDnnlDesc();
+    auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
+    DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
+    auto in_candidate = definedInpMemDesc->getDnnlDesc();
 
     MKLDNNDescriptor desc(std::shared_ptr<softmax_forward::desc>(
             new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
     descs.push_back(desc);
 }
+
+void MKLDNNSoftMaxNode::prepareParams() {
+    auto inpDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<DnnlMemoryDesc>();
+    const auto& in_candidate = inpDesc->getDnnlDesc();
+    MKLDNNDescriptor desc(std::shared_ptr<softmax_forward::desc>(
+            new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
+
+    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
+
+    softmax_forward::primitive_desc prim_desc;
+    primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(getEngine());
+
+    while (itpd) {
+        impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+        if (impl_type == selected_pd->getImplementationType() ||
+            (ref_any == selected_pd->getImplementationType() && (impl_type & jit))) {
+            prim_desc = itpd.get();
+            break;
+        }
+        if (!itpd.next_impl())
+            IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+    }
+
+    prim.reset(new softmax_forward(prim_desc));
+
+    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
+}
+
+void MKLDNNSoftMaxNode::executeDynamicImpl(dnnl::stream strm) {
+    MKLDNNNode::execute(strm);
+}
+
+std::vector<VectorDims> MKLDNNSoftMaxNode::shapeInfer() const {
+    return {getParentEdgesAtPort(0).front()->getMemory().getStaticDims()};
+}
+
 REG_MKLDNN_PRIM_FOR(MKLDNNSoftMaxNode, Softmax);

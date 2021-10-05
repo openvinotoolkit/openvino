@@ -9,8 +9,10 @@ using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
+using ShapesDefenition = std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>;
+
 struct SoftMaxConfig {
-    InferenceEngine::SizeVector  inputShape;
+    ShapesDefenition  inputShapes;
     size_t axis;
 };
 
@@ -33,7 +35,20 @@ public:
 
         std::ostringstream result;
         result << "netPRC=" << netPrecision.name() << "_";
-        result << "IS=" << CommonTestUtils::vec2str(config.inputShape) << "_";
+        if (!config.inputShapes.first.empty()) {
+            result << "IS=" << CommonTestUtils::partialShape2str(config.inputShapes.first) << "_";
+        }
+        result << "TS=";
+        for (const auto& shape : config.inputShapes.second) {
+            result << "(";
+            if (!shape.empty()) {
+                auto itr = shape.begin();
+                do {
+                    result << CommonTestUtils::vec2str(*itr);
+                } while (++itr != shape.end() && result << "_");
+            }
+            result << ")_";
+        }
         result << "axis=" << config.axis << "_";
         result << "trgDev=" << targetDevice;
         result << CPUTestsBase::getTestCaseName(cpuParams);
@@ -59,7 +74,12 @@ protected:
 
         const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {config.inputShape});
+        targetStaticShapes = config.inputShapes.second;
+        inputDynamicShapes = config.inputShapes.first;
+
+        auto inputShape = targetStaticShapes.front().front();
+
+        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
         const auto paramOuts =
                 ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
@@ -81,44 +101,56 @@ namespace {
 //not optimized cpu spec
 const auto notOptimizedCPUSpec = CPUSpecificParams{{}, {}, {}, "ref_any"};
 
-const std::vector<SoftMaxConfig> optimizedConfigsFP32 {
-        {InferenceEngine::SizeVector{1, 100}, 1},
-        {InferenceEngine::SizeVector{10, 10}, 1},
-        {InferenceEngine::SizeVector{100, 1}, 0},
-        {InferenceEngine::SizeVector{100, 1}, 1},
-        {InferenceEngine::SizeVector{5, 5, 1}, 1},
-        {InferenceEngine::SizeVector{5, 5, 5}, 2},
-        {InferenceEngine::SizeVector{5, 5, 5, 5}, 0},
-        {InferenceEngine::SizeVector{5, 5, 1, 1}, 1},
-        {InferenceEngine::SizeVector{5, 5, 5, 5}, 1},
-        {InferenceEngine::SizeVector{5, 5, 5, 1}, 2},
-        {InferenceEngine::SizeVector{5, 5, 5, 5}, 2},
-        {InferenceEngine::SizeVector{5, 5, 5, 5}, 3},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 0},
-        {InferenceEngine::SizeVector{5, 5, 1, 1, 1}, 1},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 1},
-        {InferenceEngine::SizeVector{5, 5, 5, 1, 1}, 2},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 2},
-        {InferenceEngine::SizeVector{5, 5, 5, 1, 1}, 3},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 3},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 1}, 4},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 4},
+const std::vector<SoftMaxConfig> optimizedConfigsFP32 = {
+        //Static shapes
+        {ShapesDefenition{{}, {{{1, 100}}}}, 1},
+        {ShapesDefenition{{}, {{{10, 10}}}}, 1},
+        {ShapesDefenition{{}, {{{100, 1}}}}, 0},
+        {ShapesDefenition{{}, {{{100, 1}}}}, 1},
+        {ShapesDefenition{{}, {{{5, 5, 1}}}}, 1},
+        {ShapesDefenition{{}, {{{5, 5, 5}}}}, 2},
+        {ShapesDefenition{{}, {{{5, 5, 5, 5}}}}, 0},
+        {ShapesDefenition{{}, {{{5, 5, 1, 1}}}}, 1},
+        {ShapesDefenition{{}, {{{5, 5, 5, 5}}}}, 1},
+        {ShapesDefenition{{}, {{{5, 5, 5, 1}}}}, 2},
+        {ShapesDefenition{{}, {{{5, 5, 5, 5}}}}, 2},
+        {ShapesDefenition{{}, {{{5, 5, 5, 5}}}}, 3},
+        {ShapesDefenition{{}, {{{5, 5, 5, 5, 5}}}}, 0},
+        {ShapesDefenition{{}, {{{5, 5, 1, 1, 1}}}}, 1},
+        {ShapesDefenition{{}, {{{5, 5, 5, 5, 5}}}}, 1},
+        {ShapesDefenition{{}, {{{5, 5, 5, 1, 1}}}}, 2},
+        {ShapesDefenition{{}, {{{5, 5, 5, 5, 5}}}}, 2},
+        {ShapesDefenition{{}, {{{5, 5, 5, 1, 1}}}}, 3},
+        {ShapesDefenition{{}, {{{5, 5, 5, 5, 5}}}}, 3},
+        {ShapesDefenition{{}, {{{5, 5, 5, 5, 1}}}}, 4},
+        {ShapesDefenition{{}, {{{5, 5, 5, 5, 5}}}}, 4},
+        //Dynamic shapes
+        {ShapesDefenition{{{-1, -1}}, {{{10, 10}}, {{15, 15}}, {{10, 5}}}}, 1},
+        {ShapesDefenition{{{{1, 100}, {1, 100}}}, {{{10, 10}}, {{15, 15}}, {{10, 5}}}}, 1},
+        {ShapesDefenition{{{-1, -1, 1, 1, 1}}, {{{5, 5, 1, 1, 1}}, {{10, 7, 1, 1, 1}}}}, 1},
 };
 
 const std::vector<SoftMaxConfig> notOptimizedConfigsFP32 {
-        {InferenceEngine::SizeVector{1, 100}, 0},
-        {InferenceEngine::SizeVector{10, 10}, 0},
-        {InferenceEngine::SizeVector{10, 10, 10}, 0},
-        {InferenceEngine::SizeVector{10, 10, 10}, 1},
+        //Static shapes
+        {ShapesDefenition{{}, {{{1, 100}}}}, 0},
+        {ShapesDefenition{{}, {{{10, 10}}}}, 0},
+        {ShapesDefenition{{}, {{{10, 10, 10}}}}, 0},
+        {ShapesDefenition{{}, {{{10, 10, 10}}}}, 1},
+        //Dynamic shapes
+        {ShapesDefenition{{{-1, -1}}, {{{10, 1}}, {{15, 15}}, {{10, 5}}}}, 0},
+        {ShapesDefenition{{{{1, 100}, {1, 100}, -1}}, {{{10, 10, 10}}, {{10, 10, 1}}, {{10, 5, 10}}}}, 1},
 };
 
 const std::vector<SoftMaxConfig> unsupportedConfigsFP32 {
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5, 5}, 0},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5, 5}, 1},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5, 5}, 2},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5, 5}, 3},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5, 5}, 4},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5, 5}, 5},
+        //Static shapes
+        {ShapesDefenition{{}, {{{5, 5, 5, 5, 5, 5}}}}, 0},
+        {ShapesDefenition{{}, {{{5, 5, 5, 5, 5, 5}}}}, 1},
+        {ShapesDefenition{{}, {{{5, 5, 5, 5, 5, 5}}}}, 2},
+        {ShapesDefenition{{}, {{{5, 5, 5, 5, 5, 5}}}}, 3},
+        {ShapesDefenition{{}, {{{5, 5, 5, 5, 5, 5}}}}, 4},
+        {ShapesDefenition{{}, {{{5, 5, 5, 5, 5, 5}}}}, 5},
+        //Dynamic shapes
+        {ShapesDefenition{{{-1, -1, -1, -1, -1, -1}}, {{{5, 5, 5, 5, 5, 5}}, {{7, 7, 7, 7, 7, 7}}}}, 4},
 };
 
 const auto OptimizedParams = testing::Combine(
