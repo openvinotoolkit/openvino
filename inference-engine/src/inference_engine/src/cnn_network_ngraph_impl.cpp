@@ -497,8 +497,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::Serialize>(xmlPath,
                                                        binPath,
-                                                       ngraph::pass::Serialize::Version::IR_V10,
-                                                       custom_opsets);
+                                                       custom_opsets,
+                                                       ngraph::pass::Serialize::Version::IR_V10);
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -521,8 +521,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::Serialize>(xmlBuf,
                                                        binBuf,
-                                                       ngraph::pass::Serialize::Version::IR_V10,
-                                                       custom_opsets);
+                                                       custom_opsets,
+                                                       ngraph::pass::Serialize::Version::IR_V10);
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -547,8 +547,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binB
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::Serialize>(xmlBuf,
                                                        binBuf,
-                                                       ngraph::pass::Serialize::Version::IR_V10,
-                                                       custom_opsets);
+                                                       custom_opsets,
+                                                       ngraph::pass::Serialize::Version::IR_V10);
         manager.run_passes(_ngraph_function);
 
         std::streambuf* pbuf = binBuf.rdbuf();
