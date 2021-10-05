@@ -51,6 +51,7 @@ void ConvolutionWIthIncorrectWeightsTransformation::SetUp() {
         param.fakeQuantizeOnWeights,
         param.fakeQuantizeOnData,
         param.isCorrect);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(ConvolutionWIthIncorrectWeightsTransformation, CompareWithRefImpl) {

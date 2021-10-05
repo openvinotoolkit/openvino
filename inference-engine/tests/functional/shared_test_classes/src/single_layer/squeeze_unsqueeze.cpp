@@ -49,5 +49,6 @@ void SqueezeUnsqueezeLayerTest::SetUp() {
 
     const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(op)};
     function = std::make_shared<ngraph::Function>(results, params, "Squeeze");
+    functionRefs = ngraph::clone_function(*function);
 }
 } // namespace LayerTestsDefinitions

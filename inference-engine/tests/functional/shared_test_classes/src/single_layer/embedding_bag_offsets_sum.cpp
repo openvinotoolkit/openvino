@@ -50,5 +50,6 @@ void EmbeddingBagOffsetsSumLayerTest::SetUp() {
                 ngPrc, ngIdxPrc, emb_table_node, indices, offsets, defaultIndex, withWeights, withDefIndex));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(embBag)};
     function = std::make_shared<ngraph::Function>(results, params, "embeddingBagOffsetsSum");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

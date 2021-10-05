@@ -50,6 +50,7 @@ void ConvolutionTransformation::SetUp() {
         // TODO: pass from test parameters
         param.fakeQuantizeOnData,
         param.fakeQuantizeOnWeights);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void ConvolutionTransformation::Run() {
