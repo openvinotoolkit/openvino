@@ -24,7 +24,6 @@ OutputVector matmul_integer(const Node& node) {
     const auto& B_zero_point =
         (inputs.size() > 3) ? inputs.at(3) : ngraph::op::Constant::create(ngraph::element::i32, {1}, {0});
 
-
     const auto& converted_A = std::make_shared<default_opset::Convert>(A, element::i32);
     const auto& converted_B = std::make_shared<default_opset::Convert>(B, element::i32);
 
@@ -33,25 +32,22 @@ OutputVector matmul_integer(const Node& node) {
 
     const auto& A_zero_point_rank = A_zero_point.get_partial_shape().rank();
 
+    Output<ngraph::Node> shifted_A;
     if (A_zero_point_rank.is_static() && A_zero_point_rank.get_length() == 1) {
         const auto& one_node = ngraph::op::Constant::create(ngraph::element::i32, {1}, {1});
         const auto& reshaped_A_zero_point =
             std::make_shared<default_opset::Unsqueeze>(converted_A_zero_point, one_node);
 
-        const auto& shifted_A = std::make_shared<default_opset::Subtract>(converted_A, reshaped_A_zero_point);
-        const auto& shifted_B = std::make_shared<default_opset::Subtract>(converted_B, converted_B_zero_point);
-
-        const auto& result = std::make_shared<default_opset::MatMul>(shifted_A, shifted_B);
-
-        return {result};
+        shifted_A = std::make_shared<default_opset::Subtract>(converted_A, reshaped_A_zero_point);
     } else {
-        const auto& shifted_A = std::make_shared<default_opset::Subtract>(converted_A, converted_A_zero_point);
-        const auto& shifted_B = std::make_shared<default_opset::Subtract>(converted_B, converted_B_zero_point);
-
-        const auto& result = std::make_shared<default_opset::MatMul>(shifted_A, shifted_B);
-
-        return {result};
+        shifted_A = std::make_shared<default_opset::Subtract>(converted_A, converted_A_zero_point);
     }
+
+    const auto& shifted_B = std::make_shared<default_opset::Subtract>(converted_B, converted_B_zero_point);
+
+    const auto& result = std::make_shared<default_opset::MatMul>(shifted_A, shifted_B);
+
+    return {result};
 }
 }  // namespace set_1
 }  // namespace op
