@@ -47,16 +47,14 @@ public:
      * @param[in]  order  Transpose order.
      * @param[in]  type  Legacy type.
      */
-    explicit OldApiMapAttr(std::vector<uint64_t> order, ngraph::element::Type type) {
-        m_order = std::move(order);
-        m_type = type;
-    }
+    explicit OldApiMapAttr(std::vector<uint64_t> order, ngraph::element::Type type)
+             : m_order(std::move(order)), m_type(type) {}
 
     /**
      * @brief Returns the transpose order that should be used for obtain a node with old API layout.
      * @return transpose order.
      */
-    std::vector<uint64_t> get_order() const {
+    const std::vector<uint64_t> & get_order() const {
         return m_order;
     }
 

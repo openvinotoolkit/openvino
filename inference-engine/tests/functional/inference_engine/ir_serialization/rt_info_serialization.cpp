@@ -74,16 +74,8 @@ TEST_F(RTInfoSerializationTest, all_attributes) {
         ASSERT_TRUE(info.count(old_api_map_key));
         auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
         ASSERT_TRUE(old_api_map_attr);
-
-        ov::OldApiMapAttr old_api_map_attr_val = old_api_map_attr->get();
-
-        std::vector<uint64_t> expected_order = {0, 2, 3, 1};
-        ASSERT_EQ(old_api_map_attr_val.get_order().size(), expected_order.size());
-        auto order = old_api_map_attr_val.get_order();
-        for (auto j = 0; j < old_api_map_attr_val.get_order().size(); ++j) {
-            ASSERT_EQ(order[j], expected_order[j]);
-        }
-
+        auto old_api_map_attr_val = old_api_map_attr->get();
+        ASSERT_EQ(old_api_map_attr_val.get_order(), std::vector<uint64_t>({0, 2, 3, 1}));
         ASSERT_EQ(old_api_map_attr_val.get_type(), ngraph::element::Type_t::f32);
     };
 
