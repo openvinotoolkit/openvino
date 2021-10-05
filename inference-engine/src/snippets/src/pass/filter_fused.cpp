@@ -17,6 +17,7 @@ namespace {
 bool hasFusedParent(std::shared_ptr<Node> node, SnippetsNodeType& FusedChainType) {
     // todo: what if a node has > 1 parents with different fusing types?
     const std::vector<SnippetsNodeType> supportedFusingTypes = {SnippetsNodeType::FusedWithConvolution,
+                                                                SnippetsNodeType::FusedWithConvolutionSumActivation,
                                                                 SnippetsNodeType::FusedWithMisc};
     for (const auto& input : node->inputs()) {
         const auto parent = input.get_source_output().get_node_shared_ptr();
@@ -136,15 +137,25 @@ bool isSuitableChildForFusingSimple(std::shared_ptr<Node> node) {
         return false;
     return (getNumNonConstInputs(node) == 1);
 }
-bool isSuitableChildForFusingSumActivation(std::shared_ptr<Node> node) {
+bool isSuitableParentForFusingSumActivation(std::shared_ptr<Node> node) {
     if (dynamic_cast<const ngraph::op::v1::Add *>(node.get()) == nullptr)
         return false;
-    int num_non_const_inputs = 0;
+    int num_conv_parents = 0;
     for (size_t i = 0; i < node->get_input_size(); i++) {
-        if (!ngraph::op::is_constant(node->get_input_node_shared_ptr(i)))
-            num_non_const_inputs++;
+        num_conv_parents += isSuitableConvolutionParent(node->get_input_node_shared_ptr(i));
     }
-    return (getNumNonConstInputs(node) == 2);
+    const auto out = node->outputs();
+    // Add always has one child, but the child should also have only one parent
+    const bool has_only_child = (out[0].get_target_inputs().size() == 1);
+    return getNumNonConstInputs(node) == 2 && has_only_child;
+}
+bool isSuitableChildForFusingSumActivation(std::shared_ptr<Node> node) {
+    if ( !SupportsFusingWithConvolution_SumActivation(node) )
+        return false;
+    const auto out = node->outputs();
+    // Activations always has one child, but the child should also have only one parent
+    const bool has_only_child = (out[0].get_target_inputs().size() == 1);
+    return has_only_child;
 }
 } // namespace
 
@@ -185,17 +196,15 @@ bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
         if (hasFusedParent(node, fusingChainType)) {
             if (isSuitableChildForFusingSimple(node)) {
                 SetSnippetsNodeType(node, fusingChainType);
-            } else if (isSuitableChildForFusingSumActivation(node)) {
-                SetSnippetsNodeType(node, fusingChainType);
-                // node has only 1 output, because it is Add
-                auto child_inputs = node->get_output_target_inputs(0);
-                if (child_inputs.size() == 1) {
-                    auto child_node = node->get_users()[0];
-                    if (SupportsFusingWithConvolution_SumActivation(child_node))
-                        SetSnippetsNodeType(child_node, fusingChainType);
-                }
+            } else if (fusingChainType == SnippetsNodeType::FusedWithConvolution &&
+                        isSuitableParentForFusingSumActivation(node)) {
+                SetSnippetsNodeType(node, SnippetsNodeType::FusedWithConvolutionSumActivation);
+            } else if (fusingChainType == SnippetsNodeType::FusedWithConvolutionSumActivation &&
+                        isSuitableChildForFusingSumActivation(node)) {
+                // Set FusedWithConvolution, so the fusing chain could be propagated
+                SetSnippetsNodeType(node, SnippetsNodeType::FusedWithConvolution);
             // Mimic FuseConvolutionAndSimpleOperationThroughMaxPool
-            } else if ((fusingChainType == SnippetsNodeType::FusedWithConvolution) && isSuitablePoolChild(node)) {
+            } else if (fusingChainType == SnippetsNodeType::FusedWithConvolution && isSuitablePoolChild(node)) {
                 SetSnippetsNodeType(node, SnippetsNodeType::FusedWithConvolution);
             }
         }
@@ -206,8 +215,9 @@ bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
                 SetSnippetsNodeType(node, SnippetsNodeType::Ignored);
                 continue;
             }
-            if ((GetSnippetsNodeType(node) == SnippetsNodeType::FusedWithMisc) ||
-                (GetSnippetsNodeType(node) == SnippetsNodeType::FusedWithConvolution))
+            if (GetSnippetsNodeType(node) == SnippetsNodeType::FusedWithMisc ||
+                GetSnippetsNodeType(node) == SnippetsNodeType::FusedWithConvolution ||
+                GetSnippetsNodeType(node) == SnippetsNodeType::FusedWithConvolutionSumActivation)
                 continue;
             if (hasParentInStartedSubgraph (node))
                 SetSnippetsNodeType(node, SnippetsNodeType::SubgraphBody);
