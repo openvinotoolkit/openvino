@@ -25,7 +25,8 @@ public:
 };
 // Fused - is likely to be fused in CPU plugin
 // Ignored - must be skipped, since can't be handled properly at this time
-enum class SnippetsNodeType : int64_t {NotSet = 0, FusedWithConvolution, FusedWithMisc, Ignored, SubgraphStart, SubgraphBody};
+enum class SnippetsNodeType : int64_t {NotSet = 0, FusedWithConvolution, FusedWithConvolutionSumActivation,
+                                        FusedWithMisc, Ignored, SubgraphStart, SubgraphBody};
 void SetSnippetsNodeType(std::shared_ptr<Node> node, SnippetsNodeType);
 SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node> node);
 
