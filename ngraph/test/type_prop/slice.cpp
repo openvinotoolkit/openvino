@@ -103,6 +103,23 @@ TEST(type_prop, slice_v8_basic_const_inputs_default_axes) {
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
 
+TEST(type_prop, slice_v8_const_inputs_output_zero_dims) {
+    PartialShape data_shape{5, 5, 5, 5, 9, 9};
+    PartialShape expected_out_shape{3, 0, 5, 0, 5, 0};
+
+    std::vector<int32_t> start_val{0, 0, 0, 5, 0, 10};
+    std::vector<int32_t> stop_val{5, 5, 5, 5, 9, 9};
+    std::vector<int32_t> step_val{2, -3, 1, 5, 2, 1};
+
+    element::Type_t et = element::i32;
+
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
 TEST(type_prop, slice_v8_basic_const_inputs_unordered_axes) {
     PartialShape data_shape{10, 10, 10, 10, 10, 10, 10, 10};
     PartialShape expected_out_shape{4, 9, 7, 10, 10, 9, 5, 10};
