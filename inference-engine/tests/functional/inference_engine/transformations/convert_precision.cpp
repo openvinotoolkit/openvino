@@ -13,6 +13,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -94,6 +95,34 @@ TEST(TransformationTests, ConvertPrecision_NMS4) {
 
     ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(f));
     ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_NMS5) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto boxes = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1000, 4});
+        auto scores = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1000});
+        auto max_output_boxes_per_class = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
+        auto iou_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.75});
+        auto score_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.7});
+        auto nms = std::make_shared<ngraph::opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
+                                                               ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
+
+        auto result1 = std::make_shared<ngraph::opset5::Result>(nms->output(0));
+        auto result2 = std::make_shared<ngraph::opset5::Result>(nms->output(1));
+        auto result3 = std::make_shared<ngraph::opset5::Result>(nms->output(2));
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2, result3}, ngraph::ParameterVector{boxes, scores});
+    }
+
+    pass::Manager manager;
+    static const precisions_array precisions = {
+            { ngraph::element::i64, ngraph::element::i32 },
+            { ngraph::element::f32, ngraph::element::f16 }
+    };
+    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
+    manager.run_passes(f);
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(f));
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::f32>(f));
 }
 
 TEST(TransformationTests, ConvertPrecision_ShapeOf) {
