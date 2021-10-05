@@ -141,7 +141,7 @@ const auto numpyCases = ::testing::Combine(
     ::testing::Values(ngraph::op::AutoBroadcastSpec::NUMPY)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic, SelectLayerCPUTest, numpyCases, SelectLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNumpy_dynamic, SelectLayerCPUTest, numpyCases, SelectLayerCPUTest::getTestCaseName);
 
 std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesDynamicNone = {
         {
@@ -166,6 +166,6 @@ const auto noneCases = ::testing::Combine(
     ::testing::Values(ngraph::op::AutoBroadcastSpec::NONE)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic, SelectLayerCPUTest, noneCases, SelectLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNone_dynamic, SelectLayerCPUTest, noneCases, SelectLayerCPUTest::getTestCaseName);
 
 } // namespace CPULayerTestsDefinitions
