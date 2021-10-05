@@ -105,7 +105,7 @@ TEST(TransformationTests, UnrollIfCondIsFalse) {
     {
         auto X = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 3 });
         auto Y = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 3 });
-        auto mul_op = std::make_shared<ngraph::opset1::Add>(X, Y);
+        auto mul_op = std::make_shared<ngraph::opset1::Multiply>(X, Y);
         auto if_result = std::make_shared<ngraph::opset1::Result>(mul_op);
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ if_result }, ngraph::ParameterVector{ X, Y });
     }

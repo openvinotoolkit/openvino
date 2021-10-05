@@ -45,10 +45,9 @@ bool ov::pass::ConstantFolding::run_on_function(std::shared_ptr<ov::Function> f)
             }
         } else {
             // recursively constant fold operators containing subgraphs (ie: TensorIterator, Loop)
-            if (auto sub_graph_node = std::dynamic_pointer_cast<ngraph::op::util::MultiSubGraphOp>(node)) {
-                size_t sub_graphs_num = sub_graph_node->get_num_internal_subgraphs();
-                for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
-                    rewritten |= run_on_function(sub_graph_node->get_function(sub_graph_ind));
+            if (auto sub_graph_node = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(node)) {
+                if (const auto& sub_graph = sub_graph_node->get_function()) {
+                    rewritten |= run_on_function(sub_graph);
                 }
             }
         }

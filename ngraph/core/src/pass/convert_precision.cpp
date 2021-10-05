@@ -161,10 +161,9 @@ bool convert_precision(pass::PassBase& pass,
             for (auto& node : ops) {
                 pass.transformation_callback(node);
                 // Recursively apply transformation for sub-graph based operations
-                if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
-                    size_t sub_graphs_num = sub_graph_node->get_num_internal_subgraphs();
-                    for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
-                        is_changed |= convert_function_precision(sub_graph_node->get_function(sub_graph_ind), true);
+                if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+                    if (auto sub_graph = sub_graph_node->get_function()) {
+                        is_changed |= convert_function_precision(sub_graph, true);
                     }
                 }
                 is_changed |= convert_node_input_precision(node);
@@ -227,10 +226,9 @@ precisions_set_t find_all_used_precisions(const std::shared_ptr<ngraph::Function
         for (const auto& output : node->outputs()) {
             used_precisions.emplace(output.get_element_type());
         }
-        if (auto sub_graph_node = std::dynamic_pointer_cast<ngraph::op::util::MultiSubGraphOp>(node)) {
-            size_t sub_graphs_num = sub_graph_node->get_num_internal_subgraphs();
-            for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
-                auto sub_graph_precisions = find_all_used_precisions(sub_graph_node->get_function(sub_graph_ind));
+        if (auto sub_graph_node = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(node)) {
+            if (auto sub_graph = sub_graph_node->get_function()) {
+                auto sub_graph_precisions = find_all_used_precisions(sub_graph);
                 used_precisions.insert(sub_graph_precisions.begin(), sub_graph_precisions.end());
             }
         }
