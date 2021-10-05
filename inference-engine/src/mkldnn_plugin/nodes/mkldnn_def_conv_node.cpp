@@ -324,25 +324,16 @@ private:
                         movq(xmm_v4_off, qword[aux_reg_sampled_offs + ind_off_hh * jcp_.typesize_sampled_offsets]);
 
                         // w's computation
-                        // w22 ~ h_high * w_high
-                        // w21 ~ h_high * w_low
-                        // w12 ~ h_low * w_high
-                        // w11 ~ h_low * w_low
-                        movd(xmm_w1, dword[aux_reg_sampled_wei + ind_off_ll * jcp_.typesize_sampled_wei]);
-                        uni_vbroadcastss(vmm_w1, xmm_w1);
-                        movd(xmm_w2, dword[aux_reg_sampled_wei + ind_off_hl * jcp_.typesize_sampled_wei]);
-                        uni_vbroadcastss(vmm_w2, xmm_w2);
-                        movd(xmm_w3, dword[aux_reg_sampled_wei + ind_off_lh * jcp_.typesize_sampled_wei]);
-                        uni_vbroadcastss(vmm_w3, xmm_w3);
-                        movd(xmm_w4, dword[aux_reg_sampled_wei + ind_off_hh * jcp_.typesize_sampled_wei]);
-                        uni_vbroadcastss(vmm_w4, xmm_w4);
+                        uni_vbroadcastss(vmm_w1, dword[aux_reg_sampled_wei + ind_off_ll * jcp_.typesize_sampled_wei]);
+                        uni_vbroadcastss(vmm_w2, dword[aux_reg_sampled_wei + ind_off_hl * jcp_.typesize_sampled_wei]);
+                        uni_vbroadcastss(vmm_w3, dword[aux_reg_sampled_wei + ind_off_lh * jcp_.typesize_sampled_wei]);
+                        uni_vbroadcastss(vmm_w4, dword[aux_reg_sampled_wei + ind_off_hh * jcp_.typesize_sampled_wei]);
 
                         int simd_w = vlen / jcp_.typesize_in;
                         mov(reg_ic_iter, ic_per_def_group);
 
                         L(ic_loop_main);
                         {
-                            // ic_iter--
                             cmp(reg_ic_iter, simd_w);
                             jl(ic_loop_tail, T_NEAR);
 
@@ -381,7 +372,7 @@ private:
                             uni_vaddps(vmm_v1, vmm_v1, vmm_v4);
                             uni_vmovups(ptr[aux3_reg_input_buffer + input_buffer_off * jcp_.typesize_in], vmm_v1);
 
-                            add(aux2_reg_input, simd_w * jcp_.typesize_in);  // iterate per channel block
+                            add(aux2_reg_input, simd_w * jcp_.typesize_in);
                             add(aux3_reg_input_buffer, simd_w * jcp_.typesize_in);
                             sub(reg_ic_iter, simd_w);
                             jmp(ic_loop_main, T_NEAR);
@@ -426,7 +417,7 @@ private:
                             addss(xmm_v1, xmm_v4);
                             movss(ptr[aux3_reg_input_buffer + input_buffer_off * jcp_.typesize_in], xmm_v1);
 
-                            add(aux2_reg_input, jcp_.typesize_in);  // iter per channels
+                            add(aux2_reg_input, jcp_.typesize_in);
                             add(aux3_reg_input_buffer, jcp_.typesize_in);
                             sub(reg_ic_iter, 1);
                             jmp(ic_loop_tail, T_NEAR);

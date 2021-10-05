@@ -227,15 +227,15 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const auto defConvSpecificParams = ::testing::Combine(
-    ::testing::ValuesIn({
+    ::testing::ValuesIn(std::vector<bool> {
         true,
         false
     }),  // with_bilinear_interpolation_pad
-    ::testing::ValuesIn({
+    ::testing::ValuesIn(std::vector<bool> {
         true,
         false
     }),  // with_modulation
-    ::testing::ValuesIn({
+    ::testing::ValuesIn(std::vector<OffsetType> {
         OffsetType::NATURAL,
         OffsetType::ZERO,
         OffsetType::REAL_MISC,
@@ -308,57 +308,50 @@ const auto chParamsMulGr = ::testing::Combine(
         ::testing::ValuesIn(std::vector<size_t> {3, 7}),  // in. ch. per gr.
         ::testing::ValuesIn(std::vector<size_t> {3, 7}));  // out. ch. per gr.
 
-INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest1, DefConvLayerCPUTest,
+const auto params1 = ::testing::Combine(
                          ::testing::Combine(
-                                 ::testing::Combine(
-                                         spParams1,
-                                         chParamsSingleGr,
-                                         defConvSpecificParams,
-                                         ::testing::ValuesIn(netPrecisions),
-                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                         ::testing::ValuesIn(filterCPUInfoForDevice())),
-                                         DefConvLayerCPUTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest2, DefConvLayerCPUTest,
+                             spParams1,
+                             chParamsSingleGr,
+                             defConvSpecificParams,
+                             ::testing::ValuesIn(netPrecisions),
+                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         ::testing::ValuesIn(filterCPUInfoForDevice()));
+const auto params2 = ::testing::Combine(
                          ::testing::Combine(
-                                 ::testing::Combine(
-                                         spParams2,
-                                         chParamsSingleGr,
-                                         defConvSpecificParams,
-                                         ::testing::ValuesIn(netPrecisions),
-                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                         ::testing::ValuesIn(filterCPUInfoForDevice())),
-                                         DefConvLayerCPUTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest3, DefConvLayerCPUTest,
+                             spParams2,
+                             chParamsSingleGr,
+                             defConvSpecificParams,
+                             ::testing::ValuesIn(netPrecisions),
+                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         ::testing::ValuesIn(filterCPUInfoForDevice()));
+const auto params3 = ::testing::Combine(
                          ::testing::Combine(
-                                 ::testing::Combine(
-                                         spParams3,
-                                         chParamsSingleGr,
-                                         defConvSpecificParams,
-                                         ::testing::ValuesIn(netPrecisions),
-                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice())),
-                         DefConvLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest4, DefConvLayerCPUTest,
+                             spParams3,
+                             chParamsSingleGr,
+                             defConvSpecificParams,
+                             ::testing::ValuesIn(netPrecisions),
+                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         ::testing::ValuesIn(filterCPUInfoForDevice()));
+const auto params4 = ::testing::Combine(
                          ::testing::Combine(
-                                 ::testing::Combine(
-                                         spParams4,
-                                         chParamsSingleGr,
-                                         defConvSpecificParams,
-                                         ::testing::ValuesIn(netPrecisions),
-                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice())),
-                         DefConvLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest5, DefConvLayerCPUTest,
+                             spParams4,
+                             chParamsSingleGr,
+                             defConvSpecificParams,
+                             ::testing::ValuesIn(netPrecisions),
+                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         ::testing::ValuesIn(filterCPUInfoForDevice()));
+const auto params5 = ::testing::Combine(
                          ::testing::Combine(
-                                 ::testing::Combine(
-                                         spParams4,
-                                         chParamsMulGr,
-                                         defConvSpecificParams,
-                                         ::testing::ValuesIn(netPrecisions),
-                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice(true))),
-                         DefConvLayerCPUTest::getTestCaseName);
+                             spParams4,
+                             chParamsMulGr,
+                             defConvSpecificParams,
+                             ::testing::ValuesIn(netPrecisions),
+                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         ::testing::ValuesIn(filterCPUInfoForDevice(true)));
+INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest1, DefConvLayerCPUTest, params1, DefConvLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest2, DefConvLayerCPUTest, params2, DefConvLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest3, DefConvLayerCPUTest, params3, DefConvLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest4, DefConvLayerCPUTest, params4, DefConvLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DefConvLayoutTest5, DefConvLayerCPUTest, params5, DefConvLayerCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions
