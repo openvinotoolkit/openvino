@@ -201,7 +201,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
     template <typename dtype>
     void read_image_info(stream& stream, proposal_inst& instance, im_info_t& im_info) {
         auto image_info = instance.dep_memory_ptr(proposal_inst::image_info_index);
-        mem_lock<dtype> image_info_ptr{image_info, stream};
+        mem_lock<dtype, mem_lock_type::read> image_info_ptr{image_info, stream};
         const dtype* image_info_mem = image_info_ptr.data();
 
         bool swap_xy = instance.argument.swap_xy;
@@ -284,8 +284,8 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
         int fm_sz = fm_w * fm_h;
 
-        mem_lock<dtype> cls_scores_ptr{cls_scores, stream};
-        mem_lock<dtype> bbox_pred_ptr{bbox_pred, stream};
+        mem_lock<dtype, mem_lock_type::read> cls_scores_ptr{cls_scores, stream};
+        mem_lock<dtype, mem_lock_type::read> bbox_pred_ptr{bbox_pred, stream};
         const dtype* cls_scores_mem = cls_scores_ptr.data();
         const dtype* bbox_pred_mem = bbox_pred_ptr.data();
 
@@ -350,7 +350,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
             auto output = instance.output_memory_ptr();
 
-            mem_lock<dtype> output_ptr{output, stream};
+            mem_lock<dtype, mem_lock_type::write> output_ptr{output, stream};
             dtype* top_data = output_ptr.data() + n * instance.argument.post_nms_topn * 5;
 
             dtype* top_data_prob = proposal_prob_ptr == nullptr ? nullptr : proposal_prob_ptr + n * instance.argument.post_nms_topn;
@@ -409,10 +409,10 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         if (instance.dependencies().size() == 4) {
             auto proposal_probabilities = instance.dep_memory_ptr(proposal_inst::proposal_probabilities_out);
             if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
-                mem_lock<data_type_to_type<data_types::f16>::type> proposal_prob_ptr{proposal_probabilities, stream};
+                mem_lock<data_type_to_type<data_types::f16>::type, mem_lock_type::read> proposal_prob_ptr{proposal_probabilities, stream};
                 execute<data_type_to_type<data_types::f16>::type>(stream, instance, im_info, proposal_prob_ptr.data());
             } else {
-                mem_lock<data_type_to_type<data_types::f32>::type> proposal_prob_ptr{proposal_probabilities, stream};
+                mem_lock<data_type_to_type<data_types::f32>::type, mem_lock_type::read> proposal_prob_ptr{proposal_probabilities, stream};
                 execute<data_type_to_type<data_types::f32>::type>(stream, instance, im_info, proposal_prob_ptr.data());
             }
         } else {

@@ -277,3 +277,53 @@ TEST(pre_post_process, mean_vector_dynamic_channels_shape) {
                             .build(f));
     EXPECT_EQ(f->get_output_element_type(0), element::f32);
 }
+
+// Error cases for 'resize'
+TEST(pre_post_process, resize_no_network_layout) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_layout("NHWC"))
+                                    .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_CUBIC)))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
+TEST(pre_post_process, tensor_spatial_shape_no_layout_dims) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_layout("NC?W").set_spatial_static_shape(480, 640))
+                                    .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_CUBIC)))
+                         .build(f),
+                 ov::AssertFailure);
+
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_layout("NCH?").set_spatial_static_shape(480, 640))
+                                    .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_CUBIC)))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
+TEST(pre_post_process, resize_no_tensor_height) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_layout("N?WC"))
+                                    .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
+                                    .network(InputNetworkInfo().set_layout("NHWC")))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
+TEST(pre_post_process, resize_no_tensor_width) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_layout("NH?C"))
+                                    .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
+                                    .network(InputNetworkInfo().set_layout("NHWC")))
+                         .build(f),
+                 ov::AssertFailure);
+}

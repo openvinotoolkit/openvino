@@ -130,6 +130,7 @@ namespace SubgraphTestsDefinitions {
                                               SinkVector{cell_memory_write, hidden_memory_write},
                                               input_parameter,
                                               "TI_with_memory");
+        functionRefs = ngraph::clone_function(*function);
         tensor_iterator->validate_and_infer_types();
     }
 
@@ -178,6 +179,7 @@ namespace SubgraphTestsDefinitions {
         auto final_reshape = std::make_shared<Reshape>(unsqueeze, final_reshape_pattern, false);
 
         function = std::make_shared<Function>(final_reshape, input_parameter, "TI_unrolled_without_memory");
+        functionRefs = ngraph::clone_function(*function);
     }
 
     void MemoryLSTMCellTest::CreatePureTensorIteratorModel() {
@@ -252,6 +254,7 @@ namespace SubgraphTestsDefinitions {
         auto final_reshape = std::make_shared<Reshape>(out_unsqueeze, final_reshape_pattern, false);
 
         function = std::make_shared<Function>(final_reshape, input_parameter, "PureTI");
+        functionRefs = ngraph::clone_function(*function);
     }
 
     void MemoryLSTMCellTest::Run() {
