@@ -699,7 +699,7 @@ protected:
     bool inputShapesModified() const;
     virtual bool needShapeInfer() const;
     virtual std::vector<VectorDims> shapeInfer() const;
-    
+
     virtual void executeDynamicImpl(mkldnn::stream strm) { execute(strm); }
 
     virtual bool needPrepareParams() const;
