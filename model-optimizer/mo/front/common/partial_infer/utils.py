@@ -216,7 +216,7 @@ def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False, dil
         return None, None
 
     if dilation is None:
-        dilation = np.ones(len(input))
+        dilation = np.ones(len(input), dtype=np.int64)
 
     normalized_stride = stride
     if is_deconv:

@@ -5,6 +5,7 @@ import logging as log
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_autopad
 from mo.ops.pooling import Pooling
@@ -92,8 +93,8 @@ def common_onnx_pool_extractor(node):
     strides = onnx_attr(node, 'strides', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
     final_strides = np.array([1, 1, *[x for x in strides]], dtype=np.int64) if strides is not None else None
 
-    dilation = onnx_attr(node, 'dilations', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
-    final_dilation = np.array([1, 1, *[x for x in dilation]], dtype=np.int64) if dilation is not None else None
+    dilation = onnx_attr(node, 'dilations', 'ints', default=None, dst_type=lambda x: int64_array(x))
+    final_dilation = int64_array([1, 1, *[x for x in dilation]]) if dilation is not None else None
 
     # exclude_pad = True only when count_include_pad == 0
     exclude_pad = onnx_attr(node, 'count_include_pad', 'i', default=0) == 0
@@ -133,6 +134,6 @@ def common_onnx_pool_extractor(node):
         'batch_dims': np.array([0], dtype=np.int64),
         'layout': 'NCHW',
 
-        'pooling_convention': pooling_convention,
+        'pooling_convention': pooling_convention
     }
     return attrs

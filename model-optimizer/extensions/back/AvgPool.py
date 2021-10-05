@@ -20,6 +20,5 @@ class AvgPool(BackReplacementPattern):
         )
 
     def replace_pattern(self, graph: Graph, match: dict):
-        node = match['pooling']
-        node.type = 'AvgPool'
-        del node['pool_method']
+        match['pooling'].type = 'AvgPool'
+        del match['pooling']['pool_method']

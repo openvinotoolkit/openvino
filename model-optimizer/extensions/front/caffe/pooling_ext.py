@@ -58,7 +58,7 @@ class PoolingFrontExtractor(FrontExtractorOp):
             'exclude_pad': exclude_pad,
             'global_pool': global_pooling,
             'output_spatial_shape': None,
-            'rounding_type': rt,
+            'rounding_type': rt
         }
 
         attrs.update(layout_attrs())
