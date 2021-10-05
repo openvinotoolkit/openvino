@@ -22,9 +22,11 @@
 
 namespace ov {
 
-class OPENVINO_API Extension {
+class OPENVINO_API Extension : std::enable_shared_from_this<Extension> {
 public:
     using Ptr = std::shared_ptr<Extension>;
+
+protected:
     virtual ~Extension();
 };
 
