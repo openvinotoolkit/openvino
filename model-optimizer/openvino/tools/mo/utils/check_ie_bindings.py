@@ -9,7 +9,7 @@ import platform
 import sys
 
 try:
-    import mo
+    import openvino.tools.mo
     execution_type = "mo"
 except ModuleNotFoundError:
     mo_root_path = os.path.normpath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))

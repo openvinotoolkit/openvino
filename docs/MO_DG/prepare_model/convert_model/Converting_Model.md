@@ -1,8 +1,8 @@
 # Converting a Model to Intermediate Representation (IR)  {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model}
 
-Use the <code>mo</code> script from the `<INSTALL_DIR>/tools/model_optimizer` directory to run the Model Optimizer and convert the model to the Intermediate Representation (IR): 
+Use the <code>mo</code> script to run the Model Optimizer and convert the model to the Intermediate Representation (IR): 
 ```sh
- mo --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
+mo --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
 ```
 You need to have have write permissions for an output directory.
 

@@ -7,22 +7,23 @@ import os
 import pkgutil
 import sys
 
-from openvino.tools.mo.load.loader import Loader
 from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.load.loader import Loader
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.op import Op
-from openvino.tools.mo.utils.class_registration import _check_unique_ids, update_registration, get_enabled_and_disabled_transforms
+from openvino.tools.mo.utils.class_registration import _check_unique_ids, update_registration, \
+    get_enabled_and_disabled_transforms
 from openvino.tools.mo.utils.model_analysis import AnalyzeAction
 
 
 def import_by_path(path: str, middle_names: list = ()):
     for module_loader, name, ispkg in pkgutil.iter_modules([path]):
-        importlib.import_module('{}.{}'.format('.'.join(middle_names), name))
+        importlib.import_module('openvino.tools.{}.{}'.format('.'.join(middle_names), name))
 
 
 def default_path():
-    EXT_DIR_NAME = 'extensions'
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, EXT_DIR_NAME))
+    EXT_DIR_NAME = '.'
+    return os.path.abspath(os.getcwd().join(EXT_DIR_NAME))
 
 
 def load_dir(framework: str, path: str, get_front_classes: callable):

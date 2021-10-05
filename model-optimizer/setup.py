@@ -13,16 +13,17 @@ import os
 import re
 from pathlib import Path
 from shutil import copyfile
-from setuptools import setup, find_packages
-from setuptools.command.install import install
-from setuptools.command.build_py import build_py
 
-PACKAGE_NAME = 'mo'
-SETUP_DIR = Path(__file__).resolve().parent
+from setuptools import setup, find_namespace_packages
+from setuptools.command.build_py import build_py
+from setuptools.command.install import install
+
+prefix = 'openvino/tools/mo/'
+SETUP_DIR = Path(__file__).resolve().parent / Path(prefix)
 
 
 def read_text(path):
-    return (SETUP_DIR / path).read_text()
+    return (Path(__file__).resolve().parent / path).read_text()
 
 
 # Detect all the framework specific requirements_*.txt files.
@@ -31,8 +32,11 @@ py_modules = []
 for item in os.listdir():
     if re.match(r'requirements(.*)\.txt', item):
         requirements_txt.append(item)
-    if re.match(r'mo(.*)\.py', item):
-        py_modules.append(item.split('.')[0])
+for item in os.listdir(prefix):
+    if re.match(r'mo(.*)\.py|main(.*)\.py', item):
+        py_modules.append(prefix.replace('/', '.') + item.split('.')[0])
+py_modules.append(prefix.replace('/', '.') + 'subprocess_main')
+py_modules.append(prefix.replace('/', '.') + '__main__')
 
 # Minimal set of dependencies
 deps_whitelist = ('networkx', 'defusedxml', 'numpy')
@@ -48,23 +52,21 @@ class InstallCmd(install):
         install.run(self)
         # Create requirements.txt files for all the frameworks
         for name in requirements_txt:
-            path = os.path.join(self.install_purelib, PACKAGE_NAME, name)
+            path = os.path.join(self.install_purelib, prefix, name)
             with open(path, 'wt') as common_reqs_file:
                 common_reqs_file.write('\n'.join(deps))
         # Add version.txt if exists
         version_txt = 'version.txt'
         if os.path.exists(version_txt):
             copyfile(os.path.join(version_txt),
-                     os.path.join(self.install_purelib,
-                                  PACKAGE_NAME, version_txt))
+                     os.path.join(self.install_purelib, prefix, version_txt))
 
-        path = os.path.join(self.install_purelib, PACKAGE_NAME, '__init__.py')
+        path = os.path.join(self.install_purelib, prefix, '__init__.py')
         with open(path, 'wt') as init_file:
             init_file.write('import os, sys\n')
-            init_file.write('from {} import mo\n'.format(PACKAGE_NAME))
+            init_file.write('from openvino.tools.mo import mo \n')
             # This is required to fix internal imports
             init_file.write('sys.path.append(os.path.dirname(__file__))\n')
-            # We install a package into custom folder "PACKAGE_NAME".
             # Redirect import to model-optimizer/mo/__init__.py
             init_file.write('sys.modules["mo"] = mo')
 
@@ -75,12 +77,11 @@ class BuildCmd(build_py):
         return [
             (pkg, module, filename)
             for (pkg, module, filename) in modules
-            if not filename.endswith('_test.py')
         ]
 
 
-packages = find_packages()
-packages = [PACKAGE_NAME + '.' + p for p in packages]
+packages = find_namespace_packages(prefix)
+packages = [prefix.replace('/', '.') + p for p in packages]
 
 setup(
     name='openvino-mo',
@@ -89,7 +90,6 @@ setup(
     author_email='openvino_pushbot@intel.com',
     url='https://github.com/openvinotoolkit/openvino',
     packages=packages,
-    package_dir={PACKAGE_NAME: '.'},
     py_modules=py_modules,
     cmdclass={
         'install': InstallCmd,
@@ -97,7 +97,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'mo = mo.__main__:main',
+            'mo = openvino.tools.mo.__main__:main',
         ],
     },
     package_data={
