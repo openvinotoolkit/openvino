@@ -16,10 +16,10 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, convolution_backprop_op) {
-    NodeBuilder::get_ops().register_factory<opset1::ConvolutionBackpropData>();
+TEST(attributes, convolution) {
+    NodeBuilder::get_ops().register_factory<opset1::Convolution>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 124, 124});
-    auto filters = make_shared<op::Parameter>(element::f32, Shape{16, 2, 3, 3});
+    auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 16, 3, 3});
     auto strides = Strides{1, 1};
     auto pads_begin = CoordinateDiff{1, 2};
     auto pads_end = CoordinateDiff{1, 2};
@@ -32,10 +32,10 @@ TEST(attributes, convolution_backprop_op) {
                                                                     dilations,
                                                                     op::PadType::VALID);
     NodeBuilder builder(convolution);
-    auto g_convolution = ov::as_type_ptr<opset1::ConvolutionBackpropData>(builder.create());
+    auto g_convolution = ov::as_type_ptr<opset1::Convolution>(builder.create());
 
     // attribute count
-    const auto expected_attr_count = 6;
+    const auto expected_attr_count = 5;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
     EXPECT_EQ(g_convolution->get_strides(), convolution->get_strides());
