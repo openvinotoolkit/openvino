@@ -21,7 +21,9 @@ class TRANSFORMATIONS_API CommonOptimizations;
 }  // namespace ngraph
 
 class ngraph::pass::CommonOptimizations: public ngraph::pass::FunctionPass {
+    bool m_low_precision_enabled;
 public:
     NGRAPH_RTTI_DECLARATION;
+    explicit CommonOptimizations(bool low_precision_enabled = true) : m_low_precision_enabled(low_precision_enabled) {}
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };

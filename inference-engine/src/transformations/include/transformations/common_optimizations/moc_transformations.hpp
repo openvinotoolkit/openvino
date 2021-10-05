@@ -26,10 +26,12 @@ class TRANSFORMATIONS_API MOCTransformations;
 
 class ngraph::pass::MOCTransformations: public ngraph::pass::FunctionPass {
     bool m_use_shapes;
+    bool m_low_precision_enabled;
 
 public:
     NGRAPH_RTTI_DECLARATION;
-    explicit MOCTransformations(bool use_shapes) : m_use_shapes(use_shapes) {}
+    explicit MOCTransformations(bool use_shapes, bool low_precision_enabled = true)
+        : m_use_shapes(use_shapes), m_low_precision_enabled(low_precision_enabled) {}
 
     bool run_on_function(std::shared_ptr<ngraph::Function>) override;
 };

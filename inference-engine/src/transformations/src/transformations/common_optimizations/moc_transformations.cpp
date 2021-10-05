@@ -66,8 +66,10 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     ngraph::pass::Manager manager(get_pass_config());
 
     manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
-            element::TypeVector{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
+    if (m_low_precision_enabled) {
+        manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
+                element::TypeVector{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
+    }
     if (!m_use_shapes) {
         manager.register_pass<ngraph::pass::DisableShapeOfConstantFolding>();
     }
