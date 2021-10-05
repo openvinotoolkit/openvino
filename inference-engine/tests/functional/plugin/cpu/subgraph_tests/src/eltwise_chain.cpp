@@ -105,6 +105,7 @@ protected:
             ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(eltwiseOps[eltwiseOps.size() - 1])};
             function = std::make_shared<ngraph::Function>(results, ngraphParam, "eltwise_chain");
         }
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

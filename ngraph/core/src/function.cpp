@@ -654,6 +654,7 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
 
     const auto& params = get_parameters();
     std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Parameter>> tensor_param_map;
+    std::unordered_map<std::shared_ptr<ov::op::v0::Parameter>, std::string> param_tensor_map;
 
     // Check that we need to do reshape only if input shapes will be changed
     bool need_reshape = false;
@@ -666,6 +667,23 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
             if (tensor_names.count(partial_shape.first)) {
                 shape_is_used = true;
                 tensor_param_map[partial_shape.first] = param;
+                auto it = param_tensor_map.find(param);
+                if (it != param_tensor_map.end()) {
+                    OPENVINO_ASSERT(partial_shape.second == partial_shapes.at(it->second),
+                                    "Tensor with names {'",
+                                    partial_shape.first,
+                                    "', '",
+                                    it->second,
+                                    "'} has "
+                                    "conflicting shapes ",
+                                    partial_shape.second,
+                                    " and ",
+                                    partial_shapes.at(it->second),
+                                    ", but they define the same tensor");
+                } else {
+                    param_tensor_map[param] = partial_shape.first;
+                }
+
                 if (param->get_output_partial_shape(0).is_dynamic() ||
                     param->get_output_partial_shape(0) != partial_shape.second) {
                     need_reshape = true;
