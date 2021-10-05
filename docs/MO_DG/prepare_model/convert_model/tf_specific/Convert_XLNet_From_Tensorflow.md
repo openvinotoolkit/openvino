@@ -183,7 +183,18 @@ The script should save into `~/XLNet-Large/xlnet`.
 ## Convert frozen TensorFlow XLNet Model to IR
 
 To generate the XLNet Intermediate Representation (IR) of the model, run the Model Optimizer with the following parameters:
-```sh
-python3 mo.py --input_model path-to-model/model_frozen.pb  --input "input_mask[50 1],input_ids[50 1],seg_ids[50 1]" --log_level DEBUG --disable_nhwc_to_nchw --output_dir <OUTPUT_MODEL_DIR>
-```
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      python3 mo.py --input_model path-to-model/model_frozen.pb  --input "input_mask[50 1],input_ids[50 1],seg_ids[50 1]" --log_level DEBUG --disable_nhwc_to_nchw --output_dir <OUTPUT_MODEL_DIR>
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --input_model path-to-model/model_frozen.pb  --input "input_mask[50 1],input_ids[50 1],seg_ids[50 1]" --log_level DEBUG --disable_nhwc_to_nchw --output_dir <OUTPUT_MODEL_DIR>
+
+@endsphinxdirective
 

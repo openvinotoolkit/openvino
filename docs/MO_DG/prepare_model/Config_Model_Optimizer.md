@@ -19,7 +19,7 @@
 
             .. code-block:: sh
 
-               cd $INSTALL_DIR$/deployment_tools/model_optimizer/install_prerequisites
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
                virtualenv --system-site-packages -p python3 ./venv
                source ./venv/bin/activate  # sh, bash, ksh, or zsh
                ./install_prerequisites.shs
@@ -30,7 +30,7 @@
 
             .. code-block:: sh
 
-               cd $INSTALL_DIR$/deployment_tools/model_optimizer/install_prerequisitess
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisitess
                install_prerequisites_caffe.sh
          
          .. tab:: Install to virtualenv

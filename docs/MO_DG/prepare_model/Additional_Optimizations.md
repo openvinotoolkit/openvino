@@ -1,6 +1,6 @@
-# Additional Optimization Use Cases {#openvino_docs_MO_DG_Additional_Optimization_Use_Cases}
+# Optimize Preprocessing Computation{#openvino_docs_MO_DG_Additional_Optimization_Use_Cases}
 
-To do some preprocessing and improve first inference time follow the tips bellow:
+Model Optimizer performs preprocessing to a model. It is possible to optimize this step and improve first inference time, to do that, follow the tips bellow:
 
 -	**Image mean/scale parameters**<br>
 	Make sure to use the input image mean/scale parameters (`--scale` and `–mean_values`) with the Model Optimizer when you need pre-processing. It allows the tool to bake the pre-processing into the IR to get accelerated by the Inference Engine.
