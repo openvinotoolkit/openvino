@@ -71,20 +71,26 @@ class TestSerializeRTInfo(unittest.TestCase):
 
         net = Element('net')
         serialize_runtime_info(param_node, net)
-        self.assertEqual("b'<net><rt_info>"
-                         "<attribute name=\"old_api_map\" version=\"0\" order=\"0,2,3,1\" element_type=\"f32\" />"
-                         "</rt_info></net>'",
-                         str(tostring(net)))
+        serialize_res = str(tostring(net))
+        self.assertTrue("name=\"old_api_map\"" in serialize_res)
+        self.assertTrue("version=\"0\"" in serialize_res)
+        self.assertTrue("order=\"0,2,3,1\"" in serialize_res)
+        self.assertTrue("element_type=\"f32\"" in serialize_res)
+        self.assertTrue(serialize_res.startswith("b'<net><rt_info>"))
+        self.assertTrue(serialize_res.endswith("</rt_info></net>'"))
 
         param_node.rt_info.info[('old_api_map', 0)] = OldAPIMap()
         param_node.rt_info.info[('old_api_map', 0)].old_api_convert(np.float16)
 
         net = Element('net')
         serialize_runtime_info(param_node, net)
-        self.assertEqual("b\'<net><rt_info>"
-                         "<attribute name=\"old_api_map\" version=\"0\" order=\"\" element_type=\"f16\" />"
-                         "</rt_info></net>\'",
-                         str(tostring(net)))
+        serialize_res = str(tostring(net))
+        self.assertTrue("name=\"old_api_map\"" in serialize_res)
+        self.assertTrue("version=\"0\"" in serialize_res)
+        self.assertTrue("order=\"\"" in serialize_res)
+        self.assertTrue("element_type=\"f16\"" in serialize_res)
+        self.assertTrue(serialize_res.startswith("b'<net><rt_info>"))
+        self.assertTrue(serialize_res.endswith("</rt_info></net>'"))
 
     def test_serialize_old_api_map_result(self):
         graph = build_graph({**regular_op('placeholder', {'type': 'Parameter', 'rt_info': RTInfo()}),
@@ -96,7 +102,10 @@ class TestSerializeRTInfo(unittest.TestCase):
 
         net = Element('net')
         serialize_runtime_info(result_node, net)
-        self.assertEqual("b'<net><rt_info>"
-                         "<attribute name=\"old_api_map\" version=\"0\" order=\"0,3,1,2\" element_type=\"undefined\" />"
-                         "</rt_info></net>'",
-                         str(tostring(net)))
+        serialize_res = str(tostring(net))
+        self.assertTrue("name=\"old_api_map\"" in serialize_res)
+        self.assertTrue("version=\"0\"" in serialize_res)
+        self.assertTrue("order=\"0,3,1,2\"" in serialize_res)
+        self.assertTrue("element_type=\"undefined\"" in serialize_res)
+        self.assertTrue(serialize_res.startswith("b'<net><rt_info>"))
+        self.assertTrue(serialize_res.endswith("</rt_info></net>'"))
