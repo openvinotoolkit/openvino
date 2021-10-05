@@ -9,8 +9,6 @@
 #include <tensorflow_frontend/model.hpp>
 #include <tensorflow_frontend/utility.hpp>
 
-using namespace ::ngraph::frontend;
-
 namespace ngraph {
 namespace frontend {
 class TF_API FrontEndTF : public FrontEnd {
@@ -57,7 +55,7 @@ protected:
 
 private:
     static void translate_graph(const std::shared_ptr<InputModelTF>& model,
-                                const std::string model_name,
+                                const std::string& model_name,
                                 bool fail_fast,
                                 bool no_conversion,
                                 std::shared_ptr<ngraph::Function>& ng_function);

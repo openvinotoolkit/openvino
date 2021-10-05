@@ -27,7 +27,7 @@ void TranslateFWNode(const std::shared_ptr<TFFrameworkNode>& node) {
     ngraph::OutputVector ng_inputs;
     NamedInputs named_inputs;
     size_t input_port_idx = 0;
-    for (auto& input : node->inputs()) {
+    for (const auto& input : node->inputs()) {
         ng_inputs.push_back(input.get_source_output());
         named_inputs[input_port_idx++] = {input.get_source_output()};
     }
@@ -47,7 +47,7 @@ void TranslateFWNode(const std::shared_ptr<TFFrameworkNode>& node) {
 }  // namespace
 
 void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
-                                 const std::string model_name,
+                                 const std::string& model_name,
                                  bool fail_fast,
                                  bool no_conversion,
                                  std::shared_ptr<ngraph::Function>& ng_function) {
@@ -302,7 +302,7 @@ InputModel::Ptr FrontEndTF::load_impl(const std::vector<std::shared_ptr<Variant>
         if (ov::is_type<VariantWrapper<std::string>>(variants[0])) {
             std::string suffix = ".pb";
             std::string model_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
-            if (ov::util::ends_with(model_path, suffix)) {
+            if (ov::util::ends_with(model_path, suffix.c_str())) {
                 return std::make_shared<InputModelTF>(
                     std::make_shared<::ngraph::frontend::tf::GraphIteratorProto>(model_path));
             }
