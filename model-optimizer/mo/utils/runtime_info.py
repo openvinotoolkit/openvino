@@ -40,8 +40,7 @@ class OldAPIMap(RTInfoElement):
     def __init__(self):
         self.info = defaultdict(dict)
 
-    def old_api_transpose(self, legacy_shape: np.array, inv: np.array):
-        self.info['legacy_shape'] = legacy_shape
+    def old_api_transpose_parameter(self, inv: np.array):
         self.info['inverse_order'] = inv
 
     def old_api_transpose_result(self, order: np.array):
@@ -51,7 +50,9 @@ class OldAPIMap(RTInfoElement):
         self.info['legacy_type'] = legacy_type
 
     def serialize_old_api_map_for_parameter(self) -> Dict:
-        result = {}
+        if 'legacy_type' not in self.info and 'inverse_order' not in self.info:
+            return {}
+        result = {'order': '', 'element_type': 'undefined'}
         if 'legacy_type' in self.info:
             result['element_type'] = np_data_type_to_destination_type(self.info['legacy_type'])
 
@@ -61,7 +62,7 @@ class OldAPIMap(RTInfoElement):
 
     def serialize_old_api_map_for_result(self) -> Dict:
         if 'order' in self.info:
-            return {'order': ','.join(map(str, self.info['order']))}
+            return {'order': ','.join(map(str, self.info['order'])), 'element_type': 'undefined'}
         return {}
 
     def serialize(self, node) -> Dict:
