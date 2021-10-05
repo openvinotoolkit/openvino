@@ -82,5 +82,6 @@ namespace LayerTestsDefinitions {
                                                                                     pool_method);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roi_pooling)};
         function = std::make_shared<ngraph::Function>(results, params, "roi_pooling");
+        functionRefs = ngraph::clone_function(*function);
     }
 }  // namespace LayerTestsDefinitions

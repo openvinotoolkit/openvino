@@ -75,13 +75,15 @@ public:
     bool created() const override;
     bool canBeInPlace() const override;
     bool canFuse(const MKLDNNNodePtr& node) const override;
-    void appendPostOps(mkldnn::post_ops& ops) override;
+    void appendPostOps(mkldnn::post_ops& ops, bool initAsBinary = false, bool initBinaryMemory = false) override;
     void fuseInto(MKLDNNNodePtr& parentNode) override;
     InferenceEngine::Precision getRuntimePrecision() const override;
 
     float getAlpha() const { return alpha; }
     float getBeta() const { return beta; }
     float getGamma() const { return gamma; }
+    MKLDNNMemoryPtr scalesMemory;
+    MKLDNNMemoryPtr shiftsMemory;
     mkldnn::algorithm getMKLDNNAlgorithm() const { return mkldnnAlgorithm; }
 
     bool isWithBroadcast();
@@ -146,6 +148,7 @@ private:
 
     std::vector<float> scales = {};
     std::vector<float> shifts = {};
+    size_t scalesSize = 0;
 
     std::vector<MKLDNNMemoryPtr> memPtrs = {};
 
