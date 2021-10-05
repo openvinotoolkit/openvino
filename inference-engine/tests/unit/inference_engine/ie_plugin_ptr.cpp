@@ -4,6 +4,7 @@
 
 #include <common_test_utils/test_constants.hpp>
 #include "details/ie_so_loader.h"
+#include "details/ie_so_pointer.hpp"
 
 #include "unit_test_utils/mocks/mock_engine/mock_plugin.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
