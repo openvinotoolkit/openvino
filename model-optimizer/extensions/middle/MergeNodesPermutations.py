@@ -46,7 +46,6 @@ class MergeNodesPermutations(MiddleReplacementPattern):
                 if 'permutation' in edge_attrs:
                     permutations.append(edge_attrs['permutation'])
 
-            # Check that all permutations are equal
             final_permutations = []
             for p in permutations:
                 if p is not None:
@@ -57,6 +56,7 @@ class MergeNodesPermutations(MiddleReplacementPattern):
             if len(final_permutations) == 0:
                 continue
 
+            # Check that all permutations are equal
             if not all([np.array_equal(final_permutations[0], perm) for perm in final_permutations]):
                 raise Error('Permutations requested for {} data node are not equal! List of permutations: {}'
                             ''.format(node.name, [p.perm for p in permutations]))

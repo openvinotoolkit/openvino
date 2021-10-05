@@ -52,7 +52,7 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
 
                 if ('old_api_map', 0) not in op.rt_info.info:
                     op.rt_info.info[('old_api_map', 0)] = OldAPIMap()
-                op.rt_info.info[('old_api_map', 0)].old_api_transpose(op_shape[permutation.perm], permutation.inv)
+                op.rt_info.info[('old_api_map', 0)].old_api_transpose_parameter(permutation.inv)
 
                 # keep input in the framework format
                 transpose = create_op_node_with_second_input(
@@ -80,6 +80,9 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
                         op.rt_info.info[('old_api_map', 0)] = OldAPIMap()
                     op.rt_info.info[('old_api_map', 0)].old_api_transpose_result(permutation.perm)
 
+                    if in_data_node.has_valid('permutation'):
+                        del in_data_node['permutation']
+
                     # keep result in the framework format
                     transpose = create_op_node_with_second_input(
                         graph, Transpose, permutation.inv,
@@ -87,5 +90,3 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
 
                     prev_node_out_port.get_connection().insert_node(transpose)
 
-                    if in_data_node.has_valid('permutation'):
-                        del in_data_node['permutation']
