@@ -308,10 +308,10 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
         } else if (ir_version == 11 && !newAPI) {
             const std::string & old_api_map_key = ov::OldApiMap::get_type_info_static();
 
-            const auto& inputs = function->inputs();
-            for (size_t i = 0; i < inputs.size(); ++i) {
-                const auto & input = inputs[i];
-                const ov::RTMap & rtInfo = input.get_rt_info();
+            auto& parameters = function->get_parameters();
+            for (size_t i = 0; i < parameters.size(); ++i) {
+                const auto & parameter = parameters[i];
+                ov::RTMap & rtInfo = parameter->get_rt_info();
                 const auto it = rtInfo.find(old_api_map_key);
                 if (it == rtInfo.end())
                     continue;
@@ -325,7 +325,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 OPENVINO_ASSERT(!old_api_type.is_dynamic(), "Old API map does not support dynamic type");
                 // if no differences between IR v10 and IR v11, add identity convert which will be optimized out
                 if (old_api_type == ov::element::undefined)
-                    old_api_type = input.get_element_type();
+                    old_api_type = parameter->get_element_type();
 
                 std::stringstream tensorLayout, networkLayout;
                 for (size_t i = 0; i < old_api_transpose_args.size(); ++i) {
@@ -340,19 +340,22 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                                   )
                                   .preprocess(PreProcessSteps()
                                             // TODO: remove explicit type
-                                            .convert_element_type(inputs[i].get_element_type())
+                                            .convert_element_type(parameter->get_element_type())
                                             .convert_layout()
                                   )
                                   .network(InputNetworkInfo()
-                                            .set_layout(ov::Layout(tensorLayout.str()))
+                                            .set_layout(ov::Layout(networkLayout.str()))
                                   )
                              );
+
+                // remove old api since we applied it
+                rtInfo.erase(it);
             }
 
-            const auto& outputs = function->outputs();
-            for (size_t i = 0; i < outputs.size(); ++i) {
-                const auto & output = outputs[i];
-                const ov::RTMap & rtInfo = output.get_rt_info();
+            auto& resuls = function->get_results();
+            for (size_t i = 0; i < resuls.size(); ++i) {
+                const auto & result = resuls[i];
+                ov::RTMap & rtInfo = result->get_rt_info();
                 const auto it = rtInfo.find(old_api_map_key);
                 if (it == rtInfo.end())
                     continue;
@@ -366,7 +369,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 OPENVINO_ASSERT(!old_api_type.is_dynamic(), "Old API map does not support dynamic type");
                 // if no differences between IR v10 and IR v11, add identity convert which will be optimized out
                 if (old_api_type == ov::element::undefined)
-                    old_api_type = output.get_element_type();
+                    old_api_type = result->get_element_type();
 
                 std::stringstream tensorLayout, networkLayout;
                 for (size_t i = 0; i < old_api_transpose_args.size(); ++i) {
@@ -390,12 +393,21 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 //                    .set_layout(ov::Layout(tensorLayout.str()))
                 //         )
                 //     );
+
+                // remove old api since we applied it
+                rtInfo.erase(it);
             }
 
             function = prepost.build(function);
 
-            // we need to restore information about input / output ports layout
+            // restore layout information
+            for (const auto & parameter : function->get_parameters()) {
+                parameter->set_layout({});
+            }
             // TODO
+            // for (const auto & result : function->get_results()) {
+                // result->set_layout({});
+            // }
         }
     }
 
