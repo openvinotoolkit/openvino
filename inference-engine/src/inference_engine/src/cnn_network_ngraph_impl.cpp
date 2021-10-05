@@ -9,7 +9,6 @@
 #include <cassert>
 #include <map>
 #include <memory>
-#include <openvino/core/except.hpp>
 #include <set>
 #include <string>
 #include <unordered_set>
@@ -23,6 +22,7 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/manager.hpp"
+#include "openvino/core/except.hpp"
 #include "transformations/serialize.hpp"
 #include "transformations/smart_reshape/set_batch_size.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"

@@ -77,8 +77,7 @@ void PreProcessSteps::PreProcessStepsImpl::add_mean_impl(const std::vector<float
 
 void PreProcessSteps::PreProcessStepsImpl::add_convert_impl(const ov::element::Type& type) {
     m_actions.emplace_back(std::make_tuple(
-        [type](const std::vector<std::shared_ptr<Node>>& nodes, PreprocessingContext&)
-            -> std::shared_ptr<Node> {
+        [type](const std::vector<std::shared_ptr<Node>>& nodes, PreprocessingContext&) -> std::shared_ptr<Node> {
             OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't set element type for empty input.");
             OPENVINO_ASSERT(nodes.size() == 1,
                             "Can't set element type for multi-plane input. Suggesting to convert current image to "

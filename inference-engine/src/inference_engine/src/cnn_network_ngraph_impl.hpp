@@ -13,7 +13,6 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <ngraph/type/element_type.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -29,6 +28,7 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/type/element_type.hpp"
 
 namespace InferenceEngine {
 namespace details {

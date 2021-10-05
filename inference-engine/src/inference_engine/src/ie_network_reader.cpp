@@ -9,14 +9,6 @@
 #include <map>
 #include <memory>
 #include <mutex>
-#include <ngraph/function.hpp>
-#include <ngraph/type/element_type.hpp>
-#include <ngraph/variant.hpp>
-#include <openvino/core/except.hpp>
-#include <openvino/core/preprocess/input_network_info.hpp>
-#include <openvino/core/preprocess/input_tensor_info.hpp>
-#include <openvino/core/preprocess/pre_post_process.hpp>
-#include <openvino/core/type/element_type.hpp>
 #include <string>
 
 #include "cnn_network_ngraph_impl.hpp"
@@ -31,6 +23,14 @@
 #include "ie_ir_version.hpp"
 #include "ie_itt.hpp"
 #include "ie_reader.hpp"
+#include "ngraph/function.hpp"
+#include "ngraph/type/element_type.hpp"
+#include "ngraph/variant.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/preprocess/input_network_info.hpp"
+#include "openvino/core/preprocess/input_tensor_info.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "transformations/rt_info/old_api_map_attribute.hpp"
 
 namespace InferenceEngine {
@@ -275,14 +275,10 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 const auto ngraph_type = inputs[i].get_element_type();
                 const auto legacy_type = details::toLegacyType(ngraph_type, true);
                 prepost.input(ov::preprocess::InputInfo(i)
-                                  .tensor(InputTensorInfo()
-                                            .set_element_type(legacy_type)
-                                  )
+                                  .tensor(InputTensorInfo().set_element_type(legacy_type))
                                   .preprocess(PreProcessSteps()
-                                            // TODO: remove explicit type
-                                            .convert_element_type(ngraph_type)
-                                  )
-                              );
+                                                  // TODO: remove explicit type
+                                                  .convert_element_type(ngraph_type)));
             }
 
             const auto outputs = function->outputs();
@@ -306,12 +302,12 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
 
             function = prepost.build(function);
         } else if (ir_version == 11 && !newAPI) {
-            const std::string & old_api_map_key = ov::OldApiMap::get_type_info_static();
+            const std::string& old_api_map_key = ov::OldApiMap::get_type_info_static();
 
             auto& parameters = function->get_parameters();
             for (size_t i = 0; i < parameters.size(); ++i) {
-                const auto & parameter = parameters[i];
-                ov::RTMap & rtInfo = parameter->get_rt_info();
+                const auto& parameter = parameters[i];
+                ov::RTMap& rtInfo = parameter->get_rt_info();
                 const auto it = rtInfo.find(old_api_map_key);
                 if (it == rtInfo.end())
                     continue;
@@ -340,16 +336,12 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 if (!old_api_transpose_args.empty())
                     steps.convert_layout();
 
-                prepost.input(ov::preprocess::InputInfo(i)
-                                  .tensor(InputTensorInfo()
-                                            .set_element_type(old_api_type)
-                                            .set_layout(ov::Layout(tensorLayout.str()))
-                                  )
-                                  .preprocess(std::move(steps))
-                                  .network(InputNetworkInfo()
-                                            .set_layout(ov::Layout(networkLayout.str()))
-                                  )
-                             );
+                prepost.input(
+                    ov::preprocess::InputInfo(i)
+                        .tensor(
+                            InputTensorInfo().set_element_type(old_api_type).set_layout(ov::Layout(tensorLayout.str())))
+                        .preprocess(std::move(steps))
+                        .network(InputNetworkInfo().set_layout(ov::Layout(networkLayout.str()))));
 
                 // remove old api since we applied it
                 rtInfo.erase(it);
@@ -357,8 +349,8 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
 
             auto& resuls = function->get_results();
             for (size_t i = 0; i < resuls.size(); ++i) {
-                const auto & result = resuls[i];
-                ov::RTMap & rtInfo = result->get_rt_info();
+                const auto& result = resuls[i];
+                ov::RTMap& rtInfo = result->get_rt_info();
                 const auto it = rtInfo.find(old_api_map_key);
                 if (it == rtInfo.end())
                     continue;
@@ -404,12 +396,12 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             function = prepost.build(function);
 
             // restore layout information
-            for (const auto & parameter : function->get_parameters()) {
+            for (const auto& parameter : function->get_parameters()) {
                 parameter->set_layout({});
             }
             // TODO
             // for (const auto & result : function->get_results()) {
-                // result->set_layout({});
+            // result->set_layout({});
             // }
         }
     }
