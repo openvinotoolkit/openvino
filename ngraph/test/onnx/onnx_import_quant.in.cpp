@@ -673,7 +673,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d_zero_point) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_matrix_zero_point) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_matrix_zero_point.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_matrix_zero_point.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
 
@@ -700,13 +701,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_matrix_zero_point) {
                                              4});                                               // a_zero_point
     test_case.add_input(std::vector<uint8_t>{1, 2, 3,
 
-                                             4, 5, 6});                                               // b_zero_point
+                                             4, 5, 6});                                         // b_zero_point
 
     test_case.add_expected_output<int32_t>({1, 2, 2, 3}, std::vector<int32_t>{22,  22,  22,
                                                                               64,  64,  64,
 
                                                                              340, 340, 340,
-                                                                             490, 490, 490}); // Y
+                                                                             490, 490, 490});   // Y
     // clang-format on
     test_case.run();
 }

@@ -34,7 +34,8 @@ OutputVector matmul_integer(const Node& node) {
 
     if (A_zero_point_rank.is_static() && A_zero_point_rank.get_length() == 1) {
         const auto& one_node = ngraph::op::Constant::create(ngraph::element::i32, {1}, {1});
-        const auto& reshaped_A_zero_point = std::make_shared<default_opset::Unsqueeze>(converted_A_zero_point, one_node);
+        const auto& reshaped_A_zero_point =
+            std::make_shared<default_opset::Unsqueeze>(converted_A_zero_point, one_node);
 
         const auto& shifted_A = std::make_shared<default_opset::Subtract>(converted_A, reshaped_A_zero_point);
         const auto& shifted_B = std::make_shared<default_opset::Subtract>(converted_B, converted_B_zero_point);
@@ -42,8 +43,7 @@ OutputVector matmul_integer(const Node& node) {
         const auto& result = std::make_shared<default_opset::MatMul>(shifted_A, shifted_B);
 
         return {result};
-    }
-    else {
+    } else {
         const auto& shifted_A = std::make_shared<default_opset::Subtract>(converted_A, converted_A_zero_point);
         const auto& shifted_B = std::make_shared<default_opset::Subtract>(converted_B, converted_B_zero_point);
 
