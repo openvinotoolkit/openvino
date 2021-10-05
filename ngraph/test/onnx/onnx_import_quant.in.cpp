@@ -428,7 +428,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_2d_simple_zero_point) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_int8) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_int8.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_int8.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
 
@@ -450,7 +451,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_int8) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_vectorized_zero_point) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_vectorized_zero_point.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_vectorized_zero_point.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
 
@@ -477,7 +479,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_vectorized_zero_point) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_no_zero_point) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_no_zero_point.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_no_zero_point.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
 
@@ -502,7 +505,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_no_zero_point) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_2d_x_3d) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_2d_x_3d.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_2d_x_3d.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
 
@@ -531,7 +535,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_2d_x_3d) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_3d_x_2d) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_3d_x_2d.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_3d_x_2d.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
 
@@ -592,8 +597,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_3d) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_4d.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -631,8 +635,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d_zero_point)
-{
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d_zero_point) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_4d.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
@@ -668,7 +671,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d_zero_point)
     // clang-format on
     test_case.run();
 }
-
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_qlinear_matmul_3d) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/qlinear_matmul_3d.onnx"));
