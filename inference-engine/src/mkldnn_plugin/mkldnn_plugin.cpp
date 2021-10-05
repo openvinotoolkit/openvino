@@ -27,6 +27,7 @@
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
+#include <transformations/common_optimizations/transpose_reshape_elimination_for_matmul.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
@@ -331,6 +332,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
     pass_config->enable<ngraph::pass::ConvertGather1ToGather7>();
     pass_config->enable<ngraph::pass::ConvertGather8ToGather7>();
+    pass_config->enable<ngraph::pass::TransposeReshapeEliminationForMatmul>();
 
     if (useLpt) {
         pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr &node) -> bool {
