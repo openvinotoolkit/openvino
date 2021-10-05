@@ -40,5 +40,6 @@ namespace LayerTestsDefinitions {
         auto pow = std::make_shared<ngraph::opset1::Power>(paramsIn[0], power_const);
 
         function = std::make_shared<ngraph::Function>(pow, paramsIn, "power");
+        functionRefs = ngraph::clone_function(*function);
     }
 } // namespace LayerTestsDefinitions

@@ -57,6 +57,11 @@ T convert_to(const std::string &str) {
     return res;
 }
 
+template <>
+std::string convert_to(const std::string &str) {
+    return str;
+}
+
 template<typename T>
 void get_debug_env_var(const std::string &var, T &val, std::vector<std::string> allowed_option_prefixes) {
     bool found = false;

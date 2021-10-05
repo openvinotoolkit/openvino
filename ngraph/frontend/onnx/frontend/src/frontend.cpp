@@ -26,7 +26,7 @@ extern "C" ONNX_FRONTEND_API FrontEndVersion GetAPIVersion() {
 
 extern "C" ONNX_FRONTEND_API void* GetFrontEndData() {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
-    res->m_name = "onnx_experimental";
+    res->m_name = "onnx";
     res->m_creator = []() {
         return std::make_shared<FrontEndONNX>();
     };

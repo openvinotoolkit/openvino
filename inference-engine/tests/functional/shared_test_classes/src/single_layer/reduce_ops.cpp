@@ -65,6 +65,7 @@ void ReduceOpsLayerTest::SetUp() {
     const auto reduce = ngraph::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(reduce)};
     function = std::make_shared<ngraph::Function>(results, params, "Reduce");
+    functionRefs = ngraph::clone_function(*function);
 }
 InferenceEngine::Blob::Ptr ReduceOpsLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::helpers::ReductionType reductionType = std::get<3>(GetParam());

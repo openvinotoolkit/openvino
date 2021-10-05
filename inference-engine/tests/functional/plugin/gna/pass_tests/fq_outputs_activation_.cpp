@@ -89,6 +89,7 @@ protected:
             results.push_back(std::make_shared<ngraph::opset8::Result>(reluFQNode));
         }
         function = std::make_shared<ngraph::Function>(results, inputVector, "FQOutputsActivation");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 
