@@ -3,8 +3,8 @@
 
 import sys
 
-from mo.utils.cli_parser import get_mxnet_cli_parser
+from openvino.tools.mo.utils.cli_parser import get_mxnet_cli_parser
 
 if __name__ == "__main__":
-    from mo.main import main
+    from openvino.tools.mo.main import main
     sys.exit(main(get_mxnet_cli_parser(), None, 'mxnet'))

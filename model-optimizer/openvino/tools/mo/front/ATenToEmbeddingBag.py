@@ -1,17 +1,17 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.embedding_bag import EmbeddingBagOffsetsSum, EmbeddingBagPackedSum
-from extensions.ops.rank import Rank
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, rename_node
-from mo.ops.broadcast import Broadcast
-from mo.ops.concat import Concat
-from mo.ops.shape import Shape
-from mo.ops.unsqueeze import Unsqueeze
-from mo.utils.shape import node_to_get_shape_value_of_indices, get_canonical_axis_index_node, \
+from openvino.tools.mo.ops.embedding_bag import EmbeddingBagOffsetsSum, EmbeddingBagPackedSum
+from openvino.tools.mo.ops.rank import Rank
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, rename_node
+from openvino.tools.mo.ops.broadcast import Broadcast
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.shape import Shape
+from openvino.tools.mo.ops.unsqueeze import Unsqueeze
+from openvino.tools.mo.utils.shape import node_to_get_shape_value_of_indices, get_canonical_axis_index_node, \
     get_shape_values_by_indices_node
 
 

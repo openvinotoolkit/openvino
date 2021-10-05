@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.graph.graph import Graph
-from mo.ops.op import Op
+from openvino.tools.mo.front.common.partial_infer.elemental import copy_shape_infer
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.op import Op
 
 
 class PReLU(Op):

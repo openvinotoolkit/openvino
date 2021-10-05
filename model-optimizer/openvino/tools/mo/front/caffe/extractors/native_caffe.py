@@ -3,8 +3,8 @@
 
 import logging as log
 
-from mo.front.caffe.extractors.utils import embed_input
-from mo.front.common.partial_infer.caffe_fallback import caffe_native_node_infer
+from openvino.tools.mo.front.caffe.extractors.utils import embed_input
+from openvino.tools.mo.front.common.partial_infer.caffe_fallback import caffe_native_node_infer
 
 
 def blob_name(i):

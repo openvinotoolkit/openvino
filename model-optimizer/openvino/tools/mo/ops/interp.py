@@ -4,11 +4,11 @@
 import inspect
 import logging as log
 
-from extensions.ops.resize_factor_utils import factor_update
-from mo.front.common.layout import get_batch_dim, get_features_dim, get_height_dim, get_width_dim, shape_for_layout
-from mo.graph.graph import Node, Graph
-from mo.ops.op import Op
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.ops.resize_factor_utils import factor_update
+from openvino.tools.mo.front.common.layout import get_batch_dim, get_features_dim, get_height_dim, get_width_dim, shape_for_layout
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 class InterpOp(Op):
@@ -110,7 +110,7 @@ class InterpOp(Op):
                     return None
 
                 node['debug_message'] = 'Interp layer shape inference function may be wrong, please, try to update ' \
-                                        'layer shape inference function in the file (extensions/ops/interp.op at the ' \
+                                        'layer shape inference function in the file (openvino/tools/mo/ops/interp.op at the ' \
                                         'line {}).'.format(inspect.currentframe().f_lineno) + refer_to_faq_msg(100)
                 # Reshape methods can be different in some cases
                 # Commented out section represents reshape that used in deeplab-caffe

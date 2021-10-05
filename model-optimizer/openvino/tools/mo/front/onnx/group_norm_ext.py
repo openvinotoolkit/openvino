@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr
-from mo.ops.group_norm import GroupNorm
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr
+from openvino.tools.mo.ops.group_norm import GroupNorm
 
 
 class ExperimentalDetectronGroupNorm(FrontExtractorOp):

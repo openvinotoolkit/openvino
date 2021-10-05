@@ -3,12 +3,12 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import convert_tf_padding_to_str, int64_array
-from mo.front.extractor import FrontExtractorOp
-from mo.front.tf.extractors.utils import tf_data_format_channel, tf_data_format_batch, \
+from openvino.tools.mo.front.common.partial_infer.utils import convert_tf_padding_to_str, int64_array
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.tf.extractors.utils import tf_data_format_channel, tf_data_format_batch, \
     tf_int_list
-from mo.ops.convolution import Convolution
-from mo.ops.op import PermuteAttrs
+from openvino.tools.mo.ops.convolution import Convolution
+from openvino.tools.mo.ops.op import PermuteAttrs
 
 
 class Conv2DFrontExtractor(FrontExtractorOp):

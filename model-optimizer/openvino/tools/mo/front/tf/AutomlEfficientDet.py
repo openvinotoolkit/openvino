@@ -3,21 +3,21 @@
 
 import numpy as np
 
-from extensions.front.Pack import Pack
-from extensions.front.TransposeOrderNormalizer import TransposeOrderNormalizer
-from extensions.front.eltwise_n import EltwiseNReplacement
-from extensions.front.tf.pad_tf_to_pad import PadTFToPad
-from extensions.ops.DetectionOutput import DetectionOutput
-from extensions.ops.activation_ops import Sigmoid
-from extensions.ops.priorbox_clustered import PriorBoxClusteredOp
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.replacement import FrontReplacementFromConfigFileGeneral
-from mo.graph.graph import Graph, Node
-from mo.middle.passes.convert_data_type import data_type_str_to_np
-from mo.ops.concat import Concat
-from mo.ops.const import Const
-from mo.ops.reshape import Reshape
-from mo.ops.result import Result
+from openvino.tools.mo.front.Pack import Pack
+from openvino.tools.mo.front.TransposeOrderNormalizer import TransposeOrderNormalizer
+from openvino.tools.mo.front.eltwise_n import EltwiseNReplacement
+from openvino.tools.mo.front.tf.pad_tf_to_pad import PadTFToPad
+from openvino.tools.mo.ops.DetectionOutput import DetectionOutput
+from openvino.tools.mo.ops.activation_ops import Sigmoid
+from openvino.tools.mo.ops.priorbox_clustered import PriorBoxClusteredOp
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.replacement import FrontReplacementFromConfigFileGeneral
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.result import Result
 
 
 class EfficientDet(FrontReplacementFromConfigFileGeneral):
@@ -25,7 +25,7 @@ class EfficientDet(FrontReplacementFromConfigFileGeneral):
     run_not_recursively = True
 
     def run_before(self):
-        from extensions.front.ExpandDimsToUnsqueeze import ExpandDimsToUnsqueeze
+        from openvino.tools.mo.front.ExpandDimsToUnsqueeze import ExpandDimsToUnsqueeze
         return [ExpandDimsToUnsqueeze, Pack, TransposeOrderNormalizer, PadTFToPad, EltwiseNReplacement]
 
     class AnchorGenerator:

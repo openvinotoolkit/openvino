@@ -1,11 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.front.split_normalizer import SplitInputsReconnect
-from extensions.ops.lstm_cell import LSTMCell
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Node, Graph
-from mo.ops.result import Result
+from openvino.tools.mo.front.split_normalizer import SplitInputsReconnect
+from openvino.tools.mo.ops.lstm_cell import LSTMCell
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.result import Result
 
 
 class BasicLSTMCell(FrontReplacementSubgraph):
@@ -32,7 +32,7 @@ class BasicLSTMCell(FrontReplacementSubgraph):
         __class__.outputs = ['mul_2', 'add_1']
 
     def run_after(self):
-        from extensions.front.split_normalizer import AttributedSplitToSplit
+        from openvino.tools.mo.front.split_normalizer import AttributedSplitToSplit
         return [AttributedSplitToSplit, SplitInputsReconnect]
 
     def pattern(self):

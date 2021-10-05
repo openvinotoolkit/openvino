@@ -3,12 +3,12 @@
 
 import math
 
-from extensions.front.mxnet.conv_ext import DeconvFrontExtractor
-from extensions.ops.interpolate import Interpolate
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.extractor import FrontExtractorOp
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
-from mo.ops.convolution import Convolution
+from openvino.tools.mo.front.mxnet.conv_ext import DeconvFrontExtractor
+from openvino.tools.mo.ops.interpolate import Interpolate
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from openvino.tools.mo.ops.convolution import Convolution
 
 
 class UpSamplingFrontExtractor(FrontExtractorOp):

@@ -3,14 +3,14 @@
 
 import numpy as np
 
-from extensions.ops.elementwise import Mul, Add
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, Node, rename_node
+from openvino.tools.mo.ops.elementwise import Mul, Add
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, Node, rename_node
 
 
 class Sub(FrontReplacementPattern):
-    # This transformation is called directly from the 'model-optimizer/extensions/middle/fusings.py' transformation
+    # This transformation is called directly from the 'model-optimizer/openvino/tools/mo/middle/fusings.py' transformation
     enabled = False
 
     @staticmethod

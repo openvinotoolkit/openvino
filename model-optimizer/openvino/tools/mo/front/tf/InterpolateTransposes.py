@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from extensions.ops.interpolate import Interpolate
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph
+from openvino.tools.mo.ops.interpolate import Interpolate
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Graph
 
 
 class InterpolateTranspose(FrontReplacementSubgraph):
@@ -50,7 +50,7 @@ class InterpolateTranspose(FrontReplacementSubgraph):
         )
 
     def run_after(self):
-        from extensions.front.InterpolateNormalizer import InterpolateNormalizer
+        from openvino.tools.mo.front.InterpolateNormalizer import InterpolateNormalizer
         return [InterpolateNormalizer]
 
     def replace_sub_graph(self, graph: Graph, match: dict):

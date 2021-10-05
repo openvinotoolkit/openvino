@@ -3,10 +3,10 @@
 
 import logging as log
 
-from extensions.ops.DetectionOutput import DetectionOutput
-from mo.front.caffe.collect_attributes import merge_attrs
-from mo.front.common.partial_infer.multi_box_detection import multi_box_detection_infer
-from mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.DetectionOutput import DetectionOutput
+from openvino.tools.mo.front.caffe.collect_attributes import merge_attrs
+from openvino.tools.mo.front.common.partial_infer.multi_box_detection import multi_box_detection_infer
+from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
 class DetectionOutputFrontExtractor(FrontExtractorOp):

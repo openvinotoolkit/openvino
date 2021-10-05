@@ -3,8 +3,8 @@
 
 import logging as log
 
-from mo.front.extractor import FrontExtractorOp
-from mo.ops.roipooling import ROIPooling
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.roipooling import ROIPooling
 
 
 class CropAndResizeFrontExtractor(FrontExtractorOp):

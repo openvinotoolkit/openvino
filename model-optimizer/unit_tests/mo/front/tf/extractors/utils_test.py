@@ -6,8 +6,8 @@ import unittest
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.extractors.utils import collect_tf_attrs, tf_tensor_content
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.extractors.utils import collect_tf_attrs, tf_tensor_content
 from unit_tests.utils.extractors import PB
 
 

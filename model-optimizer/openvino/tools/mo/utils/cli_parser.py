@@ -12,12 +12,12 @@ from distutils.util import strtobool
 
 import numpy as np
 
-from mo.front.extractor import split_node_in_port
-from mo.middle.passes.convert_data_type import destination_type_to_np_data_type
-from mo.utils import import_extensions
-from mo.utils.error import Error
-from mo.utils.utils import refer_to_faq_msg
-from mo.utils.version import get_version
+from openvino.tools.mo.front.extractor import split_node_in_port
+from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
+from openvino.tools.mo.utils import import_extensions
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.utils.version import get_version
 
 
 class DeprecatedStoreTrue(argparse.Action):
@@ -1253,7 +1253,7 @@ def check_available_transforms(transforms: list):
     :param transforms: list of user specified transformations
     :return: raises an Error if transformation is not available
     """
-    from mo.back.offline_transformations import get_available_transformations
+    from openvino.tools.mo.back.offline_transformations import get_available_transformations
     available_transforms = get_available_transformations()
 
     missing_transformations = []

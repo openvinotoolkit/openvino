@@ -1,13 +1,13 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.MatMul import FullyConnected
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, Node
-from mo.graph.graph import rename_nodes
-from mo.ops.concat import Concat
-from mo.ops.memoryoffset import MemoryOffset
+from openvino.tools.mo.ops.MatMul import FullyConnected
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.graph.graph import rename_nodes
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.memoryoffset import MemoryOffset
 
 
 class TdnnComponentReplacer(FrontReplacementPattern):
@@ -36,7 +36,7 @@ class TdnnComponentReplacer(FrontReplacementPattern):
     run_not_recursively = True
 
     def run_before(self):
-        from extensions.front.kaldi.memory_offset_adjustment import MemoryOffsetAdjustment
+        from openvino.tools.mo.front.kaldi.memory_offset_adjustment import MemoryOffsetAdjustment
         return [MemoryOffsetAdjustment]
 
     def find_and_replace_pattern(self, graph: Graph):

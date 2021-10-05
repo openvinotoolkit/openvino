@@ -3,16 +3,16 @@
 
 import numpy as np
 
-from extensions.ops.Cast import Cast
-from extensions.ops.elementwise import Mul
-from extensions.ops.fakequantize import FakeQuantize
-from mo.front.common.partial_infer.utils import float_array, int64_array
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, rename_nodes
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
-from mo.ops.reshape import Reshape
-from mo.utils.error import Error
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.elementwise import Mul
+from openvino.tools.mo.ops.fakequantize import FakeQuantize
+from openvino.tools.mo.front.common.partial_infer.utils import float_array, int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.utils.error import Error
 
 
 class QuantizeLinearResolver(MiddleReplacementPattern):
@@ -34,7 +34,7 @@ class QuantizeLinearResolver(MiddleReplacementPattern):
     graph_condition = [lambda graph: graph.graph['layout'] == 'NCHW']
 
     def run_after(self):
-        from extensions.middle.quantize_fuses import MarkNodesToFuseUpToFakeQuantize
+        from openvino.tools.mo.middle.quantize_fuses import MarkNodesToFuseUpToFakeQuantize
         return [MarkNodesToFuseUpToFakeQuantize]
 
     def find_and_replace_pattern(self, graph: Graph):

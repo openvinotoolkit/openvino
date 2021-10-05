@@ -1,13 +1,13 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.front.common.partial_infer.utils import int64_array, shape_array
-from mo.graph.graph import Node, Graph
-from mo.middle.passes.convert_data_type import data_type_str_to_np
-from mo.ops.op import Op
-from mo.utils.error import Error
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.front.common.partial_infer.elemental import copy_shape_infer
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 class Memory(Op):

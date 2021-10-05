@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import Graph
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
 
 
 class LayoutChangeForGatherND(BackReplacementPattern):
@@ -15,7 +15,7 @@ class LayoutChangeForGatherND(BackReplacementPattern):
     graph_condition = [lambda graph: graph.graph['fw'] == 'tf']
 
     def find_and_replace_pattern(self, graph: Graph):
-        import extensions.middle.InsertLayoutPropagationTransposes as InsertTransposes
+        import openvino.tools.mo.middle.InsertLayoutPropagationTransposes as InsertTransposes
         for gathernd in graph.get_op_nodes(type='GatherND'):
             InsertTransposes.insert_transpose(graph, gathernd.in_port(0), before_input=True)
             InsertTransposes.insert_transpose(graph, gathernd.in_port(1), before_input=True)

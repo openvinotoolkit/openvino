@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.partial_infer.multi_box_prior import multi_box_prior_infer_mxnet
+from openvino.tools.mo.front.common.partial_infer.multi_box_prior import multi_box_prior_infer_mxnet
 
 
 def multi_box_prior_ext(attr):

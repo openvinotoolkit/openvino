@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.utils import class_registration
-from mo.utils.replacement_pattern import ReplacementPattern
+from openvino.tools.mo.utils import class_registration
+from openvino.tools.mo.utils.replacement_pattern import ReplacementPattern
 
 
 class MiddleReplacementPattern(ReplacementPattern):
@@ -10,11 +10,11 @@ class MiddleReplacementPattern(ReplacementPattern):
     registered_cls = []
 
     def run_after(self):
-        from extensions.middle.pass_separator import MiddleStart
+        from openvino.tools.mo.middle.pass_separator import MiddleStart
         return [MiddleStart]
 
     def run_before(self):
-        from extensions.middle.pass_separator import MiddleFinish
+        from openvino.tools.mo.middle.pass_separator import MiddleFinish
         return [MiddleFinish]
 
     @classmethod

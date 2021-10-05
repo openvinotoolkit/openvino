@@ -3,11 +3,11 @@
 
 import numpy as np
 
-from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.front.common.partial_infer.utils import int64_array, is_fully_defined
-from mo.graph.graph import Node, Graph
-from mo.ops.op import Op, PermuteAttrs
-from mo.utils.error import Error
+from openvino.tools.mo.front.caffe.extractors.utils import get_canonical_axis_index
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, is_fully_defined
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.op import Op, PermuteAttrs
+from openvino.tools.mo.utils.error import Error
 
 
 class Gather(Op):
@@ -74,7 +74,7 @@ class Gather(Op):
             'normalized batch_dims must be <= axis. Instead got batch_dims = {}, axis = {}'.format(axis, batch_dims)
 
         # we import PermuteInputs locally because it uses Gather inside and we have recursive imports
-        from mo.graph.perm_inputs import PermuteInputs
+        from openvino.tools.mo.graph.perm_inputs import PermuteInputs
         PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'axis')
 
         batch_dims_range = indices_shape[:batch_dims]

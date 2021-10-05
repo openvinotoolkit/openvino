@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import shape_array
-from mo.graph.graph import Node, Graph
-from mo.ops.op import Op
-from mo.utils.utils import match_shapes
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.utils.utils import match_shapes
 
 
 class TensorArrayScatter(Op):

@@ -8,11 +8,11 @@ from collections import namedtuple
 import networkx as nx
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, strict_compare_tensors
-from mo.front.extractor import add_attrs_props, update_ie_fields
-from mo.graph.graph import Node, Graph
-from mo.utils import class_registration
-from mo.utils.error import Error
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, strict_compare_tensors
+from openvino.tools.mo.front.extractor import add_attrs_props, update_ie_fields
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.utils import class_registration
+from openvino.tools.mo.utils.error import Error
 
 
 class Op(object):
@@ -332,7 +332,7 @@ class Op(object):
     @staticmethod
     def normalize_outputs(node: Node):
         if node.has_valid('out_ports_count') and len(node.out_edges()) < node.out_ports_count:
-            from mo.ops.result import Result    # Import is here to avoid circular import error
+            from openvino.tools.mo.ops.result import Result    # Import is here to avoid circular import error
             for p in range(node.out_ports_count):
                 if p not in node.out_ports():
                     node.add_output_port(p)

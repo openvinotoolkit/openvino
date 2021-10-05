@@ -262,7 +262,7 @@ def check_requirements(framework=None):
         framework_suffix = "_{}".format(framework)
 
     file_name = "requirements{}.txt".format(framework_suffix)
-    requirements_file = os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, file_name))
+    requirements_file = os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir, os.pardir, file_name))
     requirements_list = get_module_version_list_from_file(requirements_file, env_setup)
     not_satisfied_versions = []
     exit_code = 0

@@ -5,8 +5,8 @@ import unittest
 
 from google.protobuf import text_format
 
-from mo.front.caffe.custom_layers_mapping import proto_extractor
-from mo.front.caffe.proto import caffe_pb2
+from openvino.tools.mo.front.caffe.custom_layers_mapping import proto_extractor
+from openvino.tools.mo.front.caffe.proto import caffe_pb2
 
 
 class TestCustomLayerMapping(unittest.TestCase):

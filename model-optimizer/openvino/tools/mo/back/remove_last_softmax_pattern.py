@@ -3,10 +3,10 @@
 
 import logging as log
 
-from mo.back.replacement import BackReplacementPattern
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Graph
-from mo.middle.passes.eliminate import remove_op_node_with_data_node
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.passes.eliminate import remove_op_node_with_data_node
 
 
 class RemoveLastSoftMaxPattern(BackReplacementPattern):

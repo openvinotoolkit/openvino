@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.front.kaldi.add_permute_after_convolution import ReplaceConvolutionTranspose
-from mo.graph.graph import Node
+from openvino.tools.mo.front.kaldi.add_permute_after_convolution import ReplaceConvolutionTranspose
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 

@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.graph.graph import Graph
-from mo.middle.pattern_match import apply_pattern
-from mo.utils.model_analysis import AnalyzeAction
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.pattern_match import apply_pattern
+from openvino.tools.mo.utils.model_analysis import AnalyzeAction
 
 
 def pattern_instance_counter(graph: Graph, match: dict):
@@ -53,13 +53,13 @@ class TensorFlowRetinaNet(AnalyzeAction):
         if pattern_instance_counter.counter > 0:
             result = dict()
             result['mandatory_parameters'] = {'tensorflow_use_custom_operations_config':
-                                                  'extensions/front/tf/retinanet.json'}
+                                                  'openvino/tools/mo/front/tf/retinanet.json'}
 
             message = "Your model looks like TensorFlow RetinaNet Model.\n" \
                       "To generate the IR, provide model to the Model Optimizer with the following parameters:\n" \
                       "\t--input_model <path_to_model>/<model>.pb\n" \
                       "\t--input_shape [1,600,600,3]\n" \
-                      "\t--tensorflow_use_custom_operations_config <OPENVINO_INSTALL_DIR>/tools/model_optimizer/extensions/front/tf/retinanet.json\n" \
+                      "\t--tensorflow_use_custom_operations_config <OPENVINO_INSTALL_DIR>/tools/model_optimizer/openvino/tools/mo/front/tf/retinanet.json\n" \
                       "\t--reverse_input_channels"
 
             return {'model_type': {'TF_RetinaNet': result}}, message

@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.caffe.extractors.utils import get_canonical_axis_index
+from openvino.tools.mo.front.caffe.extractors.utils import get_canonical_axis_index
 import numpy as np
-from mo.utils.error import Error
+from openvino.tools.mo.utils.error import Error
 
 
 def slice_axis_ext(attrs):

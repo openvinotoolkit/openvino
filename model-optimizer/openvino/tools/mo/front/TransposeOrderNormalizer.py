@@ -1,12 +1,12 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.front.tf.pad_tf_to_pad import PadTFToPad
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.subgraph_matcher import SubgraphMatch
-from mo.graph.graph import Graph
-from mo.ops.const import Const
-from mo.utils.error import Error
+from openvino.tools.mo.front.tf.pad_tf_to_pad import PadTFToPad
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.utils.error import Error
 
 
 class TransposeOrderNormalizer(FrontReplacementSubgraph):
@@ -21,7 +21,7 @@ class TransposeOrderNormalizer(FrontReplacementSubgraph):
 
     def run_before(self):
         # refer to the comments of the ObjectDetectionAPIPreprocessorReplacement transformation in the
-        # <MO_DIR>/extensions/front/tf/ObjectDetectionAPI.py file for more details why this dependency is needed.
+        # <MO_DIR>/openvino/tools/mo/front/tf/ObjectDetectionAPI.py file for more details why this dependency is needed.
         return [PadTFToPad]
 
     def pattern(self):

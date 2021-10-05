@@ -1,13 +1,13 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.ctc_greedy_decoder_seq_len import CTCGreedyDecoderSeqLenOp
-from extensions.ops.ctc_loss import CTCLoss
-from extensions.ops.transpose import Transpose
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.ops.ctc_greedy_decoder_seq_len import CTCGreedyDecoderSeqLenOp
+from openvino.tools.mo.ops.ctc_loss import CTCLoss
+from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
 
 
 class CTCLossReplacement(FrontReplacementSubgraph):
@@ -20,7 +20,7 @@ class CTCLossReplacement(FrontReplacementSubgraph):
     enabled = True
 
     def run_before(self):
-        from extensions.front.tf.CTCGreedyDecoderReplacement import CTCGreedyDecoderReplacement
+        from openvino.tools.mo.front.tf.CTCGreedyDecoderReplacement import CTCGreedyDecoderReplacement
         return [CTCGreedyDecoderReplacement]
 
     def pattern(self):

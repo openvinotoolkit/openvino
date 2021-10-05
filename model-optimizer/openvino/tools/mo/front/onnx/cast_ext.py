@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.Cast import Cast
-from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import get_onnx_datatype_as_numpy, onnx_attr
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.onnx.extractors.utils import get_onnx_datatype_as_numpy, onnx_attr
 
 
 class CastFrontExtractor(FrontExtractorOp):

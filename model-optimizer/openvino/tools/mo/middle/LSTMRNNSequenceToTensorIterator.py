@@ -1,16 +1,16 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.middle.RNNSequenceNormalizeToIE import RNNSequenceNormalize
-from extensions.ops.lstm_cell import LSTMCell
-from extensions.ops.tensor_iterator import TensorIterator
-from mo.front.common.partial_infer.utils import shape_delete
-from mo.graph.graph import Graph, add_opoutput
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
-from mo.ops.op import Op
-from mo.ops.squeeze import Squeeze
-from mo.ops.unsqueeze import Unsqueeze
+from openvino.tools.mo.middle.RNNSequenceNormalizeToIE import RNNSequenceNormalize
+from openvino.tools.mo.ops.lstm_cell import LSTMCell
+from openvino.tools.mo.ops.tensor_iterator import TensorIterator
+from openvino.tools.mo.front.common.partial_infer.utils import shape_delete
+from openvino.tools.mo.graph.graph import Graph, add_opoutput
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.ops.squeeze import Squeeze
+from openvino.tools.mo.ops.unsqueeze import Unsqueeze
 
 
 class LSTMToTensorIterator(MiddleReplacementPattern):
@@ -33,7 +33,7 @@ class LSTMToTensorIterator(MiddleReplacementPattern):
         return [RNNSequenceNormalize]
 
     def run_before(self):
-        from extensions.middle.permute_tensor_iterator import TransposeTensorIteratorLSTM
+        from openvino.tools.mo.middle.permute_tensor_iterator import TransposeTensorIteratorLSTM
         return [TransposeTensorIteratorLSTM]
 
     def pattern(self):

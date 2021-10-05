@@ -3,11 +3,11 @@
 
 import numpy as np
 
-from mo.front.caffe.extractors.utils import get_spatial_attr, get_list_from_container, weights_biases
-from mo.front.common.extractors.utils import layout_attrs
-from mo.front.extractor import FrontExtractorOp
-from mo.ops.convolution import Convolution
-from mo.utils.error import Error
+from openvino.tools.mo.front.caffe.extractors.utils import get_spatial_attr, get_list_from_container, weights_biases
+from openvino.tools.mo.front.common.extractors.utils import layout_attrs
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.convolution import Convolution
+from openvino.tools.mo.utils.error import Error
 
 
 class ConvFrontExtractor(FrontExtractorOp):

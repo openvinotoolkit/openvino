@@ -1,14 +1,14 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.loop import Loop
-from extensions.ops.parameter import Parameter
-from mo.front.common.register_custom_ops import check_for_duplicates
-from mo.front.extractor import extract_node_attrs, FrontExtractorOp
-from mo.front.tf.extractor import tf_op_extractor, tf_op_extractors, create_tf_edge
-from mo.front.tf.extractors.subgraph_utils import update_body_graph, convert_graph_inputs_to_parameters, \
+from openvino.tools.mo.ops.loop import Loop
+from openvino.tools.mo.ops.parameter import Parameter
+from openvino.tools.mo.front.common.register_custom_ops import check_for_duplicates
+from openvino.tools.mo.front.extractor import extract_node_attrs, FrontExtractorOp
+from openvino.tools.mo.front.tf.extractor import tf_op_extractor, tf_op_extractors, create_tf_edge
+from openvino.tools.mo.front.tf.extractors.subgraph_utils import update_body_graph, convert_graph_inputs_to_parameters, \
     get_graph_proto, create_internal_graph
-from mo.graph.graph import add_opoutput, Graph, Node
+from openvino.tools.mo.graph.graph import add_opoutput, Graph, Node
 
 
 class WhileExtractor(FrontExtractorOp):

@@ -5,15 +5,15 @@ import unittest
 from collections import Counter
 from unittest.mock import Mock
 
-from mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
-from mo.graph.graph import Graph, Node
-from mo.utils.telemetry_utils import send_op_names_info, send_shapes_info
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.utils.telemetry_utils import send_op_names_info, send_shapes_info
 from unit_tests.utils.graph import build_graph, regular_op
 
 try:
     import openvino_telemetry as tm
 except ImportError:
-    import mo.utils.telemetry_stub as tm
+    import openvino.tools.mo.utils.telemetry_stub as tm
 
 
 class TestTelemetryUtils(unittest.TestCase):

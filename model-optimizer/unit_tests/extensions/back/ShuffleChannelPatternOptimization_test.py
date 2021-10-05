@@ -6,14 +6,14 @@ from argparse import Namespace
 
 from generator import generate, generator
 
-from extensions.back.ShuffleChannelPatternOptimization import ShuffleChannelFusion, DepthToSpaceFusion
-from extensions.ops.depth_to_space import DepthToSpaceOp
-from extensions.ops.parameter import Parameter
-from extensions.ops.shufflechannel import ShuffleChannels
-from extensions.ops.transpose import Transpose
-from mo.front.common.partial_infer.utils import int64_array
-from mo.ops.reshape import Reshape
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.back.ShuffleChannelPatternOptimization import ShuffleChannelFusion, DepthToSpaceFusion
+from openvino.tools.mo.ops.depth_to_space import DepthToSpaceOp
+from openvino.tools.mo.ops.parameter import Parameter
+from openvino.tools.mo.ops.shufflechannel import ShuffleChannels
+from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, result, regular_op_with_shaped_data, \
     valued_const_with_data, connect, regular_op_with_empty_data
 

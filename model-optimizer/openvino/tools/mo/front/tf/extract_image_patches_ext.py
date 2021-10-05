@@ -1,11 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.ExtractImagePatches import ExtractImagePatches
-from mo.front.common.partial_infer.utils import convert_tf_padding_to_str
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.extractor import FrontExtractorOp
-from mo.front.tf.extractors.utils import tf_int_list
+from openvino.tools.mo.ops.ExtractImagePatches import ExtractImagePatches
+from openvino.tools.mo.front.common.partial_infer.utils import convert_tf_padding_to_str
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.tf.extractors.utils import tf_int_list
 
 
 class ExtractImagePatchesExtractor(FrontExtractorOp):

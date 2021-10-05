@@ -5,13 +5,13 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, mark_input_bins, assign_dims_to_weights, \
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, mark_input_bins, assign_dims_to_weights, \
     tf_window_op_pad_infer, dynamic_dimension_value, shape_array
-from mo.front.onnx.extractors.utils import get_backend_pad
-from mo.graph.graph import Node, Graph
-from mo.graph.perm_inputs import PermuteInputs
-from mo.ops.op import Op, PermuteAttrs
-from mo.utils.error import Error
+from openvino.tools.mo.front.onnx.extractors.utils import get_backend_pad
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.graph.perm_inputs import PermuteInputs
+from openvino.tools.mo.ops.op import Op, PermuteAttrs
+from openvino.tools.mo.utils.error import Error
 
 
 class Convolution(Op):

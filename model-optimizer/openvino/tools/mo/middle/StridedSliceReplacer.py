@@ -3,14 +3,14 @@
 
 import numpy as np
 
-from extensions.middle.InsertLayoutPropagationTransposes import InsertLayoutPropagationTranspose
-from extensions.middle.StridedSliceNormalizer import StridedSliceNormalizer
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph, rename_nodes, Node
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.squeeze import Squeeze
-from mo.ops.unsqueeze import Unsqueeze
+from openvino.tools.mo.middle.InsertLayoutPropagationTransposes import InsertLayoutPropagationTranspose
+from openvino.tools.mo.middle.StridedSliceNormalizer import StridedSliceNormalizer
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
+from openvino.tools.mo.graph.graph import Graph, rename_nodes, Node
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.squeeze import Squeeze
+from openvino.tools.mo.ops.unsqueeze import Unsqueeze
 
 
 def replace_strided_slice(node: Node, mask: np.ndarray, op: callable):
@@ -29,7 +29,7 @@ class ReplaceStridedSliceWithSqueezeUnsqueeze(MiddleReplacementPattern):
     The transformation replaces StridedSlice with a Squeeze/Unsqueeze node if StridedSlice executes like a Squeeze/Unsqueeze
     and does not slice values. This is necessary if StridedSlice is to be executed in original N(D)HWC layout, because
     the operation does not have reinterp_shape attribute and MO can not insert NC(D)HW -> N(D)HWC Transpose in
-    extensions/middle/InsertLayoutPropagationTransposes.py.
+    openvino/tools/mo/middle/InsertLayoutPropagationTransposes.py.
     """
     enabled = True
 

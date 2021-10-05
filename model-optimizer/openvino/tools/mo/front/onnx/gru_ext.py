@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from extensions.ops.GRU import GRU
-from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr
+from openvino.tools.mo.ops.GRU import GRU
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr
 
 
 class GRUFrontExtractor(FrontExtractorOp):

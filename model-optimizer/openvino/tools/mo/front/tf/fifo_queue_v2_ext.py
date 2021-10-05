@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from mo.front.extractor import FrontExtractorOp
-from mo.front.tf.extractors.utils import tf_dtype_extractor
-from mo.ops.op import Op
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor
+from openvino.tools.mo.ops.op import Op
 
 
 class FIFOQueueV2Extractor(FrontExtractorOp):

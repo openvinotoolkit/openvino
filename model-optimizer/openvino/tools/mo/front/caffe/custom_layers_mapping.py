@@ -6,9 +6,9 @@ from builtins import AttributeError
 
 from defusedxml import ElementTree
 
-from mo.front.caffe.collect_attributes import collect_attributes
-from mo.front.caffe.extractor import node_pb_arg
-from mo.front.common.register_custom_ops import check_for_duplicates, add_or_override_extractor
+from openvino.tools.mo.front.caffe.collect_attributes import collect_attributes
+from openvino.tools.mo.front.caffe.extractor import node_pb_arg
+from openvino.tools.mo.front.common.register_custom_ops import check_for_duplicates, add_or_override_extractor
 
 
 def expected_attribs(layer_attrs: list, attrs: list, fileName: str):

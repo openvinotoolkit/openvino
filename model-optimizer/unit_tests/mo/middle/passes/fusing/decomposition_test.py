@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from mo.middle.passes.fusing.decomposition import convert_scale_shift_to_mul_add, convert_batch_norm
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.middle.passes.fusing.decomposition import convert_scale_shift_to_mul_add, convert_batch_norm
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {

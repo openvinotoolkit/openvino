@@ -3,8 +3,8 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import dynamic_dimension_value
-from mo.utils.error import Error
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value
+from openvino.tools.mo.utils.error import Error
 
 nchw_to_nhwc_permute = np.array([0, 2, 3, 1], dtype=np.int64)
 nhwc_to_nchw_permute = np.array([0, 3, 1, 2], dtype=np.int64)

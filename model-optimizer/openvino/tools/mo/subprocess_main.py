@@ -6,7 +6,7 @@ import os
 import subprocess
 import sys
 
-from mo.utils.versions_checker import check_python_version  # pylint: disable=no-name-in-module
+from openvino.tools.mo.utils.versions_checker import check_python_version  # pylint: disable=no-name-in-module
 
 
 def log_ie_not_found():
@@ -21,7 +21,7 @@ def setup_env():
     if ret_code:
         sys.exit(ret_code)
 
-    from mo.utils.find_ie_version import find_ie_version
+    from openvino.tools.mo.utils.find_ie_version import find_ie_version
 
     ie_found = True
     try:

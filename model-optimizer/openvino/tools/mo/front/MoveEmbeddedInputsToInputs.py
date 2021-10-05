@@ -1,11 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.front.pass_separator import FrontStart
-from extensions.front.restore_ports import RestorePorts
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph
-from mo.ops.const import Const
+from openvino.tools.mo.front.pass_separator import FrontStart
+from openvino.tools.mo.front.restore_ports import RestorePorts
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.const import Const
 
 
 class MoveEmbeddedInputsToInputs(FrontReplacementSubgraph):

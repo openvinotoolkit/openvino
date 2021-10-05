@@ -7,13 +7,13 @@ from argparse import Namespace
 import numpy as np
 from generator import generate, generator
 
-from extensions.back.MatMulNormalizer import SmartReshape_HC_Reshape_MatMul, PullTransposeThroughFQUp
-from extensions.ops.MatMul import MatMul
-from extensions.ops.fakequantize import FakeQuantize
-from extensions.ops.transpose import Transpose
-from mo.front.common.partial_infer.utils import int64_array
-from mo.ops.reshape import Reshape
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.back.MatMulNormalizer import SmartReshape_HC_Reshape_MatMul, PullTransposeThroughFQUp
+from openvino.tools.mo.ops.MatMul import MatMul
+from openvino.tools.mo.ops.fakequantize import FakeQuantize
+from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, \
     result, connect, connect_data
 from unit_tests.utils.graph import regular_op_with_empty_data as op_with_empty_data

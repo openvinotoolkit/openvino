@@ -1,15 +1,15 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.ConvertLike import ConvertLike
-from extensions.ops.split import Split
-from extensions.ops.transpose import Transpose
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, rename_node
-from mo.ops.pad import Pad
-from mo.ops.squeeze import Squeeze
+from openvino.tools.mo.ops.ConvertLike import ConvertLike
+from openvino.tools.mo.ops.split import Split
+from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, rename_node
+from openvino.tools.mo.ops.pad import Pad
+from openvino.tools.mo.ops.squeeze import Squeeze
 
 
 class PadTFToPad(FrontReplacementPattern):

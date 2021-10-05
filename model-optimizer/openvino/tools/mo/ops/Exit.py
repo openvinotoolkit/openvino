@@ -3,8 +3,8 @@
 
 import numpy as np
 
-from mo.graph.graph import Node, Graph
-from mo.ops.op import Op
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.op import Op
 
 
 class Exit(Op):

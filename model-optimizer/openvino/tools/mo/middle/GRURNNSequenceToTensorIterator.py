@@ -3,14 +3,14 @@
 
 import numpy as np
 
-from extensions.ops.tensor_iterator import TensorIterator
-from mo.front.common.partial_infer.utils import shape_delete
-from mo.graph.graph import Graph, add_opoutput
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
-from mo.ops.op import Op
-from mo.ops.squeeze import Squeeze
-from mo.ops.unsqueeze import Unsqueeze
+from openvino.tools.mo.ops.tensor_iterator import TensorIterator
+from openvino.tools.mo.front.common.partial_infer.utils import shape_delete
+from openvino.tools.mo.graph.graph import Graph, add_opoutput
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.ops.squeeze import Squeeze
+from openvino.tools.mo.ops.unsqueeze import Unsqueeze
 
 
 class GRUAndRNNToTensorIterator(MiddleReplacementPattern):
@@ -29,11 +29,11 @@ class GRUAndRNNToTensorIterator(MiddleReplacementPattern):
     id = 'gru_and_rnn_to_tensor_iterator'
 
     def run_after(self):
-        from extensions.middle.RNNSequenceNormalizeToIE import RNNSequenceNormalize
+        from openvino.tools.mo.middle.RNNSequenceNormalizeToIE import RNNSequenceNormalize
         return [RNNSequenceNormalize]
 
     def run_before(self):
-        from extensions.middle.permute_tensor_iterator import TransposeTensorIteratorLSTM
+        from openvino.tools.mo.middle.permute_tensor_iterator import TransposeTensorIteratorLSTM
         return [TransposeTensorIteratorLSTM]
 
     def pattern(self):

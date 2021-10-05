@@ -1,15 +1,15 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.load.loader import Loader
-from mo.front.caffe import custom_layers_mapping, loader
-from mo.front.caffe.extractor import caffe_type_extractors, caffe_extractor
-from mo.front.common.register_custom_ops import update_extractors_with_extensions, check_for_duplicates
-from mo.front.extractor import extract_node_attrs
-from mo.graph.graph import Graph
-from mo.utils.error import Error
-from mo.utils.telemetry_utils import send_op_names_info, send_shapes_info
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.load.loader import Loader
+from openvino.tools.mo.front.caffe import custom_layers_mapping, loader
+from openvino.tools.mo.front.caffe.extractor import caffe_type_extractors, caffe_extractor
+from openvino.tools.mo.front.common.register_custom_ops import update_extractors_with_extensions, check_for_duplicates
+from openvino.tools.mo.front.extractor import extract_node_attrs
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.telemetry_utils import send_op_names_info, send_shapes_info
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 class CaffeLoader(Loader):

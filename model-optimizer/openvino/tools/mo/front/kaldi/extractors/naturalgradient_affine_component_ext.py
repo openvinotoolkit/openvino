@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.extractor import FrontExtractorOp
-from mo.front.kaldi.extractors.fixed_affine_component_ext import FixedAffineComponentFrontExtractor
-from mo.front.kaldi.utils import read_learning_info
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.kaldi.extractors.fixed_affine_component_ext import FixedAffineComponentFrontExtractor
+from openvino.tools.mo.front.kaldi.utils import read_learning_info
 
 
 class NaturalGradientAffineComponentFrontExtractor(FrontExtractorOp):

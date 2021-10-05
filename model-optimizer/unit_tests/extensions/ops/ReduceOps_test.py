@@ -6,9 +6,9 @@ import unittest
 import numpy as np
 from generator import generate, generator
 
-from extensions.ops.ReduceOps import reduce_infer
-from mo.front.common.partial_infer.utils import int64_array, strict_compare_tensors, is_fully_defined
-from mo.graph.graph import Node
+from openvino.tools.mo.ops.ReduceOps import reduce_infer
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, strict_compare_tensors, is_fully_defined
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, result, connect, valued_const_with_data
 
 nodes_attributes = {

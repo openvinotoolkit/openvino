@@ -14,10 +14,10 @@ except ImportError:
     import tensorflow as tf_v1
 from google.protobuf import text_format
 
-from mo.front.extractor import node_defs_to_str
-from mo.front.tf.extractors.utils import tf_dtype_extractor, tf_tensor_shape, get_tf_node_port
-from mo.graph.graph import Node
-from mo.utils.graph import node_incoming_neighbourhood, node_outcoming_neighbourhood
+from openvino.tools.mo.front.extractor import node_defs_to_str
+from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor, tf_tensor_shape, get_tf_node_port
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.utils.graph import node_incoming_neighbourhood, node_outcoming_neighbourhood
 
 
 def tf_native_tf_node_infer(node: Node):

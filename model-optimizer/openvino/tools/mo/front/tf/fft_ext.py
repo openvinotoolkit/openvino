@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.TFFFT import TFFFT
-from mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.TFFFT import TFFFT
+from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
 class FFT1DOpFrontExtractor(FrontExtractorOp):

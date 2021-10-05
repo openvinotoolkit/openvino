@@ -4,9 +4,9 @@
 import numpy as np
 import unittest
 
-from extensions.front.caffe.bn import BNToScaleShift
-from mo.graph.graph import Node
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.caffe.bn import BNToScaleShift
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.extractors import FakeParam
 from unit_tests.utils.graph import build_graph_with_edge_attrs, build_graph_with_attrs
 

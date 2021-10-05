@@ -3,8 +3,8 @@
 
 import numpy as np
 
-from extensions.ops.bucketize import Bucketize
-from mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.bucketize import Bucketize
+from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
 class BucketizeFrontExtractor(FrontExtractorOp):

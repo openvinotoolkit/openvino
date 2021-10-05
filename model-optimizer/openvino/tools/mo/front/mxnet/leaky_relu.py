@@ -1,13 +1,13 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.activation_ops import Elu, LeakyReLU, ReLU
-from extensions.ops.gelu import GeLUOP
-from extensions.ops.prelu import PReLU
-from mo.front.extractor import FrontExtractorOp
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
-from mo.utils.error import Error
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.ops.activation_ops import Elu, LeakyReLU, ReLU
+from openvino.tools.mo.ops.gelu import GeLUOP
+from openvino.tools.mo.ops.prelu import PReLU
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 class LeakyReLUFrontExtractor(FrontExtractorOp):

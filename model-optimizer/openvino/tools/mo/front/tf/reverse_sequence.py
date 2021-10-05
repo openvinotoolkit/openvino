@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.reverse_sequence import ReverseSequence
-from mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.reverse_sequence import ReverseSequence
+from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
 class ReverseSequenceFrontExtractor(FrontExtractorOp):

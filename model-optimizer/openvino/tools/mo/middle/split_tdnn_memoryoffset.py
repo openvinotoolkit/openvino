@@ -1,10 +1,10 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.memoryoffset import MemoryOffset
-from mo.ops.result import Result
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.memoryoffset import MemoryOffset
+from openvino.tools.mo.ops.result import Result
 
 
 class SplitTdnnMemoryOffset(MiddleReplacementPattern):
@@ -15,7 +15,7 @@ class SplitTdnnMemoryOffset(MiddleReplacementPattern):
     run_not_recursively = True
 
     def run_before(self):
-        from extensions.middle.ReplaceMemoryOffsetWithSplice import ReplaceMemoryOffsetWithMemoryNodePattern, ReplaceMemoryOffsetNodePattern
+        from openvino.tools.mo.middle.ReplaceMemoryOffsetWithSplice import ReplaceMemoryOffsetWithMemoryNodePattern, ReplaceMemoryOffsetNodePattern
         return [ReplaceMemoryOffsetNodePattern, ReplaceMemoryOffsetWithMemoryNodePattern]
 
     def find_and_replace_pattern(self, graph: Graph):

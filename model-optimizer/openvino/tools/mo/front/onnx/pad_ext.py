@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version
-from mo.ops.pad import AttributedPad, ONNXPad
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version
+from openvino.tools.mo.ops.pad import AttributedPad, ONNXPad
 
 
 class PadFrontExtractor(FrontExtractorOp):

@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.activation_ops import Sigmoid
-from mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.activation_ops import Sigmoid
+from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
 class SigmoidFrontExtractor(FrontExtractorOp):

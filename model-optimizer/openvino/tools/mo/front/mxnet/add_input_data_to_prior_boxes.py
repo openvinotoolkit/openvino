@@ -1,19 +1,19 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.graph.graph import Graph, Node
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.graph.graph import Graph, Node
 
 
 class AddInputDataToPriorBoxes(FrontReplacementPattern):
     enabled = True
 
     def run_before(self):
-        from extensions.front.create_tensor_nodes import CreateTensorNodes
+        from openvino.tools.mo.front.create_tensor_nodes import CreateTensorNodes
         return [CreateTensorNodes]
 
     def run_after(self):
-        from extensions.front.pass_separator import FrontFinish
+        from openvino.tools.mo.front.pass_separator import FrontFinish
         return [FrontFinish]
 
     @staticmethod

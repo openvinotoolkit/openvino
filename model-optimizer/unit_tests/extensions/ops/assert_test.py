@@ -4,8 +4,8 @@
 import unittest
 from unittest.mock import Mock
 
-from extensions.ops.assert_op import Assert
-from mo.graph.graph import Node
+from openvino.tools.mo.ops.assert_op import Assert
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph_with_edge_attrs
 
 

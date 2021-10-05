@@ -3,12 +3,12 @@
 
 import numpy as np
 
-from mo.back.replacement import BackReplacementPattern
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Graph
-from mo.middle.passes.eliminate import merge_data_nodes
-from mo.middle.passes.fusing.helpers import get_next_operation
-from mo.utils.error import Error
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.passes.eliminate import merge_data_nodes
+from openvino.tools.mo.middle.passes.fusing.helpers import get_next_operation
+from openvino.tools.mo.utils.error import Error
 
 
 class FuseTransposesSequence(BackReplacementPattern):

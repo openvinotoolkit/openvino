@@ -3,11 +3,11 @@
 
 import numpy as np
 
-from extensions.front.eltwise_n import EltwiseNReplacement
-from extensions.ops.elementwise import Mul
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.graph.graph import Graph, Node
-from mo.ops.const import Const
+from openvino.tools.mo.front.eltwise_n import EltwiseNReplacement
+from openvino.tools.mo.ops.elementwise import Mul
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.ops.const import Const
 
 
 class EltwiseAddNormalize(FrontReplacementPattern):

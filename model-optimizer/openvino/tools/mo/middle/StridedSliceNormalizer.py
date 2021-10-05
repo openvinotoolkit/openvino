@@ -3,18 +3,18 @@
 
 import numpy as np
 
-from extensions.ops.split import VariadicSplit
-from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, dynamic_dimension_value, \
+from openvino.tools.mo.ops.split import VariadicSplit
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, dynamic_dimension_value, \
     is_dynamic_slice
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, Node
-from mo.graph.perm_inputs import PermuteInputs
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.concat import Concat
-from mo.ops.const import Const
-from mo.ops.op import PermuteAttrs
-from mo.ops.strided_slice import StridedSlice
-from mo.utils.error import Error
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.graph.perm_inputs import PermuteInputs
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.op import PermuteAttrs
+from openvino.tools.mo.ops.strided_slice import StridedSlice
+from openvino.tools.mo.utils.error import Error
 
 
 class StridedSliceNormalizer(MiddleReplacementPattern):
@@ -88,11 +88,11 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
     enabled = True
 
     def run_before(self):
-        from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
+        from openvino.tools.mo.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
         return [LayoutChangeForConstantShapePaths]
 
     def run_after(self):
-        from extensions.middle.SliceConverter import ConvertSlice
+        from openvino.tools.mo.middle.SliceConverter import ConvertSlice
         return [ConvertSlice]
 
     def find_and_replace_pattern(self, graph: Graph):

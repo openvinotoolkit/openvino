@@ -4,15 +4,15 @@
 from collections import deque
 from typing import List, Set
 
-from extensions.middle.InsertLayoutPropagationTransposes import is_output_data_in_correct_layout, \
+from openvino.tools.mo.middle.InsertLayoutPropagationTransposes import is_output_data_in_correct_layout, \
     InsertLayoutPropagationTranspose, mark_input_as_in_correct_layout, mark_output_as_in_correct_layout
-from extensions.ops.gather import Gather
-from extensions.ops.transpose import Transpose
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph
-from mo.graph.port import Port
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.gather import Gather
+from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.graph.port import Port
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class LayoutChangeForConstantShapePaths(MiddleReplacementPattern):

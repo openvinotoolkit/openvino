@@ -12,10 +12,10 @@ from unittest.mock import patch
 import numpy as np
 import numpy.testing as npt
 
-from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_mean_scale_dictionary, get_model_name, \
+from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_mean_scale_dictionary, get_model_name, \
     parse_tuple_pairs, check_positive, writable_dir, readable_dirs, \
     readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms
-from mo.utils.error import Error
+from openvino.tools.mo.utils.error import Error
 
 
 class TestingMeanScaleGetter(unittest.TestCase):
@@ -797,7 +797,7 @@ class TestModelNameParsing(unittest.TestCase):
         exp_res = 'model'
         self.assertEqual(exp_res, res)
 
-    @patch("mo.utils.cli_parser.os")
+    @patch("openvino.tools.mo.utils.cli_parser.os")
     def test_model_name_win(self, old_os):
         old_os.path.basename.return_value = "caffemodel"
         old_os.path.splitext.return_value = ("caffemodel", "")
@@ -955,7 +955,7 @@ class TransformChecker(unittest.TestCase):
     def test_single_pass_with_args_neg6(self):
         self.assertRaises(Error, parse_transform, "LowLatency2[key=value")
 
-    @patch("mo.back.offline_transformations.get_available_transformations")
+    @patch("openvino.tools.mo.back.offline_transformations.get_available_transformations")
     def test_check_low_latency_is_available(self, available_transformations):
         available_transformations.return_value = {"LowLatency2": None}
         try:
@@ -963,7 +963,7 @@ class TransformChecker(unittest.TestCase):
         except Error as e:
             self.assertTrue(False, "Exception \"{}\" is unexpected".format(e))
 
-    @patch("mo.back.offline_transformations.get_available_transformations")
+    @patch("openvino.tools.mo.back.offline_transformations.get_available_transformations")
     def test_check_dummy_pass_is_available(self, available_transformations):
         available_transformations.return_value = {"LowLatency2": None}
         self.assertRaises(Error, check_available_transforms, [("DummyPass", "")])

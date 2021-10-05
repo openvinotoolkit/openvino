@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
 
-from mo.front.caffe.extractors.utils import embed_input
-from mo.front.extractor import FrontExtractorOp
-from mo.front.kaldi.loader.utils import collect_until_token, read_token_value
-from mo.front.kaldi.utils import read_binary_matrix, read_binary_vector, read_binary_vector_of_pairs
-from mo.ops.timeheightconvolution import TimeHeightConvolutionComponent
+from openvino.tools.mo.front.caffe.extractors.utils import embed_input
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.kaldi.loader.utils import collect_until_token, read_token_value
+from openvino.tools.mo.front.kaldi.utils import read_binary_matrix, read_binary_vector, read_binary_vector_of_pairs
+from openvino.tools.mo.ops.timeheightconvolution import TimeHeightConvolutionComponent
 
 
 class TimeHeightConvolutionFrontExtractor(FrontExtractorOp):

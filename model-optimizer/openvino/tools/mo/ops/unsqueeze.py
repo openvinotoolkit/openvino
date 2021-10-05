@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, shape_array, is_fully_defined, shape_insert
-from mo.graph.perm_inputs import PermuteInputs
-from mo.ops.op import Op
-from mo.utils.error import Error
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, is_fully_defined, shape_insert
+from openvino.tools.mo.graph.perm_inputs import PermuteInputs
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.utils.error import Error
 
 
 class Unsqueeze(Op):

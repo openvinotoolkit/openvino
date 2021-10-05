@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from extensions.ops.argmax import ArgMaxOp
-from mo.front.extractor import FrontExtractorOp
-from mo.front.tf.extractors.utils import tf_dtype_extractor
+from openvino.tools.mo.ops.argmax import ArgMaxOp
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor
 
 
 class ArgMaxFrontExtractor(FrontExtractorOp):

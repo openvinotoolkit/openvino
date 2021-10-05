@@ -3,9 +3,9 @@
 
 import unittest
 import numpy as np
-from extensions.ops.depth_to_space import DepthToSpaceOp
-from mo.graph.graph import Node
-from mo.utils.error import Error
+from openvino.tools.mo.ops.depth_to_space import DepthToSpaceOp
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.utils.error import Error
 from unit_tests.utils.graph import build_graph
 
 nodes = {

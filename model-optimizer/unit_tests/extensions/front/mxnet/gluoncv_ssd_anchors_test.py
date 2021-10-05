@@ -4,9 +4,9 @@
 import numpy as np
 import unittest
 
-from extensions.front.mxnet.gluoncv_ssd_anchors import SsdAnchorsReplacer
-from mo.front.common.partial_infer.utils import int64_array
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.mxnet.gluoncv_ssd_anchors import SsdAnchorsReplacer
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {

@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.ops.op import Op
+from openvino.tools.mo.ops.op import Op
 
 
 class ExperimentalDetectronDetectionOutput(Op):

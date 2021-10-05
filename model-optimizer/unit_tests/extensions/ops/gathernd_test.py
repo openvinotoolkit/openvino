@@ -5,9 +5,9 @@ import unittest
 
 import numpy as np
 
-from extensions.ops.gathernd import GatherND
-from mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value, strict_compare_tensors
-from mo.graph.graph import Node
+from openvino.tools.mo.ops.gathernd import GatherND
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value, strict_compare_tensors
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'data': {'kind': 'op'},

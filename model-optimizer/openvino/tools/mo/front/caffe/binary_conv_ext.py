@@ -1,12 +1,12 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.front.caffe.conv_ext import conv_create_attrs, conv_set_params
-from mo.front.caffe.extractors.utils import weights_biases
-from mo.front.common.extractors.utils import layout_attrs
-from mo.front.extractor import FrontExtractorOp
-from mo.ops.convolution import Convolution
-from mo.utils.error import Error
+from openvino.tools.mo.front.caffe.conv_ext import conv_create_attrs, conv_set_params
+from openvino.tools.mo.front.caffe.extractors.utils import weights_biases
+from openvino.tools.mo.front.common.extractors.utils import layout_attrs
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.convolution import Convolution
+from openvino.tools.mo.utils.error import Error
 
 
 class ConvFrontExtractor(FrontExtractorOp):

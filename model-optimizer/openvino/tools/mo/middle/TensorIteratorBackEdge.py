@@ -3,10 +3,10 @@
 
 import logging as log
 
-from extensions.middle.TensorIteratorCondition import DynamicDecoderConditionMatcher
-from extensions.ops.TensorIterator_ops import TensorIteratorBackEdge, TensorIteratorOutput
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.middle.TensorIteratorCondition import DynamicDecoderConditionMatcher
+from openvino.tools.mo.ops.TensorIterator_ops import TensorIteratorBackEdge, TensorIteratorOutput
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class BackEdgesMatching(MiddleReplacementPattern):
@@ -36,12 +36,12 @@ class BackEdgesMatching(MiddleReplacementPattern):
     def run_after(self):
         # since the pattern of this transformation contains TensorIteratorCondition,
         # condition matchers must be applied first
-        from extensions.middle.TensorIteratorCondition import DynamicDecoderConditionMatcher, LoopConditionMatcher, \
+        from openvino.tools.mo.middle.TensorIteratorCondition import DynamicDecoderConditionMatcher, LoopConditionMatcher, \
             SimpleConditionMatcher
         return [DynamicDecoderConditionMatcher, SimpleConditionMatcher, LoopConditionMatcher]
 
     def run_before(self):
-        from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
+        from openvino.tools.mo.middle.TensorIteratorMerge import TensorIteratorMerge
         return [TensorIteratorMerge]
 
     @staticmethod

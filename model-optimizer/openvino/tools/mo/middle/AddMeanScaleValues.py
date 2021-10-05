@@ -5,16 +5,16 @@ import logging as log
 
 import numpy as np
 
-from extensions.ops.elementwise import Add, Mul
-from mo.front.common.layout import get_features_dim
-from mo.front.common.partial_infer.utils import compatible_dims
-from mo.front.extractor import get_node_id_with_ports
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, Node
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.utils.cli_parser import get_node_name_with_port_from_input_value
-from mo.utils.error import Error
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.ops.elementwise import Add, Mul
+from openvino.tools.mo.front.common.layout import get_features_dim
+from openvino.tools.mo.front.common.partial_infer.utils import compatible_dims
+from openvino.tools.mo.front.extractor import get_node_id_with_ports
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.utils.cli_parser import get_node_name_with_port_from_input_value
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 class AddMeanScaleValues(MiddleReplacementPattern):
@@ -25,7 +25,7 @@ class AddMeanScaleValues(MiddleReplacementPattern):
         return []
 
     def run_before(self):
-        from extensions.middle.pass_separator import MiddleStart
+        from openvino.tools.mo.middle.pass_separator import MiddleStart
         return [MiddleStart]
 
     @staticmethod

@@ -5,13 +5,13 @@ import logging as log
 import numpy as np
 from typing import List
 
-from extensions.ops.interpolate import Interpolate
-from mo.front.common.partial_infer.utils import int64_array, shape_array
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, Node, rename_nodes
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.utils.error import Error
-from mo.utils.utils import group_by_with_binary_predicate
+from openvino.tools.mo.ops.interpolate import Interpolate
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, Node, rename_nodes
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import group_by_with_binary_predicate
 
 
 def node_has_one_consumer(node: Node) -> bool:
@@ -248,7 +248,7 @@ class InterpolateSequenceToInterpolate(MiddleReplacementPattern):
     enabled = True
 
     def run_before(self):
-        from extensions.middle.UpsampleToResample import UpsampleToResample
+        from openvino.tools.mo.middle.UpsampleToResample import UpsampleToResample
         return [UpsampleToResample]
 
     def find_and_replace_pattern(self, graph: Graph):

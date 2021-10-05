@@ -3,9 +3,9 @@
 
 import unittest
 
-from extensions.front.kaldi.set_ports import SetPortsPattern
-from mo.utils.error import Error
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.kaldi.set_ports import SetPortsPattern
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, regular_op, connect_front, Node
 
 

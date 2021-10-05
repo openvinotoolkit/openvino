@@ -1,11 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.middle.InsertLayoutPropagationTransposes import is_input_data_in_correct_layout, \
+from openvino.tools.mo.middle.InsertLayoutPropagationTransposes import is_input_data_in_correct_layout, \
     is_output_data_in_correct_layout
-from extensions.ops.einsum import Einsum
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.einsum import Einsum
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class LayoutChangeForEinsum(MiddleReplacementPattern):
@@ -24,15 +24,15 @@ class LayoutChangeForEinsum(MiddleReplacementPattern):
     graph_condition = [lambda graph: graph.graph['layout'] == 'NHWC']
 
     def run_after(self):
-        from extensions.middle.MarkSubgraphsWithCorrectLayout import MarkSubGraphsWithCorrectLayout
+        from openvino.tools.mo.middle.MarkSubgraphsWithCorrectLayout import MarkSubGraphsWithCorrectLayout
         return [MarkSubGraphsWithCorrectLayout]
 
     def run_before(self):
-        from extensions.middle.InsertLayoutPropagationTransposes import InsertLayoutPropagationTranspose
+        from openvino.tools.mo.middle.InsertLayoutPropagationTransposes import InsertLayoutPropagationTranspose
         return [InsertLayoutPropagationTranspose]
 
     def find_and_replace_pattern(self, graph: Graph):
-        import extensions.middle.InsertLayoutPropagationTransposes as InsertTransposes
+        import openvino.tools.mo.middle.InsertLayoutPropagationTransposes as InsertTransposes
         for einsum in graph.get_op_nodes(type='Einsum'):
             einsum_name = einsum.soft_get('name', einsum.id)
             assert einsum.has_valid('equation'), "Equation attribute is mandatory" \

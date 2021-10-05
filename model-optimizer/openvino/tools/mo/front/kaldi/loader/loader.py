@@ -7,18 +7,18 @@ from io import IOBase
 import networkx as nx
 import numpy as np
 
-from extensions.ops.elementwise import Mul
-from extensions.ops.split import AttributedVariadicSplit
-from mo.front.common.partial_infer.utils import float_array, int64_array
-from mo.front.extractor import add_outputs_identity
-from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, find_next_component, get_name_from_path, \
+from openvino.tools.mo.ops.elementwise import Mul
+from openvino.tools.mo.ops.split import AttributedVariadicSplit
+from openvino.tools.mo.front.common.partial_infer.utils import float_array, int64_array
+from openvino.tools.mo.front.extractor import add_outputs_identity
+from openvino.tools.mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, find_next_component, get_name_from_path, \
     find_end_of_component, end_of_nnet_tag, read_binary_integer32_token, get_parameters, read_token_value, \
     collect_until_token, collect_until_token_and_read, create_edge_attrs, get_args_for_specifier
-from mo.front.kaldi.utils import read_binary_vector
-from mo.graph.graph import Node, Graph
-from mo.ops.const import Const
-from mo.utils.error import Error
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.front.kaldi.utils import read_binary_vector
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 def load_parallel_component(file_descr, graph: Graph, prev_layer_id):

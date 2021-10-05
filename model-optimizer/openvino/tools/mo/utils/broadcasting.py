@@ -5,7 +5,7 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, shape_insert, is_fully_defined, \
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, shape_insert, is_fully_defined, \
     dynamic_dimension_value
 
 

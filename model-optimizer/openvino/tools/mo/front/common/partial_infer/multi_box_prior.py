@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.graph.graph import Node
+from openvino.tools.mo.graph.graph import Node
 
 
 def multi_box_prior_infer_mxnet(node: Node):

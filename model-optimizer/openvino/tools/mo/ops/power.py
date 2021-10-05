@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.eltwise import eltwise_infer
-from mo.graph.graph import Graph, Node
-from mo.middle.passes.convert_data_type import data_type_str_to_np
-from mo.ops.op import Op
+from openvino.tools.mo.front.common.partial_infer.eltwise import eltwise_infer
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np
+from openvino.tools.mo.ops.op import Op
 
 
 class AttributedPower(Op):

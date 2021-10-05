@@ -6,8 +6,8 @@ from math import sqrt
 
 import numpy as np
 
-from extensions.front.GeLUMerger_Tanh import GeLUMergerTanh
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.GeLUMerger_Tanh import GeLUMergerTanh
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes_erf = {

@@ -6,11 +6,11 @@ from numbers import Number
 
 import numpy as np
 
-from mo.graph.graph import Graph, Node
+from openvino.tools.mo.graph.graph import Graph, Node
 
 
 def compare_node(node_ref, node, ref_attr_value, attr_value, attr, errors_list: list):
-    from mo.utils.ir_engine.ir_engine import IREngine
+    from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
 
     def err_format_string():
         return 'Current node "{}" with type "{}" and reference node "{}" with type "{}" have different attr "{}" : ' \

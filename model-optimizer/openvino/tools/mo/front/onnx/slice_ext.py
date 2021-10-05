@@ -3,12 +3,12 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import get_onnx_opset_version
-from mo.front.onnx.extractors.utils import onnx_attr
-from mo.ops.slice import Slice, AttributedSlice
-from mo.utils.error import Error
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.onnx.extractors.utils import get_onnx_opset_version
+from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr
+from openvino.tools.mo.ops.slice import Slice, AttributedSlice
+from openvino.tools.mo.utils.error import Error
 
 
 class SliceFrontExtractor(FrontExtractorOp):

@@ -3,11 +3,11 @@
 
 import sys
 
-from extensions.front.user_data_repack import UserDataRepack
-from extensions.load.loader import LoadFinish
-from mo.graph.graph import Graph
-from mo.utils import class_registration
-from mo.utils.error import Error
+from openvino.tools.mo.front.user_data_repack import UserDataRepack
+from openvino.tools.mo.load.loader import LoadFinish
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.utils import class_registration
+from openvino.tools.mo.utils.error import Error
 
 
 class AnalysisResults:

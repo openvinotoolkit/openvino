@@ -4,8 +4,8 @@
 import re
 from argparse import Namespace
 
-from mo.utils.error import Error
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 def deduce_framework_by_namespace(argv: Namespace):

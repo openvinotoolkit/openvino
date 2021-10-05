@@ -6,10 +6,10 @@ import os
 import re
 from distutils.version import LooseVersion
 
-from mo.graph.graph import Node
-from mo.utils.error import Error, FrameworkError
-from mo.utils.utils import refer_to_faq_msg
-from mo.utils.versions_checker import get_environment_setup
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.utils.error import Error, FrameworkError
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.utils.versions_checker import get_environment_setup
 
 try:
     import tensorflow.compat.v1 as tf_v1
@@ -21,8 +21,8 @@ except ImportError:
     import tensorflow as tf_v1
 
 from google.protobuf import text_format
-from mo.graph.graph import fill_graph_with_nodes, Graph
-from mo.utils.summarize_graph import summarize_graph
+from openvino.tools.mo.graph.graph import fill_graph_with_nodes, Graph
+from openvino.tools.mo.utils.summarize_graph import summarize_graph
 
 
 def freeze_checkpoints(graph_def: tf_v1.GraphDef, checkpoint_dir: str, output_node_names: list):

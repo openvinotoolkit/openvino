@@ -5,11 +5,11 @@ from typing import List, Tuple
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import get_shape_from_slice, dynamic_dimension, dynamic_dimension_value, \
+from openvino.tools.mo.front.common.partial_infer.utils import get_shape_from_slice, dynamic_dimension, dynamic_dimension_value, \
     is_dynamic_slice
-from mo.graph.graph import Node, Graph
-from mo.ops.op import Op
-from mo.utils.utils import array_to_str
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.utils.utils import array_to_str
 
 
 class StridedSlice(Op):

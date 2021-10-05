@@ -4,14 +4,14 @@
 import logging as log
 import numpy as np
 
-from extensions.ops.Cast import Cast
-from extensions.ops.embedding_bag import EmbeddingSegmentsSum
-from extensions.ops.split import Split
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, rename_nodes
-from mo.ops.squeeze import Squeeze
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.embedding_bag import EmbeddingSegmentsSum
+from openvino.tools.mo.ops.split import Split
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.ops.squeeze import Squeeze
 
 
 class EmbeddingSegmentsSumFrontReplacer(FrontReplacementSubgraph):

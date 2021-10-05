@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.front.extractor import add_output_ops
-from mo.graph.graph import Graph, get_edge_attribute_between_nodes, set_edge_attribute_between_nodes
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.front.extractor import add_output_ops
+from openvino.tools.mo.graph.graph import Graph, get_edge_attribute_between_nodes, set_edge_attribute_between_nodes
 
 
 class OutputCut(FrontReplacementPattern):
@@ -12,7 +12,7 @@ class OutputCut(FrontReplacementPattern):
     force_clean_up = True
 
     def run_after(self):
-        from extensions.front.user_data_repack import UserDataRepack
+        from openvino.tools.mo.front.user_data_repack import UserDataRepack
         return [UserDataRepack]
 
     def run_before(self):

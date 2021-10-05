@@ -5,10 +5,10 @@ import logging as log
 
 import numpy as np
 
-from extensions.ops.elementwise import Mul, Add
-from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.elementwise import Mul, Add
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class ConvToBinaryConv(MiddleReplacementPattern):

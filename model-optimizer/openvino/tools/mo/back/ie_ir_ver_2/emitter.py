@@ -7,12 +7,12 @@ import defusedxml.ElementTree as ET
 from defusedxml import defuse_stdlib
 from defusedxml.minidom import parseString
 
-from mo.front.common.partial_infer.utils import unmask_shape, is_fully_defined
-from mo.graph.graph import *
-from mo.middle.passes.convert_data_type import np_data_type_to_precision
-from mo.utils.unsupported_ops import UnsupportedOps
-from mo.utils.utils import refer_to_faq_msg
-from mo.utils.version import get_version
+from openvino.tools.mo.front.common.partial_infer.utils import unmask_shape, is_fully_defined
+from openvino.tools.mo.graph.graph import *
+from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_precision
+from openvino.tools.mo.utils.unsupported_ops import UnsupportedOps
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.utils.version import get_version
 
 # defuse_stdlib provide patched version of xml.etree.ElementTree which allows to use objects from xml.etree.ElementTree
 # in a safe manner without including unsafe xml.etree.ElementTree
@@ -257,7 +257,7 @@ def serialize_node_attributes(
         edges: Element,
         unsupported):
     # the Result op may be marked so it should not appear in the IR. For example, refer to transformation
-    # model-optimizer/extensions/back/TopKNormalizer.py
+    # model-optimizer/openvino/tools/mo/back/TopKNormalizer.py
     if isinstance(node, Node) and node.soft_get('type') == 'Result' and node.has_and_set('keep_output_port'):
         return
     try:

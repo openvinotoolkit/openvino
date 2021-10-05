@@ -9,7 +9,7 @@ https://docs.openvinotoolkit.org/latest/openvino_docs_MO_DG_prepare_model_conver
 
 Conversion of most of the TF OD API models requires execution of several transformations defined in this file. The list
 of transformations to be executed for a particular model type (meta-architecture) is defined in the transformation
-configuration JSON file located in the "extensions/front/tf/" directory. A file should be specified using the
+configuration JSON file located in the "openvino/tools/mo/front/tf/" directory. A file should be specified using the
 "--transformations_config" command line parameter. An additional parameter
 "--tensorflow_object_detection_api_pipeline_config" should be specified with the path to the pipeline.config used for
 the model training.
@@ -23,54 +23,54 @@ from math import sqrt
 
 import numpy as np
 
-from extensions.front.Pack import Pack
-from extensions.front.TransposeOrderNormalizer import TransposeOrderNormalizer
-from extensions.front.split_normalizer import SqueezeAxis
-from extensions.front.tf.CropAndResizeReplacement import CropAndResizeReplacement
-from extensions.front.tf.FakeQuantWithMinMaxVars import FakeQuantWithMinMaxVarsToQuantize
-from extensions.front.tf.MapFNTransformation import MapFNInputSlicing, MapFNOutputConcatenation
-from extensions.front.tf.TFSliceToSlice import TFSliceToSliceReplacer
-from extensions.front.tf.pad_tf_to_pad import PadTFToPad
-from extensions.middle.InsertLayoutPropagationTransposes import mark_as_correct_data_layout, \
+from openvino.tools.mo.front.Pack import Pack
+from openvino.tools.mo.front.TransposeOrderNormalizer import TransposeOrderNormalizer
+from openvino.tools.mo.front.split_normalizer import SqueezeAxis
+from openvino.tools.mo.front.tf.CropAndResizeReplacement import CropAndResizeReplacement
+from openvino.tools.mo.front.tf.FakeQuantWithMinMaxVars import FakeQuantWithMinMaxVarsToQuantize
+from openvino.tools.mo.front.tf.MapFNTransformation import MapFNInputSlicing, MapFNOutputConcatenation
+from openvino.tools.mo.front.tf.TFSliceToSlice import TFSliceToSliceReplacer
+from openvino.tools.mo.front.tf.pad_tf_to_pad import PadTFToPad
+from openvino.tools.mo.middle.InsertLayoutPropagationTransposes import mark_as_correct_data_layout, \
     mark_input_as_in_correct_layout, mark_output_as_in_correct_layout
-from extensions.ops.Cast import Cast
-from extensions.ops.DetectionOutput import DetectionOutput
-from extensions.ops.ReduceOps import ReduceMean
-from extensions.ops.activation_ops import Sigmoid
-from extensions.ops.elementwise import Mul, Sub, Add, Div
-from extensions.ops.gather import Gather
-from extensions.ops.parameter import Parameter
-from extensions.ops.priorbox_clustered import PriorBoxClusteredOp
-from extensions.ops.proposal import ProposalOp
-from extensions.ops.psroipooling import PSROIPoolingOp
-from extensions.ops.split import Split
-from extensions.ops.transpose import Transpose
-from mo.front.common.layout import get_batch_dim, get_height_dim, get_width_dim
-from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.front.extractor import output_user_data_repack, add_output_ops
-from mo.front.subgraph_matcher import SubgraphMatch
-from mo.front.tf.custom_subgraph_call import skip_nodes_by_condition
-from mo.front.tf.graph_utils import add_activation_function_after_node, add_convolution_to_swap_xy_coordinates, \
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.DetectionOutput import DetectionOutput
+from openvino.tools.mo.ops.ReduceOps import ReduceMean
+from openvino.tools.mo.ops.activation_ops import Sigmoid
+from openvino.tools.mo.ops.elementwise import Mul, Sub, Add, Div
+from openvino.tools.mo.ops.gather import Gather
+from openvino.tools.mo.ops.parameter import Parameter
+from openvino.tools.mo.ops.priorbox_clustered import PriorBoxClusteredOp
+from openvino.tools.mo.ops.proposal import ProposalOp
+from openvino.tools.mo.ops.psroipooling import PSROIPoolingOp
+from openvino.tools.mo.ops.split import Split
+from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.front.common.layout import get_batch_dim, get_height_dim, get_width_dim
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, dynamic_dimension
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.front.extractor import output_user_data_repack, add_output_ops
+from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
+from openvino.tools.mo.front.tf.custom_subgraph_call import skip_nodes_by_condition
+from openvino.tools.mo.front.tf.graph_utils import add_activation_function_after_node, add_convolution_to_swap_xy_coordinates, \
     add_fake_background_loc, create_op_node_with_second_input, create_op_with_const_inputs
-from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph, FrontReplacementFromConfigFileGeneral
-from mo.graph.graph import Graph, Node
-from mo.ops.clamp import AttributedClamp
-from mo.ops.concat import Concat
-from mo.ops.const import Const
-from mo.ops.crop import Crop
-from mo.ops.op import PermuteAttrs
-from mo.ops.reshape import Reshape
-from mo.ops.result import Result
-from mo.ops.roipooling import ROIPooling
-from mo.ops.shape import Shape
-from mo.ops.softmax import Softmax
-from mo.ops.squeeze import Squeeze
-from mo.ops.tile import Tile
-from mo.utils.error import Error
-from mo.utils.graph import backward_bfs_for_operation, bfs_search, clear_tensor_names_info, sub_graph_between_nodes
-from mo.utils.pipeline_config import PipelineConfig
-from mo.utils.shape import node_to_get_shape_value_of_indices
+from openvino.tools.mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph, FrontReplacementFromConfigFileGeneral
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.ops.clamp import AttributedClamp
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.crop import Crop
+from openvino.tools.mo.ops.op import PermuteAttrs
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.result import Result
+from openvino.tools.mo.ops.roipooling import ROIPooling
+from openvino.tools.mo.ops.shape import Shape
+from openvino.tools.mo.ops.softmax import Softmax
+from openvino.tools.mo.ops.squeeze import Squeeze
+from openvino.tools.mo.ops.tile import Tile
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.graph import backward_bfs_for_operation, bfs_search, clear_tensor_names_info, sub_graph_between_nodes
+from openvino.tools.mo.utils.pipeline_config import PipelineConfig
+from openvino.tools.mo.utils.shape import node_to_get_shape_value_of_indices
 
 missing_param_error = 'To convert the model specify path to the pipeline configuration file which was used to ' \
                       'generate the model. Please use "--tensorflow_object_detection_api_pipeline_config" option:\n' \

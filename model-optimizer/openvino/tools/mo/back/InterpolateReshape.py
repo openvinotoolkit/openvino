@@ -3,15 +3,15 @@
 
 import numpy as np
 
-from extensions.ops.elementwise import Mul
-from extensions.ops.gather import Gather
-from extensions.ops.interpolate import Interpolate
-from mo.back.replacement import BackReplacementPattern
-from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
-from mo.graph.graph import Graph
-from mo.ops.shape import Shape
+from openvino.tools.mo.ops.elementwise import Mul
+from openvino.tools.mo.ops.gather import Gather
+from openvino.tools.mo.ops.interpolate import Interpolate
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.front.caffe.extractors.utils import get_canonical_axis_index
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.shape import Shape
 
 
 class InterpolateConcat(BackReplacementPattern):

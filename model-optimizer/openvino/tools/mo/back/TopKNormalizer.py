@@ -1,13 +1,13 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.back.Reshape0DToSqueeze import Reshape0DToSqueeze
-from mo.back.replacement import BackReplacementPattern
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph, Node
-from mo.ops.reshape import Reshape
-from mo.ops.result import Result
+from openvino.tools.mo.back.Reshape0DToSqueeze import Reshape0DToSqueeze
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.result import Result
 
 
 class TopKNormalizer(BackReplacementPattern):

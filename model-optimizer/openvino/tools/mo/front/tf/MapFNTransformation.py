@@ -5,17 +5,17 @@ import logging as log
 
 import numpy as np
 
-from extensions.front.tf.WhileNormalize import WhileNormalize
-from extensions.ops.loop import Loop
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.tf.custom_subgraph_call import skip_nodes_by_condition
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, Node, rename_nodes
-from mo.middle.pattern_match import find_pattern_matches, inverse_dict
-from mo.ops.const import Const
-from mo.ops.squeeze import Squeeze
-from mo.ops.unsqueeze import Unsqueeze
+from openvino.tools.mo.front.tf.WhileNormalize import WhileNormalize
+from openvino.tools.mo.ops.loop import Loop
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.tf.custom_subgraph_call import skip_nodes_by_condition
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, Node, rename_nodes
+from openvino.tools.mo.middle.pattern_match import find_pattern_matches, inverse_dict
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.squeeze import Squeeze
+from openvino.tools.mo.ops.unsqueeze import Unsqueeze
 
 
 def find_subgraph_match_to_pattern(graph: Graph, body_pattern: dict):

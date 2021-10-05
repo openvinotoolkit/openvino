@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.random_uniform import RandomUniform
-from mo.front.extractor import FrontExtractorOp
-from mo.front.tf.extractors.utils import tf_dtype_extractor
+from openvino.tools.mo.ops.random_uniform import RandomUniform
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor
 
 
 class RandomUniformIntExtractor(FrontExtractorOp):

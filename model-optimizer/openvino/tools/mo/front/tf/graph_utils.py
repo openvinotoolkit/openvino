@@ -5,19 +5,19 @@ from typing import Dict
 
 import numpy as np
 
-from extensions.middle.InsertLayoutPropagationTransposes import mark_input_as_in_correct_layout, \
+from openvino.tools.mo.middle.InsertLayoutPropagationTransposes import mark_input_as_in_correct_layout, \
     mark_output_as_in_correct_layout
-from extensions.ops.activation_ops import Sigmoid
-from extensions.ops.elementwise import Add, Less, Mul
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node, Graph
-from mo.ops.concat import Concat
-from mo.ops.const import Const
-from mo.ops.convolution import Convolution
-from mo.ops.crop import Crop
-from mo.ops.reshape import Reshape
-from mo.ops.softmax import Softmax
-from mo.utils.error import Error
+from openvino.tools.mo.ops.activation_ops import Sigmoid
+from openvino.tools.mo.ops.elementwise import Add, Less, Mul
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.convolution import Convolution
+from openvino.tools.mo.ops.crop import Crop
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.softmax import Softmax
+from openvino.tools.mo.utils.error import Error
 
 
 def create_op_node_with_second_input(graph: Graph, op: callable, second_input_value: np.array, op_attrs=None,

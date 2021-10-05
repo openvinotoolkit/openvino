@@ -5,9 +5,9 @@ from math import log
 
 import numpy as np
 
-from extensions.ops.detectionoutput_onnx import ExperimentalDetectronDetectionOutput
-from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr
+from openvino.tools.mo.ops.detectionoutput_onnx import ExperimentalDetectronDetectionOutput
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr
 
 
 class ExperimentalDetectronDetectionOutputFrontExtractor(FrontExtractorOp):

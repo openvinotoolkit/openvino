@@ -3,14 +3,14 @@
 
 import numpy as np
 
-from extensions.ops.elementwise import Add, Mul, Maximum
-from mo.front.caffe.collect_attributes import merge_attrs
-from mo.front.caffe.extractors.utils import embed_input
-from mo.front.common.extractors.utils import layout_attrs
-from mo.front.extractor import FrontExtractorOp
-from mo.graph.graph import Node
-from mo.ops.eltwise_n import EltwiseNMul, EltwiseNAdd, EltwiseNMax
-from mo.ops.power import AttributedPower
+from openvino.tools.mo.ops.elementwise import Add, Mul, Maximum
+from openvino.tools.mo.front.caffe.collect_attributes import merge_attrs
+from openvino.tools.mo.front.caffe.extractors.utils import embed_input
+from openvino.tools.mo.front.common.extractors.utils import layout_attrs
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.eltwise_n import EltwiseNMul, EltwiseNAdd, EltwiseNMax
+from openvino.tools.mo.ops.power import AttributedPower
 
 
 class BiasToAdd(FrontExtractorOp):

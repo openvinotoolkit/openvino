@@ -3,9 +3,9 @@
 
 import logging as log
 
-from extensions.ops.normalize_l2 import NormalizeL2Op
-from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr
+from openvino.tools.mo.ops.normalize_l2 import NormalizeL2Op
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr
 
 
 class LPNormalizeExtractor(FrontExtractorOp):

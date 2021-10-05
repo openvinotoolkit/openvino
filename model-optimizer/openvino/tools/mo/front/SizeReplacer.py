@@ -1,12 +1,12 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.ReduceOps import ReduceProd
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementOp
-from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph, rename_nodes
-from mo.ops.shape import Shape
+from openvino.tools.mo.ops.ReduceOps import ReduceProd
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementOp
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.ops.shape import Shape
 
 
 class SizeFrontReplacer(FrontReplacementOp):

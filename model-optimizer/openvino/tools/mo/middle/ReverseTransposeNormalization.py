@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from mo.graph.graph import Graph, Node
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.const import Const
 
 
 class ReverseTransposeNormalization(MiddleReplacementPattern):

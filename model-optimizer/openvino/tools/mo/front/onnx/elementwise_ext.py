@@ -3,13 +3,13 @@
 
 import numpy as np
 
-from extensions.ops.elementwise import Add, Sub, Mul, Div, Pow, Less, Equal, Greater, LogicalAnd, LogicalOr, LogicalXor, \
+from openvino.tools.mo.ops.elementwise import Add, Sub, Mul, Div, Pow, Less, Equal, Greater, LogicalAnd, LogicalOr, LogicalXor, \
     Round, GreaterEqual, LessEqual
-from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr
-from mo.graph.graph import Node
-from mo.ops.eltwise_n import EltwiseNAdd, EltwiseNMax, EltwiseNMin
-from mo.ops.power import AttributedPower
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.eltwise_n import EltwiseNAdd, EltwiseNMax, EltwiseNMin
+from openvino.tools.mo.ops.power import AttributedPower
 
 
 class AddFrontExtractor(FrontExtractorOp):

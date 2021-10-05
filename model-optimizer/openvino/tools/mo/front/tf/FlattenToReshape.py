@@ -5,12 +5,12 @@ import logging as log
 
 import numpy as np
 
-from extensions.front.Pack import Pack
-from extensions.front.tf.nearest_neighbor_upsampling import NearestNeighborUpsampling
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph
-from mo.ops.const import Const
+from openvino.tools.mo.front.Pack import Pack
+from openvino.tools.mo.front.tf.nearest_neighbor_upsampling import NearestNeighborUpsampling
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.const import Const
 
 
 def is_value_is_constant(val: np.ndarray, const: [int, float]):

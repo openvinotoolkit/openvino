@@ -3,11 +3,11 @@
 
 import logging as log
 
-from mo.front.subgraph_matcher import SubgraphMatch
-from mo.graph.graph import Node, merge_edge_props, Graph
-from mo.middle.pattern_match import apply_pattern
-from mo.utils import class_registration
-from mo.utils.replacement_pattern import ReplacementPattern
+from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
+from openvino.tools.mo.graph.graph import Node, merge_edge_props, Graph
+from openvino.tools.mo.middle.pattern_match import apply_pattern
+from openvino.tools.mo.utils import class_registration
+from openvino.tools.mo.utils.replacement_pattern import ReplacementPattern
 
 
 class FrontReplacementPattern(ReplacementPattern):
@@ -15,11 +15,11 @@ class FrontReplacementPattern(ReplacementPattern):
     registered_cls = []
 
     def run_after(self):
-        from extensions.front.pass_separator import FrontStart
+        from openvino.tools.mo.front.pass_separator import FrontStart
         return [FrontStart]
 
     def run_before(self):
-        from extensions.front.pass_separator import FrontFinish
+        from openvino.tools.mo.front.pass_separator import FrontFinish
         return [FrontFinish]
 
     def pattern(self):
@@ -40,11 +40,11 @@ class FrontReplacementSubgraph(FrontReplacementPattern):
     replacement_id = 'None'
 
     def run_after(self):
-        from extensions.front.pass_separator import FrontStart
+        from openvino.tools.mo.front.pass_separator import FrontStart
         return [FrontStart]
 
     def run_before(self):
-        from extensions.front.pass_separator import FrontFinish
+        from openvino.tools.mo.front.pass_separator import FrontFinish
         return [FrontFinish]
 
     def __init__(self):
@@ -155,11 +155,11 @@ class FrontReplacementOp(FrontReplacementSubgraph):
     op = 'UnknownOp'
 
     def run_after(self):
-        from extensions.front.pass_separator import FrontStart
+        from openvino.tools.mo.front.pass_separator import FrontStart
         return [FrontStart]
 
     def run_before(self):
-        from extensions.front.pass_separator import FrontFinish
+        from openvino.tools.mo.front.pass_separator import FrontFinish
         return [FrontFinish]
 
     def pattern(self):

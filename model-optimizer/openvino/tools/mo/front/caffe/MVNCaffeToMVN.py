@@ -1,13 +1,13 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.mvn import MVN
-from extensions.ops.range import Range
-from extensions.ops.rank import Rank
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.ops.mvn import MVN
+from openvino.tools.mo.ops.range import Range
+from openvino.tools.mo.ops.rank import Rank
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
 
 import numpy as np
 

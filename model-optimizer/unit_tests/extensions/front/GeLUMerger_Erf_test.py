@@ -4,9 +4,9 @@
 import unittest
 from math import sqrt
 
-from extensions.front.GeLUMerger_Erf import GeLUMergerErf
-from mo.front.common.partial_infer.utils import float_array, int64_array
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.GeLUMerger_Erf import GeLUMergerErf
+from openvino.tools.mo.front.common.partial_infer.utils import float_array, int64_array
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import const, regular_op, result, build_graph
 
 ref_nodes = {**regular_op('input', {'type': 'Parameter'}),

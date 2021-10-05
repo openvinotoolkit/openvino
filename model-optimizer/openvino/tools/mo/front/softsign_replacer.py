@@ -3,11 +3,11 @@
 
 import numpy as np
 
-from extensions.ops.activation_ops import Abs
-from extensions.ops.elementwise import Add, Div
-from mo.front.common.replacement import FrontReplacementOp
-from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph, Node
+from openvino.tools.mo.ops.activation_ops import Abs
+from openvino.tools.mo.ops.elementwise import Add, Div
+from openvino.tools.mo.front.common.replacement import FrontReplacementOp
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
+from openvino.tools.mo.graph.graph import Graph, Node
 
 
 class SoftSign(FrontReplacementOp):

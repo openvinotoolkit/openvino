@@ -1,11 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.ONNXResize10 import ONNXResize10
-from extensions.ops.ONNXResize11 import ONNXResize11Op
-from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version
-from mo.graph.graph import Node
+from openvino.tools.mo.ops.ONNXResize10 import ONNXResize10
+from openvino.tools.mo.ops.ONNXResize11 import ONNXResize11Op
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version
+from openvino.tools.mo.graph.graph import Node
 
 
 class ResizeExtractor(FrontExtractorOp):

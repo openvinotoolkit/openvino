@@ -1,11 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.front.mxnet.MXRepeatReplacer import MXRepeatReplacer
-from extensions.ops.mxrepeat import MXRepeat
-from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Graph
-from mo.ops.const import Const
+from openvino.tools.mo.front.mxnet.MXRepeatReplacer import MXRepeatReplacer
+from openvino.tools.mo.ops.mxrepeat import MXRepeat
+from openvino.tools.mo.front.common.replacement import FrontReplacementOp
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.const import Const
 
 
 class ArangeReplacer(FrontReplacementOp):

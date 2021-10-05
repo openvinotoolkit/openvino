@@ -5,11 +5,11 @@ import logging as log
 
 import networkx as nx
 
-from mo.front.common.partial_infer.utils import dynamic_dimension
-from mo.graph.graph import Node, Graph
-from mo.graph.graph import dict_includes
-from mo.utils.error import Error
-from mo.utils.utils import refer_to_faq_msg, shrink_str_value
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.graph.graph import dict_includes
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import refer_to_faq_msg, shrink_str_value
 
 
 def log_debug_dict(nodes_per_port: dict, direction_name: str):

@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from mo.front.common.layout import shape_for_layout, get_batch_dim, get_features_dim
-from mo.front.common.partial_infer.utils import tf_window_op_pad_infer, shape_array
-from mo.graph.graph import Node, Graph
-from mo.ops.op import Op
+from openvino.tools.mo.front.common.layout import shape_for_layout, get_batch_dim, get_features_dim
+from openvino.tools.mo.front.common.partial_infer.utils import tf_window_op_pad_infer, shape_array
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.op import Op
 
 
 class ExtractImagePatches(Op):

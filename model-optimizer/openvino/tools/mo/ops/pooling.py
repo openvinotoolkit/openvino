@@ -3,13 +3,13 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import tf_window_op_pad_infer, int64_array, float_array, shape_array, \
+from openvino.tools.mo.front.common.partial_infer.utils import tf_window_op_pad_infer, int64_array, float_array, shape_array, \
     dynamic_dimension_value, dynamic_dimension
-from mo.front.onnx.extractors.utils import get_backend_pad
-from mo.graph.graph import Node, Graph
-from mo.ops.op import Op, PermuteAttrs
-from mo.utils.error import Error
-from mo.front.extractor import bool_to_str
+from openvino.tools.mo.front.onnx.extractors.utils import get_backend_pad
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.op import Op, PermuteAttrs
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.front.extractor import bool_to_str
 
 
 class PoolingV2(Op):

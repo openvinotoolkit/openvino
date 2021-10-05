@@ -3,17 +3,17 @@
 
 import numpy as np
 
-from extensions.middle.LSTMRNNSequenceToTensorIterator import LSTMToTensorIterator
-from extensions.middle.ONNXRNNSequenceNormalize import ONNXRNNSequenceNormalize
-from extensions.middle.SwapAxesMiddleReplacer import SwapAxisMiddleReplacer
-from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
-from extensions.ops.gather import Gather
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import dict_includes, Graph
-from mo.middle.passes.eliminate import remove_op_node_with_data_node
-from mo.middle.pattern_match import find_isomorphisms
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.middle.LSTMRNNSequenceToTensorIterator import LSTMToTensorIterator
+from openvino.tools.mo.middle.ONNXRNNSequenceNormalize import ONNXRNNSequenceNormalize
+from openvino.tools.mo.middle.SwapAxesMiddleReplacer import SwapAxisMiddleReplacer
+from openvino.tools.mo.middle.TensorIteratorMerge import TensorIteratorMerge
+from openvino.tools.mo.ops.gather import Gather
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import dict_includes, Graph
+from openvino.tools.mo.middle.passes.eliminate import remove_op_node_with_data_node
+from openvino.tools.mo.middle.pattern_match import find_isomorphisms
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class TransposeTensorIteratorLSTM(MiddleReplacementPattern):

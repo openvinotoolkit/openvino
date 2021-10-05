@@ -5,9 +5,9 @@ import logging as log
 
 import numpy as np
 
-from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.graph.graph import Node, Graph
-from mo.ops.op import Op, PermuteAttrs
+from openvino.tools.mo.front.caffe.extractors.utils import get_canonical_axis_index
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.op import Op, PermuteAttrs
 
 
 def arg_ops_infer(node: Node):

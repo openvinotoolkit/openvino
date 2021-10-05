@@ -5,8 +5,8 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import shape_array
-from mo.front.tf.extractors.utils import tf_dtype_extractor
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array
+from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor
 
 
 def tf_fused_bn_infer(node):

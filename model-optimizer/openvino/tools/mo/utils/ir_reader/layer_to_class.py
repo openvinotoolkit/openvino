@@ -6,28 +6,28 @@ import os
 
 import numpy as np
 
-from extensions.back.TopKNormalizer import TopKNormalizer
-from extensions.ops.Cast import Cast
-from extensions.ops.ReduceOps import ReduceOp
-from extensions.ops.activation_ops import Activation
-from extensions.ops.dft import FFTBase
-from extensions.ops.elementwise import Elementwise, UnaryElementwise, LogicalElementwise, BiasAdd, Div, Mul, Pow, Sub
-from extensions.ops.embedding_bag import EmbeddingBagBase
-from extensions.ops.loop import Loop
-from extensions.ops.psroipooling import DeformablePSROIPoolingOp
-from extensions.ops.scatter import Scatter
-from extensions.ops.scatternd import ScatterNDBase
-from extensions.ops.split import Split, VariadicSplit
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Graph, Node
-from mo.ops.clamp import AttributedClamp
-from mo.ops.convolution import Convolution
-from mo.ops.deconvolution import Deconvolution
-from mo.ops.op import Op
-from mo.ops.pooling import Pooling
-from mo.utils.class_registration import update_registration
-from mo.utils.import_extensions import import_by_path
-from mo.utils.ir_reader.extender import Extender
+from openvino.tools.mo.back.TopKNormalizer import TopKNormalizer
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.ReduceOps import ReduceOp
+from openvino.tools.mo.ops.activation_ops import Activation
+from openvino.tools.mo.ops.dft import FFTBase
+from openvino.tools.mo.ops.elementwise import Elementwise, UnaryElementwise, LogicalElementwise, BiasAdd, Div, Mul, Pow, Sub
+from openvino.tools.mo.ops.embedding_bag import EmbeddingBagBase
+from openvino.tools.mo.ops.loop import Loop
+from openvino.tools.mo.ops.psroipooling import DeformablePSROIPoolingOp
+from openvino.tools.mo.ops.scatter import Scatter
+from openvino.tools.mo.ops.scatternd import ScatterNDBase
+from openvino.tools.mo.ops.split import Split, VariadicSplit
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.ops.clamp import AttributedClamp
+from openvino.tools.mo.ops.convolution import Convolution
+from openvino.tools.mo.ops.deconvolution import Deconvolution
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.ops.pooling import Pooling
+from openvino.tools.mo.utils.class_registration import update_registration
+from openvino.tools.mo.utils.import_extensions import import_by_path
+from openvino.tools.mo.utils.ir_reader.extender import Extender
 
 # Operations not registered in collect_ops() function
 custom_ops = {

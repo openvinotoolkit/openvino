@@ -5,11 +5,11 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph
-from mo.middle.passes.convert_data_type import SUPPORTED_DATA_TYPES
-from mo.ops.const import Const
-from mo.utils.error import Error
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.passes.convert_data_type import SUPPORTED_DATA_TYPES
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.utils.error import Error
 
 
 class FreezePlaceholderValue(FrontReplacementSubgraph):
@@ -22,7 +22,7 @@ class FreezePlaceholderValue(FrontReplacementSubgraph):
     graph_condition = [lambda graph: graph.graph['freeze_placeholder'] is not None]
 
     def run_after(self):
-        from extensions.front.restore_ports import RestorePorts
+        from openvino.tools.mo.front.restore_ports import RestorePorts
         return [RestorePorts]
 
     def run_before(self):
@@ -48,7 +48,7 @@ class FreezePlaceholderValue(FrontReplacementSubgraph):
                 if data_type != np.bool:
                     value = np.array(string_value, dtype=data_type)
                 elif data_type == np.bool and graph.graph['fw'] == 'tf':
-                    from mo.front.tf.common import tf_data_type_cast
+                    from openvino.tools.mo.front.tf.common import tf_data_type_cast
                     if isinstance(string_value, list):
                         casted_list = list()
                         for v in np.array(string_value):

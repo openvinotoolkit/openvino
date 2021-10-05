@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from extensions.ops.BatchNormInference import BatchNormInference
-from mo.front.caffe.extractors.utils import embed_input
-from mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.BatchNormInference import BatchNormInference
+from openvino.tools.mo.front.caffe.extractors.utils import embed_input
+from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
 class BatchNormalizationExtractor(FrontExtractorOp):

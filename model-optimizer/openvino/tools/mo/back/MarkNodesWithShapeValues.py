@@ -6,9 +6,9 @@ from typing import List
 
 import numpy as np
 
-from extensions.middle.MarkSubgraphsWithCorrectLayout import MarkSubGraphsWithCorrectLayout
-from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.MarkSubgraphsWithCorrectLayout import MarkSubGraphsWithCorrectLayout
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.graph.graph import Graph, Node
 
 shape_accepting_ops = {
     'Interpolate': [1, 2],  # sizes, scales inputs
@@ -44,7 +44,7 @@ class MarkNodesWithShapeValues(BackReplacementPattern):
     graph_condition = [lambda graph: graph.graph['cmd_params'].data_type == 'FP16']
 
     def run_after(self):
-        from extensions.back.pass_separator import BackFinish
+        from openvino.tools.mo.back.pass_separator import BackFinish
         return [BackFinish]
 
     def run_before(self):

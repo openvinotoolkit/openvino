@@ -6,9 +6,9 @@ from unittest.mock import patch
 
 import numpy as np
 
-from extensions.front.caffe.priorbox_ext import PriorBoxFrontExtractor
-from extensions.ops.priorbox import PriorBoxOp
-from mo.ops.op import Op
+from openvino.tools.mo.front.caffe.priorbox_ext import PriorBoxFrontExtractor
+from openvino.tools.mo.ops.priorbox import PriorBoxOp
+from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import FakeMultiParam, FakeParam
 from unit_tests.utils.graph import FakeNode
 
@@ -37,7 +37,7 @@ class TestPriorBoxExt(unittest.TestCase):
     def test_priorbox_no_pb_no_ml(self):
         self.assertRaises(AttributeError, PriorBoxFrontExtractor.extract, None)
 
-    @patch('extensions.front.caffe.priorbox_ext.merge_attrs')
+    @patch('openvino.tools.mo.front.caffe.priorbox_ext.merge_attrs')
     def test_priorbox_ext_ideal_numbers(self, merge_attrs_mock):
         params = {
             'clip': False,
@@ -83,7 +83,7 @@ class TestPriorBoxExt(unittest.TestCase):
             else:
                 self.assertEqual(fake_node[key], exp_res[key])
 
-    @patch('extensions.front.caffe.priorbox_ext.merge_attrs')
+    @patch('openvino.tools.mo.front.caffe.priorbox_ext.merge_attrs')
     def test_priorbox_ext_ideal_numbers_density(self, merge_attrs_mock):
         params = {
             'clip': False,

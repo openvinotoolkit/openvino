@@ -3,10 +3,10 @@
 
 import networkx as nx
 
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.utils.error import Error
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 class CheckForCycle(MiddleReplacementPattern):
@@ -14,7 +14,7 @@ class CheckForCycle(MiddleReplacementPattern):
     force_clean_up = True
 
     def run_after(self):
-        from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
+        from openvino.tools.mo.middle.TensorIteratorMerge import TensorIteratorMerge
         return [TensorIteratorMerge]
 
     def run_before(self):

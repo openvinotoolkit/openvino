@@ -7,13 +7,13 @@ from collections import defaultdict
 
 import numpy as np
 
-from extensions.back.pass_separator import BackFinish
-from extensions.ops.tensor_iterator import TensorIterator
-from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import Graph
-from mo.ops.const import Const
-from mo.utils.error import Error
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.back.pass_separator import BackFinish
+from openvino.tools.mo.ops.tensor_iterator import TensorIterator
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 class RemoveConstOps(BackReplacementPattern):

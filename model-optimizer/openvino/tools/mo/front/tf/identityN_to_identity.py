@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.identity import Identity
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.graph.graph import Graph, Node
+from openvino.tools.mo.ops.identity import Identity
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.graph.graph import Graph, Node
 
 
 class IdentityN_to_Identity(FrontReplacementPattern):

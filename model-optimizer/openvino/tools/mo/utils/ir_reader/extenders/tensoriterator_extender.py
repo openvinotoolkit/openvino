@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.utils.graph import Node
-from mo.utils.ir_reader.extender import Extender
-from mo.utils.ir_reader.layer_to_class import copy_graph_with_ops
+from openvino.tools.mo.utils.graph import Node
+from openvino.tools.mo.utils.ir_reader.extender import Extender
+from openvino.tools.mo.utils.ir_reader.layer_to_class import copy_graph_with_ops
 
 
 class TensorIterator_extender(Extender):

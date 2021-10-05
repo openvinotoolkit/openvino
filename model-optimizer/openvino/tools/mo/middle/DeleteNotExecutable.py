@@ -3,8 +3,8 @@
 
 import logging as log
 
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class DeleteNotExecutable(MiddleReplacementPattern):
@@ -12,7 +12,7 @@ class DeleteNotExecutable(MiddleReplacementPattern):
     force_clean_up = True
 
     def run_after(self):
-        from extensions.middle.TensorIteratorConditionChecker import ConditionChecks
+        from openvino.tools.mo.middle.TensorIteratorConditionChecker import ConditionChecks
         return [ConditionChecks]
 
     def run_before(self):

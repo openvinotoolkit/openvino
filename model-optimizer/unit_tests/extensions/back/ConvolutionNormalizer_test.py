@@ -5,12 +5,12 @@ import unittest
 
 import numpy as np
 
-from extensions.back.ConvolutionNormalizer import PullReshapeThroughFQ, V7ConvolutionWithGroupsResolver, \
+from openvino.tools.mo.back.ConvolutionNormalizer import PullReshapeThroughFQ, V7ConvolutionWithGroupsResolver, \
     V10ConvolutionWithGroupsResolver
-from extensions.ops.fakequantize import FakeQuantize
-from mo.front.common.partial_infer.utils import int64_array
-from mo.ops.reshape import Reshape
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.ops.fakequantize import FakeQuantize
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, result, regular_op_with_shaped_data, regular_op_with_empty_data, \
     valued_const_with_data, connect
 

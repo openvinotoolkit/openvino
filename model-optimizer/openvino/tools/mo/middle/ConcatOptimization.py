@@ -3,10 +3,10 @@
 
 import logging as log
 
-from extensions.middle.fusings import Fusing
-from extensions.middle.pass_separator import PostMiddleStart
-from mo.graph.graph import Node, Graph
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.middle.fusings import Fusing
+from openvino.tools.mo.middle.pass_separator import PostMiddleStart
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class ConcatOptimization(MiddleReplacementPattern):

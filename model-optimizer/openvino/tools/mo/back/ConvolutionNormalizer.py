@@ -3,16 +3,16 @@
 
 import numpy as np
 
-from extensions.back.ReshapeMutation import ReshapeMutation
-from extensions.back.ReverseInputChannels import ApplyReverseChannels
-from mo.back.replacement import BackReplacementPattern
-from mo.front.common.partial_infer.utils import shape_array, is_fully_defined, int64_array
-from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
-from mo.graph.graph import Graph, Node
-from mo.ops.const import Const
-from mo.ops.reshape import Reshape
-from mo.ops.strided_slice import StridedSlice
-from mo.utils.error import Error
+from openvino.tools.mo.back.ReshapeMutation import ReshapeMutation
+from openvino.tools.mo.back.ReverseInputChannels import ApplyReverseChannels
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array, is_fully_defined, int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.strided_slice import StridedSlice
+from openvino.tools.mo.utils.error import Error
 
 
 def resolve_convolution_with_group(node: Node, group: int, ir_version: str):

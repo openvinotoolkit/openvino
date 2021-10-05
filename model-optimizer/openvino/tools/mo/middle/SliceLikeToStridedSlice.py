@@ -4,12 +4,12 @@
 import numpy as np
 from typing import Dict
 
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, Node, rename_nodes
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.shape import Shape
-from mo.ops.strided_slice import StridedSlice
-from mo.utils.shape import get_shape_values_by_range_idxs, new_shape_node_from_shape_nodes, \
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, Node, rename_nodes
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.shape import Shape
+from openvino.tools.mo.ops.strided_slice import StridedSlice
+from openvino.tools.mo.utils.shape import get_shape_values_by_range_idxs, new_shape_node_from_shape_nodes, \
     get_shape_and_rank_nodes_by_port
 
 

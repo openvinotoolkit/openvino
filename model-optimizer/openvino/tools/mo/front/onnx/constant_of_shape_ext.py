@@ -4,9 +4,9 @@
 import numpy as np
 from onnx import numpy_helper
 
-from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr
-from mo.ops.constant_of_shape import ConstantOfShape
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr
+from openvino.tools.mo.ops.constant_of_shape import ConstantOfShape
 
 
 class ConstantOfShapeExtractor(FrontExtractorOp):

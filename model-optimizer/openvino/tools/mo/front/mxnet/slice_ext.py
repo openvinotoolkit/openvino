@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from mo.front.extractor import FrontExtractorOp
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
-from mo.ops.slice import MXSlice
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from openvino.tools.mo.ops.slice import MXSlice
 
 
 class SliceFrontExtractor(FrontExtractorOp):

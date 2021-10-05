@@ -5,12 +5,12 @@ import logging as log
 
 import numpy as np
 
-from extensions.ops.elementwise import Mul, Add
-from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph
-from mo.graph.port import Port
-from mo.ops.const import Const
-from mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.elementwise import Mul, Add
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.graph.port import Port
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.reshape import Reshape
 
 
 def expand_node_shape(port: Port, broadcast_dims_cnt):

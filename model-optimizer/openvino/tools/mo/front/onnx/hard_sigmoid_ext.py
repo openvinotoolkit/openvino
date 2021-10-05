@@ -3,11 +3,11 @@
 
 import numpy as np
 
-from extensions.ops.hard_sigmoid import HardSigmoid
-from mo.front.common.replacement import FrontReplacementOp
-from mo.front.onnx.extractors.utils import onnx_attr
-from mo.graph.graph import Node, Graph
-from mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.ops.hard_sigmoid import HardSigmoid
+from openvino.tools.mo.front.common.replacement import FrontReplacementOp
+from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 
 
 class HardSigmoidFrontExtractor(FrontReplacementOp):

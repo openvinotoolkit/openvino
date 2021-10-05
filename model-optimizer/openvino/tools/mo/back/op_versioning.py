@@ -3,9 +3,9 @@
 
 import logging as log
 
-from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import Graph
-from mo.utils.error import Error
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.utils.error import Error
 
 
 class OpVersioning(BackReplacementPattern):

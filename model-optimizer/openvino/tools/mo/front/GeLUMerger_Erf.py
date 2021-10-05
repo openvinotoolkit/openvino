@@ -5,10 +5,10 @@ import logging as log
 
 from math import sqrt, fabs
 
-from extensions.ops.gelu import GeLUOP
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.graph.graph import Graph, rename_nodes
-from mo.middle.pattern_match import apply_pattern
+from openvino.tools.mo.ops.gelu import GeLUOP
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.middle.pattern_match import apply_pattern
 
 
 class GeLUMergerErf(FrontReplacementPattern):

@@ -1,11 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.topk import TopK
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.concat import Concat
-from mo.ops.const import Const
+from openvino.tools.mo.ops.topk import TopK
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.const import Const
 
 
 class ArgOpsToTopK(MiddleReplacementPattern):

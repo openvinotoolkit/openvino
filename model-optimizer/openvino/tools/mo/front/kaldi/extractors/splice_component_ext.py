@@ -3,12 +3,12 @@
 
 import numpy as np
 
-from extensions.ops.splice import Splice
-from mo.front.extractor import FrontExtractorOp
-from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, read_binary_integer32_token, \
+from openvino.tools.mo.ops.splice import Splice
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, read_binary_integer32_token, \
     collect_until_whitespace
-from mo.front.kaldi.utils import read_binary_vector
-from mo.utils.error import Error
+from openvino.tools.mo.front.kaldi.utils import read_binary_vector
+from openvino.tools.mo.utils.error import Error
 
 
 class SpliceFrontExtractor(FrontExtractorOp):

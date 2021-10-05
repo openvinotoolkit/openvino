@@ -3,12 +3,12 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import shape_insert, int64_array
-from mo.graph.graph import Graph, Node
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.concat import Concat
-from mo.ops.const import Const
-from mo.ops.op import Op
+from openvino.tools.mo.front.common.partial_infer.utils import shape_insert, int64_array
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.op import Op
 
 
 class MXNetSplitLayersToRNNSequence(MiddleReplacementPattern):

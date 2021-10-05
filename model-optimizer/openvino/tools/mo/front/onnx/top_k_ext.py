@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from extensions.ops.topk import TopK
-from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr, onnx_node_has_attr
+from openvino.tools.mo.ops.topk import TopK
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr, onnx_node_has_attr
 
 
 class TopKExtractor(FrontExtractorOp):

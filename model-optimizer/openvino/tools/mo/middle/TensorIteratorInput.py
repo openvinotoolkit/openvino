@@ -5,10 +5,10 @@ import logging as log
 
 import numpy as np
 
-from extensions.middle.AddIsCyclicAttribute import AddIsCyclicAttribute
-from extensions.ops.TensorIterator_ops import TensorIteratorInput
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.middle.AddIsCyclicAttribute import AddIsCyclicAttribute
+from openvino.tools.mo.ops.TensorIterator_ops import TensorIteratorInput
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class SmartInputMatcher(MiddleReplacementPattern):
@@ -34,7 +34,7 @@ class SmartInputMatcher(MiddleReplacementPattern):
         return [AddIsCyclicAttribute]
 
     def run_before(self):
-        from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
+        from openvino.tools.mo.middle.TensorIteratorMerge import TensorIteratorMerge
         return [TensorIteratorMerge]
 
     @staticmethod
@@ -159,11 +159,11 @@ class SimpleInputMatcher(MiddleReplacementPattern):
     graph_condition = [lambda graph: graph.graph['is_cyclic']]
 
     def run_after(self):
-        from extensions.middle.DeleteNotExecutable import DeleteNotExecutable
+        from openvino.tools.mo.middle.DeleteNotExecutable import DeleteNotExecutable
         return [DeleteNotExecutable]
 
     def run_before(self):
-        from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
+        from openvino.tools.mo.middle.TensorIteratorMerge import TensorIteratorMerge
         return [TensorIteratorMerge]
 
     """
@@ -202,7 +202,7 @@ class BackEdgeSimpleInputMatcher(MiddleReplacementPattern):
         return [SimpleInputMatcher]
 
     def run_before(self):
-        from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
+        from openvino.tools.mo.middle.TensorIteratorMerge import TensorIteratorMerge
         return [TensorIteratorMerge]
 
     @staticmethod
@@ -292,8 +292,8 @@ class SmartMatcherInputSlicingWithGather(MiddleReplacementPattern):
         return [AddIsCyclicAttribute]
 
     def run_before(self):
-        from extensions.middle.TensorIteratorBackEdge import BackEdgesMatching
-        from extensions.middle.TensorIteratorCondition import LoopConditionMatcher
+        from openvino.tools.mo.middle.TensorIteratorBackEdge import BackEdgesMatching
+        from openvino.tools.mo.middle.TensorIteratorCondition import LoopConditionMatcher
         return [BackEdgesMatching, LoopConditionMatcher]
 
     @staticmethod

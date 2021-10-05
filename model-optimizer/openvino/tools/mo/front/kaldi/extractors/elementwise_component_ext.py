@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.extractor import FrontExtractorOp
-from mo.front.kaldi.utils import read_token_value
-from mo.ops.eltwise_ninputs_in_1 import EltwiseNin1
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.kaldi.utils import read_token_value
+from openvino.tools.mo.ops.eltwise_ninputs_in_1 import EltwiseNin1
 
 
 class ElementwiseProductComponentFrontExtractor(FrontExtractorOp):

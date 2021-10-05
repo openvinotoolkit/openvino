@@ -7,9 +7,9 @@ import os
 
 import numpy as np
 
-from mo.front.kaldi.loader.utils import read_placeholder, read_binary_integer32_token, read_blob, read_token_value, \
+from openvino.tools.mo.front.kaldi.loader.utils import read_placeholder, read_binary_integer32_token, read_blob, read_token_value, \
     find_next_tag
-from mo.utils.error import Error
+from openvino.tools.mo.utils.error import Error
 
 
 def read_binary_matrix(file_desc: io.BufferedReader, read_token: bool = True):

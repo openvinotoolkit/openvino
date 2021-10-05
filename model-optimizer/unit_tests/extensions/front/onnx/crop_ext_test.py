@@ -6,8 +6,8 @@ import unittest
 import numpy as np
 import onnx
 
-from extensions.front.onnx.crop_ext import CropFrontExtractor
-from mo.graph.graph import Node
+from openvino.tools.mo.front.onnx.crop_ext import CropFrontExtractor
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 

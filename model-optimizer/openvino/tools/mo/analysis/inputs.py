@@ -3,8 +3,8 @@
 
 import logging as log
 
-from mo.graph.graph import Graph
-from mo.utils.model_analysis import AnalyzeAction
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.utils.model_analysis import AnalyzeAction
 
 
 class InputsAnalysis(AnalyzeAction):
@@ -41,7 +41,7 @@ class InputsAnalysis(AnalyzeAction):
     def ignore_mxnet_softmax_inputs(cls, graph: Graph):
         """
         MxNet Softmax layers may have additional inputs which should be ignored. Refer to the
-        extensions/front/mxnet/check_softmax_node_inputs.py.
+        openvino/tools/mo/front/mxnet/check_softmax_node_inputs.py.
         """
         inputs_to_ignore = set()
         softmax_nodes = []

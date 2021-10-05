@@ -6,10 +6,10 @@ import os
 
 import numpy as np
 
-from mo.graph.graph import Node, Graph
-from mo.utils.error import Error
-from mo.utils.find_inputs import find_inputs
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.find_inputs import find_inputs
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 def get_node_top(graph: Graph, name: str):

@@ -5,10 +5,10 @@ import re
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, shape_array
-from mo.graph.graph import Node, Graph
-from mo.ops.op import Op
-from mo.utils.broadcasting import bi_directional_shape_broadcasting
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.utils.broadcasting import bi_directional_shape_broadcasting
 
 
 class Einsum(Op):

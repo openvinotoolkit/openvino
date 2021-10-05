@@ -5,15 +5,15 @@ import math
 
 import numpy as np
 
-from extensions.ops.MatMul import MatMul
-from extensions.ops.elementwise import Add, Mul
-from extensions.ops.transpose import Transpose
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.subgraph_matcher import SubgraphMatch
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, rename_nodes
-from mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.MatMul import MatMul
+from openvino.tools.mo.ops.elementwise import Add, Mul
+from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.ops.reshape import Reshape
 
 
 class FullyConnectedDecomposer(FrontReplacementSubgraph):

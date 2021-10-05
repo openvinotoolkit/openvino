@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from mo.graph.graph import Node, Graph
-from mo.ops.op import Op
-from mo.utils.error import Error
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.utils.error import Error
 
 
 def broadcastable(broadcast_from, broadcast_to):

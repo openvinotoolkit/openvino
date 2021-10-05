@@ -3,8 +3,8 @@
 
 import unittest
 
-from mo.graph.graph import Node, Graph
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, regular_op
 
 nodes = {

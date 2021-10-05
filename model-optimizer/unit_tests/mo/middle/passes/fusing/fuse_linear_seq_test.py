@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from mo.middle.passes.fusing.fuse_linear_seq import fuse_mul_add_sequence
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.middle.passes.fusing.fuse_linear_seq import fuse_mul_add_sequence
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {

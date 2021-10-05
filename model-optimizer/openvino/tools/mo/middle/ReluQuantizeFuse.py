@@ -6,10 +6,10 @@ from typing import Dict
 
 import numpy as np
 
-from extensions.middle.BinarizeWeightsM1P1 import BinarizeWeightsM1P1
-from extensions.middle.MulFakeQuantizeFuse import resolve_shared_inputs
-from mo.graph.graph import Graph, Node
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.middle.BinarizeWeightsM1P1 import BinarizeWeightsM1P1
+from openvino.tools.mo.middle.MulFakeQuantizeFuse import resolve_shared_inputs
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class ReluFakeQuantizeMark(MiddleReplacementPattern):
@@ -27,7 +27,7 @@ class ReluFakeQuantizeMark(MiddleReplacementPattern):
         return [BinarizeWeightsM1P1]
 
     def run_before(self):
-        from extensions.middle.SharedWeightsDuplication import SharedWeightsDuplication
+        from openvino.tools.mo.middle.SharedWeightsDuplication import SharedWeightsDuplication
         return [SharedWeightsDuplication]
 
     def pattern(self):
@@ -89,7 +89,7 @@ class ClampQuantizeMark(MiddleReplacementPattern):
         return [BinarizeWeightsM1P1]
 
     def run_before(self):
-        from extensions.middle.SharedWeightsDuplication import SharedWeightsDuplication
+        from openvino.tools.mo.middle.SharedWeightsDuplication import SharedWeightsDuplication
         return [SharedWeightsDuplication]
 
     def pattern(self):
@@ -152,7 +152,7 @@ class ReluQuantizeFuse(MiddleReplacementPattern):
         return [ReluFakeQuantizeMark]
 
     def run_before(self):
-        from extensions.middle.SharedWeightsDuplication import SharedWeightsDuplication
+        from openvino.tools.mo.middle.SharedWeightsDuplication import SharedWeightsDuplication
         return [SharedWeightsDuplication]
 
     def pattern(self):

@@ -7,8 +7,8 @@ from xml.etree.ElementTree import Element, tostring
 
 import numpy as np
 
-from mo.back.ie_ir_ver_2.emitter import soft_get, xml_shape
-from mo.utils.error import Error
+from openvino.tools.mo.back.ie_ir_ver_2.emitter import soft_get, xml_shape
+from openvino.tools.mo.utils.error import Error
 
 expected_result = b'<net><dim>2</dim><dim>10</dim><dim>50</dim><dim>50</dim></net>'
 

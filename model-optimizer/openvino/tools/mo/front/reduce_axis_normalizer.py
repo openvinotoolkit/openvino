@@ -1,15 +1,15 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.ReduceOps import reduce_map
-from extensions.ops.range import Range
-from extensions.ops.rank import Rank
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.subgraph_matcher import SubgraphMatch
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph
-from mo.ops.const import Const
+from openvino.tools.mo.ops.ReduceOps import reduce_map
+from openvino.tools.mo.ops.range import Range
+from openvino.tools.mo.ops.rank import Rank
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.const import Const
 
 
 class ReduceAxisNormalizer(FrontReplacementSubgraph):

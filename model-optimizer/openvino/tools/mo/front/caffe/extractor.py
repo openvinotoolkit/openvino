@@ -1,14 +1,14 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.caffe.extractors.native_caffe import native_caffe_node_extractor
-from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.front.common.register_custom_ops import extension_op_extractor
-from mo.front.extractor import CaffePythonFrontExtractorOp
-from mo.graph.graph import Node
-from mo.ops.op import Op
-from mo.utils.error import Error
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.front.caffe.extractors.native_caffe import native_caffe_node_extractor
+from openvino.tools.mo.front.common.partial_infer.elemental import copy_shape_infer
+from openvino.tools.mo.front.common.register_custom_ops import extension_op_extractor
+from openvino.tools.mo.front.extractor import CaffePythonFrontExtractorOp
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 def node_pb_arg(pb_extractor):

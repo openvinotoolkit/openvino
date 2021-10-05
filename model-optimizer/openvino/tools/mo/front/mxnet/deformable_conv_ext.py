@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from mo.front.extractor import FrontExtractorOp
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
-from mo.ops.deformable_convolution import DeformableConvolution
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from openvino.tools.mo.ops.deformable_convolution import DeformableConvolution
 
 
 class DeformableConvolutionExtractor(FrontExtractorOp):

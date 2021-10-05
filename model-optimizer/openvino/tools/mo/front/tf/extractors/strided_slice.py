@@ -3,8 +3,8 @@
 
 import numpy as np
 
-from mo.front.extractor import FrontExtractorOp
-from mo.ops.strided_slice import StridedSlice
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.strided_slice import StridedSlice
 
 
 def int_to_array_bit_mask(im):

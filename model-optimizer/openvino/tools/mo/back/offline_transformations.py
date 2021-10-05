@@ -3,8 +3,8 @@
 
 import argparse
 
-from mo.utils.error import Error
-from mo.utils.cli_parser import parse_transform
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.cli_parser import parse_transform
 
 
 def get_available_transformations():

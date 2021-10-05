@@ -1,12 +1,12 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.ConvertLike import ConvertLike
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, rename_nodes
-from mo.ops.const import Const
-from mo.ops.pad import Pad
+from openvino.tools.mo.ops.ConvertLike import ConvertLike
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.pad import Pad
 
 
 class AttributedPadToPad(FrontReplacementPattern):

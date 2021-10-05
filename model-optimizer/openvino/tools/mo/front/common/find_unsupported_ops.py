@@ -5,7 +5,7 @@ import logging as log
 
 import numpy as np
 
-from mo.graph.graph import Node, Graph
+from openvino.tools.mo.graph.graph import Node, Graph
 
 
 def find_unsupported_ops(graph: Graph):

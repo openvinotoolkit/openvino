@@ -6,16 +6,16 @@ import math
 
 import numpy as np
 
-from extensions.back.FuseTransposesSequence import FuseTransposesSequence
-from extensions.middle.FuseReshapesSequence import FuseReshapesSequence
-from extensions.middle.RemoveRedundantReshapes import RemoveRedundantReshapes
-from mo.back.replacement import BackReplacementPattern
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph, Node
-from mo.middle.passes.fusing.helpers import get_next_operation
-from mo.ops.op import PermuteAttrs
-from mo.ops.reshape import Reshape
+from openvino.tools.mo.back.FuseTransposesSequence import FuseTransposesSequence
+from openvino.tools.mo.middle.FuseReshapesSequence import FuseReshapesSequence
+from openvino.tools.mo.middle.RemoveRedundantReshapes import RemoveRedundantReshapes
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.passes.fusing.helpers import get_next_operation
+from openvino.tools.mo.ops.op import PermuteAttrs
+from openvino.tools.mo.ops.reshape import Reshape
 
 
 def split_input_permute_dimension(dim: int, permute_order: np.array):
@@ -169,7 +169,7 @@ class OptimizeTransposeReshapeSequence(BackReplacementPattern):
     OPTIMIZED_NODE_FLAG = 'permute_reshape_optimized'
 
     def run_before(self):
-        from extensions.back.ReshapeMutation import ReshapeMutation
+        from openvino.tools.mo.back.ReshapeMutation import ReshapeMutation
         return [ReshapeMutation]
 
     def run_after(self):

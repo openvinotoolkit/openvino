@@ -2,20 +2,20 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from extensions.ops.elementwise import Pow
-from extensions.ops.ReduceOps import ReduceSum
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, rename_nodes
-from mo.middle.passes.convert_data_type import data_type_str_to_np
+from openvino.tools.mo.ops.elementwise import Pow
+from openvino.tools.mo.ops.ReduceOps import ReduceSum
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np
 
 
 class ComplexAbs(FrontReplacementSubgraph):
     enabled = True
 
     def run_after(self):
-        from extensions.front.tf.ComplexAbsAfterComplex import ComplexAbsAfterComplex
+        from openvino.tools.mo.front.tf.ComplexAbsAfterComplex import ComplexAbsAfterComplex
         return [ComplexAbsAfterComplex]
 
     def find_and_replace_pattern(self, graph: Graph):

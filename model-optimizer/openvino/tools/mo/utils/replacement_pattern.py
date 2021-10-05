@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.graph.graph import Graph
-from mo.middle.pattern_match import apply_pattern
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.pattern_match import apply_pattern
 
 
 class ReplacementPattern(object):

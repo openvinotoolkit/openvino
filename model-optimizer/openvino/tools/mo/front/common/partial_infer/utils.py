@@ -6,7 +6,7 @@ from typing import Iterable, List, Union
 
 import numpy as np
 
-from mo.utils.error import Error
+from openvino.tools.mo.utils.error import Error
 
 dynamic_dimension = np.ma.masked
 # numpy masked array for integer values forces us to select one integer number to be considered as a missing/invalid

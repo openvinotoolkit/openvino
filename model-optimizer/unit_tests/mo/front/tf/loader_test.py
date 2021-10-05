@@ -7,7 +7,7 @@ from unittest.mock import Mock, MagicMock
 
 from generator import generate, generator
 
-from mo.front.tf.loader import load_tf_graph_def
+from openvino.tools.mo.front.tf.loader import load_tf_graph_def
 
 
 @generator

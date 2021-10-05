@@ -5,10 +5,10 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
-from mo.front.tf.common import tf_data_type_decode
-from mo.utils.error import Error
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
+from openvino.tools.mo.front.tf.common import tf_data_type_decode
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 def tf_tensor_shape(pb):

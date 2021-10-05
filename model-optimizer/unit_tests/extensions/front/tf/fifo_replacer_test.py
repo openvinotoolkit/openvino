@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from extensions.front.tf.fifo_replacer import FIFOQueue
+from openvino.tools.mo.front.tf.fifo_replacer import FIFOQueue
 from unit_tests.utils.graph import build_graph_with_edge_attrs
 
 

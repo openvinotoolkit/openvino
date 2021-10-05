@@ -3,14 +3,14 @@
 
 import numpy as np
 
-from extensions.ops.rank import Rank
-from extensions.ops.size import Size
-from mo.front.extractor import FrontExtractorOp
-from mo.front.tf.extractors.utils import tf_int_list, tf_dtype_extractor
-from mo.graph.graph import Node
-from mo.ops.reshape import Reshape
-from mo.ops.shape import Shape
-from mo.ops.squeeze import Squeeze
+from openvino.tools.mo.ops.rank import Rank
+from openvino.tools.mo.ops.size import Size
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.tf.extractors.utils import tf_int_list, tf_dtype_extractor
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.shape import Shape
+from openvino.tools.mo.ops.squeeze import Squeeze
 
 
 class RankFrontExtractor(FrontExtractorOp):

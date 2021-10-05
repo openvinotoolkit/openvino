@@ -3,14 +3,14 @@
 
 import numpy as np
 
-from extensions.ops.gather import Gather
-from extensions.ops.transpose import Transpose
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementOp
-from mo.front.kaldi.loader.utils import read_binary_integer32_token, read_blob
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Node, Graph
-from mo.ops.const import Const
+from openvino.tools.mo.ops.gather import Gather
+from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementOp
+from openvino.tools.mo.front.kaldi.loader.utils import read_binary_integer32_token, read_blob
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.const import Const
 
 
 class CopyFrontExtractor(FrontReplacementOp):

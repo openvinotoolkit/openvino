@@ -5,12 +5,12 @@ import logging as log
 
 import numpy as np
 
-from extensions.ops.normalize_l2 import NormalizeL2Op
-from mo.front.common.layout import get_features_dim
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph, rename_nodes
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.normalize_l2 import NormalizeL2Op
+from openvino.tools.mo.front.common.layout import get_features_dim
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class L2NormToNorm(MiddleReplacementPattern):
@@ -23,11 +23,11 @@ class L2NormToNorm(MiddleReplacementPattern):
     force_clean_up = True
 
     def run_after(self):
-        from extensions.middle.pass_separator import PreMiddleStart
+        from openvino.tools.mo.middle.pass_separator import PreMiddleStart
         return [PreMiddleStart]
 
     def run_before(self):
-        from extensions.middle.pass_separator import MiddleStart
+        from openvino.tools.mo.middle.pass_separator import MiddleStart
         return [MiddleStart]
 
     def pattern(self):

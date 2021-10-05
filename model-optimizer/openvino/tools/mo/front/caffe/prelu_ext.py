@@ -1,11 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.prelu import PReLU
-from mo.front.caffe.collect_attributes import merge_attrs
-from mo.front.caffe.extractors.utils import weights_biases
-from mo.front.common.extractors.utils import layout_attrs
-from mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.prelu import PReLU
+from openvino.tools.mo.front.caffe.collect_attributes import merge_attrs
+from openvino.tools.mo.front.caffe.extractors.utils import weights_biases
+from openvino.tools.mo.front.common.extractors.utils import layout_attrs
+from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
 class PreluFrontExtractor(FrontExtractorOp):

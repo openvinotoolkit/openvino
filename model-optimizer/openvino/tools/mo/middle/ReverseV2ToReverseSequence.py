@@ -3,22 +3,22 @@
 
 import numpy as np
 
-from extensions.ops.reverse_sequence import ReverseSequence
-from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph, rename_node
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.utils.error import Error
+from openvino.tools.mo.ops.reverse_sequence import ReverseSequence
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
+from openvino.tools.mo.graph.graph import Graph, rename_node
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.utils.error import Error
 
 
 class ReverseToReverseSequence(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        from extensions.middle.PartialInfer import PartialInfer
+        from openvino.tools.mo.middle.PartialInfer import PartialInfer
         return [PartialInfer]
 
     def run_before(self):
-        from extensions.middle.reverse_tensor_iterator import ReverseTensorIteratorLSTM
+        from openvino.tools.mo.middle.reverse_tensor_iterator import ReverseTensorIteratorLSTM
         return [ReverseTensorIteratorLSTM]
 
     @staticmethod

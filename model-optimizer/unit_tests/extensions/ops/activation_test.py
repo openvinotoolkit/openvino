@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.ops.activation_ops import Elu, SoftPlus, Mish
-from mo.graph.graph import Node
+from openvino.tools.mo.ops.activation_ops import Elu, SoftPlus, Mish
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 

@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.graph.graph import Graph
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
 
 
 class MemoryOffsetBatchUpdate(FrontReplacementPattern):
@@ -16,8 +16,8 @@ class MemoryOffsetBatchUpdate(FrontReplacementPattern):
     run_not_recursively = True
 
     def run_after(self):
-        from extensions.front.user_data_repack import UserDataRepack
-        from extensions.front.kaldi.split_recurrent_memoryoffset import SplitRecurrentMemoryOffset
+        from openvino.tools.mo.front.user_data_repack import UserDataRepack
+        from openvino.tools.mo.front.kaldi.split_recurrent_memoryoffset import SplitRecurrentMemoryOffset
         return [UserDataRepack, SplitRecurrentMemoryOffset]
 
     def find_and_replace_pattern(self, graph: Graph):

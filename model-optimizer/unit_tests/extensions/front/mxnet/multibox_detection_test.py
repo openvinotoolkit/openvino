@@ -3,7 +3,7 @@
 
 import unittest
 
-from extensions.front.mxnet.multibox_detection_ext import MultiBoxDetectionOutputExtractor
+from openvino.tools.mo.front.mxnet.multibox_detection_ext import MultiBoxDetectionOutputExtractor
 from unit_tests.utils.extractors import PB
 
 

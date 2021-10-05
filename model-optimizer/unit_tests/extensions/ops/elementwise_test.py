@@ -5,10 +5,10 @@ import unittest
 
 import numpy as np
 
-from extensions.ops.elementwise import Round, Elementwise
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node
-from mo.middle.passes.infer import type_infer
+from openvino.tools.mo.ops.elementwise import Round, Elementwise
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.middle.passes.infer import type_infer
 from unit_tests.utils.graph import valued_const_with_data, result, regular_op_with_empty_data, connect, \
     shaped_parameter, build_graph
 

@@ -3,8 +3,8 @@
 
 import numpy as np
 
-from mo.graph.graph import Node
-from mo.utils.error import Error
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.utils.error import Error
 
 
 def onnx_node_has_attr(node: Node, name: str):

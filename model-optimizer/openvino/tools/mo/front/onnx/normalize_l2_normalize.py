@@ -3,10 +3,10 @@
 
 import logging as log
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.graph.graph import Graph
-from mo.ops.const import Const
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.const import Const
 
 
 class NormalizeL2Normalize(FrontReplacementPattern):

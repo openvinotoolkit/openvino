@@ -5,11 +5,11 @@ import logging as log
 
 import numpy as np
 
-from mo.graph.graph import Node, Graph
-from mo.middle.passes.convert_data_type import np_data_type_to_precision, convert_blob, \
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_precision, convert_blob, \
     np_data_type_to_destination_type, packed_I4, packed_U4
-from mo.ops.op import Op
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 class Cast(Op):

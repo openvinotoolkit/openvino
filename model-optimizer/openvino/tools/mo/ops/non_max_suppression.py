@@ -5,12 +5,12 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, dynamic_dimension_value
-from mo.front.extractor import bool_to_str
-from mo.graph.graph import Node, Graph
-from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
-from mo.ops.op import Op
-from mo.utils.error import Error
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, dynamic_dimension_value
+from openvino.tools.mo.front.extractor import bool_to_str
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.utils.error import Error
 
 
 class NonMaxSuppression(Op):

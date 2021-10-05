@@ -1,17 +1,17 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.front.rank_decomposer import RankDecomposer
-from extensions.ops.ReduceOps import ReduceProd
-from extensions.ops.rank import Rank
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph, rename_nodes
-from mo.ops.const import Const
-from mo.ops.reshape import Reshape
-from mo.ops.shape import Shape
-from mo.utils.shape import new_shape_node_from_shape_nodes, get_shape_values_by_range_idxs
+from openvino.tools.mo.front.rank_decomposer import RankDecomposer
+from openvino.tools.mo.ops.ReduceOps import ReduceProd
+from openvino.tools.mo.ops.rank import Rank
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.shape import Shape
+from openvino.tools.mo.utils.shape import new_shape_node_from_shape_nodes, get_shape_values_by_range_idxs
 
 
 class FlattenToReshape(FrontReplacementSubgraph):

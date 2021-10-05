@@ -3,7 +3,7 @@
 
 import collections
 
-from mo.graph.graph import Node, Graph
+from openvino.tools.mo.graph.graph import Node, Graph
 
 
 class UnsupportedOps(object):

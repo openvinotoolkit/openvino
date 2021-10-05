@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.split import VariadicSplit, Split, AttributedSplit
-from mo.front.extractor import FrontExtractorOp
-from mo.graph.graph import Node
+from openvino.tools.mo.ops.split import VariadicSplit, Split, AttributedSplit
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.graph.graph import Node
 
 
 class SplitVExtractor(FrontExtractorOp):

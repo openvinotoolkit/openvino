@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from extensions.ops.range import Range
-from mo.front.extractor import FrontExtractorOp
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
-from mo.graph.graph import Node
+from openvino.tools.mo.ops.range import Range
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from openvino.tools.mo.graph.graph import Node
 
 
 class ArangeExt(FrontExtractorOp):

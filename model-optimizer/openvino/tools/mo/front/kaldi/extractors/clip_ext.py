@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.identity import Identity
-from mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.identity import Identity
+from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
 class ClipGradientComponentFrontExtractor(FrontExtractorOp):

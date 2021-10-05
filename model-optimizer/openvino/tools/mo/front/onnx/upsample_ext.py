@@ -5,11 +5,11 @@ import math
 
 import numpy as np
 
-from extensions.ops.ONNXResize10 import ONNXResize10
-from extensions.ops.upsample import UpsampleOp
-from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version
-from mo.utils.error import Error
+from openvino.tools.mo.ops.ONNXResize10 import ONNXResize10
+from openvino.tools.mo.ops.upsample import UpsampleOp
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version
+from openvino.tools.mo.utils.error import Error
 
 
 class UpsampleFrontExtractor(FrontExtractorOp):

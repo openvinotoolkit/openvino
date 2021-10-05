@@ -3,12 +3,12 @@
 
 import numpy as np
 
-from extensions.front.AttributedClampNormalizer import AttributedClampNormalizer
-from extensions.ops.activation_ops import HSwish
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.subgraph_matcher import SubgraphMatch
-from mo.graph.graph import Graph, rename_nodes
-from mo.middle.pattern_match import check_value
+from openvino.tools.mo.front.AttributedClampNormalizer import AttributedClampNormalizer
+from openvino.tools.mo.ops.activation_ops import HSwish
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.middle.pattern_match import check_value
 
 
 def replace_with_hswish(graph: Graph, match: [dict, SubgraphMatch]):

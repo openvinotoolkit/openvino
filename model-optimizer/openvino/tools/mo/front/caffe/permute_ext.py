@@ -3,8 +3,8 @@
 
 import numpy as np
 
-from extensions.ops.transpose import Transpose
-from mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
 class PermuteFrontExtractor(FrontExtractorOp):

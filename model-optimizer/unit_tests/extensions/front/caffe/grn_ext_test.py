@@ -4,10 +4,10 @@
 import unittest
 from unittest.mock import patch
 
-from extensions.front.caffe.grn_ext import GRNFrontExtractor
-from extensions.ops.grn import GRNOp
-from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.ops.op import Op
+from openvino.tools.mo.front.caffe.grn_ext import GRNFrontExtractor
+from openvino.tools.mo.ops.grn import GRNOp
+from openvino.tools.mo.front.common.partial_infer.elemental import copy_shape_infer
+from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import FakeNode
 
@@ -25,7 +25,7 @@ class TestGRNExt(unittest.TestCase):
     def test_grn_no_pb_no_ml(self):
         self.assertRaises(AttributeError, GRNFrontExtractor.extract, None)
 
-    @patch('extensions.front.caffe.grn_ext.merge_attrs')
+    @patch('openvino.tools.mo.front.caffe.grn_ext.merge_attrs')
     def test_grn_ext_ideal_numbers(self, merge_attrs_mock):
         params = {
             'bias': 0.7

@@ -8,9 +8,9 @@ from collections import deque
 import networkx as nx
 import numpy as np
 
-from mo.front.common.partial_infer.utils import is_fully_defined, compatible_shapes
-from mo.utils.error import Error
-from mo.utils.utils import deprecated_api
+from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, compatible_shapes
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import deprecated_api
 
 
 # TODO: dep warning
@@ -68,7 +68,7 @@ def mark_undead_nodes(graph, undead_types: list):
     :param undead_types: list of node types that should be marked as undead.
     :return: updated graph where each has attribute 'is_undead'.
     """
-    from mo.utils.graph import bfs_search
+    from openvino.tools.mo.utils.graph import bfs_search
 
     nx.set_node_attributes(G=graph, name='is_undead', values=False)
 
@@ -114,7 +114,7 @@ def mark_const_producer_nodes(graph):
 
 
 def eliminate_dead_nodes(graph):
-    from mo.graph.graph import Node
+    from openvino.tools.mo.graph.graph import Node
     nodes_to_remove = set()
     for node_name, node_attrs in graph.nodes(data=True):
         # The Const operation node may have set an attribute 'nchw_layout' attribute to prevent shape permutation.
@@ -143,7 +143,7 @@ def add_constant_operations(graph):
         # If data node has no producers we create Const operation
         if len(node.in_nodes()) == 0 and len(node.out_nodes()) != 0:
             # It's necessary to import here due to cycle dependencies
-            from mo.ops.const import Const
+            from openvino.tools.mo.ops.const import Const
             name = node.soft_get('name', node.id)
             new_name = re.sub(r'\/Output_\d+\/Data_(.?)+', '', name)
             const_node = Const(graph, dict(value=node.value, name=new_name,
@@ -215,7 +215,7 @@ def merge_data_nodes(graph, survived, removed):
 
 # TODO: unit tests
 def remove_op_node_with_data_node(graph, node_to_remove, input_data_node=None):
-    from mo.graph.graph import Node
+    from openvino.tools.mo.graph.graph import Node
     assert node_to_remove.kind == 'op'
     if input_data_node is None:
         input_data_node = node_to_remove.in_node()
@@ -240,7 +240,7 @@ def remove_op_nodes(graph, attrs: dict):
 
 
 def remove_edges_for_nodes(graph, node_attrs: dict, edge_attrs: dict):
-    from mo.graph.graph import Node
+    from openvino.tools.mo.graph.graph import Node
     for node in graph.nodes():
         node = Node(graph, node)
         if all([node.has(attr) and node[attr] == node_attrs[attr] for attr in node_attrs]):

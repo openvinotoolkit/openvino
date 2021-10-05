@@ -5,9 +5,9 @@ import logging as log
 
 import numpy as np
 
-from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version, onnx_node_has_attr
-from mo.ops.clamp import Clamp, AttributedClamp
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version, onnx_node_has_attr
+from openvino.tools.mo.ops.clamp import Clamp, AttributedClamp
 
 
 class ClipFrontExtractor(FrontExtractorOp):

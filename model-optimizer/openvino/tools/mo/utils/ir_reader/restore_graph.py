@@ -6,20 +6,20 @@ from copy import copy
 
 import numpy as np
 
-from extensions.back.ConvolutionNormalizer import ConvolutionNormalizer, ConvolutionWithGroupsResolver
-from extensions.back.MarkNodesWithShapeValues import MarkNodesWithShapeValues
-from extensions.back.PackBinaryWeights import PackBinaryWeights
-from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement
-from extensions.back.StridedSliceMasksNormalizer import StridedSliceMasksNormalizer
-from extensions.back.blob_normalizer import BlobNormalizer
-from mo.graph.graph import Graph
-from mo.middle.passes.convert_data_type import data_type_str_to_precision
-from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
-from mo.pipeline.common import prepare_emit_ir
-from mo.utils.class_registration import apply_replacements_list
-from mo.utils.ir_engine.ir_engine import IREngine
-from mo.utils.ir_reader.layer_to_class import copy_graph_with_ops, collect_extenders, collect_ops
-from mo.utils.utils import get_mo_root_dir
+from openvino.tools.mo.back.ConvolutionNormalizer import ConvolutionNormalizer, ConvolutionWithGroupsResolver
+from openvino.tools.mo.back.MarkNodesWithShapeValues import MarkNodesWithShapeValues
+from openvino.tools.mo.back.PackBinaryWeights import PackBinaryWeights
+from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement
+from openvino.tools.mo.back.StridedSliceMasksNormalizer import StridedSliceMasksNormalizer
+from openvino.tools.mo.back.blob_normalizer import BlobNormalizer
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_precision
+from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
+from openvino.tools.mo.pipeline.common import prepare_emit_ir
+from openvino.tools.mo.utils.class_registration import apply_replacements_list
+from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
+from openvino.tools.mo.utils.ir_reader.layer_to_class import copy_graph_with_ops, collect_extenders, collect_ops
+from openvino.tools.mo.utils.utils import get_mo_root_dir
 
 
 def restore_graph_from_ir(path_to_xml: str, path_to_bin: str = None) -> (Graph, dict):

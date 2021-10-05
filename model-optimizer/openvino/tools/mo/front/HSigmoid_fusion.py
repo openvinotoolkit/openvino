@@ -3,13 +3,13 @@
 
 import numpy as np
 
-from extensions.front.AttributedClampNormalizer import AttributedClampNormalizer
-from extensions.ops.activation_ops import HSigmoid
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.subgraph_matcher import SubgraphMatch
-from mo.graph.graph import Graph, rename_nodes
-from mo.middle.pattern_match import check_value
-from mo.utils.graph import Node
+from openvino.tools.mo.front.AttributedClampNormalizer import AttributedClampNormalizer
+from openvino.tools.mo.ops.activation_ops import HSigmoid
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.middle.pattern_match import check_value
+from openvino.tools.mo.utils.graph import Node
 
 
 def replace_with_hsigmoid(graph: Graph, first_node: Node, last_node: Node):

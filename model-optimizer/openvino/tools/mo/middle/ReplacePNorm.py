@@ -1,13 +1,13 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.ReduceOps import ReduceSum
-from extensions.ops.elementwise import Pow
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.ReduceOps import ReduceSum
+from openvino.tools.mo.ops.elementwise import Pow
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.reshape import Reshape
 
 
 class ReplacePNormNodePattern(MiddleReplacementPattern):

@@ -1,10 +1,10 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.op import Op
+from openvino.tools.mo.middle.TensorIteratorMerge import TensorIteratorMerge
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.op import Op
 
 
 class AddFakeOutputsToSplit(MiddleReplacementPattern):

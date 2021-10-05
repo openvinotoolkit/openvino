@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.graph.graph import Graph, Node
+from openvino.tools.mo.graph.graph import Graph, Node
 
 
 def delete_selects_from(graph: Graph, node_idxs: list):

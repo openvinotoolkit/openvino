@@ -3,24 +3,24 @@
 
 import numpy as np
 
-from extensions.ops.Cast import Cast
-from extensions.ops.DetectionOutput import DetectionOutput
-from extensions.ops.elementwise import Mul, Sub, Pow
-from extensions.ops.gather import Gather
-from extensions.ops.split import VariadicSplit
-from mo.front.common.partial_infer.utils import int64_array, float32_array
-from mo.front.subgraph_matcher import SubgraphMatch
-from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
-from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph
-from mo.graph.graph import Node, Graph
-from mo.ops.broadcast import Broadcast
-from mo.ops.concat import Concat
-from mo.ops.const import Const
-from mo.ops.reshape import Reshape
-from mo.ops.shape import Shape
-from mo.ops.strided_slice import StridedSlice
-from mo.utils.error import Error
-from mo.utils.graph import clear_tensor_names_info
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.DetectionOutput import DetectionOutput
+from openvino.tools.mo.ops.elementwise import Mul, Sub, Pow
+from openvino.tools.mo.ops.gather import Gather
+from openvino.tools.mo.ops.split import VariadicSplit
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, float32_array
+from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
+from openvino.tools.mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.broadcast import Broadcast
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.shape import Shape
+from openvino.tools.mo.ops.strided_slice import StridedSlice
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.graph import clear_tensor_names_info
 
 
 class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGraph):

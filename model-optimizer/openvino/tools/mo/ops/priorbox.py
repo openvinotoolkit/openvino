@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from mo.front.common.layout import get_width_dim, get_height_dim
-from mo.front.extractor import attr_getter, bool_to_str
-from mo.graph.graph import Node, Graph
-from mo.ops.op import Op
+from openvino.tools.mo.front.common.layout import get_width_dim, get_height_dim
+from openvino.tools.mo.front.extractor import attr_getter, bool_to_str
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.op import Op
 
 
 class PriorBoxOp(Op):

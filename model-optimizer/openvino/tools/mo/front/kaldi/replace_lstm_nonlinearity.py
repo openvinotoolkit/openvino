@@ -3,16 +3,16 @@
 
 import numpy as np
 
-from extensions.ops.activation_ops import Sigmoid, Tanh
-from extensions.ops.elementwise import Add, Mul
-from extensions.ops.split import Split, AttributedVariadicSplit
-from mo.front.caffe.extractors.utils import input_as_const
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementOp
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Node, Graph
-from mo.ops.concat import Concat
-from mo.ops.scale_shift import ScaleShiftOp
+from openvino.tools.mo.ops.activation_ops import Sigmoid, Tanh
+from openvino.tools.mo.ops.elementwise import Add, Mul
+from openvino.tools.mo.ops.split import Split, AttributedVariadicSplit
+from openvino.tools.mo.front.caffe.extractors.utils import input_as_const
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementOp
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.scale_shift import ScaleShiftOp
 
 
 class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
@@ -20,11 +20,11 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
     enabled = True
 
     def run_after(self):
-        from extensions.front.restore_ports import RestorePorts
+        from openvino.tools.mo.front.restore_ports import RestorePorts
         return [RestorePorts]
 
     def run_before(self):
-        from extensions.front.MatMul_normalizer import FullyConnectedDecomposer
+        from openvino.tools.mo.front.MatMul_normalizer import FullyConnectedDecomposer
         return [FullyConnectedDecomposer]
 
     def replace_op(self, graph: Graph, node: Node):

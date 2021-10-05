@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.extractors.utils import layout_attrs
-from mo.front.common.partial_infer.batch_norm import batch_norm_4_infer
+from openvino.tools.mo.front.common.extractors.utils import layout_attrs
+from openvino.tools.mo.front.common.partial_infer.batch_norm import batch_norm_4_infer
 
 
 def batch_norm_ext(attrs):

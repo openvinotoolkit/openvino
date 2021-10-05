@@ -3,9 +3,9 @@
 
 import logging as log
 
-from mo.graph.graph import Graph
-from mo.utils.model_analysis import AnalyzeAction, graph_contains_scope
-from mo.utils.utils import files_by_pattern, get_mo_root_dir
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.utils.model_analysis import AnalyzeAction, graph_contains_scope
+from openvino.tools.mo.utils.utils import files_by_pattern, get_mo_root_dir
 
 
 class TensorFlowObjectDetectionAPIAnalysis(AnalyzeAction):
@@ -71,7 +71,7 @@ class TensorFlowObjectDetectionAPIAnalysis(AnalyzeAction):
                     result = dict()
                     result['flavor'] = flavor
                     result['mandatory_parameters'] = {'tensorflow_use_custom_operations_config':
-                                                          files_by_pattern(get_mo_root_dir() + '/extensions/front/tf',
+                                                          files_by_pattern(get_mo_root_dir() + '/openvino/tools/mo/front/tf',
                                                                            __class__.file_patterns[flavor],
                                                                            add_prefix=True),
                                                       'tensorflow_object_detection_api_pipeline_config': None,

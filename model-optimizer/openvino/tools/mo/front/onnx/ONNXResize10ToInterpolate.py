@@ -5,18 +5,18 @@ import logging as log
 
 import numpy as np
 
-from extensions.ops.Cast import Cast
-from extensions.ops.activation_ops import Floor
-from extensions.ops.elementwise import Add, Mul
-from extensions.ops.interpolate import Interpolate
-from extensions.ops.range import Range
-from extensions.ops.rank import Rank
-from mo.front.common.partial_infer.utils import int64_array, float_array
-from mo.front.common.replacement import FrontReplacementOp
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, Node, rename_nodes
-from mo.ops.shape import Shape
-from mo.ops.strided_slice import StridedSlice
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.activation_ops import Floor
+from openvino.tools.mo.ops.elementwise import Add, Mul
+from openvino.tools.mo.ops.interpolate import Interpolate
+from openvino.tools.mo.ops.range import Range
+from openvino.tools.mo.ops.rank import Rank
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, float_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementOp
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, Node, rename_nodes
+from openvino.tools.mo.ops.shape import Shape
+from openvino.tools.mo.ops.strided_slice import StridedSlice
 
 
 def replace_resize(graph: Graph, resize: Node):
@@ -113,7 +113,7 @@ class ONNXResize10ToInterpolate(FrontReplacementOp):
     enabled = True
 
     def run_after(self):
-        from extensions.front.InterpolateNormalizer import InterpolateNormalizer
+        from openvino.tools.mo.front.InterpolateNormalizer import InterpolateNormalizer
         return [InterpolateNormalizer]
 
     def replace_sub_graph(self, graph: Graph, match: dict):

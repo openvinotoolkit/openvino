@@ -6,9 +6,9 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from extensions.ops.upsample import UpsampleOp
-from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
-from mo.graph.graph import Node
+from openvino.tools.mo.ops.upsample import UpsampleOp
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},

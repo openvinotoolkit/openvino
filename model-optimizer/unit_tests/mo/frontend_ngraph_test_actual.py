@@ -16,7 +16,7 @@ import pytest
 mock_available = True
 try:
     # pylint: disable=no-name-in-module,import-error
-    from mo.main import main
+    from openvino.tools.mo.main import main
 
     # pylint: disable=no-name-in-module,import-error
     from mock_mo_python_api import get_frontend_statistic, get_model_statistic, \

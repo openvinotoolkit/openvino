@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.front.mxnet.ssd_reorder_detection_out_inputs import SsdReorderDetectionOutInputs
-from mo.graph.graph import Node
+from openvino.tools.mo.front.mxnet.ssd_reorder_detection_out_inputs import SsdReorderDetectionOutInputs
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 

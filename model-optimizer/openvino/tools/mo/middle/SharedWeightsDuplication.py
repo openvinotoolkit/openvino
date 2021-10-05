@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from mo.graph.graph import Graph, Node
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.op import Op
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.op import Op
 
 
 class SharedWeightsDuplication(MiddleReplacementPattern):
@@ -13,11 +13,11 @@ class SharedWeightsDuplication(MiddleReplacementPattern):
     force_clean_up = True
 
     def run_after(self):
-        from extensions.middle.CheckForCycle import CheckForCycle
+        from openvino.tools.mo.middle.CheckForCycle import CheckForCycle
         return [CheckForCycle]
 
     def run_before(self):
-        from extensions.middle.pass_separator import PreMiddleStart
+        from openvino.tools.mo.middle.pass_separator import PreMiddleStart
         return [PreMiddleStart]
 
     def find_and_replace_pattern(self, graph: Graph):

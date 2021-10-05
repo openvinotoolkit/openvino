@@ -10,9 +10,9 @@ from unittest import mock
 import numpy as np
 from generator import generator, generate
 
-from mo.front.common.partial_infer.utils import shape_array, strict_compare_tensors
-from mo.graph.graph import Node
-from mo.utils.ir_engine.ir_engine import IREngine
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array, strict_compare_tensors
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=sys.stdout)
 

@@ -8,15 +8,15 @@ from __future__ import unicode_literals
 
 import logging as log
 
-from extensions.load.loader import Loader
-from mo.front.common.register_custom_ops import update_extractors_with_extensions, check_for_duplicates
-from mo.front.extractor import extract_node_attrs
-from mo.front.onnx.extractor import onnx_op_extractor, onnx_op_extractors
-from mo.front.onnx.loader import load_onnx_model, protobuf2nx
-from mo.graph.graph import Graph
-from mo.utils.error import Error
-from mo.utils.telemetry_utils import send_shapes_info, send_op_names_info
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.load.loader import Loader
+from openvino.tools.mo.front.common.register_custom_ops import update_extractors_with_extensions, check_for_duplicates
+from openvino.tools.mo.front.extractor import extract_node_attrs
+from openvino.tools.mo.front.onnx.extractor import onnx_op_extractor, onnx_op_extractors
+from openvino.tools.mo.front.onnx.loader import load_onnx_model, protobuf2nx
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.telemetry_utils import send_shapes_info, send_op_names_info
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 class ONNXLoader(Loader):

@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from mo.middle.passes.fusing.mark_unfused_nodes import mark_unfused_nodes
+from openvino.tools.mo.middle.passes.fusing.mark_unfused_nodes import mark_unfused_nodes
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {

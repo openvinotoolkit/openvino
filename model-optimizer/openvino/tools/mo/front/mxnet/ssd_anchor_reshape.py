@@ -3,14 +3,14 @@
 
 import numpy as np
 
-from extensions.front.mxnet.eltwise_scalar_replacers import MulScalarFrontReplacer
-from extensions.front.mxnet.ssd_detection_output_replacer import SsdPatternDetectionOutputReplacer
-from extensions.front.split_normalizer import AttributedSplitToSplit
-from extensions.ops.slice_like import SliceLike
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph, Node
-from mo.middle.pattern_match import find_pattern_matches
-from mo.ops.const import Const
+from openvino.tools.mo.front.mxnet.eltwise_scalar_replacers import MulScalarFrontReplacer
+from openvino.tools.mo.front.mxnet.ssd_detection_output_replacer import SsdPatternDetectionOutputReplacer
+from openvino.tools.mo.front.split_normalizer import AttributedSplitToSplit
+from openvino.tools.mo.ops.slice_like import SliceLike
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.pattern_match import find_pattern_matches
+from openvino.tools.mo.ops.const import Const
 
 
 class SsdPatternAnchorReshape(FrontReplacementSubgraph):

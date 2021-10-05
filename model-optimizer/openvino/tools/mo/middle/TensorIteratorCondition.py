@@ -5,11 +5,11 @@ import logging as log
 
 import numpy as np
 
-from extensions.middle.TensorIterator_utils import delete_selects_from
-from extensions.ops.TensorIterator_ops import TensorIteratorCondition, TensorIteratorBackEdge
-from extensions.ops.identity import Identity
-from mo.graph.graph import Graph, rename_nodes
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.middle.TensorIterator_utils import delete_selects_from
+from openvino.tools.mo.ops.TensorIterator_ops import TensorIteratorCondition, TensorIteratorBackEdge
+from openvino.tools.mo.ops.identity import Identity
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 def make_nodes_1D(nodes: list):
@@ -61,7 +61,7 @@ Shape -> StridedSlice -> Enter -|    LogicalAnd --> LoopCond (data)
         return []
 
     def run_before(self):
-        from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
+        from openvino.tools.mo.middle.TensorIteratorMerge import TensorIteratorMerge
         return [TensorIteratorMerge]
 
     @staticmethod
@@ -285,7 +285,7 @@ class SimpleConditionMatcher(MiddleReplacementPattern):
         return [LoopConditionMatcher]
 
     def run_before(self):
-        from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
+        from openvino.tools.mo.middle.TensorIteratorMerge import TensorIteratorMerge
         return [TensorIteratorMerge]
 
     @staticmethod
@@ -424,7 +424,7 @@ class DynamicDecoderConditionMatcher(MiddleReplacementPattern):
         return [SimpleConditionMatcher]
 
     def run_before(self):
-        from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
+        from openvino.tools.mo.middle.TensorIteratorMerge import TensorIteratorMerge
         return [TensorIteratorMerge]
 
     @staticmethod

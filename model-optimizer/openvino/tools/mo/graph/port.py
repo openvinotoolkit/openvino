@@ -4,9 +4,9 @@
 import logging as log
 from copy import deepcopy
 
-from mo.front.common.partial_infer.utils import int64_array, shape_array, strict_compare_tensors
-from mo.graph.connection import Connection
-from mo.utils.error import Error
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, strict_compare_tensors
+from openvino.tools.mo.graph.connection import Connection
+from openvino.tools.mo.utils.error import Error
 
 
 class Port:
@@ -77,7 +77,7 @@ class Port:
             raise Error("_create_data_if_necessary method is not applicable for 'in' Port type!")
 
         if self.idx not in self.node.out_nodes(control_flow=self.control_flow):
-            from mo.ops.op import Op
+            from openvino.tools.mo.ops.op import Op
             Op.create_data_node(self.node.graph, self.node, out_port=self.idx)
             self.node['need_shape_inference'] = True
         return self.node.out_node(self.idx, control_flow=self.control_flow)
@@ -198,7 +198,7 @@ class Port:
 
         assert self.type != 'out', "Can't get source for output port at {} node".format(self.node.name)
 
-        from mo.graph.graph import Node
+        from openvino.tools.mo.graph.graph import Node
         producer_ports = []
 
         has_producer = False
@@ -244,7 +244,7 @@ class Port:
     def get_destinations(self):
         assert self.type != 'in', "Can't get destinations for input port at {} node".format(self.node.name)
 
-        from mo.graph.graph import Node
+        from openvino.tools.mo.graph.graph import Node
         consumer_ports = []
         if self.node.graph.stage == 'front':
             producer_node = self.node

@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from extensions.ops.priorbox import PriorBoxOp
-from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr
+from openvino.tools.mo.ops.priorbox import PriorBoxOp
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr
 
 
 class PriorBoxFrontExtractor(FrontExtractorOp):

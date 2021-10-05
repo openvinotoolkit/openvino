@@ -3,13 +3,13 @@
 
 import numpy as np
 
-from extensions.ops.elementwise import Mul, Sub, Add, Maximum, Minimum, Div, Greater, GreaterEqual, Equal, Less, \
+from openvino.tools.mo.ops.elementwise import Mul, Sub, Add, Maximum, Minimum, Div, Greater, GreaterEqual, Equal, Less, \
     LessEqual, Pow, NotEqual, LogicalAnd, LogicalOr, Round
-from mo.front.extractor import FrontExtractorOp
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
-from mo.graph.graph import Node
-from mo.ops.eltwise_n import EltwiseNAdd
-from mo.ops.power import AttributedPower
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.eltwise_n import EltwiseNAdd
+from openvino.tools.mo.ops.power import AttributedPower
 
 
 class PlusExtractor(FrontExtractorOp):

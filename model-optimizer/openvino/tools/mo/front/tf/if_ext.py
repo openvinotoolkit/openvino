@@ -1,14 +1,14 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.If import If
-from extensions.ops.parameter import Parameter
-from mo.front.common.register_custom_ops import check_for_duplicates
-from mo.front.extractor import FrontExtractorOp, extract_node_attrs
-from mo.front.tf.extractor import tf_op_extractor, tf_op_extractors
-from mo.front.tf.extractors.subgraph_utils import update_body_graph, convert_graph_inputs_to_parameters, \
+from openvino.tools.mo.ops.If import If
+from openvino.tools.mo.ops.parameter import Parameter
+from openvino.tools.mo.front.common.register_custom_ops import check_for_duplicates
+from openvino.tools.mo.front.extractor import FrontExtractorOp, extract_node_attrs
+from openvino.tools.mo.front.tf.extractor import tf_op_extractor, tf_op_extractors
+from openvino.tools.mo.front.tf.extractors.subgraph_utils import update_body_graph, convert_graph_inputs_to_parameters, \
     get_graph_proto, create_internal_graph
-from mo.graph.graph import Node, Graph
+from openvino.tools.mo.graph.graph import Node, Graph
 
 
 def extract_if(cls, if_node: Node):

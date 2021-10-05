@@ -11,8 +11,8 @@ try:
     import tensorflow.contrib  # pylint: disable=no-name-in-module,import-error
 except:
     pass  # we try to import contrib for loading models that use contrib operations
-from mo.utils.error import Error
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 def dump_for_tensorboard(graph_def: tf_v1.GraphDef, logdir: str):

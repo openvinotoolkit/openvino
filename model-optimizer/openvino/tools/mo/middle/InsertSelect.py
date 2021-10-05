@@ -4,20 +4,20 @@
 import networkx as nx
 import numpy as np
 
-from extensions.middle.MakeKaldiConstReshapable import create_const_with_batch_from_input
-from extensions.ops.elementwise import Equal
-from extensions.ops.select import Select
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Graph, Node
-from mo.middle.pattern_match import find_pattern_matches, inverse_dict
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.assign import Assign
-from mo.ops.concat import Concat
-from mo.ops.crop import Crop
-from mo.ops.read_value import ReadValue
-from mo.ops.result import Result
-from mo.utils.graph import bfs_search
-from mo.utils.error import Error
+from openvino.tools.mo.middle.MakeKaldiConstReshapable import create_const_with_batch_from_input
+from openvino.tools.mo.ops.elementwise import Equal
+from openvino.tools.mo.ops.select import Select
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.pattern_match import find_pattern_matches, inverse_dict
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.assign import Assign
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.crop import Crop
+from openvino.tools.mo.ops.read_value import ReadValue
+from openvino.tools.mo.ops.result import Result
+from openvino.tools.mo.utils.graph import bfs_search
+from openvino.tools.mo.utils.error import Error
 
 
 def check_inputs(graph: Graph):
@@ -55,13 +55,13 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
     graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
 
     def run_after(self):
-        from extensions.middle.ReplaceMemoryOffsetWithSplice import ReplaceMemoryOffsetWithMemoryNodePattern
-        from extensions.middle.RemoveDuplicationMemory import MergeNeighborSplicePattern
+        from openvino.tools.mo.middle.ReplaceMemoryOffsetWithSplice import ReplaceMemoryOffsetWithMemoryNodePattern
+        from openvino.tools.mo.middle.RemoveDuplicationMemory import MergeNeighborSplicePattern
         return [ReplaceMemoryOffsetWithMemoryNodePattern,
                 MergeNeighborSplicePattern]
 
     def run_before(self):
-        from extensions.middle.ReplaceSpliceNodePattern import ReplaceSpliceNodePattern
+        from openvino.tools.mo.middle.ReplaceSpliceNodePattern import ReplaceSpliceNodePattern
         return [ReplaceSpliceNodePattern]
 
     @staticmethod

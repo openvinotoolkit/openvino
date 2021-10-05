@@ -6,13 +6,13 @@ import logging as log
 
 import numpy as np
 
-from extensions.ops.elementwise import Mul, Add
-from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Graph
-from mo.ops.const import Const
-from mo.ops.shape import Shape
-from mo.ops.strided_slice import StridedSlice
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.ops.elementwise import Mul, Add
+from openvino.tools.mo.front.common.replacement import FrontReplacementOp
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.shape import Shape
+from openvino.tools.mo.ops.strided_slice import StridedSlice
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 class InterpolateNormalizer(FrontReplacementOp):
@@ -111,7 +111,7 @@ class InterpolateNormalizer(FrontReplacementOp):
                         return None
 
                     node['debug_message'] = 'Interpolate layer replacer may be wrong, please, try to update it in the' \
-                                            ' file (extensions/front/InterpolateNormalizer.py at the line {}).' \
+                                            ' file (openvino/tools/mo/front/InterpolateNormalizer.py at the line {}).' \
                                             ''.format(inspect.currentframe().f_lineno) + refer_to_faq_msg(100)
 
                     # Reshape methods can be different in some cases

@@ -7,12 +7,12 @@ import os
 import pkgutil
 import sys
 
-from extensions.load.loader import Loader
-from mo.back.replacement import BackReplacementPattern
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.op import Op
-from mo.utils.class_registration import _check_unique_ids, update_registration, get_enabled_and_disabled_transforms
-from mo.utils.model_analysis import AnalyzeAction
+from openvino.tools.mo.load.loader import Loader
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.utils.class_registration import _check_unique_ids, update_registration, get_enabled_and_disabled_transforms
+from openvino.tools.mo.utils.model_analysis import AnalyzeAction
 
 
 def import_by_path(path: str, middle_names: list = ()):

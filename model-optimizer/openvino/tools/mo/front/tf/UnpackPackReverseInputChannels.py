@@ -3,12 +3,12 @@
 
 import logging as log
 
-from extensions.back.ReverseInputChannels import ReverseChannels
-from extensions.front.Pack import Pack
-from extensions.front.split_normalizer import AttributedSplitToSplit, SqueezeAxis
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph
+from openvino.tools.mo.back.ReverseInputChannels import ReverseChannels
+from openvino.tools.mo.front.Pack import Pack
+from openvino.tools.mo.front.split_normalizer import AttributedSplitToSplit, SqueezeAxis
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Graph
 
 
 class UnpackPackReverseInputChannels(FrontReplacementSubgraph):

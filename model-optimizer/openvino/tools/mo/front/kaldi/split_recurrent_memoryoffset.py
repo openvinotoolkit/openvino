@@ -3,13 +3,13 @@
 
 import networkx as nx
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph
-from mo.ops.memoryoffset import MemoryOffset
-from mo.ops.result import Result
-from mo.utils.error import Error
-from mo.utils.graph import Node
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.memoryoffset import MemoryOffset
+from openvino.tools.mo.ops.result import Result
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.graph import Node
 
 
 class SplitRecurrentMemoryOffset(FrontReplacementSubgraph):

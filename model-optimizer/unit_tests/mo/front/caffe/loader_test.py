@@ -6,10 +6,10 @@ import unittest
 import numpy as np
 from google.protobuf import text_format
 
-from mo.front.caffe.loader import caffe_pb_to_nx
-from mo.front.caffe.proto import caffe_pb2
-from mo.graph.graph import Graph
-from mo.utils.error import Error
+from openvino.tools.mo.front.caffe.loader import caffe_pb_to_nx
+from openvino.tools.mo.front.caffe.proto import caffe_pb2
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.utils.error import Error
 
 proto_str_one_input = 'name: "network" ' \
                       'layer { ' \

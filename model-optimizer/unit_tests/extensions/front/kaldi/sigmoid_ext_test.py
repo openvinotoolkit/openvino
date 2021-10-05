@@ -1,10 +1,10 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.front.kaldi.sigmoid_ext import SigmoidFrontExtractor
-from extensions.ops.activation_ops import Sigmoid
+from openvino.tools.mo.front.kaldi.sigmoid_ext import SigmoidFrontExtractor
+from openvino.tools.mo.ops.activation_ops import Sigmoid
 from unit_tests.mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
-from mo.ops.op import Op
+from openvino.tools.mo.ops.op import Op
 
 
 class SigmoidFrontExtractorTest(KaldiFrontExtractorTest):

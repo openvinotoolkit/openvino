@@ -3,13 +3,13 @@
 
 import numpy as np
 
-from extensions.ops.split import Split
-from mo.front.common.partial_infer.utils import shape_array
-from mo.graph.graph import Node, Graph
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.concat import Concat
-from mo.ops.const import Const
-from mo.ops.op import Op
+from openvino.tools.mo.ops.split import Split
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.op import Op
 
 
 class DecomposeBidirectionalRNNSequence(MiddleReplacementPattern):
@@ -23,8 +23,8 @@ class DecomposeBidirectionalRNNSequence(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        from extensions.middle.MXNetRNNSequenceNormalize import MXNetRNNSequenceNormalize
-        from extensions.middle.ONNXRNNSequenceNormalize import ONNXRNNSequenceNormalize
+        from openvino.tools.mo.middle.MXNetRNNSequenceNormalize import MXNetRNNSequenceNormalize
+        from openvino.tools.mo.middle.ONNXRNNSequenceNormalize import ONNXRNNSequenceNormalize
         return [ONNXRNNSequenceNormalize, MXNetRNNSequenceNormalize]
 
     def pattern(self):

@@ -3,11 +3,11 @@
 
 import numpy as np
 
-from extensions.front.split_normalizer import SqueezeAxis
-from extensions.ops.split import Split
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph
+from openvino.tools.mo.front.split_normalizer import SqueezeAxis
+from openvino.tools.mo.ops.split import Split
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph
 
 
 class OneHotNormalize(FrontReplacementSubgraph):

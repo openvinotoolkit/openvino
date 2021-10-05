@@ -5,16 +5,16 @@ import logging as log
 
 import numpy as np
 
-from extensions.ops.parameter import Parameter
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph, Node
+from openvino.tools.mo.ops.parameter import Parameter
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Graph, Node
 
 
 class FIFOQueue(FrontReplacementSubgraph):
     enabled = True
 
     def run_before(self):
-        from extensions.front.override_batch import OverrideBatch
+        from openvino.tools.mo.front.override_batch import OverrideBatch
         return [OverrideBatch]
 
     @staticmethod
@@ -84,7 +84,7 @@ class QueueDequeueManyV2(FrontReplacementSubgraph):
     enabled = True
 
     def run_before(self):
-        from extensions.front.override_batch import OverrideBatch
+        from openvino.tools.mo.front.override_batch import OverrideBatch
         return [OverrideBatch]
 
     @staticmethod

@@ -3,10 +3,10 @@
 
 import unittest
 
-from extensions.back.ReverseInputChannels import ReverseChannelsPropagationUp, ReverseChannelsPropagationDown
-from mo.graph.graph import Node, Graph
+from openvino.tools.mo.back.ReverseInputChannels import ReverseChannelsPropagationUp, ReverseChannelsPropagationDown
+from openvino.tools.mo.graph.graph import Node, Graph
 from unit_tests.utils.graph import build_graph, result, connect, regular_op_with_shaped_data, valued_const_with_data
-from mo.front.common.partial_infer.utils import int64_array, float32_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, float32_array
 
 nodes = {
     **regular_op_with_shaped_data('placeholder1', [1, 3, 10, 10], {'type': 'Parameter'}),

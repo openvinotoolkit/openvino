@@ -6,9 +6,9 @@ from unittest.mock import patch
 
 import numpy as np
 
-from extensions.front.caffe.conv_ext import ConvFrontExtractor, DeconvFrontExtractor, conv_create_attrs, conv_set_params
-from mo.front.caffe.extractors.utils import get_list_from_container
-from mo.utils.error import Error
+from openvino.tools.mo.front.caffe.conv_ext import ConvFrontExtractor, DeconvFrontExtractor, conv_create_attrs, conv_set_params
+from openvino.tools.mo.front.caffe.extractors.utils import get_list_from_container
+from openvino.tools.mo.utils.error import Error
 from unit_tests.utils.extractors import PB, FakeParam, FakeMultiParam
 
 
@@ -23,8 +23,8 @@ class TestConvShapesParsing(unittest.TestCase):
         node = PB({'pb': None})
         self.assertRaises(Error, ConvFrontExtractor.extract, node)
 
-    @patch('extensions.front.caffe.conv_ext.weights_biases')
-    @patch('extensions.front.caffe.conv_ext.layout_attrs')
+    @patch('openvino.tools.mo.front.caffe.conv_ext.weights_biases')
+    @patch('openvino.tools.mo.front.caffe.conv_ext.layout_attrs')
     def test_conv_ext_ideal_numbers(self, weights_biases_mock, layout_attrs_mock):
         weights_biases_mock.return_value = {}
         layout_attrs_mock.return_value = {}
@@ -59,8 +59,8 @@ class TestConvShapesParsing(unittest.TestCase):
             else:
                 self.assertEqual(res[key], exp_res[key])
 
-    @patch('extensions.front.caffe.conv_ext.weights_biases')
-    @patch('extensions.front.caffe.conv_ext.layout_attrs')
+    @patch('openvino.tools.mo.front.caffe.conv_ext.weights_biases')
+    @patch('openvino.tools.mo.front.caffe.conv_ext.layout_attrs')
     def test_conv_ext_empty_numbers(self, weights_biases_mock, layout_attrs_mock):
         weights_biases_mock.return_value = {}
         layout_attrs_mock.return_value = {}
@@ -192,8 +192,8 @@ class TestDeconvShapesParsing(unittest.TestCase):
         node = PB({'pb': None})
         self.assertRaises(Error, DeconvFrontExtractor.extract, node)
 
-    @patch('extensions.front.caffe.conv_ext.weights_biases')
-    @patch('extensions.front.caffe.conv_ext.layout_attrs')
+    @patch('openvino.tools.mo.front.caffe.conv_ext.weights_biases')
+    @patch('openvino.tools.mo.front.caffe.conv_ext.layout_attrs')
     def test_conv_ext_ideal_numbers(self, weights_biases_mock, layout_attrs_mock):
         weights_biases_mock.return_value = {}
         layout_attrs_mock.return_value = {}
@@ -227,8 +227,8 @@ class TestDeconvShapesParsing(unittest.TestCase):
             else:
                 self.assertEqual(res[key], exp_res[key])
 
-    @patch('extensions.front.caffe.conv_ext.weights_biases')
-    @patch('extensions.front.caffe.conv_ext.layout_attrs')
+    @patch('openvino.tools.mo.front.caffe.conv_ext.weights_biases')
+    @patch('openvino.tools.mo.front.caffe.conv_ext.layout_attrs')
     def test_conv_ext_false_bias_term(self, weights_biases_mock, layout_attrs_mock):
         weights_biases_mock.return_value = {}
         layout_attrs_mock.return_value = {}
@@ -263,8 +263,8 @@ class TestDeconvShapesParsing(unittest.TestCase):
             else:
                 self.assertEqual(res[key], exp_res[key])
 
-    @patch('extensions.front.caffe.conv_ext.weights_biases')
-    @patch('extensions.front.caffe.conv_ext.layout_attrs')
+    @patch('openvino.tools.mo.front.caffe.conv_ext.weights_biases')
+    @patch('openvino.tools.mo.front.caffe.conv_ext.layout_attrs')
     def test_conv_ext_empty_numbers(self, weights_biases_mock, layout_attrs_mock):
         weights_biases_mock.return_value = {}
         layout_attrs_mock.return_value = {}

@@ -3,14 +3,14 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
-from mo.graph.graph import Graph, Port
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.broadcast import Broadcast
-from mo.ops.concat import Concat
-from mo.ops.crop import Crop
-from mo.ops.shape import Shape
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, Port
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.broadcast import Broadcast
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.crop import Crop
+from openvino.tools.mo.ops.shape import Shape
 
 
 def create_const_with_batch_from_input(producer_port: Port, second_dim, value=0, precision=np.float32):
@@ -85,9 +85,9 @@ class MakeKaldiConstReshapable(MiddleReplacementPattern):
     graph_condition = [lambda graph: graph.graph['fw'] == "kaldi"]
 
     def run_after(self):
-        from extensions.middle.InsertSelect import AddSelectBeforeMemoryNodePattern
-        from extensions.middle.ReplaceMemoryOffsetWithSplice import ReplaceMemoryOffsetWithMemoryNodePattern
-        from extensions.middle.ReplaceSpliceNodePattern import ReplaceSpliceNodePattern
+        from openvino.tools.mo.middle.InsertSelect import AddSelectBeforeMemoryNodePattern
+        from openvino.tools.mo.middle.ReplaceMemoryOffsetWithSplice import ReplaceMemoryOffsetWithMemoryNodePattern
+        from openvino.tools.mo.middle.ReplaceSpliceNodePattern import ReplaceSpliceNodePattern
         return [AddSelectBeforeMemoryNodePattern, ReplaceMemoryOffsetWithMemoryNodePattern,
                 ReplaceSpliceNodePattern]
 

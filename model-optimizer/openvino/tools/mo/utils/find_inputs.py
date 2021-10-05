@@ -3,7 +3,7 @@
 
 import networkx as nx
 
-from mo.graph.graph import Node, Graph
+from openvino.tools.mo.graph.graph import Node, Graph
 
 
 def find_nodes_by_attribute_value(graph: Graph, attr: str, attr_name: str):

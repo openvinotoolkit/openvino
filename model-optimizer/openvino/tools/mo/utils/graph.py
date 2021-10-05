@@ -7,9 +7,9 @@ from re import match, compile
 
 import networkx as nx
 
-from mo.graph.graph import Node, Graph, set_edge_attribute_between_nodes, get_edge_attribute_between_nodes
-from mo.utils.error import Error
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.graph.graph import Node, Graph, set_edge_attribute_between_nodes, get_edge_attribute_between_nodes
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 def backward_bfs_for_operation(start_node: Node, op_names: list, skip_op_list: list = None):

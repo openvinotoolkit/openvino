@@ -3,17 +3,17 @@
 
 import numpy as np
 
-from extensions.back.TransposeReduceFusing import TransposeReduce
-from extensions.ops.transpose import Transpose
-from mo.back.replacement import BackReplacementPattern
-from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph, Node
-from mo.ops.const import Const
-from mo.ops.shape import Shape
-from mo.ops.unsqueeze import Unsqueeze
-from mo.utils.shape import node_to_get_shape_value_of_indices, new_shape_node_from_shape_nodes
+from openvino.tools.mo.back.TransposeReduceFusing import TransposeReduce
+from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.front.caffe.extractors.utils import get_canonical_axis_index
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.shape import Shape
+from openvino.tools.mo.ops.unsqueeze import Unsqueeze
+from openvino.tools.mo.utils.shape import node_to_get_shape_value_of_indices, new_shape_node_from_shape_nodes
 
 
 class MatMulConstTransposesExtraction(BackReplacementPattern):

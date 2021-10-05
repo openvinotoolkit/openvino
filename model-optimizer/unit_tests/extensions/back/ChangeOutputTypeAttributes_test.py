@@ -6,14 +6,14 @@ from copy import deepcopy
 
 import numpy as np
 
-from extensions.back.ChangeOutputTypeAttributes import ChangeOutputTypeAttributes
-from extensions.ops.Cast import Cast
-from extensions.ops.range import Range
-from mo.front.common.partial_infer.utils import float32_array
-from mo.middle.passes.convert_data_type import convert_blobs, data_type_str_to_np
-from mo.middle.passes.infer import partial_infer
-from mo.utils.error import Error
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.back.ChangeOutputTypeAttributes import ChangeOutputTypeAttributes
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.range import Range
+from openvino.tools.mo.front.common.partial_infer.utils import float32_array
+from openvino.tools.mo.middle.passes.convert_data_type import convert_blobs, data_type_str_to_np
+from openvino.tools.mo.middle.passes.infer import partial_infer
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, result, regular_op_with_empty_data, connect
 from unit_tests.utils.graph import valued_const_with_data
 

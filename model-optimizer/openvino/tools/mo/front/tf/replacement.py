@@ -3,15 +3,15 @@
 
 import logging as log
 
-from mo.front.common.custom_replacement_registry import CustomReplacementRegistry
-from mo.front.common.replacement import FrontReplacementSubgraph, FrontReplacementPattern
-from mo.front.subgraph_matcher import SubgraphMatcher, SubgraphMatch
-from mo.front.tf.custom_subgraph_call import merge_nodes
-from mo.graph.graph import Graph
-from mo.ops.op import Op
-from mo.utils import class_registration
-from mo.utils.graph import is_connected_component
-from mo.utils.replacement_pattern import ReplacementPattern
+from openvino.tools.mo.front.common.custom_replacement_registry import CustomReplacementRegistry
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph, FrontReplacementPattern
+from openvino.tools.mo.front.subgraph_matcher import SubgraphMatcher, SubgraphMatch
+from openvino.tools.mo.front.tf.custom_subgraph_call import merge_nodes
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.utils import class_registration
+from openvino.tools.mo.utils.graph import is_connected_component
+from openvino.tools.mo.utils.replacement_pattern import ReplacementPattern
 
 
 class FrontReplacementFromConfigFileGeneral(FrontReplacementPattern):

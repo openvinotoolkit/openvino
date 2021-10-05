@@ -76,6 +76,6 @@ Model Optimizer requires:
 
 1. Run the following command:
 <pre>
-    pylint mo/ extensions/ mo.py
+    pylint openvino/tools/mo/ openvino/tools/mo/ mo.py
 </pre>
 

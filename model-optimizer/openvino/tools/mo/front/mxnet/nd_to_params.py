@@ -5,7 +5,7 @@ import os
 
 import mxnet as mx
 
-from mo.front.mxnet.extractors.utils import load_params
+from openvino.tools.mo.front.mxnet.extractors.utils import load_params
 
 
 def save_params_file(model_name: str, args: dict, auxs: dict, iteration_number: int = 0):

@@ -3,11 +3,11 @@
 
 import copy
 
-from extensions.ops.parameter import Parameter
-from mo.front.tf.extractor import tf_op_extractor, tf_op_extractors, create_tf_edge
-from mo.front.tf.extractors.utils import tf_dtype_extractor
-from mo.graph.graph import Graph, Node, add_opoutput
-from mo.ops.op import PermuteAttrs
+from openvino.tools.mo.ops.parameter import Parameter
+from openvino.tools.mo.front.tf.extractor import tf_op_extractor, tf_op_extractors, create_tf_edge
+from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor
+from openvino.tools.mo.graph.graph import Graph, Node, add_opoutput
+from openvino.tools.mo.ops.op import PermuteAttrs
 
 
 def update_body_graph(body_graph: Graph, subgraph_proto: dict,

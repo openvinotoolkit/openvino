@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
 
-from mo.front.caffe.extractors.utils import embed_input
-from mo.front.extractor import FrontExtractorOp
-from mo.front.kaldi.loader.utils import collect_until_token, collect_until_token_and_read
-from mo.front.kaldi.utils import read_binary_matrix
-from mo.ops.lstmnonlinearity import LstmNonLinearity
-from mo.utils.error import Error
+from openvino.tools.mo.front.caffe.extractors.utils import embed_input
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.kaldi.loader.utils import collect_until_token, collect_until_token_and_read
+from openvino.tools.mo.front.kaldi.utils import read_binary_matrix
+from openvino.tools.mo.ops.lstmnonlinearity import LstmNonLinearity
+from openvino.tools.mo.utils.error import Error
 
 
 class LSTMNonlinearityFrontExtractor(FrontExtractorOp):

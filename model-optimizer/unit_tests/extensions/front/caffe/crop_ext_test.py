@@ -4,10 +4,10 @@
 import unittest
 from unittest.mock import patch
 
-from extensions.front.caffe.crop_ext import CropFrontExtractor
-from mo.front.common.partial_infer.crop import crop_infer
-from mo.ops.crop import Crop
-from mo.ops.op import Op
+from openvino.tools.mo.front.caffe.crop_ext import CropFrontExtractor
+from openvino.tools.mo.front.common.partial_infer.crop import crop_infer
+from openvino.tools.mo.ops.crop import Crop
+from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import FakeNode
 
@@ -25,7 +25,7 @@ class TestCropExt(unittest.TestCase):
     def test_da_no_pb_no_ml(self):
         self.assertRaises(AttributeError, CropFrontExtractor.extract, None)
 
-    @patch('mo.front.caffe.collect_attributes')
+    @patch('openvino.tools.mo.front.caffe.collect_attributes')
     def test_crop_ext(self, collect_attributes_mock):
         params = {
             'axis': 0,

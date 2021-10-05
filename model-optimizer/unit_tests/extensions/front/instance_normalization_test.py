@@ -3,8 +3,8 @@
 
 import unittest
 
-from extensions.front.instance_normalization import InstanceNormalization
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.instance_normalization import InstanceNormalization
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {

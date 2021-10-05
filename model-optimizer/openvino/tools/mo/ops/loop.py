@@ -5,12 +5,12 @@ import logging as log
 
 import numpy as np
 
-from extensions.ops.tensor_iterator import TensorIterator
-from mo.front.common.partial_infer.utils import shape_array, is_fully_defined, dynamic_dimension_value
-from mo.graph.graph import Node, Graph
-from mo.middle.passes.fusing.helpers import common_bfs
-from mo.middle.passes.infer import partial_infer
-from mo.ops.const import Const
+from openvino.tools.mo.ops.tensor_iterator import TensorIterator
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array, is_fully_defined, dynamic_dimension_value
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.middle.passes.fusing.helpers import common_bfs
+from openvino.tools.mo.middle.passes.infer import partial_infer
+from openvino.tools.mo.ops.const import Const
 
 
 class Loop(TensorIterator):
@@ -542,7 +542,7 @@ class Loop(TensorIterator):
 
     @staticmethod
     def type_infer(loop_node: Node):
-        from mo.middle.passes.infer import type_infer
+        from openvino.tools.mo.middle.passes.infer import type_infer
         Loop.update_body_parameters_type(loop_node)
         type_infer(loop_node.body)
         Loop.update_loop_output_ports_type(loop_node)

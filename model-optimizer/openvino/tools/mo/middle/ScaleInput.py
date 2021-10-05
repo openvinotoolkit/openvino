@@ -3,20 +3,20 @@
 
 import numpy as np
 
-from extensions.middle.AddMeanScaleValues import AddMeanScaleValues
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.middle.AddMeanScaleValues import AddMeanScaleValues
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class ScaleInput(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        from extensions.middle.pass_separator import PreMiddleStart
+        from openvino.tools.mo.middle.pass_separator import PreMiddleStart
         return [PreMiddleStart]
 
     def run_before(self):
-        from extensions.middle.AddMeanScaleValues import AddMeanScaleValues
+        from openvino.tools.mo.middle.AddMeanScaleValues import AddMeanScaleValues
         return [AddMeanScaleValues]
 
     def pattern(self):

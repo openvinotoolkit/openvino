@@ -3,15 +3,15 @@
 
 from collections import deque
 
-from extensions.front.MatMul_normalizer import FullyConnectedDecomposer
-from extensions.front.kaldi.add_reshape_around_convolution import ReplaceConvolutionReshape
-from extensions.middle.TensorIteratorMerge import op_type
-from extensions.ops.activation_ops import activation_ops
-from extensions.ops.transpose import Transpose
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Node, Graph
+from openvino.tools.mo.front.MatMul_normalizer import FullyConnectedDecomposer
+from openvino.tools.mo.front.kaldi.add_reshape_around_convolution import ReplaceConvolutionReshape
+from openvino.tools.mo.middle.TensorIteratorMerge import op_type
+from openvino.tools.mo.ops.activation_ops import activation_ops
+from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Node, Graph
 
 
 class ReplaceConvolutionTranspose(FrontReplacementSubgraph):
@@ -53,8 +53,8 @@ class ReplaceConvolutionTranspose(FrontReplacementSubgraph):
             target_node.insert_node_after(permute_node, 0)
 
     def run_after(self):
-        from extensions.front.flatten_to_reshape import FlattenToReshape
-        from extensions.front.kaldi.add_reshape_around_pooling import ReplacePoolingReshape
+        from openvino.tools.mo.front.flatten_to_reshape import FlattenToReshape
+        from openvino.tools.mo.front.kaldi.add_reshape_around_pooling import ReplacePoolingReshape
         return [FlattenToReshape,
                 ReplaceConvolutionReshape,
                 ReplacePoolingReshape]

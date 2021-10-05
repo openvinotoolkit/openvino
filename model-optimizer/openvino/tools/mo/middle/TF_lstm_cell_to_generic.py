@@ -3,8 +3,8 @@
 
 import numpy as np
 
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class TensorFlowLSTMtoGeneric(MiddleReplacementPattern):
@@ -17,11 +17,11 @@ class TensorFlowLSTMtoGeneric(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        from extensions.middle.pass_separator import MiddleStart
+        from openvino.tools.mo.middle.pass_separator import MiddleStart
         return [MiddleStart]
 
     def run_before(self):
-        from extensions.middle.permute_tensor_iterator import TransposeTensorIteratorLSTM
+        from openvino.tools.mo.middle.permute_tensor_iterator import TransposeTensorIteratorLSTM
         return [TransposeTensorIteratorLSTM]
 
 

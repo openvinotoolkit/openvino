@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.multi_box_detection import multi_box_detection_infer
-from mo.front.extractor import bool_to_str
-from mo.graph.graph import Graph, Node
-from mo.ops.op import Op
+from openvino.tools.mo.front.common.partial_infer.multi_box_detection import multi_box_detection_infer
+from openvino.tools.mo.front.extractor import bool_to_str
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.ops.op import Op
 
 
 class DetectionOutput(Op):

@@ -5,10 +5,10 @@ import logging as log
 
 import numpy as np
 
-from extensions.back.OptimizeTransposeReshapeSequence import set_reshape_new_output_shape
-from mo.back.replacement import BackReplacementPattern
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Graph
+from openvino.tools.mo.back.OptimizeTransposeReshapeSequence import set_reshape_new_output_shape
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Graph
 
 
 def sequential_dims(order: np.array):
@@ -84,11 +84,11 @@ class ReduceTransposeDimensions(BackReplacementPattern):
     enabled = False
 
     def run_after(self):
-        from extensions.back.OptimizeTransposeReshapeSequence import OptimizeTransposeReshapeSequence
+        from openvino.tools.mo.back.OptimizeTransposeReshapeSequence import OptimizeTransposeReshapeSequence
         return [OptimizeTransposeReshapeSequence]
 
     def run_before(self):
-        from extensions.back.ReshapeMutation import ReshapeMutation
+        from openvino.tools.mo.back.ReshapeMutation import ReshapeMutation
         return [ReshapeMutation]
 
     @staticmethod

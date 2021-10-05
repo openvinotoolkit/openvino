@@ -3,11 +3,11 @@
 
 import numpy as np
 
-from extensions.middle.ONNXRNNSequenceNormalize import ONNXRNNSequenceNormalize
-from extensions.middle.permute_tensor_iterator import TransposeTensorIteratorLSTM
-from mo.graph.graph import Graph, Node
-from mo.middle.passes.eliminate import remove_op_node_with_data_node
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.middle.ONNXRNNSequenceNormalize import ONNXRNNSequenceNormalize
+from openvino.tools.mo.middle.permute_tensor_iterator import TransposeTensorIteratorLSTM
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.passes.eliminate import remove_op_node_with_data_node
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
@@ -26,7 +26,7 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
         ]
 
     def run_before(self):
-        from extensions.middle.pass_separator import MiddleFinish
+        from openvino.tools.mo.middle.pass_separator import MiddleFinish
         return [MiddleFinish]
 
     @staticmethod

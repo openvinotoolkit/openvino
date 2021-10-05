@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from extensions.ops.pnorm import PNormOp
-from mo.front.kaldi.extractors.pnorm_component_ext import PNormComponentFrontExtractor
-from mo.ops.op import Op
+from openvino.tools.mo.ops.pnorm import PNormOp
+from openvino.tools.mo.front.kaldi.extractors.pnorm_component_ext import PNormComponentFrontExtractor
+from openvino.tools.mo.ops.op import Op
 from unit_tests.mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 from unit_tests.mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
 

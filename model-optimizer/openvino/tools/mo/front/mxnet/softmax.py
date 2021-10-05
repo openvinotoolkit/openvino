@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from extensions.ops.elementwise import Mul
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph
-from mo.ops.const import Const
+from openvino.tools.mo.ops.elementwise import Mul
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.const import Const
 
 
 class SoftmaxFrontReplacementSubgraph(FrontReplacementSubgraph):

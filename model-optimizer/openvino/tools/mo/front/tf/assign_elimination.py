@@ -3,8 +3,8 @@
 
 import logging as log
 
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.graph.graph import Graph
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
 
 
 class AssignAndAssertElimination(FrontReplacementPattern):

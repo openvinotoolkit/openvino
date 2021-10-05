@@ -5,7 +5,7 @@ from defusedxml import defuse_stdlib
 from defusedxml.minidom import parseString
 import defusedxml.ElementTree as ET
 
-from mo.graph.graph import Node, Graph
+from openvino.tools.mo.graph.graph import Node, Graph
 
 # defuse_stdlib provide patched version of xml.etree.ElementTree which allows to use objects from xml.etree.ElementTree
 # in a safe manner without including unsafe xml.etree.ElementTree

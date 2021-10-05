@@ -3,8 +3,8 @@
 
 import numpy as np
 
-from mo.graph.graph import Graph
-from mo.utils.model_analysis import AnalyzeAction
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.utils.model_analysis import AnalyzeAction
 
 
 class TrainingPhaseAnalysis(AnalyzeAction):

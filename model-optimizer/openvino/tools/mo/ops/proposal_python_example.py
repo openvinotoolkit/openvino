@@ -1,10 +1,10 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.proposal import ProposalOp
-from mo.front.caffe.extractor import register_caffe_python_extractor
-from mo.graph.graph import Graph
-from mo.ops.op import Op
+from openvino.tools.mo.ops.proposal import ProposalOp
+from openvino.tools.mo.front.caffe.extractor import register_caffe_python_extractor
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.op import Op
 
 
 class ProposalPythonExampleOp(Op):

@@ -3,13 +3,13 @@
 
 import numpy as np
 
-from extensions.ops.transpose import Transpose
-from mo.front.common.partial_infer.utils import int64_array, shape_insert
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
-from mo.ops.op import Op
-from mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_insert
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.ops.reshape import Reshape
 
 
 class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
@@ -48,7 +48,7 @@ class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        from extensions.middle.MXNetSplitMultiLayers import MXNetSplitLayersToRNNSequence
+        from openvino.tools.mo.middle.MXNetSplitMultiLayers import MXNetSplitLayersToRNNSequence
         return [MXNetSplitLayersToRNNSequence]
 
     def pattern(self):

@@ -10,8 +10,8 @@ import logging as log
 
 import onnx
 
-from mo.graph.graph import fill_graph_with_nodes, Graph, Node
-from mo.utils.error import Error, FrameworkError
+from openvino.tools.mo.graph.graph import fill_graph_with_nodes, Graph, Node
+from openvino.tools.mo.utils.error import Error, FrameworkError
 
 
 def load_onnx_model(file_name: str):

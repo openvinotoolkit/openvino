@@ -7,9 +7,9 @@ from argparse import Namespace
 import numpy as np
 from generator import generator, generate
 
-from extensions.back.ChangeRandomUniformOutputType import ChangeRandomUniformOutputType
-from mo.graph.graph import Node
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.back.ChangeRandomUniformOutputType import ChangeRandomUniformOutputType
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, result, connect, regular_op_with_shaped_data
 
 nodes = {

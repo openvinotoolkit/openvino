@@ -5,9 +5,9 @@ import unittest
 
 import numpy as np
 
-from extensions.ops.unique import Unique
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node
+from openvino.tools.mo.ops.unique import Unique
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 # graph 1 with two outputs: uniques and indices

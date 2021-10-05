@@ -1,13 +1,13 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.middle.LeakyReluPattern import LeakyReLUFusion
-from extensions.middle.pass_separator import PostMiddleStart
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.utils.error import Error
-from mo.utils.find_inputs import find_inputs
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.middle.LeakyReluPattern import LeakyReLUFusion
+from openvino.tools.mo.middle.pass_separator import PostMiddleStart
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.find_inputs import find_inputs
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 class CaffeMeanFileProcessing(MiddleReplacementPattern):
@@ -22,7 +22,7 @@ class CaffeMeanFileProcessing(MiddleReplacementPattern):
         return [PostMiddleStart]
 
     def find_and_replace_pattern(self, graph: Graph):
-        from mo.front.caffe import loader
+        from openvino.tools.mo.front.caffe import loader
         argv = graph.graph['cmd_params']
         original_shapes = graph.graph['original_shapes']
         caffe_pb2 = graph.graph['caffe_pb2']

@@ -3,12 +3,12 @@
 
 import numpy as np
 
-from extensions.middle.pass_separator import PostMiddleStart
-from extensions.ops.transpose import Transpose
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Graph, Node, Port
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.op import PermuteAttrs
+from openvino.tools.mo.middle.pass_separator import PostMiddleStart
+from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Graph, Node, Port
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.op import PermuteAttrs
 
 
 class InsertLayoutPropagationTranspose(MiddleReplacementPattern):
@@ -65,7 +65,7 @@ class InsertLayoutPropagationTranspose(MiddleReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
 
         # we need to import these functions here to avoid circular dependent imports
-        from mo.front.tf.graph_utils import create_op_node_with_second_input
+        from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
 
         if graph.graph['layout'] != 'NHWC':
             # we check it here because this transformation is called explicitly from the pipeline
@@ -164,7 +164,7 @@ def mark_as_correct_data_layout(node: Node):
 
 
 def insert_transpose(graph: Graph, input_port: Port, before_input=True):
-    from mo.front.tf.graph_utils import create_op_with_const_inputs
+    from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 
     input_rank = len(input_port.data.get_shape())
     if input_rank > 3:

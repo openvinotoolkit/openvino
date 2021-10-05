@@ -3,9 +3,9 @@
 
 import argparse
 
-from mo.graph.graph import Graph
-from mo.pipeline.common import get_ir_version
-from mo.utils import class_registration
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.pipeline.common import get_ir_version
+from openvino.tools.mo.utils import class_registration
 
 
 def unified_pipeline(argv: argparse.Namespace):

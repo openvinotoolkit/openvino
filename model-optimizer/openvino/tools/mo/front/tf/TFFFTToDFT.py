@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from extensions.ops.dft import DFT, IDFT
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.ops.dft import DFT, IDFT
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
 
 
 class TFFFTToDFT(FrontReplacementSubgraph):
@@ -17,7 +17,7 @@ class TFFFTToDFT(FrontReplacementSubgraph):
     enabled = True
 
     def run_after(self):
-        from extensions.front.tf.RollRealImagPack import RollRealImagPack
+        from openvino.tools.mo.front.tf.RollRealImagPack import RollRealImagPack
         return [RollRealImagPack]
 
     def find_and_replace_pattern(self, graph: Graph):

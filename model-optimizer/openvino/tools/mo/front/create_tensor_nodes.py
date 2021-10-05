@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.front.extractor import create_tensor_nodes
-from mo.graph.graph import Graph
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.front.extractor import create_tensor_nodes
+from openvino.tools.mo.graph.graph import Graph
 
 
 class CreateTensorNodes(FrontReplacementPattern):
@@ -14,7 +14,7 @@ class CreateTensorNodes(FrontReplacementPattern):
         return []
 
     def run_after(self):
-        from extensions.front.pass_separator import FrontFinish
+        from openvino.tools.mo.front.pass_separator import FrontFinish
         return [FrontFinish]
 
     def find_and_replace_pattern(self, graph: Graph):

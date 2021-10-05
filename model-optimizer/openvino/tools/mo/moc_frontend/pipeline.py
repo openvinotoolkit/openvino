@@ -5,8 +5,8 @@ import argparse
 import logging as log
 from typing import List
 
-from mo.moc_frontend.extractor import fe_user_data_repack
-from mo.middle.passes.infer import validate_batch_in_shape
+from openvino.tools.mo.moc_frontend.extractor import fe_user_data_repack
+from openvino.tools.mo.middle.passes.infer import validate_batch_in_shape
 
 from ngraph import Dimension, PartialShape        # pylint: disable=no-name-in-module,import-error
 from ngraph.frontend import FrontEnd, Place       # pylint: disable=no-name-in-module,import-error

@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.partial_infer.multi_box_prior import multi_box_prior_infer_mxnet
-from mo.utils.graph import Node
-from mo.utils.ir_reader.extender import Extender
+from openvino.tools.mo.front.common.partial_infer.multi_box_prior import multi_box_prior_infer_mxnet
+from openvino.tools.mo.utils.graph import Node
+from openvino.tools.mo.utils.ir_reader.extender import Extender
 
 
 class PriorBox_extender(Extender):

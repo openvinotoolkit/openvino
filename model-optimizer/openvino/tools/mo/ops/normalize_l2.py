@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from mo.graph.graph import Graph, Node
-from mo.graph.perm_inputs import PermuteInputs
-from mo.ops.op import Op
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.graph.perm_inputs import PermuteInputs
+from openvino.tools.mo.ops.op import Op
 
 
 class NormalizeL2Op(Op):

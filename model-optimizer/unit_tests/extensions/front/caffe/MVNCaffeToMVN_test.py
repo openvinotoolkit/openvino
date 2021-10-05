@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.front.caffe.MVNCaffeToMVN import MVNCaffeToMVN
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.caffe.MVNCaffeToMVN import MVNCaffeToMVN
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, regular_op_with_empty_data, result, const, connect_front
 
 nodes = {

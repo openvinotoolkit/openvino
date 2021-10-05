@@ -3,8 +3,8 @@
 
 import logging as log
 
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Graph
 
 
 class NoOpEraser(FrontReplacementSubgraph):

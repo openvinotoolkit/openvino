@@ -3,11 +3,11 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension_value, dynamic_dimension, \
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, dynamic_dimension_value, dynamic_dimension, \
     is_fully_defined, shape_array, shape_insert
-from mo.graph.graph import Node, Graph
-from mo.graph.perm_inputs import PermuteInputs
-from mo.ops.op import Op, PermuteAttrs
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.graph.perm_inputs import PermuteInputs
+from openvino.tools.mo.ops.op import Op, PermuteAttrs
 
 
 class Tile(Op):

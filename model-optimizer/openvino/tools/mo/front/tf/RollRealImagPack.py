@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.subgraph_matcher import SubgraphMatch
-from mo.front.tf.graph_utils import add_constant_to_negative_values
-from mo.graph.graph import Graph
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
+from openvino.tools.mo.front.tf.graph_utils import add_constant_to_negative_values
+from openvino.tools.mo.graph.graph import Graph
 
 
 class RollRealImagPack(FrontReplacementSubgraph):
@@ -43,11 +43,11 @@ class RollRealImagPack(FrontReplacementSubgraph):
     enabled = True
 
     def run_after(self):
-        from extensions.front.tf.SSliceComplex import SSliceComplex
+        from openvino.tools.mo.front.tf.SSliceComplex import SSliceComplex
         return [SSliceComplex]
 
     def run_before(self):
-        from extensions.front.Pack import Pack
+        from openvino.tools.mo.front.Pack import Pack
         return [Pack]
 
     def pattern(self):

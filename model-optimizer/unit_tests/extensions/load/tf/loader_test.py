@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from extensions.load.tf.loader import graph_or_sub_graph_has_nhwc_ops
+from openvino.tools.mo.load.tf.loader import graph_or_sub_graph_has_nhwc_ops
 from unit_tests.utils.graph import build_graph, result, regular_op, const, connect_front
 
 

@@ -4,9 +4,9 @@
 import unittest
 from unittest.mock import patch
 
-from extensions.front.caffe.normalize_ext import NormalizeFrontExtractor
-from extensions.ops.normalize import NormalizeOp
-from mo.ops.op import Op
+from openvino.tools.mo.front.caffe.normalize_ext import NormalizeFrontExtractor
+from openvino.tools.mo.ops.normalize import NormalizeOp
+from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import FakeNode
 
@@ -24,7 +24,7 @@ class TestNormalizeExt(unittest.TestCase):
     def test_normalize_no_pb_no_ml(self):
         self.assertRaises(AttributeError, NormalizeFrontExtractor.extract, None)
 
-    @patch('extensions.front.caffe.normalize_ext.collect_attributes')
+    @patch('openvino.tools.mo.front.caffe.normalize_ext.collect_attributes')
     def test_normalize_ext_ideal_numbers(self, collect_attributes_mock):
         params = {
             'across_spatial': 1,

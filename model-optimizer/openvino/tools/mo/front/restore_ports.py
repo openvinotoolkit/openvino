@@ -1,15 +1,15 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Graph
 
 
 class RestorePorts(FrontReplacementSubgraph):
     enabled = True
 
     def run_after(self):
-        from extensions.front.input_cut import InputCut
+        from openvino.tools.mo.front.input_cut import InputCut
         return [InputCut]
 
     def run_before(self):

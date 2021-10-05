@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from extensions.ops.random_uniform import AttributedRandomUniform
-from mo.front.extractor import FrontExtractorOp
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from openvino.tools.mo.ops.random_uniform import AttributedRandomUniform
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 
 
 class RandomUniformExtractor(FrontExtractorOp):

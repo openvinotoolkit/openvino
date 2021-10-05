@@ -3,18 +3,18 @@
 
 import numpy as np
 
-from extensions.front.kaldi.replace_lstm_node_pattern import unique_id
-from extensions.ops.split import VariadicSplit
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.assign import Assign
-from mo.ops.concat import Concat
-from mo.ops.const import Const
-from mo.ops.crop import Crop
-from mo.ops.read_value import ReadValue
-from mo.ops.result import Result
+from openvino.tools.mo.front.kaldi.replace_lstm_node_pattern import unique_id
+from openvino.tools.mo.ops.split import VariadicSplit
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.assign import Assign
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.crop import Crop
+from openvino.tools.mo.ops.read_value import ReadValue
+from openvino.tools.mo.ops.result import Result
 
 
 class ReplaceSpliceNodePattern(MiddleReplacementPattern):
@@ -40,7 +40,7 @@ class ReplaceSpliceNodePattern(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        from extensions.middle.RemoveDuplicationMemory import MergeNeighborSplicePattern, RemoveMemoryDuplicationPattern
+        from openvino.tools.mo.middle.RemoveDuplicationMemory import MergeNeighborSplicePattern, RemoveMemoryDuplicationPattern
         return [MergeNeighborSplicePattern,
                 RemoveMemoryDuplicationPattern]
 

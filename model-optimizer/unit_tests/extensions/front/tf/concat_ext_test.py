@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.front.tf.concat_ext import ConcatFrontExtractor
+from openvino.tools.mo.front.tf.concat_ext import ConcatFrontExtractor
 from unit_tests.utils.extractors import PB, BaseExtractorsTestingClass
 
 

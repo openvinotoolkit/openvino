@@ -8,9 +8,9 @@ import numpy as np
 import onnx
 from generator import generator, generate
 
-from extensions.front.onnx.transpose_ext import TransposeFrontExtractor
-from extensions.ops.transpose import Transpose
-from mo.ops.op import Op
+from openvino.tools.mo.front.onnx.transpose_ext import TransposeFrontExtractor
+from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import PB
 
 

@@ -1,10 +1,10 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Graph, Node
-from mo.ops.op import Op
-from mo.ops.pooling import Pooling
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.ops.pooling import Pooling
 
 
 class AdaptiveAvgPooling(Op):

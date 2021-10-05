@@ -5,14 +5,14 @@ import logging as log
 from collections import deque
 from typing import Set
 
-from extensions.middle.InsertLayoutPropagationTransposes import InsertLayoutPropagationTranspose, \
+from openvino.tools.mo.middle.InsertLayoutPropagationTransposes import InsertLayoutPropagationTranspose, \
     mark_as_correct_data_layout, mark_output_as_in_correct_layout, mark_input_as_in_correct_layout
-from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
-from extensions.middle.pass_separator import PostMiddleStart
-from mo.graph.graph import Graph, Node
-from mo.graph.perm_inputs import PermuteInputs
-from mo.graph.port import Port
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
+from openvino.tools.mo.middle.pass_separator import PostMiddleStart
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.graph.perm_inputs import PermuteInputs
+from openvino.tools.mo.graph.port import Port
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):

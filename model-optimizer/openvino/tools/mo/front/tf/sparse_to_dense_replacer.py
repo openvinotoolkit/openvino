@@ -3,12 +3,12 @@
 
 import numpy as np
 
-from extensions.ops.Cast import Cast
-from extensions.ops.scatternd import ScatterNDUpdate
-from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node, Graph, rename_nodes
-from mo.ops.broadcast import Broadcast
-from mo.ops.const import Const
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.scatternd import ScatterNDUpdate
+from openvino.tools.mo.front.common.replacement import FrontReplacementOp
+from openvino.tools.mo.graph.graph import Node, Graph, rename_nodes
+from openvino.tools.mo.ops.broadcast import Broadcast
+from openvino.tools.mo.ops.const import Const
 
 
 class SparseToDenseReplacer(FrontReplacementOp):
@@ -21,8 +21,8 @@ class SparseToDenseReplacer(FrontReplacementOp):
     enabled = True
 
     def run_after(self):
-        from extensions.front.tf.CTCGreedyDecoderReplacement import CTCGreedyDecoderReplacement
-        from extensions.front.tf.CTCLossReplacement import CTCLossReplacement
+        from openvino.tools.mo.front.tf.CTCGreedyDecoderReplacement import CTCGreedyDecoderReplacement
+        from openvino.tools.mo.front.tf.CTCLossReplacement import CTCLossReplacement
         return [CTCGreedyDecoderReplacement, CTCLossReplacement]
 
     def replace_op(self, graph: Graph, node: Node):

@@ -3,7 +3,7 @@
 
 import unittest
 
-from extensions.back.kaldi_remove_memory_output import KaldiRemoveMemoryOutputBackReplacementPattern
+from openvino.tools.mo.back.kaldi_remove_memory_output import KaldiRemoveMemoryOutputBackReplacementPattern
 from unit_tests.utils.graph import build_graph
 
 

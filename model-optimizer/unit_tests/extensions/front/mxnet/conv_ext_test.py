@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from extensions.front.mxnet.conv_ext import DeconvFrontExtractor
+from openvino.tools.mo.front.mxnet.conv_ext import DeconvFrontExtractor
 from unit_tests.utils.extractors import PB
 
 

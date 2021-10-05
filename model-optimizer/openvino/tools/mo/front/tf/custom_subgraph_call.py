@@ -4,9 +4,9 @@
 import logging as log
 from re import findall
 
-from mo.front.extractor import update_ie_fields
-from mo.graph.graph import Node, merge_edge_props, Graph
-from mo.utils.graph import is_connected_component
+from openvino.tools.mo.front.extractor import update_ie_fields
+from openvino.tools.mo.graph.graph import Node, merge_edge_props, Graph
+from openvino.tools.mo.utils.graph import is_connected_component
 
 
 def internal_output_name_for_node(node_name: str, output_port: int):
@@ -139,7 +139,7 @@ def merge_nodes(graph: Graph, nodes_to_merge_names: list, inputs_desc: list = No
 
 
 def set_tf_custom_call_node_attrs(node_attrs: dict):
-    from mo.front.tf.partial_infer.tf import tf_subgraph_infer
+    from openvino.tools.mo.front.tf.partial_infer.tf import tf_subgraph_infer
     update_ie_fields(node_attrs)
     node_attrs['input_nodes_names'] = list()
     node_attrs['output_tensors_names'] = list()

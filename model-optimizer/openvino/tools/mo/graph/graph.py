@@ -9,11 +9,11 @@ from typing import List
 import networkx as nx
 import numpy as np
 
-from mo.graph.port import Port
-from mo.middle.passes.eliminate import mark_output_reachable_nodes, shape_inference, mark_undead_nodes, \
+from openvino.tools.mo.graph.port import Port
+from openvino.tools.mo.middle.passes.eliminate import mark_output_reachable_nodes, shape_inference, mark_undead_nodes, \
     mark_const_producer_nodes, eliminate_dead_nodes, add_constant_operations
-from mo.utils.error import Error
-from mo.utils.utils import refer_to_faq_msg, deprecated_api, shrink_str_value
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import refer_to_faq_msg, deprecated_api, shrink_str_value
 
 
 def dict_to_ordered_dict(d: dict, func=lambda t: t):
@@ -372,7 +372,7 @@ class Node:
                                    [op_after_params]
         """
         # we import it here because Op imports Node and unique_id from this file
-        from mo.ops.op import Op
+        from openvino.tools.mo.ops.op import Op
 
         graph = self.graph
         node = Node(graph, self.node)
@@ -483,7 +483,7 @@ class Node:
         op_node.in_port(0).connect(in_port_source)
 
         if value is not None:
-            from mo.ops.const import Const
+            from openvino.tools.mo.ops.const import Const
             constant = Const(graph, {'value': value, 'name': op_node.name + '/value'}).create_node()
             op_node.in_port(1).connect(constant.out_port(0))
 
@@ -652,7 +652,7 @@ class Graph(nx.MultiDiGraph):
         assert len(inputs) <= 1, "The node {} must have just one input".format(node.soft_get('name'))
 
         if len(outputs) == 0 and len(inputs) != 0:
-            from mo.front.extractor import add_output_ops
+            from openvino.tools.mo.front.extractor import add_output_ops
             input_ids = {input_node_id: {'port': {'out': [attrs['out']]}} for input_node_id, _, attrs in inputs}
             if node.has('op') and node.op == 'Result':
                 add_output_ops(self, input_ids)
@@ -778,7 +778,7 @@ class Graph(nx.MultiDiGraph):
                                 edge_attrs: list = ['in', 'out'], nodes_to_dump: list = None,
                                 save_to_svg=False, highlight_nodes: list = None):
 
-        from extensions.ops.tensor_iterator import _get_internal_output_node_id, _get_internal_input_node_id
+        from openvino.tools.mo.ops.tensor_iterator import _get_internal_output_node_id, _get_internal_input_node_id
 
         fill_color = {'op': 'lightblue', 'data': 'whitesmoke', 'highlight': 'firebrick'}
         fill_color_by_type = {'Const': 'lightpink', 'Parameter': 'yellowgreen', 'TensorIterator': 'lemonchiffon'}
@@ -1046,7 +1046,7 @@ def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep
     :param keep_output_port: special attribute determines if this operation is saved in IR or not
     """
     # we import it here because Op imports add_attrs_props and update_ie_fields from this file
-    from mo.ops.result import Result
+    from openvino.tools.mo.ops.result import Result
     node = Node(graph, node_name)
     if cut and len(node.out_edges()) != 0:
         opoutput_node = Result(graph).create_node_on_port(node, port, {'name': node_name + '/sink_port_' + str(port),

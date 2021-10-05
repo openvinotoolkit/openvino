@@ -1,10 +1,10 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.identity import Identity, IdentityN
-from mo.front.extractor import FrontExtractorOp
-from mo.front.tf.extractors.utils import tf_dtype_extractor
-from mo.graph.graph import Node
+from openvino.tools.mo.ops.identity import Identity, IdentityN
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor
+from openvino.tools.mo.graph.graph import Node
 
 
 class IdentityFrontExtractor(FrontExtractorOp):

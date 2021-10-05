@@ -5,14 +5,14 @@ import logging as log
 
 import numpy as np
 
-from extensions.middle.CheckForCycle import CheckForCycle
-from extensions.middle.DeleteNotExecutable import DeleteNotExecutable
-from extensions.ops.elementwise import Mul, Pow
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
-from mo.ops.reshape import Reshape
+from openvino.tools.mo.middle.CheckForCycle import CheckForCycle
+from openvino.tools.mo.middle.DeleteNotExecutable import DeleteNotExecutable
+from openvino.tools.mo.ops.elementwise import Mul, Pow
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.reshape import Reshape
 
 
 class BinarizeWeightsM1P1(MiddleReplacementPattern):

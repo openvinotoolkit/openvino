@@ -8,13 +8,13 @@ import os
 import mxnet as mx
 import numpy as np
 
-from mo.front.extractor import add_outputs_identity
-from mo.front.mxnet.extractor import common_mxnet_fields
-from mo.front.mxnet.extractors.utils import get_mxnet_node_edges, load_params, init_rnn_states, create_mxnet_edge
-from mo.front.mxnet.nd_to_params import build_params_file
-from mo.graph.graph import Node, Graph
-from mo.utils.error import Error
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.front.extractor import add_outputs_identity
+from openvino.tools.mo.front.mxnet.extractor import common_mxnet_fields
+from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_node_edges, load_params, init_rnn_states, create_mxnet_edge
+from openvino.tools.mo.front.mxnet.nd_to_params import build_params_file
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 def load_symbol_nodes(model_name, input_symbol: str = None, legacy_mxnet_model: bool = False):

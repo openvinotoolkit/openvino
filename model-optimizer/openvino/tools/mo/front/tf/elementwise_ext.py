@@ -1,12 +1,12 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.elementwise import Add, Mul, Sub, Div, Maximum, Minimum, Pow, LogicalAnd, LogicalOr, Equal, \
+from openvino.tools.mo.ops.elementwise import Add, Mul, Sub, Div, Maximum, Minimum, Pow, LogicalAnd, LogicalOr, Equal, \
     GreaterEqual, Greater, Less, LessEqual, NotEqual, FloorMod, BiasAdd, SquaredDifference, Round, Mod
-from mo.front.extractor import FrontExtractorOp
-from mo.front.tf.extractors.utils import tf_dtype_extractor
-from mo.ops.eltwise_n import EltwiseNAdd
-from mo.ops.power import AttributedPower
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor
+from openvino.tools.mo.ops.eltwise_n import EltwiseNAdd
+from openvino.tools.mo.ops.power import AttributedPower
 
 
 class AddExtractor(FrontExtractorOp):

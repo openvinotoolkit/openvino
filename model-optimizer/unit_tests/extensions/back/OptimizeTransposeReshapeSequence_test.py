@@ -3,9 +3,9 @@
 
 import unittest
 
-from extensions.back.OptimizeTransposeReshapeSequence import match_shapes, split_input_permute_dimension, \
+from openvino.tools.mo.back.OptimizeTransposeReshapeSequence import match_shapes, split_input_permute_dimension, \
     split_dims_indices, split_output_permute_dimension
-from mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 
 
 class SplitDimsIndicesTest(unittest.TestCase):

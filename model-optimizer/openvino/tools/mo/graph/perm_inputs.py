@@ -3,11 +3,11 @@
 
 import networkx as nx
 
-from extensions.ops.gather import Gather
-from extensions.ops.transpose import Transpose
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node
-from mo.ops.const import Const
+from openvino.tools.mo.ops.gather import Gather
+from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.const import Const
 
 
 def get_node_with_permutation(node: Node, port_info: str):
@@ -129,7 +129,7 @@ def strided_slice(op_node: Node, port_info: str, input_port: int):
     permute_indices_for_gather = permutation_data_node.permutation.perm
     if len(permute_indices_for_gather) == 0:
         return
-    from mo.ops.op import PermuteAttrs
+    from openvino.tools.mo.ops.op import PermuteAttrs
 
     slice_rank = op_node.in_port(input_port).data.get_shape()[0]  # length of begin, end or strides
     permute_indices_for_gather = PermuteAttrs.get_nhwc_to_nchw_permutation(slice_rank).perm
@@ -182,7 +182,7 @@ def transpose(op_node: Node, port_info: str, input_port: int):
         return
 
     transpose_name = op_node.soft_get('name', op_node.id) + '/Transpose'
-    from mo.front.tf.graph_utils import create_op_with_const_inputs  # avoiding recursive imports
+    from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs  # avoiding recursive imports
     transpose = create_op_with_const_inputs(
         graph, Transpose, {1: permutation.perm}, {'name': transpose_name, 'override_output_shape': True})
     op_node.in_port(input_port).get_connection().insert_node(transpose)
@@ -200,7 +200,7 @@ def transpose_nchw_to_nhwc(op_node: Node, port_info: str, input_port: int):
     perm = int64_array(perm)
 
     transpose_name = op_node.soft_get('name', op_node.id) + '/Transpose'
-    from mo.front.tf.graph_utils import create_op_with_const_inputs  # avoiding recursive imports
+    from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs  # avoiding recursive imports
     transpose = create_op_with_const_inputs(
         graph, Transpose, {1: perm}, {'name': transpose_name, 'override_output_shape': True})
     op_node.in_port(input_port).get_connection().insert_node(transpose)

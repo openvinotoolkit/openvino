@@ -7,12 +7,12 @@ from enum import Enum
 
 import networkx as nx
 
-from mo.graph.graph import Graph
-from mo.middle.passes.eliminate import shape_inference
-from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
-from mo.utils.error import Error, InternalError, FrameworkError
-from mo.utils.logger import progress_bar
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.passes.eliminate import shape_inference
+from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
+from openvino.tools.mo.utils.error import Error, InternalError, FrameworkError
+from openvino.tools.mo.utils.logger import progress_bar
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 _registered_classes_dict = {}
 

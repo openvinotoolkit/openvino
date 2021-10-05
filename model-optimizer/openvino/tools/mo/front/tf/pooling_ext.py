@@ -1,10 +1,10 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.partial_infer.utils import convert_tf_padding_to_str
-from mo.front.extractor import FrontExtractorOp
-from mo.front.tf.extractors.utils import tf_data_format_spatial, tf_int_list
-from mo.ops.pooling import Pooling, PoolingV2
+from openvino.tools.mo.front.common.partial_infer.utils import convert_tf_padding_to_str
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.tf.extractors.utils import tf_data_format_spatial, tf_int_list
+from openvino.tools.mo.ops.pooling import Pooling, PoolingV2
 
 
 class AvgPoolFrontExtractor(FrontExtractorOp):

@@ -5,10 +5,10 @@ import unittest
 
 import numpy as np
 
-from mo.front.common.partial_infer.concat import concat_infer
-from mo.graph.graph import Node
-from mo.middle.passes.infer import override_placeholder_shapes, partial_infer
-from mo.utils.error import Error
+from openvino.tools.mo.front.common.partial_infer.concat import concat_infer
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.middle.passes.infer import override_placeholder_shapes, partial_infer
+from openvino.tools.mo.utils.error import Error
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},

@@ -10,7 +10,7 @@ from typing import Callable
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import dynamic_dimension
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension
 
 
 def refer_to_faq_msg(question_num: int):

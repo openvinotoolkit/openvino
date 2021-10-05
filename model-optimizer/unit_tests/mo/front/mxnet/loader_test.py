@@ -4,7 +4,7 @@
 import unittest
 from unittest.mock import patch
 
-from mo.front.mxnet.loader import load_symbol_nodes, parse_input_model
+from openvino.tools.mo.front.mxnet.loader import load_symbol_nodes, parse_input_model
 
 
 class MockSymbolLoadObj():
@@ -23,7 +23,7 @@ class TestLoader(unittest.TestCase):
         mock_json_loads.return_value = {'nodes': {'node1': 1}}
         mock_symbol_load_obj = MockSymbolLoadObj()
         mock_symbol_load.return_value = mock_symbol_load_obj
-        with patch('mo.front.mxnet.loader.open') as mock_open:
+        with patch('openvino.tools.mo.front.mxnet.loader.open') as mock_open:
             self.assertEqual({'node1': 1}, load_symbol_nodes("model_name", legacy_mxnet_model=True))
 
     @patch('json.load')
@@ -36,7 +36,7 @@ class TestLoader(unittest.TestCase):
         mock_json_loads.return_value = {'nodes': {'node1': 1}}
         mock_symbol_load_obj = MockSymbolLoadObj()
         mock_symbol_load.return_value = mock_symbol_load_obj
-        with patch('mo.front.mxnet.loader.open') as mock_open:
+        with patch('openvino.tools.mo.front.mxnet.loader.open') as mock_open:
             list_nodes = load_symbol_nodes("model_name", legacy_mxnet_model=False)
             self.assertEqual(2, len(list_nodes))
             for node in list_nodes:
@@ -59,7 +59,7 @@ class TestLoader(unittest.TestCase):
         mock_json_loads.return_value = {'nodes': {'node1': 1}}
         mock_symbol_load_obj = MockSymbolLoadObj()
         mock_symbol_load.return_value = mock_symbol_load_obj
-        with patch('mo.front.mxnet.loader.open') as mock_open:
+        with patch('openvino.tools.mo.front.mxnet.loader.open') as mock_open:
             self.assertEqual({'node1': 1}, load_symbol_nodes("model_name", input_symbol="some-symbol.json", legacy_mxnet_model=True))
 
 
@@ -74,5 +74,5 @@ class TestLoader(unittest.TestCase):
         mock_json_loads.return_value = {'nodes': ''}
         mock_symbol_load_obj = MockSymbolLoadObj()
         mock_symbol_load.return_value = mock_symbol_load_obj
-        with patch('mo.front.mxnet.loader.open') as mock_open:
+        with patch('openvino.tools.mo.front.mxnet.loader.open') as mock_open:
             self.assertEqual({'node1': 1}, load_symbol_nodes("model_name", input_symbol="some-symbol.json", legacy_mxnet_model=False))

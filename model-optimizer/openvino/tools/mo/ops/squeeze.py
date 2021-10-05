@@ -3,12 +3,12 @@
 
 import numpy as np
 
-from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, shape_delete, is_fully_defined
-from mo.graph.graph import Node
-from mo.graph.perm_inputs import PermuteInputs
-from mo.ops.op import Op
-from mo.utils.error import Error
+from openvino.tools.mo.front.caffe.extractors.utils import get_canonical_axis_index
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, shape_delete, is_fully_defined
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.graph.perm_inputs import PermuteInputs
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.utils.error import Error
 
 
 class Squeeze(Op):

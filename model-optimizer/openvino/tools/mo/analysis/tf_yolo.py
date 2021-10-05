@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.graph.graph import Graph
-from mo.middle.pattern_match import apply_pattern
-from mo.utils.model_analysis import AnalyzeAction, graph_contains_scope
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.pattern_match import apply_pattern
+from openvino.tools.mo.utils.model_analysis import AnalyzeAction, graph_contains_scope
 
 
 YOLO_PATTERN = {
@@ -37,10 +37,10 @@ def pattern_instance_counter(graph: Graph, match: dict):
 pattern_instance_counter.counter = 0
 
 
-YOLO_CONFIGS = {'YOLOV2Full': ['extensions/front/tf/yolo_v2.json', 'extensions/front/tf/yolo_v2_voc.json'],
-                'YOLOV3Full': ['extensions/front/tf/yolo_v3.json', 'extensions/front/tf/yolo_v3_voc.json'],
-                'YOLOV2Tiny': ['extensions/front/tf/yolo_v2_tiny.json', 'extensions/front/tf/yolo_v2_tiny_voc.json'],
-                'YOLOV3Tiny': ['extensions/front/tf/yolo_v3_tiny.json', 'extensions/front/tf/yolo_v3_tiny_voc.json'],
+YOLO_CONFIGS = {'YOLOV2Full': ['openvino/tools/mo/front/tf/yolo_v2.json', 'openvino/tools/mo/front/tf/yolo_v2_voc.json'],
+                'YOLOV3Full': ['openvino/tools/mo/front/tf/yolo_v3.json', 'openvino/tools/mo/front/tf/yolo_v3_voc.json'],
+                'YOLOV2Tiny': ['openvino/tools/mo/front/tf/yolo_v2_tiny.json', 'openvino/tools/mo/front/tf/yolo_v2_tiny_voc.json'],
+                'YOLOV3Tiny': ['openvino/tools/mo/front/tf/yolo_v3_tiny.json', 'openvino/tools/mo/front/tf/yolo_v3_tiny_voc.json'],
                 }
 
 
@@ -72,7 +72,7 @@ class TensorFlowYOLOV1V2Analysis(AnalyzeAction):
                       "To generate the IR, provide TensorFlow YOLOv1 or YOLOv2 Model to the Model Optimizer with the following parameters:\n" \
                       "\t--input_model <path_to_model>/<model_name>.pb\n" \
                       "\t--batch 1\n" \
-                      "\t--tensorflow_use_custom_operations_config <OPENVINO_INSTALL_DIR>/tools/model_optimizer/extensions/front/tf/<yolo_config>.json\n" \
+                      "\t--tensorflow_use_custom_operations_config <OPENVINO_INSTALL_DIR>/tools/model_optimizer/openvino/tools/mo/front/tf/<yolo_config>.json\n" \
                       "All detailed information about conversion of this model can be found at\n" \
                       "https://docs.openvinotoolkit.org/latest/_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow.html"
             return {'model_type': {'YOLO': get_YOLO_params_by_flavor(flavor)}}, message
@@ -99,7 +99,7 @@ class TensorFlowYOLOV3Analysis(AnalyzeAction):
                       "To generate the IR, provide TensorFlow YOLOv3 Model to the Model Optimizer with the following parameters:\n" \
                       "\t--input_model <path_to_model>/yolo_v3.pb\n" \
                       "\t--batch 1\n" \
-                      "\t--tensorflow_use_custom_operations_config <OPENVINO_INSTALL_DIR>/tools/model_optimizer/extensions/front/tf/yolo_v3.json\n" \
+                      "\t--tensorflow_use_custom_operations_config <OPENVINO_INSTALL_DIR>/tools/model_optimizer/openvino/tools/mo/front/tf/yolo_v3.json\n" \
                       "Detailed information about conversion of this model can be found at\n" \
                       "https://docs.openvinotoolkit.org/latest/_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow.html"
             return {'model_type': {'YOLO': get_YOLO_params_by_flavor(flavor)}}, message

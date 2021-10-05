@@ -5,12 +5,12 @@ import logging as log
 
 import numpy as np
 
-from extensions.ops.gather import Gather
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
-from mo.graph.graph import Graph, rename_node
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.gather import Gather
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, rename_node
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.reshape import Reshape
 
 
 class GatherNDNormalize(MiddleReplacementPattern):
@@ -26,11 +26,11 @@ class GatherNDNormalize(MiddleReplacementPattern):
     force_clean_up = True
 
     def run_before(self):
-        from extensions.middle.BlockLSTMtoLSTMSequence import BlockLSTMtoLSTMSequence
+        from openvino.tools.mo.middle.BlockLSTMtoLSTMSequence import BlockLSTMtoLSTMSequence
         return [BlockLSTMtoLSTMSequence]
 
     def run_after(self):
-        from extensions.middle.pass_separator import MiddleStart
+        from openvino.tools.mo.middle.pass_separator import MiddleStart
         return [MiddleStart]
 
     def pattern(self):

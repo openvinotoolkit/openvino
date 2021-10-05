@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from mo.front.caffe.extractors.utils import embed_input
-from mo.front.extractor import FrontExtractorOp
-from mo.front.kaldi.loader.utils import read_binary_float_token, read_binary_integer32_token, collect_until_token
-from mo.ops.scale_shift import ScaleShiftOp
+from openvino.tools.mo.front.caffe.extractors.utils import embed_input
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.kaldi.loader.utils import read_binary_float_token, read_binary_integer32_token, collect_until_token
+from openvino.tools.mo.ops.scale_shift import ScaleShiftOp
 
 
 class BackPropTrancationFrontExtractor(FrontExtractorOp):

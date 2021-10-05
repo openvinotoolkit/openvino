@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.replacement import FrontReplacementOp, FrontReplacementSubgraph, FrontReplacementPattern
-from mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.common.replacement import FrontReplacementOp, FrontReplacementSubgraph, FrontReplacementPattern
+from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
 def get_front_classes():

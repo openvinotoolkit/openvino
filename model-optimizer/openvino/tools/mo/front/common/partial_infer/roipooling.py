@@ -5,8 +5,8 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.layout import get_batch_dim, get_features_dim, shape_for_layout
-from mo.graph.graph import Node
+from openvino.tools.mo.front.common.layout import get_batch_dim, get_features_dim, shape_for_layout
+from openvino.tools.mo.graph.graph import Node
 
 
 def roipooling_infer(node: Node):

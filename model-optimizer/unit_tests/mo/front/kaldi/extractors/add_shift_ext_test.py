@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from mo.front.kaldi.extractors.add_shift_ext import AddShiftFrontExtractor
-from mo.ops.op import Op
-from mo.ops.scale_shift import ScaleShiftOp
+from openvino.tools.mo.front.kaldi.extractors.add_shift_ext import AddShiftFrontExtractor
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.ops.scale_shift import ScaleShiftOp
 from unit_tests.mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 from unit_tests.mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
 

@@ -3,15 +3,15 @@
 
 import networkx as nx
 
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class AddIsCyclicAttribute(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        from extensions.middle.DeleteControlFlowEdges import DeleteControlFlowEdges
+        from openvino.tools.mo.middle.DeleteControlFlowEdges import DeleteControlFlowEdges
         return [DeleteControlFlowEdges]
 
     def run_before(self):

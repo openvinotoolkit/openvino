@@ -7,10 +7,10 @@ import sys
 
 import numpy as np
 
-from extensions.front.user_data_repack import UserDataRepack
-from mo.graph.graph import Graph
-from mo.middle.passes.convert_data_type import np_data_type_to_precision
-from mo.utils.model_analysis import AnalyzeAction, AnalysisCollectorAnchor, AnalysisResults
+from openvino.tools.mo.front.user_data_repack import UserDataRepack
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_precision
+from openvino.tools.mo.utils.model_analysis import AnalyzeAction, AnalysisCollectorAnchor, AnalysisResults
 
 
 def prepare_obj_for_dump(obj: object):

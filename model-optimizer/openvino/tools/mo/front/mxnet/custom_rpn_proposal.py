@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from extensions.ops.proposal import ProposalOp
-from mo.front.extractor import MXNetCustomFrontExtractorOp
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from openvino.tools.mo.ops.proposal import ProposalOp
+from openvino.tools.mo.front.extractor import MXNetCustomFrontExtractorOp
+from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 
 
 class RPNProposalMXNetFrontExtractor(MXNetCustomFrontExtractorOp):

@@ -5,5 +5,5 @@
 
 
 if __name__ == "__main__":
-    from mo.subprocess_main import subprocess_main
+    from openvino.tools.mo.subprocess_main import subprocess_main
     subprocess_main(framework='mxnet')

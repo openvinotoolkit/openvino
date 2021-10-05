@@ -3,8 +3,8 @@
 
 import unittest
 
-from extensions.front.output_cut import OutputCut
-from mo.graph.graph import Node
+from openvino.tools.mo.front.output_cut import OutputCut
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph, regular_op
 
 nodes = {

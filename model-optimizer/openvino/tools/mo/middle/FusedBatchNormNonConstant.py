@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from extensions.ops.elementwise import Mul, Add, Pow
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
+from openvino.tools.mo.ops.elementwise import Mul, Add, Pow
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.const import Const
 
 
 class FusedBatchNormNonConstant(MiddleReplacementPattern):
@@ -18,11 +18,11 @@ class FusedBatchNormNonConstant(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        from extensions.middle.pass_separator import MiddleStart
+        from openvino.tools.mo.middle.pass_separator import MiddleStart
         return [MiddleStart]
 
     def run_before(self):
-        from extensions.middle.pass_separator import MiddleFinish
+        from openvino.tools.mo.middle.pass_separator import MiddleFinish
         return [MiddleFinish]
 
     def pattern(self):

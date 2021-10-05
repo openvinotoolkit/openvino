@@ -6,7 +6,7 @@ import logging as log
 import numpy as np
 from networkx.algorithms import isomorphism as ism
 
-from mo.graph.graph import Node, dict_includes, Graph
+from openvino.tools.mo.graph.graph import Node, dict_includes, Graph
 
 
 def inverse_dict(d: dict):

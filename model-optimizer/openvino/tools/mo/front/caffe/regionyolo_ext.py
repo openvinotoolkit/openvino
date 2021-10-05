@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from extensions.ops.regionyolo import RegionYoloOp
-from mo.front.caffe.collect_attributes import merge_attrs
-from mo.front.common.extractors.utils import layout_attrs
-from mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.regionyolo import RegionYoloOp
+from openvino.tools.mo.front.caffe.collect_attributes import merge_attrs
+from openvino.tools.mo.front.common.extractors.utils import layout_attrs
+from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
 class RegionYoloFrontExtractor(FrontExtractorOp):

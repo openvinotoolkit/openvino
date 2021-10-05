@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.loop import Loop
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.graph.graph import Graph
+from openvino.tools.mo.ops.loop import Loop
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
 
 
 class MoveConstToLoopBody(MiddleReplacementPattern):
@@ -17,11 +17,11 @@ class MoveConstToLoopBody(MiddleReplacementPattern):
     force_shape_inference = True
 
     def run_after(self):
-        from extensions.middle.pass_separator import PostMiddleStart
+        from openvino.tools.mo.middle.pass_separator import PostMiddleStart
         return [PostMiddleStart]
 
     def run_before(self):
-        from extensions.middle.ApplyPermutations import ApplyPermutation
+        from openvino.tools.mo.middle.ApplyPermutations import ApplyPermutation
         return [ApplyPermutation]
 
     def find_and_replace_pattern(self, graph: Graph):

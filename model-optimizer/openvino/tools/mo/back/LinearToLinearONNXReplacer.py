@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.back.InterpolateReshape import InterpolateConcat, InterpolateReshapeWA
-from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import Graph
+from openvino.tools.mo.back.InterpolateReshape import InterpolateConcat, InterpolateReshapeWA
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
 
 
 class LinearToLinearONNXReplacer(BackReplacementPattern):

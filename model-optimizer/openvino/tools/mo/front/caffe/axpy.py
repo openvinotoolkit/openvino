@@ -1,10 +1,10 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.elementwise import Add
-from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node, Graph
-from mo.ops.scale_shift import ScaleShiftOp
+from openvino.tools.mo.ops.elementwise import Add
+from openvino.tools.mo.front.common.replacement import FrontReplacementOp
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.scale_shift import ScaleShiftOp
 
 
 class AxpyToSSandAdd(FrontReplacementOp):

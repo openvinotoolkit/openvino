@@ -4,8 +4,8 @@
 import logging as log
 import re
 
-from mo.graph.graph import Node, Graph
-from mo.middle.passes.fusing.helpers import get_value_id
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.middle.passes.fusing.helpers import get_value_id
 
 
 def _check_lin_op(node: Node, layout: str):

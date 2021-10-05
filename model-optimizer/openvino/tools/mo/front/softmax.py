@@ -5,11 +5,11 @@ import logging as log
 
 import numpy as np
 
-from extensions.front.reduce_axis_normalizer import ReduceAxisNormalizer
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.subgraph_matcher import SubgraphMatch
-from mo.graph.graph import Graph
-from mo.ops.softmax import Softmax
+from openvino.tools.mo.front.reduce_axis_normalizer import ReduceAxisNormalizer
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.softmax import Softmax
 
 
 class SoftmaxFromKeras(FrontReplacementSubgraph):

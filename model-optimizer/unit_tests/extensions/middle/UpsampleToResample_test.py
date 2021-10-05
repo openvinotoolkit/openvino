@@ -6,9 +6,9 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from extensions.middle.UpsampleToResample import UpsampleToResample
-from mo.front.common.partial_infer.utils import int64_array, float32_array
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.middle.UpsampleToResample import UpsampleToResample
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, float32_array
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 graph_node_attrs = {

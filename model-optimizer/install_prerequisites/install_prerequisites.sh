@@ -83,7 +83,7 @@ uninstall_ov() {
 }
 
 check_ie() {
-    $1 "$SCRIPTDIR/../mo/utils/find_ie_version.py"
+    $1 "$SCRIPTDIR/../openvino/tools/mo/utils/find_ie_version.py"
 }
 
 check_ov_package() {
@@ -104,7 +104,7 @@ find_ie_bindings() {
     python_executable="$1"
     requires_sudo="$2"
 
-    mo_release_version="$("$python_executable" "$SCRIPTDIR"/../mo/utils/extract_release_version.py)"
+    mo_release_version="$("$python_executable" "$SCRIPTDIR"/../openvino/tools/mo/utils/extract_release_version.py)"
     if [[ $mo_release_version == "None.None" ]]; then
       mo_is_custom=true
     else

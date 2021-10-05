@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import Graph
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
 
 
 class EnableConstantStridedSlice(BackReplacementPattern):

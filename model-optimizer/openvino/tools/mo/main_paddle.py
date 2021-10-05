@@ -3,12 +3,12 @@
 
 import sys
 
-from mo.utils.cli_parser import get_all_cli_parser
+from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
 
 from ngraph.frontend import FrontEndManager  # pylint: disable=no-name-in-module,import-error
 
 
 if __name__ == "__main__":
-    from mo.main import main
+    from openvino.tools.mo.main import main
     fem = FrontEndManager()
     sys.exit(main(get_all_cli_parser(fem), fem, 'paddle'))

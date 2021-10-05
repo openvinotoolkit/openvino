@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-from extensions.ops.cumsum import MXNetCumSum
-from mo.front.extractor import FrontExtractorOp
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs, mxnet_str_dtype_to_np
+from openvino.tools.mo.ops.cumsum import MXNetCumSum
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs, mxnet_str_dtype_to_np
 
 
 class CumSumExtractor(FrontExtractorOp):

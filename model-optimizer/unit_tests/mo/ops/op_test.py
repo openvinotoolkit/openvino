@@ -3,8 +3,8 @@
 
 import unittest
 
-from extensions.ops.lstm_cell import LSTMCell
-from mo.graph.graph import Node
+from openvino.tools.mo.ops.lstm_cell import LSTMCell
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph, regular_op
 
 nodes = {

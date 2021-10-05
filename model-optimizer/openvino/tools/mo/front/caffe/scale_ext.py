@@ -3,11 +3,11 @@
 
 import numpy as np
 
-from mo.front.caffe.extractors.utils import embed_input, weights_biases
-from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.front.extractor import FrontExtractorOp
-from mo.ops.scale_shift import ScaleShiftOp
-from mo.utils.utils import NamedAttrsClass
+from openvino.tools.mo.front.caffe.extractors.utils import embed_input, weights_biases
+from openvino.tools.mo.front.common.partial_infer.elemental import copy_shape_infer
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.scale_shift import ScaleShiftOp
+from openvino.tools.mo.utils.utils import NamedAttrsClass
 
 
 class ScaleFrontExtractor(FrontExtractorOp):

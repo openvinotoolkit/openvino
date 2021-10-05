@@ -3,9 +3,9 @@
 
 import logging as log
 
-from extensions.ops.TensorIterator_ops import TensorIteratorOutput
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.TensorIterator_ops import TensorIteratorOutput
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class SmartOutputMatcher(MiddleReplacementPattern):
@@ -29,11 +29,11 @@ class SmartOutputMatcher(MiddleReplacementPattern):
     graph_condition = [lambda graph: graph.graph['is_cyclic']]
 
     def run_after(self):
-        from extensions.middle.TensorIteratorInput import SmartInputMatcher
+        from openvino.tools.mo.middle.TensorIteratorInput import SmartInputMatcher
         return [SmartInputMatcher]
 
     def run_before(self):
-        from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
+        from openvino.tools.mo.middle.TensorIteratorMerge import TensorIteratorMerge
         return [TensorIteratorMerge]
 
     @staticmethod
@@ -170,8 +170,8 @@ class SimpleOutputMatcher(MiddleReplacementPattern):
         return [SmartOutputMatcher]
 
     def run_before(self):
-        from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
-        from extensions.middle.TensorIteratorCondition import LoopConditionMatcher
+        from openvino.tools.mo.middle.TensorIteratorMerge import TensorIteratorMerge
+        from openvino.tools.mo.middle.TensorIteratorCondition import LoopConditionMatcher
         return [TensorIteratorMerge, LoopConditionMatcher]
 
     @staticmethod

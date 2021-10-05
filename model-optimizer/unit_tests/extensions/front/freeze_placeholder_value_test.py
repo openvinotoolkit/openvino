@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from extensions.front.freeze_placeholder_value import FreezePlaceholderValue
+from openvino.tools.mo.front.freeze_placeholder_value import FreezePlaceholderValue
 from unit_tests.utils.graph import build_graph
 
 nodes_bool = {

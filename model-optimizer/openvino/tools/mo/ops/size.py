@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import is_fully_defined, shape_array, dynamic_dimension_value
-from mo.graph.graph import Node, Graph
-from mo.ops.op import Op
+from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, shape_array, dynamic_dimension_value
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.op import Op
 
 
 class Size(Op):

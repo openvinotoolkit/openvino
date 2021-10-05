@@ -4,15 +4,15 @@ import numpy as np
 import argparse
 from collections import Counter
 
-from mo.front.common.partial_infer.utils import is_fully_defined, unmask_shape, int64_array
-from mo.graph.graph import Graph
-from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
-from mo.utils.cli_parser import get_params_with_paths_list
+from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, unmask_shape, int64_array
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
+from openvino.tools.mo.utils.cli_parser import get_params_with_paths_list
 
 try:
     import openvino_telemetry as tm
 except ImportError:
-    import mo.utils.telemetry_stub as tm
+    import openvino.tools.mo.utils.telemetry_stub as tm
 
 
 def send_op_names_info(framework: str, graph: Graph):

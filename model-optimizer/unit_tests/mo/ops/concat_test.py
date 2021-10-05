@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from mo.front.common.partial_infer.concat import concat_infer
-from mo.ops.concat import Concat
+from openvino.tools.mo.front.common.partial_infer.concat import concat_infer
+from openvino.tools.mo.ops.concat import Concat
 from unit_tests.utils.graph import build_graph
 
 

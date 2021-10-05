@@ -3,7 +3,7 @@
 
 import unittest
 
-from extensions.middle.AddIsCyclicAttribute import AddIsCyclicAttribute
+from openvino.tools.mo.middle.AddIsCyclicAttribute import AddIsCyclicAttribute
 from unit_tests.utils.graph import build_graph_with_attrs
 
 

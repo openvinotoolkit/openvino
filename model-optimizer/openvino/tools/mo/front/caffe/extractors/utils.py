@@ -3,8 +3,8 @@
 
 import numpy as np
 
-from mo.graph.graph import Node
-from mo.ops.const import Const
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.const import Const
 
 
 def dim_to_shape(dim):

@@ -1,12 +1,12 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.tf.extractors.concat import tf_concat_ext
-from mo.front.tf.extractors.fused_bn import tf_fused_bn_extractor
-from mo.front.tf.extractors.native_tf import native_tf_node_extractor
-from mo.front.tf.extractors.pack import tf_pack_ext
-from mo.front.tf.extractors.utils import get_tf_node_port
-from mo.graph.graph import Node
+from openvino.tools.mo.front.tf.extractors.concat import tf_concat_ext
+from openvino.tools.mo.front.tf.extractors.fused_bn import tf_fused_bn_extractor
+from openvino.tools.mo.front.tf.extractors.native_tf import native_tf_node_extractor
+from openvino.tools.mo.front.tf.extractors.pack import tf_pack_ext
+from openvino.tools.mo.front.tf.extractors.utils import get_tf_node_port
+from openvino.tools.mo.graph.graph import Node
 
 
 def get_tf_edges(node: Node):

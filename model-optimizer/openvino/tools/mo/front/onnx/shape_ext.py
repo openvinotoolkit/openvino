@@ -3,8 +3,8 @@
 
 import numpy as np
 
-from mo.front.extractor import FrontExtractorOp
-from mo.ops.shape import Shape
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.shape import Shape
 
 
 class ShapeFrontExtractor(FrontExtractorOp):

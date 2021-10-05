@@ -3,9 +3,9 @@
 
 import unittest
 
-from extensions.middle.ReplaceMemoryOffsetWithSplice import ReplaceMemoryOffsetNodePattern
-from mo.graph.graph import Node
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.middle.ReplaceMemoryOffsetWithSplice import ReplaceMemoryOffsetNodePattern
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 

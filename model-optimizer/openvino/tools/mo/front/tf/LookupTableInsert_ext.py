@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.LookupTableInsert import LookupTableInsert
-from mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.LookupTableInsert import LookupTableInsert
+from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
 class LookupTableInsertFrontExtractor(FrontExtractorOp):

@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from mo.graph.graph import Node, Graph
-from mo.ops.op import Op, PermuteAttrs
-from mo.utils.error import Error
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.op import Op, PermuteAttrs
+from openvino.tools.mo.utils.error import Error
 
 
 class ReorgYoloOp(Op):

@@ -3,14 +3,14 @@
 
 import numpy as np
 
-from mo.front.common.layout import get_features_dim, shape_for_layout
-from mo.front.common.partial_infer.utils import int64_array, shape_insert, is_fully_defined
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, Node
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
-from mo.ops.reshape import Reshape
-from mo.ops.unsqueeze import Unsqueeze
+from openvino.tools.mo.front.common.layout import get_features_dim, shape_for_layout
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_insert, is_fully_defined
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.unsqueeze import Unsqueeze
 
 
 class Eltwise1DInputReshape(MiddleReplacementPattern):

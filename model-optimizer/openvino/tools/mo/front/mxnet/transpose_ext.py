@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from extensions.ops.transpose import Transpose
-from mo.front.extractor import FrontExtractorOp
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 
 
 class TransposeFrontExtractor(FrontExtractorOp):

@@ -6,15 +6,15 @@ import unittest
 import numpy as np
 import numpy.testing as npt
 
-from extensions.middle.StridedSliceNormalizer import StridedSliceNormalizer
-from extensions.ops.parameter import Parameter
-from extensions.ops.split import VariadicSplit
-from mo.front.common.partial_infer.concat import concat_infer
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node
-from mo.middle.passes.infer import partial_infer
-from mo.ops.strided_slice import StridedSlice
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.middle.StridedSliceNormalizer import StridedSliceNormalizer
+from openvino.tools.mo.ops.parameter import Parameter
+from openvino.tools.mo.ops.split import VariadicSplit
+from openvino.tools.mo.front.common.partial_infer.concat import concat_infer
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.middle.passes.infer import partial_infer
+from openvino.tools.mo.ops.strided_slice import StridedSlice
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, valued_const_with_data, regular_op_with_empty_data, \
     connect, regular_op, empty_data, regular_op_with_shaped_data
 
@@ -1587,8 +1587,8 @@ class TestStridedSliceShapeInferAfterNormalizer(unittest.TestCase):
 class TestStridedSlicePermute(unittest.TestCase):
     def run_permute_test(self, inp, ref_res, begin, end, strides, begin_mask, end_mask,
                          shrink_axis_mask, new_axis_mask, ellipsis_mask):
-        from extensions.middle.ApplyPermutations import ApplyPermutation
-        from extensions.middle.ApplyNHWCtoNCHWpermutation import ApplyNHWCtoNCHWpermutation
+        from openvino.tools.mo.middle.ApplyPermutations import ApplyPermutation
+        from openvino.tools.mo.middle.ApplyNHWCtoNCHWpermutation import ApplyNHWCtoNCHWpermutation
         nodes = {
             **regular_op_with_shaped_data('input', int64_array(inp), {'op': 'Parameter', 'type': 'Parameter',
                                                                       # need to specify shape in 2 places

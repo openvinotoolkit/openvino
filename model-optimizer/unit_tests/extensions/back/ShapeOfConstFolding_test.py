@@ -5,10 +5,10 @@ import unittest
 
 import numpy as np
 
-from extensions.back.ShapeOfConstFolding import ShapeOfConstFolding
-from mo.front.common.partial_infer.eltwise import eltwise_infer
-from mo.front.common.partial_infer.utils import int64_array
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.back.ShapeOfConstFolding import ShapeOfConstFolding
+from openvino.tools.mo.front.common.partial_infer.eltwise import eltwise_infer
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 const_value = np.random.rand(1, 3, 30, 30)

@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.front.Log1p import Log1p
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.Log1p import Log1p
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {

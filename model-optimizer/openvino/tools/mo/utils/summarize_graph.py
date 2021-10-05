@@ -46,7 +46,7 @@ def summarize_graph(graph_def):
 
 if __name__ == "__main__":  # pragma: no cover
     sys.path.append(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
-    from mo.front.tf.loader import load_tf_graph_def
+    from openvino.tools.mo.front.tf.loader import load_tf_graph_def
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_model", type=str, help="Path to tensorflow model", default="")

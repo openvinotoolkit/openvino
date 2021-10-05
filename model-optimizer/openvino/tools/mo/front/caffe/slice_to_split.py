@@ -3,11 +3,11 @@
 
 import numpy as np
 
-from extensions.ops.split import VariadicSplit, Split
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementOp
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph
+from openvino.tools.mo.ops.split import VariadicSplit, Split
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementOp
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph
 
 
 class SliceToVariadicSplit(FrontReplacementOp):

@@ -3,8 +3,8 @@
 
 import onnx
 
-from extensions.front.onnx.pad_ext import PadFrontExtractor
-from mo.graph.graph import Graph
+from openvino.tools.mo.front.onnx.pad_ext import PadFrontExtractor
+from openvino.tools.mo.graph.graph import Graph
 from unit_tests.utils.extractors import PB, BaseExtractorsTestingClass
 
 

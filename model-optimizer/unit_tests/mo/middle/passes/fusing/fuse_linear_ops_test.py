@@ -5,10 +5,10 @@ import unittest
 
 import numpy as np
 
-from mo.front.common.partial_infer.eltwise import eltwise_infer
-from mo.graph.graph import Node
-from mo.middle.passes.fusing.fuse_linear_ops import _fuse_mul, fuse_linear_ops
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.common.partial_infer.eltwise import eltwise_infer
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.middle.passes.fusing.fuse_linear_ops import _fuse_mul, fuse_linear_ops
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {

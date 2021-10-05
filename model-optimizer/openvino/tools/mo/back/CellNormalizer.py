@@ -3,12 +3,12 @@
 
 import numpy as np
 
-from extensions.ops.split import VariadicSplit
-from mo.back.replacement import BackReplacementPattern
-from mo.front.common.partial_infer.utils import int64_array, is_fully_defined
-from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
-from mo.graph.graph import Graph
-from mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.split import VariadicSplit
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, is_fully_defined
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.reshape import Reshape
 
 
 class CellNormalizer(BackReplacementPattern):

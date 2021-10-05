@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import compatible_dims
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.op import Op
+from openvino.tools.mo.front.common.partial_infer.utils import compatible_dims
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.op import Op
 
 
 class ONNXRNNSequenceNormalize(MiddleReplacementPattern):

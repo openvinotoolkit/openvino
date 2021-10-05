@@ -7,10 +7,10 @@ import numpy as np
 import onnx
 from generator import generator, generate
 
-import extensions.front.onnx.activation_ext as extractors
-from extensions.ops.activation_ops import Elu
-from mo.graph.graph import Node
-from mo.ops.op import Op
+import openvino.tools.mo.front.onnx.activation_ext as extractors
+from openvino.tools.mo.ops.activation_ops import Elu
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import PB
 from unit_tests.utils.graph import build_graph
 

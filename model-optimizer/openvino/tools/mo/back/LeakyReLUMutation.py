@@ -3,11 +3,11 @@
 
 import numpy as np
 
-from extensions.back.ForceStrictPrecision import ForceStrictPrecision
-from extensions.ops.prelu import PReLU
-from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import Graph, rename_node
-from mo.ops.const import Const
+from openvino.tools.mo.back.ForceStrictPrecision import ForceStrictPrecision
+from openvino.tools.mo.ops.prelu import PReLU
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.graph.graph import Graph, rename_node
+from openvino.tools.mo.ops.const import Const
 
 
 class LeakyReLUMutation(BackReplacementPattern):

@@ -5,14 +5,14 @@ import logging as log
 
 import numpy as np
 
-from extensions.back.ReshapeMutation import ReshapeMutation
-from extensions.back.StridedSliceMasksNormalizer import StridedSliceMasksNormalizer
-from mo.back.replacement import BackReplacementPattern
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
-from mo.graph.graph import Graph
-from mo.ops.reshape import Reshape
-from mo.ops.strided_slice import StridedSlice
+from openvino.tools.mo.back.ReshapeMutation import ReshapeMutation
+from openvino.tools.mo.back.StridedSliceMasksNormalizer import StridedSliceMasksNormalizer
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.strided_slice import StridedSlice
 
 
 class ProposalMutation(BackReplacementPattern):

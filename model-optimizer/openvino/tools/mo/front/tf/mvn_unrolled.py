@@ -3,10 +3,10 @@
 
 import logging as log
 
-from extensions.front.PowerToEltwises import PowerToEltwises
-from extensions.ops.mvn import MVN
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Node, Graph
+from openvino.tools.mo.front.PowerToEltwises import PowerToEltwises
+from openvino.tools.mo.ops.mvn import MVN
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Node, Graph
 
 
 class MVNUnrolled(FrontReplacementSubgraph):

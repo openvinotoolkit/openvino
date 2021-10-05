@@ -7,14 +7,14 @@ from unittest.mock import patch
 
 from generator import generator, generate
 
-from extensions.front.tf.ObjectDetectionAPI import calculate_shape_keeping_aspect_ratio, \
+from openvino.tools.mo.front.tf.ObjectDetectionAPI import calculate_shape_keeping_aspect_ratio, \
     calculate_placeholder_spatial_shape, ObjectDetectionAPIPreprocessor2Replacement
-from mo.front.common.partial_infer.utils import float32_array
-from mo.front.subgraph_matcher import SubgraphMatch
-from mo.graph.graph import Graph
-from mo.utils.custom_replacement_config import CustomReplacementDescriptor
-from mo.utils.error import Error
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.common.partial_infer.utils import float32_array
+from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.utils.custom_replacement_config import CustomReplacementDescriptor
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.mo.utils.pipeline_config_test import file_content
 from unit_tests.utils.graph import const, regular_op, result, build_graph, connect_front
 
@@ -100,7 +100,7 @@ class TestCalculatePlaceholderSpatialShape(unittest.TestCase):
         self.assertRaises(Error, calculate_placeholder_spatial_shape, self.graph, self.match, self.pipeline_config)
 
 
-@patch('extensions.front.tf.ObjectDetectionAPI.update_parameter_shape')
+@patch('openvino.tools.mo.front.tf.ObjectDetectionAPI.update_parameter_shape')
 class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
     def setUp(self):
         self.start_node_name = 'StatefulPartitionedCall/Preprocessor/unstack'

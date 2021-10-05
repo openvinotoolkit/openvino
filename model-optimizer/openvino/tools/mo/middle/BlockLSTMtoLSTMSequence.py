@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from extensions.ops.LSTM import LSTM
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.utils.error import Error
+from openvino.tools.mo.ops.LSTM import LSTM
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.utils.error import Error
 
 
 class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
@@ -29,12 +29,12 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
     enabled = True
 
     def run_before(self):
-        from extensions.middle.LSTMRNNSequenceToTensorIterator import LSTMToTensorIterator
+        from openvino.tools.mo.middle.LSTMRNNSequenceToTensorIterator import LSTMToTensorIterator
         return [LSTMToTensorIterator]
 
     def run_after(self):
-        from extensions.middle.pass_separator import MiddleStart
-        from extensions.middle.RNNSequenceNormalizeToIE import RNNSequenceNormalize
+        from openvino.tools.mo.middle.pass_separator import MiddleStart
+        from openvino.tools.mo.middle.RNNSequenceNormalizeToIE import RNNSequenceNormalize
         return [MiddleStart, RNNSequenceNormalize]
 
     def pattern(self):

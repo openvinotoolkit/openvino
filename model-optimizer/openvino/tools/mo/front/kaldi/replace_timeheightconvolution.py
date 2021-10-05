@@ -1,12 +1,12 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.graph.graph import Node, Graph, rename_node
-from mo.ops.concat import Concat
-from mo.ops.convolution import Convolution
-from mo.ops.memoryoffset import MemoryOffset
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.graph.graph import Node, Graph, rename_node
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.convolution import Convolution
+from openvino.tools.mo.ops.memoryoffset import MemoryOffset
 
 
 class ReplaceTimeHeightConvolutionPattern(FrontReplacementPattern):
@@ -14,14 +14,14 @@ class ReplaceTimeHeightConvolutionPattern(FrontReplacementPattern):
     run_not_recursively = True
 
     def run_after(self):
-        from extensions.front.MoveEmbeddedInputsToInputs import MoveEmbeddedInputsToInputs
+        from openvino.tools.mo.front.MoveEmbeddedInputsToInputs import MoveEmbeddedInputsToInputs
         return [MoveEmbeddedInputsToInputs]
 
     def run_before(self):
-        from extensions.front.kaldi.add_permute_after_convolution import ReplaceConvolutionTranspose
-        from extensions.front.kaldi.add_reshape_around_convolution import ReplaceConvolutionReshape
-        from extensions.front.kaldi.memory_offset_adjustment import MemoryOffsetAdjustment
-        from extensions.front.kaldi.split_recurrent_memoryoffset import SplitRecurrentMemoryOffset
+        from openvino.tools.mo.front.kaldi.add_permute_after_convolution import ReplaceConvolutionTranspose
+        from openvino.tools.mo.front.kaldi.add_reshape_around_convolution import ReplaceConvolutionReshape
+        from openvino.tools.mo.front.kaldi.memory_offset_adjustment import MemoryOffsetAdjustment
+        from openvino.tools.mo.front.kaldi.split_recurrent_memoryoffset import SplitRecurrentMemoryOffset
         return [MemoryOffsetAdjustment, ReplaceConvolutionReshape, ReplaceConvolutionTranspose,
                 SplitRecurrentMemoryOffset]
 

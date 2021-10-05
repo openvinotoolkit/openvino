@@ -16,17 +16,17 @@ except:
 
 import logging as log
 
-from extensions.load.loader import Loader
-from mo.front.common.register_custom_ops import check_for_duplicates
-from mo.front.common.register_custom_ops import update_extractors_with_extensions
-from mo.front.extractor import restore_edges, extract_node_attrs, remove_control_dependency_inputs, add_outputs_identity
-from mo.front.tf.extractor import get_tf_edges, create_tf_edge, tf_op_extractor, tf_op_extractors
-from mo.front.tf.loader import load_tf_graph_def, protobuf2nx
-from mo.graph.graph import Graph, Node
-from mo.utils import tensorboard_util
-from mo.utils.error import Error
-from mo.utils.telemetry_utils import send_op_names_info, send_shapes_info, send_framework_info
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.load.loader import Loader
+from openvino.tools.mo.front.common.register_custom_ops import check_for_duplicates
+from openvino.tools.mo.front.common.register_custom_ops import update_extractors_with_extensions
+from openvino.tools.mo.front.extractor import restore_edges, extract_node_attrs, remove_control_dependency_inputs, add_outputs_identity
+from openvino.tools.mo.front.tf.extractor import get_tf_edges, create_tf_edge, tf_op_extractor, tf_op_extractors
+from openvino.tools.mo.front.tf.loader import load_tf_graph_def, protobuf2nx
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.utils import tensorboard_util
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.telemetry_utils import send_op_names_info, send_shapes_info, send_framework_info
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 class TFLoader(Loader):

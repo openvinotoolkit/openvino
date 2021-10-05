@@ -3,14 +3,14 @@
 
 import logging as log
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph
-from mo.ops.crop import Crop
-from mo.ops.reshape import Reshape
-from mo.ops.squeeze import Squeeze
-from mo.ops.unsqueeze import Unsqueeze
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.crop import Crop
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.squeeze import Squeeze
+from openvino.tools.mo.ops.unsqueeze import Unsqueeze
 
 
 class TFNonMaxSuppressionNormalize(FrontReplacementSubgraph):
@@ -34,7 +34,7 @@ class TFNonMaxSuppressionNormalize(FrontReplacementSubgraph):
     enabled = True
 
     def run_after(self):
-        from extensions.front.non_max_suppression_normalize import NonMaxSuppressionNormalize
+        from openvino.tools.mo.front.non_max_suppression_normalize import NonMaxSuppressionNormalize
         return [NonMaxSuppressionNormalize]
 
     def find_and_replace_pattern(self, graph: Graph):

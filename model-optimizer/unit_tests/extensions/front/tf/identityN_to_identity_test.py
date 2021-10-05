@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.front.tf.identityN_to_identity import IdentityN_to_Identity
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.tf.identityN_to_identity import IdentityN_to_Identity
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import result, regular_op_with_shaped_data, \
     regular_op_with_empty_data, build_graph, connect, empty_data
 

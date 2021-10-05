@@ -1,13 +1,13 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.Cast import Cast
-from extensions.ops.elementwise import Greater, Mul
-from mo.front.common.partial_infer.utils import float_array
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, rename_nodes
-from mo.middle.passes.convert_data_type import data_type_str_to_np
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.elementwise import Greater, Mul
+from openvino.tools.mo.front.common.partial_infer.utils import float_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np
 
 
 class ThresholdedReluDecomposition(FrontReplacementPattern):

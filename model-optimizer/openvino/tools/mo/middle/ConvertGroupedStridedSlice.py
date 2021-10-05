@@ -6,16 +6,16 @@ from copy import deepcopy
 
 import numpy as np
 
-from extensions.middle.SliceConverter import ConvertSlice
-from extensions.ops.split import VariadicSplit
-from mo.front.common.partial_infer.utils import int64_array, shape_array
-from mo.graph.graph import Graph, Node, add_opoutput
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
-from mo.ops.op import Op
-from mo.ops.squeeze import Squeeze
-from mo.ops.unsqueeze import Unsqueeze
-from mo.utils.utils import unique_by
+from openvino.tools.mo.middle.SliceConverter import ConvertSlice
+from openvino.tools.mo.ops.split import VariadicSplit
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array
+from openvino.tools.mo.graph.graph import Graph, Node, add_opoutput
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.ops.squeeze import Squeeze
+from openvino.tools.mo.ops.unsqueeze import Unsqueeze
+from openvino.tools.mo.utils.utils import unique_by
 
 
 def strided_slices_equality(lhs: Node, rhs: Node) -> bool:
@@ -55,11 +55,11 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        from extensions.middle.StridedSliceNormalizer import StridedSliceNormalizer
+        from openvino.tools.mo.middle.StridedSliceNormalizer import StridedSliceNormalizer
         return [ConvertSlice, StridedSliceNormalizer]
 
     def run_before(self):
-        from extensions.middle.pass_separator import MiddleFinish
+        from openvino.tools.mo.middle.pass_separator import MiddleFinish
         return [MiddleFinish]
 
     def find_and_replace_pattern(self, graph: Graph):

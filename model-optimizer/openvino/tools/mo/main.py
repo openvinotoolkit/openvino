@@ -17,31 +17,31 @@ import numpy as np
 try:
     import openvino_telemetry as tm
 except ImportError:
-    import mo.utils.telemetry_stub as tm
+    import openvino.tools.mo.utils.telemetry_stub as tm
 
-from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
-from mo.back.ie_ir_ver_2.emitter import append_ir_info
-from mo.moc_frontend.pipeline import moc_pipeline
-from mo.moc_frontend.serialize import moc_emit_ir
-from mo.graph.graph import Graph
-from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
-from mo.pipeline.common import prepare_emit_ir, get_ir_version
-from mo.pipeline.unified import unified_pipeline
-from mo.utils import import_extensions
-from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
+from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
+from openvino.tools.mo.back.ie_ir_ver_2.emitter import append_ir_info
+from openvino.tools.mo.moc_frontend.pipeline import moc_pipeline
+from openvino.tools.mo.moc_frontend.serialize import moc_emit_ir
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
+from openvino.tools.mo.pipeline.common import prepare_emit_ir, get_ir_version
+from openvino.tools.mo.pipeline.unified import unified_pipeline
+from openvino.tools.mo.utils import import_extensions
+from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
     get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info, \
     parse_transform, check_available_transforms
-from mo.utils.error import Error, FrameworkError
-from mo.utils.find_ie_version import find_ie_version
-from mo.utils.get_ov_update_message import get_ov_update_message
-from mo.utils.guess_framework import deduce_framework_by_namespace
-from mo.utils.logger import init_logger
-from mo.utils.model_analysis import AnalysisResults
-from mo.utils.utils import refer_to_faq_msg
-from mo.utils.telemetry_utils import send_params_info, send_framework_info
-from mo.utils.version import get_version, get_simplified_mo_version, get_simplified_ie_version
-from mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
+from openvino.tools.mo.utils.error import Error, FrameworkError
+from openvino.tools.mo.utils.find_ie_version import find_ie_version
+from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message
+from openvino.tools.mo.utils.guess_framework import deduce_framework_by_namespace
+from openvino.tools.mo.utils.logger import init_logger
+from openvino.tools.mo.utils.model_analysis import AnalysisResults
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info
+from openvino.tools.mo.utils.version import get_version, get_simplified_mo_version, get_simplified_ie_version
+from openvino.tools.mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
 
 # pylint: disable=no-name-in-module,import-error
 from ngraph.frontend import FrontEndManager, FrontEnd
@@ -88,7 +88,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
             else:
                 if op == 'k':
                     default_path = os.path.join(os.path.dirname(sys.argv[0]),
-                                                'extensions/front/caffe/CustomLayersMapping.xml')
+                                                'openvino/tools/mo/front/caffe/CustomLayersMapping.xml')
                     if getattr(argv, op, 'NONE') == default_path:
                         lines.append('\t{}: \t{}'.format(desc, 'Default'))
                         continue
@@ -282,23 +282,23 @@ def arguments_post_parsing(argv: argparse.Namespace):
     argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
                                                                                    argv.freeze_placeholder_with_value)
     if is_tf:
-        from mo.front.tf.register_custom_ops import get_front_classes
+        from openvino.tools.mo.front.tf.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_caffe:
         send_framework_info('caffe')
-        from mo.front.caffe.register_custom_ops import get_front_classes
+        from openvino.tools.mo.front.caffe.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_mxnet:
         send_framework_info('mxnet')
-        from mo.front.mxnet.register_custom_ops import get_front_classes
+        from openvino.tools.mo.front.mxnet.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_kaldi:
         send_framework_info('kaldi')
-        from mo.front.kaldi.register_custom_ops import get_front_classes
+        from openvino.tools.mo.front.kaldi.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_onnx:
         send_framework_info('onnx')
-        from mo.front.onnx.register_custom_ops import get_front_classes
+        from openvino.tools.mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
 
     return argv
@@ -478,6 +478,6 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
 
 
 if __name__ == "__main__":
-    from mo.utils.cli_parser import get_all_cli_parser
+    from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
     fe_manager = FrontEndManager()
     sys.exit(main(get_all_cli_parser(fe_manager), fe_manager, None))

@@ -1,10 +1,10 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.elementwise import Minimum, Maximum
-from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import Graph, rename_node
-from mo.ops.clamp import AttributedClamp
+from openvino.tools.mo.ops.elementwise import Minimum, Maximum
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.graph.graph import Graph, rename_node
+from openvino.tools.mo.ops.clamp import AttributedClamp
 
 
 class ClampNormalizer(BackReplacementPattern):

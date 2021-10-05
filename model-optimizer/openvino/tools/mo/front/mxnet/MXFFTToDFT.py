@@ -3,21 +3,21 @@
 
 import numpy as np
 
-from extensions.ops.dft import DFT, IDFT
-from extensions.ops.elementwise import Add, Sub
-from extensions.ops.rank import Rank
-from extensions.ops.scatter import ScatterUpdate
-from extensions.ops.split import Split
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, Node, rename_nodes
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.ops.broadcast import Broadcast
-from mo.ops.concat import Concat
-from mo.ops.pad import Pad
-from mo.ops.reshape import Reshape
-from mo.ops.squeeze import Squeeze
-from mo.ops.unsqueeze import Unsqueeze
+from openvino.tools.mo.ops.dft import DFT, IDFT
+from openvino.tools.mo.ops.elementwise import Add, Sub
+from openvino.tools.mo.ops.rank import Rank
+from openvino.tools.mo.ops.scatter import ScatterUpdate
+from openvino.tools.mo.ops.split import Split
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, Node, rename_nodes
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.ops.broadcast import Broadcast
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.pad import Pad
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.squeeze import Squeeze
+from openvino.tools.mo.ops.unsqueeze import Unsqueeze
 
 
 class MXFFTToDFT(FrontReplacementSubgraph):

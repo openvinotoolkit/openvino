@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from extensions.front.tf.deconv_ext import Conv2DBackpropInputFrontExtractor
+from openvino.tools.mo.front.tf.deconv_ext import Conv2DBackpropInputFrontExtractor
 from unit_tests.utils.extractors import PB, BaseExtractorsTestingClass
 
 

@@ -6,12 +6,12 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.layout import nhwc_to_nchw_permute
-from mo.front.common.partial_infer.utils import shape_array, shape_insert
-from mo.front.extractor import update_ie_fields
-from mo.graph.graph import Graph
-from mo.graph.graph import Node, add_opoutput
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.front.common.layout import nhwc_to_nchw_permute
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array, shape_insert
+from openvino.tools.mo.front.extractor import update_ie_fields
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.graph.graph import Node, add_opoutput
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 nchw_to_nhwc_constant_name = 'IE_NCHW_TO_NHWC'
 nhwc_to_nchw_constant_name = 'IE_NHWC_TO_NCHW'
@@ -23,11 +23,11 @@ class CustomSubgraphCall(MiddleReplacementPattern):
     graph_condition = [lambda graph: graph.graph['fw'] == 'tf']
 
     def run_after(self):
-        from extensions.middle.pass_separator import PreMiddleStart
+        from openvino.tools.mo.middle.pass_separator import PreMiddleStart
         return [PreMiddleStart]
 
     def run_before(self):
-        from extensions.middle.pass_separator import MiddleStart
+        from openvino.tools.mo.middle.pass_separator import MiddleStart
         return [MiddleStart]
 
     @staticmethod
@@ -54,9 +54,9 @@ class CustomSubgraphCall(MiddleReplacementPattern):
             tf_v1.disable_eager_execution()
         except ImportError:
             import tensorflow as tf_v1
-        from mo.front.common.layout import convert_shape, nhwc_to_nchw_permute, nchw_to_nhwc_permute
-        from mo.front.tf.extractors.utils import tf_tensor_shape
-        from mo.front.tf.partial_infer.tf import add_node_def_to_subgraph, update_input_in_pbs
+        from openvino.tools.mo.front.common.layout import convert_shape, nhwc_to_nchw_permute, nchw_to_nhwc_permute
+        from openvino.tools.mo.front.tf.extractors.utils import tf_tensor_shape
+        from openvino.tools.mo.front.tf.partial_infer.tf import add_node_def_to_subgraph, update_input_in_pbs
 
         tf_v1.reset_default_graph()
 
@@ -274,7 +274,7 @@ class CustomSubgraphCall(MiddleReplacementPattern):
             tf_v1.disable_eager_execution()
         except ImportError:
             import tensorflow as tf_v1
-        from mo.front.tf.partial_infer.tf import get_subgraph_output_tensors, add_node_def_to_subgraph
+        from openvino.tools.mo.front.tf.partial_infer.tf import get_subgraph_output_tensors, add_node_def_to_subgraph
         _, output_tensors = get_subgraph_output_tensors(node)
 
         # transpose permutation constant

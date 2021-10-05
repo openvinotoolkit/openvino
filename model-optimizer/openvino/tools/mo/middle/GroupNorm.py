@@ -5,19 +5,19 @@ from typing import Dict
 
 import numpy as np
 
-from extensions.ops.Cast import Cast
-from extensions.ops.elementwise import Mul, Add
-from extensions.ops.mvn import MVN
-from extensions.ops.range import Range
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, Node
-from mo.middle.passes.convert_data_type import data_type_str_to_np
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
-from mo.ops.reshape import Reshape
-from mo.ops.shape import Shape
-from mo.utils.shape import node_to_get_spatial_dimensions_value, node_to_get_features_dimension_value, \
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.elementwise import Mul, Add
+from openvino.tools.mo.ops.mvn import MVN
+from openvino.tools.mo.ops.range import Range
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.shape import Shape
+from openvino.tools.mo.utils.shape import node_to_get_spatial_dimensions_value, node_to_get_features_dimension_value, \
     node_to_get_batch_value, new_shape_node_from_shape_nodes, get_shape_and_rank_nodes_by_port
 
 
@@ -30,7 +30,7 @@ class GroupNormToMVN(MiddleReplacementPattern):
     force_clean_up = True
 
     def run_after(self):
-        from extensions.middle.EltwiseChecker import EltwiseChecker
+        from openvino.tools.mo.middle.EltwiseChecker import EltwiseChecker
         # TODO the EltwiseChecker does not work correctly for eltwises with 1D inputs
         return [EltwiseChecker]
 

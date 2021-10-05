@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.TFResize import TFResize
-from mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.TFResize import TFResize
+from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
 class ResizeBilinearFrontExtractor(FrontExtractorOp):

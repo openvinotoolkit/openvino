@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.back.op_versioning import OpVersioning
-from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import Graph
+from openvino.tools.mo.back.op_versioning import OpVersioning
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
 
 
 class BlobNormalizer(BackReplacementPattern):
@@ -27,7 +27,7 @@ class BlobNormalizer(BackReplacementPattern):
         return []
 
     def run_after(self):
-        from extensions.back.pass_separator import BackFinish
+        from openvino.tools.mo.back.pass_separator import BackFinish
         return [BackFinish]
 
     @staticmethod

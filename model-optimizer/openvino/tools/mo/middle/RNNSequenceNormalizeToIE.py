@@ -3,17 +3,17 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, shape_delete
-from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.concat import Concat
-from mo.ops.const import Const
-from mo.ops.op import Op
-from mo.ops.reshape import Reshape
-from mo.ops.shape import Shape
-from mo.ops.unsqueeze import Unsqueeze
-from mo.utils.shape import node_to_get_shape_value_of_indices
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_delete
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.shape import Shape
+from openvino.tools.mo.ops.unsqueeze import Unsqueeze
+from openvino.tools.mo.utils.shape import node_to_get_shape_value_of_indices
 
 
 class RNNSequenceNormalize(MiddleReplacementPattern):
@@ -41,7 +41,7 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
     force_shape_inference = True
 
     def run_after(self):
-        from extensions.middle.DecomposeBidirectionalRNNSequence import DecomposeBidirectionalRNNSequence
+        from openvino.tools.mo.middle.DecomposeBidirectionalRNNSequence import DecomposeBidirectionalRNNSequence
         return [DecomposeBidirectionalRNNSequence]
 
     def pattern(self):

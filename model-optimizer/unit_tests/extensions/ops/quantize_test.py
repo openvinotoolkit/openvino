@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.ops.fakequantize import FakeQuantize, broadcastable
-from mo.graph.graph import Node
+from openvino.tools.mo.ops.fakequantize import FakeQuantize, broadcastable
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 

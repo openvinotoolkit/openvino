@@ -5,11 +5,11 @@ import math
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, dynamic_dimension_value
-from mo.front.extractor import bool_to_str
-from mo.graph.graph import Node, Graph
-from mo.graph.perm_inputs import PermuteInputs
-from mo.ops.op import Op, PermuteAttrs
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, dynamic_dimension_value
+from openvino.tools.mo.front.extractor import bool_to_str
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.graph.perm_inputs import PermuteInputs
+from openvino.tools.mo.ops.op import Op, PermuteAttrs
 
 
 def infer_for_opset4(node: Node):

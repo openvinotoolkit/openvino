@@ -3,11 +3,11 @@
 
 import logging as log
 
-from extensions.front.PowerToEltwises import PowerToEltwises
-from extensions.ops.prelu import PReLU
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph
-from mo.middle.pattern_match import check_node_usages_out_of_match
+from openvino.tools.mo.front.PowerToEltwises import PowerToEltwises
+from openvino.tools.mo.ops.prelu import PReLU
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.pattern_match import check_node_usages_out_of_match
 
 
 class PReLUPatternFuse(FrontReplacementSubgraph):

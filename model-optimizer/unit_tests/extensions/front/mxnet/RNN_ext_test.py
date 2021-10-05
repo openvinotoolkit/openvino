@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.front.mxnet.RNN_ext import RNNFrontExtractor
-from mo.utils.error import Error
+from openvino.tools.mo.front.mxnet.RNN_ext import RNNFrontExtractor
+from openvino.tools.mo.utils.error import Error
 from unit_tests.utils.extractors import PB
 
 

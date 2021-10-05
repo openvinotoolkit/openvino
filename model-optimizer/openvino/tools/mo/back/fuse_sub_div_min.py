@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from extensions.ops.elementwise import Sub, Div, Negative
-from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.elementwise import Sub, Div, Negative
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.graph.graph import Node, Graph
 
 
 class Negate(BackReplacementPattern):

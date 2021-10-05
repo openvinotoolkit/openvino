@@ -3,15 +3,15 @@
 
 import logging as log
 
-from mo.graph.graph import Graph
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class DeleteControlFlowEdges(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        from extensions.middle.PartialInfer import PartialInfer
+        from openvino.tools.mo.middle.PartialInfer import PartialInfer
         return [PartialInfer]
 
     def run_before(self):

@@ -3,7 +3,7 @@
 
 import unittest
 
-from extensions.front.tf.concat import Concat
+from openvino.tools.mo.front.tf.concat import Concat
 from unit_tests.utils.graph import build_graph_with_edge_attrs
 
 

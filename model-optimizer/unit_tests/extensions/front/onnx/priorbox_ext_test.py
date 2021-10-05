@@ -6,9 +6,9 @@ import unittest
 import numpy as np
 import onnx
 
-from extensions.front.onnx.priorbox_ext import PriorBoxFrontExtractor
-from extensions.ops.priorbox import PriorBoxOp
-from mo.ops.op import Op
+from openvino.tools.mo.front.onnx.priorbox_ext import PriorBoxFrontExtractor
+from openvino.tools.mo.ops.priorbox import PriorBoxOp
+from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import PB
 
 

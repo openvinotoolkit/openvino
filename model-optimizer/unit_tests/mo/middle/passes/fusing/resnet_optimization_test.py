@@ -5,12 +5,12 @@ import unittest
 
 import numpy as np
 
-from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.front.common.partial_infer.eltwise import eltwise_infer
-from mo.middle.passes.fusing.resnet_optimization import stride_optimization
-from mo.ops.convolution import Convolution
-from mo.ops.pooling import Pooling
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.common.partial_infer.elemental import copy_shape_infer
+from openvino.tools.mo.front.common.partial_infer.eltwise import eltwise_infer
+from openvino.tools.mo.middle.passes.fusing.resnet_optimization import stride_optimization
+from openvino.tools.mo.ops.convolution import Convolution
+from openvino.tools.mo.ops.pooling import Pooling
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 max_elt_lambda = lambda node: eltwise_infer(node, lambda a, b: np.maximum(a, b))

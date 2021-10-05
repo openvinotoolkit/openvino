@@ -3,13 +3,13 @@
 
 import numpy as np
 
-from extensions.ops.split import Split, VariadicSplit
-from mo.front.common.replacement import FrontReplacementOp
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph
-from mo.ops.squeeze import Squeeze
-from mo.utils.error import Error
+from openvino.tools.mo.ops.split import Split, VariadicSplit
+from openvino.tools.mo.front.common.replacement import FrontReplacementOp
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.squeeze import Squeeze
+from openvino.tools.mo.utils.error import Error
 
 
 class SqueezeAxis(FrontReplacementOp):

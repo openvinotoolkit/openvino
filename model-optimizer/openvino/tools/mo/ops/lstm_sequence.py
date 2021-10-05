@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import mark_input_bins, shape_array, shape_insert
-from mo.graph.graph import Node, add_opoutput, Graph
-from mo.ops.op import Op
+from openvino.tools.mo.front.common.partial_infer.utils import mark_input_bins, shape_array, shape_insert
+from openvino.tools.mo.graph.graph import Node, add_opoutput, Graph
+from openvino.tools.mo.ops.op import Op
 
 
 class LSTMSequence(Op):

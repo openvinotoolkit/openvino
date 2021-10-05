@@ -16,12 +16,12 @@ except ModuleNotFoundError:
     sys.path.insert(0, mo_root_path)
     execution_type = "install_prerequisites.{}".format("bat" if platform.system() == "Windows" else "sh")
 
-import mo.utils.version as v
+import openvino.tools.mo.utils.version as v
 try:
     import openvino_telemetry as tm  # pylint: disable=import-error,no-name-in-module
 except ImportError:
-    import mo.utils.telemetry_stub as tm
-from mo.utils.error import classify_error_type
+    import openvino.tools.mo.utils.telemetry_stub as tm
+from openvino.tools.mo.utils.error import classify_error_type
 
 
 def send_telemetry(mo_version: str, message: str, event_type: str):

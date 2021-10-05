@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.extractor import FrontExtractorOp
-from mo.ops.pad import TFPad
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.pad import TFPad
 
 
 class PadFrontExtractor(FrontExtractorOp):

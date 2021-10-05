@@ -4,10 +4,10 @@
 import logging as log
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension_value
-from mo.graph.graph import Node, Graph
-from mo.middle.passes.infer import partial_infer
-from mo.ops.op import Op
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension_value
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.middle.passes.infer import partial_infer
+from openvino.tools.mo.ops.op import Op
 
 
 class If(Op):
@@ -346,7 +346,7 @@ class If(Op):
 
     @staticmethod
     def type_infer(if_node: Node):
-        from mo.middle.passes.infer import type_infer
+        from openvino.tools.mo.middle.passes.infer import type_infer
         If.update_body_parameters_type(if_node, True)
         If.update_body_parameters_type(if_node, False)
         type_infer(if_node.then_graph)

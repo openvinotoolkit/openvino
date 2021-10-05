@@ -3,8 +3,8 @@
 
 import unittest
 
-from extensions.front.caffe.axpy import AxpyToSSandAdd
-from mo.graph.graph import Node
+from openvino.tools.mo.front.caffe.axpy import AxpyToSSandAdd
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph_with_edge_attrs
 
 

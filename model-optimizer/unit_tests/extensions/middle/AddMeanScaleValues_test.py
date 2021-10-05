@@ -6,11 +6,11 @@ from argparse import Namespace
 
 import numpy as np
 
-from extensions.middle.AddMeanScaleValues import AddMeanScaleValues
-from extensions.middle.ScaleInput import ScaleInput
-from mo.graph.graph import Graph, Node
-from mo.utils.cli_parser import get_mean_scale_dictionary, parse_tuple_pairs
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.middle.AddMeanScaleValues import AddMeanScaleValues
+from openvino.tools.mo.middle.ScaleInput import ScaleInput
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.utils.cli_parser import get_mean_scale_dictionary, parse_tuple_pairs
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, result, connect, connect_data, \
     valued_const_with_data
 

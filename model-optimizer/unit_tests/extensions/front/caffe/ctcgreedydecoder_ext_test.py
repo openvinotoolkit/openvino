@@ -4,9 +4,9 @@
 import unittest
 from unittest.mock import patch
 
-from extensions.front.caffe.ctcgreedydecoder_ext import CTCGreedyDecoderFrontExtractor
-from extensions.ops.ctc_greedy_decoder import CTCGreedyDecoderOp
-from mo.ops.op import Op
+from openvino.tools.mo.front.caffe.ctcgreedydecoder_ext import CTCGreedyDecoderFrontExtractor
+from openvino.tools.mo.ops.ctc_greedy_decoder import CTCGreedyDecoderOp
+from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import FakeNode
 
@@ -24,7 +24,7 @@ class TestCTCGreedyDecoderExt(unittest.TestCase):
     def test_ctcgreedydecoder_no_pb_no_ml(self):
         self.assertRaises(AttributeError, CTCGreedyDecoderFrontExtractor.extract, None)
 
-    @patch('extensions.front.caffe.ctcgreedydecoder_ext.merge_attrs')
+    @patch('openvino.tools.mo.front.caffe.ctcgreedydecoder_ext.merge_attrs')
     def test_ctcgreedydecoder_ext_ideal_numbers(self, merge_attrs_mock):
         params = {
             'ctc_merge_repeated': True

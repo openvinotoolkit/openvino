@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Graph
-from mo.ops.const import Const
-from mo.ops.strided_slice import StridedSlice
+from openvino.tools.mo.front.common.replacement import FrontReplacementOp
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.strided_slice import StridedSlice
 
 
 class MXSliceToStridedSliceReplacer(FrontReplacementOp):

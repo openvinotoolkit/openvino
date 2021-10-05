@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import numpy as np
 
-from mo.front.common.partial_infer.caffe_fallback import build_net
+from openvino.tools.mo.front.common.partial_infer.caffe_fallback import build_net
 from unit_tests.utils.extractors import FakeMultiParam, FakeValue
 from unit_tests.utils.graph import build_graph
 

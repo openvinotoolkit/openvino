@@ -6,11 +6,11 @@ import logging as log
 import os
 from re import compile, match
 
-from mo.graph.graph import Node, Graph
-from mo.utils.error import Error
-from mo.utils.graph import nodes_matching_name_pattern, sub_graph_between_nodes
-from mo.utils.json_schema import schema_dict
-from mo.utils.utils import get_mo_root_dir, refer_to_faq_msg
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.graph import nodes_matching_name_pattern, sub_graph_between_nodes
+from openvino.tools.mo.utils.json_schema import schema_dict
+from openvino.tools.mo.utils.utils import get_mo_root_dir, refer_to_faq_msg
 
 
 class CustomReplacementDescriptor(object):

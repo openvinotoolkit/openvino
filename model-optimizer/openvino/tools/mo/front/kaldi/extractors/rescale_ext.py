@@ -1,10 +1,10 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.caffe.extractors.utils import embed_input
-from mo.front.extractor import FrontExtractorOp
-from mo.front.kaldi.utils import read_binary_vector, read_learning_info
-from mo.ops.scale_shift import ScaleShiftOp
+from openvino.tools.mo.front.caffe.extractors.utils import embed_input
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.kaldi.utils import read_binary_vector, read_learning_info
+from openvino.tools.mo.ops.scale_shift import ScaleShiftOp
 
 
 class RescaleFrontExtractor(FrontExtractorOp):

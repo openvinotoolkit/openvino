@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import is_fully_defined, dynamic_dimension
-from mo.graph.perm_inputs import PermuteInputs
-from mo.ops.op import Op
+from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, dynamic_dimension
+from openvino.tools.mo.graph.perm_inputs import PermuteInputs
+from openvino.tools.mo.ops.op import Op
 
 
 class SpaceToBatch(Op):

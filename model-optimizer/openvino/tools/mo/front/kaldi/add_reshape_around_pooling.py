@@ -3,16 +3,16 @@
 
 import numpy as np
 
-from extensions.ops.Cast import Cast
-from extensions.ops.elementwise import Div
-from mo.front.common.partial_infer.utils import int64_array, float32_array
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
-from mo.graph.graph import Graph
-from mo.ops.concat import Concat
-from mo.ops.reshape import Reshape
-from mo.ops.shape import Shape
-from mo.utils.shape import node_to_get_shape_value_of_indices
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.elementwise import Div
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, float32_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.shape import Shape
+from openvino.tools.mo.utils.shape import node_to_get_shape_value_of_indices
 
 
 class ReplacePoolingReshape(FrontReplacementPattern):
@@ -29,7 +29,7 @@ class ReplacePoolingReshape(FrontReplacementPattern):
             Prev_Layer [N, H] -> Reshape -> Pooling [N, C=1, H, W=1] -> Reshape -> Next_Layer [N, H]
     """
     def run_before(self):
-        from extensions.front.kaldi.add_permute_after_convolution import ReplaceConvolutionTranspose
+        from openvino.tools.mo.front.kaldi.add_permute_after_convolution import ReplaceConvolutionTranspose
         return [ReplaceConvolutionTranspose]
 
     def pattern(self):

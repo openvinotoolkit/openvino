@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from extensions.ops.elementwise import Pow
-from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Node, Graph
-from mo.ops.const import Const
+from openvino.tools.mo.ops.elementwise import Pow
+from openvino.tools.mo.front.common.replacement import FrontReplacementOp
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.const import Const
 
 
 class ReciprocalReplacer(FrontReplacementOp):

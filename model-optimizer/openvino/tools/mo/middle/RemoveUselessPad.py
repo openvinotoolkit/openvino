@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from mo.graph.graph import Graph
-from mo.middle.passes.eliminate import remove_op_node_with_data_node
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.passes.eliminate import remove_op_node_with_data_node
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class RemoveUselessPad(MiddleReplacementPattern):

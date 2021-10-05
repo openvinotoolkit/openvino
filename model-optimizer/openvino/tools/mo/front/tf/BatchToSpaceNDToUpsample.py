@@ -5,10 +5,10 @@ import logging as log
 
 import numpy as np
 
-from extensions.ops.upsample import UpsampleOp
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph, Node
+from openvino.tools.mo.ops.upsample import UpsampleOp
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Graph, Node
 
 
 class BatchToSpaceToUpsample(FrontReplacementSubgraph):
@@ -18,7 +18,7 @@ class BatchToSpaceToUpsample(FrontReplacementSubgraph):
     enabled = True
 
     def run_before(self):
-        from extensions.front.tf.space_to_batch import BatchToSpaceNormalizer
+        from openvino.tools.mo.front.tf.space_to_batch import BatchToSpaceNormalizer
         return [BatchToSpaceNormalizer]
 
     @staticmethod

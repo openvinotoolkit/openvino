@@ -3,9 +3,9 @@
 
 import unittest
 
-from extensions.front.caffe.proposal_python_ext import ProposalPythonFrontExtractor
-from extensions.ops.proposal import ProposalOp
-from mo.ops.op import Op
+from openvino.tools.mo.front.caffe.proposal_python_ext import ProposalPythonFrontExtractor
+from openvino.tools.mo.ops.proposal import ProposalOp
+from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import FakeNode
 

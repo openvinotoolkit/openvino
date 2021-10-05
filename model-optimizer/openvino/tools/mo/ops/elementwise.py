@@ -5,12 +5,12 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.eltwise import eltwise_infer, bias_add_infer
-from mo.graph.graph import Graph, Node
-from mo.middle.passes.infer import copy_type_infer
-from mo.ops.op import Op
-from mo.pipeline.common import convert_const_node_value_type
-from mo.utils.error import Error
+from openvino.tools.mo.front.common.partial_infer.eltwise import eltwise_infer, bias_add_infer
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.passes.infer import copy_type_infer
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.pipeline.common import convert_const_node_value_type
+from openvino.tools.mo.utils.error import Error
 
 
 def override_data_type_of_constant(node: Node):

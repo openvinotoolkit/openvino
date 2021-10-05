@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from mo.graph.graph import Graph
-from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
-from mo.ops.op import Op, PermuteAttrs
-from mo.utils.error import Error
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
+from openvino.tools.mo.ops.op import Op, PermuteAttrs
+from openvino.tools.mo.utils.error import Error
 
 
 class TopK(Op):

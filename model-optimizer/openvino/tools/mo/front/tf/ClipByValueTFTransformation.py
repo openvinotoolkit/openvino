@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-from extensions.ops.elementwise import Minimum, Maximum
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.ops.elementwise import Minimum, Maximum
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
 
 
 class ClipByValueTFTransformation(FrontReplacementSubgraph):

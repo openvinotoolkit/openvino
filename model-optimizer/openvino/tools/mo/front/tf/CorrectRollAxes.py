@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.tf.graph_utils import add_constant_to_negative_values
-from mo.graph.graph import Graph
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.tf.graph_utils import add_constant_to_negative_values
+from openvino.tools.mo.graph.graph import Graph
 
 
 class CorrectRollAxes(FrontReplacementSubgraph):
@@ -18,7 +18,7 @@ class CorrectRollAxes(FrontReplacementSubgraph):
     enabled = True
 
     def run_after(self):
-        from extensions.front.tf.SSliceComplex import SSliceComplex
+        from openvino.tools.mo.front.tf.SSliceComplex import SSliceComplex
         return [SSliceComplex]
 
     def find_and_replace_pattern(self, graph: Graph):

@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from mo.middle.passes.convert_data_type import data_type_str_to_np, np_data_type_to_destination_type, \
+from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np, np_data_type_to_destination_type, \
     precision_to_destination_type
-from mo.ops.op import Op
+from openvino.tools.mo.ops.op import Op
 
 
 class Const(Op):

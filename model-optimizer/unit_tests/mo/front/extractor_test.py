@@ -6,14 +6,14 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from mo.front.common.partial_infer.utils import strict_compare_tensors
-from mo.front.extractor import input_user_data_repack, output_user_data_repack, update_ie_fields, add_input_op, \
+from openvino.tools.mo.front.common.partial_infer.utils import strict_compare_tensors
+from openvino.tools.mo.front.extractor import input_user_data_repack, output_user_data_repack, update_ie_fields, add_input_op, \
     get_node_id_with_ports
-from mo.front.extractor import spatial_attr_getter, add_input_ops, attr_getter, CaffePythonFrontExtractorOp, \
+from openvino.tools.mo.front.extractor import spatial_attr_getter, add_input_ops, attr_getter, CaffePythonFrontExtractorOp, \
     add_output_ops, bool_to_str
-from mo.graph.graph import Node
-from mo.utils.error import Error
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import build_graph, build_graph_with_edge_attrs, build_graph_with_attrs
 

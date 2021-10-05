@@ -3,10 +3,10 @@
 
 import math
 
-from mo.front.common.layout import get_batch_dim, get_features_dim, get_height_dim, get_width_dim, shape_for_layout
-from mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, dynamic_dimension_value
-from mo.graph.graph import Node, Graph
-from mo.ops.op import Op
+from openvino.tools.mo.front.common.layout import get_batch_dim, get_features_dim, get_height_dim, get_width_dim, shape_for_layout
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, dynamic_dimension_value
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.ops.op import Op
 
 
 class UpsampleOp(Op):

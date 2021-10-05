@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.utils.error import FrameworkError, Error
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.utils.error import FrameworkError, Error
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 try:
     import mxnet
@@ -10,14 +10,14 @@ except ImportError:
     raise Error('Module mxnet was not found. Please install appropriate version of mxnet via install_prerequisites '
                 'script.' + refer_to_faq_msg(52))
 
-from extensions.load.loader import Loader
-from mo.front.common.register_custom_ops import update_extractors_with_extensions
-from mo.front.extractor import extract_node_attrs
-from mo.front.mxnet.extractor import mxnet_op_extractors, mxnet_op_extractor
-from mo.front.mxnet.loader import symbol2nx, load_symbol_def
-from mo.front.mxnet.nd_to_params import save_params_file
-from mo.graph.graph import Graph
-from mo.utils.telemetry_utils import send_shapes_info, send_op_names_info
+from openvino.tools.mo.load.loader import Loader
+from openvino.tools.mo.front.common.register_custom_ops import update_extractors_with_extensions
+from openvino.tools.mo.front.extractor import extract_node_attrs
+from openvino.tools.mo.front.mxnet.extractor import mxnet_op_extractors, mxnet_op_extractor
+from openvino.tools.mo.front.mxnet.loader import symbol2nx, load_symbol_def
+from openvino.tools.mo.front.mxnet.nd_to_params import save_params_file
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.utils.telemetry_utils import send_shapes_info, send_op_names_info
 
 
 class MxNetLoader(Loader):

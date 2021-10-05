@@ -5,9 +5,9 @@ import logging as log
 
 import networkx as nx
 
-from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Graph
-from mo.utils.error import Error
+from openvino.tools.mo.front.common.replacement import FrontReplacementOp
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.utils.error import Error
 
 
 class NoOpElimination(FrontReplacementOp):

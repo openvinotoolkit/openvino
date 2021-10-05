@@ -3,11 +3,11 @@
 
 import numpy as np
 
-from extensions.ops.parameter import Parameter
-from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import Graph
-from mo.ops.crop import Crop
-from mo.utils.logger import log
+from openvino.tools.mo.ops.parameter import Parameter
+from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.crop import Crop
+from openvino.tools.mo.utils.logger import log
 
 
 class CutMemoryInput(BackReplacementPattern):

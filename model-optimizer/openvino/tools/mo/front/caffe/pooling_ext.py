@@ -3,10 +3,10 @@
 
 import numpy as np
 
-from mo.front.caffe.extractors.utils import get_spatial_attr
-from mo.front.common.extractors.utils import layout_attrs
-from mo.front.extractor import FrontExtractorOp
-from mo.ops.pooling import Pooling
+from openvino.tools.mo.front.caffe.extractors.utils import get_spatial_attr
+from openvino.tools.mo.front.common.extractors.utils import layout_attrs
+from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.pooling import Pooling
 
 
 class PoolingFrontExtractor(FrontExtractorOp):

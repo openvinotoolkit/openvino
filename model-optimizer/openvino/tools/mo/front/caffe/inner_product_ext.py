@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.MatMul import FullyConnected
-from mo.front.caffe.extractors.utils import weights_biases
-from mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.MatMul import FullyConnected
+from openvino.tools.mo.front.caffe.extractors.utils import weights_biases
+from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
 class InnerProductFrontExtractor(FrontExtractorOp):

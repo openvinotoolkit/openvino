@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.ops.argmax import arg_ops_infer
-from mo.graph.graph import Node
+from openvino.tools.mo.ops.argmax import arg_ops_infer
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {

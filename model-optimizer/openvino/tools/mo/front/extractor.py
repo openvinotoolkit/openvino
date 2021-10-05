@@ -9,14 +9,14 @@ from copy import copy
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array
-from mo.front.onnx.extractors.utils import get_backend_pad
-from mo.graph.graph import Node, Graph, add_opoutput
-from mo.middle.passes.eliminate import reverse_dfs
-from mo.utils import class_registration
-from mo.utils.error import Error
-from mo.utils.unsupported_ops import UnsupportedOps
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array
+from openvino.tools.mo.front.onnx.extractors.utils import get_backend_pad
+from openvino.tools.mo.graph.graph import Node, Graph, add_opoutput
+from openvino.tools.mo.middle.passes.eliminate import reverse_dfs
+from openvino.tools.mo.utils import class_registration
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.unsupported_ops import UnsupportedOps
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 def restore_edges(graph: Graph, get_edges: callable):
@@ -872,7 +872,7 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
     :return: id of new Input operation
     """
     # We import it here because Op imports add_attrs_props and update_ie_fields from this file
-    from extensions.ops.parameter import Parameter
+    from openvino.tools.mo.ops.parameter import Parameter
     if data_type is None:
         data_type = np.float32
     input_op = Parameter(graph, dict(shape=shape, data_type=data_type, initial_node_name=node_id,

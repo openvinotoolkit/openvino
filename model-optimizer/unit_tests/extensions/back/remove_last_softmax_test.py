@@ -3,9 +3,9 @@
 
 import unittest
 
-from extensions.back.remove_last_softmax_pattern import RemoveLastSoftMaxPattern, RemoveLastLogSoftMaxPattern
-from mo.front.common.partial_infer.utils import int64_array
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.back.remove_last_softmax_pattern import RemoveLastSoftMaxPattern, RemoveLastLogSoftMaxPattern
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 

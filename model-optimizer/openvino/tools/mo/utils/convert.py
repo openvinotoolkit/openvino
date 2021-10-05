@@ -13,7 +13,7 @@ except ImportError:
     import tensorflow as tf_v1
 
 sys.path.append(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
-from mo.front.tf.loader import load_tf_graph_def
+from openvino.tools.mo.front.tf.loader import load_tf_graph_def
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 

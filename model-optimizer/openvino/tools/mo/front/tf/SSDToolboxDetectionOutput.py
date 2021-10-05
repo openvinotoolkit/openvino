@@ -1,15 +1,15 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.DetectionOutput import DetectionOutput
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.subgraph_matcher import SubgraphMatch
-from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph
-from mo.graph.graph import Graph
-from mo.ops.const import Const
-from mo.ops.op import PermuteAttrs
-from mo.ops.reshape import Reshape
-from mo.ops.result import Result
+from openvino.tools.mo.ops.DetectionOutput import DetectionOutput
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
+from openvino.tools.mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.op import PermuteAttrs
+from openvino.tools.mo.ops.reshape import Reshape
+from openvino.tools.mo.ops.result import Result
 
 
 class SSDToolboxDetectionOutputReplacement(FrontReplacementFromConfigFileSubGraph):

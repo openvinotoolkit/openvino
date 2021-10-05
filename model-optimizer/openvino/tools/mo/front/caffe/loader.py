@@ -11,10 +11,10 @@ import numpy as np
 from google.protobuf import text_format
 from google.protobuf.internal import api_implementation
 
-from mo.front.extractor import add_outputs_identity
-from mo.graph.graph import Graph
-from mo.utils.error import Error, FrameworkError
-from mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.front.extractor import add_outputs_identity
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.utils.error import Error, FrameworkError
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 def import_caffe_pb2(caffe_parser_path: str):

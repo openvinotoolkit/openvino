@@ -3,11 +3,11 @@
 
 import numpy as np
 
-from extensions.ops.interpolate import Interpolate
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.ops.interpolate import Interpolate
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
+from openvino.tools.mo.graph.graph import Graph, rename_nodes
 
 
 def correct_pad(pad):
@@ -21,7 +21,7 @@ class InterpolateV1ToInterpolate(FrontReplacementPattern):
     enabled = True
 
     def run_after(self):
-        from extensions.front.InterpolateNormalizer import InterpolateNormalizer
+        from openvino.tools.mo.front.InterpolateNormalizer import InterpolateNormalizer
         return [InterpolateNormalizer]
 
     def find_and_replace_pattern(self, graph: Graph):

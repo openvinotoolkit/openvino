@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 import logging as log
 
-from mo.front.common.partial_infer.utils import is_fully_defined, unmask_shape, shape_array, dynamic_dimension_value
-from mo.graph.graph import Graph
-from mo.middle.passes.infer import partial_infer
-from mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, unmask_shape, shape_array, dynamic_dimension_value
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.passes.infer import partial_infer
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 
 class PartialInfer(MiddleReplacementPattern):
@@ -13,7 +13,7 @@ class PartialInfer(MiddleReplacementPattern):
     run_not_recursively = True
 
     def run_after(self):
-        from extensions.front.create_tensor_nodes import CreateTensorNodes
+        from openvino.tools.mo.front.create_tensor_nodes import CreateTensorNodes
         return [CreateTensorNodes]
 
     def run_before(self):

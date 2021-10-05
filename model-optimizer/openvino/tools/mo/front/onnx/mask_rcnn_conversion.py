@@ -3,17 +3,17 @@
 
 import numpy as np
 
-from extensions.front.onnx.softmaxONNX_to_softmax import SoftmaxONNXFrontReplacer
-from extensions.ops.Cast import Cast
-from extensions.ops.detectionoutput_onnx import ExperimentalDetectronDetectionOutput
-from extensions.ops.parameter import Parameter
-from extensions.ops.roifeatureextractor_onnx import ExperimentalDetectronROIFeatureExtractor
-from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.front.tf.replacement import FrontReplacementFromConfigFileGeneral
-from mo.graph.graph import Graph
-from mo.graph.graph import Node
-from mo.ops.reshape import Reshape
+from openvino.tools.mo.front.onnx.softmaxONNX_to_softmax import SoftmaxONNXFrontReplacer
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.detectionoutput_onnx import ExperimentalDetectronDetectionOutput
+from openvino.tools.mo.ops.parameter import Parameter
+from openvino.tools.mo.ops.roifeatureextractor_onnx import ExperimentalDetectronROIFeatureExtractor
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
+from openvino.tools.mo.front.tf.replacement import FrontReplacementFromConfigFileGeneral
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.reshape import Reshape
 
 
 class ONNXMaskRCNNTransformation(FrontReplacementFromConfigFileGeneral):

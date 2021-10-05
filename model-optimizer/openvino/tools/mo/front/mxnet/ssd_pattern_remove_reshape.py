@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.mxnet.extractors.utils import get_json_layer_attrs
-from mo.graph.graph import Graph
+from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.mxnet.extractors.utils import get_json_layer_attrs
+from openvino.tools.mo.graph.graph import Graph
 
 
 class SsdPatternRemoveReshape(FrontReplacementSubgraph):

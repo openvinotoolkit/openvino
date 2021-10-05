@@ -3,9 +3,9 @@
 
 import logging as log
 
-from mo.front.common.partial_infer.utils import is_fully_defined, compatible_dims
-from mo.graph.graph import Node
-from mo.utils.error import Error
+from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, compatible_dims
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.utils.error import Error
 
 
 def multi_box_detection_infer(node: Node):
