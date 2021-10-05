@@ -39,6 +39,7 @@ void ConvertPadToConvTests::SetUp() {
                                                          ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{}, {value}), mode);
         auto relu = std::make_shared<ngraph::opset4::Relu>(pad);
         function = std::make_shared<ngraph::Function>(ngraph::OutputVector{relu}, ngraph::ParameterVector{param}, "pad");
+        functionRefs = ngraph::clone_function(*function);
     }
 }
 } // namespace SubgraphTestsDefinitions

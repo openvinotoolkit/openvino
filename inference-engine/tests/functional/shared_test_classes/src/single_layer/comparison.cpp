@@ -75,5 +75,6 @@ void ComparisonLayerTest::SetUp() {
 
     auto comparisonNode = ngraph::builder::makeComparison(inputs[0], secondInput, comparisonOpType);
     function = std::make_shared<ngraph::Function>(comparisonNode, inputs, "Comparison");
+    functionRefs = ngraph::clone_function(*function);
 }
 } // namespace LayerTestsDefinitions

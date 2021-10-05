@@ -112,7 +112,7 @@ public:
     ov::Output<const ov::Node> input(size_t i) const;
     ov::Output<const ov::Node> input(const std::string& tensor_name) const;
 
-    void reshape(const std::map<std::string, ngraph::PartialShape>& partial_shapes);
+    void reshape(const std::map<std::string, ov::PartialShape>& partial_shapes);
 
     /// Return the element type of output i
     const ngraph::element::Type& get_output_element_type(size_t i) const;

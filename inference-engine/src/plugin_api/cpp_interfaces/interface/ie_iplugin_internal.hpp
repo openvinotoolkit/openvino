@@ -21,6 +21,7 @@
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
 #include "openvino/pp.hpp"
+#include "so_ptr.hpp"
 
 namespace ov {
 class Function;
@@ -322,6 +323,8 @@ protected:
 };
 
 #define IE_CREATE_PLUGIN CreatePluginEngine
+
+constexpr static const auto create_plugin_function = OV_PP_TOSTRING(IE_CREATE_PLUGIN);
 
 namespace details {
 template <>

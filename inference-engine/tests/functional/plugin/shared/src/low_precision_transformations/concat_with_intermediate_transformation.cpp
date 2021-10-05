@@ -72,6 +72,7 @@ void ConcatWithIntermediateTransformation::SetUp() {
         transparentIntermediate,
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 2.f} });
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(ConcatWithIntermediateTransformation, CompareWithRefImpl) {
