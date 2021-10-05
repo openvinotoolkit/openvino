@@ -18,6 +18,7 @@ set(IE_SHARED_SRCS
     "${IE_SRC_ROOT}/system_allocator.cpp"
     "${IE_SRC_ROOT}/blob_factory.cpp"
     "${IE_SRC_ROOT}/ie_blob_common.cpp"
+    "${IE_SRC_ROOT}/system_allocator.cpp"
     "${IE_SRC_ROOT}/ie_layouts.cpp")
 set(MIXED_SRC ${IE_SHARED_SRCS}
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
@@ -85,9 +86,15 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set_target_properties(ngraph PROPERTIES LINK_FLAGS "/IGNORE:4217,4286")
 endif()
 
+# some sources are located in ngraph, while headers are in inference_engine_transformations
+file(GLOB_RECURSE smart_reshape_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/smart_reshape/*.cpp)
+file(GLOB_RECURSE rt_info_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/rt_info/*.cpp)
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precision.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_fp32_to_fp16.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/init_node_info.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/function.cpp" # for SmartReshape
+                            ${smart_reshape_srcs} ${rt_info_srcs}
         PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Defines macro in C++ to load backend plugin

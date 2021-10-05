@@ -131,6 +131,7 @@ protected:
         auto relu2 = std::make_shared<ngraph::opset1::Relu>(conv);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(relu2)};
         function = std::make_shared<ngraph::Function>(results, params, "ExportImportNetwork");
+        functionRefs = ngraph::clone_function(*function);
     }
 
 private:
