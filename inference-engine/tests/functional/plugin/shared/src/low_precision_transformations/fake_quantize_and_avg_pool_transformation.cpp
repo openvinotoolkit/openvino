@@ -41,6 +41,7 @@ void FakeQuantizeAndAvgPoolTransformation::SetUp() {
         fakeQuantize);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(FakeQuantizeAndAvgPoolTransformation, CompareWithRefImpl) {
