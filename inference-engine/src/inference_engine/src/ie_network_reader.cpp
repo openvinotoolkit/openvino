@@ -12,6 +12,8 @@
 #include <ngraph/function.hpp>
 #include <ngraph/type/element_type.hpp>
 #include <ngraph/variant.hpp>
+#include <openvino/core/except.hpp>
+#include <openvino/core/preprocess/input_network_info.hpp>
 #include <openvino/core/preprocess/input_tensor_info.hpp>
 #include <openvino/core/preprocess/pre_post_process.hpp>
 
@@ -27,6 +29,7 @@
 #include "ie_ir_version.hpp"
 #include "ie_itt.hpp"
 #include "ie_reader.hpp"
+#include "transformations/rt_info/old_api_map_attribute.hpp"
 
 namespace InferenceEngine {
 
@@ -259,41 +262,97 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
 
     // only for IR cases we need preprocessing or postprocessing steps
     if (is_ir) {
+        using namespace ov::preprocess;
+        PrePostProcessor prepost;
+
         const int64_t ir_version = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second)->get();
 
         if (ir_version == 10 && newAPI) {
-            using namespace ov::preprocess;
-            PrePostProcessor prepost;
-
-            const auto& parameters = function->get_parameters();
-            for (size_t i = 0; i < parameters.size(); ++i) {
-                const auto ngraph_type = parameters[i]->get_element_type();
+            const auto inputs = function->inputs();
+            for (size_t i = 0; i < inputs.size(); ++i) {
+                const auto ngraph_type = inputs[i].get_element_type();
                 const auto legacy_type = details::toLegacyType(ngraph_type, true);
-                prepost.input(ov::preprocess::InputInfo(i)
-                                  .tensor(InputTensorInfo().set_element_type(legacy_type))
-                                  .preprocess(
-                                      // TODO: remove explicit type
-                                      PreProcessSteps().convert_element_type(ngraph_type)));
+                prepost.input(ov::preprocess::InputInfo(i).
+                                  tensor(InputTensorInfo()
+                                            .set_element_type(legacy_type)).
+                                  preprocess(PreProcessSteps()
+                                            // TODO: remove explicit type
+                                            .convert_element_type(ngraph_type))
+                              );
             }
 
-            const auto& results = function->get_results();
-            for (size_t i = 0; i < results.size(); ++i) {
-                const auto ngraph_type = results[i]->get_element_type();
+            const auto outputs = function->outputs();
+            for (size_t i = 0; i < outputs.size(); ++i) {
+                const auto ngraph_type = outputs[i].get_element_type();
                 const auto legacy_type = details::toLegacyType(ngraph_type, false);
                 (void)legacy_type;
                 // TODO: implement post-processing
-                // prepost.input(
-                //     ov::preprocess::InputInfo(i).
+                // prepost.output(
+                //     OutputInfo(i).
+                //         postprocess(
+                //             PreProcessSteps()
+                //                  .convert_element_type()).
                 //         tensor(
-                //             InputTensorInfo().set_element_type(ngraph::element::f32)).
-                //         preprocess(
-                //             PreProcessSteps().convert_element_type()
-                //         ));
+                //             OutputTensorInfo()
+                //                  .set_element_type(legacy_type))
+                //         );
             }
 
             function = prepost.build(function);
         } else if (ir_version == 11 && !newAPI) {
-            // TODO: apply old_api_map
+            const std::string & old_api_map_key = ov::OldApiMap::get_type_info_static();
+
+            const auto& inputs = function->inputs();
+            for (size_t i = 0; i < inputs.size(); ++i) {
+                const ov::RTMap & rtInfo = inputs[i].get_rt_info();
+                const auto it = rtInfo.find(old_api_map_key);
+                if (it == rtInfo.end())
+                    continue;
+
+                const auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(it->second);
+                OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMap");
+                const auto old_api_map_attr_val = old_api_map_attr->get();
+                const auto old_api_type = old_api_map_attr_val.get_type();
+                const auto old_api_layout = old_api_map_attr_val.get_order();
+
+                OPENVINO_ASSERT(!old_api_type.is_dynamic(), "Old API map does not support dynamic type");
+
+                prepost.input(ov::preprocess::InputInfo(i).
+                                  tensor(InputTensorInfo()
+                                            .set_element_type(old_api_type)).
+                                  preprocess(PreProcessSteps()
+                                            // TODO: remove explicit type
+                                            .convert_element_type(inputs[i].get_element_type())
+                                            .convert_layout()).
+                                  network(InputNetworkInfo()
+                                            .set_layout(""))
+                             );
+            }
+
+            const auto& results = function->get_results();
+            for (size_t i = 0; i < results.size(); ++i) {
+                const auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(it->second);
+                OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMap");
+                const auto old_api_map_attr_val = old_api_map_attr->get();
+                const auto old_api_type = old_api_map_attr_val.get_type();
+                const auto old_api_layout = old_api_map_attr_val.get_order();
+
+                OPENVINO_ASSERT(!old_api_type.is_dynamic(), "Old API map does not support dynamic type");
+
+                (void)old_api_layout;
+                // TODO: implement post-processing
+                // prepost.output(OutputInfo(i).
+                //         tensor(
+                //             OutputTensorInfo()
+                //                    .set_element_type(old_api_type)).
+                //         preprocess(
+                //             PreProcessSteps()
+                //                    .convert_element_type()
+                //                    .convert_layout()
+                //         ));
+            }
+
+            function = prepost.build(function);
         }
     }
 
