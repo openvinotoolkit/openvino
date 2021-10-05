@@ -12,20 +12,45 @@
 #include "op_table.hpp"
 #include "tf_framework_node.hpp"
 
-using namespace google;
-
-using namespace ngraph::frontend;
-using namespace ngraph::frontend::tf;
+using namespace ::ngraph::frontend;
+using namespace ::ngraph::frontend::tf;
 using namespace ::tensorflow::ngraph_bridge;
 
-using ::tensorflow::GraphDef;
-
 namespace {
-void TranslateGraph(const std::shared_ptr<ngraph::frontend::InputModelTF>& model,
-                    const std::string model_name,
-                    bool fail_fast,
-                    bool no_conversion,
-                    std::shared_ptr<ngraph::Function>& ng_function) {
+void TranslateFWNode(const std::shared_ptr<TFFrameworkNode>& node) {
+    auto type = node->get_op_type();
+
+    const auto TRANSLATE_OP_MAP = get_supported_ops();
+    auto translator_it = TRANSLATE_OP_MAP.find(type);
+    FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
+
+    ngraph::OutputVector ng_inputs;
+    NamedInputs named_inputs;
+    size_t input_port_idx = 0;
+    for (const auto& input : node->inputs()) {
+        ng_inputs.push_back(input.get_source_output());
+        named_inputs[input_port_idx++] = {input.get_source_output()};
+    }
+
+    NodeContext node_ctx(*node->get_decoder(), named_inputs);
+    auto new_node_outputs = translator_it->second(node_ctx);
+    SetTracingInfo(node_ctx.get_name(), new_node_outputs.front());
+
+    auto new_output = new_node_outputs.begin();
+    auto old_outputs = node->outputs();
+    auto old_output = old_outputs.begin();
+
+    for (; new_output != new_node_outputs.end() && old_output != old_outputs.end(); ++old_output, ++new_output) {
+        old_output->replace(*new_output);
+    }
+}
+}  // namespace
+
+void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
+                                 const std::string& model_name,
+                                 bool fail_fast,
+                                 bool no_conversion,
+                                 std::shared_ptr<ngraph::Function>& ng_function) {
     using OpMap = std::unordered_map<std::string, std::vector<ngraph::Output<ngraph::Node>>>;
     // a map from operation names to generated nGraph Output<TFNodeDecoder>
     OpMap ng_op_map;
@@ -253,39 +278,10 @@ void TranslateGraph(const std::shared_ptr<ngraph::frontend::InputModelTF>& model
     NGRAPH_VLOG(5) << "Done with translations";
 }
 
-void TranslateFWNode(const std::shared_ptr<TFFrameworkNode>& node) {
-    auto type = node->get_op_type();
-
-    const auto TRANSLATE_OP_MAP = get_supported_ops();
-    auto translator_it = TRANSLATE_OP_MAP.find(type);
-    FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
-
-    ngraph::OutputVector ng_inputs;
-    NamedInputs named_inputs;
-    size_t input_port_idx = 0;
-    for (auto& input : node->inputs()) {
-        ng_inputs.push_back(input.get_source_output());
-        named_inputs[input_port_idx++] = {input.get_source_output()};
-    }
-
-    NodeContext node_ctx(*node->get_decoder(), named_inputs);
-    auto new_node_outputs = translator_it->second(node_ctx);
-    SetTracingInfo(node_ctx.get_name(), new_node_outputs.front());
-
-    auto new_output = new_node_outputs.begin();
-    auto old_outputs = node->outputs();
-    auto old_output = old_outputs.begin();
-
-    for (; new_output != new_node_outputs.end() && old_output != old_outputs.end(); ++old_output, ++new_output) {
-        old_output->replace(*new_output);
-    }
-}
-}  // namespace
-
 /// \brief Check if FrontEndTensorflow can recognize model from given parts
 bool FrontEndTF::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
-    // TODO: Support TensorFlow 2 SavedModel format
-    if (variants.empty() || variants.size() > 2)
+    // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
+    if (variants.size() != 1)
         return false;
 
     // Validating first path, it must contain a model
@@ -300,13 +296,16 @@ bool FrontEndTF::supported_impl(const std::vector<std::shared_ptr<Variant>>& var
 }
 
 InputModel::Ptr FrontEndTF::load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
-    // TODO: convert any format variant to GraphIterator and pass it to the single constuctor
-    // InputModelTF with GraphIterator
+    // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
     if (variants.size() == 1) {
-        // a case when protobuf format or SavedModel dir format is provided
+        // a case when binary protobuf format is provided
         if (ov::is_type<VariantWrapper<std::string>>(variants[0])) {
-            std::string m_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
-            return std::make_shared<InputModelTF>(m_path);
+            std::string suffix = ".pb";
+            std::string model_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
+            if (ov::util::ends_with(model_path, suffix.c_str())) {
+                return std::make_shared<InputModelTF>(
+                    std::make_shared<::ngraph::frontend::tf::GraphIteratorProto>(model_path));
+            }
         }
     }
     return nullptr;
@@ -317,7 +316,7 @@ std::shared_ptr<ngraph::Function> FrontEndTF::convert(InputModel::Ptr model) con
     std::cout << "[ INFO ] FrontEndTensorflow::convert invoked\n";
 
     std::shared_ptr<ngraph::Function> f;
-    TranslateGraph(model_tf, "here_should_be_a_graph_name", true, false, f);
+    translate_graph(model_tf, "here_should_be_a_graph_name", true, false, f);
     std::cout << "[ STATUS ] TranslateGraph was called successfuly.\n";
     std::cout << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
 
@@ -333,7 +332,7 @@ std::shared_ptr<ngraph::Function> FrontEndTF::convert_partially(InputModel::Ptr 
     std::cout << "[ INFO ] FrontEndTensorflow::convert_partially invoked\n";
 
     std::shared_ptr<ngraph::Function> f;
-    TranslateGraph(model_tf, "here_should_be_a_graph_name", false, false, f);
+    translate_graph(model_tf, "here_should_be_a_graph_name", false, false, f);
     std::cout << "[ STATUS ] TranslateGraph was called successfuly.\n";
     std::cout << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
 
@@ -346,7 +345,7 @@ std::shared_ptr<ngraph::Function> FrontEndTF::decode(InputModel::Ptr model) cons
     std::cout << "[ INFO ] FrontEndTensorflow::decode invoked\n";
 
     std::shared_ptr<ngraph::Function> f;
-    TranslateGraph(model_tf, "here_should_be_a_graph_name", false, true, f);
+    translate_graph(model_tf, "here_should_be_a_graph_name", false, true, f);
     std::cout << "[ STATUS ] TranslateGraphFWNode was called successfuly.\n";
     std::cout << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
     return f;

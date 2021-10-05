@@ -417,7 +417,7 @@ static Status GetStaticInputNode(
 // should be (e.g. when T is `bool`, we actually need a std::vector of `char` for
 // compatibility with nGraph).
         template <typename T, typename VecT = T>
-        static Status ValuesFromConstNode(const DecoderBase* node,
+        static Status ValuesFromConstNode(const ::ngraph::frontend::DecoderBase* node,
                                           ngraph::Shape* const_tensor_shape,
                                           std::vector<VecT>* values) {
 #if 1
