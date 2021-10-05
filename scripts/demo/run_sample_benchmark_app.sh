@@ -66,7 +66,8 @@ model_name="squeezenet1.1"
 
 target_image_path="$ROOT_DIR/car.png"
 
-run_again="Then run the script again\n\n"
+run_again="Then run the script again.\n\n"
+omz_tool_error_message="It is required to download and convert a model. Check https://pypi.org/project/openvino-dev/ to install it. ${run_again}"
 
 if [ -e "$ROOT_DIR/../../setupvars.sh" ]; then
     setupvars_path="$ROOT_DIR/../../setupvars.sh"
@@ -110,9 +111,19 @@ if ! command -v $python_binary &>/dev/null; then
     exit 1
 fi
 
-if ! command -v omz_downloader &>/dev/null; then
-    echo -ne "\n\nOpen Model Zoo Tools are not installed. It is required to download and convert a model. Check https://pypi.org/project/openvino-dev/ to install it. ${run_again}"
+if ! command -v omz_info_dumper &>/dev/null; then
+    echo -ne "\n\nomz_info_dumper was not found. ${omz_tool_error_message}"
     exit 2
+fi
+
+if ! command -v omz_downloader &>/dev/null; then
+    echo -ne "\n\nomz_downloader was not found. ${omz_tool_error_message}"
+    exit 3
+fi
+
+if ! command -v omz_converter &>/dev/null; then
+    echo -ne "\n\nomz_converter was not found. ${omz_tool_error_message}"
+    exit 4
 fi
 
 # Step 1. Download the Caffe model and the prototxt of the model

@@ -51,6 +51,8 @@ set model_name=squeezenet1.1
 
 set target_image_path=%ROOT_DIR%car.png
 
+set omz_tool_error_message=It is required to download and convert a model. Check https://pypi.org/project/openvino-dev/ to install it. Then run the script again.
+
 if exist "%ROOT_DIR%..\..\setupvars.bat" (
     call "%ROOT_DIR%..\..\setupvars.bat"
 ) else (
@@ -89,10 +91,21 @@ if not "%python_ver%"=="okay" (
     goto error
 )
 
-:: Check if OMZ tools are installed
+omz_info_dumper --print_all >NUL
+if errorlevel 1 (
+    echo Error: omz_info_dumper was not found. %omz_tool_error_message%
+    goto error
+)
+
 omz_downloader --print_all >NUL
 if errorlevel 1 (
-    echo Error^: Open Model Zoo Tools are not installed. They is required to download and convert a model. Check https://pypi.org/project/openvino-dev/ to install it.
+    echo Error: omz_downloader was not found. %omz_tool_error_message%
+    goto error
+)
+
+omz_converter --print_all >NUL
+if errorlevel 1 (
+    echo Error: omz_converter was not found. %omz_tool_error_message%
     goto error
 )
 
