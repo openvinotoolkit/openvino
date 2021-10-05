@@ -24,7 +24,7 @@ TEST(attributes, convolution) {
     auto pads_begin = CoordinateDiff{1, 2};
     auto pads_end = CoordinateDiff{1, 2};
     auto dilations = Strides{1, 1};
-    auto f_convolution = make_shared<opset1::Convolution>(data,
+    auto f_convolution = make_shared<opset1::ConvolutionBackpropData>(data,
                                                           filters,
                                                           strides,
                                                           pads_begin,
