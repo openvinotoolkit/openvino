@@ -334,7 +334,7 @@ const std::vector<convReluSpecificParamsAll> poolingStrideNotEqualWindowAll = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvolutionPoolingStrideNotEqualWindowTest, ConvolutionReluSequenceTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionPoolingStrideNotEqualWindowTest, ConvolutionReluSequenceTest,
     ::testing::Combine(
         ::testing::ValuesIn(poolingStrideNotEqualWindowAll),
         ::testing::ValuesIn(netPrecisions),

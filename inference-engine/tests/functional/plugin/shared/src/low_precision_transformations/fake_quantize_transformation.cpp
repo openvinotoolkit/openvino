@@ -45,6 +45,7 @@ void FakeQuantizeTransformation::SetUp() {
         true);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void FakeQuantizeTransformation::Run() {

@@ -41,5 +41,6 @@ namespace SubgraphTestsDefinitions {
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(eltwise2),
                                      std::make_shared<ngraph::opset1::Result>(eltwise3)};
         function = std::make_shared<ngraph::Function>(results, input, "eltwise_reshape_eltwise_multioutput");
+        functionRefs = ngraph::clone_function(*function);
     }
 } // namespace SubgraphTestsDefinitions
