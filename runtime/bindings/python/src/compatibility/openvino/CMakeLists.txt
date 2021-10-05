@@ -31,6 +31,14 @@ else()
     message(STATUS "Found Cython version ${CYTHON_VERSION}")
 endif()
 
+if(PYTHONLIBS_VERSION_STRING MATCHES "^([0-9]+)\.([0-9]+).*")
+    set(PYTHON_VERSION_MAJOR ${CMAKE_MATCH_1})
+    set(PYTHON_VERSION_MINOR ${CMAKE_MATCH_2})
+    set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+else()
+    message(FATAL_ERROR "Failed to extract python major.minor from ${PYTHONLIBS_VERSION_STRING}")
+endif()
+
 if(ENABLE_CONDA_FOLDER)
     set(PYTHON_COMPONENT conda_${PYTHON_VERSION})
     if(WIN32)
@@ -81,3 +89,14 @@ install(FILES requirements.txt
 install(PROGRAMS src/openvino/__init__.py
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino
         COMPONENT ${PYTHON_COMPONENT})
+
+# install Python samples
+
+ie_cpack_add_component(python_samples)
+
+install(DIRECTORY sample/
+        DESTINATION samples/python
+        USE_SOURCE_PERMISSIONS
+        COMPONENT python_samples)
+
+ie_cpack(${PYTHON_COMPONENT} python_samples)

@@ -9,6 +9,7 @@
 
 #include "cldnn/primitives/arg_max_min.hpp"
 #include "cldnn/primitives/mutable_data.hpp"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 namespace CLDNNPlugin {
 
@@ -71,11 +72,16 @@ void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>& op) {
                                                     DefaultFormatForDims(op->get_output_shape(1).size()),
                                                     CldnnTensorFromIEDims(op->get_output_shape(1)));
 
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
+        }
         auto shared_memory = p.GetEngine().allocate_memory(mutableLayout);
 
         cldnn::primitive_id argmax_mutable_id_w = layer_type_name_ID(op) + "_md_write";
-        auto argmax_mutable_prim = cldnn::mutable_data(argmax_mutable_id_w, shared_memory);
-        p.primitivesToIRLayersMap[argmax_mutable_id_w] = {op->get_friendly_name()};
+        auto argmax_mutable_prim = cldnn::mutable_data(argmax_mutable_id_w,
+                                                       shared_memory,
+                                                       op->get_friendly_name());
         p.primitiveIDs[argmax_mutable_id_w] = argmax_mutable_id_w;
         p.AddPrimitive(argmax_mutable_prim);
         inputPrimitives.push_back(argmax_mutable_id_w);
@@ -88,14 +94,17 @@ void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>& op) {
                                              chosen_axis,
                                              stype,
                                              true,
+                                             op->get_friendly_name(),
                                              cldnn::padding({0, 0, 0, 0}, 0),
                                              DataTypeFromPrecision(op->get_output_element_type(0)));
 
         p.AddPrimitive(argmaxPrim);
 
         cldnn::primitive_id argmax_mutable_id_r = layerName + ".1";
-        auto argmax_mutable_prim_r = cldnn::mutable_data(argmax_mutable_id_r, {ArgMaxLayerName}, shared_memory);
-        p.primitivesToIRLayersMap[argmax_mutable_id_r] = {op->get_friendly_name()};
+        auto argmax_mutable_prim_r = cldnn::mutable_data(argmax_mutable_id_r,
+                                                         { ArgMaxLayerName },
+                                                         shared_memory,
+                                                         op->get_friendly_name());
         p.primitiveIDs[argmax_mutable_id_r] = argmax_mutable_id_r;
         p.AddPrimitive(argmax_mutable_prim_r);
         p.InitProfileInfo(ArgMaxLayerName, layer_type_lower(op));
@@ -108,6 +117,7 @@ void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>& op) {
                                              chosen_axis,
                                              stype,
                                              true,
+                                             op->get_friendly_name(),
                                              cldnn::padding({0, 0, 0, 0}, 0),
                                              DataTypeFromPrecision(op->get_output_element_type(0)));
 

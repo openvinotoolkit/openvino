@@ -6,6 +6,8 @@ cmake_minimum_required (VERSION 3.13)
 
 project(OpenVINOPython DESCRIPTION "OpenVINO Runtime Python bindings")
 
+add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
+
 set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 set(PYTHON_BRIDGE_CPACK_PATH "python")
 
@@ -15,8 +17,7 @@ else()
     message(FATAL_ERROR "Failed to extract python major.minor from ${PYTHONLIBS_VERSION_STRING}")
 endif()
 
-add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
-add_subdirectory(src/compatibility)
+add_subdirectory(src)
 
 if(ENABLE_WHEEL)
     add_subdirectory(wheel)

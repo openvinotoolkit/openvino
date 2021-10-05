@@ -1441,6 +1441,7 @@ onnx_controlflow_loop_2d_const_no_identity_termination_cond
 onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs
 onnx_controlflow_loop_no_variadic_inputs_and_outputs
 onnx_controlflow_loop_power
+onnx_if_dynamic_inputs
 
 # Input body shape is changed during Loop iterations
 # Exception is throw during Loop shape inference
@@ -1493,8 +1494,6 @@ IE_GPU.onnx_model_gather_elements_float_3D_axis_2
 # not supported fp16 blob input
 IE_CPU.evaluate_ctc_greedy_decoder_seq_len_f16
 
-# incorrect result for Minimum if u16 type is used
-minimum_u16
 IE_CPU/ElemTypesTests/1.onnx_test_add_abc_set_precission
 
 # not yet implemented on CPU/GPU Gather 7
@@ -1573,3 +1572,6 @@ IE_GPU.deformable_convolution_opset8_2D_integral_offsets_groups_and_deforgroups
 
 # Not yet implemented - refer PR#6601
 IE_CPU.onnx_model_gather_float_2D_neg_indices
+
+# CPU plug-in doesn't support operation with dynamic rank
+onnx_model_skip_layer_normalization_dynamic_shapes

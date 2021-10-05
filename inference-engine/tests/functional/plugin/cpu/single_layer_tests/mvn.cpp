@@ -71,6 +71,7 @@ protected:
 
         threshold = 0.015f;
         function = makeNgraphFunction(netPrc, param, mvn, "mvn");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

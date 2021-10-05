@@ -169,13 +169,22 @@ void GNADeviceHelper::releaseModel(const uint32_t model_id) {
 }
 
 bool GNADeviceHelper::enforceLegacyCnnNeeded() const {
-    const auto compileTargetDevice = getTargetDevice(false);
-    return isGnaLibVersion2_1 && isUpTo20HwGnaDevice(compileTargetDevice);
+    const auto execTargetDevice = getTargetDevice(true);
+    return (isGnaLibVersion3_0 || isGnaLibVersion2_1) && isUpTo20HwGnaDevice(execTargetDevice);
 }
 
-namespace {
-    const volatile auto Gna2DeviceVersion3_0 = static_cast<Gna2DeviceVersion>(0x30);
-} // namespace
+Gna2DeviceVersion GNADeviceHelper::parseTarget(const std::string& target) {
+    const std::map<std::string, Gna2DeviceVersion> targetMap {
+        {InferenceEngine::GNAConfigParams::GNA_TARGET_2_0, Gna2DeviceVersion2_0},
+        {InferenceEngine::GNAConfigParams::GNA_TARGET_3_0, Gna2DeviceVersion3_0},
+        {"", Gna2DeviceVersionSoftwareEmulation},
+    };
+    const auto f = targetMap.find(target);
+    if (f != targetMap.end()) {
+        return f->second;
+    }
+    THROW_GNA_EXCEPTION << "Unsupported " << "GNAConfigParams::GNA_TARGET = \"" << target << "\"\n";
+}
 
 Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const bool execTarget) const {
     auto parsed = Gna2DeviceVersion2_0;
@@ -184,7 +193,7 @@ Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const
         THROW_GNA_EXCEPTION << "Unsupported " << key << " = \"" << target << "\"" << extraSuffix;
     };
     if (target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0) {
-        if (!isGnaLibVersion2_1)
+        if (!isGnaLibVersion2_1 && !isGnaLibVersion3_0)
             throwUnsupportedGnaTarget(", when GNA Library version is 2.0.X.Y");
         parsed = Gna2DeviceVersion3_0;
     } else if (target != InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
@@ -195,7 +204,7 @@ Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const
 
 Gna2DeviceVersion GNADeviceHelper::getDefaultTarget() const {
     if (detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation)
-        return isGnaLibVersion2_1 ? Gna2DeviceVersion3_0 : Gna2DeviceVersion2_0;
+        return (isGnaLibVersion3_0 ||  isGnaLibVersion2_1) ? Gna2DeviceVersion3_0 : Gna2DeviceVersion2_0;
     return detectedGnaDevVersion;
 }
 
@@ -213,14 +222,6 @@ uint32_t GNADeviceHelper::createRequestConfig(const uint32_t model_id) {
     auto status = Gna2RequestConfigCreate(model_id, &reqConfId);
     checkGna2Status(status, "Gna2RequestConfigCreate");
 
-    // When the GNA_SW_EXACT mode is chosen inference results should be computed exactly the same way
-    // (bit exactly) as on the selected GNA execution target generation.
-    // See the GNA Plugin's GNA_EXEC_TARGET config option description.
-    if (swExactMode) {
-        const auto consistentDevice = getTargetDevice(true);
-        status = Gna2RequestConfigEnableHardwareConsistency(reqConfId, consistentDevice);
-        checkGna2Status(status, "Gna2RequestConfigEnableHardwareConsistency(" + std::to_string(static_cast<long>(consistentDevice)) + ")");
-    }
     status = Gna2InstrumentationConfigAssignToRequestConfig(instrumentationConfigId, reqConfId);
     checkGna2Status(status, "Gna2InstrumentationConfigAssignToRequestConfig");
 
@@ -454,7 +455,7 @@ GNADeviceHelper::DumpResult GNADeviceHelper::dumpXnn(const uint32_t modelId) {
     checkStatus();
 #else
     r.model.reset(
-        ExportSueLegacyUsingGnaApi2(modelId, &r.header),
+        ExportSueLegacyUsingGnaApi2(modelId, nGnaDeviceIndex, &r.header),
         gnaUserFree);
 #endif
 
@@ -473,7 +474,7 @@ void GNADeviceHelper::dumpXnnForDeviceVersion(
     const Gna2DeviceVersion targetDeviceVersion) {
 
     Gna2ModelSueCreekHeader sueHeader;
-    auto ptr = ExportSueLegacyUsingGnaApi2(modelId, &sueHeader);
+    auto ptr = ExportSueLegacyUsingGnaApi2(modelId, nGnaDeviceIndex, &sueHeader);
     gnaUserFree(ptr);
 
     ExportGnaDescriptorPartiallyFilled(sueHeader.NumberOfLayers, outStream);
@@ -487,6 +488,16 @@ void GNADeviceHelper::dumpXnnForDeviceVersion(
     // TODO: GNA2: remove
     outStream.write("Gna2ModelSueCreekHeader", 24);
     outStream.write(reinterpret_cast<const char*>(&sueHeader), sizeof(sueHeader));
+}
+
+void GNADeviceHelper::createVirtualDevice(Gna2DeviceVersion devVersion, std::string purpose) {
+    const auto status = Gna2DeviceCreateForExport(devVersion, &nGnaDeviceIndex);
+    GNADeviceHelper::checkGna2Status(status, "Gna2DeviceCreateForExport(" + std::to_string(devVersion) + ")" + purpose);
+}
+
+void GNADeviceHelper::updateGnaDeviceVersion() {
+    const auto status = Gna2DeviceGetVersion(nGnaDeviceIndex, &detectedGnaDevVersion);
+    checkGna2Status(status, "Gna2DeviceGetVersion");
 }
 #endif
 
@@ -504,10 +515,21 @@ void GNADeviceHelper::open(uint8_t n_threads) {
     nGNAHandle = GNADeviceOpenSetThreads(&nGNAStatus, n_threads);
     checkStatus();
 #else
-    auto status = Gna2DeviceGetVersion(nGnaDeviceIndex, &detectedGnaDevVersion);
-    checkGna2Status(status, "Gna2DeviceGetVersion");
-    status = Gna2DeviceOpen(nGnaDeviceIndex);
-    checkGna2Status(status, "Gna2DeviceOpen");
+    updateGnaDeviceVersion();
+    const auto gnaExecTarget = parseTarget(executionTarget);
+    if (useDeviceEmbeddedExport) {
+        createVirtualDevice(exportGeneration, "export");
+    } else if (!executionTarget.empty() && gnaExecTarget != detectedGnaDevVersion) {
+        createVirtualDevice(gnaExecTarget, "execution");
+        updateGnaDeviceVersion();
+        if (detectedGnaDevVersion != gnaExecTarget) {
+            THROW_GNA_EXCEPTION << "Wrong virtual GNA device version reported: " << detectedGnaDevVersion << " instead of: " << gnaExecTarget;
+        }
+    } else {
+        const auto status = Gna2DeviceOpen(nGnaDeviceIndex);
+        checkGna2Status(status, "Gna2DeviceOpen");
+    }
+
     // TODO: GNA2: uncomment when scratchpad repaired
     // status = Gna2DeviceSetNumberOfThreads(nGnaDeviceIndex, n_threads);
     // checkGna2Status(status);

@@ -166,9 +166,10 @@ def test_reshape():
     ([1, 3, -1, 25], [1, 3, 22, -1])
 ])
 def test_reshape_with_partial_shape(device, shape, p_shape):
-    from ..conftest import create_ngraph_function
+    from conftest import create_relu
     import ngraph as ng
-    function = create_ngraph_function(shape)
+
+    function = create_relu(shape)
     net = ng.function_to_cnn(function)
     net.reshape({"data": p_shape})
     changedFunction = ng.function_from_cnn(net)
@@ -185,9 +186,10 @@ def test_reshape_with_partial_shape(device, shape, p_shape):
 
 @pytest.mark.ngraph_dependent_test
 def test_incorrect_reshape(device):
-    from ..conftest import create_ngraph_function
+    from conftest import create_relu
     import ngraph as ng
-    function = create_ngraph_function([1, 3, 22, 22])
+
+    function = create_relu([1, 3, 22, 22])
     net = ng.function_to_cnn(function)
     with pytest.raises(ValueError) as e:
         net.reshape({"data": [(2, 4, 6), 3, 22, 22]})
@@ -287,9 +289,10 @@ def test_tensor_names():
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_create_two_exec_net():
-    from ..conftest import create_ngraph_function
+    from conftest import create_relu
     import ngraph as ng
-    function = create_ngraph_function([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])
+
+    function = create_relu([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])
     net = ng.function_to_cnn(function)
     ie_core = IECore()
     ie_core.register_plugin("templatePlugin", "TEMPLATE")

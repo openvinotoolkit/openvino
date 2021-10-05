@@ -11,9 +11,9 @@
 
 #include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
-#include "details/ie_so_pointer.hpp"
 #include "ie_parameter.hpp"
 #include "ie_remote_context.hpp"
+#include "so_ptr.hpp"
 
 namespace ov {
 class Function;
@@ -22,7 +22,7 @@ namespace InferenceEngine {
 
 class IInferencePlugin;
 class IInferRequestInternal;
-class IRemoteContext;
+class RemoteContext;
 class IVariableStateInternal;
 
 /**
@@ -134,7 +134,7 @@ public:
      * @brief Gets the remote context.
      * @return A reference to a context
      */
-    virtual std::shared_ptr<IRemoteContext> GetContext() const;
+    virtual std::shared_ptr<RemoteContext> GetContext() const;
 
 protected:
     ~IExecutableNetworkInternal() = default;
@@ -162,8 +162,8 @@ protected:
 };
 
 /**
- * @brief SOPointer to IExecutableNetworkInternal.
+ * @brief SoPtr to IExecutableNetworkInternal.
  */
-using SoExecutableNetworkInternal = details::SOPointer<IExecutableNetworkInternal>;
+using SoExecutableNetworkInternal = ov::runtime::SoPtr<IExecutableNetworkInternal>;
 
 }  // namespace InferenceEngine

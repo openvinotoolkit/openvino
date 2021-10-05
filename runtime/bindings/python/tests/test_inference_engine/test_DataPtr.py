@@ -48,9 +48,10 @@ def test_initialized():
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_is_dynamic():
-    from ..conftest import create_ngraph_function
+    from conftest import create_relu
     import ngraph as ng
-    function = create_ngraph_function([-1, 3, 20, 20])
+
+    function = create_relu([-1, 3, 20, 20])
     net = ng.function_to_cnn(function)
     assert net.input_info["data"].input_data.is_dynamic
     assert net.outputs["out"].is_dynamic

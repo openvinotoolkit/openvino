@@ -17,7 +17,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v3::Broadcast, "Broadcast", 3, op::util::BroadcastBase);
+BWDCMP_RTTI_DEFINITION(op::v3::Broadcast);
 
 op::v3::Broadcast::Broadcast(const Output<Node>& arg,
                              const Output<Node>& target_shape,
@@ -35,8 +35,7 @@ op::v3::Broadcast::Broadcast(const Output<Node>& arg,
 }
 
 namespace {
-std::pair<bool, AxisSet> get_broadcast_axes_bidirectional(const ov::StaticShape& arg_shape,
-                                                          const ov::StaticShape& result_shape) {
+std::pair<bool, AxisSet> get_broadcast_axes_bidirectional(const ov::Shape& arg_shape, const ov::Shape& result_shape) {
     AxisSet broadcast_axes;
     bool axes_known = false;
     const auto start_axis = result_shape.size() - arg_shape.size();
@@ -68,14 +67,14 @@ std::pair<bool, AxisSet> op::v3::Broadcast::get_broadcast_axes() const {
 }
 
 namespace {
-ov::Shape get_result_shape_bidirectional(const Node* this_ptr,
-                                         const ov::Shape& arg_shape,
-                                         ov::StaticShape& target_shape) {
+ov::PartialShape get_result_shape_bidirectional(const Node* this_ptr,
+                                                const ov::PartialShape& arg_shape,
+                                                ov::Shape& target_shape) {
     if (arg_shape.rank().is_dynamic()) {
-        return ov::Shape::dynamic();
+        return ov::PartialShape::dynamic();
     }
     auto arg_shape_vec = static_cast<std::vector<Dimension>>(arg_shape);
-    ov::Shape result_shape;
+    ov::PartialShape result_shape;
     // Add left padding to shorter target or argument shape
     const auto target_padded_rank = std::max(arg_shape_vec.size(), target_shape.size());
     while (arg_shape_vec.size() < target_padded_rank) {
@@ -112,8 +111,8 @@ ov::Shape get_result_shape_bidirectional(const Node* this_ptr,
 bool op::v3::Broadcast::broadcast_evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL) {
         auto arg_shape = inputs[0]->get_shape();
-        ov::StaticShape target_shape = op::util::BroadcastBase::get_target_shape(inputs[1]);
-        ov::Shape result_shape = get_result_shape_bidirectional(this, ov::Shape{arg_shape}, target_shape);
+        ov::Shape target_shape = op::util::BroadcastBase::get_target_shape(inputs[1]);
+        ov::PartialShape result_shape = get_result_shape_bidirectional(this, ov::PartialShape{arg_shape}, target_shape);
         auto pair_broadcast_axes = get_broadcast_axes_bidirectional(arg_shape, result_shape.to_shape());
         return op::util::BroadcastBase::evaluate_broadcast(inputs[0],
                                                            outputs[0],
@@ -206,7 +205,7 @@ BroadcastModeSpec to_broadcast_mode(const AutoBroadcastSpec& bs) {
 }
 }  // namespace
 
-OPENVINO_RTTI_DEFINITION(op::v1::Broadcast, "Broadcast", 1, op::util::BroadcastBase);
+BWDCMP_RTTI_DEFINITION(op::v1::Broadcast);
 
 op::v1::Broadcast::Broadcast(const Output<Node>& arg,
                              const Output<Node>& target_shape,
@@ -222,7 +221,7 @@ op::v1::Broadcast::Broadcast(const Output<Node>& arg,
                              const AutoBroadcastSpec& broadcast_spec)
     : util::BroadcastBase{arg,
                           target_shape,
-                          op::v0::Constant::create(element::u8, ov::StaticShape{}, {0})->output(0),
+                          op::v0::Constant::create(element::u8, ov::Shape{}, {0})->output(0),
                           to_broadcast_mode(broadcast_spec)},
       m_broadcast_spec{broadcast_spec} {
     constructor_validate_and_infer_types();
@@ -238,7 +237,7 @@ void op::v1::Broadcast::validate_and_infer_types() {
 
     // Mocking axes_mapping input for cases that don't require it
     if (m_broadcast_spec.m_type == AutoBroadcastType::NUMPY && get_input_size() < 3) {
-        auto output = op::v0::Constant::create(element::u8, ov::StaticShape{}, {0})->output(0);
+        auto output = op::v0::Constant::create(element::u8, ov::Shape{}, {0})->output(0);
         set_argument(2, output);
     }
 

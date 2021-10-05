@@ -9,11 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo pattern::op::Branch::type_info;
-
-const NodeTypeInfo& pattern::op::Branch::get_type_info() const {
-    return type_info;
-}
+BWDCMP_RTTI_DEFINITION(pattern::op::Branch);
 
 bool pattern::op::Branch::match_value(Matcher* matcher,
                                       const Output<Node>& pattern_value,

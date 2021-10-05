@@ -4,11 +4,10 @@
 """ngraph module namespace, exposing factory functions for all ops and other classes."""
 # noqa: F401
 
-from pkg_resources import get_distribution, DistributionNotFound
-
 try:
-    __version__ = get_distribution("ngraph-core").version
-except DistributionNotFound:
+    from ngraph.impl import util
+    __version__ = util.get_ngraph_version_string()
+except ImportError:
     __version__ = "0.0.0.dev0"
 
 
@@ -133,6 +132,7 @@ from ngraph.opset8 import prior_box
 from ngraph.opset8 import prior_box_clustered
 from ngraph.opset8 import psroi_pooling
 from ngraph.opset8 import proposal
+from ngraph.opset8 import random_uniform
 from ngraph.opset8 import range
 from ngraph.opset8 import read_value
 from ngraph.opset8 import reduce_l1

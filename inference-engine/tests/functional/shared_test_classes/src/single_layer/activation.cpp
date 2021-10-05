@@ -51,6 +51,7 @@ void ActivationLayerTest::SetUp() {
     auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, shapes.second, constantsValue);
 
     function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
@@ -87,6 +88,12 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
         case ngraph::helpers::ActivationTypes::Acosh: {
             data_start_from = 1;
             data_range = 200;
+            resolution = 32768;
+            break;
+        }
+        case ngraph::helpers::ActivationTypes::Atanh: {
+            data_start_from = -1;
+            data_range = 2;
             resolution = 32768;
             break;
         }
@@ -216,6 +223,7 @@ void ActivationParamLayerTest::SetUp() {
     auto activation = ngraph::builder::makeActivation(params, ngPrc, activationType);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(activation)};
     function = std::make_shared<ngraph::Function>(results, params);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void ActivationDynamicLayerTest::Run() {

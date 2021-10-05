@@ -32,7 +32,7 @@ using namespace InferenceEngine::details;
 
 namespace CLDNNPlugin {
 
-CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<IRemoteContext> context, Config config) :
+CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<RemoteContext> context, Config config) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]()->InferenceEngine::ITaskExecutor::Ptr {
         if (config.exclusiveAsyncRequests) {
             //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
@@ -136,7 +136,7 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) 
     }
 }
 
-std::shared_ptr<IRemoteContext> CLDNNExecNetwork::GetContext() const {
+std::shared_ptr<RemoteContext> CLDNNExecNetwork::GetContext() const {
     return m_context;
 }
 

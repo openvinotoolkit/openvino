@@ -48,18 +48,6 @@ public:
     Expected expected;
 };
 
-inline std::ostream& operator<<(std::ostream& os, const std::vector<int>& values) {
-    os << "{ ";
-    for (size_t i = 0; i < values.size(); ++i) {
-        os << values[i];
-        if (i != (values.size() - 1ul)) {
-            os << ", ";
-        }
-    }
-    os << " }";
-    return os;
-}
-
 class ReshapeTransformation : public LayerTransformation, public testing::WithParamInterface<ReshapeTransformationTestValues> {
 public:
     void SetUp() override {
@@ -105,6 +93,8 @@ TEST_P(ReshapeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 const std::vector<ReshapeTransformationTestValues> testValues = {
@@ -955,7 +945,23 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
                 {{0.1f,  0.02f, 0.1f, 0.02f, 0.1f, 0.02f}, ngraph::element::f32, {1, 6}}
             }
         }
-    }
+    },
+    // Nondequantization multiply (I32 precision)
+    {
+        { 1, 384, 1024 },
+        { 1, 384, 16, 64 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::i32,
+            {{}, {}, {2}}
+        },
+        {
+            ngraph::element::i32,
+            {{}, {}, {2}},
+            ngraph::element::i32,
+            {}
+        }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(

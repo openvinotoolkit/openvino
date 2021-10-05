@@ -17,7 +17,7 @@ jobs:
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     INSTALL_DIR: $(WORK_DIR)/install_pkg
-    SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
+    SETUPVARS: $(INSTALL_DIR)/setupvars.sh
 
   steps:
   - script: |

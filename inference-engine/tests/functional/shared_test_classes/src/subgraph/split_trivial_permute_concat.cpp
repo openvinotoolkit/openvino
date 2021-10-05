@@ -45,5 +45,6 @@ namespace SubgraphTestsDefinitions {
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ split->output(0), split->output(1) }, concatAxis);
         auto act = ngraph::builder::makeActivation(concat, ngPrc, ngraph::helpers::ActivationTypes::Relu);
         function = std::make_shared<ngraph::Function>(act, input, "split_trivial_permute_concat");
+        functionRefs = ngraph::clone_function(*function);
     }
 } // namespace SubgraphTestsDefinitions
