@@ -1038,6 +1038,16 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         // }
 
         preferred_impl = impl_candidate;
+    } else if (node.is_type<concatenation>()) {
+        if (!_optimization_attributes.use_onednn_impls)
+            return impl_types::ocl;
+
+        for (auto& dep : node.get_dependencies()) {
+            if (dep->is_in_data_flow() && dep->get_preferred_impl_type() == impl_types::onednn) {
+                preferred_impl = impl_types::onednn;
+                break;
+            }
+        }
     }
 
     return preferred_impl;
