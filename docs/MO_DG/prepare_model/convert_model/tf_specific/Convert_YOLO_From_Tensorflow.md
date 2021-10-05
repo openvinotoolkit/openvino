@@ -152,7 +152,7 @@ where:
 * `--batch` defines shape of model input. In the example, `--batch` is equal to 1, but you can also specify other integers larger than 1.
 * `--transformations_config` adds missing `Region` layers to the model. In the IR, the `Region` layer has name `RegionYolo`.
 
-> **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../Converting_Model_General.md).
+> **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](../Converting_Model.md).
 
 OpenVINO&trade; toolkit provides a demo that uses YOLOv3 model. For more information, refer to [Object Detection C++ Demo](@ref omz_demos_object_detection_demo_cpp).
 
@@ -221,4 +221,4 @@ The model was trained with input values in the range `[0,1]`. OpenVINO&trade; to
 * `--transformations_config` adds missing `Region` layers to the model. In the IR, the `Region` layer has name `RegionYolo`.
 For other applicable parameters, refer to [Convert Model from TensorFlow](../Convert_Model_From_TensorFlow.md).
 
-> **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../Converting_Model_General.md).
+> **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](../Converting_Model.md).

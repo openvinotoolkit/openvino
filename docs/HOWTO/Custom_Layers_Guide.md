@@ -131,9 +131,7 @@ Firstly, open the model in the TensorBoard or other TensorFlow* model visualizat
 batch dimension because the value for the batch dimension is not hardcoded in the model. Model Optimizer need to set all
 dynamic dimensions to some specific value to create the IR, therefore specify the command line parameter `-b 1` to set
 the batch dimension equal to 1. The actual batch size dimension can be changed at runtime using the Inference Engine API
-described in the [Using Shape Inference](../IE_DG/ShapeInference.md). Also refer to
-[Converting a Model Using General Conversion Parameters](../MO_DG/prepare_model/convert_model/Converting_Model_General.md)
-and [Convert Your TensorFlow* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
+described in the [Using Shape Inference](../IE_DG/ShapeInference.md). Also refer to the General Conversion Parameters section in [Converting a Model to Intermediate Representation (IR)](../MO_DG/prepare_model/convert_model/Converting_Model.md) and [Convert Your TensorFlow* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
 for more details and command line parameters used for the model conversion.
 
 @sphinxdirective

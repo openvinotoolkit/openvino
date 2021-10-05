@@ -32,7 +32,7 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 * **Semantic segmentation models:**
 	* FCN8
 
-> **NOTE:** It is necessary to specify mean and scale values for most of the Caffe\* models to convert them with the Model Optimizer. The exact values should be determined separately for each model. For example, for Caffe\* models trained on ImageNet, the mean values usually are `123.68`, `116.779`, `103.939` for blue, green and red channels respectively. The scale value is usually `127.5`. Refer to [Framework-agnostic parameters](Converting_Model_General.md) for the information on how to specify mean and scale values.
+> **NOTE:** It is necessary to specify mean and scale values for most of the Caffe\* models to convert them with the Model Optimizer. The exact values should be determined separately for each model. For example, for Caffe\* models trained on ImageNet, the mean values usually are `123.68`, `116.779`, `103.939` for blue, green and red channels respectively. The scale value is usually `127.5`. Refer to the General Conversion Parameters section in [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) for the information on how to specify mean and scale values.
 
 ## Convert a Caffe* Model <a name="Convert_From_Caffe"></a>
 
