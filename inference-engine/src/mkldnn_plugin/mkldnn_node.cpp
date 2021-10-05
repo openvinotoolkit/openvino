@@ -282,6 +282,11 @@ void MKLDNNNode::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_typ
 }
 
 bool MKLDNNNode::canBeInPlace() const {
+    // TODO [DS]: enable inPlace for dynamic shapes
+    if (isDynamicNode()) {
+        return false;
+    }
+
     if (getParentEdges().size() != 1 || getParentEdgeAt(0)->getParent()->getChildEdges().size() != 1 ||
             (getParentEdgeAt(0)->getParent()->isConstant() && !getParentEdgeAt(0)->getChild()->isConstant()))
         return false;
