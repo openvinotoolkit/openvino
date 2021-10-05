@@ -28,11 +28,22 @@ class OldApiMap;
 /**
  * @ingroup ie_runtime_attr_api
  * @brief OldApiMapAttr class stores the value of OldApiMap class.
+ *
+ *  OldApiMap stores the following information.
+ *  Parameter:
+ *  Order of the transpose which should be applied to Parameter with old API layout to
+ *  obtain Parameter with new API layout.
+ *  Element type of the Parameter in old API.
+ *
+ *  Result:
+ *  Order of the transpose which should be applied to Result with new API layout to
+ *  obtain Result with old API layout.
+ *
  */
 class TRANSFORMATIONS_API OldApiMapAttr {
 private:
     std::vector<uint64_t> m_order;
-    ngraph::element::Type m_type;
+    ngraph::element::Type m_legacy_type = ngraph::element::Type_t::undefined;
 
 public:
     friend class OldApiMap;
@@ -45,10 +56,10 @@ public:
     /**
      * @brief      Constructs a new OldApiMapAttr object.
      * @param[in]  order  Transpose order.
-     * @param[in]  type  Legacy type.
+     * @param[in]  legacy_type  Legacy type.
      */
-    explicit OldApiMapAttr(std::vector<uint64_t> order, ngraph::element::Type type)
-             : m_order(std::move(order)), m_type(type) {}
+    explicit OldApiMapAttr(std::vector<uint64_t> order, ngraph::element::Type legacy_type)
+             : m_order(std::move(order)), m_legacy_type(legacy_type) {}
 
     /**
      * @brief Returns the transpose order that should be used for obtain a node with old API layout.
@@ -63,7 +74,7 @@ public:
      * @return legacy type.
      */
     ngraph::element::Type get_type() const {
-        return m_type;
+        return m_legacy_type;
     }
 };
 

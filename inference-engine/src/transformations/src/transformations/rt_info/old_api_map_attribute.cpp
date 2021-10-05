@@ -8,6 +8,6 @@ using namespace ov;
 
 bool OldApiMap::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("order", m_value.m_order);
-    visitor.on_attribute("type", m_value.m_type);
+    visitor.on_attribute("element_type", m_value.m_legacy_type);
     return true;
 }
