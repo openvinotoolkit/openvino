@@ -4,7 +4,7 @@
 
 /**
  * @brief This is a wrapper class for handling plugin instantiation and releasing resources
- * @file ie_so_pointer.hpp
+ * @file so_ptr.hpp
  */
 #pragma once
 
@@ -25,9 +25,6 @@ namespace runtime {
  */
 template <class T>
 struct SoPtr {
-    template <class U>
-    friend class SoPtr;
-
     /**
      * @brief Default constructor
      */

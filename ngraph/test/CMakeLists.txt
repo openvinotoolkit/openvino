@@ -78,6 +78,8 @@ set(SRC
     op_eval/transpose.cpp
     op_eval/variadic_split.cpp
     opset1.cpp
+    ov_default_allocator_test.cpp
+    ov_tensor_test.cpp
     partial_shape.cpp
     pass_config.cpp
     pass_manager.cpp
@@ -113,6 +115,7 @@ set(SRC
     type_prop/concat.cpp
     type_prop/constant.cpp
     type_prop/convert.cpp
+    type_prop/convert_color_nv12.cpp
     type_prop/convolution.cpp
     type_prop/convolution_backprop_data.cpp
     type_prop/cos.cpp
@@ -145,6 +148,7 @@ set(SRC
     type_prop/fake_quantize.cpp
     type_prop/floor.cpp
     type_prop/floor_mod.cpp
+    type_prop/framework_node.cpp
     type_prop/gather.cpp
     type_prop/gather_elements.cpp
     type_prop/gather_nd.cpp
@@ -263,6 +267,7 @@ set(SRC
     visitors/op/ceiling.cpp
     visitors/op/constant.cpp
     visitors/op/convert.cpp
+    visitors/op/convert_color_nv12.cpp
     visitors/op/convolution_backprop.cpp
     visitors/op/cos.cpp
     visitors/op/cosh.cpp
@@ -372,6 +377,11 @@ set(SRC
     util.cpp
 )
 
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set_source_files_properties(ov_tensor_test.cpp
+                                PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+endif()
+
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
 
@@ -406,6 +416,11 @@ endif()
 
 add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/ngraph/files\"")
 add_subdirectory(util)
+add_subdirectory(engines_util)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
+    add_subdirectory(onnx_test_util)
+endif()
+
 
 # backend specific test files must meet the following requirements:
 # 1) The must be named <name>.in.cpp
@@ -534,6 +549,7 @@ set(MULTI_TEST_SRC
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND MULTI_TEST_SRC
             onnx/onnx_import.in.cpp
+            onnx/onnx_import_com_microsoft.in.cpp
             onnx/onnx_import_controlflow.in.cpp
             onnx/onnx_import_const_folding.in.cpp
             onnx/onnx_import_convpool.in.cpp
@@ -602,6 +618,7 @@ if(UNIT_TESTS_DEPENDENCIES)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
+                                        engines_test_util
                                         ngraph::builder
                                         ${CMAKE_DL_LIBS}
                                         ie_backend
@@ -632,7 +649,7 @@ endif()
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
     get_target_property(ONNX_FRONTEND_SRC_DIR onnx_ngraph_frontend SOURCE_DIR)
     target_include_directories(unit-test PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
-    target_link_libraries(unit-test PRIVATE onnx_ngraph_frontend)
+    target_link_libraries(unit-test PRIVATE onnx_ngraph_frontend onnx_test_util)
     if (LINUX)
         target_link_options(unit-test PRIVATE -Wl,--exclude-libs,ALL)
     elseif(APPLE)

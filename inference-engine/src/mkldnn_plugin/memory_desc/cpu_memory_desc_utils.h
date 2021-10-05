@@ -21,6 +21,8 @@ class MKLDNNMemory;
 
 class MemoryDescUtils {
 public:
+    MemoryDescUtils() = delete;
+
     /**
      * @brief Converts MemoryDesc to DnnlMemoryDesc
      * @param desc MemoryDesc to be converted
@@ -55,27 +57,6 @@ public:
      * @return converted BlockedMemoryDesc
      */
     static std::shared_ptr<BlockedMemoryDesc> convertToBlockedMemoryDesc(const std::shared_ptr<MemoryDesc> &desc);
-
-    /**
-     * @brief Creates BlockedMemoryDesc with offsetPadding and strides of UNDEFINED_DIM size
-     * @param desc is the MemoryDesc to be cloned
-     * @return pointer to the new MemoryDesc
-     */
-    static std::shared_ptr<MemoryDesc> cloneWithUndefStridesAndOffset(const MemoryDesc& desc);
-
-    /**
-     * @brief Creates MemoryDesc with offsetPadding of 0 size and default strides
-     * @param desc is the MemoryDesc to be cloned
-     * @return pointer to the new MemoryDesc
-     */
-    static std::shared_ptr<MemoryDesc> cloneWithDefaultStridesAndOffset(const MemoryDesc& desc);
-
-    /**
-     * @brief Creates MemoryDesc with specified precision
-     * @param desc is the MemoryDesc to be cloned
-     * @return pointer to the new MemoryDesc
-     */
-    static std::shared_ptr<MemoryDesc> cloneWithNewPrecision(const MemoryDesc& desc, const InferenceEngine::Precision prec);
 
     /**
      * @brief Creates InferenceEngine::Blob from MKLDNNMemory with the memory reuse

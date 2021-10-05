@@ -138,6 +138,7 @@ namespace LayerTestsDefinitions {
         auto result1 = std::make_shared<ngraph::opset5::Result>(out1);
         auto result2 = std::make_shared<ngraph::opset5::Result>(out2);
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result0, result1, result2}, params, "loop");
+        functionRefs = ngraph::clone_function(*function);
     }
 
     std::string StaticShapeLoopTest::getTestCaseName(const testing::TestParamInfo<StaticShapeLoopParams> &obj) {
@@ -261,6 +262,7 @@ namespace LayerTestsDefinitions {
             manager.register_pass<ngraph::pass::UnrollTensorIterator>();
             manager.run_passes(function);
         }
+        functionRefs = ngraph::clone_function(*function);
     }
 
     InferenceEngine::Blob::Ptr StaticShapeLoopTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
@@ -352,6 +354,7 @@ namespace LayerTestsDefinitions {
         function = std::make_shared<ngraph::Function>(
                 ngraph::OutputVector    {loop},
                 ngraph::ParameterVector {to_slice});
+        functionRefs = ngraph::clone_function(*function);
     }
 
     void TrivialLoopTest::CreateSlicedLoopDynCondition(size_t batch_size, size_t num_iteration, InferenceEngine::Precision iePrc,
@@ -392,5 +395,6 @@ namespace LayerTestsDefinitions {
         function = std::make_shared<ngraph::Function>(
                 ngraph::OutputVector    {loop},
                 ngraph::ParameterVector {to_slice});
+        functionRefs = ngraph::clone_function(*function);
     }
 }  // namespace LayerTestsDefinitions

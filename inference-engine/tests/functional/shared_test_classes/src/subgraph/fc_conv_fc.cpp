@@ -255,5 +255,6 @@ void FcBetweenConvsTest::SetUp() {
     auto reshape4 = std::make_shared<ngraph::opset1::Reshape>(conv2, reshapePattern4, false);
 
     function = std::make_shared<ngraph::Function>(reshape4, params, "FcBetweenConvsTest");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions
