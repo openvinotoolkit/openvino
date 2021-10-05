@@ -300,6 +300,48 @@ TEST(pre_post_process, convert_color_incorrect_subnames) {
                  ov::AssertFailure);
 }
 
+TEST(pre_post_process, convert_color_duplicate_subnames) {
+    auto f = create_2inputs(element::f32, PartialShape{1, 2, 2, 3});
+    f->get_parameters()[0]->get_output_tensor(0).set_names({"tensor_input1"});
+    f->get_parameters()[1]->get_output_tensor(0).set_names({"tensor_input1/CustomUV"});
+    EXPECT_THROW(
+            f = PrePostProcessor()
+                    .input(InputInfo()
+                                   .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_SINGLE_PLANE, {"CustomY", "CustomUV"}))
+                                   .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB)))
+                    .build(f),
+            ov::AssertFailure);
+}
+
+TEST(pre_post_process, convert_color_duplicate_internal_subnames_mean) {
+    auto f = create_simple_function(element::f32, PartialShape{1, 2, 2, 3});
+    for (int i = 0; i < 10; i++) {
+        // Create preprocessing step several times (try to duplicate internal node names this way)
+        EXPECT_NO_THROW(f = PrePostProcessor()
+                .input(InputInfo()
+                               .preprocess(PreProcessSteps().mean(0.1f)))
+                .build(f));
+        EXPECT_NO_THROW(f = PrePostProcessor()
+                .input(InputInfo()
+                               .preprocess(PreProcessSteps().scale(1.1f)))
+                .build(f));
+        EXPECT_NO_THROW(f = PrePostProcessor()
+                .input(InputInfo()
+                               .preprocess(PreProcessSteps().convert_element_type(element::u8).convert_element_type(element::f32)))
+                .build(f));
+        EXPECT_NO_THROW(f = PrePostProcessor()
+                .input(InputInfo()
+                .tensor(InputTensorInfo().set_layout("NHWC"))
+                               .preprocess(PreProcessSteps().convert_layout("NCHW")))
+                .build(f));
+        EXPECT_NO_THROW(f = PrePostProcessor()
+                .input(InputInfo()
+                               .tensor(InputTensorInfo().set_layout("NHWC").set_spatial_static_shape(480, 640))
+                               .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR)))
+                .build(f));
+    }
+}
+
 TEST(pre_post_process, unsupported_network_color_format) {
     auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
     EXPECT_THROW(f = PrePostProcessor()
@@ -554,4 +596,35 @@ TEST(pre_post_process, resize_no_tensor_width) {
                                     .network(InputNetworkInfo().set_layout("NHWC")))
                          .build(f),
                  ov::AssertFailure);
+}
+
+TEST(pre_post_process, exception_safety) {
+    auto f = create_2inputs(element::f32, Shape{1, 3, 224, 224});
+    auto name0 = f->get_parameters()[0]->get_friendly_name();
+    auto tensor_names0 = f->get_parameters()[0]->get_output_tensor(0).get_names();
+    auto name1 = f->get_parameters()[1]->get_friendly_name();
+    auto tensor_names1 = f->get_parameters()[1]->get_output_tensor(0).get_names();
+    EXPECT_THROW(f = PrePostProcessor()
+            .input(InputInfo(0) // this one is correct
+                           .tensor(InputTensorInfo().set_element_type(element::u8))
+                           .preprocess(PreProcessSteps().convert_element_type(element::f32)))
+            .input(InputInfo(1) // This one is not
+                           .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES))
+                         .preprocess(PreProcessSteps()
+                         .custom([](const std::shared_ptr<Node>& node) -> std::shared_ptr<Node> {
+                             throw ngraph::ngraph_error("test error");
+                         })))
+            .build(f),
+                 ov::AssertFailure);
+    EXPECT_EQ(f->get_parameters().size(), 2);
+
+    EXPECT_EQ(f->get_parameters()[0]->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters()[0]->get_partial_shape(), (PartialShape{1, 3, 224, 224}));
+    EXPECT_EQ(f->get_parameters()[0]->get_friendly_name(), name0);
+    EXPECT_EQ(f->get_parameters()[0]->get_output_tensor(0).get_names(), tensor_names0);
+
+    EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters()[1]->get_partial_shape(), (PartialShape{1, 3, 224, 224}));
+    EXPECT_EQ(f->get_parameters()[1]->get_friendly_name(), name1);
+    EXPECT_EQ(f->get_parameters()[1]->get_output_tensor(0).get_names(), tensor_names1);
 }

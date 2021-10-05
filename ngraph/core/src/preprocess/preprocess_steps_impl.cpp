@@ -35,6 +35,7 @@ static Shape construct_mean_scale_shape(const std::shared_ptr<Node>& node,
 void PreProcessSteps::PreProcessStepsImpl::add_scale_impl(const std::vector<float>& values) {
     m_actions.emplace_back(std::make_tuple(
         [values](const std::vector<std::shared_ptr<Node>>& nodes,
+                 const std::shared_ptr<ov::Function>& function,
                  PreprocessingContext& context) -> std::vector<std::shared_ptr<ov::Node>> {
             OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't apply scale preprocessing for empty input.");
             OPENVINO_ASSERT(nodes.size() == 1,
@@ -47,10 +48,10 @@ void PreProcessSteps::PreProcessStepsImpl::add_scale_impl(const std::vector<floa
                 shape = construct_mean_scale_shape(nodes[0], values.size(), context);
             }
             auto constant = op::v0::Constant::create(element::f32, shape, values);
-            inherit_friendly_names(nodes[0], constant, "/scale/Divide_Factor");
+            inherit_friendly_names(function, nodes[0], constant, "/scale/Divide_Factor");
 
             auto new_op = std::make_shared<op::v1::Divide>(nodes[0], constant);
-            inherit_friendly_names(nodes[0], new_op, "/scale/Divide");
+            inherit_friendly_names(function, nodes[0], new_op, "/scale/Divide");
             return {new_op};
         },
         false));
@@ -59,6 +60,7 @@ void PreProcessSteps::PreProcessStepsImpl::add_scale_impl(const std::vector<floa
 void PreProcessSteps::PreProcessStepsImpl::add_mean_impl(const std::vector<float>& values) {
     m_actions.emplace_back(std::make_tuple(
         [values](const std::vector<std::shared_ptr<Node>>& nodes,
+                 const std::shared_ptr<ov::Function>& function,
                  PreprocessingContext& context) -> std::vector<std::shared_ptr<ov::Node>> {
             OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't apply mean preprocessing for empty input.");
             OPENVINO_ASSERT(nodes.size() == 1,
@@ -71,10 +73,10 @@ void PreProcessSteps::PreProcessStepsImpl::add_mean_impl(const std::vector<float
                 shape = construct_mean_scale_shape(nodes[0], values.size(), context);
             }
             auto constant = op::v0::Constant::create(element::f32, shape, values);
-            inherit_friendly_names(nodes[0], constant, "/mean/Mean_Const");
+            inherit_friendly_names(function, nodes[0], constant, "/mean/Mean_Const");
 
             auto new_op = std::make_shared<op::v1::Subtract>(nodes[0], constant);
-            inherit_friendly_names(nodes[0], new_op, "/mean/Subtract");
+            inherit_friendly_names(function, nodes[0], new_op, "/mean/Subtract");
             return {new_op};
         },
         false));
@@ -83,6 +85,7 @@ void PreProcessSteps::PreProcessStepsImpl::add_mean_impl(const std::vector<float
 void PreProcessSteps::PreProcessStepsImpl::add_convert_impl(const ov::element::Type& type) {
     m_actions.emplace_back(std::make_tuple(
         [type](const std::vector<std::shared_ptr<Node>>& nodes,
+               const std::shared_ptr<ov::Function>& function,
                PreprocessingContext&) -> std::vector<std::shared_ptr<ov::Node>> {
             OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't set element type for empty input.");
             std::vector<std::shared_ptr<ov::Node>> res;
@@ -90,7 +93,7 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_impl(const ov::element::T
                 OPENVINO_ASSERT(node->get_element_type().is_static(),
                                 "Can't insert 'convert_element_type' for dynamic source tensor type.");
                 auto convert = std::make_shared<op::v0::Convert>(node, type);
-                inherit_friendly_names(node, convert, "/convert_element_type");
+                inherit_friendly_names(function, node, convert, "/convert_element_type");
                 res.emplace_back(convert);
             }
             return res;
@@ -102,6 +105,7 @@ void PreProcessSteps::PreProcessStepsImpl::add_resize_impl(ResizeAlgorithm alg, 
     using InterpolateMode = op::v4::Interpolate::InterpolateMode;
     m_actions.emplace_back(std::make_tuple(
         [alg, dst_width, dst_height](const std::vector<std::shared_ptr<Node>>& nodes,
+                                     const std::shared_ptr<ov::Function>& function,
                                      PreprocessingContext& ctxt) -> std::vector<std::shared_ptr<ov::Node>> {
             OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't add resize for empty input.");
             OPENVINO_ASSERT(nodes.size() == 1,
@@ -148,7 +152,7 @@ void PreProcessSteps::PreProcessStepsImpl::add_resize_impl(ResizeAlgorithm alg, 
                                                         {0, 0});
 
             auto interp = std::make_shared<op::v4::Interpolate>(node, target_spatial_shape, scales, axes, attrs);
-            inherit_friendly_names(nodes[0], interp, "/resize");
+            inherit_friendly_names(function, nodes[0], interp, "/resize");
             return {interp};
         },
         true));
@@ -157,6 +161,7 @@ void PreProcessSteps::PreProcessStepsImpl::add_resize_impl(ResizeAlgorithm alg, 
 void PreProcessSteps::PreProcessStepsImpl::add_convert_layout_impl(const Layout& layout) {
     m_actions.emplace_back(std::make_tuple(
         [layout](const std::vector<std::shared_ptr<Node>>& nodes,
+                 const std::shared_ptr<ov::Function>& function,
                  PreprocessingContext& context) -> std::vector<std::shared_ptr<ov::Node>> {
             OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't convert layout for empty input.");
             OPENVINO_ASSERT(nodes.size() == 1,
@@ -170,7 +175,7 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_layout_impl(const Layout&
             auto perm_constant =
                 op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
             auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
-            inherit_friendly_names(nodes[0], transpose, "/convert_layout");
+            inherit_friendly_names(function, nodes[0], transpose, "/convert_layout");
             context.layout() = dst_layout;  // Update context's current layout
             return {transpose};
         },
@@ -180,6 +185,7 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_layout_impl(const Layout&
 void PreProcessSteps::PreProcessStepsImpl::add_convert_color_impl(const ColorFormat& dst_format) {
     m_actions.emplace_back(std::make_tuple(
         [&, dst_format](const std::vector<std::shared_ptr<Node>>& nodes,
+                        const std::shared_ptr<ov::Function>& function,
                         PreprocessingContext& context) -> std::vector<std::shared_ptr<ov::Node>> {
             if (context.color_format() == dst_format) {
                 return nodes;
@@ -201,7 +207,7 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_color_impl(const ColorFor
                                     color_format_name(dst_format),
                                     "' format:");
                 }
-                inherit_friendly_names(nodes[0], convert, "/convert_color_nv12_single");
+                inherit_friendly_names(function, nodes[0], convert, "/convert_color_nv12_single");
                 context.color_format() = dst_format;
                 return {convert};
             } else if (context.color_format() == ColorFormat::NV12_TWO_PLANES) {
@@ -220,7 +226,7 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_color_impl(const ColorFor
                                     color_format_name(dst_format),
                                     "' format:");
                 }
-                inherit_friendly_names(nodes[0], convert, "/convert_color_nv12_two_planes");
+                inherit_friendly_names(function, nodes[0], convert, "/convert_color_nv12_two_planes");
                 context.color_format() = dst_format;
                 return {convert};
             }

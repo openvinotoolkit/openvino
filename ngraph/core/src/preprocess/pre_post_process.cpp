@@ -8,6 +8,7 @@
 #include "ngraph/opsets/opset1.hpp"
 #include "openvino/core/function.hpp"
 #include "preprocess_steps_impl.hpp"
+#include "function_guard.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -215,6 +216,7 @@ PrePostProcessor&& PrePostProcessor::input(InputInfo&& builder) && {
 }
 
 std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function>& function) {
+    FunctionGuard guard(function);
     bool tensor_data_updated = false;
     for (const auto& input : m_impl->in_contexts) {
         std::shared_ptr<op::v0::Parameter> param;
@@ -292,10 +294,10 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
                 std::make_shared<op::v0::Parameter>(input->m_tensor_data->get_element_type(), plane_shape);
             if (plane < input->m_tensor_data->planes_sub_names().size()) {
                 auto sub_name = std::string("/") + input->m_tensor_data->planes_sub_names()[plane];
-                inherit_friendly_names(param, plane_param, sub_name);
+                inherit_friendly_names(function, param, plane_param, sub_name, false);
             } else {
                 auto sub_name = color_info->friendly_suffix(plane);
-                inherit_friendly_names(param, plane_param, sub_name);
+                inherit_friendly_names(function, param, plane_param, sub_name);
             }
             if (!input->m_tensor_data->get_layout().empty()) {
                 plane_param->set_layout(input->m_tensor_data->get_layout());
@@ -312,7 +314,7 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         // 2. Apply preprocessing
         if (input->m_preprocess) {
             for (const auto& action : input->m_preprocess->actions()) {
-                auto node = std::get<0>(action)(nodes, context);
+                auto node = std::get<0>(action)(nodes, function, context);
                 nodes = {node};
                 tensor_data_updated |= std::get<1>(action);
             }
@@ -347,6 +349,7 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
     if (tensor_data_updated) {
         function->validate_nodes_and_infer_types();
     }
+    guard.reset();
     return function;
 }
 
@@ -531,6 +534,7 @@ PreProcessSteps& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_cb
     // 'true' indicates that custom preprocessing step will trigger validate_and_infer_types
     m_impl->actions().emplace_back(std::make_tuple(
         [preprocess_cb](const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                        const std::shared_ptr<ov::Function>&,
                         PreprocessingContext&) -> std::vector<std::shared_ptr<ov::Node>> {
             OPENVINO_ASSERT(nodes.size() == 1,
                             "Can't apply custom preprocessing step for multi-plane input. Suggesting to convert "
@@ -545,6 +549,7 @@ PreProcessSteps&& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_c
     // 'true' indicates that custom preprocessing step will trigger validate_and_infer_types
     m_impl->actions().emplace_back(std::make_tuple(
         [preprocess_cb](const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                        const std::shared_ptr<ov::Function>&,
                         PreprocessingContext&) -> std::vector<std::shared_ptr<ov::Node>> {
             OPENVINO_ASSERT(nodes.size() == 1,
                             "Can't apply custom preprocessing step for multi-plane input. Suggesting to convert "
