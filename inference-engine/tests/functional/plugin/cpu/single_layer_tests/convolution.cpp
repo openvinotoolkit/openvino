@@ -15,7 +15,16 @@ using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
 using LayerTestsDefinitions::convSpecificParams;
-using LayerTestsDefinitions::convLayerTestParamsSet;
+typedef std::tuple<
+        convSpecificParams,
+        InferenceEngine::Precision,     // Net precision
+        InferenceEngine::Precision,     // Input precision
+        InferenceEngine::Precision,     // Output precision
+        InferenceEngine::Layout,        // Input layout
+        InferenceEngine::Layout,        // Output layout
+        std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>, // Input shapes
+        LayerTestsUtils::TargetDevice   // Device name
+> convLayerTestParamsSet;
 
 typedef std::tuple<
         convLayerTestParamsSet,
@@ -33,9 +42,42 @@ public:
         std::map<std::string, std::string> additionalConfig;
         std::tie(basicParamsSet, cpuParams, fusingParams, additionalConfig) = obj.param;
 
+        convSpecificParams convParams;
+        InferenceEngine::Precision netPrecision;
+        InferenceEngine::Precision inPrc, outPrc;
+        InferenceEngine::Layout inLayout, outLayout;
+        std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> inputShapes;
+        std::string targetDevice;
+        std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = basicParamsSet;
+        ngraph::op::PadType padType;
+        InferenceEngine::SizeVector kernel, stride, dilation;
+        std::vector<ptrdiff_t> padBegin, padEnd;
+        size_t convOutChannels;
+        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
+
         std::ostringstream result;
-        result << LayerTestsDefinitions::ConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<convLayerTestParamsSet>(
-                basicParamsSet, 0));
+        result << "IS=" << CommonTestUtils::partialShape2str(inputShapes.first) << "_";
+        result << "TS=";
+        for (const auto& shape : inputShapes.second) {
+            result << "(";
+            for (const auto& item : shape) {
+                result << CommonTestUtils::vec2str(item) << "_";
+            }
+            result << ")_";
+        }
+        result << "K" << CommonTestUtils::vec2str(kernel) << "_";
+        result << "S" << CommonTestUtils::vec2str(stride) << "_";
+        result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
+        result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
+        result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+        result << "O=" << convOutChannels << "_";
+        result << "AP=" << padType << "_";
+        result << "netPRC=" << netPrecision.name() << "_";
+        result << "inPRC=" << inPrc.name() << "_";
+        result << "outPRC=" << outPrc.name() << "_";
+        result << "inL=" << inLayout << "_";
+        result << "outL=" << outLayout << "_";
+        result << "trgDev=" << targetDevice;
 
         result << CPUTestsBase::getTestCaseName(cpuParams);
         result << CpuTestWithFusing::getTestCaseName(fusingParams);
@@ -93,9 +135,12 @@ protected:
             isBias = (postOpMgrPtr->getFusedOpsNames() == "Add(PerChannel)" && selectedType != "jit_avx512_winograd");
 
         convSpecificParams convParams;
-        std::vector<size_t> inputShape;
+        std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> inputShapes;
         auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-        std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = basicParamsSet;
+        std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = basicParamsSet;
+
+        targetStaticShapes = inputShapes.second;
+        inputDynamicShapes = inputShapes.first;
 
         if (inPrc == Precision::UNSPECIFIED) {
             selectedType += std::string("_") + Precision(Precision::FP32).name();
@@ -111,6 +156,8 @@ protected:
         size_t convOutChannels;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+
+        ngraph::Shape inputShape = targetStaticShapes.front().front();
 
         auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, { inputShape });
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
@@ -190,8 +237,15 @@ const std::vector<SizeVector> strides2d = { {1, 1}, {2, 2} };
 const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0}, {1, 1} };
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
 const std::vector<SizeVector> dilations2d = { {1, 1}, {2, 2} };
-const std::vector<SizeVector> inputShapes2d = { {1, 64, 7, 7}, {1, 67, 7, 7} };
-const std::vector<SizeVector> inputShapesPlain2Blocked2d = { {1, 1, 7, 7}, {1, 2, 7, 7},  {1, 3, 7, 7} };
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inputShapes2d = {
+        {{}, {{{ 1, 64, 7, 7 }}}},
+        {{}, {{{ 1, 67, 7, 7 }}}}
+};
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inputShapesPlain2Blocked2d = {
+        {{}, {{{ 1, 1, 7, 7 }}}},
+        {{}, {{{ 1, 2, 7, 7 }}}},
+        {{}, {{{ 1, 3, 7, 7 }}}}
+};
 
 /* ============= Convolution params (3D) ============= */
 const std::vector<SizeVector> kernels3d = { {3, 3, 3}, {1, 1, 1} };
@@ -199,8 +253,15 @@ const std::vector<SizeVector> strides3d = { {1, 1, 1}, {2, 2, 2} };
 const std::vector<std::vector<ptrdiff_t>> padBegins3d = { {0, 0, 0}, {1, 1, 1} };
 const std::vector<std::vector<ptrdiff_t>> padEnds3d = { {0, 0, 0} };
 const std::vector<SizeVector> dilations3d = { {1, 1, 1}, {2, 2, 2} };
-const std::vector<SizeVector> inputShapes3d = { {1, 64, 7, 7, 7}, {1, 67, 7, 7, 7} };
-const std::vector<SizeVector> inputShapesPlain2Blocked3d = { {1, 1, 7, 7, 7}, {1, 2, 7, 7, 7},  {1, 3, 7, 7, 7} };
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inputShapes3d = {
+        {{}, {{{ 1, 64, 7, 7, 7 }}}},
+        {{}, {{{ 1, 67, 7, 7, 7 }}}}
+};
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inputShapesPlain2Blocked3d = {
+        {{}, {{{ 1, 1, 7, 7, 7 }}}},
+        {{}, {{{ 1, 2, 7, 7, 7 }}}},
+        {{}, {{{ 1, 3, 7, 7, 7 }}}},
+};
 /* ============= */
 
 /* INSTANCES */
@@ -220,6 +281,11 @@ const std::vector<CPUSpecificParams> CPUParams_GEMM_2D = {
         conv_gemm_2D_nspc
 };
 
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesGemm2D = {
+        {{}, {{{ 2, 12, 7, 7 }}}},
+        //{{ngraph::PartialShape{{1, 200}, 12, {1, 200}, {1, 200}}}, {{{ 2, 12, 7, 7 }, { 1, 12, 5, 5}}}}
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_GEMM_FP32, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
@@ -229,7 +295,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_GEMM_FP32, ConvolutionLayerCPUTest,
                                          ::testing::Values(Precision::UNSPECIFIED),
                                          ::testing::Values(Layout::ANY),
                                          ::testing::Values(Layout::ANY),
-                                         ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7 })),
+                                         ::testing::ValuesIn(inShapesGemm2D),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_2D)),
                                  ::testing::ValuesIn(fusingParamsSet),
@@ -245,7 +311,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_GEMM_BF16, ConvolutionLayerCPUTest,
                                          ::testing::Values(Precision::BF16),
                                          ::testing::Values(Layout::ANY),
                                          ::testing::Values(Layout::ANY),
-                                         ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7 })),
+                                         ::testing::ValuesIn(inShapesGemm2D),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_2D)),
                                  ::testing::ValuesIn(fusingParamsSetBF16),
@@ -261,7 +327,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_GEMM_I8, ConvolutionLayerCPUTest,
                                          ::testing::Values(Precision::UNSPECIFIED),
                                          ::testing::Values(Layout::ANY),
                                          ::testing::Values(Layout::ANY),
-                                         ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7 })),
+                                         ::testing::ValuesIn(inShapesGemm2D),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_2D)),
                                  ::testing::Values(fusingSum),
@@ -284,6 +350,10 @@ const std::vector<CPUSpecificParams> CPUParams_GEMM_3D = {
         conv_gemm_3D_nspc
 };
 
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesGemm3D = {
+        {{}, {{{ 2, 12, 7, 7, 7 }}}}
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_GEMM_FP32, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
@@ -293,7 +363,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_GEMM_FP32, ConvolutionLayerCPUTest,
                                          ::testing::Values(Precision::UNSPECIFIED),
                                          ::testing::Values(Layout::ANY),
                                          ::testing::Values(Layout::ANY),
-                                         ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7, 7 })),
+                                         ::testing::ValuesIn(inShapesGemm3D),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_3D)),
                                  ::testing::ValuesIn(fusingParamsSet),
@@ -309,7 +379,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_GEMM_BF16, ConvolutionLayerCPUTest,
                                          ::testing::Values(Precision::BF16),
                                          ::testing::Values(Layout::ANY),
                                          ::testing::Values(Layout::ANY),
-                                         ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7, 7 })),
+                                         ::testing::ValuesIn(inShapesGemm3D),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_3D)),
                                  ::testing::ValuesIn(fusingParamsSetBF16),
@@ -325,7 +395,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_GEMM_I8, ConvolutionLayerCPUTest,
                                          ::testing::Values(Precision::UNSPECIFIED),
                                          ::testing::Values(Layout::ANY),
                                          ::testing::Values(Layout::ANY),
-                                         ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7, 7 })),
+                                         ::testing::ValuesIn(inShapesGemm3D),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_3D)),
                                  ::testing::Values(fusingSum),
@@ -635,6 +705,10 @@ const std::vector<CPUSpecificParams> CPUParams_1D = {
         conv_avx512_1D
 };
 
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes1D = {
+        {{}, {{{ 2, 64, 7 }}}}
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
@@ -644,7 +718,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D, ConvolutionLayerCPUTest,
                                          ::testing::Values(Precision::UNSPECIFIED),
                                          ::testing::Values(Layout::ANY),
                                          ::testing::Values(Layout::ANY),
-                                         ::testing::Values(std::vector<size_t >({ 2, 64, 7})),
+                                         ::testing::ValuesIn(inShapes1D),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_1D)),
                                  ::testing::Values(fusingAddPerChannel),
@@ -752,6 +826,10 @@ const auto convParams_2D = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesWinograd = {
+        {{}, {{{ 1, 16, 10, 10 }}}}
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_winograd, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
@@ -761,7 +839,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_winograd, ConvolutionLayerCPUTest,
                                          ::testing::Values(Precision::UNSPECIFIED),
                                          ::testing::Values(Layout::ANY),
                                          ::testing::Values(Layout::ANY),
-                                         ::testing::Values(std::vector<size_t >({ 1, 16, 10, 10 })),
+                                         ::testing::ValuesIn(inShapesWinograd),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(std::vector<CPUSpecificParams>{conv_winograd})),
                                  ::testing::ValuesIn(fusingParamsSet),
