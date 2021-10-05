@@ -6,7 +6,7 @@
 
 using namespace ov;
 
-bool OldApiMap::visit_attributes(AttributeVisitor & visitor) {
+bool OldApiMap::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("order", m_value.m_order);
     visitor.on_attribute("type", m_value.m_type);
     return true;

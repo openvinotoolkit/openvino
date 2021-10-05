@@ -34,8 +34,8 @@ TEST_F(RTInfoSerializationTest, all_attributes) {
                 std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("add"));
         info[ov::PrimitivesPriority::get_type_info_static()] =
                 std::make_shared<ov::PrimitivesPriority>("priority");
-        info[ov::OldApiMap::get_type_info_static()] =
-                std::make_shared<ov::OldApiMap>(ov::OldApiMapAttr(std::vector<int64_t>{0, 2, 3, 1}, ngraph::element::Type_t::f32));
+        info[ov::OldApiMap::get_type_info_static()] = std::make_shared<ov::OldApiMap>(
+                ov::OldApiMapAttr(std::vector<uint64_t>{0, 2, 3, 1}, ngraph::element::Type_t::f32));
     };
 
     std::shared_ptr<ngraph::Function> function;
@@ -77,7 +77,7 @@ TEST_F(RTInfoSerializationTest, all_attributes) {
 
         ov::OldApiMapAttr old_api_map_attr_val = old_api_map_attr->get();
 
-        std::vector<int64_t> expected_order = {0, 2, 3, 1};
+        std::vector<uint64_t> expected_order = {0, 2, 3, 1};
         ASSERT_EQ(old_api_map_attr_val.get_order().size(), expected_order.size());
         auto order = old_api_map_attr_val.get_order();
         for (auto j = 0; j < old_api_map_attr_val.get_order().size(); ++j) {
