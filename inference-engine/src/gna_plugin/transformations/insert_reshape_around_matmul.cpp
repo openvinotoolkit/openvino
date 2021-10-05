@@ -58,9 +58,7 @@ static bool InsertReshape(
     auto reshape_input_node = std::dynamic_pointer_cast<ngraph::opset8::Reshape>(first_node);
     bool need_reshape_before = !reshape_input_node || reshape_input_node->get_output_shape(0).size() != 2;
     if (need_reshape_before) {
-        auto input_shape = first_node->get_output_shape(0);
-        std::vector<int> before_shape(2, -1);
-        before_shape[1] = input_shape.back();
+        std::vector<int> before_shape = {-1, static_cast<int>(first_node->get_output_shape(0).back())};
         auto reshape_before_node = std::make_shared<ngraph::opset8::Reshape>(first_node,
             std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{before_shape.size()}, before_shape), false);
         reshape_before_node->set_friendly_name(matmul_node->get_friendly_name() + "/reshape_before_matmul");
@@ -78,7 +76,11 @@ static bool InsertReshape(
 
             auto transpose_input_shape = transpose_node->input_values()[0].get_node_shared_ptr()->get_output_shape(0);
             auto transpose_constant_shape = transpose_node->input_values()[1].get_node_shared_ptr()->get_output_shape(0);
-            IE_ASSERT((std::count_if(transpose_input_shape.begin(), transpose_input_shape.end(), [](size_t n) { return n > 1; }) <= 2));
+            if (std::count_if(transpose_input_shape.begin(), transpose_input_shape.end(), [](size_t n) { return n > 1; }) > 2) {
+                THROW_GNA_EXCEPTION << "The number of dimensions that are greater than 1 is greater than 2"
+                    << " for Transpose layer (" << transpose_node->get_friendly_name() << ")."
+                    << " For this reason, there is no way to determine permutation shape.";
+            }
             std::vector<int> permutation_shape = {1, 0};
             auto transpose_node_copy = transpose_node->clone_with_new_inputs(
                 {transpose_node->input_values()[0],
