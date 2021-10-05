@@ -105,4 +105,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 };
 
+TRANSFORMATIONS_API bool has_old_api_map(const Node * node);
+TRANSFORMATIONS_API OldApiMap get_old_api_map(const Node * node);
+TRANSFORMATIONS_API void set_old_api_map(Node * node, const OldApiMap& old_api_map);
 }  // namespace ov
