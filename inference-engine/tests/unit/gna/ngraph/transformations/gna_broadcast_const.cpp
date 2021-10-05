@@ -174,5 +174,4 @@ INSTANTIATE_TEST_SUITE_P(BroadcastConstTestSuite, BroadcastConstTestFixture,
                                             ::testing::ValuesIn({ true, false }),
                                             ::testing::ValuesIn({ true, false })));
 
-
 } // namespace testing

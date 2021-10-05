@@ -35,6 +35,27 @@ bool HasDynamicShape(Node node) {
     return shape.is_dynamic();
 }
 
+ov::op::BroadcastModeSpec GetBroadcastType(Node eltwise_node) {
+    auto node = std::dynamic_pointer_cast<ov::op::util::BinaryElementwiseArithmetic>(eltwise_node);
+
+    // check if it's an ngraph::op::Eltwise layer without broadcast type info
+    if (!node)
+        return ov::op::BroadcastType::NUMPY;
+
+    switch (node->get_autob().m_type) {
+        case ov::op::AutoBroadcastType::EXPLICIT:
+            return ov::op::BroadcastType::EXPLICIT;
+        case ov::op::AutoBroadcastType::NUMPY:
+            return ov::op::BroadcastType::NUMPY;
+        case ov::op::AutoBroadcastType::PDPD:
+            return ov::op::BroadcastType::PDPD;
+        default:
+            return ov::op::BroadcastType::NONE;
+    }
+
+    return ov::op::BroadcastType::NONE;
+}
+
 bool DoTransformation(Node const_node, Node eltwise_node) {
     if (HasDynamicShape(const_node) || HasDynamicShape(eltwise_node))
         return false;
@@ -45,17 +66,13 @@ bool DoTransformation(Node const_node, Node eltwise_node) {
 
     auto new_const_node = ngraph::op::util::make_try_fold<ngraph::opset8::Broadcast>(const_node,
                                                                                      broadcast_const,
-                                                                                     ov::op::BroadcastType::NUMPY);
+                                                                                     GetBroadcastType(eltwise_node));
     ngraph::replace_node(const_node, new_const_node);
     return true;
 }
 
 } // namespace
 
-/**
- * @brief Cannot use precise ngraph pattern since we can have arbitary number of non-functional
- * nodes between Const, FakeQuantize and Eltwise layers
- */
 
 BroadcastAddMultiplyConst::BroadcastAddMultiplyConst() {
     MATCHER_SCOPE(BroadcastAddMultiplyConst);
