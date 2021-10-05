@@ -4,35 +4,28 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <limits>
-#include <algorithm>
-#include <cmath>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
+#include <random>
+#include "openvino/op/mish.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace {
 struct MishParams {
     template <class IT>
-    MishParams(const PartialShape& shape, const element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
+    MishParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
         : pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateBlob(iType, iValues)),
-          refData(CreateBlob(iType, oValues)) {}
+          inputData(CreateTensor(iType, iValues)),
+          refData(CreateTensor(iType, oValues)) {}
 
-    PartialShape pshape;
-    element::Type inType;
-    element::Type outType;
-    Blob::Ptr inputData;
-    Blob::Ptr refData;
+    ov::PartialShape pshape;
+    ov::element::Type inType;
+    ov::element::Type outType;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
 };
 
 class ReferenceMishLayerTest : public testing::TestWithParam<MishParams>, public CommonReferenceTest {
@@ -55,9 +48,9 @@ public:
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& Mishected_output_type) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Mish = std::make_shared<op::v4::Mish>(in);
-        return std::make_shared<Function>(NodeVector {Mish}, ParameterVector {in});
+        return std::make_shared<ov::Function>(NodeVector {Mish}, ParameterVector {in});
     }
 };
 

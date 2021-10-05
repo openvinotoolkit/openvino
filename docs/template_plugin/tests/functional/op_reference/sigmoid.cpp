@@ -4,35 +4,27 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <limits>
-#include <algorithm>
-#include <cmath>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
+#include "openvino/op/sigmoid.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace {
 struct SigmoidParams {
     template <class IT>
-    SigmoidParams(const PartialShape& shape, const element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
+    SigmoidParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
         : pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateBlob(iType, iValues)),
-          refData(CreateBlob(iType, oValues)) {}
+          inputData(CreateTensor(iType, iValues)),
+          refData(CreateTensor(iType, oValues)) {}
 
-    PartialShape pshape;
-    element::Type inType;
-    element::Type outType;
-    Blob::Ptr inputData;
-    Blob::Ptr refData;
+    ov::PartialShape pshape;
+    ov::element::Type inType;
+    ov::element::Type outType;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
 };
 
 class ReferenceSigmoidLayerTest : public testing::TestWithParam<SigmoidParams>, public CommonReferenceTest {
@@ -55,9 +47,9 @@ public:
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& Sigmoidected_output_type) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
-        const auto Sigmoid = std::make_shared<op::Sigmoid>(in);
-        return std::make_shared<Function>(NodeVector {Sigmoid}, ParameterVector {in});
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        const auto Sigmoid = std::make_shared<op::v0::Sigmoid>(in);
+        return std::make_shared<ov::Function>(NodeVector {Sigmoid}, ParameterVector {in});
     }
 };
 
@@ -76,11 +68,11 @@ std::vector<SigmoidParams> generateSigmoidFloatParams() {
     float sigma2 = 1.0f / (1.0f + std::exp(-x2));
 
     std::vector<SigmoidParams> sigmoidParams {
-        SigmoidParams(ngraph::PartialShape {1, 1, 2, 2},
+        SigmoidParams(ov::PartialShape {1, 1, 2, 2},
                     IN_ET,
                     std::vector<T>{x1, x2, x1, x2},
                     std::vector<T>{sigma1, sigma2, sigma1, sigma2}),
-        SigmoidParams(ngraph::PartialShape {1, 1, 4},
+        SigmoidParams(ov::PartialShape {1, 1, 4},
                     IN_ET,
                     std::vector<T>{x1, x2, x1, x2},
                     std::vector<T>{sigma1, sigma2, sigma1, sigma2})

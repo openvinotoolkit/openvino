@@ -4,37 +4,31 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <limits>
-#include <algorithm>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
+#include "openvino/op/gelu.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
+using namespace ov;
 using namespace InferenceEngine;
 
 namespace {
 struct GeluParams {
     template <class IT>
-    GeluParams(const PartialShape& shape, const element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues,
-                const op::GeluApproximationMode mode)
+    GeluParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues,
+                const ov::op::GeluApproximationMode mode)
         : mode(mode),
           pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateBlob(iType, iValues)),
-          refData(CreateBlob(iType, oValues)) {}
+          inputData(CreateTensor(iType, iValues)),
+          refData(CreateTensor(iType, oValues)) {}
 
-    op::GeluApproximationMode mode = op::GeluApproximationMode::ERF;
-    PartialShape pshape;
-    element::Type inType;
-    element::Type outType;
-    Blob::Ptr inputData;
-    Blob::Ptr refData;
+    ov::op::GeluApproximationMode mode = ov::op::GeluApproximationMode::ERF;
+    ov::PartialShape pshape;
+    ov::element::Type inType;
+    ov::element::Type outType;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
 };
 
 class ReferenceGeluV0LayerTest : public testing::TestWithParam<GeluParams>, public CommonReferenceTest {
@@ -57,9 +51,9 @@ public:
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& expected_output_type, const op::GeluApproximationMode mode) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Gelu = std::make_shared<op::v0::Gelu>(in);
-        return std::make_shared<Function>(NodeVector {Gelu}, ParameterVector {in});
+        return std::make_shared<ov::Function>(NodeVector {Gelu}, ParameterVector {in});
     }
 };
 
@@ -84,9 +78,9 @@ public:
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& expected_output_type, const op::GeluApproximationMode mode) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Gelu = std::make_shared<op::v7::Gelu>(in, mode);
-        return std::make_shared<Function>(NodeVector {Gelu}, ParameterVector {in});
+        return std::make_shared<ov::Function>(NodeVector {Gelu}, ParameterVector {in});
     }
 };
 
@@ -102,12 +96,12 @@ std::vector<GeluParams> generateGeluV0FloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<GeluParams> geluParams {
-        GeluParams(ngraph::PartialShape {8},
+        GeluParams(ov::PartialShape {8},
                     IN_ET,
                     std::vector<T>{-4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0},
                     std::vector<T>{-0.00012636185, -0.0040495098, -0.04550028, -0.15865529, 0.0, 0.8413447, 1.9544997, 2.9959507},
                     op::GeluApproximationMode::ERF),
-        GeluParams(ngraph::PartialShape {3},
+        GeluParams(ov::PartialShape {3},
                     IN_ET,
                     std::vector<T>{-0.5, 0.1, 0.4},
                     std::vector<T>{-0.15426877, 0.05398279, 0.2621686},
@@ -121,22 +115,22 @@ std::vector<GeluParams> generateGeluV7FloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<GeluParams> geluParams {
-        GeluParams(ngraph::PartialShape {8},
+        GeluParams(ov::PartialShape {8},
                     IN_ET,
                     std::vector<T>{-4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0},
                     std::vector<T>{-0.00012636185, -0.0040495098, -0.04550028, -0.15865529, 0.0, 0.8413447, 1.9544997, 2.9959507},
                     op::GeluApproximationMode::ERF),
-        GeluParams(ngraph::PartialShape {8},
+        GeluParams(ov::PartialShape {8},
                     IN_ET,
                     std::vector<T>{-4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0},
                     std::vector<T>{-0.00012636185, -0.0040495098, -0.04550028, -0.15865529, 0.0, 0.8413447, 1.9544997, 2.9959507},
                     op::GeluApproximationMode::TANH),
-        GeluParams(ngraph::PartialShape {3},
+        GeluParams(ov::PartialShape {3},
                     IN_ET,
                     std::vector<T>{-0.5, 0.1, 0.4},
                     std::vector<T>{-0.15426877, 0.05398279, 0.2621686},
                     op::GeluApproximationMode::ERF),
-        GeluParams(ngraph::PartialShape {3},
+        GeluParams(ov::PartialShape {3},
                     IN_ET,
                     std::vector<T>{-0.5, 0.1, 0.4},
                     std::vector<T>{-0.15428599, 0.053982753, 0.262161165},

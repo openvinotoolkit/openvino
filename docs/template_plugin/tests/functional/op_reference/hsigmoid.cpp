@@ -4,35 +4,27 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <limits>
-#include <algorithm>
-#include <cmath>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
+#include "openvino/op/hsigmoid.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace {
 struct HSigmoidParams {
     template <class IT>
-    HSigmoidParams(const PartialShape& shape, const element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
+    HSigmoidParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
         : pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateBlob(iType, iValues)),
-          refData(CreateBlob(iType, oValues)) {}
+          inputData(CreateTensor(iType, iValues)),
+          refData(CreateTensor(iType, oValues)) {}
 
-    PartialShape pshape;
-    element::Type inType;
-    element::Type outType;
-    Blob::Ptr inputData;
-    Blob::Ptr refData;
+    ov::PartialShape pshape;
+    ov::element::Type inType;
+    ov::element::Type outType;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
 };
 
 class ReferenceHSigmoidLayerTest : public testing::TestWithParam<HSigmoidParams>, public CommonReferenceTest {
@@ -55,9 +47,9 @@ public:
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& HSigmoidected_output_type) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto HSigmoid = std::make_shared<op::v5::HSigmoid>(in);
-        return std::make_shared<Function>(NodeVector {HSigmoid}, ParameterVector {in});
+        return std::make_shared<ov::Function>(NodeVector {HSigmoid}, ParameterVector {in});
     }
 };
 
@@ -71,7 +63,7 @@ std::vector<HSigmoidParams> generateHSigmoidFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<HSigmoidParams> hSigmoidParams {
-        HSigmoidParams(ngraph::PartialShape {13},
+        HSigmoidParams(ov::PartialShape {13},
                     IN_ET,
                     std::vector<T>{-10.f, -5.f, -4.f, -3.f, -2.f, -1.f, 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 10.f},
                     std::vector<T>{0.f, 0.f, 0.f, 0.f, 0.16666667f, 0.33333333f, 0.5f, 0.66666667f, 0.83333333f, 1.f, 1.f, 1.f, 1.f})

@@ -4,39 +4,32 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <limits>
-#include <algorithm>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
+#include "openvino/op/softmax.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace {
 struct SoftmaxParams {
     template <class IT>
-    SoftmaxParams(const PartialShape& shape, const element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues,
+    SoftmaxParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues,
                 const int64_t axis, const std::string& test_name)
         : axis(axis),
           pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateBlob(iType, iValues)),
-          refData(CreateBlob(iType, oValues)),
+          inputData(CreateTensor(iType, iValues)),
+          refData(CreateTensor(iType, oValues)),
           test_case_name(test_name) {}
 
     int64_t axis = 0;
 
-    PartialShape pshape;
-    element::Type inType;
-    element::Type outType;
-    Blob::Ptr inputData;
-    Blob::Ptr refData;
+    ov::PartialShape pshape;
+    ov::element::Type inType;
+    ov::element::Type outType;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
     std::string test_case_name;
 };
 
@@ -66,9 +59,9 @@ public:
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& expected_output_type, const int64_t axis) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Softmax = std::make_shared<op::v1::Softmax>(in, axis);
-        return std::make_shared<Function>(NodeVector {Softmax}, ParameterVector {in});
+        return std::make_shared<ov::Function>(NodeVector {Softmax}, ParameterVector {in});
     }
 };
 
@@ -106,7 +99,7 @@ std::vector<SoftmaxParams> generateSoftmaxFloatParams() {
     auto d2_of = expf(2) + expf(5);
 
     std::vector<SoftmaxParams> softmaxParams {
-        SoftmaxParams(ngraph::PartialShape {2, 2, 3},
+        SoftmaxParams(ov::PartialShape {2, 2, 3},
                     IN_ET,
                     std::vector<T>{-10, -20, -30, -40, -50, -60, -1, -2, -3, -4, -5, -6},
                     std::vector<T>{expf(-10) / d0,
@@ -123,7 +116,7 @@ std::vector<SoftmaxParams> generateSoftmaxFloatParams() {
                                    expf(-6) / d5},
                     0,
                     ""),
-        SoftmaxParams(ngraph::PartialShape {2, 3},
+        SoftmaxParams(ov::PartialShape {2, 3},
                     IN_ET,
                     std::vector<T>{-10, -20, -30, -40, -50, -60},
                     std::vector<T>{expf(-10) / d0_a1,
@@ -134,7 +127,7 @@ std::vector<SoftmaxParams> generateSoftmaxFloatParams() {
                                    expf(-60) / d1_a1},
                     1,
                     ""),
-        SoftmaxParams(ngraph::PartialShape {2, 3},
+        SoftmaxParams(ov::PartialShape {2, 3},
                     IN_ET,
                     std::vector<T>{-10, -20, -30, -40, -50, -60},
                     std::vector<T>{expf(-10) / d0_a0,
@@ -145,13 +138,13 @@ std::vector<SoftmaxParams> generateSoftmaxFloatParams() {
                                    expf(-60) / d2_a0},
                     0,
                     "test"),
-        SoftmaxParams(ngraph::PartialShape {1, 2, 3},
+        SoftmaxParams(ov::PartialShape {1, 2, 3},
                     IN_ET,
                     std::vector<T>{-10, -20, -30, -40, -50, -60},
                     std::vector<T>{1, 1, 1, 1, 1, 1},
                     0,
                     "trivial"),
-        SoftmaxParams(ngraph::PartialShape {2, 3},
+        SoftmaxParams(ov::PartialShape {2, 3},
                     IN_ET,
                     std::vector<T>{low, 1, 2, 3, 4, 5},
                     std::vector<T>{expf(low) / d0_uf,
@@ -162,7 +155,7 @@ std::vector<SoftmaxParams> generateSoftmaxFloatParams() {
                                    expf(5) / d2_uf},
                     0,
                     "underflow"),
-        SoftmaxParams(ngraph::PartialShape {2, 3},
+        SoftmaxParams(ov::PartialShape {2, 3},
                     IN_ET,
                     std::vector<T>{high, 1, 2, 3, 4, 5},
                     std::vector<T>{expf(high - high) / d0_of,

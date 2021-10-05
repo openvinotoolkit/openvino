@@ -3,40 +3,34 @@
 //
 
 #include <gtest/gtest.h>
-
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <limits>
-#include <algorithm>
 #include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
 
+#include "openvino/op/hard_sigmoid.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace {
 struct HardSigmoidParams {
     template <class IT>
-    HardSigmoidParams(const PartialShape& shape, const element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues,
-                const double alpha, const double beta)
+    HardSigmoidParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues,
+                const float alpha, const float beta)
         : pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateBlob(iType, iValues)),
-          refData(CreateBlob(iType, oValues)),
+          inputData(CreateTensor(iType, iValues)),
+          refData(CreateTensor(iType, oValues)),
           alpha(alpha),
           beta(beta) {}
 
-    PartialShape pshape;
-    element::Type inType;
-    element::Type outType;
-    Blob::Ptr inputData;
-    Blob::Ptr refData;
-    double alpha;
-    double beta;
+    ov::PartialShape pshape;
+    ov::element::Type inType;
+    ov::element::Type outType;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
+    float alpha;
+    float beta;
 };
 
 class ReferenceHardSigmoidLayerTest : public testing::TestWithParam<HardSigmoidParams>, public CommonReferenceTest {
@@ -60,12 +54,16 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
-                                                    const element::Type& expected_output_type, const double alphaData, const double betaData) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
-        const auto alpha = op::Constant::create(input_type, Shape{}, {alphaData});
-        const auto beta = op::Constant::create(input_type, Shape{}, {betaData});
+                                                    const element::Type& expected_output_type, const float alphaData, const float betaData) {
+        std::vector<float> alphaArray;
+        std::vector<float> betaArray;
+        alphaArray.push_back(alphaData);
+        betaArray.push_back(betaData);
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        const auto alpha = ngraph::op::Constant::create(input_type, Shape{}, {alphaData});
+        const auto beta = ngraph::op::Constant::create(input_type, Shape{}, {betaData});
         const auto HardSigmoid = std::make_shared<op::v0::HardSigmoid>(in, alpha, beta);
-        return std::make_shared<Function>(NodeVector {HardSigmoid}, ParameterVector {in});
+        return std::make_shared<ov::Function>(NodeVector {HardSigmoid}, ParameterVector {in});
     }
 };
 
@@ -78,13 +76,13 @@ std::vector<HardSigmoidParams> generateHardSigmoidFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<HardSigmoidParams> hardSigmoidParams {
-        HardSigmoidParams(ngraph::PartialShape {3},
+        HardSigmoidParams(ov::PartialShape {3},
                     IN_ET,
                     std::vector<T>{-1.0f, 0.0f, 1.0f},
                     std::vector<T>{0.1f, 0.6f, 1.f},
                     0.5,
                     0.6),
-        HardSigmoidParams(ngraph::PartialShape {2, 5},
+        HardSigmoidParams(ov::PartialShape {2, 5},
                     IN_ET,
                     std::vector<T>{-3.0f, -1.0f, 0.0f, 1.0f, 3.0f, 0.5f, -0.2f, 6.0f, 8.0f, 0.1f},
                     std::vector<T>{0.0f, 0.3f, 0.5f, 0.7f, 1.0f, 0.6f, 0.46f, 1.0f, 1.0f, 0.52f},

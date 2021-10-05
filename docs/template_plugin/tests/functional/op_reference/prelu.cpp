@@ -4,39 +4,32 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <limits>
-#include <algorithm>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
+#include "openvino/op/prelu.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace {
 struct PreluParams {
     template <class IT>
-    PreluParams(const PartialShape& shape, const element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues,
-                const Shape& slopeShape, const std::vector<IT>& negativeSlopeValues)
+    PreluParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues,
+                const ov::Shape& slopeShape, const std::vector<IT>& negativeSlopeValues)
         : pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateBlob(iType, iValues)),
-          refData(CreateBlob(iType, oValues)),
+          inputData(CreateTensor(iType, iValues)),
+          refData(CreateTensor(iType, oValues)),
           negativeSlopeShape(slopeShape),
-          negativeSlope(CreateBlob(iType, negativeSlopeValues)) {}
+          negativeSlope(CreateTensor(iType, negativeSlopeValues)) {}
 
-    PartialShape pshape;
-    element::Type inType;
-    element::Type outType;
-    Blob::Ptr inputData;
-    Blob::Ptr refData;
-    Shape negativeSlopeShape;
-    Blob::Ptr negativeSlope;
+    ov::PartialShape pshape;
+    ov::element::Type inType;
+    ov::element::Type outType;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
+    ov::Shape negativeSlopeShape;
+    ov::runtime::Tensor negativeSlope;
 };
 
 class ReferencePreluLayerTest : public testing::TestWithParam<PreluParams>, public CommonReferenceTest {
@@ -59,11 +52,11 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const PreluParams& params) {
-        const auto in = std::make_shared<op::Parameter>(params.inType, params.pshape);
+        const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.pshape);
         //const auto SLOPE = op::Constant::create(input_type, negativeSlopeShape, negativeSlope->get());
-        const auto SLOPE = std::make_shared<op::Parameter>(params.inType, params.negativeSlopeShape);
+        const auto SLOPE = std::make_shared<op::v0::Parameter>(params.inType, params.negativeSlopeShape);
         const auto Prelu = std::make_shared<op::v0::PRelu>(in, SLOPE);
-        return std::make_shared<Function>(NodeVector {Prelu}, ParameterVector {in, SLOPE});
+        return std::make_shared<ov::Function>(NodeVector {Prelu}, ParameterVector {in, SLOPE});
     }
 };
 
@@ -76,7 +69,7 @@ std::vector<PreluParams> generatePreluFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<PreluParams> preluParams {
-        PreluParams(ngraph::PartialShape {6},
+        PreluParams(ov::PartialShape {6},
                     IN_ET,
                     std::vector<T>{1, 2, -3, -4, 5, 6},
                     std::vector<T>{1, 2, -6, -8, 5, 6},

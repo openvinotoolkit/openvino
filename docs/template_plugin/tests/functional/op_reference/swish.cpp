@@ -4,28 +4,20 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <limits>
-#include <algorithm>
-#include <cmath>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
+#include "openvino/op/swish.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace {
 struct SwishParams {
     template <class IT>
-    SwishParams(const PartialShape& shape, const element::Type& iType, const std::vector<IT>& iValues)
+    SwishParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues)
         : pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateBlob(iType, iValues)),
+          inputData(CreateTensor(iType, iValues)),
           testDefaults(true) {
               std::vector<IT> oValues;
               std::vector<double> output;
@@ -38,16 +30,16 @@ struct SwishParams {
 
               for (auto element : output)
                   oValues.push_back(static_cast<IT>(element));
-              refData = CreateBlob(outType, oValues);
+              refData = CreateTensor(outType, oValues);
           }
 
     template <class IT>
-    SwishParams(const PartialShape& shape, const element::Type& iType, const std::vector<IT>& iValues,
+    SwishParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues,
                 const double beta)
         : pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateBlob(iType, iValues)),
+          inputData(CreateTensor(iType, iValues)),
           testDefaults(false),
           beta(beta) {
               std::vector<IT> oValues;
@@ -63,18 +55,18 @@ struct SwishParams {
 
               for (auto element : output)
                   oValues.push_back(static_cast<IT>(element));
-              refData = CreateBlob(outType, oValues);
+              refData = CreateTensor(outType, oValues);
 
               betaVector.push_back(static_cast<IT>(beta));
-              betaBlob = CreateBlob(inType, betaVector);
+              betaBlob = CreateTensor(inType, betaVector);
           }
 
-    PartialShape pshape;
-    element::Type inType;
-    element::Type outType;
-    Blob::Ptr inputData;
-    Blob::Ptr refData;
-    Blob::Ptr betaBlob;
+    ov::PartialShape pshape;
+    ov::element::Type inType;
+    ov::element::Type outType;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
+    ov::runtime::Tensor betaBlob;
 
     bool testDefaults = false;
     double beta = 1;
@@ -112,15 +104,15 @@ public:
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& Swishected_output_type) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Swish = std::make_shared<op::v4::Swish>(in);
-        return std::make_shared<Function>(NodeVector {Swish}, ParameterVector {in});
+        return std::make_shared<ov::Function>(NodeVector {Swish}, ParameterVector {in});
     }
 
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& Swishected_output_type, const double beta) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
-        const auto BETA = std::make_shared<op::Parameter>(input_type, Shape {});
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        const auto BETA = std::make_shared<op::v0::Parameter>(input_type, Shape {});
         const auto Swish = std::make_shared<op::v4::Swish>(in);
         return std::make_shared<Function>(NodeVector {Swish}, ParameterVector {in, BETA});
     }
@@ -135,14 +127,14 @@ std::vector<SwishParams> generateSwishFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<SwishParams> swishParams {
-        SwishParams(ngraph::PartialShape {2, 4},
+        SwishParams(ov::PartialShape {2, 4},
                     IN_ET,
                     std::vector<T>{0.4, -5.7, -6, 3, -0.9, 23, 5, 3.3},
                     0.6f),
-        SwishParams(ngraph::PartialShape {2, 3},
+        SwishParams(ov::PartialShape {2, 3},
                     IN_ET,
                     std::vector<T>{1, 8, -8, 17, -0.5, -1}),
-        SwishParams(ngraph::PartialShape {2, 2, 1, 2},
+        SwishParams(ov::PartialShape {2, 2, 1, 2},
                     IN_ET,
                     std::vector<T>{0.1, 0.6, 20, -7, -5.3, 3.5, -9, 11},
                     0.33f)

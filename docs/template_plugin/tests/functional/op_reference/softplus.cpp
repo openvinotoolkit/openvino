@@ -4,35 +4,27 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <limits>
-#include <algorithm>
-#include <cmath>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
+#include "openvino/op/softplus.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace {
 struct SoftPlusParams {
     template <class IT>
-    SoftPlusParams(const PartialShape& shape, const element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
+    SoftPlusParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
         : pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateBlob(iType, iValues)),
-          refData(CreateBlob(iType, oValues)) {}
+          inputData(CreateTensor(iType, iValues)),
+          refData(CreateTensor(iType, oValues)) {}
 
-    PartialShape pshape;
-    element::Type inType;
-    element::Type outType;
-    Blob::Ptr inputData;
-    Blob::Ptr refData;
+    ov::PartialShape pshape;
+    ov::element::Type inType;
+    ov::element::Type outType;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
 };
 
 class ReferenceSoftPlusLayerTest : public testing::TestWithParam<SoftPlusParams>, public CommonReferenceTest {
@@ -55,9 +47,9 @@ public:
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& SoftPlusected_output_type) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto SoftPlus = std::make_shared<op::v4::SoftPlus>(in);
-        return std::make_shared<Function>(NodeVector {SoftPlus}, ParameterVector {in});
+        return std::make_shared<ov::Function>(NodeVector {SoftPlus}, ParameterVector {in});
     }
 };
 
@@ -70,7 +62,7 @@ std::vector<SoftPlusParams> generateSoftPlusFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<SoftPlusParams> softPlusParams {
-        SoftPlusParams(ngraph::PartialShape {4},
+        SoftPlusParams(ov::PartialShape {4},
                     IN_ET,
                     std::vector<T>{-1.0, 0.0, 1.0, 20.0},
                     std::vector<T>{0.31326166, 0.69314718, 1.3132616, 20.0})

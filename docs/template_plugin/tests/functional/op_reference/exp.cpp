@@ -4,35 +4,28 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <limits>
-#include <algorithm>
-#include <cmath>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
+#include "openvino/op/exp.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
+using namespace ov;
 using namespace InferenceEngine;
 
 namespace {
 struct ExpParams {
     template <class IT>
-    ExpParams(const PartialShape& shape, const element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
+    ExpParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
         : pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateBlob(iType, iValues)),
-          refData(CreateBlob(iType, oValues)) {}
+          inputData(CreateTensor(iType, iValues)),
+          refData(CreateTensor(iType, oValues)) {}
 
-    PartialShape pshape;
-    element::Type inType;
-    element::Type outType;
-    Blob::Ptr inputData;
-    Blob::Ptr refData;
+    ov::PartialShape pshape;
+    ov::element::Type inType;
+    ov::element::Type outType;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
 };
 
 class ReferenceExpLayerTest : public testing::TestWithParam<ExpParams>, public CommonReferenceTest {
@@ -55,9 +48,9 @@ public:
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& expected_output_type) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
-        const auto Exp = std::make_shared<op::Exp>(in);
-        return std::make_shared<Function>(NodeVector {Exp}, ParameterVector {in});
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        const auto Exp = std::make_shared<op::v0::Exp>(in);
+        return std::make_shared<ov::Function>(NodeVector {Exp}, ParameterVector {in});
     }
 };
 
@@ -81,10 +74,10 @@ public:
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& expected_output_type) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
-        const auto Exp = std::make_shared<op::Exp>(in);
-        const auto ExpInPlace = std::make_shared<op::Exp>(Exp);
-        return std::make_shared<Function>(NodeVector {ExpInPlace}, ParameterVector {in});
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        const auto Exp = std::make_shared<op::v0::Exp>(in);
+        const auto ExpInPlace = std::make_shared<op::v0::Exp>(Exp);
+        return std::make_shared<ov::Function>(NodeVector {ExpInPlace}, ParameterVector {in});
     }
 };
 
@@ -101,11 +94,11 @@ std::vector<ExpParams> generateExpFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<ExpParams> expParams {
-        ExpParams(ngraph::PartialShape {8},
+        ExpParams(ov::PartialShape {8},
                     IN_ET,
                     std::vector<T>{-4, -3, -2, -1, 0, 1, 2, 3},
                     std::vector<T>{expf(-4), expf(-3), expf(-2), expf(-1), expf(0), expf(1), expf(2), expf(3)}),
-        ExpParams(ngraph::PartialShape {1},
+        ExpParams(ov::PartialShape {1},
                     IN_ET,
                     std::vector<T>{13},
                     std::vector<T>{expf(13)})
@@ -118,12 +111,12 @@ std::vector<ExpParams> generateExpIntParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<ExpParams> expParams {
-        ExpParams(ngraph::PartialShape {8},
+        ExpParams(ov::PartialShape {8},
                     IN_ET,
                     std::vector<T>{-4, -3, -2, -1, 0, 1, 2, 3},
                     std::vector<T>{static_cast<T>(expf(-4)), static_cast<T>(expf(-3)), static_cast<T>(expf(-2)), static_cast<T>(expf(-1)),
                                    static_cast<T>(expf(0)), static_cast<T>(expf(1)), static_cast<T>(expf(2)), static_cast<T>(expf(3))}),
-        ExpParams(ngraph::PartialShape {1},
+        ExpParams(ov::PartialShape {1},
                     IN_ET,
                     std::vector<T>{13},
                     std::vector<T>{static_cast<T>(expf(13))})
@@ -136,12 +129,12 @@ std::vector<ExpParams> generateExpUintParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<ExpParams> expParams {
-        ExpParams(ngraph::PartialShape {8},
+        ExpParams(ov::PartialShape {8},
                     IN_ET,
                     std::vector<T>{0, 1, 2, 3, 4, 5, 10, 100},
                     std::vector<T>{static_cast<T>(expf(0)), static_cast<T>(expf(1)), static_cast<T>(expf(2)), static_cast<T>(expf(3)),
                                    static_cast<T>(expf(4)), static_cast<T>(expf(5)), static_cast<T>(expf(10)), static_cast<T>(expf(100))}),
-        ExpParams(ngraph::PartialShape {1},
+        ExpParams(ov::PartialShape {1},
                     IN_ET,
                     std::vector<T>{13},
                     std::vector<T>{static_cast<T>(expf(13))})
@@ -154,7 +147,7 @@ std::vector<ExpParams> generateExpInPlaceFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<ExpParams> expParams {
-        ExpParams(ngraph::PartialShape {2},
+        ExpParams(ov::PartialShape {2},
                     IN_ET,
                     std::vector<T>{1, 3},
                     std::vector<T>{expf(expf(1)), expf(expf(3))})

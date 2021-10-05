@@ -4,35 +4,27 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <limits>
-#include <algorithm>
-#include <cmath>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
+#include "openvino/op/relu.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace {
 struct ReluParams {
     template <class IT>
-    ReluParams(const PartialShape& shape, const element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
+    ReluParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
         : pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateBlob(iType, iValues)),
-          refData(CreateBlob(iType, oValues)) {}
+          inputData(CreateTensor(iType, iValues)),
+          refData(CreateTensor(iType, oValues)) {}
 
-    PartialShape pshape;
-    element::Type inType;
-    element::Type outType;
-    Blob::Ptr inputData;
-    Blob::Ptr refData;
+    ov::PartialShape pshape;
+    ov::element::Type inType;
+    ov::element::Type outType;
+    ov::runtime::Tensor inputData;
+    ov::runtime::Tensor refData;
 };
 
 class ReferenceReluLayerTest : public testing::TestWithParam<ReluParams>, public CommonReferenceTest {
@@ -55,9 +47,9 @@ public:
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
                                                     const element::Type& Reluected_output_type) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
-        const auto Relu = std::make_shared<op::Relu>(in);
-        return std::make_shared<Function>(NodeVector {Relu}, ParameterVector {in});
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
+        const auto Relu = std::make_shared<op::v0::Relu>(in);
+        return std::make_shared<ov::Function>(NodeVector {Relu}, ParameterVector {in});
     }
 };
 
@@ -71,11 +63,11 @@ std::vector<ReluParams> generateReluFloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<ReluParams> reluParams {
-        ReluParams(ngraph::PartialShape {2, 5},
+        ReluParams(ov::PartialShape {2, 5},
                     IN_ET,
                     std::vector<T>{1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5},
                     std::vector<T>{1, 8, 0, 17, 0, 1, 8, 0, 17, 0}),
-        ReluParams(ngraph::PartialShape {2, 2, 2, 2},
+        ReluParams(ov::PartialShape {2, 2, 2, 2},
                     IN_ET,
                     std::vector<T>{1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5, 1},
                     std::vector<T>{1, 8, 0, 17, 0, 1, 8, 0, 17, 0, 1, 8, 0, 17, 0, 1})
@@ -88,7 +80,7 @@ std::vector<ReluParams> generateReluIntParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<ReluParams> reluParams {
-        ReluParams(ngraph::PartialShape {2, 5},
+        ReluParams(ov::PartialShape {2, 5},
                     IN_ET,
                     std::vector<T>{1, 8, -8, 17, -2, 1, 8, -8, 17, -1},
                     std::vector<T>{1, 8, 0, 17, 0, 1, 8, 0, 17, 0})
@@ -101,7 +93,7 @@ std::vector<ReluParams> generateReluUintParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<ReluParams> reluParams {
-        ReluParams(ngraph::PartialShape {2, 5},
+        ReluParams(ov::PartialShape {2, 5},
                     IN_ET,
                     std::vector<T>{1, 8, 17, 1, 8, 17, 1, 8, 17, 0},
                     std::vector<T>{1, 8, 17, 1, 8, 17, 1, 8, 17, 0})
