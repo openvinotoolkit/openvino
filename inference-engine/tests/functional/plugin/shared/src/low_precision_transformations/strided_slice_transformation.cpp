@@ -59,6 +59,7 @@ void StridedSliceTransformation::SetUp() {
         param.newAxisMask,
         param.shrinkAxisMask,
         param.elipsisMask);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(StridedSliceTransformation, CompareWithRefImpl) {

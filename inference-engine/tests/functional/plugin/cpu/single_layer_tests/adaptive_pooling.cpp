@@ -81,6 +81,7 @@ protected:
         threshold = 1e-2;
         function = (mode == "max" ? std::make_shared<ngraph::Function>(adapoolMax->outputs(), params, "AdaPoolMax") :
                     std::make_shared<ngraph::Function>(adapoolAvg->outputs(), params, "AdaPoolAvg"));
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

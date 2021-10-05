@@ -484,6 +484,8 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
 
         WeightIndexFuncDesc() = default;
         WeightIndexFuncDesc(std::string tensor_name, const WeightsLayout l) {
+            if (tensor_name == "FILTER")
+                return;
             const auto layout_name = toString(l);
             using args = std::initializer_list<std::string>;
             if (l == WeightsLayout::oiyx ||
@@ -1631,33 +1633,88 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                                                        : ConvertToType(GetInputVarName(p->in_scale_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
             auto pre_shift = p->per_tensor_input_shift ? Broadcast(toCodeString(p->in_shift), tmp_type, vec_size)
                                                        : ConvertToType(GetInputVarName(p->in_shift_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
-            auto in_lo = p->per_tensor_input_range ? Broadcast(toCodeString(p->in_lo), tmp_type, vec_size)
-                                                   : ConvertToType(GetInputVarName(p->in_range_lo_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
-            auto in_hi = p->per_tensor_input_range ? Broadcast(toCodeString(p->in_hi), tmp_type, vec_size)
-                                                   : ConvertToType(GetInputVarName(p->in_range_hi_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
 
-            if (p->has_clamp) {
-                op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = min(max(" + in_lo + ", " + in_converted + "), " + in_hi + ");";
+            if (p->per_tensor_output_range && p->out_lo < p->out_hi) {
+                // Input scale
+                op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = " + in_converted + " * " + pre_scale + ";";
+
+                // Input shift
+                if (p->has_pre_shift)
+                    op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + " + " + pre_shift + ";";
+
+                // Round operation isn't needed if output type is int8/uint8 and scale coefficient in all output channels is equal to 1.0
+                bool output_type_is_int8 = desc.output_tensor.GetDType() == Datatype::UINT8 || desc.output_tensor.GetDType() == Datatype::INT8;
+                if (((p->has_post_scale || p->has_post_shift) && output_type_is_int8) || !output_type_is_int8)
+                    op_decls += "\\\n\t" + tmp_var + " = round(" + tmp_var + ");";
+
+                // Output scale
+                if (p->has_post_scale)
+                    op_decls += "\\\n\t" + tmp_var + " = (" + tmp_var + " * " + post_scale + ");";
+
+                // Output shift
+                if (p->has_post_shift)
+                    op_decls += "\\\n\t" + tmp_var + " = (" + tmp_var + " + " + post_shift + ");";
+
+                // Output range
+                auto out_lo = Broadcast(std::to_string(p->out_lo), tmp_type, vec_size);
+                auto out_hi = Broadcast(std::to_string(p->out_hi), tmp_type, vec_size);
+
+                // Output clamp
+                if (p->has_clamp) {
+                    if (p->has_min_clamp && p->has_max_clamp)
+                        op_decls += "\\\n\t" + tmp_var + " = clamp(" + tmp_var + ", " + out_lo + ", " + out_hi + ");";
+                    else if (p->has_min_clamp)
+                        op_decls += "\\\n\t" + tmp_var + " = max(" + tmp_var + ", " + out_lo + ");";
+                    else
+                        op_decls += "\\\n\t" + tmp_var + " = min(" + tmp_var + ", " + out_hi + ");";
+                }
+
+                // Output conversion with rounding and saturation
+                op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputTypeSat(tmp_var, vec_size) + ";";
+                break;
             } else {
-                op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = " + in_converted + ";";
+                // Input range
+                auto in_lo = p->per_tensor_input_range ? Broadcast(std::to_string(p->in_lo), tmp_type, vec_size)
+                                                       : ConvertToType(GetInputVarName(p->in_range_lo_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
+                auto in_hi = p->per_tensor_input_range ? Broadcast(std::to_string(p->in_hi), tmp_type, vec_size)
+                                                       : ConvertToType(GetInputVarName(p->in_range_hi_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
+
+                // Input clamp
+                if (p->has_clamp) {
+                    if (p->has_min_clamp && p->has_max_clamp)
+                        op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = clamp(" + in_converted + ", " + in_lo + ", " + in_hi + ");";
+                    else if (p->has_min_clamp)
+                        op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = max(" + in_converted + ", " + in_lo + ");";
+                    else
+                        op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = min(" + in_converted + ", " + in_hi + ");";
+                } else {
+                    op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = " + in_converted + ";";
+                }
+
+                // Input scale
+                op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + " * " + pre_scale + ";";
+
+                // Input shift
+                if (p->has_pre_shift)
+                    op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + " + " + pre_shift + ";";
+
+                // Round operation isn't needed if output type is int8/uint8 and scale coefficient in all output channels is equal to 1.0
+                bool output_type_is_int8 = desc.output_tensor.GetDType() == Datatype::UINT8 || desc.output_tensor.GetDType() == Datatype::INT8;
+                if (((p->has_post_scale || p->has_post_shift) && output_type_is_int8) || !output_type_is_int8)
+                    op_decls += "\\\n\t" + tmp_var + " = round(" + tmp_var + ");";
+
+                // Output scale
+                if (p->has_post_scale)
+                    op_decls += "\\\n\t" + tmp_var + " = (" + tmp_var + " * " + post_scale + ");";
+
+                // Output shift
+                if (p->has_post_shift)
+                    op_decls += "\\\n\t" + tmp_var + " = (" + tmp_var + " + " + post_shift + ");";
+
+                // Output conversion with rounding and saturation
+                op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputTypeSat(tmp_var, vec_size) + ";";
+                break;
             }
-            op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + "*" + pre_scale + ";";
-            if (p->has_pre_shift)
-                op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + " + " + pre_shift + ";";
-
-            op_decls += "\\\n\t" + tmp_var + " = round(" + tmp_var + ");";
-
-            bool need_round = (p->has_post_scale || p->has_post_shift) &&
-                              (desc.output_tensor.GetDType() == Datatype::UINT8 || desc.output_tensor.GetDType() == Datatype::INT8);
-            if (p->has_post_scale)
-                op_decls += "\\\n\t" + tmp_var + " = (" + tmp_var + "*" + post_scale + ");";
-            if (p->has_post_shift)
-                op_decls += "\\\n\t" + tmp_var + " = (" + tmp_var + " + " + post_shift + ");";
-            if (need_round)
-                op_decls += "\\\n\t" + tmp_var + " = round(" + tmp_var + ");";
-
-            op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputTypeSat(tmp_var, vec_size) +";";
-            break;
         }
         case KernelType::ACTIVATION: {
             auto p = desc.GetOpParams<activation_fuse_params>();
@@ -1871,7 +1928,7 @@ std::string FusedOpsCodeGenerator::ConvertToOutputTypeSat(std::string var, size_
     if (desc.output_tensor.GetDType() == Datatype::F32 || desc.output_tensor.GetDType() == Datatype::F16)
         return "convert_" + GetOutputType(vec_size) + "(" + var + ")";
     else
-        return "convert_" + GetOutputType(vec_size) + "_sat(" + var + ")";
+        return "convert_" + GetOutputType(vec_size) + "_sat_rte(" + var + ")";
 }
 
 std::vector<size_t> FusedOpsCodeGenerator::GetRequiredInputs() const {
@@ -1880,7 +1937,8 @@ std::vector<size_t> FusedOpsCodeGenerator::GetRequiredInputs() const {
             auto p = std::dynamic_pointer_cast<quantize_fuse_params>(desc.op_params);
             if (p) {
                 std::vector<size_t> res = {};
-                if (!p->per_tensor_input_range && p->has_clamp) {
+                bool out_range_usage = p->per_tensor_output_range && p->out_lo < p->out_hi;
+                if (!out_range_usage && p->has_clamp) {
                     res.push_back(p->in_range_lo_idx);
                     res.push_back(p->in_range_hi_idx);
                 }

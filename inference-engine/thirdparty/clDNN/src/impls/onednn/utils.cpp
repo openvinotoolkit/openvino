@@ -21,8 +21,8 @@ cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory) {
     zp_s32_layout.data_type = data_types::i32;
     auto zp_s32_memory = engine->allocate_memory(zp_s32_layout, false);
 
-    mem_lock<T> zp_data(zp_memory, stream);
-    mem_lock<int32_t> zp_s32_data(zp_s32_memory, stream);
+    mem_lock<T, mem_lock_type::read> zp_data(zp_memory, stream);
+    mem_lock<int32_t, mem_lock_type::write> zp_s32_data(zp_s32_memory, stream);
     for (size_t i = 0; i < zp_data.size(); i++) {
         zp_s32_data.data()[i] = static_cast<int32_t>(zp_data.data()[i]);
     }
