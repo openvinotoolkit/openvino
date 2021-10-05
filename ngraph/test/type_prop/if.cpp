@@ -38,7 +38,7 @@ TEST(type_prop, if_simple_test) {
     if_op->set_input(X, Xt, Xe);
     if_op->set_input(Y, Yt, Ye);
     auto res = if_op->set_output(then_op_res, else_op_res);
-    if_op->validate_and_infer_types();
+   // if_op->validate_and_infer_types();
 
     auto result0 = make_shared<op::Result>(res);
     Shape out0_shape{32, 40, 10};
@@ -73,7 +73,7 @@ TEST(type_prop, if_non_const_condition_test) {
     if_op->set_input(X, Xt, Xe);
     if_op->set_input(Y, Yt, Ye);
     auto res = if_op->set_output(then_body_res, else_body_res);
-    if_op->validate_and_infer_types();
+   // if_op->validate_and_infer_types();
     auto result0 = make_shared<op::Result>(res);
     Shape out0_shape{32, 40, 10};
     auto sh = result0->get_output_shape(0);
@@ -147,7 +147,7 @@ TEST(type_prop, if_multiple_outputs) {
     if_op->set_input(Y, Yt, Ye);
     auto res1 = if_op->set_output(then_body_res_1, else_body_res_1);
     auto res2 = if_op->set_output(then_body_res_2, else_body_res_2);
-    if_op->validate_and_infer_types();
+   // if_op->validate_and_infer_types();
     auto result1 = make_shared<op::Result>(res1);
     auto result2 = make_shared<op::Result>(res2);
     Shape out0_shape{32, 40, 10};
@@ -184,7 +184,7 @@ TEST(type_prop, if_scalar_condition) {
     if_op->set_input(X, Xt, Xe);
     if_op->set_input(Y, Yt, Ye);
     auto res = if_op->set_output(then_body_res, else_body_res);
-    if_op->validate_and_infer_types();
+ //   if_op->validate_and_infer_types();
     auto result0 = make_shared<op::Result>(res);
     Shape out0_shape{32, 40, 10};
     auto sh = result0->get_output_shape(0);
@@ -218,7 +218,7 @@ TEST(type_prop, if_dynamic_output) {
     if_op->set_input(X, Xt, nullptr);
     if_op->set_input(Y, nullptr, Ye);
     auto res = if_op->set_output(then_body_res, else_body_res);
-    if_op->validate_and_infer_types();
+   // if_op->validate_and_infer_types();
     auto result0 = make_shared<op::Result>(res);
     auto dynamic_shape = result0->get_output_partial_shape(0);
 
@@ -265,7 +265,7 @@ TEST(type_prop, if_dynamic_inputs) {
     if_op->set_input(X, Xt, Xe);
     if_op->set_input(Y, Yt, Ye);
     auto res = if_op->set_output(then_body_res, else_body_res);
-    if_op->validate_and_infer_types();
+   // if_op->validate_and_infer_types();
     auto result0 = make_shared<op::Result>(res);
     auto dynamic_shape = result0->get_output_partial_shape(0);
     auto expected_result = PartialShape{Dimension::dynamic(), 20, 30};
