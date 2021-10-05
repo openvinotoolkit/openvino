@@ -17,6 +17,7 @@
 #include <threading/ie_tbb_streams_executor.hpp>
 #endif
 #include <threading/ie_cpu_streams_executor.hpp>
+#include <threading/ie_thread_safe_queue.hpp>
 #include <ie_system_conf.h>
 #include <algorithm>
 #include <unordered_set>
@@ -44,14 +45,6 @@ MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap network
                                           InferenceEngine::OutputsDataMap networkOutputs) {
     return std::make_shared<MKLDNNInferRequest>(networkInputs, networkOutputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
 }
-
-struct ImmediateSerialExecutor : public ITaskExecutor {
-    void run(InferenceEngine::Task task) override {
-        std::lock_guard<std::mutex> l{_mutex};
-        task();
-    }
-    std::mutex _mutex;
-};
 
 MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
                                      const Config &cfg,
@@ -89,12 +82,13 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
 #endif
     }
     if (0 != cfg.streamExecutorConfig._streams) {
+        auto callbackConfig = IStreamsExecutor::Config{
+            "CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE};
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         // There is no additional threads but we still need serialize callback execution to preserve legacy behaviour
-        _callbackExecutor = std::make_shared<ImmediateSerialExecutor>();
+        _callbackExecutor = std::make_shared<TBBStreamsExecutor>(callbackConfig);
 #else
-        _callbackExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
-                                IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
+        _callbackExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(callbackConfig);
 #endif
     } else {
         _callbackExecutor = _taskExecutor;
