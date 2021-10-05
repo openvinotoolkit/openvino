@@ -92,7 +92,7 @@ if not "%python_ver%"=="okay" (
 :: Check if OMZ tools are installed
 omz_downloader --print_all >NUL
 if errorlevel 1 (
-    echo Error^: Open Model Zoo Tools are not installed. It is required to download and convert a model. Check https://pypi.org/project/openvino-dev/ to install it.
+    echo Error^: Open Model Zoo Tools are not installed. They is required to download and convert a model. Check https://pypi.org/project/openvino-dev/ to install it.
     goto error
 )
 
