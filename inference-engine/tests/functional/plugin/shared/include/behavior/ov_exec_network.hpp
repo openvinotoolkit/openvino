@@ -364,41 +364,18 @@ TEST_P(OVExecNetwork, importExportedIENetwork) {
     ASSERT_EQ(function->inputs().size(), 2);
     ASSERT_EQ(function->inputs().size(), importedExecNet.inputs().size());
     ASSERT_THROW(importedExecNet.input(), ov::Exception);
-    ASSERT_EQ(function->input(0).get_tensor().get_names(), importedExecNet.input(0).get_tensor().get_names());
-    ASSERT_EQ(function->input(0).get_tensor().get_partial_shape(),
-              importedExecNet.input(0).get_tensor().get_partial_shape());
-    ASSERT_EQ(function->input(0).get_tensor().get_element_type(),
-              importedExecNet.input(0).get_tensor().get_element_type());
-    ASSERT_EQ(function->input(1).get_tensor().get_names(), importedExecNet.input(1).get_tensor().get_names());
-    ASSERT_EQ(function->input(1).get_tensor().get_partial_shape(),
-              importedExecNet.input(1).get_tensor().get_partial_shape());
-    ASSERT_EQ(function->input(1).get_tensor().get_element_type(),
-              importedExecNet.input(1).get_tensor().get_element_type());
     ASSERT_THROW(importedExecNet.input("data1").get_node(), ov::Exception);
     ASSERT_THROW(importedExecNet.input("data2").get_node(), ov::Exception);
-    ASSERT_EQ(importedExecNet.input(0).get_node(), importedExecNet.input("param1").get_node());
-    ASSERT_NE(importedExecNet.input(1).get_node(), importedExecNet.input("param1").get_node());
-    ASSERT_EQ(importedExecNet.input(1).get_node(), importedExecNet.input("param2").get_node());
-    ASSERT_NE(importedExecNet.input(0).get_node(), importedExecNet.input("param2").get_node());
+    ASSERT_NO_THROW(importedExecNet.input("param1").get_node());
+    ASSERT_NO_THROW(importedExecNet.input("param2").get_node());
     ASSERT_EQ(function->outputs().size(), 2);
     ASSERT_EQ(function->outputs().size(), importedExecNet.outputs().size());
     ASSERT_THROW(importedExecNet.output(), ov::Exception);
-    ASSERT_EQ(function->output(0).get_tensor().get_names(), importedExecNet.output(0).get_tensor().get_names());
-    ASSERT_EQ(function->output(0).get_tensor().get_partial_shape(),
-              importedExecNet.output(0).get_tensor().get_partial_shape());
-    ASSERT_EQ(function->output(0).get_tensor().get_element_type(),
-              importedExecNet.output(0).get_tensor().get_element_type());
-    ASSERT_EQ(function->output(1).get_tensor().get_names(), importedExecNet.output(1).get_tensor().get_names());
-    ASSERT_EQ(function->output(1).get_tensor().get_partial_shape(),
-              importedExecNet.output(1).get_tensor().get_partial_shape());
-    ASSERT_EQ(function->output(1).get_tensor().get_element_type(),
-              importedExecNet.output(1).get_tensor().get_element_type());
+    ASSERT_NE(function->output(0).get_tensor().get_names(), importedExecNet.output(0).get_tensor().get_names());
     ASSERT_THROW(importedExecNet.output("relu").get_node(), ov::Exception);
     ASSERT_THROW(importedExecNet.output("concat").get_node(), ov::Exception);
-    ASSERT_EQ(importedExecNet.output(0).get_node(), importedExecNet.output("relu_op").get_node());
-    ASSERT_NE(importedExecNet.output(1).get_node(), importedExecNet.output("relu_op").get_node());
-    ASSERT_EQ(importedExecNet.output(1).get_node(), importedExecNet.output("concat_op").get_node());
-    ASSERT_NE(importedExecNet.output(0).get_node(), importedExecNet.output("concat_op").get_node());
+    ASSERT_NO_THROW(importedExecNet.output("relu_op").get_node());
+    ASSERT_NO_THROW(importedExecNet.output("concat_op").get_node());
 }
 
 }  // namespace test

@@ -90,6 +90,10 @@ public:
     // used by convertFunctionToICNNNetwork from legacy library
     std::map<std::string, DataPtr> _data;
 
+    bool newAPI() const override {
+        return _new_api;
+    }
+
 protected:
     std::shared_ptr<::ngraph::Function> _ngraph_function;
 

@@ -36,6 +36,12 @@ CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph,
     }
 }
 
+bool CNNNetwork::newAPI() const {
+    if (actual == nullptr)
+        IE_THROW() << "CNNNetwork was not initialized.";
+    return actual->newAPI();
+}
+
 OutputsDataMap CNNNetwork::getOutputsInfo() const {
     if (actual == nullptr)
         IE_THROW() << "CNNNetwork was not initialized.";

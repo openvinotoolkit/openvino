@@ -117,8 +117,14 @@ void CNNNetworkSerializer::operator << (const CNNNetwork & network) {
         xml_doc.save(stream);
     };
 
-    ngraph::pass::StreamSerialize serializer(_ostream, getCustomOpSets(), serializeInputsAndOutputs);
-    serializer.run_on_function(std::const_pointer_cast<ngraph::Function>(network.getFunction()));
+    // Serialize to old representation in case of old API
+    if (network.newAPI()) {
+        ngraph::pass::StreamSerialize serializer(_ostream, getCustomOpSets(), serializeInputsAndOutputs);
+        serializer.run_on_function(std::const_pointer_cast<ngraph::Function>(network.getFunction()));
+    } else {
+        ngraph::pass::StreamSerialize serializer(_ostream, getCustomOpSets(), serializeInputsAndOutputs, ngraph::pass::Serialize::Version::IR_V10);
+        serializer.run_on_function(std::const_pointer_cast<ngraph::Function>(network.getFunction()));
+    }
 }
 
 CNNNetworkDeserializer::CNNNetworkDeserializer(std::istream & istream, cnn_network_builder fn)

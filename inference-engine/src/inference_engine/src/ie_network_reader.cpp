@@ -17,7 +17,29 @@
 #include "ie_itt.hpp"
 #include "ie_reader.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "transformations/utils/utils.hpp"
 
+namespace {
+void fix_tensor_names(const std::shared_ptr<InferenceEngine::ICNNNetwork>& net, bool newAPI) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto& ngFunc = net->getFunction();
+    int64_t version = 11;
+    if (ngFunc->get_rt_info().count("version")) {
+        version = std::dynamic_pointer_cast<ov::VariantWrapper<int64_t>>(ngFunc->get_rt_info().at("version"))->get();
+    }
+    if (newAPI && version == 10) {
+        // Change tensor names for inputs/outputs for cases with old API
+        for (const auto& param : ngFunc->get_parameters()) {
+            param->output(0).get_tensor().set_names({param->get_friendly_name()});
+        }
+        for (const auto& result : ngFunc->get_results()) {
+            auto dataName = ngraph::op::util::create_ie_output_name(result->input_value(0));
+            result->output(0).get_tensor().set_names({dataName});
+        }
+    }
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+}  // namespace
 namespace InferenceEngine {
 
 namespace details {
@@ -269,6 +291,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
         auto ngImpl = std::make_shared<details::CNNNetworkNGraphImpl>(ngFunc, exts, newAPI);
+        fix_tensor_names(ngImpl, newAPI);
         OPENVINO_SUPPRESS_DEPRECATED_START
         return CNNNetwork(ngImpl);
         OPENVINO_SUPPRESS_DEPRECATED_END
@@ -320,6 +343,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
         auto ngImpl = std::make_shared<details::CNNNetworkNGraphImpl>(ngFunc, exts, newAPI);
+        fix_tensor_names(ngImpl, newAPI);
         OPENVINO_SUPPRESS_DEPRECATED_START
         return CNNNetwork(ngImpl);
         OPENVINO_SUPPRESS_DEPRECATED_END
