@@ -58,7 +58,7 @@ public:
      * @param[in]  order  Transpose order.
      * @param[in]  legacy_type  Legacy type.
      */
-    explicit OldApiMapAttr(std::vector<uint64_t> order, ngraph::element::Type legacy_type)
+    explicit OldApiMapAttr(std::vector<uint64_t> order, const ngraph::element::Type& legacy_type)
              : m_order(std::move(order)), m_legacy_type(legacy_type) {}
 
     /**
