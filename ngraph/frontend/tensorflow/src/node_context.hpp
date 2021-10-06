@@ -13,7 +13,7 @@
 
 #define NGRAPH_VARIANT_DECLARATION(TYPE, info)                                            \
     template <>                                                                           \
-    class OPENVINO_API VariantWrapper<TYPE> : public VariantImpl<TYPE> {                  \
+    class VariantWrapper<TYPE> : public VariantImpl<TYPE> {                  \
     public:                                                                               \
         OPENVINO_RTTI(info);                                                              \
         VariantWrapper<TYPE>(const value_type& value) : VariantImpl<value_type>(value) {} \
