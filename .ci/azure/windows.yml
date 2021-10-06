@@ -203,10 +203,11 @@ jobs:
     displayName: 'Samples Smoke Tests'
     continueOnError: false
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
-    displayName: 'IE UT old'
+  - script: |
+      set PATH=$(IB_DIR);%PATH%
+      call $(SETUPVARS) && "$(IB_TESTCONSOLE)" $(INSTALL_TEST_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests-IB.xml
+    displayName: 'IE UT old - IB'
     continueOnError: false
-
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
     displayName: 'IE UT'
     continueOnError: false
