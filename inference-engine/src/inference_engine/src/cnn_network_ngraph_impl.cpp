@@ -116,10 +116,10 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
     : _ngraph_function(nGraph),
       _ie_extensions(exts),
       _new_api(newAPI) {
-
     int64_t version = 11;
     if (_ngraph_function->get_rt_info().count("version")) {
-        version = std::dynamic_pointer_cast<ov::VariantWrapper<int64_t>>(_ngraph_function->get_rt_info().at("version"))->get();
+        version = std::dynamic_pointer_cast<ov::VariantWrapper<int64_t>>(_ngraph_function->get_rt_info().at("version"))
+                      ->get();
     }
     // Restore usual attributes for CNNNetwork
     auto keep_input_info = [=](CNNNetworkNGraphImpl& network, const DataPtr& inData) {

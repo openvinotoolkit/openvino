@@ -35,7 +35,10 @@ CNNNetwork ReadNetwork(const std::string& modelPath,
          ReadNetwork function overload which takes a filesystem path to the model.
  * @return CNNNetwork
  */
-CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts, bool newAPI);
+CNNNetwork ReadNetwork(const std::string& model,
+                       const Blob::CPtr& weights,
+                       const std::vector<IExtensionPtr>& exts,
+                       bool newAPI);
 
 }  // namespace details
 }  // namespace InferenceEngine
