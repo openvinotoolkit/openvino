@@ -22,6 +22,7 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/manager.hpp"
+#include "ngraph/variant.hpp"
 #include "transformations/serialize.hpp"
 #include "transformations/smart_reshape/set_batch_size.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
@@ -115,12 +116,17 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
     : _ngraph_function(nGraph),
       _ie_extensions(exts),
       _new_api(newAPI) {
+
+    int64_t version = 11;
+    if (_ngraph_function->get_rt_info().count("version")) {
+        version = std::dynamic_pointer_cast<ov::VariantWrapper<int64_t>>(_ngraph_function->get_rt_info().at("version"))->get();
+    }
     // Restore usual attributes for CNNNetwork
     auto keep_input_info = [=](CNNNetworkNGraphImpl& network, const DataPtr& inData) {
         InputInfo::Ptr info(new InputInfo());
         info->setInputData(inData);
 
-        if (!_new_api) {
+        if (!_new_api || version == 10) {
             Precision prc = info->getPrecision();
 
             // Convert precision into native format (keep element size)
@@ -152,7 +158,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
         keep_input_info(*this, ptr);
     }
 
-    if (!_new_api) {
+    if (!_new_api || version == 10) {
         for (auto& output : _outputData) {
             // Convert precision into native format. Be consistent with possible conversion to CNNNetwork later.
             if (output.second->getPrecision() == Precision::I64) {
@@ -161,6 +167,14 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
                        output.second->getPrecision() != Precision::I32) {
                 output.second->setPrecision(Precision::FP32);
             }
+        }
+        // Change tensor names for inputs/outputs for cases with old API
+        for (const auto& param : _ngraph_function->get_parameters()) {
+            param->output(0).get_tensor().set_names({param->get_friendly_name()});
+        }
+        for (const auto& result : _ngraph_function->get_results()) {
+            auto dataName = ngraph::op::util::create_ie_output_name(result->input_value(0));
+            result->output(0).get_tensor().set_names({dataName});
         }
     }
 }
@@ -274,6 +288,9 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
                     _ngraph_function->remove_result(result);
                     throw;
                 }
+                // Change tensor names for outputs for cases with old API
+                if (!_new_api)
+                    result->output(0).get_tensor().set_names({result->get_friendly_name()});
 
                 if (_outputData.count(outputName) == 0) {
                     reshape();

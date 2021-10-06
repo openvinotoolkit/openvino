@@ -89,6 +89,7 @@
 #include <low_precision/low_precision.hpp>
 #include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/network_helper.hpp>
+#include "openvino/runtime/core.hpp"
 
 #include <ie_algorithm.hpp>
 #include "performance_heuristics.hpp"
@@ -734,7 +735,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
 
     CNNNetworkDeserializer deserializer(networkModel,
         [this](const std::string& model, const Blob::CPtr& weights) {
-            return GetCore()->ReadNetwork(model, weights);
+            return CNNNetwork(ov::runtime::Core().read_model(model, weights), {}, true);
         });
 
     CNNNetwork cnnnetwork;

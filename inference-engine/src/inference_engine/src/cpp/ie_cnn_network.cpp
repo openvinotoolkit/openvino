@@ -20,7 +20,7 @@ CNNNetwork::CNNNetwork(std::shared_ptr<ICNNNetwork> network) : network(network) 
         IE_THROW() << "CNNNetwork was not initialized.";
 }
 
-CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph, const std::vector<IExtensionPtr>& exts) {
+CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph, const std::vector<IExtensionPtr>& exts, bool newAPI) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetwork::CNNNetwork");
 
     if (graph == nullptr) {
@@ -28,7 +28,7 @@ CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph, const std
     }
 
     // Create CNNNetworkNGraphImpl
-    network = std::make_shared<details::CNNNetworkNGraphImpl>(graph, exts);
+    network = std::make_shared<details::CNNNetworkNGraphImpl>(graph, exts, newAPI);
     actual = network.get();
     if (actual == nullptr) {
         IE_THROW() << "CNNNetwork was not initialized.";

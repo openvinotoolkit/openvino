@@ -10,6 +10,7 @@
 
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "ie_core.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/runtime.hpp"
 #include "transformations/serialize.hpp"
@@ -248,6 +249,156 @@ TEST_P(OVExecNetwork, importExportedNetwork) {
     ASSERT_NE(importedExecNet.output(1).get_node(), importedExecNet.output("relu").get_node());
     ASSERT_EQ(importedExecNet.output(1).get_node(), importedExecNet.output("concat").get_node());
     ASSERT_NE(importedExecNet.output(0).get_node(), importedExecNet.output("concat").get_node());
+}
+
+TEST_P(OVExecNetwork, readFromV10IR) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    std::string model = R"V0G0N(
+<net name="Network" version="10">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset8">
+            <data element_type="f32" shape="1,3,22,22"/>
+            <output>
+                <port id="0" precision="FP32" names="data">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="round" id="1" type="Round" version="opset8">
+            <data mode="half_to_even"/>
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32" names="r">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset8">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    function = ie->read_model(model, InferenceEngine::Blob::Ptr());
+    ov::runtime::ExecutableNetwork execNet;
+    ASSERT_EQ(function->inputs().size(), 1);
+    ASSERT_EQ(function->outputs().size(), 1);
+    ASSERT_NO_THROW(function->input("in1"));
+    ASSERT_NO_THROW(function->output("round"));
+    ASSERT_NO_THROW(execNet = ie->compile_model(function, targetDevice, configuration));
+    ASSERT_EQ(execNet.inputs().size(), 1);
+    ASSERT_EQ(execNet.outputs().size(), 1);
+    ASSERT_NO_THROW(execNet.input("in1"));
+    ASSERT_NO_THROW(execNet.output("round"));
+
+    std::stringstream strm;
+    execNet.export_model(strm);
+
+    ov::runtime::ExecutableNetwork importedExecNet = ie->import_model(strm, targetDevice, configuration);
+    ASSERT_EQ(importedExecNet.inputs().size(), 1);
+    ASSERT_EQ(importedExecNet.outputs().size(), 1);
+    ASSERT_NO_THROW(importedExecNet.input("in1"));
+    ASSERT_NO_THROW(importedExecNet.output("round"));
+}
+
+TEST_P(OVExecNetwork, importExportedIENetwork) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    InferenceEngine::Core core;
+    InferenceEngine::ExecutableNetwork execNet;
+
+    // Create simple function
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto param2 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param2->set_friendly_name("param2");
+        param2->output(0).get_tensor().set_names({"data2"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("relu_op");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result1 = std::make_shared<ov::opset8::Result>(relu);
+        result1->set_friendly_name("result1");
+        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
+        concat->set_friendly_name("concat_op");
+        concat->output(0).get_tensor().set_names({"concat"});
+        auto result2 = std::make_shared<ov::opset8::Result>(concat);
+        result2->set_friendly_name("result2");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
+                                                      ngraph::ParameterVector{param1, param2});
+        function->set_friendly_name("SingleRuLU");
+    }
+    ASSERT_NO_THROW(execNet = core.LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, configuration));
+
+    std::stringstream strm;
+    execNet.Export(strm);
+
+    ov::runtime::ExecutableNetwork importedExecNet = ie->import_model(strm, targetDevice, configuration);
+    ASSERT_EQ(function->inputs().size(), 2);
+    ASSERT_EQ(function->inputs().size(), importedExecNet.inputs().size());
+    ASSERT_THROW(importedExecNet.input(), ov::Exception);
+    ASSERT_EQ(function->input(0).get_tensor().get_names(), importedExecNet.input(0).get_tensor().get_names());
+    ASSERT_EQ(function->input(0).get_tensor().get_partial_shape(),
+              importedExecNet.input(0).get_tensor().get_partial_shape());
+    ASSERT_EQ(function->input(0).get_tensor().get_element_type(),
+              importedExecNet.input(0).get_tensor().get_element_type());
+    ASSERT_EQ(function->input(1).get_tensor().get_names(), importedExecNet.input(1).get_tensor().get_names());
+    ASSERT_EQ(function->input(1).get_tensor().get_partial_shape(),
+              importedExecNet.input(1).get_tensor().get_partial_shape());
+    ASSERT_EQ(function->input(1).get_tensor().get_element_type(),
+              importedExecNet.input(1).get_tensor().get_element_type());
+    ASSERT_THROW(importedExecNet.input("data1").get_node(), ov::Exception);
+    ASSERT_THROW(importedExecNet.input("data2").get_node(), ov::Exception);
+    ASSERT_EQ(importedExecNet.input(0).get_node(), importedExecNet.input("param1").get_node());
+    ASSERT_NE(importedExecNet.input(1).get_node(), importedExecNet.input("param1").get_node());
+    ASSERT_EQ(importedExecNet.input(1).get_node(), importedExecNet.input("param2").get_node());
+    ASSERT_NE(importedExecNet.input(0).get_node(), importedExecNet.input("param2").get_node());
+    ASSERT_EQ(function->outputs().size(), 2);
+    ASSERT_EQ(function->outputs().size(), importedExecNet.outputs().size());
+    ASSERT_THROW(importedExecNet.output(), ov::Exception);
+    ASSERT_EQ(function->output(0).get_tensor().get_names(), importedExecNet.output(0).get_tensor().get_names());
+    ASSERT_EQ(function->output(0).get_tensor().get_partial_shape(),
+              importedExecNet.output(0).get_tensor().get_partial_shape());
+    ASSERT_EQ(function->output(0).get_tensor().get_element_type(),
+              importedExecNet.output(0).get_tensor().get_element_type());
+    ASSERT_EQ(function->output(1).get_tensor().get_names(), importedExecNet.output(1).get_tensor().get_names());
+    ASSERT_EQ(function->output(1).get_tensor().get_partial_shape(),
+              importedExecNet.output(1).get_tensor().get_partial_shape());
+    ASSERT_EQ(function->output(1).get_tensor().get_element_type(),
+              importedExecNet.output(1).get_tensor().get_element_type());
+    ASSERT_THROW(importedExecNet.output("relu").get_node(), ov::Exception);
+    ASSERT_THROW(importedExecNet.output("concat").get_node(), ov::Exception);
+    ASSERT_EQ(importedExecNet.output(0).get_node(), importedExecNet.output("relu_op").get_node());
+    ASSERT_NE(importedExecNet.output(1).get_node(), importedExecNet.output("relu_op").get_node());
+    ASSERT_EQ(importedExecNet.output(1).get_node(), importedExecNet.output("concat_op").get_node());
+    ASSERT_NE(importedExecNet.output(0).get_node(), importedExecNet.output("concat_op").get_node());
 }
 
 }  // namespace test

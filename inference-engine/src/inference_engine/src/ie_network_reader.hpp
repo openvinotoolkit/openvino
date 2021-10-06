@@ -23,7 +23,8 @@ namespace details {
  */
 CNNNetwork ReadNetwork(const std::string& modelPath,
                        const std::string& binPath,
-                       const std::vector<IExtensionPtr>& exts);
+                       const std::vector<IExtensionPtr>& exts,
+                       bool newAPI);
 /**
  * @brief Reads IR xml and bin (with the same name) files
  * @param model string with IR
@@ -34,7 +35,7 @@ CNNNetwork ReadNetwork(const std::string& modelPath,
          ReadNetwork function overload which takes a filesystem path to the model.
  * @return CNNNetwork
  */
-CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts);
+CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts, bool newAPI);
 
 }  // namespace details
 }  // namespace InferenceEngine

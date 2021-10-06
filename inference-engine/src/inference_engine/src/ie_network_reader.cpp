@@ -166,7 +166,8 @@ ov::Extensions get_extensions_map(const std::vector<InferenceEngine::IExtensionP
 
 CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::string& binPath,
-                                const std::vector<IExtensionPtr>& exts) {
+                                const std::vector<IExtensionPtr>& exts,
+                                bool newAPI) {
     // Register readers if it is needed
     registerReaders();
 
@@ -265,7 +266,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return CNNNetwork(ngFunc, exts);
+        return CNNNetwork(ngFunc, exts, newAPI);
     }
     IE_THROW(NetworkNotRead) << "Unable to read the model: " << modelPath
                              << " Please check that model format: " << fileExt
@@ -274,7 +275,8 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
 CNNNetwork details::ReadNetwork(const std::string& model,
                                 const Blob::CPtr& weights,
-                                const std::vector<IExtensionPtr>& exts) {
+                                const std::vector<IExtensionPtr>& exts,
+                                bool newAPI) {
     // Register readers if it is needed
     registerReaders();
     std::istringstream modelStringStream(model);
@@ -312,7 +314,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
         inputModel = FE->load(params);
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return CNNNetwork(ngFunc, exts);
+        return CNNNetwork(ngFunc, exts, newAPI);
     }
 
     IE_THROW(NetworkNotRead)
