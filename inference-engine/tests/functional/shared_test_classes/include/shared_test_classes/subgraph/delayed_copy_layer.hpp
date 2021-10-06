@@ -23,7 +23,7 @@ typedef std::tuple<
 
 class DelayedCopyTest
         : public testing::WithParamInterface<ConcatSplitReluTuple>,
-          public LayerTestsUtils::LayerTestsCommon {
+          virtual public LayerTestsUtils::LayerTestsCommon {
 private:
     void switchToNgraphFriendlyModel();
 public:
