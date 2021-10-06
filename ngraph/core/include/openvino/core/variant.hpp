@@ -74,7 +74,7 @@ public:
 template <>
 class OPENVINO_API VariantWrapper<int64_t> : public VariantImpl<int64_t> {
 public:
-    OPENVINO_RTTI("VariantWrapper<int_64>");
+    OPENVINO_RTTI("VariantWrapper<int64_t>");
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 

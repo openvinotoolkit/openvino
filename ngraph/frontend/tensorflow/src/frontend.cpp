@@ -19,7 +19,7 @@ namespace {
 void TranslateFWNode(const std::shared_ptr<TFFrameworkNode>& node) {
     auto type = node->get_op_type();
 
-    const auto TRANSLATE_OP_MAP = get_supported_ops();
+    const auto TRANSLATE_OP_MAP = tf::op::get_supported_ops();
     auto translator_it = TRANSLATE_OP_MAP.find(type);
     FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
 
@@ -159,13 +159,6 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
         // generate nGraph node output vector for the current operation node
         ngraph::OutputVector ng_outputs;
         try {
-            /*
-            if (operation_decoder->IsControlFlow()) {
-                FRONT_END_THROW("Encountered a control flow op in the nGraph bridge: " +
-                                operation_decoder->DebugString());
-            }
-            */
-
             FRONT_END_OP_CONVERSION_CHECK(translate_map.count(operation_decoder->get_op_type()),
                                           "No translator found for " + operation_decoder->get_op_type() + " node.");
             auto op_fun = &(translate_map[operation_decoder->get_op_type()]);
@@ -270,11 +263,6 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
     // create the nGraph function
     ng_function = std::make_shared<ngraph::Function>(results, params, model_name);
 
-    // TODO: request row-major layout on results.
-    // why do we need this?
-    // for (auto result : ng_function->get_results()) {
-    //  result->set_needs_default_layout(true);
-    // }
     NGRAPH_VLOG(5) << "Done with translations";
 }
 
