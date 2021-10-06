@@ -566,6 +566,8 @@ protected:
     void alignScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts);
     size_t ssAlign = 1;
     size_t constPort = 1;
+    size_t initScalesSize = 0;
+    size_t initShiftsSize = 0;
 
     void setType(Type type) {
         this->type = type;

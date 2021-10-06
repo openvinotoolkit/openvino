@@ -13,12 +13,12 @@ using namespace CPUTestUtils;
 namespace CPULayerTestsDefinitions {
 
 using basicCpuMvnParams = std::tuple<
-        std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>, // Input shapes
-        InferenceEngine::Precision,                                  // Input precision
-        ngraph::AxisSet,                                             // Reduction axes
-        bool,                                                        // Across channels
-        bool,                                                        // Normalize variance
-        double>;                                                     // Epsilon
+        std::pair<std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>>, // Input shapes
+        InferenceEngine::Precision,                                               // Input precision
+        ngraph::AxisSet,                                                          // Reduction axes
+        bool,                                                                     // Across channels
+        bool,                                                                     // Normalize variance
+        double>;                                                                  // Epsilon
 
 typedef std::tuple<
         basicCpuMvnParams,
@@ -38,7 +38,7 @@ public:
         Precision inputPrecision, outputPrecision;
         std::tie(basicParamsSet, cpuParams, fusingParams, inputPrecision, outputPrecision) = obj.param;
 
-        std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>> inputShapes;
+        std::pair<std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>> inputShapes;
         InferenceEngine::Precision netPrecision;
         ngraph::AxisSet axes;
         bool acrossChanels, normalizeVariance;
@@ -46,7 +46,7 @@ public:
         std::tie(inputShapes, netPrecision, axes, acrossChanels, normalizeVariance, eps) = basicParamsSet;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str({inputShapes.first}) << "_";
+        result << "IS=" << CommonTestUtils::partialShape2str(inputShapes.first) << "_";
         result << "TS=";
         for (const auto& shape : inputShapes.second) {
             result << "(" << CommonTestUtils::vec2str(shape) << ")_";
@@ -80,7 +80,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
-        std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>> inputShapes;
+        std::pair<std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>> inputShapes;
         InferenceEngine::Precision netPrecision;
         ngraph::AxisSet axes;
         bool acrossChanels, normalizeVariance;
@@ -90,8 +90,9 @@ protected:
         for (size_t i = 0; i < inputShapes.second.size(); i++) {
             targetStaticShapes.push_back({inputShapes.second[i]});
         }
-        inputDynamicShapes = {inputShapes.first};
+        inputDynamicShapes = inputShapes.first;
 
+        // TODO [DS]: remove after FQ dynamism supporting will be completed
         if (!inputDynamicShapes.empty() && std::find(fusedOps.begin(), fusedOps.end(), std::string("FakeQuantize")) != fusedOps.end()) {
             GTEST_SKIP();
         }
@@ -120,23 +121,83 @@ TEST_P(MvnLayerCPUTest, CompareWithRefs) {
 
 namespace {
 
-const std::vector<std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>> inputShapes_1D = {
+const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>>> inputShapes_1D = {
         { {}, {{5}}},
         { {}, {{16}}},
+        {
+            // dynamic
+            {{ngraph::Dimension(-1, -1)}},
+            // target
+            {
+                {2},
+                {16},
+                {1}
+            }
+        },
+        {
+            // dynamic
+            {{ngraph::Dimension(1, 20)}},
+            // target
+            {
+                {1},
+                {16},
+                {4}
+            }
+        }
 };
 
-const std::vector<std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>> inputShapes_2D = {
+const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>>> inputShapes_2D = {
         { {}, {{1, 32}}},
         { {}, {{16, 64}}},
+        {
+            // dynamic
+            {{ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)}},
+            // target
+            {
+                {2, 16},
+                {4, 16},
+                {1, 16}
+            }
+        },
+        {
+            // dynamic
+            {{ngraph::Dimension(1, 5), ngraph::Dimension(1, 20)}},
+            // target
+            {
+                {1, 1},
+                {2, 16},
+                {4, 16}
+            }
+        }
 };
 
-const std::vector<std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>> inputShapes_3D = {
+const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>>> inputShapes_3D = {
         { {}, {{1, 32, 17}}},
         { {}, {{1, 37, 9}}},
         { {}, {{1, 16, 4}}},
+        {
+            // dynamic
+            {{ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)}},
+            // target
+            {
+                {2, 16, 6},
+                {4, 16, 2},
+                {1, 16, 4}
+            }
+        },
+        {
+            // dynamic
+            {{ngraph::Dimension(1, 5), ngraph::Dimension(1, 20), ngraph::Dimension(1, 7)}},
+            // target
+            {
+                {1, 1, 1},
+                {2, 16, 6},
+                {4, 16, 2}
+            }
+        }
 };
 
-const std::vector<std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>> inputShapes_4D = {
+const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>>> inputShapes_4D = {
         { {}, {{1, 16, 5, 8}}},
         { {}, {{2, 19, 5, 10}}},
         { {}, {{7, 32, 2, 8}}},
@@ -145,23 +206,53 @@ const std::vector<std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>> i
         { {}, {{1, 4, 5, 5}}},
         { {}, {{1, 7, 3, 5}}},
         { {}, {{1, 15, 9, 5}}},
-        { {}, {{4, 41, 6, 9}}}
-};
-
-const std::vector<std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>> inputShapes_5D = {
-        // { {}, {{1, 32, 8, 1, 6}}},
-        // { {}, {{1, 9, 1, 15, 9}}},
-        // { {}, {{6, 64, 6, 1, 18}}},
-        // { {}, {{2, 31, 2, 9, 1}}},
-        // { {}, {{10, 16, 5, 10, 6}}},
+        { {}, {{4, 41, 6, 9}}},
         {
             // dynamic
-            {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
+            {{ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)}},
+            // target
+            {
+                {2, 16, 10, 6},
+                {4, 16, 2, 2},
+                {1, 16, 8, 4}
+            }
+        },
+        {
+            // dynamic
+            {{ngraph::Dimension(1, 5), ngraph::Dimension(1, 20), ngraph::Dimension(1, 10), ngraph::Dimension(1, 7)}},
+            // target
+            {
+                {1, 1, 1, 1},
+                {2, 16, 10, 6},
+                {4, 16, 2, 2}
+            }
+        }
+};
+
+const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>>> inputShapes_5D = {
+        { {}, {{1, 32, 8, 1, 6}}},
+        { {}, {{1, 9, 1, 15, 9}}},
+        { {}, {{6, 64, 6, 1, 18}}},
+        { {}, {{2, 31, 2, 9, 1}}},
+        { {}, {{10, 16, 5, 10, 6}}},
+        {
+            // dynamic
+            {{ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)}},
             // target
             {
                 {2, 16, 5, 10, 6},
                 {4, 16, 7, 2, 2},
                 {1, 16, 11, 8, 4}
+            }
+        },
+        {
+            // dynamic
+            {{ngraph::Dimension(1, 5), ngraph::Dimension(1, 20), ngraph::Dimension(1, 7), ngraph::Dimension(1, 10), ngraph::Dimension(1, 7)}},
+            // target
+            {
+                {1, 1, 1, 1, 1},
+                {2, 16, 5, 10, 6},
+                {4, 16, 7, 2, 2}
             }
         }
 };
@@ -198,18 +289,19 @@ std::vector<CPUSpecificParams> cpuParams_5D = {
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet {
-        // emptyFusingSpec,
-        // /* activations */
-        // fusingRelu,
-        // fusingElu,
-        // fusingTanh,
-        // fusingSwish,
-        // /* FQ */
-        // fusingFakeQuantizePerChannel,
-        // fusingFakeQuantizePerChannelRelu,
-        // fusingFakeQuantizePerTensorRelu,
+        emptyFusingSpec,
+        /* activations */
+        fusingRelu,
+        fusingElu,
+        fusingTanh,
+        fusingSwish,
+        /* FQ */
+        fusingFakeQuantizePerChannel,
+        fusingFakeQuantizePerChannelRelu,
+        fusingFakeQuantizePerTensorRelu,
         /* another patterns */
         fusingScaleShift,
+        fusingAddPerChannel
 };
 
 const auto Mvn3D = ::testing::Combine(
@@ -225,7 +317,7 @@ const auto Mvn3D = ::testing::Combine(
         ::testing::ValuesIn(inpPrc),
         ::testing::ValuesIn(outPrc));
 
-// INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn3D, MvnLayerCPUTest, Mvn3D, MvnLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn3D, MvnLayerCPUTest, Mvn3D, MvnLayerCPUTest::getTestCaseName);
 
 const auto Mvn4D = ::testing::Combine(
         ::testing::Combine(
@@ -240,7 +332,7 @@ const auto Mvn4D = ::testing::Combine(
         ::testing::ValuesIn(inpPrc),
         ::testing::ValuesIn(outPrc));
 
-// INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D, MvnLayerCPUTest, Mvn4D, MvnLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D, MvnLayerCPUTest, Mvn4D, MvnLayerCPUTest::getTestCaseName);
 
 const auto Mvn5D = ::testing::Combine(
         ::testing::Combine(
@@ -279,7 +371,7 @@ const auto Mvn1D = ::testing::Combine(
         ::testing::ValuesIn(inpPrc),
         ::testing::ValuesIn(outPrc));
 
-// INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn1D, MvnLayerCPUTest, Mvn1D, MvnLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn1D, MvnLayerCPUTest, Mvn1D, MvnLayerCPUTest::getTestCaseName);
 
 // 2D no transformed
 const auto Mvn2D = ::testing::Combine(
@@ -295,7 +387,7 @@ const auto Mvn2D = ::testing::Combine(
         ::testing::ValuesIn(inpPrc),
         ::testing::ValuesIn(outPrc));
 
-// INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn2D, MvnLayerCPUTest, Mvn2D, MvnLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn2D, MvnLayerCPUTest, Mvn2D, MvnLayerCPUTest::getTestCaseName);
 
 // 2d transformed
 const auto Mvn2DTrans = ::testing::Combine(
@@ -311,7 +403,7 @@ const auto Mvn2DTrans = ::testing::Combine(
         ::testing::ValuesIn(inpPrc),
         ::testing::ValuesIn(outPrc));
 
-// INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_MVN2DTrans, MvnLayerCPUTest, Mvn2DTrans, MvnLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_MVN2DTrans, MvnLayerCPUTest, Mvn2DTrans, MvnLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions
