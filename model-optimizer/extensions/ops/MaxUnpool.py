@@ -16,6 +16,7 @@ class MaxUnpool(Op):
     enabled = True
 
     def __init__(self, graph: Graph, attrs: dict):
+        print(attrs)
         super().__init__(graph, {
             'type': __class__.op,
             'op': __class__.op,
@@ -24,3 +25,6 @@ class MaxUnpool(Op):
             'out_ports_count': 1,
             'infer': shape_infer
         }, attrs)
+
+    def supported_attrs(self):
+        return ['kernel_shape', 'pad_begin', 'pad_end', 'strides']

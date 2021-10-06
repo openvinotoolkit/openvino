@@ -15,7 +15,11 @@ public:
     MaxUnpool(const ngraph::Output<ngraph::Node>& poolInp,
               const ngraph::Output<ngraph::Node>& poolOut,
               const ngraph::Output<ngraph::Node>& inp,
-              const ngraph::Output<ngraph::Node>& shape);
+              const ngraph::Output<ngraph::Node>& shape,
+              const Strides& strides,
+              const Shape& pads_begin,
+              const Shape& pads_end,
+              const Shape& kernel);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -25,6 +29,8 @@ public:
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
 
     bool has_evaluate() const override;
+
+    Shape m_kernel, m_pads_begin, m_pads_end, m_strides;
 };
 }  // namespace v8
 }  // namespace op
