@@ -10,7 +10,7 @@
 #include <tuple>
 #include <vector>
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "base/behavior_test_utils.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -27,11 +27,10 @@
 namespace ov {
 namespace test {
 
-class OVInferenceChaining : public ov::test::BehaviorTestsBasic {
+class OVInferenceChaining : public BehaviorTestsUtils::OVInferRequestTests {
 protected:
-    static std::shared_ptr<ov::Function> getFirstStaticFunction(const ov::element::Type type,
-        const ov::PartialShape & shape = {3}) {
-        auto params = ngraph::builder::makeDynamicParams(type, {shape, shape, shape});
+    static std::shared_ptr<ov::Function> getFirstStaticFunction(const ov::PartialShape & shape = {3}) {
+        auto params = ngraph::builder::makeDynamicParams(element::Type_t::f32, {shape, shape, shape});
         params[0]->get_output_tensor(0).set_names({"input_tensor_0"});
         params[0]->set_friendly_name("param_0");
         params[1]->get_output_tensor(0).set_names({"input_tensor_1"});
@@ -46,9 +45,8 @@ protected:
         return std::make_shared<ov::Function>(eltwise2, ov::ParameterVector(params));
     }
 
-    static std::shared_ptr<ov::Function> getSecondStaticFunction(const ov::element::Type type,
-        const ov::PartialShape & shape = {3}) {
-        auto params = ngraph::builder::makeDynamicParams(type, {shape, shape});
+    static std::shared_ptr<ov::Function> getSecondStaticFunction(const ov::PartialShape & shape = {3}) {
+        auto params = ngraph::builder::makeDynamicParams(element::Type_t::f32, {shape, shape});
         params[0]->get_output_tensor(0).set_names({"input_tensor_0"});
         params[0]->set_friendly_name("param_0");
         params[1]->get_output_tensor(0).set_names({"input_tensor_1"});
@@ -60,9 +58,8 @@ protected:
         return std::make_shared<ov::Function>(eltwise, ov::ParameterVector(params));
     }
 
-    static std::shared_ptr<ov::Function> getThirdStaticFunction(const ov::element::Type type,
-        const ov::PartialShape & shape = {3}) {
-        auto params = ngraph::builder::makeDynamicParams(type, {shape, shape, shape, shape});
+    static std::shared_ptr<ov::Function> getThirdStaticFunction(const ov::PartialShape & shape = {3}) {
+        auto params = ngraph::builder::makeDynamicParams(element::Type_t::f32, {shape, shape, shape, shape});
         params[0]->get_output_tensor(0).set_names({"input_tensor_0"});
         params[0]->set_friendly_name("param_0");
         params[1]->get_output_tensor(0).set_names({"input_tensor_1"});
@@ -98,9 +95,9 @@ protected:
 public:
     void Run() {
         ov::runtime::ExecutableNetwork execNet0, execNet1, execNet2;
-        ASSERT_NO_THROW(execNet0 = ie->compile_model(function0, targetDevice, configuration));
-        ASSERT_NO_THROW(execNet1 = ie->compile_model(function1, targetDevice, configuration));
-        ASSERT_NO_THROW(execNet2 = ie->compile_model(function2, targetDevice, configuration));
+        ASSERT_NO_THROW(execNet0 = core->compile_model(function0, targetDevice, configuration));
+        ASSERT_NO_THROW(execNet1 = core->compile_model(function1, targetDevice, configuration));
+        ASSERT_NO_THROW(execNet2 = core->compile_model(function2, targetDevice, configuration));
 
         ov::runtime::InferRequest r0, r1, r2;
         ASSERT_NO_THROW(r0 = execNet0.create_infer_request());
@@ -155,9 +152,9 @@ TEST_P(OVInferenceChaining, StaticOutputToStaticInput) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    function0 = getFirstStaticFunction(elementType);
-    function1 = getSecondStaticFunction(elementType);
-    function2 = getThirdStaticFunction(elementType);
+    function0 = getFirstStaticFunction();
+    function1 = getSecondStaticFunction();
+    function2 = getThirdStaticFunction();
 
     Run();
 }
@@ -167,9 +164,9 @@ TEST_P(OVInferenceChaining, StaticOutputToDynamicInput) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     const auto dynamic = ov::PartialShape::dynamic(ov::Rank(1));
-    function0 = getFirstStaticFunction(elementType);
-    function1 = getSecondStaticFunction(elementType, dynamic);
-    function2 = getThirdStaticFunction(elementType, dynamic);
+    function0 = getFirstStaticFunction();
+    function1 = getSecondStaticFunction(dynamic);
+    function2 = getThirdStaticFunction(dynamic);
 
     Run();
 }
@@ -179,9 +176,9 @@ TEST_P(OVInferenceChaining, DynamicOutputToDynamicInput) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     const auto dynamic = ov::PartialShape::dynamic();
-    function0 = getFirstStaticFunction(elementType, dynamic);
-    function1 = getSecondStaticFunction(elementType, dynamic);
-    function2 = getThirdStaticFunction(elementType, dynamic);
+    function0 = getFirstStaticFunction(dynamic);
+    function1 = getSecondStaticFunction(dynamic);
+    function2 = getThirdStaticFunction(dynamic);
 
     Run();
 }
@@ -193,9 +190,9 @@ TEST_P(OVInferenceChaining, DynamicInputToDynamicOutput) {
     this->outputToInput = false;
 
     const auto dynamic = ov::PartialShape::dynamic();
-    function0 = getFirstStaticFunction(elementType, dynamic);
-    function1 = getSecondStaticFunction(elementType, dynamic);
-    function2 = getThirdStaticFunction(elementType, dynamic);
+    function0 = getFirstStaticFunction(dynamic);
+    function1 = getSecondStaticFunction(dynamic);
+    function2 = getThirdStaticFunction(dynamic);
 
     Run();
 }
