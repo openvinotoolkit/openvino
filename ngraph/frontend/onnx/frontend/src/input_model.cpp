@@ -68,16 +68,16 @@ Place::Ptr InputModelONNX::get_place_by_operation_name(const std::string& operat
 Place::Ptr InputModelONNX::get_place_by_operation_name_and_input_port(const std::string& operation_name,
                                                                       int input_port_index) {
     const auto op = get_place_by_operation_name(operation_name);
-    if(op != nullptr) {
+    if (op != nullptr) {
         return op->get_input_port(input_port_index);
     }
     return nullptr;
 }
 
 Place::Ptr InputModelONNX::get_place_by_operation_name_and_output_port(const std::string& operation_name,
-                                                                      int output_port_index) {
+                                                                       int output_port_index) {
     const auto op = get_place_by_operation_name(operation_name);
-    if(op != nullptr) {
+    if (op != nullptr) {
         return op->get_output_port(output_port_index);
     }
     return nullptr;
