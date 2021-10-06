@@ -39,10 +39,10 @@ def test_get_version(device):
     assert hasattr(version[device], "build_number"), "Returned version has no field 'build_number'"
 
 
-def test_compile_model(device):
+def test_load_network(device):
     ie = IECore()
-    net = ie.read_model(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie.compile_model(net, device)
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    exec_net = ie.load_network(net, device)
     assert isinstance(exec_net, ExecutableNetwork)
 
 
