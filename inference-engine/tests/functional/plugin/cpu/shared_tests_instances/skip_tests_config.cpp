@@ -111,6 +111,8 @@ std::vector<std::string> disabledTestPatterns() {
 
         // Issue 66685
         R"(smoke_PrePostProcess.*resize_linear_nhwc.*)",
+        // Issue 67214
+        R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)",
     };
 
 #define FIX_62820 0

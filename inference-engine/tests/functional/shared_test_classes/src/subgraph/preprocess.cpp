@@ -30,6 +30,7 @@ void PrePostProcessTest::SetUp() {
     std::tie(func, targetDevice) = GetParam();
     function = (std::get<0>(func))();
     threshold = std::get<2>(func);
+    abs_threshold = std::get<2>(func);
 }
 
 TEST_P(PrePostProcessTest, CompareWithRefs) {
