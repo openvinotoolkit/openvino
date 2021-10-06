@@ -137,4 +137,8 @@ void regclass_pyngraph_FrontEnd(py::module m) {
                 get_name : str
                     Current frontend name. Empty string if not implemented.
             )");
+
+    fem.def("__repr__", [](const ngraph::frontend::FrontEnd& self) -> std::string {
+        return "<FrontEnd '" + self.get_name() + "'>";
+    });
 }

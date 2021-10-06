@@ -234,3 +234,29 @@ def test_repr_dynamic_shape():
     ops = function.get_ordered_ops()
     for op in ops:
         assert "{?,2}" in repr(op)
+
+
+def test_discrete_type_info():
+    data_shape = [6, 12, 10, 24]
+    data_parameter = ng.parameter(data_shape, name="Data", dtype=np.float32)
+    k = np.int32(3)
+    axis = np.int32(1)
+    n1 = ng.topk(data_parameter, k, axis, "max", "value")
+    n2 = ng.topk(data_parameter, k, axis, "max", "value")
+    n3 = ng.sin(0.2)
+
+    assert n1.type_info.name == "TopK"
+    assert n3.type_info.name == "Sin"
+    assert n1.get_type_info().name == "TopK"
+    assert n3.get_type_info().name == "Sin"
+    assert n1.type_info.name == n2.type_info.name
+    assert n1.type_info.version == n2.type_info.version
+    assert n1.type_info.parent == n2.type_info.parent
+    assert n1.get_type_info().name == n2.get_type_info().name
+    assert n1.get_type_info().version == n2.get_type_info().version
+    assert n1.get_type_info().parent == n2.get_type_info().parent
+    assert n1.get_type_info().name != n3.get_type_info().name
+    assert n1.get_type_info().name > n3.get_type_info().name
+    assert n1.get_type_info().name >= n3.get_type_info().name
+    assert n3.get_type_info().name < n1.get_type_info().name
+    assert n3.get_type_info().name <= n1.get_type_info().name

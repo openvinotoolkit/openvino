@@ -144,6 +144,7 @@ protected:
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roi_pooling)};
 
         function = makeNgraphFunction(ngPrc, params, roi_pooling, "roi_pooling");
+        functionRefs = ngraph::clone_function(*function);
 
         selectedType += "_";
         selectedType += netPrecision.name();
@@ -237,7 +238,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ROIPoolingCPU_bilinear,
                                            ::testing::ValuesIn(additionalConfig)),
                         ROIPoolingCPULayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ROIPoolingCPU_bilinear_ultimateRightBorderProposal,
+INSTANTIATE_TEST_SUITE_P(smoke_ROIPoolingCPU_bilinear_ultimateRightBorderProposal,
                         ROIPoolingCPULayerTest,
                         ::testing::Combine(::testing::Combine(::testing::Values(std::vector<size_t> { 1, 1, 50, 50 }),
                                                               ::testing::Values(std::vector<size_t> { 1, 5 }),

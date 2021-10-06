@@ -38,9 +38,6 @@ ie_add_plugin(NAME ${TARGET_NAME}
 # Enable support of CC for the plugin
 ie_mark_target_as_cc(${TARGET_NAME})
 
-# saving rpath to GNA shared library be used by CI
-log_rpath_from_dir(GNA ${libGNA_LIBRARIES_BASE_PATH})
-
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_legacy inference_engine_transformations
         Threads::Threads libGNA)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -52,6 +49,10 @@ target_compile_definitions(${TARGET_NAME}
         GNA_LIB_VER=${GNA_LIBRARY_VERSION_NUMBER})
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
+if(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CROSSCOMPILING)
+    target_link_options(${TARGET_NAME} PRIVATE -Wl,--unresolved-symbols=ignore-all)
+endif()
 
 #
 # Static version for tests
@@ -81,5 +82,5 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_test_static
 
 file(GLOB_RECURSE source_list "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
 install(FILES ${source_list}
-        DESTINATION ${IE_CPACK_IE_DIR}/external/gna/lib
+        DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT gna)

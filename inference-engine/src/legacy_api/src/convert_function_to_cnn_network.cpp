@@ -433,6 +433,9 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
             const auto data_beg = static_cast<char*>(a->get()->get_ptr());
             params[name] = std::string(data_beg, a->get()->size());
         }
+    } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(& adapter)) {
+        const auto & attrs = a->get();
+        params[name] = joinVec(attrs);
     } else {
         IE_THROW() << "Error converting ngraph to CNN network. "
                               "Attribute adapter can not be found for " << name << " parameter";
@@ -1978,12 +1981,12 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         CNNLayerPtr cnnLayer = createCNNLayer(layer);
 
         // Set originalLayersNames from FusedNames
-        std::string originalNames = ::ngraph::getFusedNames(layer);
+        std::string originalNames = ngraph::getFusedNames(layer);
         if (!originalNames.empty()) {
             cnnLayer->params[ExecGraphInfoSerialization::ORIGINAL_NAMES] = originalNames;
         }
 
-        std::string primitivesPriority = ::ngraph::getPrimitivesPriority(layer);
+        std::string primitivesPriority = ov::getPrimitivesPriority(layer);
         if (!primitivesPriority.empty()) {
             cnnLayer->params["PrimitivesPriority"] = primitivesPriority;
         }

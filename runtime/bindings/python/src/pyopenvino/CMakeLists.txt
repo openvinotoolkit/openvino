@@ -3,33 +3,26 @@
 
 project (pyopenvino)
 
-if(DEFINED IE_MAIN_SOURCE_DIR)
-    set(InferenceEngine_LIBRARIES inference_engine)
-    set(NGRAPH_LIBRARIES ngraph)
-    set(FRONTEND_MANAGER_LIBRARIES frontend_manager)
-else()
-    find_package(InferenceEngineDeveloperPackage REQUIRED)
-    find_package(ngraph QUIET)
+if(NOT DEFINED OpenVINO_SOURCE_DIR)
+    find_package(OpenVINO REQUIRED)
     find_package(frontend_manager QUIET)
-    set(InferenceEngine_LIBRARIES IE::inference_engine)
-    set(NGRAPH_LIBRARIES ngraph)
-    set(FRONTEND_MANAGER_LIBRARIES frontend_manager)
 endif()
 
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
-set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
-set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+# PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
+set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+message(STATUS "Python version=${PYTHON_VERSION}")
 
-# create target
+if(OpenVINO_SOURCE_DIR)
+    if(WIN32)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/openvino)
+    else()
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/openvino)
+    endif()
 
-find_package(Python COMPONENTS Interpreter Development REQUIRED)
-
-if(PYTHON_FOUND)
-    set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-    message("Python version={${Python_VERSION}}")
-else()
-    message(FATAL_ERROR "Python was not found!")
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+    set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+    set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 endif()
 
 # compile options
@@ -52,12 +45,14 @@ if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     add_compile_options(-Wno-deprecated-declarations -Wno-undef)
 endif()
 
+# create target
+
 file(GLOB_RECURSE SOURCES *.cpp)
 
 pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES} ${NGRAPH_LIBRARIES} ${FRONTEND_MANAGER_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime frontend_manager)
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)

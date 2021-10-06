@@ -79,6 +79,10 @@ void regclass_pyngraph_FrontEndManager(py::module m) {
                 load_by_model : FrontEnd
                     Frontend interface for further loading of models. 'None' if no suitable frontend is found
             )");
+
+    fem.def("__repr__", [](const ngraph::frontend::FrontEndManager& self) -> std::string {
+        return "<FrontEndManager>";
+    });
 }
 
 void regclass_pyngraph_GeneralFailureFrontEnd(py::module m) {

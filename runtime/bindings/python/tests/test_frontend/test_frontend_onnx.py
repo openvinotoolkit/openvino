@@ -37,7 +37,7 @@ def run_function(function, *inputs, expected):
 
 fem = FrontEndManager()
 onnx_model_filename = "model.onnx"
-ONNX_FRONTEND_NAME = "onnx_experimental"
+ONNX_FRONTEND_NAME = "onnx"
 
 
 def setup_module():

@@ -18,6 +18,17 @@
 #include "pyopenvino/graph/rt_map.hpp"
 #include "pyopenvino/graph/variant.hpp"
 
+class PyNode : public ngraph::Node {
+public:
+    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& inputs) const override {
+        PYBIND11_OVERRIDE_PURE(std::shared_ptr<ngraph::Node>, ngraph::Node, clone_with_new_inputs, inputs);
+    }
+
+    const type_info_t& get_type_info() const override {
+        PYBIND11_OVERRIDE_PURE(type_info_t&, ngraph::Node, get_type_info, );
+    }
+};
+
 namespace py = pybind11;
 
 using PyRTMap = std::map<std::string, std::shared_ptr<ngraph::Variant>>;
@@ -25,7 +36,7 @@ using PyRTMap = std::map<std::string, std::shared_ptr<ngraph::Variant>>;
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
 void regclass_graph_Node(py::module m) {
-    py::class_<ngraph::Node, std::shared_ptr<ngraph::Node>> node(m, "Node", py::dynamic_attr(), py::module_local());
+    py::class_<ngraph::Node, std::shared_ptr<ngraph::Node>, PyNode> node(m, "Node", py::dynamic_attr(), py::module_local());
     node.doc() = "ngraph.impl.Node wraps ngraph::Node";
     node.def(
         "__add__",

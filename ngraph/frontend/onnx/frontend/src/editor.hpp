@@ -31,7 +31,7 @@ public:
     ///
     /// \param model_path Path to the file containing the model.
     ONNXModelEditor(const std::string& model_path);
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     ONNXModelEditor(const std::wstring& model_path);
 #endif
 
@@ -197,6 +197,16 @@ public:
     /// \param output_name A node output name.
     ///
     bool is_correct_and_unambiguous_node(const EditorNode& node) const;
+
+    /// \brief Returns index (position) of provided node in the graph
+    ///        in topological order.
+    ///
+    /// \param node An EditorNode helper structure created based on a node name
+    ///             or a node output name.
+    ///
+    /// \note  The exception will be thrown if the provided node is ambiguous.
+    ///
+    int get_node_index(const EditorNode& node) const;
 
     /// \brief Returns true if a provided tensor name is correct (exists in a graph).
     ///

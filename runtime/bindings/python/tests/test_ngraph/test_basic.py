@@ -254,6 +254,44 @@ def test_constant_get_data_unsigned_integer(data_type):
     assert np.allclose(input_data, retrieved_data)
 
 
+def test_set_argument():
+    runtime = get_runtime()
+
+    data1 = np.array([1, 2, 3])
+    data2 = np.array([4, 5, 6])
+    data3 = np.array([7, 8, 9])
+
+    node1 = ng.constant(data1, dtype=np.float32)
+    node2 = ng.constant(data2, dtype=np.float32)
+    node3 = ng.constant(data3, dtype=np.float32)
+    node_add = ng.add(node1, node2)
+
+    # Original arguments
+    computation = runtime.computation(node_add)
+    output = computation()
+    assert np.allclose(data1 + data2, output)
+
+    # Arguments changed by set_argument
+    node_add.set_argument(1, node3.output(0))
+    output = computation()
+    assert np.allclose(data1 + data3, output)
+
+    # Arguments changed by set_argument
+    node_add.set_argument(0, node3.output(0))
+    output = computation()
+    assert np.allclose(data3 + data3, output)
+
+    # Arguments changed by set_argument(OutputVector)
+    node_add.set_arguments([node2.output(0), node3.output(0)])
+    output = computation()
+    assert np.allclose(data2 + data3, output)
+
+    # Arguments changed by set_arguments(NodeVector)
+    node_add.set_arguments([node1, node2])
+    output = computation()
+    assert np.allclose(data1 + data2, output)
+
+
 def test_result():
     node = np.array([[11, 10], [1, 8], [3, 4]])
     result = run_op_node([node], ov.result)

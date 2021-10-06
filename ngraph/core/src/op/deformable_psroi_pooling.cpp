@@ -9,7 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::DeformablePSROIPooling, "DeformablePSROIPooling", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::DeformablePSROIPooling);
 
 op::v1::DeformablePSROIPooling::DeformablePSROIPooling(const Output<Node>& input,
                                                        const Output<Node>& coords,
@@ -111,7 +111,7 @@ void op::v1::DeformablePSROIPooling::validate_and_infer_types() {
         output_dim_vec[i] = m_group_size;
     }
 
-    set_output_type(0, input_et, ov::Shape(output_dim_vec));
+    set_output_type(0, input_et, ov::PartialShape(output_dim_vec));
 }
 
 shared_ptr<Node> op::v1::DeformablePSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const {

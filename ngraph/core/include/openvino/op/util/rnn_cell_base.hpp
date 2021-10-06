@@ -49,7 +49,8 @@ std::shared_ptr<Node> OPENVINO_API convert_lstm_node_format(const Output<Node>& 
 ///
 class OPENVINO_API RNNCellBase : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("RNNCellBase", "util");
+    BWDCMP_RTTI_DECLARATION;
 
     ///
     /// \brief      Constructs a RNNCellBase class.
@@ -82,7 +83,7 @@ public:
     /// \param[in]  input           Vector with RNN-Cell op inputs in following order:
     ///                             X, initial_hidden_state, W, R and B.
     ///
-    void validate_input_rank_dimension(const std::vector<Shape>& input);
+    void validate_input_rank_dimension(const std::vector<PartialShape>& input);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::size_t get_hidden_size() const {

@@ -9,8 +9,8 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/rank.hpp"
 #include "ngraph/shape.hpp"
-#include "openvino/core/shape.hpp"
+#include "openvino/core/partial_shape.hpp"
 
 namespace ngraph {
-using PartialShape = ov::Shape;
+using ov::PartialShape;
 }  // namespace ngraph

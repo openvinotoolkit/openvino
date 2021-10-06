@@ -71,6 +71,10 @@ function(ie_add_plugin)
             set_target_properties(${IE_PLUGIN_NAME} PROPERTIES COMPILE_PDB_NAME ${IE_PLUGIN_NAME})
         endif()
 
+        if(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CROSSCOMPILING)
+            target_link_options(${IE_PLUGIN_NAME} PRIVATE -Wl,--unresolved-symbols=ignore-in-shared-libs)
+        endif()
+
         set(custom_filter "")
         foreach(filter IN LISTS IE_PLUGIN_CPPLINT_FILTERS)
             string(CONCAT custom_filter "${custom_filter}" "," "${filter}")
@@ -89,8 +93,8 @@ function(ie_add_plugin)
 
         # fake dependencies to build in the following order:
         # IE -> IE readers -> IE inference plugins -> IE-based apps
-        if(TARGET inference_engine_ir_reader)
-            add_dependencies(${IE_PLUGIN_NAME} inference_engine_ir_reader)
+        if(TARGET ir_ngraph_frontend)
+            add_dependencies(${IE_PLUGIN_NAME} ir_ngraph_frontend)
         endif()
         if(TARGET inference_engine_ir_v7_reader)
             add_dependencies(${IE_PLUGIN_NAME} inference_engine_ir_v7_reader)
