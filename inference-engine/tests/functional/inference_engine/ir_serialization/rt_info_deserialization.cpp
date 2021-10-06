@@ -10,6 +10,7 @@
 
 #include <inference_engine.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+#include <transformations/rt_info/old_api_map_attribute.hpp>
 #include "frontend_manager/frontend_manager.hpp"
 #include "graph_comparator.hpp"
 #include "ie_blob.h"
@@ -20,7 +21,6 @@
 #include "ngraph/variant.hpp"
 #include "openvino/runtime/core.hpp"
 #include <ngraph/opsets/opset8.hpp>
-#include <transformations/rt_info/old_api_map_attribute.hpp>
 
 using namespace ngraph;
 
