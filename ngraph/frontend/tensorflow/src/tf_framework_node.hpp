@@ -5,7 +5,7 @@
 #pragma once
 
 #include <algorithm>
-#include <ngraph_ops/framework_node.hpp>
+#include <ngraph/op/util/framework_node.hpp>
 #include <tensorflow_frontend/place.hpp>
 
 #include "graph_iterator_proto.hpp"
@@ -13,7 +13,7 @@
 namespace ngraph {
 namespace frontend {
 
-class TFFrameworkNode : public op::FrameworkNode {
+class TFFrameworkNode : public ::ov::op::util::FrameworkNode {
 public:
     NGRAPH_RTTI_DECLARATION;
 
