@@ -76,7 +76,7 @@ void IExecutableNetworkInternal::Export(std::ostream& networkModel) {
 }
 
 std::shared_ptr<ngraph::Function> IExecutableNetworkInternal::GetExecGraphInfo() {
-     IE_THROW(NotImplemented);
+    IE_THROW(NotImplemented);
 }
 
 std::vector<std::shared_ptr<IVariableStateInternal>> IExecutableNetworkInternal::QueryState() {
