@@ -89,7 +89,8 @@ void HeteroSyntheticTest::SetUp() {
     for (auto&& pluginParameter : std::get<Plugin>(param)) {
         bool registred = true;
         try {
-            PluginCache::get().ie()->RegisterPlugin(pluginParameter._location, pluginParameter._name);
+            PluginCache::get().ie()->RegisterPlugin(pluginParameter._location
+                + IE_BUILD_POSTFIX, pluginParameter._name);
         } catch (InferenceEngine::Exception& ex) {
             if (std::string{ex.what()}.find("Device with \"" + pluginParameter._name
                                              + "\"  is already registered in the InferenceEngine")
@@ -107,6 +108,7 @@ void HeteroSyntheticTest::SetUp() {
         --num;
     }
     function = std::get<Function>(param)._function;
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void HeteroSyntheticTest::TearDown() {

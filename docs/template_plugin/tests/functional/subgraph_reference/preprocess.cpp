@@ -24,12 +24,15 @@ struct RefPreprocessParams {
         std::function<std::shared_ptr<ov::Function>()> function;
         std::vector<Tensor> inputs;
         std::vector<Tensor> expected;
+        float abs_threshold = 0.01f;
+        float rel_threshold = 0.01f;
         std::string name;
 };
 
 class ReferencePreprocessTest : public testing::TestWithParam<RefPreprocessParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         const auto& params = GetParam();
         function = params.function();
         for (const auto& inp : params.inputs) {
@@ -38,6 +41,8 @@ public:
         for (const auto& exp : params.expected) {
             refOutData.push_back(exp.data);
         }
+        abs_threshold = params.abs_threshold;
+        threshold = params.rel_threshold;
     }
     static std::string getTestCaseName(const testing::TestParamInfo<RefPreprocessParams>& obj) {
         const auto& param = obj.param;
@@ -326,6 +331,26 @@ static RefPreprocessParams resize_from_spatial_dims() {
     return res;
 }
 
+static RefPreprocessParams resize_i8() {
+    RefPreprocessParams res("resize_i8");
+    res.function = []() {
+        auto f = create_simple_function(element::i8, PartialShape{1, 3, 1, 1});
+        f = PrePostProcessor()
+                .input(InputInfo()
+                               .tensor(InputTensorInfo()
+                                    .set_spatial_dynamic_shape())
+                               .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
+                               .network(InputNetworkInfo().set_layout("NCHW")))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(element::i8, Shape{1, 3, 2, 2}, std::vector<int8_t>{0, 0, 0, 0,
+                                                                                1, 1, 1, 1,
+                                                                                2, 2, 2, 2});
+    res.expected.emplace_back(Shape{1, 3, 1, 1}, element::i8, std::vector<int8_t>{0, 1, 2});
+    return res;
+}
+
 static RefPreprocessParams resize_to_network_width_height() {
     RefPreprocessParams res("resize_to_network_width_height");
     res.function = []() {
@@ -419,6 +444,237 @@ static RefPreprocessParams resize_lvalues() {
     return res;
 }
 
+static RefPreprocessParams convert_layout_nhwc_to_nchw_lvalue() {
+    RefPreprocessParams res("convert_layout_nhwc_to_nchw_lvalue");
+    res.function = []() {
+        auto f = create_simple_function(element::u8, {1, 3, 2, 2});
+        f->get_parameters()[0]->set_layout("NCHW");
+        auto p = PreProcessSteps();
+        p.convert_layout("NCHW");
+
+        f = PrePostProcessor()
+                .input(InputInfo()
+                               .tensor(InputTensorInfo().set_layout("NHWC"))
+                               .preprocess(std::move(p)))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
+                                                                                 4,  5,  6,       // [H=0, W=1]
+                                                                                 7,  8,  9,       // [H=1, W=0]
+                                                                                 10, 11, 12});    // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::u8, std::vector<uint8_t>{1, 4, 7, 10,    // R
+                                                                                   2, 5, 8, 11,    // G
+                                                                                   3, 6, 9, 12});  // B
+    return res;
+}
+
+static RefPreprocessParams convert_layout_nhwc_to_net_no_tensor_shape() {
+    RefPreprocessParams res("convert_layout_nhwc_to_net_no_tensor_shape");
+    res.function = []() {
+        auto f = create_simple_function(element::u8, {1, 3, 2, 2});
+        f->get_parameters()[0]->set_layout("NCHW");
+        auto p = PreProcessSteps();
+        p.convert_layout();
+        f = PrePostProcessor()
+                .input(InputInfo()
+                               .tensor(InputTensorInfo().set_layout("NHWC"))
+                               .preprocess(std::move(p)))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
+                                                                                 4,  5,  6,       // [H=0, W=1]
+                                                                                 7,  8,  9,       // [H=1, W=0]
+                                                                                 10, 11, 12});    // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::u8, std::vector<uint8_t>{1, 4, 7, 10,    // R
+                                                                                   2, 5, 8, 11,    // G
+                                                                                   3, 6, 9, 12});  // B
+    return res;
+}
+
+static RefPreprocessParams resize_and_convert_layout() {
+    RefPreprocessParams res("resize_and_convert_layout");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{1, 2, 2, 2});
+        f = PrePostProcessor()
+                .input(InputInfo()
+                               .tensor(InputTensorInfo()
+                                               .set_layout("NCHW")
+                                               .set_spatial_dynamic_shape())
+                               .preprocess(PreProcessSteps()
+                                                   .resize(ResizeAlgorithm::RESIZE_LINEAR)
+                                                   .convert_layout())
+                               .network(InputNetworkInfo().set_layout("NHWC")))
+                .build(f);
+        return f;
+    };
+
+    auto result = std::make_shared<HostTensor>();
+    // clang-format off
+    std::vector<float> input = {
+            1., 1., 1., 1., // channel 1
+            1., 1., 1., 1.,
+            1., 1., 1., 1.,
+            1., 1., 1., 1.,
+            2., 2., 2., 2., // channel 2
+            2., 2., 2., 2.,
+            2., 2., 2., 2.,
+            2., 2., 2., 2.,
+    };
+    std::vector<float> expected = {1., 2., 1., 2., 1., 2., 1., 2.};
+    // clang-format on
+    res.inputs.emplace_back(element::f32, Shape{1, 2, 4, 4}, input);
+    res.expected.emplace_back(Shape{1, 2, 2, 2}, element::f32, expected);
+    return res;
+}
+
+static RefPreprocessParams convert_color_nv12_to_bgr_two_planes() {
+    RefPreprocessParams res("convert_color_nv12_to_bgr_two_planes");
+    res.abs_threshold = 2.f; // Allow small color conversion deviations
+    res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
+    res.function = []() {
+        auto f = create_simple_function(element::u8, PartialShape{1, 4, 4, 3});
+        f = PrePostProcessor()
+                .input(InputInfo()
+                               .tensor(InputTensorInfo()
+                                               .set_color_format(ColorFormat::NV12_TWO_PLANES))
+                               .preprocess(PreProcessSteps()
+                                                   .convert_color(ColorFormat::BGR)))
+                .build(f);
+        return f;
+    };
+
+    // clang-format off
+    auto input_y = std::vector<uint8_t> {81, 81, 145, 145,      // RRGG
+                                         81, 81, 145, 145,      // RRGG
+                                         41, 41, 81, 81,        // BBRR
+                                         41, 41, 81, 81};       // BBRR
+    auto input_shape_y = Shape{1, 4, 4, 1};
+    auto input_uv = std::vector<uint8_t> {240, 90,      // R (2x2)
+                                          34, 54,       // G (2x2)
+                                          110, 240,     // B (2x2)
+                                          240, 90};     // R (2x2)
+    auto input_shape_uv = Shape{1, 2, 2, 2};
+    auto exp_out = std::vector<uint8_t> {0, 0, 255,  0, 0, 255,  0, 255, 0,  0, 255, 0,
+                                         0, 0, 255,  0, 0, 255,  0, 255, 0,  0, 255, 0,
+                                         255, 0, 0,  255, 0, 0,  0, 0, 255,  0, 0, 255,
+                                         255, 0, 0,  255, 0, 0,  0, 0, 255,  0, 0, 255};
+    auto out_shape = Shape{1, 4, 4, 3};
+    // clang-format on
+    res.inputs.emplace_back(element::u8, input_shape_y, input_y);
+    res.inputs.emplace_back(element::u8, input_shape_uv, input_uv);
+    res.expected.emplace_back(out_shape, element::u8, exp_out);
+    return res;
+}
+
+static RefPreprocessParams convert_color_nv12_single_plane() {
+    RefPreprocessParams res("convert_color_nv12_single_plane");
+    res.abs_threshold = 2.f; // Allow small color conversion deviations
+    res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
+        f = PrePostProcessor()
+                .input(InputInfo()
+                               .tensor(InputTensorInfo()
+                                               .set_color_format(ColorFormat::NV12_SINGLE_PLANE))
+                               .preprocess(PreProcessSteps()
+                                                   .convert_color(ColorFormat::RGB)))
+                .build(f);
+        return f;
+    };
+
+    // clang-format off
+    auto input = std::vector<float> {  81, 81, 145, 145,      // RRGG
+                                       81, 81, 145, 145,      // RRGG
+                                       41, 41, 81, 81,        // BBRR
+                                       41, 41, 81, 81,        // BBRR
+                                       240, 90, 34, 54, 110, 240, 240, 90};     // UV (RGBR)
+    auto input_shape = Shape{1, 6, 4, 1};
+    auto exp_out = std::vector<float> {255, 0, 0,  255, 0, 0,  0, 255, 0,  0, 255, 0,    // RRGG
+                                       255, 0, 0,  255, 0, 0,  0, 255, 0,  0, 255, 0,    // RRGG
+                                       0, 0, 255,  0, 0, 255,  255, 0, 0,  255, 0, 0,    // BBRR
+                                       0, 0, 255,  0, 0, 255,  255, 0, 0,  255, 0, 0,    // BBRR
+                                       };
+    auto out_shape = Shape{1, 4, 4, 3};
+    // clang-format on
+    res.inputs.emplace_back(element::f32, input_shape, input);
+    res.expected.emplace_back(out_shape, element::f32, exp_out);
+    return res;
+}
+
+static RefPreprocessParams convert_color_nv12_layout_resize() {
+    RefPreprocessParams res("convert_color_nv12_layout_resize");
+    res.abs_threshold = 2.f; // Allow small color conversion deviations
+    res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{1, 3, 2, 2});
+        f = PrePostProcessor()
+                .input(InputInfo()
+                               .tensor(InputTensorInfo()
+                                               .set_color_format(ColorFormat::NV12_SINGLE_PLANE)
+                                               .set_element_type(element::u8)
+                                               .set_spatial_dynamic_shape())
+                               .preprocess(PreProcessSteps()
+                                                   .convert_color(ColorFormat::RGB)
+                                                   .convert_layout()
+                                                   .convert_element_type(element::f32)
+                                                   .resize(ResizeAlgorithm::RESIZE_NEAREST))
+                               .network(InputNetworkInfo().set_layout("NCHW")))
+                .build(f);
+        return f;
+    };
+
+    auto result = std::make_shared<HostTensor>();
+    // clang-format off
+    auto input = std::vector<uint8_t> {81, 81, 145, 145,      // RRGG
+                                       81, 81, 145, 145,      // RRGG
+                                       41, 41, 81, 81,        // BBRR
+                                       41, 41, 81, 81,        // BBRR
+                                       240, 90, 34, 54, 110, 240, 240, 90};     // UV (RGBR)
+    auto input_shape = Shape{1, 6, 4, 1};
+    auto exp_out = std::vector<float> {255, 0, 0, 255,     // R channel
+                                       0, 255, 0, 0,       // G channel
+                                       0, 0, 255, 0};      // B channel
+    auto out_shape = Shape{1, 2, 2, 3};
+    // clang-format on
+    res.inputs.emplace_back(element::u8, input_shape, input);
+    res.expected.emplace_back(out_shape, element::f32, exp_out);
+    return res;
+}
+
+static RefPreprocessParams element_type_before_convert_color_nv12() {
+    RefPreprocessParams res("element_type_before_convert_color_nv12");
+    res.abs_threshold = 2.f; // Allow small color conversion deviations
+    res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{1, 2, 2, 3});
+        f = PrePostProcessor()
+                .input(InputInfo()
+                               .tensor(InputTensorInfo()
+                                               .set_element_type(element::u8)
+                                               .set_color_format(ColorFormat::NV12_TWO_PLANES))
+                               .preprocess(PreProcessSteps()
+                                                   .convert_element_type(element::f32)
+                                                   .convert_color(ColorFormat::RGB))
+                               .network(InputNetworkInfo().set_layout("NHWC")))
+                .build(f);
+        return f;
+    };
+
+    // clang-format off
+    auto input_y = std::vector<uint8_t> {81, 81, 81, 81};
+    auto input_shape_y = Shape{1, 2, 2, 1};
+    auto input_uv = std::vector<uint8_t> {240, 90};
+    auto input_shape_uv = Shape{1, 1, 1, 2};
+    auto exp_out = std::vector<float> {255, 0, 0,  255, 0, 0,  255, 0, 0,  255, 0,  0};
+    auto out_shape = Shape{1, 2, 2, 3};
+    // clang-format on
+    res.inputs.emplace_back(element::u8, input_shape_y, input_y);
+    res.inputs.emplace_back(element::u8, input_shape_uv, input_uv);
+    res.expected.emplace_back(out_shape, element::f32, exp_out);
+    return res;
+}
 
 std::vector<RefPreprocessParams> allPreprocessTests() {
     return std::vector<RefPreprocessParams> {
@@ -435,9 +691,17 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
         resize_to_network_height(),
         resize_to_network_width(),
         resize_from_spatial_dims(),
+        resize_i8(),
         resize_to_network_width_height(),
         resize_to_specified_width_height(),
-        resize_lvalues()
+        resize_lvalues(),
+        convert_layout_nhwc_to_nchw_lvalue(),
+        convert_layout_nhwc_to_net_no_tensor_shape(),
+        resize_and_convert_layout(),
+        convert_color_nv12_to_bgr_two_planes(),
+        convert_color_nv12_single_plane(),
+        convert_color_nv12_layout_resize(),
+        element_type_before_convert_color_nv12(),
              };
 }
 

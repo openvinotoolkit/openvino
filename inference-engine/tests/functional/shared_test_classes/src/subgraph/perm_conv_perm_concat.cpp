@@ -78,6 +78,7 @@ void PermConvPermConcat::SetUp() {
     auto reshape_out = std::make_shared<ngraph::op::v1::Reshape>(concat, reshape_out_pattern, false);
 
     function = std::make_shared<ngraph::Function>(reshape_out, input_parameter, "perm_conv_perm_concat");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void PermConvPermConcat::Run() {

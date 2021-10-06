@@ -441,6 +441,7 @@ Standard Kaldi\* Layers:
 | convolutional1dcomponent | No |
 | convolutionalcomponent | No |
 | copy | No |
+| dropoutmaskcomponent | No |
 | elementwiseproductcomponent | No |
 | fixedaffinecomponent | No |
 | fixedbiascomponent | No |

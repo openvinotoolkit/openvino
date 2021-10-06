@@ -91,6 +91,7 @@ void ProposalBehTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(proposal)};
     function = std::make_shared<ngraph::Function>(results, params, "proposal");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void ProposalBehTest::Run() {

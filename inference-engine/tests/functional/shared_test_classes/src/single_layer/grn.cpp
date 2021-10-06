@@ -42,5 +42,6 @@ void GrnLayerTest::SetUp() {
     auto grn = std::make_shared<ngraph::opset1::GRN>(paramsOut[0], bias);
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(grn) };
     function = std::make_shared<ngraph::Function>(results, paramsIn, "Grn");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions
