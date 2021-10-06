@@ -226,9 +226,6 @@ device_info init_device_info(const cl::Device& device) {
     info.supports_imad = get_imad_support(device);
     info.supports_immad = false;
 
-    info.max_threads_per_execution_unit = 7;
-    info.max_threads_per_device = static_cast<uint32_t>(info.execution_units_count * info.max_threads_per_execution_unit);
-
     info.supports_usm = extensions.find("cl_intel_unified_shared_memory") != std::string::npos;
 
     info.supports_local_block_io = extensions.find("cl_intel_subgroup_local_block_io") != std::string::npos &&
