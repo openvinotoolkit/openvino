@@ -9,8 +9,8 @@
 #include "openvino/core/layout.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
-#include "openvino/core/preprocess/postprocess_steps.hpp"
 #include "openvino/core/preprocess/color_format.hpp"
+#include "openvino/core/preprocess/postprocess_steps.hpp"
 #include "openvino/core/preprocess/preprocess_steps.hpp"
 #include "tensor_name_util.hpp"
 
@@ -198,8 +198,8 @@ public:
     explicit PostprocessingContext(const Layout& layout) : PrePostProcessingContextBase(layout) {}
 };
 
-using InternalPostprocessOp =
-    std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>& node, PostprocessingContext& context)>;
+using InternalPostprocessOp = std::function<std::tuple<ov::Output<ov::Node>, bool>(const ov::Output<ov::Node>& node,
+                                                                                   PostprocessingContext& context)>;
 
 /// \brief PostProcessStepsImpl - internal data structure
 class PostStepsList {
@@ -207,15 +207,15 @@ public:
     void add_convert_impl(const element::Type& type);
     void add_convert_layout_impl(const Layout& layout);
 
-    const std::list<std::tuple<InternalPostprocessOp, bool>>& actions() const {
+    const std::list<InternalPostprocessOp>& actions() const {
         return m_actions;
     }
-    std::list<std::tuple<InternalPostprocessOp, bool>>& actions() {
+    std::list<InternalPostprocessOp>& actions() {
         return m_actions;
     }
 
 private:
-    std::list<std::tuple<InternalPostprocessOp, bool>> m_actions;
+    std::list<InternalPostprocessOp> m_actions;
 };
 
 class PostProcessSteps::PostProcessStepsImpl : public PostStepsList {};

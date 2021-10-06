@@ -477,8 +477,9 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         node = result->get_input_source_output(0);
         if (output->m_postprocess) {
             for (const auto& action : output->m_postprocess->actions()) {
-                node = std::get<0>(action)({node}, context);
-                tensor_data_updated |= std::get<1>(action);
+                auto action_result = action({node}, context);
+                node = std::get<0>(action_result);
+                tensor_data_updated |= std::get<1>(action_result);
             }
         }
         // Implicit: Convert element type + layout to user's tensor implicitly
@@ -492,8 +493,9 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
             implicit_steps.add_convert_layout_impl(context.target_layout());
         }
         for (const auto& action : implicit_steps.actions()) {
-            node = std::get<0>(action)({node}, context);
-            tensor_data_updated |= std::get<1>(action);
+            auto action_result = action({node}, context);
+            node = std::get<0>(action_result);
+            tensor_data_updated |= std::get<1>(action_result);
         }
 
         // Create result
@@ -792,21 +794,17 @@ PostProcessSteps&& PostProcessSteps::convert_layout(const Layout& dst_layout) &&
 
 PostProcessSteps& PostProcessSteps::custom(const CustomPostprocessOp& postprocess_cb) & {
     // 'true' indicates that custom postprocessing step will trigger validate_and_infer_types
-    m_impl->actions().emplace_back(std::make_tuple(
-        [postprocess_cb](const Output<ov::Node>& node, PostprocessingContext&) {
-            return postprocess_cb(node);
-        },
-        true));
+    m_impl->actions().emplace_back([postprocess_cb](const Output<ov::Node>& node, PostprocessingContext&) {
+        return std::make_tuple(postprocess_cb(node), true);
+    });
     return *this;
 }
 
 PostProcessSteps&& PostProcessSteps::custom(const CustomPostprocessOp& postprocess_cb) && {
     // 'true' indicates that custom postprocessing step will trigger validate_and_infer_types
-    m_impl->actions().emplace_back(std::make_tuple(
-        [postprocess_cb](const Output<ov::Node>& node, PostprocessingContext&) {
-            return postprocess_cb(node);
-        },
-        true));
+    m_impl->actions().emplace_back([postprocess_cb](const Output<ov::Node>& node, PostprocessingContext&) {
+        return std::make_tuple(postprocess_cb(node), true);
+    });
     return std::move(*this);
 }
 

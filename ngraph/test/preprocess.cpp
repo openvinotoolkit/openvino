@@ -18,7 +18,9 @@ static std::shared_ptr<Function> create_simple_function(element::Type type, cons
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1"});
-    auto res = std::make_shared<op::v0::Result>(data1);
+    auto op = std::make_shared<op::v0::Relu>(data1);
+    op->set_friendly_name("Relu");
+    auto res = std::make_shared<op::v0::Result>(op);
     res->set_friendly_name("Result1");
     res->get_output_tensor(0).set_names({"tensor_output1"});
     return std::make_shared<Function>(ResultVector{res}, ParameterVector{data1});
@@ -28,13 +30,17 @@ static std::shared_ptr<Function> create_2inputs(element::Type type, const Partia
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1"});
+    auto op1 = std::make_shared<op::v0::Relu>(data1);
+    op1->set_friendly_name("Relu1");
     auto data2 = std::make_shared<op::v0::Parameter>(type, shape);
     data2->set_friendly_name("input2");
-    data1->get_output_tensor(0).set_names({"tensor_input2"});
-    auto res1 = std::make_shared<op::v0::Result>(data1);
+    data2->get_output_tensor(0).set_names({"tensor_input2"});
+    auto op2 = std::make_shared<op::v0::Relu>(data2);
+    op2->set_friendly_name("Relu2");
+    auto res1 = std::make_shared<op::v0::Result>(op1);
     res1->set_friendly_name("Result1");
     res1->get_output_tensor(0).set_names({"tensor_output1"});
-    auto res2 = std::make_shared<op::v0::Result>(data2);
+    auto res2 = std::make_shared<op::v0::Result>(op2);
     res2->set_friendly_name("Result2");
     res2->get_output_tensor(0).set_names({"tensor_output2"});
     return std::make_shared<Function>(ResultVector{res1, res2}, ParameterVector{data1, data2});
@@ -754,6 +760,8 @@ TEST(pre_post_process, postprocess_implicit_convert_element_type_and_layout) {
                         .tensor(OutputTensorInfo().set_layout("NHWC").set_element_type(element::u8)))
             .build(f);
     EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "NHWC");
+    EXPECT_EQ(f->get_results()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 2, 2, 3}));
 }
 
 TEST(pre_post_process, postprocess_assert_output_without_index) {
