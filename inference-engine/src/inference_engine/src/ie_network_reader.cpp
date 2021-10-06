@@ -285,19 +285,10 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             for (size_t i = 0; i < outputs.size(); ++i) {
                 const auto ngraph_type = outputs[i].get_element_type();
                 const auto legacy_type = details::toLegacyType(ngraph_type, false);
-                (void)legacy_type;
-                // TODO: implement post-processing
-                // prepost.output(
-                //     OutputInfo(i)
-                //         .postprocess(
-                //             PreProcessSteps()
-                //                  .convert_element_type()
-                //         )
-                //         .tensor(
-                //             OutputTensorInfo()
-                //                  .set_element_type(legacy_type)
-                //         )
-                //     );
+
+                prepost.output(OutputInfo(i)
+                                   .postprocess(PostProcessSteps().convert_element_type())
+                                   .tensor(OutputTensorInfo().set_element_type(legacy_type)));
             }
 
             function = prepost.build(function);
@@ -343,7 +334,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                         .preprocess(std::move(steps))
                         .network(InputNetworkInfo().set_layout(ov::Layout(networkLayout.str()))));
 
-                // remove old api since we applied it
+                // remove old api once we applied it
                 rtInfo.erase(it);
             }
 
@@ -372,37 +363,29 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                     tensorLayout << old_api_transpose_args[i];
                 }
 
-                // TODO: implement post-processing
-                // prepost.output(OutputInfo(i)
-                //         .network(OutputNetworkInfo()
-                //                     .set_layout(ov::Layout(networkLayout.str()
-                //         )
-                //         .preprocess(
-                //             PreProcessSteps()
-                //                    .convert_element_type()
-                //                    .convert_layout()
-                //         )
-                //         .tensor(
-                //             OutputTensorInfo()
-                //                    .set_element_type(old_api_type)
-                //                    .set_layout(ov::Layout(tensorLayout.str()))
-                //         )
-                //     );
+                prepost.output(OutputInfo(i)
+                                   .network(OutputNetworkInfo().set_layout(ov::Layout(networkLayout.str())))
+                                   .postprocess(PostProcessSteps().convert_layout().convert_element_type())
+                                   .tensor(OutputTensorInfo()
+                                               .set_element_type(old_api_type)
+                                               .set_layout(ov::Layout(tensorLayout.str()))));
 
-                // remove old api since we applied it
+                // remove old api once we applied it
                 rtInfo.erase(it);
             }
 
             function = prepost.build(function);
 
+            // TODO: keep information about layout once we have an ability to
+            // apply permutation to layout
+
             // restore layout information
             for (const auto& parameter : function->get_parameters()) {
                 parameter->set_layout({});
             }
-            // TODO
-            // for (const auto & result : function->get_results()) {
-            // result->set_layout({});
-            // }
+            for (const auto& result : function->get_results()) {
+                result->set_layout({});
+            }
         }
     }
 

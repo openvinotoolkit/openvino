@@ -158,13 +158,15 @@ TEST_F(RTInfoDeserialization, NodeV10) {
         auto round = std::make_shared<opset8::Round>(convert_param,
             ngraph::opset8::Round::RoundMode::HALF_TO_EVEN);
         round->set_friendly_name("Round");
+        // TODO: why it has this name?
+        round->get_output_tensor(0).set_names({"output_tensor"});
 
-        // TODO: enable once post-processing is added
-        // auto convert_result = std::make_shared<opset8::Convert>(round, type);
+        auto convert_result = std::make_shared<opset8::Convert>(round, type);
+        convert_result->set_friendly_name("Round/convert_element_type");
+        convert_result->get_output_tensor(0).set_names({"output_tensor"});
 
-        auto result = std::make_shared<opset8::Result>(round);
+        auto result = std::make_shared<opset8::Result>(convert_result);
         result->set_friendly_name("output");
-        result->get_output_tensor(0).set_names({"output_tensor"});
 
         auto f_10_ref = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                            ngraph::ParameterVector{param});
@@ -308,13 +310,15 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
 
         auto sum = std::make_shared<opset8::Add>(param, param);
         sum->set_friendly_name("sum");
+        // TODO: why it has this name?
+        sum->get_output_tensor(0).set_names({"output_tensor"});
 
-        // TODO: enable once post-processing is added
-        // auto convert_result = std::make_shared<opset8::Convert>(sum, ngraph::element::i32);
+        auto convert_result = std::make_shared<opset8::Convert>(sum, ngraph::element::i32);
+        convert_result->set_friendly_name("sum/convert_element_type");
+        convert_result->get_output_tensor(0).set_names({"output_tensor"});
 
-        auto result = std::make_shared<opset8::Result>(sum);
+        auto result = std::make_shared<opset8::Result>(convert_result);
         result->set_friendly_name("output");
-        result->get_output_tensor(0).set_names({"output_tensor"});
 
         auto f_10_ref = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                            ngraph::ParameterVector{param});
@@ -381,7 +385,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         </layer>
         <layer name="output" type="Result" id="2" version="opset8">
             <rt_info>
-                <attribute name="old_api_map" version="0" order="0,3,1,2" element_type="undefined"/>
+                <attribute name="old_api_map" version="0" order="0,3,1,2" element_type="f16"/>
             </rt_info>
             <input>
                 <port id="0" precision="FP32">
@@ -437,7 +441,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
     auto result = f->get_result();
     check_old_api_map(result->get_rt_info(),
                       std::vector<uint64_t>({0, 3, 1, 2}),
-                      ngraph::element::Type_t::undefined);
+                      ngraph::element::Type_t::f16);
     auto round = result->get_input_node_ptr(0);
     check_fused_names(round->get_rt_info(), "Round1,Round2");
 
@@ -453,7 +457,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
 
         check_old_api_map(f_11->get_result()->get_rt_info(),
                           std::vector<uint64_t>({0, 3, 1, 2}),
-                          ngraph::element::Type_t::undefined);
+                          ngraph::element::Type_t::f16);
 
         auto res = compare_functions(f, f_11);
         EXPECT_TRUE(res.first) << res.second;
@@ -480,17 +484,22 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         auto round = std::make_shared<opset8::Round>(transpose_param,
             ngraph::opset8::Round::RoundMode::HALF_TO_EVEN);
         round->set_friendly_name("Round");
+        // TODO: why it has this name?
+        round->get_output_tensor(0).set_names({"output_tensor"});
         round->get_rt_info()[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
             std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("Round1,Round2"));
 
-        // TODO: enable once post-processing is added
-        // auto constant_result = std::make_shared<opset8::Constant>(ngraph::element::i64, ngraph::Shape{4},
-        //     std::vector<int64_t>{0, 3, 1, 2});
-        // auto transpose_result = std::make_shared<opset8::Transpose>(round, constant_result);
+        auto constant_result = std::make_shared<opset8::Constant>(ngraph::element::i64, ngraph::Shape{4},
+            std::vector<int64_t>{0, 3, 1, 2});
+        auto transpose_result = std::make_shared<opset8::Transpose>(round, constant_result);
+        transpose_result->set_friendly_name("Round/convert_layout");
 
-        auto result = std::make_shared<opset8::Result>(round);
+        auto convert_result = std::make_shared<opset8::Convert>(transpose_result, type);
+        convert_result->set_friendly_name("Round/convert_layout/convert_element_type");
+        convert_result->get_output_tensor(0).set_names({"output_tensor"});
+
+        auto result = std::make_shared<opset8::Result>(convert_result);
         result->set_friendly_name("output");
-        result->get_output_tensor(0).set_names({"output_tensor"});
 
         auto f_10_ref = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                            ngraph::ParameterVector{param});
@@ -515,9 +524,8 @@ TEST_F(RTInfoDeserialization, NodeV11) {
 
         EXPECT_EQ(shape, f_10_ref->input().get_partial_shape());
         EXPECT_EQ(shape, f_10_core->input().get_partial_shape());
-        // TODO: fix once post-processing is implemented
-        // EXPECT_EQ(shape, f_10_ref->get_output_partial_shape(0));
-        // EXPECT_EQ(shape, f_10_core->get_output_partial_shape(0));
+        EXPECT_EQ(shape, f_10_ref->get_output_partial_shape(0));
+        EXPECT_EQ(shape, f_10_core->get_output_partial_shape(0));
 
         // check that old api map is removed once applied
         auto check_old_api_rt_info = [](const RTMap & info) {
@@ -531,8 +539,8 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         // check information about layout
         EXPECT_TRUE(f_10_core->get_parameters()[0]->get_layout().empty())
             << f_10_core->get_parameters()[0]->get_layout().to_string();
-        // TODO: fix once post-processing is implemented
-        // EXPECT_TRUE(f_10_core->get_result()->get_layout().empty());
+        EXPECT_TRUE(f_10_core->get_results()[0]->get_layout().empty())
+            << f_10_core->get_results()[0]->get_layout().to_string();
     }
 }
 
