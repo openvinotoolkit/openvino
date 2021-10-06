@@ -79,6 +79,22 @@ const RTMap& Output<const Node>::get_rt_info() const {
     return m_node->m_outputs.at(m_index).get_rt_info();
 }
 
+const std::unordered_set<std::string>& Output<Node>::get_names() const {
+    return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_names();
+}
+
+void Output<Node>::set_names(const std::unordered_set<std::string>& names) {
+    return m_node->m_outputs.at(m_index).get_tensor_ptr()->set_names(names);
+}
+
+void Output<Node>::add_names(const std::unordered_set<std::string>& names) {
+    return m_node->m_outputs.at(m_index).get_tensor_ptr()->add_names(names);
+}
+
+const std::unordered_set<std::string>& Output<const Node>::get_names() const {
+    return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_names();
+}
+
 bool Output<Node>::operator==(const Output& other) const {
     return m_node == other.m_node && m_index == other.m_index;
 }

@@ -71,6 +71,10 @@ TEST(node_input_output, output_create) {
     auto add = make_shared<op::v1::Add>(x, y);
 
     auto add_out_0 = add->output(0);
+    add_out_0.set_names({"a", "b"});
+    EXPECT_EQ(add_out_0.get_names(), std::unordered_set<std::string>({"a", "b"}));
+    add_out_0.add_names({"c", "d"});
+    EXPECT_EQ(add_out_0.get_names(), std::unordered_set<std::string>({"a", "b", "c", "d"}));
 
     EXPECT_EQ(add_out_0.get_node(), add.get());
     EXPECT_EQ(add_out_0.get_index(), 0);
@@ -88,6 +92,7 @@ TEST(node_input_output, output_create_const) {
 
     auto add_out_0 = add->output(0);
 
+    EXPECT_EQ(add_out_0.get_names().size(), 1);
     EXPECT_EQ(add_out_0.get_node(), add.get());
     EXPECT_EQ(add_out_0.get_index(), 0);
     EXPECT_EQ(add_out_0.get_element_type(), element::f32);
@@ -95,6 +100,22 @@ TEST(node_input_output, output_create_const) {
     EXPECT_TRUE(add_out_0.get_partial_shape().same_scheme(PartialShape{1, 2, 3, 4}));
 
     EXPECT_THROW(add->output(1), std::out_of_range);
+}
+
+TEST(node_input_output, output_rt_info) {
+    auto x = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto y = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto add = make_shared<op::v1::Add>(x, y);
+    auto add_const = make_shared<const op::v1::Add>(x, y);
+
+    Output<Node> output = add->output(0);
+    Output<const Node> output_const = add_const->output(0);
+
+    auto& rt = output.get_rt_info();
+    rt["test"] = nullptr;
+    EXPECT_TRUE(output.get_rt_info().count("test"));
+    EXPECT_TRUE(output.get_tensor_ptr()->get_rt_info().count("test"));
+    EXPECT_TRUE(output_const.get_rt_info().empty());
 }
 
 TEST(node_input_output, input_set_argument) {
