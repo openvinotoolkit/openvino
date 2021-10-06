@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateArgMinMax(const NodeContext& node, std::string mode) {
     Output<Node> ng_input = node.get_ng_input(0);
@@ -36,15 +36,15 @@ OutputVector TranslateArgMinMax(const NodeContext& node, std::string mode) {
 
     auto ng_et = node.get_attribute<element::Type>("output_type");
 
-    auto ng_k = ConstructNgNode<opset::Constant>(node.get_name(), element::i64, Shape{}, std::vector<int64_t>({1}));
+    auto ng_k = ConstructNgNode<Constant>(node.get_name(), element::i64, Shape{}, std::vector<int64_t>({1}));
 
     std::string sort = "none";
-    auto ng_topk = std::make_shared<opset::TopK>(ng_input, ng_k, k_axis, mode, sort, ng_et);
+    auto ng_topk = std::make_shared<TopK>(ng_input, ng_k, k_axis, mode, sort, ng_et);
     auto ng_indices = ng_topk->output(1);
     int axis = ng_topk->get_axis();
     auto axis_to_remove =
-        ConstructNgNode<opset::Constant>(node.get_name(), element::i64, Shape{1}, std::vector<int64_t>({axis}));
-    auto reshaped_indices = ConstructNgNode<opset::Squeeze>(node.get_name(), ng_indices, axis_to_remove);
+        ConstructNgNode<Constant>(node.get_name(), element::i64, Shape{1}, std::vector<int64_t>({axis}));
+    auto reshaped_indices = ConstructNgNode<Squeeze>(node.get_name(), ng_indices, axis_to_remove);
     SetTracingInfo(node.get_name(), reshaped_indices);
     return {reshaped_indices};
 }
@@ -56,5 +56,7 @@ OutputVector TranslateArgMaxOp(const NodeContext& node) {
 OutputVector TranslateArgMinOp(const NodeContext& node) {
     return (TranslateArgMinMax(node, "min"));
 }
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

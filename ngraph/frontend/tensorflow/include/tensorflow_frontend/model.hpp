@@ -38,6 +38,5 @@ public:
     void set_element_type(Place::Ptr place, const ngraph::element::Type&) override;
     void set_tensor_value(Place::Ptr place, const void* value) override;
 };
-
 }  // namespace frontend
 }  // namespace ngraph

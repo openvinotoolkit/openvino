@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
 // 3 different Pad Ops: Pad, PadV2, MirrorPad
 // See https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/pad
 // See https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/pad-v2
 // See https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/mirror-pad
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslatePadOp(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0), ng_paddings_op = node.get_ng_input(1);
@@ -24,10 +24,8 @@ OutputVector TranslatePadOp(const NodeContext& node) {
     // Set inputs and pad_val_op
     auto op_type = node.get_op_type();
     if (op_type == "Pad" || op_type == "MirrorPad") {
-        pad_val_op = ConstructNgNode<opset::Constant>(node.get_name(),
-                                                      ng_input.get_element_type(),
-                                                      Shape(),
-                                                      std::vector<int>({0}));
+        pad_val_op =
+            ConstructNgNode<Constant>(node.get_name(), ng_input.get_element_type(), Shape(), std::vector<int>({0}));
     } else if (op_type == "PadV2") {
         pad_val_op = node.get_ng_input(2);
     } else {
@@ -35,13 +33,13 @@ OutputVector TranslatePadOp(const NodeContext& node) {
     }
 
     // Set pad_mode
-    auto pad_mode = op::PadMode::CONSTANT;
+    auto pad_mode = ngraph::op::PadMode::CONSTANT;
     if (op_type == "MirrorPad") {
         auto pad_mode_str = node.get_attribute<std::string>("mode");
         if (pad_mode_str == "REFLECT") {
-            pad_mode = op::PadMode::REFLECT;
+            pad_mode = ngraph::op::PadMode::REFLECT;
         } else if (pad_mode_str == "SYMMETRIC") {
-            pad_mode = op::PadMode::SYMMETRIC;
+            pad_mode = ngraph::op::PadMode::SYMMETRIC;
         } else {
             throw errors::InvalidArgument(pad_mode_str + " is not an allowed padding mode.");
         }
@@ -61,16 +59,16 @@ OutputVector TranslatePadOp(const NodeContext& node) {
         pad_begin[i] = paddings[2 * i];
         pad_end[i] = paddings[2 * i + 1];
     }
-    auto pads_begin_node =
-        ConstructNgNode<opset::Constant>(node.get_name(), element::i64, Shape{pad_begin.size()}, pad_begin);
-    auto pads_end_node =
-        ConstructNgNode<opset::Constant>(node.get_name(), element::i64, Shape{pad_end.size()}, pad_end);
+    auto pads_begin_node = ConstructNgNode<Constant>(node.get_name(), element::i64, Shape{pad_begin.size()}, pad_begin);
+    auto pads_end_node = ConstructNgNode<Constant>(node.get_name(), element::i64, Shape{pad_end.size()}, pad_end);
 
     // Create final Op
     auto result_pad_op =
-        ConstructNgNode<opset::Pad>(node.get_name(), ng_input, pads_begin_node, pads_end_node, pad_val_op, pad_mode);
+        ConstructNgNode<Pad>(node.get_name(), ng_input, pads_begin_node, pads_end_node, pad_val_op, pad_mode);
 
     return {result_pad_op};
 }
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

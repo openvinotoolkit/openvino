@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
 #if 0
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 static Status TranslateLRNOp(const TFNodeDecoder* op,
-                             const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map,
+                             const std::vector<const ngraph::frontend::tf::detail::TensorWrapper*>& static_input_map,
                              Builder::OpMap& ng_op_map) {
     Output<Node> ng_inp;
     TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_inp));
@@ -38,7 +38,7 @@ static Status TranslateLRNOp(const TFNodeDecoder* op,
     alpha = alpha * size;
     // nGraph expects the input to be in NCHW format
     NHWCtoNCHW(node.get_name(), true, ng_inp);
-    auto ng_output = ConstructNgNode<opset::LRN>(node.get_name(), ng_inp, alpha, beta,
+    auto ng_output = ConstructNgNode<LRN>(node.get_name(), ng_inp, alpha, beta,
                                                  bias, (size_t)size);
     NCHWtoNHWC(node.get_name(), true, ng_output);
     SaveNgOp(ng_op_map, node.get_name(), ng_output);

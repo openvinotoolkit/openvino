@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
 #if 0
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateRangeOp(
     const NodeContext& node) {
@@ -33,7 +33,7 @@ OutputVector TranslateRangeOp(
   //    GetStaticInputNode(op, 1, static_input_map, stop_type, stop_node));
   //TF_RETURN_IF_ERROR(
   //    GetStaticInputNode(op, 2, static_input_map, step_type, step_node));
-  auto ng_range = ConstructNgNode<opset::Range>(node.get_name(), ng_start,
+  auto ng_range = ConstructNgNode<Range>(node.get_name(), ng_start,
                                                 ng_stop, ng_step, out_type);
 
   SaveNgOp(ng_op_map, node.get_name(), ng_range);

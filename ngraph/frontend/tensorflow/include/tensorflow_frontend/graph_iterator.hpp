@@ -26,8 +26,7 @@ public:
     virtual bool is_end() const = 0;
 
     /// \brief Return a pointer to a decoder of the current node
-    virtual std::shared_ptr<::ngraph::frontend::DecoderBase> get_decoder() const = 0;
+    virtual std::shared_ptr<DecoderBase> get_decoder() const = 0;
 };
-
 }  // namespace frontend
 }  // namespace ngraph

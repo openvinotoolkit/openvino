@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector RetvalOp(const NodeContext& node) {
     // Make sure that this _Retval only has one input node.
@@ -22,7 +22,9 @@ OutputVector RetvalOp(const NodeContext& node) {
     // auto ret_val_index = node.get_attribute<int>("index");
     // TODO: Put ret_val_index to RT info that should be later utilized to order outpus by indices
 
-    return {ConstructNgNode<opset::Result>(node.get_name(), node.get_ng_input(0))};
+    return {ConstructNgNode<Result>(node.get_name(), node.get_ng_input(0))};
 }
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

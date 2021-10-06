@@ -44,7 +44,7 @@ public:
 
     /// \brief Gets name of this FrontEnd. Can be used by clients
     std::string get_name() const override {
-        return "tensorflow";
+        return "tf";
     }
 
 protected:
@@ -60,6 +60,5 @@ private:
                                 bool no_conversion,
                                 std::shared_ptr<ngraph::Function>& ng_function);
 };
-
 }  // namespace frontend
 }  // namespace ngraph

@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateBiasAddOp(const NodeContext& node) {
     Output<Node> ng_input = node.get_ng_input(0), ng_bias = node.get_ng_input(1);
@@ -41,13 +41,15 @@ OutputVector TranslateBiasAddOp(const NodeContext& node) {
                 target_shape[i] = 1;
             }
         }
-        auto target_shape_node = make_shared<opset::Constant>(element::i64, Shape{ng_input_shape.size()}, target_shape);
-        ng_bias_reshaped = ConstructNgNode<opset::Reshape>(node.get_name(), ng_bias, target_shape_node, false);
+        auto target_shape_node = make_shared<Constant>(element::i64, Shape{ng_input_shape.size()}, target_shape);
+        ng_bias_reshaped = ConstructNgNode<Reshape>(node.get_name(), ng_bias, target_shape_node, false);
     }
 
-    Output<Node> ng_add = ConstructNgNode<opset::Add>(node.get_name(), ng_input, ng_bias_reshaped);
+    Output<Node> ng_add = ConstructNgNode<Add>(node.get_name(), ng_input, ng_bias_reshaped);
 
     return {ng_add};
 }
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

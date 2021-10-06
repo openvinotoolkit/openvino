@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
     auto num_args = node.get_attribute<int>("num_args");
@@ -73,13 +73,13 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
                     ng_padding_below,
                     ng_padding_above);
 
-        return ConstructNgNode<opset::Convolution>(node.get_name() + "_FusedConv2D_Conv",
-                                                   ng_input,
-                                                   ng_filter,
-                                                   ng_strides,
-                                                   ng_padding_below,
-                                                   ng_padding_above,
-                                                   ng_dilations);
+        return ConstructNgNode<Convolution>(node.get_name() + "_FusedConv2D_Conv",
+                                            ng_input,
+                                            ng_filter,
+                                            ng_strides,
+                                            ng_padding_below,
+                                            ng_padding_above,
+                                            ng_dilations);
     };
 
     if (VecStrCmp(fused_ops, {"BiasAdd"}) || VecStrCmp(fused_ops, {"BiasAdd", "Relu"}) ||
@@ -100,17 +100,17 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
         std::vector<size_t> reshape_pattern_values(ng_conv_shape.size(), 1U);
         reshape_pattern_values[1] = ng_bias.get_shape().front();
         auto reshape_pattern =
-            make_shared<opset::Constant>(element::u64, Shape{reshape_pattern_values.size()}, reshape_pattern_values);
-        auto ng_bias_reshaped = ConstructNgNode<opset::Reshape>(node.get_name(), ng_bias, reshape_pattern, false);
+            make_shared<Constant>(element::u64, Shape{reshape_pattern_values.size()}, reshape_pattern_values);
+        auto ng_bias_reshaped = ConstructNgNode<Reshape>(node.get_name(), ng_bias, reshape_pattern, false);
 
-        auto ng_add = ConstructNgNode<opset::Add>(node.get_name() + "_FusedConv2D_BiasAdd", ng_conv, ng_bias_reshaped);
+        auto ng_add = ConstructNgNode<Add>(node.get_name() + "_FusedConv2D_BiasAdd", ng_conv, ng_bias_reshaped);
 
         if (VecStrCmp(fused_ops, {"BiasAdd", "Relu"})) {
-            auto ng_relu = ConstructNgNode<opset::Relu>(node.get_name() + "_FusedConv2D_Relu", ng_add);
+            auto ng_relu = ConstructNgNode<Relu>(node.get_name() + "_FusedConv2D_Relu", ng_add);
             NCHWtoNHWC(node.get_name(), is_nhwc, ng_relu);
             return {ng_relu};
         } else if (VecStrCmp(fused_ops, {"BiasAdd", "Relu6"})) {
-            auto ng_relu6 = ConstructNgNode<opset::Clamp>(node.get_name() + "_FusedConv2D_Relu6", ng_add, 0, 6);
+            auto ng_relu6 = ConstructNgNode<Clamp>(node.get_name() + "_FusedConv2D_Relu6", ng_add, 0, 6);
             NCHWtoNHWC(node.get_name(), is_nhwc, ng_relu6);
             return {ng_relu6};
         } else {
@@ -129,21 +129,20 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
 
         auto tf_epsilon = node.get_attribute<float>("epsilon");
 
-        auto ng_batch_norm = ConstructNgNode<opset::BatchNormInference>(node.get_name() + "_FusedConv2D_BatchNorm",
-                                                                        ng_conv,
-                                                                        ng_scale,
-                                                                        ng_offset,
-                                                                        ng_mean,
-                                                                        ng_variance,
-                                                                        tf_epsilon);
+        auto ng_batch_norm = ConstructNgNode<BatchNormInference>(node.get_name() + "_FusedConv2D_BatchNorm",
+                                                                 ng_conv,
+                                                                 ng_scale,
+                                                                 ng_offset,
+                                                                 ng_mean,
+                                                                 ng_variance,
+                                                                 tf_epsilon);
 
         if (VecStrCmp(fused_ops, {"FusedBatchNorm", "Relu"})) {
-            auto ng_relu = ConstructNgNode<opset::Relu>(node.get_name() + "_FusedConv2D_BatchNormRelu", ng_batch_norm);
+            auto ng_relu = ConstructNgNode<Relu>(node.get_name() + "_FusedConv2D_BatchNormRelu", ng_batch_norm);
             NCHWtoNHWC(node.get_name(), is_nhwc, ng_relu);
             return {ng_relu};
         } else if (VecStrCmp(fused_ops, {"FusedBatchNorm", "Relu6"})) {
-            auto ng_relu6 =
-                ConstructNgNode<opset::Clamp>(node.get_name() + "_FusedConv2D_BatchNormRelu", ng_batch_norm, 0, 6);
+            auto ng_relu6 = ConstructNgNode<Clamp>(node.get_name() + "_FusedConv2D_BatchNormRelu", ng_batch_norm, 0, 6);
             NCHWtoNHWC(node.get_name(), is_nhwc, ng_relu6);
             return {ng_relu6};
         } else {
@@ -154,5 +153,7 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
         FRONT_END_THROW("Unsupported _FusedConv2D ");
     }
 }
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

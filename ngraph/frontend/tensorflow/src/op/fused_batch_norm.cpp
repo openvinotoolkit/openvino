@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateFusedBatchNormOp(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0), ng_scale = node.get_ng_input(1), ng_offset = node.get_ng_input(2),
@@ -34,13 +34,13 @@ OutputVector TranslateFusedBatchNormOp(const NodeContext& node) {
 
     NHWCtoNCHW(node.get_name(), is_nhwc, ng_input);
 
-    auto ng_batch_norm = ConstructNgNode<opset::BatchNormInference>(node.get_name(),
-                                                                    ng_input,
-                                                                    ng_scale,
-                                                                    ng_offset,
-                                                                    ng_mean,
-                                                                    ng_variance,
-                                                                    tf_epsilon);
+    auto ng_batch_norm = ConstructNgNode<BatchNormInference>(node.get_name(),
+                                                             ng_input,
+                                                             ng_scale,
+                                                             ng_offset,
+                                                             ng_mean,
+                                                             ng_variance,
+                                                             tf_epsilon);
     NCHWtoNHWC(node.get_name(), is_nhwc, ng_batch_norm);
 
     // TODO: Why are there so many? Is it correct?
@@ -51,5 +51,7 @@ OutputVector TranslateFusedBatchNormOp(const NodeContext& node) {
     }
     return result;
 }
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

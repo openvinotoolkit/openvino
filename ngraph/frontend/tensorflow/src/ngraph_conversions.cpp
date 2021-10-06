@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_conversions.h"
+#include "ngraph_conversions.hpp"
 
-#include "utils.h"
+#include "utils.hpp"
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
 
 void NHWCtoNCHW(const std::string& op_name, bool is_nhwc, ngraph::Output<ngraph::Node>& node) {
     if (is_nhwc) {
@@ -85,13 +86,6 @@ void TFDataTypeToNGraphElementType(DataType tf_dt, ngraph::element::Type* ng_et)
     }
 }
 
-void TFTensorShapeToNGraphShape(const ::tensorflow::TensorShapeProto& tf_shape, ngraph::PartialShape* ng_shape) {
-    std::vector<ngraph::Dimension> dims;
-    for (int i = 0; i < tf_shape.dim_size(); i++) {
-        dims.push_back(tf_shape.dim(i).size());
-    }
-    *ng_shape = ngraph::PartialShape(dims);
-}
-
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

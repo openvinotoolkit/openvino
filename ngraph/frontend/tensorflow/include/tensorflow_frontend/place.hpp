@@ -177,6 +177,5 @@ private:
     std::vector<std::weak_ptr<OutPortPlaceTF>> m_producing_ports;
     std::vector<std::weak_ptr<InPortPlaceTF>> m_consuming_ports;
 };
-
 }  // namespace frontend
 }  // namespace ngraph

@@ -71,6 +71,7 @@ std::vector<PluginData> ngraph::frontend::load_plugins(const std::string& dir_na
     for (const auto& file : files) {
         auto shared_object = DLOPEN(file);
         if (!shared_object) {
+            std::cerr << "Error loading FrontEnd " << dlerror() << std::endl;
             continue;
         }
 

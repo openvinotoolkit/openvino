@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
 #if 0
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateSliceOp(
         const NodeContext& node) {
@@ -62,13 +62,13 @@ OutputVector TranslateSliceOp(
                                            ". The reasons are:\n" + err_msg);
     }
 
-    auto begin = ConstructNgNode<opset::Constant>(
+    auto begin = ConstructNgNode<Constant>(
             node.get_name(), element::i64, Shape{begin_vec.size()}, begin_vec);
-    auto end = ConstructNgNode<opset::Constant>(
+    auto end = ConstructNgNode<Constant>(
             node.get_name(), element::i64, Shape{end_vec.size()}, end_vec);
 
     SaveNgOp(ng_op_map, node.get_name(),
-             ConstructNgNode<opset::StridedSlice>(node.get_name(), ng_input, begin,
+             ConstructNgNode<StridedSlice>(node.get_name(), ng_input, begin,
                                                   end, std::vector<int64_t>{},
                                                   std::vector<int64_t>{}));
     return Status::OK();

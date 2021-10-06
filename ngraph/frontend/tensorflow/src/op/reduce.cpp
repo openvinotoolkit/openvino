@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateReduceOp(const NodeContext& node,
                                std::function<Output<Node>(Output<Node>, Output<Node>, const bool)> create_ng_node) {
@@ -30,10 +30,10 @@ OutputVector TranslateReduceOp(const NodeContext& node,
     std::transform(axes.begin(), axes.end(), ng_reduction_axes_vect.begin(), [input_rank](int idx) {
         return idx + (idx < 0 ? (int)input_rank : 0);
     });
-    auto ng_reduction_axes = ConstructNgNode<opset::Constant>(node.get_name(),
-                                                              element::i64,
-                                                              Shape{ng_reduction_axes_vect.size()},
-                                                              ng_reduction_axes_vect);
+    auto ng_reduction_axes = ConstructNgNode<Constant>(node.get_name(),
+                                                       element::i64,
+                                                       Shape{ng_reduction_axes_vect.size()},
+                                                       ng_reduction_axes_vect);
 
     Output<Node> ng_node = create_ng_node(ng_input, ng_reduction_axes, tf_keep_dims);
 
@@ -54,12 +54,14 @@ OutputVector TranslateDirectReduceOp(const NodeContext& node) {
                              });
 }
 
-template OutputVector TranslateDirectReduceOp<opset::ReduceLogicalOr>(const NodeContext& node);
-template OutputVector TranslateDirectReduceOp<opset::ReduceLogicalAnd>(const NodeContext& node);
-template OutputVector TranslateDirectReduceOp<opset::ReduceMax>(const NodeContext& node);
-template OutputVector TranslateDirectReduceOp<opset::ReduceMean>(const NodeContext& node);
-template OutputVector TranslateDirectReduceOp<opset::ReduceMin>(const NodeContext& node);
-template OutputVector TranslateDirectReduceOp<opset::ReduceProd>(const NodeContext& node);
-template OutputVector TranslateDirectReduceOp<opset::ReduceSum>(const NodeContext& node);
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+template OutputVector TranslateDirectReduceOp<ReduceLogicalOr>(const NodeContext& node);
+template OutputVector TranslateDirectReduceOp<ReduceLogicalAnd>(const NodeContext& node);
+template OutputVector TranslateDirectReduceOp<ReduceMax>(const NodeContext& node);
+template OutputVector TranslateDirectReduceOp<ReduceMean>(const NodeContext& node);
+template OutputVector TranslateDirectReduceOp<ReduceMin>(const NodeContext& node);
+template OutputVector TranslateDirectReduceOp<ReduceProd>(const NodeContext& node);
+template OutputVector TranslateDirectReduceOp<ReduceSum>(const NodeContext& node);
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

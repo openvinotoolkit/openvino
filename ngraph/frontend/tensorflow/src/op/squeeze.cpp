@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateSqueezeOp(const NodeContext& node) {
     Output<Node> ng_input = node.get_ng_input(0);
@@ -24,10 +24,12 @@ OutputVector TranslateSqueezeOp(const NodeContext& node) {
         tf_axis[i] = tf_axis[i] < 0 ? (int32_t)(input_dims) + tf_axis[i] : tf_axis[i];
     }
 
-    auto ng_const = ConstructNgNode<opset::Constant>(node.get_name(), element::i32, Shape{tf_axis.size()}, tf_axis);
+    auto ng_const = ConstructNgNode<Constant>(node.get_name(), element::i32, Shape{tf_axis.size()}, tf_axis);
 
-    return {ConstructNgNode<opset::Squeeze>(node.get_name(), ng_input, ng_const)};
+    return {ConstructNgNode<Squeeze>(node.get_name(), ng_input, ng_const)};
 }
 
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

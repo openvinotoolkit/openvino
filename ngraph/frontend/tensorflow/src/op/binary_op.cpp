@@ -2,20 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
 // Helper function to translate a binary op
 // Parameters:
 //
 //    TFNodeDecoder* op               - TF op being translated. Must have only two
 //    inputs.
-//    const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map - the static input
+//    const std::vector<const ngraph::frontend::tf::detail::TensorWrapper*>& static_input_map - the static input
 //    map Builder::OpMap& ng_op_map  - The TF-to-nGraph op map. std::function<Output<Node>(Output<Node>,
 //    Output<Node>)>
 //    create_binary_op           - Function to construct the graph implementing
@@ -27,15 +25,17 @@ using namespace ngraph::frontend::tensorflow::detail;
 //      TF_RETURN_IF_ERROR(TranslateBinaryOp(op, ng_op_map,
 //         [](Output<Node> ng_input1, Output<Node>
 //         ng_input2) {
-//           auto ng_diff = Output<opset::Subtract>(input1,
+//           auto ng_diff = Output<Subtract>(input1,
 //           input2);
-//           return Output<opset::Multiply>(ng_diff,ng_diff);
+//           return Output<Multiply>(ng_diff,ng_diff);
 //         }));
 //    }
 //
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 OutputVector TranslateBinaryOp(const NodeContext& node,
                                std::function<Output<Node>(Output<Node>&, Output<Node>&)> create_binary_op) {
     Output<Node> ng_lhs = node.get_ng_input(0), ng_rhs = node.get_ng_input(1);
@@ -50,7 +50,7 @@ OutputVector TranslateBinaryOp(const NodeContext& node,
 
 OutputVector TranslateFloorDivOp(const NodeContext& node) {
     auto floordiv_fn = [&node](Output<Node> x, Output<Node> y) {
-        return ConstructNgNode<opset::Floor>(node.get_name(), ConstructNgNode<opset::Divide>(node.get_name(), x, y));
+        return ConstructNgNode<Floor>(node.get_name(), ConstructNgNode<Divide>(node.get_name(), x, y));
     };
     return TranslateBinaryOp(node, floordiv_fn);
 }
@@ -61,7 +61,7 @@ OutputVector TranslateFloorDivOp(const NodeContext& node) {
 // Example usage:
 //
 //  if (n->type_string == "Add") {
-//    TF_RETURN_IF_ERROR(TranslateBinaryOp<opset::Add>(op,
+//    TF_RETURN_IF_ERROR(TranslateBinaryOp<Add>(op,
 //    static_input_map,
 //    ng_op_map));
 //  }
@@ -74,24 +74,26 @@ OutputVector TranslateBinaryOp(const NodeContext& node) {
     });
 }
 
-template OutputVector TranslateBinaryOp<opset::Add>(const NodeContext& node);
-template OutputVector TranslateBinaryOp<opset::Equal>(const NodeContext& node);
-template OutputVector TranslateBinaryOp<opset::FloorMod>(const NodeContext& node);
-template OutputVector TranslateBinaryOp<opset::Greater>(const NodeContext& node);
-template OutputVector TranslateBinaryOp<opset::GreaterEqual>(const NodeContext& node);
-template OutputVector TranslateBinaryOp<opset::Less>(const NodeContext& node);
-template OutputVector TranslateBinaryOp<opset::LessEqual>(const NodeContext& node);
-template OutputVector TranslateBinaryOp<opset::LogicalAnd>(const NodeContext& node);
-template OutputVector TranslateBinaryOp<opset::LogicalOr>(const NodeContext& node);
-template OutputVector TranslateBinaryOp<opset::Maximum>(const NodeContext& node);
-template OutputVector TranslateBinaryOp<opset::Minimum>(const NodeContext& node);
-template OutputVector TranslateBinaryOp<opset::Multiply>(const NodeContext& node);
-template OutputVector TranslateBinaryOp<opset::Mod>(const NodeContext& node);
-template OutputVector TranslateBinaryOp<opset::NotEqual>(const NodeContext& node);
-template OutputVector TranslateBinaryOp<opset::Power>(const NodeContext& node);
-template OutputVector TranslateBinaryOp<opset::Divide>(const NodeContext& node);
-template OutputVector TranslateBinaryOp<opset::SquaredDifference>(const NodeContext& node);
-template OutputVector TranslateBinaryOp<opset::Subtract>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<Add>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<Equal>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<FloorMod>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<Greater>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<GreaterEqual>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<Less>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<LessEqual>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<LogicalAnd>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<LogicalOr>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<Maximum>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<Minimum>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<Multiply>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<Mod>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<NotEqual>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<Power>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<Divide>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<SquaredDifference>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<Subtract>(const NodeContext& node);
 
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

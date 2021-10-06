@@ -36,6 +36,5 @@ public:
     /// \brief Get node name
     virtual std::string get_op_name() const = 0;
 };
-
 }  // namespace frontend
 }  // namespace ngraph

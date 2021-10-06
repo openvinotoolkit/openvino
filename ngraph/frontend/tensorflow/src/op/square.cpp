@@ -2,24 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
 #if 0
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateSquareOp(
     const NodeContext& node) {
   return TranslateUnaryOp(
       op, static_input_map, ng_op_map, [&op](Output<Node> n) {
-        return ConstructNgNode<opset::Multiply>(node.get_name(), n, n);
+        return ConstructNgNode<Multiply>(node.get_name(), n, n);
       });
 }
 
