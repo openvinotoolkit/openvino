@@ -8,6 +8,7 @@
 
 namespace ngraph {
 namespace frontend {
+namespace tf {
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
 class GraphIterator {
 public:
@@ -24,8 +25,8 @@ public:
     virtual bool is_end() const = 0;
 
     /// \brief Return a pointer to a decoder of the current node
-    virtual std::shared_ptr<::ngraph::frontend::DecoderBase> get_decoder() const = 0;
+    virtual std::shared_ptr<DecoderBase> get_decoder() const = 0;
 };
-
+}  // namespace tf
 }  // namespace frontend
 }  // namespace ngraph

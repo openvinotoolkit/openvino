@@ -17,9 +17,11 @@
 
 namespace ngraph {
 namespace frontend {
+namespace tf {
+
 extern std::map<::tensorflow::DataType, ngraph::element::Type> TYPE_MAP;
 
-class DecoderTFProto : public ::ngraph::frontend::DecoderBase {
+class DecoderTFProto : public DecoderBase {
 public:
     explicit DecoderTFProto(const ::tensorflow::NodeDef* node_def) : m_node_def(node_def) {}
 
@@ -39,6 +41,6 @@ private:
     std::vector<::tensorflow::AttrValue> decode_attribute_helper(const std::string& name) const;
     const ::tensorflow::NodeDef* m_node_def;
 };
-
+}  // namespace tf
 }  // namespace frontend
 }  // namespace ngraph

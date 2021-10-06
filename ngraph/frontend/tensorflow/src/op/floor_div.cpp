@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
-namespace tensorflow {
-namespace ngraph_bridge {}
-}  // namespace tensorflow
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {}
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

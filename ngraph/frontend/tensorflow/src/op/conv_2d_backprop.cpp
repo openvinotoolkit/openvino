@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateConv2DBackpropInputOp(const NodeContext& node) {
     auto ng_filter = node.get_ng_input(1), ng_out_backprop = node.get_ng_input(2);
@@ -86,23 +86,24 @@ OutputVector TranslateConv2DBackpropInputOp(const NodeContext& node) {
                 ng_padding_below,
                 ng_padding_above);
 
-    auto ng_output_shape =
-        ConstructNgNode<opset::Constant>(node.get_name(),
-                                         element::i64,
-                                         Shape{ng_batch_shape.size() - 2},
-                                         vector<size_t>(ng_batch_shape.begin() + 2, ng_batch_shape.end()));
+    auto ng_output_shape = ConstructNgNode<Constant>(node.get_name(),
+                                                     element::i64,
+                                                     Shape{ng_batch_shape.size() - 2},
+                                                     vector<size_t>(ng_batch_shape.begin() + 2, ng_batch_shape.end()));
 
-    auto ng_data = ConstructNgNode<opset::ConvolutionBackpropData>(node.get_name(),
-                                                                   ng_out_backprop,
-                                                                   ng_filter,
-                                                                   ng_output_shape,
-                                                                   ng_strides,
-                                                                   ng_padding_below,
-                                                                   ng_padding_above,
-                                                                   ng_dilations);
+    auto ng_data = ConstructNgNode<ConvolutionBackpropData>(node.get_name(),
+                                                            ng_out_backprop,
+                                                            ng_filter,
+                                                            ng_output_shape,
+                                                            ng_strides,
+                                                            ng_padding_below,
+                                                            ng_padding_above,
+                                                            ng_dilations);
 
     NCHWtoNHWC(node.get_name(), is_nhwc, ng_data);
     return {ng_data};
 }
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

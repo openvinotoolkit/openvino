@@ -9,6 +9,7 @@
 
 namespace ngraph {
 namespace frontend {
+namespace tf {
 
 class TensorPlaceTF;
 class OpPlaceTF;
@@ -177,6 +178,6 @@ private:
     std::vector<std::weak_ptr<OutPortPlaceTF>> m_producing_ports;
     std::vector<std::weak_ptr<InPortPlaceTF>> m_consuming_ports;
 };
-
+}  // namespace tf
 }  // namespace frontend
 }  // namespace ngraph

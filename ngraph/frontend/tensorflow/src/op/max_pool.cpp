@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
 #include <op_table.hpp>
+#include <openvino/opsets/opset7.hpp>
 
 using namespace std;
 using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::frontend::tf::detail;
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateMaxPoolOp(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0);
@@ -60,13 +61,13 @@ OutputVector TranslateMaxPoolOp(const NodeContext& node) {
     Shape ng_padding_below(padding_below.begin(), padding_below.end());
     Shape ng_padding_above(padding_above.begin(), padding_above.end());
 
-    auto ng_maxpool = ConstructNgNode<opset::MaxPool>(node.get_name(),
-                                                      ng_input,
-                                                      ng_strides,
-                                                      ng_padding_below,
-                                                      ng_padding_above,
-                                                      ng_kernel_shape,
-                                                      op::RoundingType::FLOOR);
+    auto ng_maxpool = ConstructNgNode<ov::opset7::MaxPool>(node.get_name(),
+                                                           ng_input,
+                                                           ng_strides,
+                                                           ng_padding_below,
+                                                           ng_padding_above,
+                                                           ng_kernel_shape,
+                                                           ngraph::op::RoundingType::FLOOR);
 
     NCHWtoNHWC(node.get_name(), is_nhwc, ng_maxpool);
 
@@ -75,5 +76,7 @@ OutputVector TranslateMaxPoolOp(const NodeContext& node) {
     return {ng_maxpool};
 }
 
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

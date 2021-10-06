@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
 #if 0
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateReshapeOp(
         const NodeContext& node) {
@@ -27,9 +27,9 @@ OutputVector TranslateReshapeOp(
 
     NGRAPH_VLOG(3) << "Requested result shape: " << join(shape);
 
-    auto ng_shape = ConstructNgNode<opset::Constant>(
+    auto ng_shape = ConstructNgNode<Constant>(
             node.get_name(), element::i64, Shape{shape.size()}, shape);
-    SaveNgOp(ng_op_map, node.get_name(), ConstructNgNode<opset::Reshape>(
+    SaveNgOp(ng_op_map, node.get_name(), ConstructNgNode<Reshape>(
             node.get_name(), ng_input, ng_shape, false));
     return Status::OK();
 }

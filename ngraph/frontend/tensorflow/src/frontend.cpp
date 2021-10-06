@@ -7,6 +7,7 @@
 
 //#include <ngraph/pass/transpose_sinking.h>
 #include <ngraph/pass/constant_folding.hpp>
+#include <transformations/serialize.hpp>
 
 #include "op_table.hpp"
 #include "tf_framework_node.hpp"
@@ -15,12 +16,11 @@ using namespace google;
 
 using namespace ngraph::frontend;
 using namespace ngraph::frontend::tf;
-using namespace ::tensorflow::ngraph_bridge;
 
 using ::tensorflow::GraphDef;
 
 namespace {
-void TranslateGraph(const std::shared_ptr<ngraph::frontend::InputModelTF>& model,
+void TranslateGraph(const std::shared_ptr<ngraph::frontend::tf::InputModelTF>& model,
                     const std::string model_name,
                     bool fail_fast,
                     bool no_conversion,
@@ -38,7 +38,7 @@ void TranslateGraph(const std::shared_ptr<ngraph::frontend::InputModelTF>& model
 
     std::map<const std::string, const std::function<ngraph::OutputVector(const NodeContext&)>> translate_map;
 
-    const auto TRANSLATE_OP_MAP = ::tensorflow::ngraph_bridge::get_supported_ops();
+    const auto TRANSLATE_OP_MAP = op::get_supported_ops();
     if (no_conversion) {
         const std::set<std::string> required_types{"Placeholder", "_Retval", "NoOp"};
         for (auto& name : required_types) {
@@ -67,8 +67,9 @@ void TranslateGraph(const std::shared_ptr<ngraph::frontend::InputModelTF>& model
         auto input_shape = input_tensor_place->get_partial_shape();
         auto input_type = input_tensor_place->get_element_type();
 
-        auto input_ng_output = ConstructNgNode<opset::Parameter>(input_name, input_type, input_shape);
-        auto input_ng_node = std::dynamic_pointer_cast<opset::Parameter>(input_ng_output.get_node_shared_ptr());
+        auto input_ng_output = ConstructNgNode<ngraph::opset8::Parameter>(input_name, input_type, input_shape);
+        auto input_ng_node =
+            std::dynamic_pointer_cast<ngraph::opset8::Parameter>(input_ng_output.get_node_shared_ptr());
         params.push_back(input_ng_node);
         ng_op_map[input_name] = {input_ng_output};
     }
@@ -153,10 +154,9 @@ void TranslateGraph(const std::shared_ptr<ngraph::frontend::InputModelTF>& model
                 // re-throw any exception
                 throw;
             } else {
-                auto ng_node =
-                    std::make_shared<ngraph::frontend::TFFrameworkNode>(operation_decoder,
-                                                                        ng_inputs,
-                                                                        operation_place->get_output_ports().size());
+                auto ng_node = std::make_shared<TFFrameworkNode>(operation_decoder,
+                                                                 ng_inputs,
+                                                                 operation_place->get_output_ports().size());
                 SetTracingInfo(operation_name, ng_node);
                 ng_outputs = ng_node->outputs();
             }
@@ -164,11 +164,12 @@ void TranslateGraph(const std::shared_ptr<ngraph::frontend::InputModelTF>& model
 
         // register nGraph node outputs in the map for new operation node
         for (auto output : ng_outputs) {
-            if (auto result = std::dynamic_pointer_cast<opset::Result>(output.get_node_shared_ptr())) {
+            if (auto result = std::dynamic_pointer_cast<ngraph::opset8::Result>(output.get_node_shared_ptr())) {
                 // do not add RetVal type operation to ng_op_map
                 results.push_back(result);
             } else {
-                if (auto param = std::dynamic_pointer_cast<opset::Parameter>(output.get_node_shared_ptr())) {
+                auto param = std::dynamic_pointer_cast<ngraph::opset8::Parameter>(output.get_node_shared_ptr());
+                if (param && operation_decoder->get_op_type() != "Identity") {
                     params.push_back(param);
                 }
                 ng_op_map[operation_name].push_back(output);
@@ -187,14 +188,14 @@ void TranslateGraph(const std::shared_ptr<ngraph::frontend::InputModelTF>& model
 
         if (port_type == "none") {
             for (const auto& node_output : ng_op_map[operation_name]) {
-                results.push_back(std::make_shared<default_opset::Result>(node_output));
+                results.push_back(std::make_shared<ngraph::opset8::Result>(node_output));
             }
         } else if (port_type == "out") {
             const auto& node_outputs = ng_op_map[operation_name];
             FRONT_END_GENERAL_CHECK(node_outputs.size() > port_index,
                                     "Output port with index " + std::to_string(port_index) + " of " + operation_name +
                                         "node specified as custom output does not exist");
-            results.push_back(std::make_shared<default_opset::Result>(node_outputs[port_index]));
+            results.push_back(std::make_shared<ngraph::opset8::Result>(node_outputs[port_index]));
         } else if (port_type == "in") {
             // TODO: avoid this traversing by having a map for OpPlace objects, for example
             std::shared_ptr<OpPlaceTF> operation_place = nullptr;
@@ -223,7 +224,7 @@ void TranslateGraph(const std::shared_ptr<ngraph::frontend::InputModelTF>& model
             FRONT_END_GENERAL_CHECK(node_outputs.size() > producer_port_idx,
                                     "Output port with index " + std::to_string(producer_port_idx) + " of " +
                                         producer_name + "node specified as custom output does not exist");
-            results.push_back(std::make_shared<default_opset::Result>(node_outputs[producer_port_idx]));
+            results.push_back(std::make_shared<ngraph::opset8::Result>(node_outputs[producer_port_idx]));
         }
     }
 
@@ -232,8 +233,8 @@ void TranslateGraph(const std::shared_ptr<ngraph::frontend::InputModelTF>& model
         for (const auto& node_output_vector : ng_op_map) {
             for (auto output : node_output_vector.second) {
                 if (output.get_target_inputs().empty() &&
-                    !std::dynamic_pointer_cast<opset::Result>(output.get_node_shared_ptr())) {
-                    results.push_back(std::make_shared<default_opset::Result>(output));
+                    !std::dynamic_pointer_cast<ngraph::opset8::Result>(output.get_node_shared_ptr())) {
+                    results.push_back(std::make_shared<ngraph::opset8::Result>(output));
                 }
             }
         }
@@ -255,7 +256,7 @@ void TranslateGraph(const std::shared_ptr<ngraph::frontend::InputModelTF>& model
 void TranslateFWNode(const std::shared_ptr<TFFrameworkNode>& node) {
     auto type = node->get_op_type();
 
-    const auto TRANSLATE_OP_MAP = get_supported_ops();
+    const auto TRANSLATE_OP_MAP = op::get_supported_ops();
     auto translator_it = TRANSLATE_OP_MAP.find(type);
     FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
 
@@ -312,12 +313,12 @@ InputModel::Ptr FrontEndTF::load_impl(const std::vector<std::shared_ptr<Variant>
 }
 
 std::shared_ptr<ngraph::Function> FrontEndTF::convert(InputModel::Ptr model) const {
-    auto model_tf = std::dynamic_pointer_cast<ngraph::frontend::InputModelTF>(model);
+    auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
     std::cout << "[ INFO ] FrontEndTensorflow::convert invoked\n";
 
     std::shared_ptr<ngraph::Function> f;
     TranslateGraph(model_tf, "here_should_be_a_graph_name", true, false, f);
-    std::cout << "[ STATUS ] TranslateGraph was called successfuly.\n";
+    std::cout << "[ STATUS ] TranslateGraph was called successfully.\n";
     std::cout << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
 
     normalize(f);
@@ -328,12 +329,12 @@ std::shared_ptr<ngraph::Function> FrontEndTF::convert(InputModel::Ptr model) con
 }
 
 std::shared_ptr<ngraph::Function> FrontEndTF::convert_partially(InputModel::Ptr model) const {
-    auto model_tf = std::dynamic_pointer_cast<ngraph::frontend::InputModelTF>(model);
+    auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
     std::cout << "[ INFO ] FrontEndTensorflow::convert_partially invoked\n";
 
     std::shared_ptr<ngraph::Function> f;
     TranslateGraph(model_tf, "here_should_be_a_graph_name", false, false, f);
-    std::cout << "[ STATUS ] TranslateGraph was called successfuly.\n";
+    std::cout << "[ STATUS ] TranslateGraph was called successfully.\n";
     std::cout << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
 
     normalize(f);
@@ -341,12 +342,12 @@ std::shared_ptr<ngraph::Function> FrontEndTF::convert_partially(InputModel::Ptr 
 }
 
 std::shared_ptr<ngraph::Function> FrontEndTF::decode(InputModel::Ptr model) const {
-    auto model_tf = std::dynamic_pointer_cast<ngraph::frontend::InputModelTF>(model);
+    auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
     std::cout << "[ INFO ] FrontEndTensorflow::decode invoked\n";
 
     std::shared_ptr<ngraph::Function> f;
     TranslateGraph(model_tf, "here_should_be_a_graph_name", false, true, f);
-    std::cout << "[ STATUS ] TranslateGraphFWNode was called successfuly.\n";
+    std::cout << "[ STATUS ] TranslateGraphFWNode was called successfully.\n";
     std::cout << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
     return f;
 }

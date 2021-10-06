@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
 #if 0
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateNonMaxSuppressionV2Op(
     const NodeContext& node) {
@@ -21,16 +21,16 @@ OutputVector TranslateNonMaxSuppressionV2Op(
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_boxes, ng_scores,
                                    ng_unused, ng_iou_threshold));
 
-  auto ng_axis_boxes = ConstructNgNode<opset::Constant>(
+  auto ng_axis_boxes = ConstructNgNode<Constant>(
       node.get_name(), element::i64, Shape{1}, std::vector<int64_t>({0}));
   auto ng_boxes_unsqueezed =
-      ConstructNgNode<opset::Unsqueeze>(node.get_name(), ng_boxes, ng_axis_boxes);
+      ConstructNgNode<Unsqueeze>(node.get_name(), ng_boxes, ng_axis_boxes);
 
-  auto ng_axis_scores = ConstructNgNode<opset::Constant>(
+  auto ng_axis_scores = ConstructNgNode<Constant>(
       node.get_name(), element::i64, Shape{1}, std::vector<int64_t>({0}));
   auto ng_scores_unsqueezed1 =
-      ConstructNgNode<opset::Unsqueeze>(node.get_name(), ng_scores, ng_axis_scores);
-  auto ng_scores_unsqueezed2 = ConstructNgNode<opset::Unsqueeze>(
+      ConstructNgNode<Unsqueeze>(node.get_name(), ng_scores, ng_axis_scores);
+  auto ng_scores_unsqueezed2 = ConstructNgNode<Unsqueeze>(
       node.get_name(), ng_scores_unsqueezed1, ng_axis_scores);
 
   std::vector<int> max_output_size;
@@ -44,22 +44,22 @@ OutputVector TranslateNonMaxSuppressionV2Op(
         to_string(max_output_size.size()));
   }
 
-  auto ng_max_output_size = ConstructNgNode<opset::Constant>(
+  auto ng_max_output_size = ConstructNgNode<Constant>(
       node.get_name(), element::i64, Shape{}, max_output_size[0]);
   NGRAPH_VLOG(5) << "ng_max_output_size " << max_output_size[0];
 
-  auto ng_nmsv = ConstructNgNode<opset::NonMaxSuppression>(
+  auto ng_nmsv = ConstructNgNode<NonMaxSuppression>(
       node.get_name(), ng_boxes_unsqueezed, ng_scores_unsqueezed2,
       ng_max_output_size, ng_iou_threshold,
-      opset::NonMaxSuppression::BoxEncodingType::CORNER, false,
+      NonMaxSuppression::BoxEncodingType::CORNER, false,
       ngraph::element::Type_t::i32);
 
-  auto begin = ConstructNgNode<opset::Constant>(
+  auto begin = ConstructNgNode<Constant>(
       node.get_name(), element::i64, Shape{2}, std::vector<int64_t>({0, 2}));
-  auto end = ConstructNgNode<opset::Constant>(
+  auto end = ConstructNgNode<Constant>(
       node.get_name(), element::i64, Shape{2},
       std::vector<int64_t>({max_output_size[0], 3}));
-  auto ng_nmsv_slice = ConstructNgNode<opset::StridedSlice>(
+  auto ng_nmsv_slice = ConstructNgNode<StridedSlice>(
       node.get_name(), ng_nmsv, begin, end, std::vector<int64_t>{0, 0},
       std::vector<int64_t>{0, 0}, std::vector<int64_t>{0, 0},
       std::vector<int64_t>{0, 1});

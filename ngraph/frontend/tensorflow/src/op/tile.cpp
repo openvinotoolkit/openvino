@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
 #if 0
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateTileOp(
     const NodeContext& node) {
@@ -23,10 +23,10 @@ OutputVector TranslateTileOp(
   std::vector<int64_t> multiples;
   TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 1, static_input_map, &multiples));
 
-  auto ng_repeats = ConstructNgNode<opset::Constant>(
+  auto ng_repeats = ConstructNgNode<Constant>(
       node.get_name(), element::i64, Shape{multiples.size()}, multiples);
   SaveNgOp(ng_op_map, node.get_name(),
-           ConstructNgNode<opset::Tile>(node.get_name(), ng_input, ng_repeats));
+           ConstructNgNode<Tile>(node.get_name(), ng_input, ng_repeats));
   return Status::OK();
 }
 

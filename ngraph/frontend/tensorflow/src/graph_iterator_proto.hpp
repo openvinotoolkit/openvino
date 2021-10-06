@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace frontend {
 namespace tf {
-class GraphIteratorProto : public ::ngraph::frontend::GraphIterator {
+class GraphIteratorProto : public GraphIterator {
     std::vector<const ::tensorflow::NodeDef*> m_nodes;
     size_t node_index = 0;
 
@@ -50,8 +50,8 @@ public:
     }
 
     /// Return NodeContext for the current node that iterator points to
-    virtual std::shared_ptr<ngraph::frontend::DecoderBase> get_decoder() const override {
-        return std::make_shared<::ngraph::frontend::DecoderTFProto>(m_nodes[node_index]);
+    virtual std::shared_ptr<DecoderBase> get_decoder() const override {
+        return std::make_shared<DecoderTFProto>(m_nodes[node_index]);
     }
 };
 }  // namespace tf

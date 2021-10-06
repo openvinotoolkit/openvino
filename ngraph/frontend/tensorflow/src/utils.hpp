@@ -6,13 +6,13 @@
 
 #include "node_context.hpp"
 #include "ngraph/ngraph.hpp"
-#include "default_opset.h"
 #include "graph_iterator_proto.hpp"
+#include "ngraph_conversions.hpp"
+#include <ngraph/opsets/opset8.hpp>
 
 namespace ngraph {
 namespace frontend {
-namespace tensorflow {
-
+namespace tf {
 namespace detail {
 // TODO: avoid using directly:
 using ::tensorflow::DataType;
@@ -45,9 +45,10 @@ public:
 }  // namespace frontend
 }  // namespace ngraph
 
-namespace tensorflow {
-namespace ngraph_bridge {
-    using namespace ::ngraph::frontend::tf;
+namespace ngraph {
+namespace frontend {
+namespace tf {
+    using namespace ::ngraph::frontend::tf::detail;
 
     using OpMap = std::unordered_map<std::string, std::vector<ngraph::Output<ngraph::Node>>>;
 
@@ -119,8 +120,7 @@ namespace ngraph_bridge {
 
 
     template<typename Ttensor, typename Tvector>
-    static void ConvertTensorDataToVector(const ngraph::frontend::tensorflow::detail::TensorWrapper &tensor,
-                                          std::vector<Tvector> *vector) {
+    static void ConvertTensorDataToVector(const TensorWrapper &tensor, std::vector<Tvector> *vector) {
         const Ttensor *data = tensor.flat<Ttensor>().data();
         vector->resize(tensor.NumElements());
         for (int64_t i = 0; i < tensor.NumElements(); i++) {
@@ -129,8 +129,7 @@ namespace ngraph_bridge {
     }
 
     template<typename T>
-    static Status TensorDataToVector(const ngraph::frontend::tensorflow::detail::TensorWrapper &tensor,
-                                     std::vector<T> *vector) {
+    static Status TensorDataToVector(const TensorWrapper &tensor, std::vector<T> *vector) {
         // stub
 #if 0
         DataType dt = tensor.dtype();
@@ -194,7 +193,7 @@ namespace ngraph_bridge {
         return a == b;
     }
 
-    static Status ValidateInputCount(const ngraph::frontend::tf::NodeContext& op, size_t count) {
+    static Status ValidateInputCount(const NodeContext& op, size_t count) {
         if (op.get_ng_input_size() != count) {
             std::ostringstream buf;
             buf << "\"" << op.get_name() << "\" requires " << count << " input(s), got " << op.get_ng_input_size()
@@ -334,7 +333,7 @@ namespace ngraph_bridge {
         template <typename T>
         static void GetStaticInputVector(const ngraph::frontend::tf::NodeContext& node, int64_t input_index, std::vector<T>* vector) {
             ngraph::Output<ngraph::Node> ng_input = node.get_ng_input(input_index);
-            if (auto constant = std::dynamic_pointer_cast<ngraph::opset5::Constant>(ng_input.get_node_shared_ptr())) {
+            if (auto constant = std::dynamic_pointer_cast<ngraph::opset8::Constant>(ng_input.get_node_shared_ptr())) {
                 *vector = constant->cast_vector<T>();
                 return;
             }
@@ -343,7 +342,7 @@ namespace ngraph_bridge {
             /*
                 TFNodeDecoder* input_node;
                 TF_RETURN_IF_ERROR(op->input_node(input_index, &input_node));
-                ngraph::frontend::tensorflow::detail::TensorWrapper* input_tensor;
+                ngraph::frontend::tf::detail::TensorWrapper* input_tensor;
                 TF_RETURN_IF_ERROR(
                         GetStaticNodeTensor(input_node, static_input_map, &input_tensor));
                 TF_RETURN_IF_ERROR(TensorDataToVector(input_tensor, std::vector));
@@ -354,11 +353,11 @@ namespace ngraph_bridge {
         template <typename T>
 static Status GetStaticInputVector(
     const TFNodeDecoder* op, int64_t input_index,
-    const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map,
+    const std::vector<const ngraph::frontend::tf::detail::TensorWrapper*>& static_input_map,
     std::vector<T>* std::vector) {
   TFNodeDecoder* input_node;
   TF_RETURN_IF_ERROR(op->input_node(input_index, &input_node));
-  ngraph::frontend::tensorflow::detail::TensorWrapper* input_tensor;
+  ngraph::frontend::tf::detail::TensorWrapper* input_tensor;
   TF_RETURN_IF_ERROR(
       GetStaticNodeTensor(input_node, static_input_map, &input_tensor));
   TF_RETURN_IF_ERROR(TensorDataToVector(input_tensor, std::vector));
@@ -367,7 +366,7 @@ static Status GetStaticInputVector(
 
 static Status GetStaticInputNode(
     const TFNodeDecoder* op, int64_t input_index,
-    const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map, DataType dt,
+    const std::vector<const ngraph::frontend::tf::detail::TensorWrapper*>& static_input_map, DataType dt,
     ngraph::Output<ngraph::Node>& node_) {
   ngraph::element::Type type;
   TF_RETURN_IF_ERROR(TFDataTypeToNGraphElementType(dt, &type));
@@ -438,7 +437,7 @@ static Status GetStaticInputNode(
             }
             */
 
-            // ngraph::frontend::tensorflow::detail::TensorWrapper represents the content of the tensor in either
+            // ngraph::frontend::tf::detail::TensorWrapper represents the content of the tensor in either
             // <type>_val or tensor_content.
 
             auto tensor_proto_var =
@@ -448,9 +447,9 @@ static Status GetStaticInputNode(
                 std::dynamic_pointer_cast<::ov::VariantWrapper<::tensorflow::TensorProto>>(tensor_proto_var)->get();
 
             // typename checkpoint::SaveTypeTraits<T>::RepeatedField* tensor_values =
-            //    checkpoint::MutableTensorProtoData<T>(const_cast<ngraph::frontend::tensorflow::detail::TensorWrapper*>(&tensor));
+            //    checkpoint::MutableTensorProtoData<T>(const_cast<ngraph::frontend::tf::detail::TensorWrapper*>(&tensor));
 
-            const TensorShapeProto& shape = tensor_proto.tensor_shape();
+            const tensorflow::TensorShapeProto& shape = tensor_proto.tensor_shape();
             ngraph::PartialShape pshape;
             TFTensorShapeToNGraphShape(shape, &pshape);
             *const_tensor_shape = pshape.get_shape();
@@ -496,27 +495,27 @@ static Status GetStaticInputNode(
                     switch (dt) {
                     // TODO(amprocte/NGRAPH-2502): there are more element types to support
                     // here
-                    case DT_INT32:
+                    case tensorflow::DT_INT32:
                         val_size = tensor_proto.int_val_size();
                         if (val_size > 0)
                             val_i = tensor_proto.int_val()[i];
                         break;
-                    case DT_INT64:
+                    case tensorflow::DT_INT64:
                         val_size = tensor_proto.int64_val_size();
                         if (val_size > 0)
                             val_i = tensor_proto.int64_val()[i];
                         break;
-                    case DT_FLOAT:
+                    case tensorflow::DT_FLOAT:
                         val_size = tensor_proto.float_val_size();
                         if (val_size > 0)
                             val_i = tensor_proto.float_val()[i];
                         break;
-                    case DT_BOOL:
+                    case tensorflow::DT_BOOL:
                         val_size = tensor_proto.bool_val_size();
                         if (val_size > 0)
                             val_i = tensor_proto.bool_val()[i];
                         break;
-                    case DT_DOUBLE:
+                    case tensorflow::DT_DOUBLE:
                         val_size = tensor_proto.double_val_size();
                         if (val_size > 0)
                             val_i = tensor_proto.double_val()[i];
@@ -557,8 +556,9 @@ static Status GetStaticInputNode(
 
             TF_RETURN_IF_ERROR((ValuesFromConstNode<T, VecT>(node.get_decoder(), &ng_shape, &const_values)));
 
-            ng_node = ConstructNgNode<opset::Constant>(node.get_name(), et, ng_shape, const_values);
+            ng_node = ConstructNgNode<ngraph::opset8::Constant>(node.get_name(), et, ng_shape, const_values);
             return Status::OK();
         }
+}
 }
 }

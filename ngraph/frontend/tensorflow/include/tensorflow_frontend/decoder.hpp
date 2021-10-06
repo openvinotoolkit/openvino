@@ -8,6 +8,7 @@
 
 namespace ngraph {
 namespace frontend {
+namespace tf {
 
 class DecoderBase {
 public:
@@ -36,6 +37,6 @@ public:
     /// \brief Get node name
     virtual std::string get_op_name() const = 0;
 };
-
+}  // namespace tf
 }  // namespace frontend
 }  // namespace ngraph

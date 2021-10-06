@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 //#include "node_context.hpp"
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
 #if 0
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 static Status TranslateUnpackOp(const TFNodeDecoder* op,
-                                const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>&,
+                                const std::vector<const ngraph::frontend::tf::detail::TensorWrapper*>&,
                                 Builder::OpMap& ng_op_map) {
     TF_RETURN_IF_ERROR(ValidateInputCount(op, 1));
 
@@ -35,9 +35,9 @@ static Status TranslateUnpackOp(const TFNodeDecoder* op,
         std::vector<int64_t> end(rank, 0);
         begin[tf_axis] = i;
         end[tf_axis] = i + 1;
-        auto ng_begin = ConstructNgNode<opset::Constant>(
+        auto ng_begin = ConstructNgNode<Constant>(
                 node.get_name(), element::i64, Shape{begin.size()}, begin);
-        auto ng_end = ConstructNgNode<opset::Constant>(node.get_name(), element::i64,
+        auto ng_end = ConstructNgNode<Constant>(node.get_name(), element::i64,
                                                        Shape{end.size()}, end);
         std::vector<int64_t> begin_mask(rank, 1);
         begin_mask[tf_axis] = 0;
@@ -46,7 +46,7 @@ static Status TranslateUnpackOp(const TFNodeDecoder* op,
         std::vector<int64_t> new_axis_mask(rank, 0);
         std::vector<int64_t> shrink_axis_mask(rank, 0);
         shrink_axis_mask[tf_axis] = 1;
-        auto slice = ConstructNgNode<opset::StridedSlice>(
+        auto slice = ConstructNgNode<StridedSlice>(
                 node.get_name(), ng_input, ng_begin, ng_end, begin_mask, end_mask,
                 new_axis_mask, shrink_axis_mask);
         SaveNgOp(ng_op_map, node.get_name(), slice);

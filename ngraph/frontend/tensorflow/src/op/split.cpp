@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
 #if 0
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateSplitOp(
     const NodeContext& node) {
@@ -31,9 +31,9 @@ OutputVector TranslateSplitOp(
   TF_RETURN_IF_ERROR(
       GetStaticInputVector(ng_op_map, op, 0, static_input_map, &split_dim_vec));
   int split_dim = split_dim_vec[0] + (split_dim_vec[0] < 0 ? (int64_t)rank : 0);
-  auto ng_split_dim = ConstructNgNode<opset::Constant>(
+  auto ng_split_dim = ConstructNgNode<Constant>(
       node.get_name(), element::u64, Shape{}, split_dim);
-  auto ng_split = make_shared<opset::Split>(ng_input, ng_split_dim, num_split);
+  auto ng_split = make_shared<Split>(ng_input, ng_split_dim, num_split);
 
   for (int i = 0; i < num_split; ++i) {
     auto out = ng_split->output(i);
@@ -64,7 +64,7 @@ OutputVector TranslateSplitVOp(
   }
   TF_RETURN_IF_ERROR(CheckAxisDimInRange(split_dim_vec, rank));
   int split_dim = split_dim_vec[0] + (split_dim_vec[0] < 0 ? (int64_t)rank : 0);
-  ng_split_dim = ConstructNgNode<opset::Constant>(node.get_name(), element::i32,
+  ng_split_dim = ConstructNgNode<Constant>(node.get_name(), element::i32,
                                                   Shape{}, split_dim);
 
   std::vector<int> split_lengths_vec;
@@ -102,12 +102,12 @@ OutputVector TranslateSplitVOp(
         "along split_dim");
   }
 
-  ng_split_length = ConstructNgNode<opset::Constant>(
+  ng_split_length = ConstructNgNode<Constant>(
       node.get_name(), element::i32, Shape{split_lengths_vec.size()},
       split_lengths_vec);
 
   if (split_lengths_vec.size() != 1) {
-    auto ng_split = make_shared<opset::VariadicSplit>(ng_input, ng_split_dim,
+    auto ng_split = make_shared<VariadicSplit>(ng_input, ng_split_dim,
                                                       ng_split_length);
     for (size_t i = 0; i < split_lengths_vec.size(); ++i) {
       auto out = ng_split->output(i);

@@ -13,7 +13,7 @@
 
 #define NGRAPH_VARIANT_DECLARATION(TYPE, info)                                            \
     template <>                                                                           \
-    class VariantWrapper<TYPE> : public VariantImpl<TYPE> {                               \
+    class OPENVINO_API VariantWrapper<TYPE> : public VariantImpl<TYPE> {                  \
     public:                                                                               \
         OPENVINO_RTTI(info);                                                              \
         VariantWrapper<TYPE>(const value_type& value) : VariantImpl<value_type>(value) {} \
@@ -21,6 +21,7 @@
 
 namespace ov {
 NGRAPH_VARIANT_DECLARATION(int32_t, "Variant::int32");
+NGRAPH_VARIANT_DECLARATION(uint64_t, "Variant::uint64_t");
 NGRAPH_VARIANT_DECLARATION(std::vector<int32_t>, "Variant::int32_vector");
 NGRAPH_VARIANT_DECLARATION(float, "Variant::float");
 NGRAPH_VARIANT_DECLARATION(std::vector<float>, "Variant::float_vector");
@@ -44,13 +45,11 @@ using NamedInputs = std::map<InPortName, OutputVector>;
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
 class NodeContext {
-    const ::ngraph::frontend::DecoderBase& m_decoder;
+    const DecoderBase& m_decoder;
     const NamedInputs& m_name_map;
 
 public:
-    NodeContext(const ::ngraph::frontend::DecoderBase& decoder, const NamedInputs& name_map)
-        : m_decoder(decoder),
-          m_name_map(name_map) {}
+    NodeContext(const DecoderBase& decoder, const NamedInputs& name_map) : m_decoder(decoder), m_name_map(name_map) {}
 
     /// Returns node attribute by name. Returns 'def' value if attribute does not exist
     template <typename T>
@@ -128,7 +127,7 @@ public:
     }
 
     /// Get a decoder
-    const ::ngraph::frontend::DecoderBase* get_decoder() const {
+    const DecoderBase* get_decoder() const {
         return &m_decoder;
     }
 };

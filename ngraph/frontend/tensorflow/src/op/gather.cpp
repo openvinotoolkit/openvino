@@ -2,25 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
 // See .../tensorflow/include/tensorflow/cc/ops/array_ops.h
 // and .../openvino/ngraph/core/include/ngraph/op/gather.hpp
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateGatherOp(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0), ng_input_indices = node.get_ng_input(1);
 
-    auto ng_axis = ConstructNgNode<opset::Constant>(node.get_name(), element::i64, Shape{}, 0);
+    auto ng_axis = ConstructNgNode<Constant>(node.get_name(), element::i64, Shape{}, 0);
 
-    auto gather_op = ConstructNgNode<opset::Gather>(node.get_name(), ng_input, ng_input_indices, ng_axis);
+    auto gather_op = ConstructNgNode<Gather>(node.get_name(), ng_input, ng_input_indices, ng_axis);
 
     return {gather_op};
 }
@@ -54,11 +54,13 @@ OutputVector TranslateGatherV2Op(const NodeContext& node) {
         throw errors::InvalidArgument(buf.str());
     }
 
-    auto ng_axis = ConstructNgNode<opset::Constant>(node.get_name(), element::i64, Shape{tf_axis.size()}, tf_axis);
+    auto ng_axis = ConstructNgNode<Constant>(node.get_name(), element::i64, Shape{tf_axis.size()}, tf_axis);
 
-    auto gather_op = ConstructNgNode<opset::Gather>(node.get_name(), ng_input, ng_input_coords, ng_axis);
+    auto gather_op = ConstructNgNode<Gather>(node.get_name(), ng_input, ng_input_coords, ng_axis);
 
     return {gather_op};
 }
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

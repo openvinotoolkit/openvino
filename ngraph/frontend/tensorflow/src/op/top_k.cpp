@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
 // Translate TopKV2 Op using ngraph core op TopK
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 #if 0
 OutputVector TranslateTopKV2Op(
@@ -29,7 +29,7 @@ OutputVector TranslateTopKV2Op(
     // CPU backend only supports element type i64
     std::vector<int64_t> ng_k_vec;
     TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 1, static_input_map, &ng_k_vec));
-    auto ng_k = ConstructNgNode<opset::Constant>(node.get_name(), element::i64,
+    auto ng_k = ConstructNgNode<Constant>(node.get_name(), element::i64,
                                                  Shape{}, ng_k_vec[0]);
 
     std::string mode = "max";
@@ -42,7 +42,7 @@ OutputVector TranslateTopKV2Op(
     }
 
     auto ng_result =
-            std::make_shared<opset::TopK>(ng_input, ng_k, k_axis, mode, sort);
+            std::make_shared<TopK>(ng_input, ng_k, k_axis, mode, sort);
 
     Output<Node> ng_values = ng_result->output(0);
     Builder::SetTracingInfo(node.get_name(), ng_values);
@@ -56,5 +56,7 @@ OutputVector TranslateTopKV2Op(
 }
 
 #endif
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

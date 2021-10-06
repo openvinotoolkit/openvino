@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateFusedMatMulOp(const NodeContext& node) {
     // auto num_args = node.get_attribute<int>("num_args"); // TODO: it is unused but why?
@@ -23,7 +23,7 @@ OutputVector TranslateFusedMatMulOp(const NodeContext& node) {
 
     auto ng_lhs = node.get_ng_input(0), ng_rhs = node.get_ng_input(1), ng_bias = node.get_ng_input(2);
 
-    Output<Node> ng_matmul = ConstructNgNode<opset::MatMul>(node.get_name(), ng_lhs, ng_rhs, transpose_a, transpose_b);
+    Output<Node> ng_matmul = ConstructNgNode<MatMul>(node.get_name(), ng_lhs, ng_rhs, transpose_a, transpose_b);
 
     auto ng_matmul_shape = ng_matmul.get_shape();
     auto ng_bias_shape = ng_bias.get_shape();
@@ -32,14 +32,14 @@ OutputVector TranslateFusedMatMulOp(const NodeContext& node) {
         throw errors::InvalidArgument("Bias argument to BiasAdd does not have one dimension");
     }
 
-    auto ng_add = ConstructNgNode<opset::Add>(node.get_name(), ng_matmul, ng_bias);
+    auto ng_add = ConstructNgNode<Add>(node.get_name(), ng_matmul, ng_bias);
     if (fused_ops.size() == 1) {  // Only fusing BiasAdd
         return {ng_add};
     } else if (fused_ops.size() == 2) {  // Also has activation
         if (fused_ops[1] == "Relu") {
-            return {ConstructNgNode<opset::Relu>(node.get_name(), ng_add)};
+            return {ConstructNgNode<Relu>(node.get_name(), ng_add)};
         } else if (fused_ops[1] == "Relu6") {
-            return {ConstructNgNode<opset::Clamp>(node.get_name(), ng_add, 0, 6)};
+            return {ConstructNgNode<Clamp>(node.get_name(), ng_add, 0, 6)};
         } else {
             throw errors::Internal("Expected activation to be Relu or Relu6 but got " + fused_ops[1]);
         }
@@ -48,5 +48,7 @@ OutputVector TranslateFusedMatMulOp(const NodeContext& node) {
         throw errors::Internal("Unsupported combination");
     }
 }
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

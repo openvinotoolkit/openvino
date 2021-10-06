@@ -10,13 +10,13 @@
 
 using namespace ngraph::frontend;
 
-namespace tensorflow {
+namespace tf {
 class GraphDef;
 class NodeDef;
 namespace ngraph_bridge {
 class GraphIteratorProto;
 }
-}  // namespace tensorflow
+}  // namespace tf
 
 namespace ngraph {
 namespace frontend {
@@ -53,7 +53,7 @@ public:
 
     /// \brief Gets name of this FrontEnd. Can be used by clients
     std::string get_name() const override {
-        return "tensorflow";
+        return "tf";
     }
 
 protected:
@@ -64,5 +64,4 @@ protected:
 };
 
 }  // namespace frontend
-
 }  // namespace ngraph

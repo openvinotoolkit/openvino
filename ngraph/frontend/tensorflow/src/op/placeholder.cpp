@@ -2,21 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector PlaceholderOp(const NodeContext& node) {
     auto ng_et = node.get_attribute<ngraph::element::Type>("dtype");
     auto ng_shape = node.get_attribute<ngraph::PartialShape>("shape", ngraph::PartialShape());
-    return {ConstructNgNode<opset::Parameter>(node.get_name(), ng_et, ng_shape)};
+    return {ConstructNgNode<Parameter>(node.get_name(), ng_et, ng_shape)};
 }
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

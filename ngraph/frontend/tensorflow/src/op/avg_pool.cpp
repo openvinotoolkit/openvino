@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateAvgPoolOp(const NodeContext& node) {
     Output<Node> ng_input = node.get_ng_input(0);
@@ -58,19 +58,21 @@ OutputVector TranslateAvgPoolOp(const NodeContext& node) {
     Shape ng_padding_below(padding_below.begin(), padding_below.end());
     Shape ng_padding_above(padding_above.begin(), padding_above.end());
 
-    Output<Node> ng_avgpool = ConstructNgNode<opset::AvgPool>(node.get_name(),
-                                                              ng_input,
-                                                              ng_strides,
-                                                              ng_padding_below,
-                                                              ng_padding_above,
-                                                              ng_kernel_shape,
-                                                              true,
-                                                              op::RoundingType::FLOOR);
+    Output<Node> ng_avgpool = ConstructNgNode<AvgPool>(node.get_name(),
+                                                       ng_input,
+                                                       ng_strides,
+                                                       ng_padding_below,
+                                                       ng_padding_above,
+                                                       ng_kernel_shape,
+                                                       true,
+                                                       ngraph::op::RoundingType::FLOOR);
 
     NCHWtoNHWC(node.get_name(), is_nhwc, ng_avgpool);
     NGRAPH_VLOG(3) << "avgpool outshape: {" << join(ng_avgpool.get_shape()) << "}";
 
     return {ng_avgpool};
 }
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

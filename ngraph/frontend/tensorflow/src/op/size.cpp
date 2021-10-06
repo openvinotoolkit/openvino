@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
 #if 0
 
-namespace tensorflow {
-namespace ngraph_bridge {
-static Status TranslateSizeOp(const TFNodeDecoder* op, const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>&,
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
+static Status TranslateSizeOp(const TFNodeDecoder* op, const std::vector<const ngraph::frontend::tf::detail::TensorWrapper*>&,
                               Builder::OpMap& ng_op_map) {
     Output<Node> ng_input;
     TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input));
@@ -33,7 +33,7 @@ static Status TranslateSizeOp(const TFNodeDecoder* op, const std::vector<const n
     }
 
     // make a scalar with value equals to result
-    auto ng_result = ConstructNgNode<opset::Constant>(
+    auto ng_result = ConstructNgNode<Constant>(
             node.get_name(), type, Shape(0), std::vector<int64_t>({result}));
 
     SaveNgOp(ng_op_map, node.get_name(), ng_result);

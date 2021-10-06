@@ -2,23 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateCastOp(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0);
 
     auto ng_et = node.get_attribute<element::Type>("DstT");
-    return {ConstructNgNode<opset::Convert>(node.get_name(), ng_input, ng_et)};
+    return {ConstructNgNode<Convert>(node.get_name(), ng_input, ng_et)};
 }
 
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

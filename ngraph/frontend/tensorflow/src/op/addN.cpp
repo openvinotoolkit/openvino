@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <numeric>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateAddNOp(const NodeContext& node) {
     OutputVector ng_arg_vec = node.get_all_ng_inputs();
@@ -21,11 +21,13 @@ OutputVector TranslateAddNOp(const NodeContext& node) {
                                    ng_arg_vec.end(),
                                    ng_arg_vec.at(0),
                                    [&node](Output<Node> a, Output<Node> b) {
-                                       return ConstructNgNode<opset::Add>(node.get_name(), a, b);
+                                       return ConstructNgNode<Add>(node.get_name(), a, b);
                                    });  // accumulation: start with
     // first element. default op is
     // addition
     return {ng_addn};
 }
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

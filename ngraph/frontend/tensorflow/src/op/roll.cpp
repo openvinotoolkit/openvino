@@ -6,17 +6,21 @@
 #include <op_table.hpp>
 
 using namespace std;
+using namespace ngraph;
 using namespace ngraph::opset8;
+using namespace ngraph::frontend::tf;
 
 namespace ngraph {
 namespace frontend {
 namespace tf {
 namespace op {
-ngraph::OutputVector TranslateRelu6Op(const NodeContext& node) {
+ngraph::OutputVector TranslateRollOp(const NodeContext& node) {
     auto data = node.get_ng_input(0);
-    auto clamp = std::make_shared<Clamp>(data, 0.0, 6.0f);
-    clamp->set_friendly_name(node.get_name());
-    return clamp->outputs();
+    auto shift = node.get_ng_input(1);
+    auto axis = node.get_ng_input(2);
+    auto roll = std::make_shared<Roll>(data, shift, axis);
+    roll->set_friendly_name(node.get_name());
+    return roll->outputs();
 }
 }  // namespace op
 }  // namespace tf
