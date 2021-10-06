@@ -368,6 +368,6 @@ Place::Ptr OutPortPlaceTF::get_producing_operation() const {
     }
     FRONT_END_THROW("Operation has expired.");
 }
-}
-}
-}
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph
