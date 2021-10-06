@@ -12,6 +12,7 @@ using namespace ov;
 
 namespace {
 struct SwishParams {
+/*    
     template <class IT>
     SwishParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues)
         : pshape(shape),
@@ -20,11 +21,11 @@ struct SwishParams {
           inputData(CreateTensor(iType, iValues)),
           testDefaults(true) {
               std::vector<IT> oValues;
-              std::vector<double> output;
+              std::vector<float> output;
               for (auto element : iValues)
-                  output.push_back(static_cast<double>(element));
+                  output.push_back(static_cast<float>(element));
 
-              std::transform(output.begin(), output.end(), output.begin(), [](double x) -> double {
+              std::transform(output.begin(), output.end(), output.begin(), [](float x) -> float {
                   return (x / (1.0f + std::exp(x * -1.0f)));
               });
 
@@ -32,24 +33,23 @@ struct SwishParams {
                   oValues.push_back(static_cast<IT>(element));
               refData = CreateTensor(outType, oValues);
           }
-
+*/
     template <class IT>
     SwishParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues,
-                const double beta)
+                const float beta = 1)
         : pshape(shape),
           inType(iType),
           outType(iType),
           inputData(CreateTensor(iType, iValues)),
-          testDefaults(false),
           beta(beta) {
               std::vector<IT> oValues;
-              std::vector<double> output;
+              std::vector<float> output;
               std::vector<IT> betaVector;
 
               for (auto element : iValues)
-                  output.push_back(static_cast<double>(element));
+                  output.push_back(static_cast<float>(element));
 
-              std::transform(output.begin(), output.end(), output.begin(), [&beta](double x) -> double {
+              std::transform(output.begin(), output.end(), output.begin(), [&beta](float x) -> float {
                   return (x / (1.0f + std::exp(x * beta * -1.0f)));
               });
 
@@ -68,8 +68,7 @@ struct SwishParams {
     ov::runtime::Tensor refData;
     ov::runtime::Tensor betaBlob;
 
-    bool testDefaults = false;
-    double beta = 1;
+    float beta;
 };
 
 class ReferenceSwishLayerTest : public testing::TestWithParam<SwishParams>, public CommonReferenceTest {
@@ -78,15 +77,12 @@ public:
         threshold = 0.06; // 0.01 failed in fp32 test
 
         auto params = GetParam();
-        if (params.testDefaults) {
-            function = CreateFunction(params.pshape, params.inType, params.outType);
-
-            inputData = {params.inputData};
+        function = CreateFunction(params.pshape, params.inType, params.outType, params.beta);
+        if (params.beta != 1) {
+            inputData = {params.inputData, params.betaBlob};
             refOutData = {params.refData};
         } else {
-            function = CreateFunction(params.pshape, params.inType, params.outType, params.beta);
-
-            inputData = {params.inputData, params.betaBlob};
+            inputData = {params.inputData};
             refOutData = {params.refData};
         }
     }
@@ -103,18 +99,16 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
-                                                    const element::Type& Swishected_output_type) {
+                                                    const element::Type& Swishected_output_type, const float beta) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        const auto Swish = std::make_shared<op::v4::Swish>(in);
-        return std::make_shared<ov::Function>(NodeVector {Swish}, ParameterVector {in});
-    }
-
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type,
-                                                    const element::Type& Swishected_output_type, const double beta) {
-        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        const auto BETA = std::make_shared<op::v0::Parameter>(input_type, Shape {});
-        const auto Swish = std::make_shared<op::v4::Swish>(in);
-        return std::make_shared<Function>(NodeVector {Swish}, ParameterVector {in, BETA});
+        if (beta != 1) {
+            const auto BETA = std::make_shared<op::v0::Parameter>(input_type, Shape {});
+            const auto Swish = std::make_shared<op::v4::Swish>(in, BETA);
+            return std::make_shared<Function>(NodeVector {Swish}, ParameterVector {in, BETA});
+        } else {
+            const auto Swish = std::make_shared<op::v4::Swish>(in);
+            return std::make_shared<ov::Function>(NodeVector {Swish}, ParameterVector {in});
+        }
     }
 };
 
