@@ -330,13 +330,17 @@ namespace tf {
             return detail::GetInputNodes(node, 0, remaining...);
         }
 
-        template <typename T>
-        static void GetStaticInputVector(const ngraph::frontend::tf::NodeContext& node, int64_t input_index, std::vector<T>* vector) {
-            ngraph::Output<ngraph::Node> ng_input = node.get_ng_input(input_index);
-            if (auto constant = std::dynamic_pointer_cast<ngraph::opset8::Constant>(ng_input.get_node_shared_ptr())) {
-                *vector = constant->cast_vector<T>();
-                return;
-            }
+void TFTensorShapeToNGraphShape(const ::tensorflow::TensorShapeProto& tf_shape, ngraph::PartialShape* ng_shape);
+
+template <typename T>
+static void GetStaticInputVector(const ngraph::frontend::tf::NodeContext& node,
+                                 int64_t input_index,
+                                 std::vector<T>* vector) {
+    ngraph::Output<ngraph::Node> ng_input = node.get_ng_input(input_index);
+    if (auto constant = std::dynamic_pointer_cast<ngraph::opset8::Constant>(ng_input.get_node_shared_ptr())) {
+        *vector = constant->cast_vector<T>();
+        return;
+    }
 
             NGRAPH_TF_FE_NOT_IMPLEMENTED;
             /*
