@@ -260,6 +260,12 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     }
 
     FE = manager.load_by_model(params);
+
+    // avoid use of TensorFlow frontend due to incomplete state
+    if (FE->get_name().compare("tf") == 0) {
+        FE = nullptr;
+    }
+
     if (FE)
         inputModel = FE->load(params);
 
@@ -308,6 +314,12 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     }
 
     FE = manager.load_by_model(params);
+
+    // avoid use of TensorFlow frontend due to incomplete state
+    if (FE->get_name().compare("tf") == 0) {
+        FE = nullptr;
+    }
+
     if (FE)
         inputModel = FE->load(params);
     if (inputModel) {
