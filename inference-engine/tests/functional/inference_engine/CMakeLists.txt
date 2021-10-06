@@ -260,7 +260,3 @@ else()
                                              FLAGS /we4996 /W4 /WX
                                              PLUGIN_API)
 endif()
-
-# ir serialization functional tests variables
-target_compile_definitions(${TARGET_NAME} PRIVATE
-    IR_SERIALIZATION_MODELS_PATH="${TEST_MODEL_ZOO}/ir_serialization/models/")

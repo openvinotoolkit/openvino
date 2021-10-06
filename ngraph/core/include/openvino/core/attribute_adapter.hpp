@@ -7,6 +7,7 @@
 #include <string>
 #include <type_traits>
 #include <vector>
+#include <set>
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/enum_names.hpp"
@@ -421,5 +422,12 @@ public:
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<std::string>");
     BWDCMP_RTTI_DECLARATION;
+};
+
+template <>
+class NGRAPH_API AttributeAdapter<std::set<std::string>> : public DirectValueAccessor<std::set<std::string>> {
+public:
+    OPENVINO_RTTI("AttributeAdapter<set<string>>");
+    AttributeAdapter(std::set<std::string>& value) : DirectValueAccessor<std::set<std::string>>(value) {}
 };
 }  // namespace ov

@@ -7,12 +7,9 @@
 #include "gtest/gtest.h"
 #include "ie_core.hpp"
 #include "ngraph/ngraph.hpp"
-#include "transformations/serialize.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "common_test_utils/file_utils.hpp"
-
-#ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
-# error "IR_SERIALIZATION_MODELS_PATH is not defined"
-#endif
+#include "openvino/util/file_util.hpp"
 
 class SerializationTransformationTest : public ::testing::Test {
 protected:
@@ -23,10 +20,8 @@ protected:
     std::shared_ptr<ngraph::Function> m_function;
 
     void SetUp() override {
-        const std::string model = CommonTestUtils::getModelFromTestModelZoo(
-            IR_SERIALIZATION_MODELS_PATH "add_abc.xml");
-        const std::string weights = CommonTestUtils::getModelFromTestModelZoo(
-            IR_SERIALIZATION_MODELS_PATH "add_abc.bin");
+        const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc.xml"});
+        const std::string weights = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc.bin"});
         InferenceEngine::Core ie;
         m_function = ie.ReadNetwork(model, weights).getFunction();
     }
@@ -38,7 +33,7 @@ protected:
 };
 
 TEST_F(SerializationTransformationTest, DirectInstantiation) {
-    ngraph::pass::Serialize transform{m_out_xml_path, m_out_bin_path};
+    ov::pass::Serialize transform{m_out_xml_path, m_out_bin_path};
     transform.run_on_function(m_function);
 
     std::ifstream xml(m_out_xml_path);
@@ -49,7 +44,7 @@ TEST_F(SerializationTransformationTest, DirectInstantiation) {
 
 TEST_F(SerializationTransformationTest, PassManagerInstantiation) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::Serialize>(m_out_xml_path,
+    manager.register_pass<ov::pass::Serialize>(m_out_xml_path,
                                                    m_out_bin_path);
     manager.run_passes(m_function);
 

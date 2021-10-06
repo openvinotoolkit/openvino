@@ -4,13 +4,12 @@
 
 #include <gtest/gtest.h>
 
-#include <file_utils.h>
 #include <ie_api.h>
 #include <ie_iextension.h>
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ie_core.hpp"
 #include "ngraph/ngraph.hpp"
-#include "transformations/serialize.hpp"
+#include "openvino/pass/serialize.hpp"
 #include <openvino/opsets/opset8.hpp>
 #include <transformations/rt_info/attributes.hpp>
 
@@ -48,7 +47,7 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
     }
 
     pass::Manager m;
-    m.register_pass<pass::Serialize>(m_out_xml_path, m_out_bin_path);
+    m.register_pass<ov::pass::Serialize>(m_out_xml_path, m_out_bin_path);
     m.run_passes(function);
 
     auto core = InferenceEngine::Core();
@@ -96,7 +95,7 @@ TEST_F(RTInfoSerializationTest, all_attributes_v10) {
     }
 
     pass::Manager m;
-    m.register_pass<pass::Serialize>(m_out_xml_path, m_out_bin_path, pass::Serialize::Version::IR_V10);
+    m.register_pass<ov::pass::Serialize>(m_out_xml_path, m_out_bin_path, ov::pass::Serialize::Version::IR_V10);
     m.run_passes(function);
 
     auto core = InferenceEngine::Core();
@@ -135,7 +134,7 @@ TEST_F(RTInfoSerializationTest, all_attributes_v11) {
     }
 
     pass::Manager m;
-    m.register_pass<pass::Serialize>(m_out_xml_path, m_out_bin_path);
+    m.register_pass<ov::pass::Serialize>(m_out_xml_path, m_out_bin_path);
     m.run_passes(function);
 
     auto core = InferenceEngine::Core();
@@ -188,7 +187,7 @@ TEST_F(RTInfoSerializationTest, parameter_result_v11) {
     }
 
     pass::Manager m;
-    m.register_pass<pass::Serialize>(m_out_xml_path, m_out_bin_path, pass::Serialize::Version::IR_V11);
+    m.register_pass<ov::pass::Serialize>(m_out_xml_path, m_out_bin_path, ov::pass::Serialize::Version::IR_V11);
     m.run_passes(function);
 
     auto core = InferenceEngine::Core();

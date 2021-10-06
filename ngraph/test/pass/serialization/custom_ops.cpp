@@ -4,27 +4,29 @@
 
 #include <gtest/gtest.h>
 
-#include <file_utils.h>
+#include "backend.hpp"
 #include <ie_api.h>
 #include <ie_iextension.h>
-#include <ie_network_reader.hpp>
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ie_core.hpp"
 #include "ngraph/ngraph.hpp"
-#include "transformations/serialize.hpp"
-
-#ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
-# error "IR_SERIALIZATION_MODELS_PATH is not defined"
-#endif
+#include "openvino/pass/serialize.hpp"
+#include "openvino/util/file_util.hpp"
 
 #ifndef IE_BUILD_POSTFIX  // should be already defined by cmake
 #define IE_BUILD_POSTFIX ""
 #endif
 
 static std::string get_extension_path() {
-    return FileUtils::makePluginLibraryName<char>(
-        {}, std::string("template_extension") + IE_BUILD_POSTFIX);
+    std::string library_name = ov::util::FileTraits<char>::library_prefix() + "template_extension" + IE_BUILD_POSTFIX +
+    ov::util::FileTraits<char>::dot_symbol + ov::util::FileTraits<char>::library_ext();
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    std::string exPath = ov::util::path_join(
+    {ov::util::get_directory(ngraph::runtime::Backend::get_backend_shared_library_search_directory()),
+    library_name});
+    NGRAPH_SUPPRESS_DEPRECATED_END
+    return exPath;
 }
 
 class CustomOpsSerializationTest : public ::testing::Test {
@@ -41,8 +43,7 @@ protected:
 };
 
 TEST_F(CustomOpsSerializationTest, CustomOpUser_MO) {
-    const std::string model = CommonTestUtils::getModelFromTestModelZoo(
-        IR_SERIALIZATION_MODELS_PATH "custom_op.xml");
+    const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/custom_op.xml"});
 
     InferenceEngine::Core ie;
     ie.AddExtension(
@@ -64,8 +65,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_MO) {
 #ifdef NGRAPH_ONNX_FRONTEND_ENABLE
 
 TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
-    const std::string model = CommonTestUtils::getModelFromTestModelZoo(
-        IR_SERIALIZATION_MODELS_PATH "custom_op.onnx");
+    const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/custom_op.onnx"});
 
     InferenceEngine::Core ie;
     ie.AddExtension(
@@ -87,8 +87,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
 #endif
 
 TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
-    const std::string model = CommonTestUtils::getModelFromTestModelZoo(
-        IR_SERIALIZATION_MODELS_PATH "custom_op.xml");
+    const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/custom_op.xml"});
 
     InferenceEngine::Core ie;
     auto extension =
@@ -97,9 +96,9 @@ TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
     ie.AddExtension(extension);
     auto expected = ie.ReadNetwork(model);
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::Serialize>(
+    manager.register_pass<ov::pass::Serialize>(
         m_out_xml_path, m_out_bin_path, extension->getOpSets(),
-        ngraph::pass::Serialize::Version::IR_V10);
+        ov::pass::Serialize::Version::IR_V10);
     manager.run_passes(expected.getFunction());
     auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
 
@@ -131,17 +130,16 @@ public:
 };
 
 TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
-    const std::string model = CommonTestUtils::getModelFromTestModelZoo(
-        IR_SERIALIZATION_MODELS_PATH "custom_op.xml");
+    const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/custom_op.xml"});
 
     InferenceEngine::Core ie;
     auto extension = std::make_shared<FrameworkNodeExtension>();
     ie.AddExtension(extension);
     auto expected = ie.ReadNetwork(model);
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::Serialize>(
+    manager.register_pass<ov::pass::Serialize>(
             m_out_xml_path, m_out_bin_path, extension->getOpSets(),
-            ngraph::pass::Serialize::Version::IR_V10);
+            ov::pass::Serialize::Version::IR_V10);
     manager.run_passes(expected.getFunction());
     auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
 

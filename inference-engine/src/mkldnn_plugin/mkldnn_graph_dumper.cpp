@@ -12,7 +12,7 @@
 #include <ngraph/variant.hpp>
 #include "ngraph/ngraph.hpp"
 #include <ngraph/pass/manager.hpp>
-#include <transformations/serialize.hpp>
+#include <openvino/pass/serialize.hpp>
 
 #include <vector>
 #include <string>
@@ -228,9 +228,9 @@ void serializeToXML(const MKLDNNGraph &graph, const std::string& path) {
 
     std::string binPath;
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::Serialize>(path,
-                                                   binPath,
-                                                   ngraph::pass::Serialize::Version::IR_V10);
+    manager.register_pass<ov::pass::Serialize>(path,
+                                               binPath,
+                                               ov::pass::Serialize::Version::IR_V10);
     manager.run_passes(graph.dump());
 }
 

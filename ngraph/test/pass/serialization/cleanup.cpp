@@ -7,9 +7,9 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "ie_core.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "util/test_common.hpp"
 
-class SerializationCleanupTest : public CommonTestUtils::TestsCommon {
+class SerializationCleanupTest : public ov::test::TestsCommon {
 protected:
     const std::string test_name = GetTestName() + "_" + GetTimestamp();
     std::string m_out_xml_path = test_name + ".xml";

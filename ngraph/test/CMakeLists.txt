@@ -82,6 +82,16 @@ set(SRC
     partial_shape.cpp
     pass_config.cpp
     pass_manager.cpp
+    pass/serialization/cleanup.cpp
+    pass/serialization/const_compression.cpp
+    pass/serialization/custom_ops.cpp
+    pass/serialization/deterministicity.cpp
+    pass/serialization/rt_info_deserialization.cpp
+    pass/serialization/rt_info_serialization.cpp
+    pass/serialization/serialize.cpp
+    pass/serialization/tensor_iterator.cpp
+    pass/serialization/tensor_names.cpp
+    pass/serialization/transformation.cpp
     pattern.cpp
     preprocess.cpp
     provenance.cpp
@@ -602,6 +612,8 @@ endforeach()
 
 add_executable(unit-test ${SRC})
 
+add_dependencies(unit-test template_extension)
+
 target_include_directories(unit-test PRIVATE ".")
 target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
 
@@ -618,6 +630,8 @@ endif()
 target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         engines_test_util
                                         ngraph::builder
+                                        openvino::util
+                                        pugixml::static
                                         ${CMAKE_DL_LIBS}
                                         ie_backend
                                         interpreter_backend
@@ -638,6 +652,7 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
             ${Protobuf_INCLUDE_DIRS})
     target_compile_definitions(unit-test
         PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
+    target_compile_definitions(unit-test PRIVATE NGRAPH_ONNX_FRONTEND_ENABLE)
 endif()
 
 if (OV_COMPILER_IS_CLANG)

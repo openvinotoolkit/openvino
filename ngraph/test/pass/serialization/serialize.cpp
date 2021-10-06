@@ -8,10 +8,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "gtest/gtest.h"
 #include "ie_core.hpp"
-
-#ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
-# error "IR_SERIALIZATION_MODELS_PATH is not defined"
-#endif
+#include "openvino/util/file_util.hpp"
 
 typedef std::tuple<std::string, std::string> SerializationParams;
 
@@ -24,11 +21,9 @@ public:
     std::string m_out_bin_path;
 
     void SetUp() override {
-        m_model_path = CommonTestUtils::getModelFromTestModelZoo(
-            IR_SERIALIZATION_MODELS_PATH + std::get<0>(GetParam()));
+        m_model_path = ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<0>(GetParam())});
         if (!std::get<1>(GetParam()).empty()) {
-            m_binary_path = CommonTestUtils::getModelFromTestModelZoo(
-                IR_SERIALIZATION_MODELS_PATH + std::get<1>(GetParam()));
+            m_binary_path = ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<1>(GetParam())});
         }
 
         const std::string test_name =  GetTestName() + "_" + GetTimestamp();

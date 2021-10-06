@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "base/ov_behavior_test_utils.hpp"
-#include <transformations/serialize.hpp>
+#include <openvino/pass/serialize.hpp>
 #include "common_test_utils/test_constants.hpp"
 #include "openvino/runtime/runtime.hpp"
 
@@ -46,7 +46,7 @@ TEST_P(OVExecNetwork, precisionsAsInOriginalIR) {
 
     const std::string m_out_xml_path_1 = "precisionsAsInOriginalIR.xml";
     const std::string m_out_bin_path_1 = "precisionsAsInOriginalIR.bin";
-    ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(function);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(function);
 
     ov::runtime::ExecutableNetwork execNet;
     ASSERT_NO_THROW(execNet = ie->compile_model(m_out_xml_path_1, targetDevice, configuration));

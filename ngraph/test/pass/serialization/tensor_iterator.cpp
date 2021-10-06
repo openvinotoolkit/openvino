@@ -10,11 +10,8 @@
 #include "ie_core.hpp"
 #include "ie_blob.h"
 #include "common_test_utils/data_utils.hpp"
+#include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
-
-#ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
-# error "IR_SERIALIZATION_MODELS_PATH is not defined"
-#endif
 
 class SerializationTensorIteratorTest : public ::testing::Test {
 protected:
@@ -48,8 +45,7 @@ protected:
 };
 
 TEST_F(SerializationTensorIteratorTest, TiResnet) {
-    const std::string model_path = CommonTestUtils::getModelFromTestModelZoo(
-        IR_SERIALIZATION_MODELS_PATH "ti_resnet.xml");
+    const std::string model_path = ov::util::path_join({SERIALIZED_ZOO, "ir/ti_resnet.xml"});
 
     size_t weights_size = 8396840;
 
@@ -69,8 +65,7 @@ TEST_F(SerializationTensorIteratorTest, TiResnet) {
 }
 
 TEST_F(SerializationTensorIteratorTest, TiNegativeStride) {
-    const std::string model_path = CommonTestUtils::getModelFromTestModelZoo(
-        IR_SERIALIZATION_MODELS_PATH "ti_negative_stride.xml");
+    const std::string model_path = ov::util::path_join({SERIALIZED_ZOO, "ir/ti_negative_stride.xml"});
 
     size_t weights_size = 3149864;
 
@@ -90,10 +85,8 @@ TEST_F(SerializationTensorIteratorTest, TiNegativeStride) {
 }
 
 TEST_F(SerializationTensorIteratorTest, SerializationExternalPortIdInXmlFile) {
-    const std::string model_path = CommonTestUtils::getModelFromTestModelZoo(
-        IR_SERIALIZATION_MODELS_PATH "loop_2d_add.xml");
-    const std::string binary_path = CommonTestUtils::getModelFromTestModelZoo(
-        IR_SERIALIZATION_MODELS_PATH "loop_2d_add.bin");
+    const std::string model_path = ov::util::path_join({SERIALIZED_ZOO, "ir/loop_2d_add.xml"});
+    const std::string binary_path = ov::util::path_join({SERIALIZED_ZOO, "ir/loop_2d_add.bin"});
 
     InferenceEngine::Core ie;
     InferenceEngine::CNNNetwork expected;
