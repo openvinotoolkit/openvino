@@ -18,7 +18,6 @@ from distutils.command.build import build as _build
 
 __version__ = os.environ.get("NGRAPH_VERSION", "0.0.0.dev0")
 PYTHON_API_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
-PYNGRAPH_ROOT_DIR = os.path.normpath(os.path.join(PYTHON_API_ROOT_DIR, "src", "compatibility"))
 OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYTHON_API_ROOT_DIR, "../../.."))
 # Change current working directory to runtime/bindings/python
 os.chdir(PYTHON_API_ROOT_DIR)
@@ -154,7 +153,7 @@ class BuildCMakeExt(build_ext):
         root_dir = OPENVINO_ROOT_DIR
         bin_dir = os.path.join(OPENVINO_ROOT_DIR, "bin")
         if os.environ.get("OpenVINO_DIR") is not None:
-            root_dir = PYNGRAPH_ROOT_DIR
+            root_dir = PYTHON_API_ROOT_DIR
             bin_dir = build_dir
 
         self.announce("Configuring cmake project", level=3)
@@ -187,7 +186,7 @@ class InstallCMakeLibs(install_lib):
 
         root_dir = os.path.join(OPENVINO_ROOT_DIR, "bin")
         if os.environ.get("OpenVINO_DIR") is not None:
-            root_dir = pathlib.Path(PYNGRAPH_ROOT_DIR)
+            root_dir = pathlib.Path(PYTHON_API_ROOT_DIR)
 
         lib_ext = ""
         if "linux" in sys.platform:
