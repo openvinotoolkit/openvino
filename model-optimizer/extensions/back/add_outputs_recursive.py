@@ -12,32 +12,54 @@ from mo.ops.result import Result
 from mo.ops.unsqueeze import Unsqueeze
 
 
+def ti_find_iterations_count_for_output(step_node, output_rec):
+    def check_axis_end(record):
+        return 'axis' in record and record['axis'] is not None and \
+            'end' in record and record['end'] is not None
+    iterations_count = 1
+    if not check_axis_end(output_rec):
+        # in this case we dont concat outputs, so iterations count is not needed really
+        return iterations_count
+
+    if output_rec['end'] != -1:
+        # get iterations count from output record
+        iterations_count = (output_rec['end'] - output_rec['start']) / output_rec['stride']
+        return iterations_count
+
+    # find out iterations count from inputs
+    for in_rec in step_node.input_port_map:
+        if not check_axis_end(in_rec):
+            continue
+        if in_rec['end'] != -1:
+            in_shape_axis = in_rec['end']
+        else:
+            in_shape_axis = step_node.in_port(in_rec['external_port_id']).data.get_shape()[in_rec['axis']]
+        iterations_count = (in_shape_axis - in_rec['start']) / in_rec['stride']
+        return iterations_count
+
+    return iterations_count
+
+
 # shape inference for TensorIterator
 # copy shapes from internal nodes + insert correct iterations count where needed
 def ti_infer(step_node, port_num):
     out_port_map = step_node.output_port_map
     int_layer_id = None
     port_num = port_num + len(step_node.in_ports())
-    # find out iterations count for TensorIterator to set output shape correctly
-    iterations_count = 1
+    # find out which internal layer maps to port_num
+    found_rec = None
     for om in out_port_map:
         if om['external_port_id'] == port_num:
-            int_layer_id = om['internal_layer_id']
-            if 'axis' in om and om['axis'] is not None and 'end' in om and om['end'] is not None:
-                if om['end'] != -1:
-                    iterations_count = (om['end'] - om['start']) / om['stride']
-                else:
-                    for in_rec in step_node.input_port_map:
-                        if 'axis' in in_rec and in_rec['axis'] is not None:
-                            if in_rec['end'] != -1:
-                                in_shape_axis = in_rec['end']
-                            else:
-                                in_shape_axis = step_node.in_port(in_rec['external_port_id']).data.get_shape()[
-                                    in_rec['axis']]
-                            iterations_count = (in_shape_axis - in_rec['start']) / in_rec['stride']
-                            break
+            found_rec = om
             break
-    int_node_name = TensorIterator.find_internal_layer_id(step_node.body, int_layer_id)
+    assert found_rec is not None, \
+        "External port {} is not connected with body in node {}".format(port_num,
+                                                                        step_node.soft_get('name', step_node.id))
+
+    # find out iterations count for TensorIterator to set output shape correctly
+    iterations_count = ti_find_iterations_count_for_output(step_node, found_rec)
+
+    int_node_name = TensorIterator.find_internal_layer_id(step_node.body, found_rec['internal_layer_id'])
     int_node = Node(step_node.body, int_node_name)
     assert int_node.op == 'Result'
     out_shape = int_node.in_port(0).data.get_shape().copy()
