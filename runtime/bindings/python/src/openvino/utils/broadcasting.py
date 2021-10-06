@@ -4,7 +4,7 @@
 import logging
 from typing import List
 
-import openvino as ng
+import openvino as ov
 from openvino.impl import AxisSet, Node
 from openvino.utils.types import NodeInput, TensorShape, get_dtype, make_constant_node
 

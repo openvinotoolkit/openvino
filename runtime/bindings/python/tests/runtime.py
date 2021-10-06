@@ -7,7 +7,7 @@ import logging
 from typing import Dict, List, Union
 
 import numpy as np
-from openvino.inference_engine import IECore, IENetwork, Blob, DataPtr
+from openvino import Core, IENetwork, Blob, DataPtr
 
 from openvino.exceptions import UserInputError
 from openvino.impl import Function, Node, PartialShape, Type
@@ -65,7 +65,7 @@ class Runtime(object):
     def __init__(self, backend_name: str) -> None:
         self.backend_name = backend_name
         log.debug("Creating Inference Engine for %s" % backend_name)
-        self.backend = IECore()
+        self.backend = Core()
         assert backend_name in self.backend.available_devices, (
             'The requested device "' + backend_name + '" is not supported!'
         )
