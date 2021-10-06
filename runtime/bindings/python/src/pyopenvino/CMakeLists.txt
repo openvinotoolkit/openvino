@@ -5,7 +5,6 @@ project (pyopenvino)
 
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(OpenVINO REQUIRED)
-    find_package(frontend_manager QUIET)
 endif()
 
 # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
@@ -52,7 +51,7 @@ file(GLOB_RECURSE SOURCES *.cpp)
 pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime frontend_manager)
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime openvino::frontend::manager)
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)

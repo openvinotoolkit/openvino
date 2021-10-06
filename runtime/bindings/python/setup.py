@@ -40,7 +40,21 @@ packages = [
     "ngraph.impl.op.util",
     "ngraph.impl.passes",
     "ngraph.frontend",
-    "openvino"
+    "openvino",
+    "openvino.opset1",
+    "openvino.opset2",
+    "openvino.opset3",
+    "openvino.opset4",
+    "openvino.opset5",
+    "openvino.opset6",
+    "openvino.opset7",
+    "openvino.opset8",
+    "openvino.utils",
+    "openvino.impl",
+    "openvino.impl.op",
+    "openvino.impl.op.util",
+    "openvino.impl.passes",
+    "openvino.frontend"
 ]
 
 
