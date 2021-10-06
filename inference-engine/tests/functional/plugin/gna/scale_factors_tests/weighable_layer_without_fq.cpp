@@ -21,6 +21,9 @@ typedef std::tuple<
         std::map<std::string, std::string> // Additional backend configuration and alis name to it
 > WeighableLayerWithoutFqParamsSet;
 
+/*
+ * This test emulates cases in which the ConcatAlignFilter layer is created and the model has FakeQuantize layers.
+ */
 class WeighableLayerWithoutFqTest :
     public testing::WithParamInterface<WeighableLayerWithoutFqParamsSet>,
     virtual public LayerTestsUtils::LayerTestsCommon {
@@ -63,9 +66,9 @@ protected:
         auto constant = ngraph::builder::makeConstant(ngPrc, constantShape, std::vector<float>{}, true);
         auto fq2 = std::make_shared<ngraph::opset8::FakeQuantize>(
             constant,
-            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-1.}),
+            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {1}),
             ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {1.}),
-            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {-1.}),
+            ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {1.}),
             ngraph::opset8::Constant::create(ngraph::element::f32, {1}, {1.}),
             255);
         auto concat = ngraph::builder::makeConcat({fq1, fq2}, 0);
