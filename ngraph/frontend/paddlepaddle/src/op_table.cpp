@@ -51,6 +51,7 @@ OP_CONVERTER(nearest_interp_v2);
 OP_CONVERTER(pad3d);
 OP_CONVERTER(pow);
 OP_CONVERTER(pool2d);
+OP_CONVERTER(prior_box);
 OP_CONVERTER(range);
 OP_CONVERTER(relu);
 OP_CONVERTER(relu6);
@@ -126,6 +127,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"pad3d", op::pad3d},
             {"pow", op::pow},
             {"pool2d", op::pool2d},
+            {"prior_box", op::prior_box},
             {"range", op::range},
             {"relu", op::relu},
             {"relu6", op::relu6},
