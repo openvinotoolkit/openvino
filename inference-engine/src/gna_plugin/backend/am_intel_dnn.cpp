@@ -801,11 +801,9 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                     uint32_t num_bytes_per_bias = component[i].op.affine.num_bytes_per_bias;
                     float weight_scale_factor = component[i].op.affine.weight_scale_factor;
                     float output_scale_factor = component[i].output_scale_factor;
-#ifdef DUMP_WB
-#ifdef LIGHT_DUMP
+#if defined(DUMP_WB) || defined(LIGHT_DUMP)
                     uint32_t num_weight_rows = (component[i].operation == kDnnDiagonalOp) ? 1 : num_rows_out;
                     uint32_t num_weight_columns = num_rows_in;
-#endif
 #endif
                     if ((compute_precision_ == kDnnInt) && (logging_precision == kDnnFloat)) {
                         out_file << "<num_bytes_per_weight> " << std::dec << 4 << "\n";
@@ -833,8 +831,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
 #endif
                     if (num_bytes_per_weight == 1) {
                         if (num_bytes_per_bias != 1) {
-#ifdef DUMP_WB
-#ifdef LIGHT_DUMP
+#if defined(DUMP_WB) || defined(LIGHT_DUMP)
                             int8_t* ptr_weight = reinterpret_cast<int8_t*>(component[i].op.affine.ptr_weights);
                             gna_compound_bias_t* ptr_bias = reinterpret_cast<gna_compound_bias_t*>(component[i].op.affine.ptr_biases);
                             for (uint32_t row = 0; row < num_weight_rows; row++) {
@@ -851,10 +848,8 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                                 }
                             }
 #endif
-#endif
                         } else {
-#ifdef DUMP_WB
-#ifdef LIGHT_DUMP
+#if defined(DUMP_WB) || defined(LIGHT_DUMP)
                             int8_t* ptr_weight = reinterpret_cast<int8_t*>(component[i].op.affine.ptr_weights);
                             for (uint32_t row = 0; row < num_weight_rows; row++) {
                                 for (uint32_t col = 0; col < num_weight_columns; col++) {
@@ -869,11 +864,9 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                                 }
                             }
 #endif
-#endif
                         }
                     } else if (num_bytes_per_weight == 2) {
-#ifdef DUMP_WB
-#ifdef LIGHT_DUMP
+#if defined(DUMP_WB) || defined(LIGHT_DUMP)
                         int16_t *ptr_weight = reinterpret_cast<int16_t *>(component[i].op.affine.ptr_weights);
                         for (uint32_t row = 0; row < num_weight_rows; row++) {
                             for (uint32_t col = 0; col < num_weight_columns; col++) {
@@ -887,10 +880,8 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                             }
                         }
 #endif
-#endif
                     } else if (compute_precision_ == kDnnFloat) {
-#ifdef DUMP_WB
-#ifdef LIGHT_DUMP
+#if defined(DUMP_WB) || defined(LIGHT_DUMP)
                         float *ptr_weight = reinterpret_cast<float *>(component[i].op.affine.ptr_weights);
                         for (uint32_t row = 0; row < num_weight_rows; row++) {
                             for (uint32_t col = 0; col < num_weight_columns; col++) {
@@ -900,7 +891,6 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                             }
                         }
 #endif
-#endif
                     } else {
                         fprintf(stderr, "Unsupported weight type in WriteDnnText!\n");
                         throw -1;
@@ -908,8 +898,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                     if (compute_precision_ == kDnnInt) {
                         if (num_bytes_per_weight == 1) {
                             if (num_bytes_per_bias != 1) {
-#ifdef DUMP_WB
-#ifdef LIGHT_DUMP
+#if defined(DUMP_WB) || defined(LIGHT_DUMP)
                                 gna_compound_bias_t
                                     * ptr_biases = reinterpret_cast<gna_compound_bias_t*>(component[i].op.affine.ptr_biases);
                                 for (uint32_t row = 0; row < num_rows_out; row++) {
@@ -921,10 +910,8 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                                     }
                                 }
 #endif
-#endif
                             } else {
-#ifdef DUMP_WB
-#ifdef LIGHT_DUMP
+#if defined(DUMP_WB) || defined(LIGHT_DUMP)
                                 int8_t *ptr_biases = reinterpret_cast<int8_t*>(component[i].op.affine.ptr_biases);
                                 for (uint32_t row = 0; row < num_rows_out; row++) {
                                     if (logging_precision == kDnnInt) {
@@ -934,11 +921,9 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                                     }
                                 }
 #endif
-#endif
                             }
                         } else {
-#ifdef DUMP_WB
-#ifdef LIGHT_DUMP
+#if defined(DUMP_WB) || defined(LIGHT_DUMP)
                             int32_t *ptr_biases = reinterpret_cast<int32_t *>(component[i].op.affine.ptr_biases);
                             for (uint32_t row = 0; row < num_rows_out; row++) {
                                 if (logging_precision == kDnnInt) {
@@ -948,16 +933,13 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                                 }
                             }
 #endif
-#endif
                         }
                     } else {
-#ifdef DUMP_WB
-#ifdef LIGHT_DUMP
+#if defined(DUMP_WB) || defined(LIGHT_DUMP)
                         float *ptr_biases = reinterpret_cast<float *>(component[i].op.affine.ptr_biases);
                         for (uint32_t row = 0; row < num_rows_out; row++) {
                             out_bfile << std::setprecision(5) << ptr_biases[row] << "\n";
                         }
-#endif
 #endif
                     }
                 }
@@ -1000,8 +982,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
 #endif
 
                     if (num_bytes_per_weight == 1) {
-#ifdef DUMP_WB
-#ifdef LIGHT_DUMP
+#if defined(DUMP_WB) || defined(LIGHT_DUMP)
                         int8_t *ptr_weight = reinterpret_cast<int8_t *>(component[i].op.conv1D.ptr_filters);
                         gna_compound_bias_t *ptr_bias = reinterpret_cast<gna_compound_bias_t *>(component[i].op.conv1D.ptr_biases);
                         for (uint32_t row = 0; row < num_filters; row++) {
@@ -1017,10 +998,8 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                             }
                         }
 #endif
-#endif
                     } else if (num_bytes_per_weight == 2) {
-#ifdef DUMP_WB
-#ifdef LIGHT_DUMP
+#if defined(DUMP_WB) || defined(LIGHT_DUMP)
                         int16_t *ptr_weight = reinterpret_cast<int16_t *>(component[i].op.conv1D.ptr_filters);
                         for (uint32_t row = 0; row < num_filters; row++) {
                             for (uint32_t col = 0; col < num_filter_coefficients; col++) {
@@ -1035,10 +1014,8 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                             }
                         }
 #endif
-#endif
                     } else if (compute_precision_ == kDnnFloat) {
-#ifdef DUMP_WB
-#ifdef LIGHT_DUMP
+#if defined(DUMP_WB) || defined(LIGHT_DUMP)
                         float *ptr_weight = reinterpret_cast<float *>(component[i].op.conv1D.ptr_filters);
                         for (uint32_t row = 0; row < num_filters; row++) {
                             for (uint32_t col = 0; col < num_filter_coefficients; col++) {
@@ -1046,7 +1023,6 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                                          << ptr_weight[row * num_filter_coefficients + col] << "\n";
                             }
                         }
-#endif
 #endif
                     } else {
                         fprintf(stderr, "Unsupported filter weight type in WriteDnnText!\n");
@@ -1056,8 +1032,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                     if (compute_precision_ == kDnnInt) {
                         if (logging_precision == kDnnInt) {
                             if (num_bytes_per_weight == 1) {
-#ifdef DUMP_WB
-#ifdef LIGHT_DUMP
+#if defined(DUMP_WB) || defined(LIGHT_DUMP)
                                 gna_compound_bias_t
                                         *ptr_biases = reinterpret_cast<gna_compound_bias_t *>(component[i].op.conv1D.ptr_biases);
                                 for (uint32_t row = 0; row < num_filters; row++) {
@@ -1067,37 +1042,30 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                                              << int(ptr_biases[row].multiplier) << "\n";
                                 }
 #endif
-#endif
                             } else {
-#ifdef DUMP_WB
-#ifdef LIGHT_DUMP
+#if defined(DUMP_WB) || defined(LIGHT_DUMP)
                                 int32_t *ptr_biases = reinterpret_cast<int32_t *>(component[i].op.conv1D.ptr_biases);
                                 for (uint32_t row = 0; row < num_filters; row++) {
                                     out_bfile << "0x" << std::setfill('0') << std::setw(8) << std::hex << ptr_biases[row]
                                              << "\n";
                                 }
 #endif
-#endif
                             }
                         } else {
-#ifdef DUMP_WB
-#ifdef LIGHT_DUMP
+#if defined(DUMP_WB) || defined(LIGHT_DUMP)
                             int32_t *ptr_biases = reinterpret_cast<int32_t *>(component[i].op.conv1D.ptr_biases);
                             for (uint32_t row = 0; row < num_filters; row++) {
                                 out_bfile << std::setprecision(12)
                                          << ptr_biases[row] / output_scale_factor << "\n";
                             }
 #endif
-#endif
                         }
                     } else {
-#ifdef DUMP_WB
-#ifdef LIGHT_DUMP
+#if defined(DUMP_WB) || defined(LIGHT_DUMP)
                         float *ptr_biases = reinterpret_cast<float *>(component[i].op.conv1D.ptr_biases);
                         for (uint32_t row = 0; row < num_filters; row++) {
                             out_bfile << std::setprecision(12) << ptr_biases[row] << "\n";
                         }
-#endif
 #endif
                     }
                     out_file << "\n";
