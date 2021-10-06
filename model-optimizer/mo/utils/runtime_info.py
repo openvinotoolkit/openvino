@@ -16,6 +16,16 @@ class RTInfo:
     """
 
     def __init__(self):
+        """
+        Dictionary with runtime information.
+        Key is a tuple that contains name of runtime info attribute and version version of the attribute.
+        Value is an instance of a class derived from RTInfoElement that represents a particular runtime info attribute.
+
+        Example of usage:
+        rt_info = RTInfo()
+        rt_info.info[('old_api_map', 0)] = OldAPIMap()
+
+        """
         self.info = defaultdict(dict)
 
 
