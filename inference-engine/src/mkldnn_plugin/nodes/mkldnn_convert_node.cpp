@@ -48,6 +48,8 @@ MKLDNNConvertNode::MKLDNNConvertNode(const Shape &shape, const InferenceEngine::
     outputShapes.push_back(shape);
     addOriginalOutputPrecision(outPrc);
 
+    isDynamic = shape.isDynamic();
+
     errorPrefix = "Convert node with name '" + getName() + "'";
 }
 

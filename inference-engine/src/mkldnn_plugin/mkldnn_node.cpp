@@ -1331,6 +1331,9 @@ void MKLDNNNode::fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<f
         ssAlign = align;
     }
 
+    initScalesSize = scales.size();
+    initShiftsSize = shifts.size();
+
     if (isDynamicNode() && isPerTensorBroadcastScaleShift(constPort)) {
         return;
     }
@@ -1347,33 +1350,37 @@ void MKLDNNNode::alignScalesAndShifts(const MKLDNNNode *parentNode, std::vector<
     if (!isDynamicNode()) {
         bufferSize = static_cast<size_t>(outputShapes[0].getStaticDims()[outputShapes[0].getRank() > 1 ? 1 : 0]);
     } else {
-        auto dims = getInputShapeAtPort(constPort).getStaticDims();
+        VectorDims dims;
         if (isPerTensorBroadcastScaleShift(constPort)) {
             const auto dataMemPtr = parentNode->getChildEdgesAtPort(0)[0]->getMemoryPtr();
             if (dataMemPtr == nullptr) {
                 IE_THROW() << "Can't align scales and shifts, because output memory is not allocated";
             }
             dims = dataMemPtr->getStaticDims();
-        } else if (getAlgorithm() == EltwiseMulAdd && std::all_of(dims.begin(), dims.end(), [](Dim dim) { return dim == 1; })) {
-            dims  = getInputShapeAtPort(2).getStaticDims();
+        } else if (getAlgorithm() == EltwiseMulAdd) {
+            dims  = getInputShapeAtPort(1).getStaticDims();
+            if (std::all_of(dims.begin(), dims.end(), [](Dim dim) { return dim == 1; })) {
+                dims  = getInputShapeAtPort(2).getStaticDims();
+            }
+            bufferSize = static_cast<size_t>(dims[dims.size() > 1 ? 1 : 0]);
+        } else {
+            dims = getInputShapeAtPort(constPort).getStaticDims();
         }
         bufferSize = static_cast<size_t>(dims[dims.size() > 1 ? 1 : 0]);
     }
- 
+
     const size_t bufferSizeAligned = rnd_up(bufferSize, static_cast<size_t>(ssAlign));
 
-    size_t initSize = scales.size();
-    if (initSize > 0) {
+    if (initScalesSize > 0) {
         scales.resize(bufferSizeAligned, 0);
-        if (initSize == 1) {
+        if (initScalesSize == 1) {
             std::fill(scales.begin() + 1, scales.begin() + bufferSize, scales[0]);
         }
     }
 
-    initSize = shifts.size();
-    if (initSize > 0) {
+    if (initShiftsSize > 0) {
         shifts.resize(bufferSizeAligned, 0);
-        if (initSize == 1) {
+        if (initShiftsSize == 1) {
             std::fill(shifts.begin() + 1, shifts.begin() + bufferSize, shifts[0]);
         }
     }
