@@ -556,10 +556,16 @@ public:
         return outputShapes[port];
     }
 
+    bool isPerTensorBroadcastScaleShift(const size_t constPort) const;
+
 protected:
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
+    bool isFusedWithPerTensorSS() const;
     // TODO [mandrono]: place outside of the node API
     void fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align = -1);
+    void alignScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts);
+    size_t ssAlign = 1;
+    size_t constPort = 1;
 
     void setType(Type type) {
         this->type = type;
@@ -701,7 +707,7 @@ protected:
     virtual bool needShapeInfer() const;
     std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
     virtual std::vector<VectorDims> shapeInfer() const;
-    
+
     virtual void executeDynamicImpl(mkldnn::stream strm) { execute(strm); }
 
     virtual bool needPrepareParams() const;

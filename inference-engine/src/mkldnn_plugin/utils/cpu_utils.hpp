@@ -42,7 +42,7 @@ inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVect
 
     std::vector<size_t> normalizedSecondInputDims = getNormalizedDimsBySize(secondInputDims, firstInputDims.size());
     for (size_t i = 0; i < normalizedSecondInputDims.size(); i++) {
-        if ((i == 1 && normalizedSecondInputDims[i] != firstInputDims[1]) || (i != 1 && normalizedSecondInputDims[i] != 1))
+        if ((i == 1 && !dimsEqualWeak(normalizedSecondInputDims[i], firstInputDims[1])) || (i != 1 && normalizedSecondInputDims[i] != 1))
             return false;
     }
     return true;
