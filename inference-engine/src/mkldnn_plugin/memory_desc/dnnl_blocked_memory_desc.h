@@ -13,7 +13,7 @@ namespace MKLDNNPlugin {
 class DnnlBlockedMemoryDesc : public BlockedMemoryDesc, public DnnlMemoryDesc {
 public:
     // Creates planar DnnlBlockedMemoryDesc
-    DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape);
+    DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& strides = {});
 
     DnnlBlockedMemoryDesc(const Shape& shape, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format);
 
