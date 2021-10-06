@@ -782,7 +782,7 @@ TEST(pre_post_process, postprocess_lvalues_1) {
     auto steps = PostProcessSteps();
     steps.convert_layout();
     steps.convert_element_type();
-    steps.custom([&custom_called](const ov::Output<Node> &node) -> ov::Output<Node> {
+    steps.custom([&custom_called](const ov::Output<Node>& node) -> ov::Output<Node> {
         auto abs = std::make_shared<op::v0::Abs>(node);
         abs->set_friendly_name(node.get_node()->get_friendly_name() + "/abs");
         custom_called = true;
