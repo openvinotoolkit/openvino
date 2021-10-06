@@ -18,8 +18,11 @@ static std::shared_ptr<Function> create_simple_function(element::Type type, cons
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1"});
-    auto res = std::make_shared<op::v0::Result>(data1);
-    res->set_friendly_name("Result");
+    auto op = std::make_shared<op::v0::Relu>(data1);
+    op->set_friendly_name("Relu");
+    auto res = std::make_shared<op::v0::Result>(op);
+    res->set_friendly_name("Result1");
+    res->get_output_tensor(0).set_names({"tensor_output1"});
     return std::make_shared<Function>(ResultVector{res}, ParameterVector{data1});
 }
 
@@ -27,13 +30,19 @@ static std::shared_ptr<Function> create_2inputs(element::Type type, const Partia
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1"});
+    auto op1 = std::make_shared<op::v0::Relu>(data1);
+    op1->set_friendly_name("Relu1");
     auto data2 = std::make_shared<op::v0::Parameter>(type, shape);
     data2->set_friendly_name("input2");
-    data1->get_output_tensor(0).set_names({"tensor_input2"});
-    auto res1 = std::make_shared<op::v0::Result>(data1);
+    data2->get_output_tensor(0).set_names({"tensor_input2"});
+    auto op2 = std::make_shared<op::v0::Relu>(data2);
+    op2->set_friendly_name("Relu2");
+    auto res1 = std::make_shared<op::v0::Result>(op1);
     res1->set_friendly_name("Result1");
-    auto res2 = std::make_shared<op::v0::Result>(data2);
+    res1->get_output_tensor(0).set_names({"tensor_output1"});
+    auto res2 = std::make_shared<op::v0::Result>(op2);
     res2->set_friendly_name("Result2");
+    res2->get_output_tensor(0).set_names({"tensor_output2"});
     return std::make_shared<Function>(ResultVector{res1, res2}, ParameterVector{data1, data2});
 }
 
@@ -592,6 +601,213 @@ TEST(pre_post_process, resize_no_tensor_width) {
                                     .network(InputNetworkInfo().set_layout("NHWC")))
                          .build(f),
                  ov::AssertFailure);
+}
+
+// --- PostProcess - set/convert element type ---
+
+TEST(pre_post_process, postprocess_convert_element_type_explicit) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    f = PrePostProcessor()
+            .output(OutputInfo().postprocess(PostProcessSteps().convert_element_type(element::u8)))
+            .build(f);
+    EXPECT_EQ(f->get_results().size(), 1);
+    EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
+    auto ops = f->get_ordered_ops();
+    auto res_count = std::count_if(ops.begin(), ops.end(), [](std::shared_ptr<ov::Node> n) {
+        return std::dynamic_pointer_cast<ov::op::v0::Result>(n) != nullptr;
+    });
+    EXPECT_EQ(res_count, 1);
+}
+
+TEST(pre_post_process, postprocess_convert_element_type_default) {
+    auto f = create_2inputs(element::f32, Shape{1, 3, 2, 2});
+    f = PrePostProcessor()
+            .output(OutputInfo(1)
+                        .postprocess(PostProcessSteps().convert_element_type())
+                        .tensor(OutputTensorInfo().set_element_type(element::u8)))
+            .build(f);
+    EXPECT_EQ(f->get_results()[0]->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_results()[1]->get_element_type(), element::u8);
+}
+
+TEST(pre_post_process, postprocess_convert_element_type_same) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    auto size_old = f->get_ordered_ops().size();
+    f = PrePostProcessor()
+            .output(OutputInfo("tensor_output1")
+                        .postprocess(PostProcessSteps().convert_element_type(element::f32))
+                        .tensor(OutputTensorInfo().set_element_type(element::f32)))
+            .build(f);
+    EXPECT_EQ(f->get_results()[0]->get_element_type(), element::f32);
+
+    // Verify that redundant ops were not added
+    EXPECT_EQ(size_old, f->get_ordered_ops().size());
+}
+
+TEST(pre_post_process, postprocess_convert_element_type_default_error) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    EXPECT_THROW(
+        f = PrePostProcessor().output(OutputInfo().postprocess(PostProcessSteps().convert_element_type())).build(f),
+        ov::AssertFailure);
+}
+
+TEST(pre_post_process, postprocess_convert_element_type_implicit) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    f = PrePostProcessor().output(OutputInfo().tensor(OutputTensorInfo().set_element_type(element::u8))).build(f);
+    EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
+}
+
+// --- PostProcess - set/convert layout ---
+TEST(pre_post_process, postprocess_set_layout_network) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    f = PrePostProcessor().output(OutputInfo().network(OutputNetworkInfo().set_layout("NCHW"))).build(f);
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "NCHW");
+}
+
+TEST(pre_post_process, postprocess_set_layout_tensor) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    // no layout is specified for network, no way to implicitly convert it to user's layout
+    EXPECT_THROW(f = PrePostProcessor().output(OutputInfo().tensor(OutputTensorInfo().set_layout("NHWC"))).build(f),
+                 ov::AssertFailure);
+}
+
+TEST(pre_post_process, postprocess_convert_layout_implicit) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+
+    f = PrePostProcessor()
+            .output(OutputInfo()
+                        .network(OutputNetworkInfo().set_layout("NCHW"))
+                        .tensor(OutputTensorInfo().set_layout("NHWC")))
+            .build(f);
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "NHWC");
+    EXPECT_EQ(f->get_results()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 2, 2, 3}));
+}
+
+TEST(pre_post_process, postprocess_convert_layout_explicit_no_target) {
+    auto f = create_2inputs(element::f32, Shape{1, 3, 2, 2});
+    f = PrePostProcessor()
+            .output(OutputInfo(1)
+                        .network(OutputNetworkInfo().set_layout("NCHW"))
+                        .postprocess(PostProcessSteps().convert_layout("NHWC")))
+            .build(f);
+    EXPECT_EQ(f->get_results()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 3, 2, 2}));
+    EXPECT_EQ(f->get_results()[1]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 2, 2, 3}));
+}
+
+TEST(pre_post_process, postprocess_convert_layout_default) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+
+    f = PrePostProcessor()
+            .output(OutputInfo()
+                        .network(OutputNetworkInfo().set_layout("NCHW"))
+                        .postprocess(PostProcessSteps().convert_layout())
+                        .tensor(OutputTensorInfo().set_layout("NHWC")))
+            .build(f);
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "NHWC");
+    EXPECT_EQ(f->get_results()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 2, 2, 3}));
+}
+
+TEST(pre_post_process, postprocess_convert_layout_same) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    auto size_old = f->get_ordered_ops().size();
+
+    f = PrePostProcessor()
+            .output(OutputInfo()
+                        .network(OutputNetworkInfo().set_layout("NCHW"))
+                        .postprocess(PostProcessSteps().convert_layout("NCHW"))
+                        .tensor(OutputTensorInfo().set_layout("NCHW")))
+            .build(f);
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "NCHW");
+    EXPECT_EQ(f->get_results()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 3, 2, 2}));
+    // Verify that redundant ops were not added
+    EXPECT_EQ(size_old, f->get_ordered_ops().size());
+}
+
+TEST(pre_post_process, postprocess_convert_layout_default_error) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+
+    EXPECT_THROW(f = PrePostProcessor()
+                         .output(OutputInfo()
+                                     .network(OutputNetworkInfo().set_layout("NCHW"))
+                                     .postprocess(PostProcessSteps().convert_layout()))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
+// Postprocessing - other
+
+TEST(pre_post_process, postprocess_custom_step) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    std::string name;
+    f = PrePostProcessor()
+            .output(OutputInfo().postprocess(
+                PostProcessSteps().custom([&name](const ov::Output<Node>& node) -> ov::Output<Node> {
+                    auto abs = std::make_shared<op::v0::Abs>(node);
+                    abs->set_friendly_name(node.get_node()->get_friendly_name() + "/abs");
+                    name = node.get_node()->get_friendly_name() + "/abs";
+                    return abs;
+                })))
+            .build(f);
+    EXPECT_FALSE(name.empty());
+    EXPECT_EQ(f->get_results()[0]->get_input_source_output(0).get_node()->get_friendly_name(), name);
+}
+
+TEST(pre_post_process, postprocess_implicit_convert_element_type_and_layout) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    f = PrePostProcessor()
+            .output(OutputInfo()
+                        .network(OutputNetworkInfo().set_layout("NCHW"))
+                        .tensor(OutputTensorInfo().set_layout("NHWC").set_element_type(element::u8)))
+            .build(f);
+    EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "NHWC");
+    EXPECT_EQ(f->get_results()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 2, 2, 3}));
+}
+
+TEST(pre_post_process, postprocess_assert_output_without_index) {
+    auto f = create_2inputs(element::f32, Shape{1, 3, 2, 2});
+    auto out = OutputInfo();
+    EXPECT_ANY_THROW(f = PrePostProcessor().output(std::move(out)).build(f));
+    out = OutputInfo("some_non_existing_name");
+    EXPECT_ANY_THROW(f = PrePostProcessor().output(std::move(out)).build(f));
+}
+
+TEST(pre_post_process, postprocess_lvalues_1) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    bool custom_called = false;
+
+    auto netInfo = OutputNetworkInfo();
+    netInfo.set_layout("NCHW");
+
+    auto steps = PostProcessSteps();
+    steps.convert_layout();
+    steps.convert_element_type();
+    steps.custom([&custom_called](const ov::Output<Node>& node) -> ov::Output<Node> {
+        auto abs = std::make_shared<op::v0::Abs>(node);
+        abs->set_friendly_name(node.get_node()->get_friendly_name() + "/abs");
+        custom_called = true;
+        return abs;
+    });
+
+    auto tensorInfo = OutputTensorInfo();
+    tensorInfo.set_layout("NHWC");
+    tensorInfo.set_element_type(element::u8);
+
+    auto outputInfo = OutputInfo("tensor_output1");
+    outputInfo.network(std::move(netInfo));
+    outputInfo.postprocess(std::move(steps));
+    outputInfo.tensor(std::move(tensorInfo));
+
+    auto p = PrePostProcessor();
+    p.output(std::move(outputInfo));
+
+    f = p.build(f);
+    EXPECT_EQ(f->get_results().size(), 1);
+    EXPECT_EQ(f->output().get_tensor().get_names().count("tensor_output1"), 1);
+    EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "NHWC");
+    EXPECT_EQ(f->get_results()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 2, 2, 3}));
+    EXPECT_TRUE(custom_called);
 }
 
 TEST(pre_post_process, exception_safety) {

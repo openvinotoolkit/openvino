@@ -62,8 +62,12 @@ static std::shared_ptr<Function> create_simple_function(element::Type type, cons
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1"});
-    auto res = std::make_shared<op::v0::Result>(data1);
-    res->set_friendly_name("Result");
+    auto c = op::v0::Constant::create(type, {1}, {0});
+    auto op = std::make_shared<op::v1::Add>(data1, c);
+    op->set_friendly_name("Add0");
+    auto res = std::make_shared<op::v0::Result>(op);
+    res->set_friendly_name("Result1");
+    res->get_output_tensor(0).set_names({"tensor_output1"});
     return std::make_shared<ov::Function>(ResultVector{res}, ParameterVector{data1});
 }
 
@@ -71,13 +75,21 @@ static std::shared_ptr<Function> create_2inputs(element::Type type, const Partia
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1"});
+    auto c1 = op::v0::Constant::create(type, {1}, {0});
+    auto op1 = std::make_shared<op::v1::Add>(data1, c1);
+    op1->set_friendly_name("Add01");
     auto data2 = std::make_shared<op::v0::Parameter>(type, shape);
+    data2->get_output_tensor(0).set_names({"tensor_input2"});
     data2->set_friendly_name("input2");
-    data1->get_output_tensor(0).set_names({"tensor_input2"});
-    auto res1 = std::make_shared<op::v0::Result>(data1);
+    auto c2 = op::v0::Constant::create(type, {1}, {0});
+    auto op2 = std::make_shared<op::v1::Add>(data2, c2);
+    op2->set_friendly_name("Add02");
+    auto res1 = std::make_shared<op::v0::Result>(op1);
     res1->set_friendly_name("Result1");
-    auto res2 = std::make_shared<op::v0::Result>(data2);
+    res1->get_output_tensor(0).set_names({"tensor_output1"});
+    auto res2 = std::make_shared<op::v0::Result>(op2);
     res2->set_friendly_name("Result2");
+    res2->get_output_tensor(0).set_names({"tensor_output2"});
     return std::make_shared<ov::Function>(ResultVector{res1, res2}, ParameterVector{data1, data2});
 }
 
@@ -676,6 +688,55 @@ static RefPreprocessParams element_type_before_convert_color_nv12() {
     return res;
 }
 
+static RefPreprocessParams postprocess_2_inputs_basic() {
+    RefPreprocessParams res("postprocess_2_inputs_basic");
+    res.function = []() {
+        auto f = create_2inputs(element::f32, Shape{1, 3, 1, 2});
+        f = PrePostProcessor()
+                .output(OutputInfo("tensor_output1")
+                                .network(OutputNetworkInfo().set_layout("NCHW"))
+                                .postprocess(PostProcessSteps().convert_layout())
+                                .tensor(OutputTensorInfo().set_layout("NHWC")))
+                .output(OutputInfo("tensor_output2")
+                                .postprocess(PostProcessSteps().convert_element_type())
+                                .tensor(OutputTensorInfo().set_element_type(element::u8)))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(Shape{1, 3, 1, 2}, element::f32, std::vector<float>{1.1, 2.1, 3.1, 4.1, 5.1, 6.1});
+    res.inputs.emplace_back(Shape{1, 3, 1, 2}, element::f32, std::vector<float>{1.1, 2.1, 3.1, 4.1, 5.1, 6.1});
+    res.expected.emplace_back(Shape{1, 1, 2, 3}, element::f32, std::vector<float>{1.1, 3.1, 5.1, 2.1, 4.1, 6.1});
+    res.expected.emplace_back(Shape{1, 3, 1, 2}, element::u8, std::vector<uint8_t>{1, 2, 3, 4, 5, 6});
+    return res;
+}
+
+static RefPreprocessParams pre_and_post_processing() {
+    RefPreprocessParams res("pre_and_post_processing");
+    res.function = []() {
+        auto f = create_2inputs(element::f32, Shape{1, 3, 1, 2});
+        f = PrePostProcessor()
+                .input(InputInfo(0)
+                                .tensor(InputTensorInfo().set_element_type(element::u8))
+                                .preprocess(PreProcessSteps().convert_element_type(element::f32).mean(1.f)))
+                .input(InputInfo(1)
+                               .preprocess(PreProcessSteps().scale(2.f)))
+                .output(OutputInfo("tensor_output1")
+                                .network(OutputNetworkInfo().set_layout("NCHW"))
+                                .postprocess(PostProcessSteps().convert_layout())
+                                .tensor(OutputTensorInfo().set_layout("NHWC")))
+                .output(OutputInfo("tensor_output2")
+                                .postprocess(PostProcessSteps().convert_element_type())
+                                .tensor(OutputTensorInfo().set_element_type(element::u8)))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(Shape{1, 3, 1, 2}, element::u8, std::vector<uint8_t>{1, 2, 3, 4, 5, 6});
+    res.inputs.emplace_back(Shape{1, 3, 1, 2}, element::f32, std::vector<float>{2.2, 4.2, 6.2, 2.4, 4.4, 6.4});
+    res.expected.emplace_back(Shape{1, 1, 2, 3}, element::f32, std::vector<float>{0, 2, 4, 1, 3, 5});
+    res.expected.emplace_back(Shape{1, 3, 1, 2}, element::u8, std::vector<uint8_t>{1, 2, 3, 1, 2, 3});
+    return res;
+}
+
 std::vector<RefPreprocessParams> allPreprocessTests() {
     return std::vector<RefPreprocessParams> {
         simple_mean_scale(),
@@ -702,6 +763,8 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
         convert_color_nv12_single_plane(),
         convert_color_nv12_layout_resize(),
         element_type_before_convert_color_nv12(),
+        postprocess_2_inputs_basic(),
+        pre_and_post_processing()
              };
 }
 

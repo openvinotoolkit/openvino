@@ -166,10 +166,8 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_layout_impl(const Layout&
             OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't convert layout for empty input.");
             OPENVINO_ASSERT(nodes.size() == 1,
                             "Can't convert layout for multi-plane input. Suggesting to convert current image to "
-                            "RGB/BGR color format using 'convert_color'. Current format is '",
-                            color_format_name(context.color_format()),
-                            "'");
-            Layout dst_layout = layout.empty() ? context.network_layout() : layout;
+                            "RGB/BGR color format using 'convert_color'");
+            Layout dst_layout = layout.empty() ? context.target_layout() : layout;
             auto permutation =
                 layout::find_permutation(context.layout(), nodes[0]->get_output_partial_shape(0).rank(), dst_layout);
             auto perm_constant =
@@ -236,6 +234,40 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_color_impl(const ColorFor
                             "' is not convertible to any other");
         },
         true));
+}
+
+//------------- Post processing ------
+void PostStepsList::add_convert_impl(const ov::element::Type& type) {
+    m_actions.emplace_back([type](const ov::Output<Node>& node, PostprocessingContext& ctxt) {
+        ov::element::Type t = type;
+        if (t == element::Type{}) {
+            t = ctxt.target_element_type();
+        }
+        if (t == node.get_node()->get_element_type()) {
+            return std::make_tuple(node, false);
+        }
+        OPENVINO_ASSERT(
+            !t.is_dynamic() && t != element::undefined,
+            "Can't convert to dynamic/unknown element type, consider using of InputTensorInfo::set_element_type");
+        auto convert = std::make_shared<op::v0::Convert>(node, t);
+        convert->set_friendly_name(node.get_node()->get_friendly_name() + "/convert_element_type");
+        return std::make_tuple(ov::Output<ov::Node>(convert), true);
+    });
+}
+
+void PostStepsList::add_convert_layout_impl(const Layout& layout) {
+    m_actions.emplace_back([layout](const ov::Output<Node>& node, PostprocessingContext& context) {
+        Layout dst_layout = layout.empty() ? context.target_layout() : layout;
+        if (dst_layout == context.layout()) {
+            return std::make_tuple(node, false);
+        }
+        auto permutation = layout::find_permutation(context.layout(), node.get_partial_shape().rank(), dst_layout);
+        auto perm_constant = op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
+        auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
+        transpose->set_friendly_name(node.get_node()->get_friendly_name() + "/convert_layout");
+        context.layout() = dst_layout;  // Update context's current layout
+        return std::make_tuple(ov::Output<ov::Node>(transpose), true);
+    });
 }
 
 }  // namespace preprocess
