@@ -98,8 +98,8 @@ public:
     void cache_output_descriptor();
 
 private:
-    std::vector<std::tuple<ngraph::PartialShape, ngraph::element::Type>> m_inputs_desc;
-    std::vector<std::tuple<ngraph::PartialShape, ngraph::element::Type>> m_output_desc;
+    std::vector<std::tuple<ov::PartialShape, ov::element::Type>> m_inputs_desc;
+    std::vector<std::tuple<ov::PartialShape, ov::element::Type>> m_output_desc;
 
     FrameworkNodeAttrs m_attrs;
 };

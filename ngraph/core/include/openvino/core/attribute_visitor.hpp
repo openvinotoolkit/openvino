@@ -94,7 +94,7 @@ public:
     /// \brief Hook for adapters that need visitor access
     virtual void on_adapter(const std::string& name, VisitorAdapter& adapter);
 
-    /// \brief Provides API to handle nGraph Function attribute type, accessed as ValueAccessor
+    /// \brief Provides API to handle openvino Function attribute type, accessed as ValueAccessor
     /// \param name attribute name
     /// \param adapter reference to a Function ValueAccessor<VAT>
     virtual void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Function>>& adapter);
