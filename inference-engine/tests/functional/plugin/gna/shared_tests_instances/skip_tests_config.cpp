@@ -51,7 +51,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_MemoryTest.*iteration_count=4.*IS=\(1.10\).*)",
         R"(.*smoke_MemoryTest.*iteration_count=10.*IS=\(1.10\).*)",
         R"(.*smoke_MemoryTest.*LOW_LATENCY.*iteration_count=10.*IS=\(1.2\).*)",
-        // CVS-58963: Not implemented yet
-        R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
+        // TODO: Issue: 29577
+        R"(.*QueryNetwork.*)",
     };
 }

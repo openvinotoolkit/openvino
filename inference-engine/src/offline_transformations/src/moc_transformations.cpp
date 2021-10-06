@@ -40,6 +40,7 @@
 #include <transformations/common_optimizations/leaky_relu_fusion.hpp>
 #include <transformations/common_optimizations/normalize_l2_fusion.hpp>
 #include <transformations/common_optimizations/random_uniform_fusion.hpp>
+#include <transformations/common_optimizations/softmax_fusion.hpp>
 #include <transformations/common_optimizations/mul_conv_fusion.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
@@ -90,6 +91,7 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     common_fusions->add_matcher<ngraph::pass::NormalizeL2Fusion>();
     common_fusions->add_matcher<ngraph::pass::ClampFusion>();
     common_fusions->add_matcher<ngraph::pass::PadFusion>();
+    common_fusions->add_matcher<ngraph::pass::SoftmaxFusion>();
     common_fusions->add_matcher<ngraph::pass::MVNFusion>();
     common_fusions->add_matcher<ngraph::pass::DilatedConvolutionConverter>();
     common_fusions->add_matcher<ngraph::pass::GeluFusion>();

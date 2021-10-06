@@ -43,7 +43,7 @@ namespace pass {
 
 class OPENVINO_API MatcherPass : public PassBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_RTTI("ov::pass::MatcherPass");
 
     MatcherPass() = default;
 
@@ -119,7 +119,7 @@ private:
 
 class OPENVINO_API GraphRewrite : public FunctionPass {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_RTTI("ov::pass::GraphRewrite");
 
     GraphRewrite() = default;
 
@@ -165,7 +165,7 @@ public:
     ///
     ///    class ov::pass::LinFusions: public ov::pass::GraphRewrite {
     ///    public:
-    ///         OPENVINO_RTTI_DECLARATION;
+    ///         OPENVINO_RTTI("LinFusion");
     ///         Fusions() {
     ///             add_matcher<ov::pass::AddFusion>();
     ///             add_matcher<ov::pass::MulFusion>();
@@ -217,7 +217,7 @@ protected:
 
 class OPENVINO_API BackwardGraphRewrite : public GraphRewrite {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_RTTI("ov::pass::BackwardGraphRewrite");
 
     BackwardGraphRewrite() = default;
 

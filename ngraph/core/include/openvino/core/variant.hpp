@@ -7,13 +7,15 @@
 #include <map>
 #include <string>
 
-#include "ngraph/output_vector.hpp"
-#include "ngraph/type.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/type.hpp"
 
 namespace ov {
 class Node;
-using VariantTypeInfo = ngraph::DiscreteTypeInfo;
+class AttributeVisitor;
+using VariantTypeInfo = DiscreteTypeInfo;
 
 class OPENVINO_API Variant {
 public:
@@ -22,16 +24,23 @@ public:
 
     virtual bool is_copyable() const;
     virtual std::shared_ptr<ov::Variant> init(const std::shared_ptr<Node>& node);
-    virtual std::shared_ptr<ov::Variant> merge(const ngraph::NodeVector& nodes);
+    virtual std::shared_ptr<ov::Variant> merge(const ov::NodeVector& nodes);
     virtual std::string to_string() {
         return "";
     }
+    virtual bool visit_attributes(AttributeVisitor&) {
+        return false;
+    }
+
+    using type_info_t = DiscreteTypeInfo;
 };
 
 template <typename VT>
 class VariantImpl : public Variant {
 public:
     using value_type = VT;
+
+    VariantImpl() = default;
 
     VariantImpl(const value_type& value) : m_value(value) {}
 
@@ -58,20 +67,14 @@ class VariantWrapper {};
 template <>
 class OPENVINO_API VariantWrapper<std::string> : public VariantImpl<std::string> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::std::string", 0};
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("VariantWrapper<std::string>");
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
 template <>
 class OPENVINO_API VariantWrapper<int64_t> : public VariantImpl<int64_t> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::int64_t", 0};
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("VariantWrapper<int64_t>");
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 

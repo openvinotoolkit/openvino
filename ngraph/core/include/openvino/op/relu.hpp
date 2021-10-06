@@ -15,7 +15,8 @@ namespace v0 {
 ///
 class OPENVINO_API Relu : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Relu", "opset1", util::UnaryElementwiseArithmetic);
+    BWDCMP_RTTI_DECLARATION;
     Relu() = default;
     /// \brief Constructs a Relu operation.
     ///

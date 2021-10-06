@@ -9,7 +9,7 @@
 using namespace ngraph;
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(op::v3::Bucketize, "Bucketize", 3);
+BWDCMP_RTTI_DEFINITION(op::v3::Bucketize);
 
 op::v3::Bucketize::Bucketize(const Output<Node>& data,
                              const Output<Node>& buckets,

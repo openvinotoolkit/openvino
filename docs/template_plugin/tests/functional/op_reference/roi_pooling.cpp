@@ -4,26 +4,21 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <tuple>
-
+#include "openvino/op/roi_pooling.hpp"
 #include "base_reference_test.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 using namespace reference_tests;
 
 struct ROIPoolingParams {
     template <class T>
     ROIPoolingParams(const size_t iH, const size_t iW, const size_t ch, const size_t rois,
                      const size_t oH, const size_t oW, const float sS, const std::string mode,
-                     const ngraph::element::Type& type, const std::vector<T>& inputValues,
+                     const ov::element::Type& type, const std::vector<T>& inputValues,
                      const std::vector<T>& proposalValues, const std::vector<T>& outputValues)
             : inputH(iH), inputW(iW), channelCount(ch), roiCount(rois), outputH(oH), outputW(oW), spatialScale(sS),
-              poolingMode(mode), dataType(type), featureMap(CreateBlob(type, inputValues)),
-              proposal(CreateBlob(type, proposalValues)), refData(CreateBlob(type, outputValues)) {}
+              poolingMode(mode), dataType(type), featureMap(CreateTensor(type, inputValues)),
+              proposal(CreateTensor(type, proposalValues)), refData(CreateTensor(type, outputValues)) {}
     size_t inputH;
     size_t inputW;
     size_t channelCount;
@@ -32,10 +27,10 @@ struct ROIPoolingParams {
     size_t outputW;
     float spatialScale;
     std::string poolingMode;
-    ngraph::element::Type dataType;
-    InferenceEngine::Blob::Ptr featureMap;
-    InferenceEngine::Blob::Ptr proposal;
-    InferenceEngine::Blob::Ptr refData;
+    ov::element::Type dataType;
+    ov::runtime::Tensor featureMap;
+    ov::runtime::Tensor proposal;
+    ov::runtime::Tensor refData;
 
 public:
     template<class T>
@@ -83,16 +78,16 @@ public:
 private:
     static std::shared_ptr<Function> CreateFunction(const size_t i_h, const size_t i_w, const size_t ch, const size_t roi_count,
                                                     const size_t o_h, const size_t o_w, const float spat_scale, const std::string mode,
-                                                    const ngraph::element::Type& type) {
+                                                    const ov::element::Type& type) {
         Shape feat_map_shape{1, ch, i_h, i_w};
         Shape rois_shape{roi_count, 5};
         Shape pooled_shape{o_h, o_w};
         Shape output_shape{roi_count, ch, o_h, o_w};
 
-        const auto feat_map = std::make_shared<op::Parameter>(type, feat_map_shape);
-        const auto rois = std::make_shared<op::Parameter>(type, rois_shape);
+        const auto feat_map = std::make_shared<op::v0::Parameter>(type, feat_map_shape);
+        const auto rois = std::make_shared<op::v0::Parameter>(type, rois_shape);
         const auto roi_pooling = std::make_shared<op::v0::ROIPooling>(feat_map, rois, pooled_shape, spat_scale, mode);
-        return std::make_shared<Function>(roi_pooling, ParameterVector{feat_map, rois});
+        return std::make_shared<ov::Function>(roi_pooling, ParameterVector{feat_map, rois});
     }
 };
 

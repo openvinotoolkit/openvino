@@ -15,8 +15,6 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v8::Slice, "Slice", 8);
-
 op::v8::Slice::Slice(const Output<Node>& data,
                      const Output<Node>& start,
                      const Output<Node>& stop,
