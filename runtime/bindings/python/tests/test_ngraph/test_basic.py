@@ -261,10 +261,10 @@ def test_set_argument():
     data2 = np.array([4, 5, 6])
     data3 = np.array([7, 8, 9])
 
-    node1 = ng.constant(data1, dtype=np.float32)
-    node2 = ng.constant(data2, dtype=np.float32)
-    node3 = ng.constant(data3, dtype=np.float32)
-    node_add = ng.add(node1, node2)
+    node1 = ov.constant(data1, dtype=np.float32)
+    node2 = ov.constant(data2, dtype=np.float32)
+    node3 = ov.constant(data3, dtype=np.float32)
+    node_add = ov.add(node1, node2)
 
     # Original arguments
     computation = runtime.computation(node_add)

@@ -139,6 +139,7 @@ from openvino.opset8 import prior_box
 from openvino.opset8 import prior_box_clustered
 from openvino.opset8 import psroi_pooling
 from openvino.opset8 import proposal
+from openvino.opset8 import random_uniform
 from openvino.opset8 import range
 from openvino.opset8 import read_value
 from openvino.opset8 import reduce_l1

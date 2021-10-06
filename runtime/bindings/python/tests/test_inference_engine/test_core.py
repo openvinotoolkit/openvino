@@ -7,10 +7,9 @@ import os
 from sys import platform
 from pathlib import Path
 
-import ngraph as ng
 import openvino as ov
-from ngraph.impl import Function, Shape, Type
-from ngraph.impl.op import Parameter
+from openvino.impl import Function, Shape, Type
+from openvino.impl.op import Parameter
 from openvino import TensorDesc, Blob
 
 from ..conftest import model_path, model_onnx_path, plugins_path
@@ -42,8 +41,8 @@ def test_blobs():
 @pytest.mark.skip(reason="Fix")
 def test_ie_core_class():
     input_shape = [1, 3, 4, 4]
-    param = ng.parameter(input_shape, np.float32, name="parameter")
-    relu = ng.relu(param, name="relu")
+    param = ov.parameter(input_shape, np.float32, name="parameter")
+    relu = ov.relu(param, name="relu")
     func = Function([relu], [param], "test")
     func.get_ordered_ops()[2].friendly_name = "friendly"
 
@@ -273,7 +272,7 @@ def test_register_plugins():
 def test_create_IENetwork_from_nGraph():
     element_type = Type.f32
     param = Parameter(element_type, Shape([1, 3, 22, 22]))
-    relu = ng.relu(param)
+    relu = ov.relu(param)
     func = Function([relu], [param], "test")
     cnnNetwork = ov.IENetwork(func)
     assert cnnNetwork is not None
