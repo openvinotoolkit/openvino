@@ -5,6 +5,7 @@
 #include "ngraph/variant.hpp"
 
 #include "ngraph/node.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 
 using namespace ngraph;
 

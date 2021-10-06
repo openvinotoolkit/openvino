@@ -22,7 +22,7 @@ OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYNGRAPH_ROOT_DIR, "../../..")
 # Change current working directory to runtime/bindings/python
 os.chdir(PYNGRAPH_ROOT_DIR)
 
-NGRAPH_LIBS = ["ngraph", "onnx_ngraph_frontend"]
+NGRAPH_LIBS = ["ngraph", "onnx_ngraph_frontend", "openvino"]
 
 packages = [
     "ngraph",
@@ -40,7 +40,9 @@ packages = [
     "ngraph.impl.op.util",
     "ngraph.impl.passes",
     "ngraph.frontend",
+    "openvino"
 ]
+
 
 data_files = []
 
@@ -49,13 +51,12 @@ with open(os.path.join(PYNGRAPH_ROOT_DIR, "requirements.txt")) as req:
 
 cmdclass = {}
 for super_class in [_build, _install, _develop]:
-
     class command(super_class):
         """Add user options for build, install and develop commands."""
 
         cmake_build_types = ["Release", "Debug", "RelWithDebInfo", "MinSizeRel"]
         user_options = super_class.user_options + [
-            ("config=", None, "Build configuration [{}].".format("|".join(cmake_build_types))),
+            ("config=", None, f"Build configuration [{'|'.join(cmake_build_types)}]."),
             ("jobs=", None, "Specifies the number of jobs to use with make."),
             ("cmake-args=", None, "Additional options to be passed to CMake.")
         ]
@@ -84,7 +85,7 @@ class BuildCMakeExt(build_ext):
 
     cmake_build_types = ["Release", "Debug", "RelWithDebInfo", "MinSizeRel"]
     user_options = [
-        ("config=", None, "Build configuration [{}].".format("|".join(cmake_build_types))),
+        ("config=", None, f"Build configuration [{'|'.join(cmake_build_types)}]."),
         ("jobs=", None, "Specifies the number of jobs to use with make."),
         ("cmake-args=", None, "Additional options to be passed to CMake.")
     ]
@@ -120,7 +121,7 @@ class BuildCMakeExt(build_ext):
                 self.debug = True if "Debug" == self.config else False
             except ValueError:
                 self.announce("Unsupported CMAKE_BUILD_TYPE value: " + self.config, level=4)
-                self.announce("Supported values: {}".format(", ".join(self.cmake_build_types)), level=4)
+                self.announce(f"Supported values: {', '.join(self.cmake_build_types)}", level=4)
                 sys.exit(1)
         if self.jobs is None and os.getenv("MAX_JOBS") is not None:
             self.jobs = os.getenv("MAX_JOBS")
@@ -129,6 +130,8 @@ class BuildCMakeExt(build_ext):
     def run(self):
         """Run CMake build for modules."""
         for extension in self.extensions:
+            if extension.name == "pyopenvino":
+                self.build_cmake(extension)
             if extension.name == "_pyngraph":
                 self.build_cmake(extension)
 
@@ -155,7 +158,8 @@ class BuildCMakeExt(build_ext):
         self.announce("Configuring cmake project", level=3)
         ext_args = self.cmake_args.split() if self.cmake_args else []
         self.spawn(["cmake", "-S" + root_dir, "-B" + self.build_temp,
-                    "-DCMAKE_BUILD_TYPE={}".format(self.config),
+                    f"-DCMAKE_BUILD_TYPE={self.config}",
+                    f"-DInferenceEngine_DIR={os.path.join(OPENVINO_ROOT_DIR, 'build')}",
                     "-DENABLE_PYTHON=ON",
                     "-DNGRAPH_ONNX_FRONTEND_ENABLE=ON"] + ext_args)
 
@@ -165,9 +169,8 @@ class BuildCMakeExt(build_ext):
                     "--config", self.config, "-j", str(self.jobs)])
 
         self.announce("Moving built python module to " + str(extension_path), level=3)
-        pyds = list(glob.iglob("{0}/**/{1}*{2}".format(bin_dir,
-                    extension.name,
-                    sysconfig.get_config_var("EXT_SUFFIX")), recursive=True))
+        pyds = list(glob.iglob(f"{bin_dir}/**/{extension.name}*{sysconfig.get_config_var('EXT_SUFFIX')}",
+                               recursive=True))
         for name in pyds:
             self.announce("copy " + os.path.join(name), level=3)
             shutil.copy(name, extension_path)
@@ -193,9 +196,10 @@ class InstallCMakeLibs(install_lib):
             lib_ext = ".dll"
 
         libs = []
+        print(root_dir)
         for ngraph_lib in NGRAPH_LIBS:
-            libs.extend(list(glob.iglob("{0}/**/*{1}*{2}".format(root_dir,
-                             ngraph_lib, lib_ext), recursive=True)))
+            libs.extend(list(glob.iglob(f"{root_dir}/**/*{ngraph_lib}*{lib_ext}", recursive=True)))
+            print(libs)
         if not libs:
             raise Exception("NGraph libs not found.")
 
@@ -216,8 +220,8 @@ setup(
     author="Intel Corporation",
     url="https://github.com/openvinotoolkit/openvino",
     license="License :: OSI Approved :: Apache Software License",
-    ext_modules=[CMakeExtension(name="_pyngraph")],
-    package_dir={"": "src/compatibility"},
+    ext_modules=[CMakeExtension(name="_pyngraph"), CMakeExtension(name="pyopenvino")],
+    package_dir={"": "src/compatibility", "openvino": "src/openvino"},
     packages=packages,
     install_requires=requirements,
     data_files=data_files,
