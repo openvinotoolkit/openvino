@@ -62,7 +62,6 @@ namespace SubgraphTestsDefinitions {
 
         void DelayedCopyTest::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        functionRefs = ngraph::clone_function(*function);
 
         LoadNetwork();
         GenerateInputs();

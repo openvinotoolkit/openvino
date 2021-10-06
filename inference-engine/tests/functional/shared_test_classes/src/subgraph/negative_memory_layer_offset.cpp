@@ -70,7 +70,6 @@ namespace SubgraphTestsDefinitions {
 
     void NegativeMemoryOffsetTest::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        functionRefs = ngraph::clone_function(*function);
 
         LoadNetwork();
         IE_SUPPRESS_DEPRECATED_START

@@ -498,6 +498,9 @@ void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type
 }
 
 void LayerTestsCommon::Validate() {
+    if (functionRefs == nullptr) {
+        functionRefs = ngraph::clone_function(*function);
+    }
     auto expectedOutputs = CalculateRefs();
     const auto &actualOutputs = GetOutputs();
 

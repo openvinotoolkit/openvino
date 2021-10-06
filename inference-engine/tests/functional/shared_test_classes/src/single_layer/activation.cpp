@@ -225,7 +225,6 @@ void ActivationParamLayerTest::SetUp() {
 }
 
 void ActivationDynamicLayerTest::Run() {
-    functionRefs = ngraph::clone_function(*function);
     const auto& params = function->get_parameters();
     ngraph::PartialShape output_shape;
 

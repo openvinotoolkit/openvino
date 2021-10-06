@@ -94,7 +94,6 @@ void ProposalBehTest::SetUp() {
 }
 
 void ProposalBehTest::Run() {
-    functionRefs = ngraph::clone_function(*function);
     LoadNetwork();
     GenerateInputs();
     Infer();

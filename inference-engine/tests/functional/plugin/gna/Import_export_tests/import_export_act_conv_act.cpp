@@ -52,8 +52,8 @@ public:
     }
 
     void Run() override {
-        functionRefs = ngraph::clone_function(*function);
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        functionRefs = ngraph::clone_function(*function);
 
         configuration.insert(exportConfiguration.begin(), exportConfiguration.end());
         LoadNetwork();

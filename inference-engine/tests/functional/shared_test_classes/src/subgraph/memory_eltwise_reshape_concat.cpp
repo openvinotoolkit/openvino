@@ -115,7 +115,6 @@ void MemoryEltwiseReshapeConcatTest::initNgraphFriendlyModel() {
 void MemoryEltwiseReshapeConcatTest::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     initTestModel();
-    functionRefs = ngraph::clone_function(*function);
     LoadNetwork();
 
     InferenceEngine::TensorDesc state_description(InferenceEngine::Precision::FP32,
