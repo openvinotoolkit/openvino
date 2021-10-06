@@ -61,7 +61,7 @@ nodes_attributes = {
     'mvn_axes': {'kind': 'op', 'op': 'Range'},
     'mvn_axes_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-    'mvn': {'type': 'MVN', 'value': None, 'kind': 'op', 'op': 'MVN', 'eps': 1e-3},
+    'mvn': {'type': 'MVN', 'value': None, 'kind': 'op', 'op': 'MVN', 'eps': 1e-3, 'eps_mode': 'inside_sqrt'},
     'mvn_data': {'value': None, 'shape': None, 'kind': 'data'},
 
     'reshape_1': {'type': 'Reshape', 'value': None, 'kind': 'op', 'op': 'Reshape'},
