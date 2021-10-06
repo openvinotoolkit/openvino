@@ -9,7 +9,9 @@
 #include <string>
 #include <vector>
 
-#define ENABLE_CPU_DEBUG_CAP(_x) _x;
+
+#define CPU_DEBUG_CAP_ENABLE(_x) _x;
+#define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) true
 
 namespace MKLDNNPlugin {
 namespace DebugCaps {
@@ -47,5 +49,7 @@ private:
 } // namespace MKLDNNPlugin
 
 #else // !CPU_DEBUG_CAPS
-#define ENABLE_CPU_DEBUG_CAP(_x)
+#define CPU_DEBUG_CAP_ENABLE(_x)
+#define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) x
+
 #endif // CPU_DEBUG_CAPS
