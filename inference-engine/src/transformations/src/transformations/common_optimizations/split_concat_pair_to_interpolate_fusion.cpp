@@ -116,7 +116,8 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::SplitConcatPairToInterpolateFusion, "SplitC
 
 ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion() {
     MATCHER_SCOPE(SplitConcatPairToInterpolateFusion);
-    auto split_pattern = ngraph::pattern::wrap_type<ngraph::opset8::Split>(pattern::has_static_shape());
+    auto split_pattern = ngraph::pattern::wrap_type<ngraph::opset8::Split>({pattern::any_input(pattern::has_static_shape()),
+                                                                            pattern::any_input(pattern::has_static_shape())});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
