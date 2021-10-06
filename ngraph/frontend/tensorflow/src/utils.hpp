@@ -329,6 +329,8 @@ static Status GetInputNodes(const NodeContext& node, Arguments&... remaining) {
     return detail::GetInputNodes(node, 0, remaining...);
 }
 
+void TFTensorShapeToNGraphShape(const ::tensorflow::TensorShapeProto& tf_shape, ngraph::PartialShape* ng_shape);
+
 template <typename T>
 static void GetStaticInputVector(const ngraph::frontend::tf::NodeContext& node,
                                  int64_t input_index,

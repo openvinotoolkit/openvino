@@ -9,3 +9,12 @@ void ngraph::frontend::tf::SetTracingInfo(const std::string& op_name, const ngra
     node->set_friendly_name(op_name);
     node->add_provenance_tag(op_name);
 }
+
+void ngraph::frontend::tf::TFTensorShapeToNGraphShape(const tensorflow::TensorShapeProto &tf_shape,
+                                                      ngraph::PartialShape *ng_shape) {
+    std::vector<ngraph::Dimension> dims;
+    for (int i = 0; i < tf_shape.dim_size(); i++) {
+        dims.push_back(tf_shape.dim(i).size());
+    }
+    *ng_shape = ngraph::PartialShape(dims);
+}
