@@ -19,8 +19,6 @@
 #include "multi_device_plugin.hpp"
 
 #include "ngraph/opsets/opset1.hpp"
-#include "ngraph_ops/convolution_ie.hpp"
-#include "ngraph_ops/deconvolution_ie.hpp"
 #include "transformations/utils/utils.hpp"
 
 // ------------------------------MultiDeviceExecutableNetwork----------------------------
@@ -38,9 +36,7 @@ std::string GetNetworkPrecision(const InferenceEngine::CNNNetwork &network) {
         if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
             std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node) ||
             std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
-            std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node) ||
-            std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node) ||
-            std::dynamic_pointer_cast<ngraph::op::DeconvolutionIE>(node)) {
+            std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node)) {
             auto layerType = node->input(1).get_element_type().get_type_name();
             if (layerType == "f32")
                 return METRIC_VALUE(FP32);
@@ -115,7 +111,7 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
     auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
     idleWorkerRequests.set_capacity(numRequests);
     for (auto&& workerRequest : workerRequests) {
-        workerRequest._inferRequest = { executableNetwork, executableNetwork->CreateInferRequest() };
+        workerRequest._inferRequest = { executableNetwork._so, executableNetwork->CreateInferRequest() };
         auto* workerRequestPtr = &workerRequest;
         IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
         workerRequest._inferRequest->SetCallback(

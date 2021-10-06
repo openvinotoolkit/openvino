@@ -33,9 +33,9 @@
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/ndarray.hpp"
-#include "util/test_case.hpp"
+#include "engines_util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/engine/test_engines.hpp"
+#include "engines_util/test_engines.hpp"
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
 #include <cpp/ie_cnn_network.h>
@@ -4148,25 +4148,5 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_random_uniform_like) {
     // These output values are unknown at this time as we don't have a reference implementation of random number
     // generator
     test_case.add_input<ngraph::float16>(Shape{2, 2}, {41, 42, 43, 44});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_bias_gelu) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/bias_gelu.onnx"));
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({0.5488135,
-                                0.71518934,
-                                0.60276335,
-                                0.5448832,
-                                0.4236548,
-                                0.6458941,
-                                0.4375872,
-                                0.891773,
-                                0.96366274,
-                                0.3834415});
-    test_case.add_input<float>({0.79172504, 0.5288949, 0.56804454, 0.92559665, 0.07103606});
-    test_case.add_expected_output<float>(
-        {1.2198428, 1.1112978, 1.0293297, 1.366493, 0.3411342, 1.329408, 0.8051748, 1.354462, 1.8336612, 0.3068893});
     test_case.run();
 }
