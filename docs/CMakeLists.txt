@@ -49,8 +49,8 @@ set(OMZ_DOCS_DIR "" CACHE PATH "Path to open_model_zoo documentation dir.")
 set(WORKBENCH_DOCS_DIR "" CACHE PATH "Path to workbench documentation dir.")
 set(POT_DOCS_DIR "" CACHE PATH "Path to post-training-compression-tool documentation dir.")
 set(GST_DOCS_DIR "" CACHE PATH "Path to gst-video-analytics documentation dir.")
-set(OPENVINO_NOTEBOOKS_DIR "" CACHE PATH "Path to openvino notebooks dir.")
 set(GITHUB_API_TOKEN "" CACHE PATH "Path to file containing github api token.")
+set(GRAPH_CSV_DIR "" CACHE PATH "Path to the folder containing csv data for rendering graphs.")
 
 function(build_docs)
     find_package(Doxygen REQUIRED dot)
@@ -135,6 +135,13 @@ function(build_docs)
         list(APPEND commands
             COMMAND ${PYTHON_EXECUTABLE} "${NBDOC_SCRIPT}" "${GITHUB_API_TOKEN}" "${RST_OUTPUT}/notebooks"
         )
+    endif()
+
+    if(GRAPH_CSV_DIR)
+        set(GRAPH_CSV_DIR_OUT "${RST_OUTPUT}/csv")
+    list(APPEND commands
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${GRAPH_CSV_DIR}" "${GRAPH_CSV_DIR_OUT}"
+    )
     endif()
 
     # omz doc files

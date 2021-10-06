@@ -366,7 +366,39 @@ function formatDocBlock_table(b, context)
 					local entryblock = rowblock[rownum].childBlockList
 					for entry = 1, #entryblock do
 						if entryblock[entry].blockKind == 'para' then
-							local t = trimWhitespace(entryblock[entry].childBlockList[1].text)
+							local t = ''
+							local parablock = entryblock[entry].childBlockList
+							for para = 1, #parablock do
+								if parablock[para].blockKind == 'ref' then
+									local blockText = getDocBlockText(parablock[para], context)
+									blockText = string.gsub(blockText, "<", "\\<") -- escape left chevron
+									t = t .. ":ref:`" .. blockText .. " <doxid-" .. parablock[para].id .. ">` "
+								elseif parablock[para].blockKind == 'bold' then
+									local blockText = getDocBlockText(parablock[para], context)
+									t = t .. '**' .. blockText .. '** '
+								elseif parablock[para].blockKind == 'emphasis' then
+									local blockText = getDocBlockText(parablock[para], context)
+									t = t .. '*' .. blockText .. '* '
+								elseif parablock[para].blockKind == 'ulink' then
+									t = t .. "`" .. parablock[para].text .. " <" .. parablock[para].url .. ">`__ "
+								elseif parablock[para].blockKind == 'formula' then
+										local code = getCodeDocBlockContents(parablock[para], context)
+										-- take away framing tokens
+										code = string.gsub(code, "^\\?[$%[]", "")
+										code = string.gsub(code, "\\?[$%]]$", "")
+										code = trimWhitespace(code)
+										t = t .. ":math:`" .. code .. "` "
+								elseif parablock[para].blockKind == 'computeroutput' then
+									local code = getCodeDocBlockContents(parablock[para], context)
+									t = t .. "``" .. code .. "`` "
+								else
+									moreT = trimWhitespace(parablock[para].text)
+									if string.len(moreT) > 0 then
+										moreT = moreT .. ' '
+									end
+									t = t .. moreT
+								end
+							end
 							local tlen = string.len(t)
 							table.insert(row, t)
 							if maxwidths[#row] == nil or maxwidths[#row] < tlen then
@@ -393,7 +425,8 @@ function formatDocBlock_table(b, context)
 	local s = headfoot
 	for r = 1, #tbl do
 		for c = 1, #tbl[r] do
-			s = s .. tbl[r][c] .. string.rep(' ', 2 + maxwidths[c] - string.len(tbl[r][c]))
+			tblrc = trimWhitespace(tbl[r][c])
+			s = s .. tblrc .. string.rep(' ', 2 + maxwidths[c] - utf8.len(tblrc))
 		end
 		s = s .. '\n'
 
@@ -403,8 +436,9 @@ function formatDocBlock_table(b, context)
 	end
 	s = s .. headfoot
 
-	return s
+	return '\n\n' .. s .. '\n'
 end
+
 
 function formatDocBlock_graph(block, context, graphtype)
 	local code = getCodeDocBlockContents(block, context)
