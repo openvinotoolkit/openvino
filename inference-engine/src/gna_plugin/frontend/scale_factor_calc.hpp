@@ -1342,7 +1342,7 @@ class ScaleFactorCalculator {
     template<class T>
     static int GetMandatoryWeightsBytesSize(T ptr) {
         auto info = LayerInfo(ptr);
-        if (info.isConvolution() || info.isScaleShift() || info.isConcatAlignFilter()) {
+        if (info.isConvolution() || info.isScaleShift()) {
             return GetOptionalWeightsBytesSize();
         }
 
@@ -1354,6 +1354,12 @@ class ScaleFactorCalculator {
                 } else {
                     return frontend::FakeQuantI16().getWeightsPrecision().size();
                 }
+            } else {
+                if (!info.isSynthetic()) {
+                    gnawarn() << "The layer (" << ptr->name << ") has not quantization statistics\n";
+                }
+
+                return GetOptionalWeightsBytesSize();
             }
         }
 
