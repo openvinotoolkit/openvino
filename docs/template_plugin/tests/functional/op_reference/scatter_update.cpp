@@ -617,52 +617,7 @@ Builder {}
                                                                 3, 4, 15, 16,
                                                                 0, 0, 0, 0,
                                                                 0, 0, 0, 0}}),
-Builder {}
-            .data({{2, 2, 3}, numeric_type, std::vector<N> {0, 0, 0,
-                                                            0, 0, 0,
-                                                            0, 0, 0,
-                                                            0, 0, 0}})
-            .indices({{1, 2, 1}, integer_type, std::vector<I> {0, 1}})
-            .updates({{2, 2, 3, 1, 2}, numeric_type, std::vector<N> {1, 2,
-                                                                  3, 4,
-                                                                  5, 6,
-                                                                  7, 8,
-                                                                  9, 10,
-                                                                  11, 12,
-                                                                  13, 14,
-                                                                  15, 16,
-                                                                  17, 18,
-                                                                  19, 20,
-                                                                  21, 22,
-                                                                  23, 24}})
-            .axis({{1}, integer_type, std::vector<I> {-2}})
-            .expected({{2, 2, 3}, numeric_type, std::vector<N> {1, 2, 13,
-                                                                3, 4, 15,
-                                                                14, 0, 0,
-                                                                16, 0, 0}}),
-Builder {}
-            .data({{2, 2, 2}, numeric_type, std::vector<N> {0, 0,
-                                                            0, 0,
-                                                            0, 0,
-                                                            0, 0}})
-            .indices({{1, 2, 1}, integer_type, std::vector<I> {0, 1}})
-            .updates({{2, 2, 3, 1, 2}, numeric_type, std::vector<N> {1, 2,
-                                                                  3, 4,
-                                                                  5, 6,
-                                                                  7, 8,
-                                                                  9, 10,
-                                                                  11, 12,
-                                                                  13, 14,
-                                                                  15, 16,
-                                                                  17, 18,
-                                                                  19, 20,
-                                                                  21, 22,
-                                                                  23, 24}})
-            .axis({{1}, integer_type, std::vector<I> {-1}})
-            .expected({{2, 2, 2}, numeric_type, std::vector<N> {1, 2,
-                                                                7, 8,
-                                                                13, 14,
-                                                                19, 20}}),
+
  Builder {}
             .data({{3, 2, 2, 2}, numeric_type, std::vector<N> {0, 0,
                                                                0, 0,
@@ -695,50 +650,6 @@ Builder {}
                                                                11, 12,
                                                                13, 14,
                                                                15, 16,
-                                                               0, 0,
-                                                               0, 0,
-                                                               0, 0,
-                                                               0, 0}}),
- Builder {}
-            .data({{4, 2, 2, 2}, numeric_type, std::vector<N> {0, 0,
-                                                               0, 0,
-                                                               0, 0,
-                                                               0, 0,
-                                                               0, 0,
-                                                               0, 0,
-                                                               0, 0,
-                                                               0, 0,
-                                                               0, 0,
-                                                               0, 0,
-                                                               0, 0,
-                                                               0, 0,
-                                                               0, 0,
-                                                               0, 0,
-                                                               0, 0,
-                                                               0, 0}})
-            .indices({{2}, integer_type, std::vector<I> {0, 1}})
-            .updates({{2, 2, 2, 2}, numeric_type, std::vector<N> {1, 2,
-                                                                  3, 4,
-                                                                  5, 6,
-                                                                  7, 8,
-                                                                  9, 10,
-                                                                  11, 12,
-                                                                  13, 14,
-                                                                  15, 16}})
-            .axis({{1}, integer_type, std::vector<I> {-3}})
-            .expected({{4, 2, 2, 2}, numeric_type, std::vector<N> {
-                                                               1, 2,
-                                                               3, 4,
-                                                               5, 6,
-                                                               7, 8,
-                                                               9, 10,
-                                                               11, 12,
-                                                               13, 14,
-                                                               15, 16,
-                                                               0, 0,
-                                                               0, 0,
-                                                               0, 0,
-                                                               0, 0,
                                                                0, 0,
                                                                0, 0,
                                                                0, 0,
@@ -858,7 +769,182 @@ Builder {}
     return ScatterUpdateParams;
 }
 
+template <element::Type_t NUM_ET, element::Type_t INT_ET>
+std::vector<ScatterUpdate3Params> generateScatterUpdate3ParamsNegativeAxis(const element::Type& numeric_type, const element::Type& integer_type) {
+    using N = typename element_type_traits<NUM_ET>::value_type;
+    using I = typename element_type_traits<INT_ET>::value_type;
+    std::vector<ScatterUpdate3Params> ScatterUpdateParams {
+        Builder {}
+            .data({{2, 2, 3}, numeric_type, std::vector<N> {0, 0, 0,
+                                                            0, 0, 0,
+                                                            0, 0, 0,
+                                                            0, 0, 0}})
+            .indices({{1, 2, 1}, integer_type, std::vector<I> {0, 1}})
+            .updates({{2, 2, 3, 1, 2}, numeric_type, std::vector<N> {1, 2,
+                                                                  3, 4,
+                                                                  5, 6,
+                                                                  7, 8,
+                                                                  9, 10,
+                                                                  11, 12,
+                                                                  13, 14,
+                                                                  15, 16,
+                                                                  17, 18,
+                                                                  19, 20,
+                                                                  21, 22,
+                                                                  23, 24}})
+            .axis({{1}, integer_type, std::vector<I> {-2}})
+            .expected({{2, 2, 3}, numeric_type, std::vector<N> {1, 2, 13,
+                                                                3, 4, 15,
+                                                                14, 0, 0,
+                                                                16, 0, 0}}),
+        Builder {}
+            .data({{2, 2, 2}, numeric_type, std::vector<N> {0, 0,
+                                                            0, 0,
+                                                            0, 0,
+                                                            0, 0}})
+            .indices({{1, 2, 1}, integer_type, std::vector<I> {0, 1}})
+            .updates({{2, 2, 3, 1, 2}, numeric_type, std::vector<N> {1, 2,
+                                                                  3, 4,
+                                                                  5, 6,
+                                                                  7, 8,
+                                                                  9, 10,
+                                                                  11, 12,
+                                                                  13, 14,
+                                                                  15, 16,
+                                                                  17, 18,
+                                                                  19, 20,
+                                                                  21, 22,
+                                                                  23, 24}})
+            .axis({{1}, integer_type, std::vector<I> {-1}})
+            .expected({{2, 2, 2}, numeric_type, std::vector<N> {1, 2,
+                                                                7, 8,
+                                                                13, 14,
+                                                                19, 20}}),
+        Builder {}
+            .data({{4, 2, 2, 2}, numeric_type, std::vector<N> {0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0}})
+            .indices({{2}, integer_type, std::vector<I> {0, 1}})
+            .updates({{2, 2, 2, 2}, numeric_type, std::vector<N> {1, 2,
+                                                                  3, 4,
+                                                                  5, 6,
+                                                                  7, 8,
+                                                                  9, 10,
+                                                                  11, 12,
+                                                                  13, 14,
+                                                                  15, 16}})
+            .axis({{1}, integer_type, std::vector<I> {-3}})
+            .expected({{4, 2, 2, 2}, numeric_type, std::vector<N> {
+                                                               1, 2,
+                                                               3, 4,
+                                                               5, 6,
+                                                               7, 8,
+                                                               9, 10,
+                                                               11, 12,
+                                                               13, 14,
+                                                               15, 16,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0,
+                                                               0, 0}})};
+    return ScatterUpdateParams;
+}
+
 std::vector<ScatterUpdate3Params> generateScatterUpdateCombinedParams() {
+    const std::vector<std::vector<ScatterUpdate3Params>> ScatterUpdateTypeParams {
+        // f32
+        generateScatterUpdate3Params<element::Type_t::f32, element::Type_t::i16>(element::f32, element::i16),
+        generateScatterUpdate3Params<element::Type_t::f32, element::Type_t::i32>(element::f32, element::i32),
+        generateScatterUpdate3Params<element::Type_t::f32, element::Type_t::i64>(element::f32, element::i64),
+        generateScatterUpdate3Params<element::Type_t::f32, element::Type_t::u32>(element::f32, element::u32),
+        generateScatterUpdate3Params<element::Type_t::f32, element::Type_t::u64>(element::f32, element::u64),
+
+        // f16
+        generateScatterUpdate3Params<element::Type_t::f16, element::Type_t::i16>(element::f16, element::i16),
+        generateScatterUpdate3Params<element::Type_t::f16, element::Type_t::i32>(element::f16, element::i32),
+        generateScatterUpdate3Params<element::Type_t::f16, element::Type_t::i64>(element::f16, element::i64),
+        generateScatterUpdate3Params<element::Type_t::f16, element::Type_t::u32>(element::f16, element::u32),
+        generateScatterUpdate3Params<element::Type_t::f16, element::Type_t::u64>(element::f16, element::u64),
+        // i8
+        generateScatterUpdate3Params<element::Type_t::i8, element::Type_t::i16>(element::i8, element::i16),
+        generateScatterUpdate3Params<element::Type_t::i8, element::Type_t::i32>(element::i8, element::i32),
+        generateScatterUpdate3Params<element::Type_t::i8, element::Type_t::i64>(element::i8, element::i64),
+        generateScatterUpdate3Params<element::Type_t::i8, element::Type_t::u32>(element::i8, element::u32),
+        generateScatterUpdate3Params<element::Type_t::i8, element::Type_t::u64>(element::i8, element::u64),
+        // i16
+        generateScatterUpdate3Params<element::Type_t::i16, element::Type_t::i16>(element::i16, element::i16),
+        generateScatterUpdate3Params<element::Type_t::i16, element::Type_t::i32>(element::i16, element::i32),
+        generateScatterUpdate3Params<element::Type_t::i16, element::Type_t::i64>(element::i16, element::i64),
+        generateScatterUpdate3Params<element::Type_t::i16, element::Type_t::u32>(element::i16, element::u32),
+        generateScatterUpdate3Params<element::Type_t::i16, element::Type_t::u64>(element::i16, element::u64),
+        // i32
+        generateScatterUpdate3Params<element::Type_t::i32, element::Type_t::i16>(element::i32, element::i16),
+        generateScatterUpdate3Params<element::Type_t::i32, element::Type_t::i32>(element::i32, element::i32),
+        generateScatterUpdate3Params<element::Type_t::i32, element::Type_t::i64>(element::i32, element::i64),
+        generateScatterUpdate3Params<element::Type_t::i32, element::Type_t::u32>(element::i32, element::u32),
+        generateScatterUpdate3Params<element::Type_t::i32, element::Type_t::u64>(element::i32, element::u64),
+        // i64
+        generateScatterUpdate3Params<element::Type_t::i64, element::Type_t::i16>(element::i64, element::i16),
+        generateScatterUpdate3Params<element::Type_t::i64, element::Type_t::i32>(element::i64, element::i32),
+        generateScatterUpdate3Params<element::Type_t::i64, element::Type_t::i64>(element::i64, element::i64),
+        generateScatterUpdate3Params<element::Type_t::i64, element::Type_t::u32>(element::i64, element::u32),
+        generateScatterUpdate3Params<element::Type_t::i64, element::Type_t::u64>(element::i64, element::u64),
+        // u8
+        generateScatterUpdate3Params<element::Type_t::u8, element::Type_t::i16>(element::u8, element::i16),
+        generateScatterUpdate3Params<element::Type_t::u8, element::Type_t::i32>(element::u8, element::i32),
+        generateScatterUpdate3Params<element::Type_t::u8, element::Type_t::i64>(element::u8, element::i64),
+        generateScatterUpdate3Params<element::Type_t::u8, element::Type_t::u32>(element::u8, element::u32),
+        generateScatterUpdate3Params<element::Type_t::u8, element::Type_t::u64>(element::u8, element::u64),
+        // u16
+        generateScatterUpdate3Params<element::Type_t::u16, element::Type_t::i16>(element::u16, element::i16),
+        generateScatterUpdate3Params<element::Type_t::u16, element::Type_t::i32>(element::u16, element::i32),
+        generateScatterUpdate3Params<element::Type_t::u16, element::Type_t::i64>(element::u16, element::i64),
+        generateScatterUpdate3Params<element::Type_t::u16, element::Type_t::u32>(element::u16, element::u32),
+        generateScatterUpdate3Params<element::Type_t::u16, element::Type_t::u64>(element::u16, element::u64),
+        // u32
+        generateScatterUpdate3Params<element::Type_t::u32, element::Type_t::i16>(element::u32, element::i16),
+        generateScatterUpdate3Params<element::Type_t::u32, element::Type_t::i32>(element::u32, element::i32),
+        generateScatterUpdate3Params<element::Type_t::u32, element::Type_t::i64>(element::u32, element::i64),
+        generateScatterUpdate3Params<element::Type_t::u32, element::Type_t::u32>(element::u32, element::u32),
+        generateScatterUpdate3Params<element::Type_t::u32, element::Type_t::u64>(element::u32, element::u64),
+        // u64
+        generateScatterUpdate3Params<element::Type_t::u64, element::Type_t::i16>(element::u64, element::i16),
+        generateScatterUpdate3Params<element::Type_t::u64, element::Type_t::i32>(element::u64, element::i32),
+        generateScatterUpdate3Params<element::Type_t::u64, element::Type_t::i64>(element::u64, element::i64),
+        generateScatterUpdate3Params<element::Type_t::u64, element::Type_t::u32>(element::u64, element::u32),
+        generateScatterUpdate3Params<element::Type_t::u64, element::Type_t::u64>(element::u64, element::u64),
+        // bf16
+        generateScatterUpdate3Params<element::Type_t::bf16, element::Type_t::i16>(element::bf16, element::i16),
+        generateScatterUpdate3Params<element::Type_t::bf16, element::Type_t::i32>(element::bf16, element::i32),
+        generateScatterUpdate3Params<element::Type_t::bf16, element::Type_t::i64>(element::bf16, element::i64),
+        generateScatterUpdate3Params<element::Type_t::bf16, element::Type_t::u32>(element::bf16, element::u32),
+        generateScatterUpdate3Params<element::Type_t::bf16, element::Type_t::u64>(element::bf16, element::u64)};
+    std::vector<ScatterUpdate3Params> combinedParams;
+
+    for (const auto& params : ScatterUpdateTypeParams) {
+        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    }
+    return combinedParams;
+}
+
+std::vector<ScatterUpdate3Params> generateScatterUpdateNegativeAxisParams() {
     const std::vector<std::vector<ScatterUpdate3Params>> ScatterUpdateTypeParams {
         // f32
         generateScatterUpdate3Params<element::Type_t::f32, element::Type_t::i16>(element::f32, element::i16),
@@ -913,6 +999,9 @@ std::vector<ScatterUpdate3Params> generateScatterUpdateCombinedParams() {
 }
 } // namespace
 
-INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate_With_Hardcoded_Refs, ReferenceScatterUpdate6LayerTest, ::testing::ValuesIn(generateScatterUpdateCombinedParams()),
-                         ReferenceScatterUpdate6LayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate_With_Hardcoded_Refs, ReferenceScatterUpdate6LayerTest,
+                        ::testing::ValuesIn(generateScatterUpdateCombinedParams()), ReferenceScatterUpdate6LayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate_Negative_Axis_With_Hardcoded_Refs, ReferenceScatterUpdate6LayerTest,
+                        ::testing::ValuesIn(generateScatterUpdateNegativeAxisParams()), ReferenceScatterUpdate6LayerTest::getTestCaseName);
 } // namespace reference_tests
