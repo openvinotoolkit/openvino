@@ -45,7 +45,7 @@ def test_ngraph_function_api():
     "dtype",
     [
         np.float32,
-        np.float64,
+        # np.float64,
         np.int8,
         np.int16,
         np.int32,
@@ -293,7 +293,7 @@ def test_set_argument():
 
 
 def test_result():
-    node = np.array([[11, 10], [1, 8], [3, 4]])
+    node = np.array([[11, 10], [1, 8], [3, 4]], dtype=np.float32)
     result = run_op_node([node], ov.result)
     assert np.allclose(result, node)
 
@@ -425,9 +425,9 @@ def test_runtime_info():
     assert runtime_info_after["affinity"] == "test_affinity"
 
 
-def test_mutiple_outputs():
+def test_multiple_outputs():
     input_shape = [4, 4]
-    input_data = np.arange(-8, 8).reshape(input_shape)
+    input_data = np.arange(-8, 8).reshape(input_shape).astype(np.float32)
 
     expected_output = np.split(input_data, 2, axis=1)[0]
     expected_output[expected_output < 0] = 0

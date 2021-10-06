@@ -8,10 +8,12 @@ import pytest
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node, run_op_numeric_data
 
+from tests import xfail_issue_67415
+
 
 def test_concat():
-    a = np.array([[1, 2], [3, 4]])
-    b = np.array([[5, 6]])
+    a = np.array([[1, 2], [3, 4]]).astype(np.float32)
+    b = np.array([[5, 6]]).astype(np.float32)
     axis = 0
     expected = np.concatenate((a, b), axis=0)
 

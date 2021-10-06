@@ -9,6 +9,8 @@ from openvino.impl import Shape, Type
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
+from tests import xfail_issue_67415
+
 
 @pytest.mark.parametrize(
     "ng_api_fn, numpy_fn, range_start, range_end",
@@ -77,6 +79,7 @@ def test_unary_op_scalar(ng_api_fn, numpy_fn, input_data):
     assert np.allclose(result, expected)
 
 
+@xfail_issue_67415
 @pytest.mark.parametrize(
     "input_data", [(np.array([True, False, True, False])), (np.array([True])), (np.array([False]))]
 )

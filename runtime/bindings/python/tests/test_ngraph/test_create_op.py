@@ -6,8 +6,8 @@ import pytest
 from openvino.pyopenvino import PartialShape, Dimension
 
 import openvino as ov
-import openvino.opset1 as ng_opset1
-import openvino.opset5 as ng_opset5
+import openvino.opset1 as ov_opset1
+import openvino.opset5 as ov_opset5
 from openvino.impl import Type
 
 np_types = [np.float32, np.int32]
@@ -147,7 +147,7 @@ def test_deformable_convolution_opset1(dtype):
     parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=dtype)
     parameter_input2 = ov.parameter(input2_shape, name="Input2", dtype=dtype)
 
-    node = ng_opset1.deformable_convolution(
+    node = ov_opset1.deformable_convolution(
         parameter_input0, parameter_input1, parameter_input2, strides, pads_begin, pads_end, dilations,
     )
 
@@ -362,7 +362,7 @@ def test_lstm_cell_operator_opset1(dtype):
 
     expected_shape = [1, 128]
 
-    node_default = ng_opset1.lstm_cell(
+    node_default = ov_opset1.lstm_cell(
         parameter_X, parameter_H_t, parameter_C_t, parameter_W, parameter_R, parameter_B, hidden_size,
     )
 
@@ -376,7 +376,7 @@ def test_lstm_cell_operator_opset1(dtype):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 0.5
 
-    node_param = ng_opset1.lstm_cell(
+    node_param = ov_opset1.lstm_cell(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -421,7 +421,7 @@ def test_lstm_sequence_operator_bidirectional_opset1(dtype):
     parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
 
     direction = "BIDIRECTIONAL"
-    node = ng_opset1.lstm_sequence(
+    node = ov_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -441,7 +441,7 @@ def test_lstm_sequence_operator_bidirectional_opset1(dtype):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 1.22
 
-    node_param = ng_opset1.lstm_sequence(
+    node_param = ov_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -487,7 +487,7 @@ def test_lstm_sequence_operator_reverse_opset1(dtype):
 
     direction = "REVERSE"
 
-    node_default = ng_opset1.lstm_sequence(
+    node_default = ov_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -507,7 +507,7 @@ def test_lstm_sequence_operator_reverse_opset1(dtype):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 1.22
 
-    node_param = ng_opset1.lstm_sequence(
+    node_param = ov_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -553,7 +553,7 @@ def test_lstm_sequence_operator_forward_opset1(dtype):
 
     direction = "forward"
 
-    node_default = ng_opset1.lstm_sequence(
+    node_default = ov_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -573,7 +573,7 @@ def test_lstm_sequence_operator_forward_opset1(dtype):
     activation_beta = [1.0]
     clip = 0.5
 
-    node = ng_opset1.lstm_sequence(
+    node = ov_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -1239,9 +1239,9 @@ def test_tensor_iterator():
 
 
 def test_read_value_opset5():
-    init_value = ng_opset5.parameter([2, 2], name="init_value", dtype=np.int32)
+    init_value = ov_opset5.parameter([2, 2], name="init_value", dtype=np.int32)
 
-    node = ng_opset5.read_value(init_value, "var_id_667")
+    node = ov_opset5.read_value(init_value, "var_id_667")
 
     assert node.get_type_name() == "ReadValue"
     assert node.get_output_size() == 1
@@ -1250,9 +1250,9 @@ def test_read_value_opset5():
 
 
 def test_assign_opset5():
-    input_data = ng_opset5.parameter([5, 7], name="input_data", dtype=np.int32)
-    rv = ng_opset5.read_value(input_data, "var_id_667")
-    node = ng_opset5.assign(rv, "var_id_667")
+    input_data = ov_opset5.parameter([5, 7], name="input_data", dtype=np.int32)
+    rv = ov_opset5.read_value(input_data, "var_id_667")
+    node = ov_opset5.assign(rv, "var_id_667")
 
     assert node.get_type_name() == "Assign"
     assert node.get_output_size() == 1

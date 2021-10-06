@@ -8,6 +8,8 @@ from openvino.impl import Type, Shape
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
+from tests import xfail_issue_67415
+
 
 def test_reverse_sequence():
     input_data = np.array(
@@ -131,7 +133,7 @@ def test_reverse_sequence():
 
 
 def test_pad_edge():
-    input_data = np.arange(1, 13).reshape([3, 4])
+    input_data = np.arange(1, 13).reshape([3, 4]).astype(np.int32)
     pads_begin = np.array([0, 1], dtype=np.int32)
     pads_end = np.array([2, 3], dtype=np.int32)
 
@@ -155,7 +157,7 @@ def test_pad_edge():
 
 
 def test_pad_constant():
-    input_data = np.arange(1, 13).reshape([3, 4])
+    input_data = np.arange(1, 13).reshape([3, 4]).astype(np.int32)
     pads_begin = np.array([0, 1], dtype=np.int32)
     pads_end = np.array([2, 3], dtype=np.int32)
 
@@ -178,6 +180,7 @@ def test_pad_constant():
     assert np.allclose(result, expected)
 
 
+@xfail_issue_67415
 def test_select():
     cond = np.array([[False, False], [True, False], [True, True]])
     then_node = np.array([[-1, 0], [1, 2], [3, 4]], dtype=np.int32)

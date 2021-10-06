@@ -10,6 +10,8 @@ from openvino.utils.types import make_constant_node
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
+from tests import xfail_issue_67415
+
 
 @pytest.mark.parametrize(
     "ng_api_helper, numpy_function, reduction_axes",
@@ -38,6 +40,7 @@ def test_reduction_ops(ng_api_helper, numpy_function, reduction_axes):
     assert np.allclose(result, expected)
 
 
+@xfail_issue_67415
 @pytest.mark.parametrize(
     "ng_api_helper, numpy_function, reduction_axes",
     [

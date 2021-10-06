@@ -153,8 +153,7 @@ class Computation(object):
         param_names = [param.friendly_name for param in self.parameters]
 
         if self.network_cache.get(str(input_shapes)) is None:
-            capsule = Function.to_capsule(self.function)
-            cnn_network = IENetwork(capsule)
+            cnn_network = IENetwork(self.function)
             if self.function.is_dynamic():
                 cnn_network.reshape(dict(zip(param_names, input_shapes)))
             # Convert unsupported inputs of the network
@@ -180,7 +179,7 @@ class Computation(object):
                     parameter_shape,
                 )
 
-        request = executable_network.requests[0]
+        request = executable_network.create_infer_request()
         request.infer(dict(zip(param_names, input_values)))
 
         # Set order of output blobs compatible with nG Function

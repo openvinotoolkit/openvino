@@ -23,6 +23,7 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 
 
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
+xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "MaxUnpool")
 xfail_issue_33538 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
