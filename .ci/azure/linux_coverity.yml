@@ -91,8 +91,6 @@ jobs:
         -DENABLE_PYTHON=ON
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_WHEEL=ON
-      # Skipping tests from static analysis
-      # -DENABLE_TESTS=ON
         -DNGRAPH_ONNX_FRONTEND_ENABLE=ON
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
