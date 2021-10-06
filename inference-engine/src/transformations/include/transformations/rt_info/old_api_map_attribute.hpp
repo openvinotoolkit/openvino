@@ -107,5 +107,5 @@ public:
 
 inline TRANSFORMATIONS_API bool has_old_api_map(const std::shared_ptr<Node>& node);
 inline TRANSFORMATIONS_API OldApiMap get_old_api_map(const std::shared_ptr<Node>& node);
-inline TRANSFORMATIONS_API void set_old_api_map(const std::shared_ptr<Node>& node, const OldApiMap& old_api_map);
+inline TRANSFORMATIONS_API void set_old_api_map(std::shared_ptr<Node>& node, const OldApiMap& old_api_map);
 }  // namespace ov
