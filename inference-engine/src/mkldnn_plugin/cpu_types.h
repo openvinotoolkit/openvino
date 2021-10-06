@@ -32,6 +32,7 @@ enum Type {
     Eltwise,
     MatMul,
     Reshape,
+    ShapeOf,
     Tile,
     ROIAlign,
     ROIPooling,

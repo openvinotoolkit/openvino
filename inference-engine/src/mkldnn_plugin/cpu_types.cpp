@@ -65,6 +65,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Reshape", Reshape },
         { "Squeeze", Reshape },
         { "Unsqueeze", Reshape },
+        { "ShapeOf", ShapeOf },
         { "Softmax", Softmax },
         { "Reorder", Reorder },
         { "BatchToSpace", BatchToSpace },
@@ -224,6 +225,8 @@ std::string NameFromType(const Type type) {
             return "StridedSlice";
         case Reshape:
             return "Reshape";
+        case ShapeOf:
+            return "ShapeOf";
         case Tile:
             return "Tile";
         case ROIAlign:
