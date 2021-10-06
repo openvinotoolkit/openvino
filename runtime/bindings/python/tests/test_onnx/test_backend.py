@@ -405,7 +405,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_compress_1_cpu",
         "OnnxBackendNodeModelTest.test_compress_default_axis_cpu",
         "OnnxBackendNodeModelTest.test_compress_negative_axis_cpu",
-        "OnnxBackendNodeModelTest.test_nonzero_example_cpu",
     ),
     (xfail_issue_44958, "OnnxBackendNodeModelTest.test_upsample_nearest_cpu"),
     (
