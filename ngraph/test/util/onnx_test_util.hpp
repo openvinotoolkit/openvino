@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <string>
 #include <functional>
+#include <string>
 
 namespace ngraph {
 namespace test {

@@ -194,8 +194,7 @@ ComparisonResult compare_onnx_graphs(const ONNX_NAMESPACE::GraphProto& graph,
 namespace ngraph {
 namespace test {
 
-bool default_name_comparator(std::string lhs, std::string rhs)
-{
+bool default_name_comparator(std::string lhs, std::string rhs) {
     return lhs == rhs;
 }
 
