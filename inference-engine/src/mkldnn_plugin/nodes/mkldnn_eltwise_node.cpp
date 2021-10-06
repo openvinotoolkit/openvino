@@ -1683,6 +1683,10 @@ bool MKLDNNEltwiseNode::canBeInPlace() const {
     return getInputShapeAtPort(0) == getOutputShapeAtPort(0);
 }
 
+void MKLDNNEltwiseNode::alignScalesAndShifts(const MKLDNNNode *parentNode) {
+    MKLDNNNode::alignScalesAndShifts(parentNode, scales, shifts);
+}
+
 void MKLDNNEltwiseNode::fuseInto(MKLDNNNodePtr& parentNode) {
     // Handling Convolution custom Add node fusing case which is processed via dnnl append_sum() API.
     // TODO [DS]: at this moment this transformation prohibit for dynamic case
@@ -1695,7 +1699,6 @@ void MKLDNNEltwiseNode::fuseInto(MKLDNNNodePtr& parentNode) {
         } else {
             fillScalesAndShifts(parentNode.get(), scales, shifts, 16);
         }
-        scalesSize = static_cast<size_t>(outputShapes[0].getStaticDims()[outputShapes[0].getRank() > 1 ? 1 : 0]);
     }
     MKLDNNNode::fuseInto(parentNode);
 }

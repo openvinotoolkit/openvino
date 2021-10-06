@@ -701,7 +701,9 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    setPostOps(attr, true);
+    if (!(isDynamicNode() && isFusedWithPerTensorSS())) {
+        setPostOps(attr, true);
+    }
 
     Precision inputPrecision = getOriginalInputPrecisionAtPort(0);
     Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
@@ -787,6 +789,10 @@ void MKLDNNMVNNode::prepareParams() {
         IE_THROW() << "Can't prepare params for eltwise node with name: " << getName();
     }
 
+    if (isDynamicNode() && isFusedWithPerTensorSS()) {
+        setPostOps(attr, true);
+    }
+
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
@@ -870,6 +876,9 @@ void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
+            if (eltwiseNode->isPerTensorBroadcastScaleShift(constPort)) {
+                eltwiseNode->alignScalesAndShifts(this);
+            }
             eltwiseNode->appendPostOps(ops);
             continue;
         }

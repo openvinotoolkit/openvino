@@ -99,6 +99,8 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
+    void alignScalesAndShifts(const MKLDNNNode *parentNode);
+
 private:
     struct EltwiseExecutor {
         EltwiseExecutor(size_t batch) : batchDimIdx(batch) {}
@@ -149,7 +151,6 @@ private:
 
     std::vector<float> scales = {};
     std::vector<float> shifts = {};
-    size_t scalesSize = 0;
 
     std::vector<MKLDNNMemoryPtr> memPtrs = {};
 

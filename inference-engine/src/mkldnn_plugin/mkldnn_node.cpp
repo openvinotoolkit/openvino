@@ -1265,7 +1265,34 @@ bool MKLDNNNode::canFuseSimpleOperation(const MKLDNNNodePtr& node) const {
     return false;
 }
 
-void MKLDNNNode::fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, int align) {
+// TODO [DS]: maybe cache result?
+bool MKLDNNNode::isFusedWithPerTensorSS() const {
+    for (auto &node : fusedWith) {
+        if (node->isPerTensorBroadcastScaleShift(constPort)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// TODO [DS]: maybe cache result?
+bool MKLDNNNode::isPerTensorBroadcastScaleShift(const size_t constPort) const {
+    if (getAlgorithm() == EltwisePowerStatic) {
+        return true;
+    }
+    if (one_of(getAlgorithm(), EltwiseMultiply, EltwiseDivide, EltwisePrelu, EltwiseAdd, EltwiseSubtract)) {
+        const auto &dims = getInputShapeAtPort(constPort).getStaticDims();
+        return dims[dims.size() > 1 ? 1 : 0] == 1;
+    } else if (getAlgorithm() == EltwiseMulAdd) {
+        const auto &scaleDims = getInputShapeAtPort(1).getStaticDims();
+        const auto &shiftDims = getInputShapeAtPort(2).getStaticDims();
+        return scaleDims[scaleDims.size() > 1 ? 1 : 0] == 1 && shiftDims[shiftDims.size() > 1 ? 1 : 0] == 1;
+    } else {
+        return false;
+    }
+}
+
+void MKLDNNNode::fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align) {
     scales.clear();
     shifts.clear();
     const auto fillValuesFrom = [&](const MKLDNNNodePtr& constInput, std::vector<float>& buffer) {
@@ -1280,7 +1307,7 @@ void MKLDNNNode::fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<f
                     elementsCount);
     };
 
-    const size_t constPort = getParentEdgesAtPort(0)[0]->getParent().get() == parentNode ? 1 : 0;
+    constPort = getParentEdgesAtPort(0)[0]->getParent().get() == parentNode ? 1 : 0;
 
     if (one_of(getAlgorithm(), EltwiseMultiply, EltwiseDivide, EltwisePrelu)) {
         fillValuesFrom(getParentEdgesAtPort(constPort)[0]->getParent(), scales);
@@ -1300,11 +1327,40 @@ void MKLDNNNode::fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<f
         IE_THROW() << "Can't fill scale and shifts for node: " << getName() << " with type: " << NameFromType(getType());
     }
 
-    const size_t bufferSize = static_cast<size_t>(outputShapes[0].getStaticDims()[outputShapes[0].getRank() > 1 ? 1 : 0]);
-    if (align == -1) {
-        align = bufferSize;
+    if (align != -1) {
+        ssAlign = align;
     }
-    const size_t bufferSizeAligned = rnd_up(bufferSize, static_cast<size_t>(align));
+
+    if (isDynamicNode() && isPerTensorBroadcastScaleShift(constPort)) {
+        return;
+    }
+
+    alignScalesAndShifts(parentNode, scales, shifts);
+}
+
+void MKLDNNNode::alignScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts) {
+    if (scales.empty() && shifts.empty()) {
+        IE_THROW() << "Can't align scales and shifts, becuase both buffers empty";
+    }
+
+    size_t bufferSize;
+    if (!isDynamicNode()) {
+        bufferSize = static_cast<size_t>(outputShapes[0].getStaticDims()[outputShapes[0].getRank() > 1 ? 1 : 0]);
+    } else {
+        auto dims = getInputShapeAtPort(constPort).getStaticDims();
+        if (isPerTensorBroadcastScaleShift(constPort)) {
+            const auto dataMemPtr = parentNode->getChildEdgesAtPort(0)[0]->getMemoryPtr();
+            if (dataMemPtr == nullptr) {
+                IE_THROW() << "Can't align scales and shifts, because output memory is not allocated";
+            }
+            dims = dataMemPtr->getStaticDims();
+        } else if (getAlgorithm() == EltwiseMulAdd && std::all_of(dims.begin(), dims.end(), [](Dim dim) { return dim == 1; })) {
+            dims  = getInputShapeAtPort(2).getStaticDims();
+        }
+        bufferSize = static_cast<size_t>(dims[dims.size() > 1 ? 1 : 0]);
+    }
+ 
+    const size_t bufferSizeAligned = rnd_up(bufferSize, static_cast<size_t>(ssAlign));
 
     size_t initSize = scales.size();
     if (initSize > 0) {
