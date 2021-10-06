@@ -54,6 +54,7 @@ void ConcatWithChildAndOutputTransformation::SetUp() {
 
     function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithChildAndOutput(
         netPrecision, inputShapes, param.fqOnData1, param.fqOnData2);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(ConcatWithChildAndOutputTransformation, CompareWithRefImpl) {

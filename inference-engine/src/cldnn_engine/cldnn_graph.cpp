@@ -44,7 +44,8 @@ CLDNNGraph::CLDNNGraph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr
     : m_context(context)
     , m_networkName(network.getName())
     , m_config(config)
-    , m_stream_id(stream_id) {
+    , m_stream_id(stream_id)
+    , m_state(0) {
     m_program = std::make_shared<Program>(network, GetEngine(), m_config);
     Build();
 }
@@ -54,7 +55,8 @@ CLDNNGraph::CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id)
         , m_program(graph->m_program)
         , m_networkName(graph->m_networkName)
         , m_config(graph->m_config)
-        , m_stream_id(stream_id) {
+        , m_stream_id(stream_id)
+        , m_state(0) {
     Build();
 }
 
@@ -466,11 +468,11 @@ void CLDNNGraph::UpdatePerfStatistics() {
             using duration_t = std::chrono::duration<long long, std::chrono::microseconds::period>;
             auto count = std::chrono::duration_cast<duration_t>(interval.value->value()).count();
 
-            if (interval.name == "submission") {
+            if (interval.stage == cldnn::instrumentation::profiling_stage::submission) {
                 pc.cpu_uSec += count;
-            } else if (interval.name == "executing") {
+            } else if (interval.stage == cldnn::instrumentation::profiling_stage::executing) {
                 pc.realTime_uSec += count;
-            } else if (interval.name == "duration") {  // "duration" is used for CPU layers
+            } else if (interval.stage == cldnn::instrumentation::profiling_stage::duration) {  // "duration" is used for CPU layers
                 pc.cpu_uSec += count;
 
                 if (pc.num == 0)
@@ -673,11 +675,11 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::G
                 using duration_t = std::chrono::duration<long long, std::chrono::microseconds::period>;
                 auto count = std::chrono::duration_cast<duration_t>(interval.value->value()).count();
 
-                if (interval.name == "submission") {
+                if (interval.stage == cldnn::instrumentation::profiling_stage::submission) {
                     cpuTime += count;
-                } else if (interval.name == "executing") {
+                } else if (interval.stage == cldnn::instrumentation::profiling_stage::executing) {
                     deviceTime += count;
-                } else if (interval.name == "duration") {  // "duration" is used for CPU layers
+                } else if (interval.stage == cldnn::instrumentation::profiling_stage::duration) {  // "duration" is used for CPU layers
                     cpuTime += count;
                 }
             }

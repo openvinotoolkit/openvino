@@ -127,6 +127,7 @@ void FqConvFqAffineTest::SetUp() {
     auto matmul = std::make_shared<ngraph::opset1::MatMul>(reshape2, matMulWeightsFQ, false, true);
 
     function = std::make_shared<ngraph::Function>(matmul, params, "fqConvfqAffine");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 InferenceEngine::Blob::Ptr FqConvFqAffineTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
