@@ -333,6 +333,7 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_38722,
+        "OnnxBackendNodeModelTest.test_matmulinteger_cpu",
         "OnnxBackendNodeModelTest.test_qlinearmatmul_2D_cpu",
         "OnnxBackendNodeModelTest.test_qlinearmatmul_3D_cpu",
     ),
