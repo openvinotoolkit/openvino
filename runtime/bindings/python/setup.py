@@ -74,6 +74,7 @@ for super_class in [_build, _install, _develop]:
             ("jobs=", None, "Specifies the number of jobs to use with make."),
             ("cmake-args=", None, "Additional options to be passed to CMake.")
         ]
+
         def initialize_options(self):
             """Set default values for all the options that this command supports."""
             super().initialize_options()
