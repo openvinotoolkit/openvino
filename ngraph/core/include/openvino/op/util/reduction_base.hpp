@@ -26,10 +26,11 @@ protected:
     /// \param[in] keep_dims    Reduction operation keeps dimensions.
     ///
     /// \return Partial shape of the output.
-    Shape infer_reduction_output_shape(const bool keep_dims);
+    PartialShape infer_reduction_output_shape(const bool keep_dims);
 
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ReductionBase", "util");
+    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace util
 }  // namespace op

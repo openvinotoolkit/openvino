@@ -97,7 +97,7 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
 
     // 1. Serialize
     CNNNetwork net(network);
-    ngraph::pass::Serialize serializer(xml, bin, ngraph::pass::Serialize::Version::IR_V10);
+    ngraph::pass::Serialize serializer(xml, bin);
     serializer.run_on_function(net.getFunction());
 
     // 2. Compute hash on serialized data and options
@@ -123,9 +123,8 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
             } else if (auto fNames =
                            std::dynamic_pointer_cast<ngraph::VariantWrapper<ngraph::FusedNames>>(rtMapData.second)) {
                 seed = hash_combine(seed, fNames->get().getNames());
-            } else if (auto prim = std::dynamic_pointer_cast<ngraph::VariantWrapper<ngraph::PrimitivesPriority>>(
-                           rtMapData.second)) {
-                seed = hash_combine(seed, prim->get().getPrimitivesPriority());
+            } else if (auto prim = std::dynamic_pointer_cast<ov::PrimitivesPriority>(rtMapData.second)) {
+                seed = hash_combine(seed, prim->get());
             }
         }
     }

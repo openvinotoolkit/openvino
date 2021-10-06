@@ -12,4 +12,8 @@ TEST_P(SplitConvConcat, CompareWithRefImpl) {
     Run();
 };
 
+TEST_P(SplitConvConcat, QueryNetwork) {
+    QueryNetwork();
+}
+
 }  // namespace SubgraphTestsDefinitions

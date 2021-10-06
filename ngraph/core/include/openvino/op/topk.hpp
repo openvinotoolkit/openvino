@@ -16,7 +16,8 @@ namespace v1 {
 ///        for each slice along specified axis.
 class OPENVINO_API TopK : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("TopK", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     using SortType = TopKSortType;
     using Mode = TopKMode;
@@ -105,9 +106,9 @@ protected:
 
     template <typename T>
     size_t validate_and_get_k(const std::shared_ptr<op::v0::Constant>& k_constant) const;
-    StaticShape compute_output_shape(const std::string& node_description,
-                                     const Shape input_partial_shape,
-                                     const int64_t k) const;
+    Shape compute_output_shape(const std::string& node_description,
+                               const PartialShape input_partial_shape,
+                               const int64_t k) const;
     void set_axis(const Rank input_rank, const int64_t axis);
 };
 }  // namespace v1
@@ -117,7 +118,8 @@ namespace v3 {
 ///        for each slice along specified axis.
 class OPENVINO_API TopK : public v1::TopK {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("TopK", "opset3", op::Op, 3);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a TopK operation
     TopK() = default;
     /// \brief Constructs a TopK operation with two outputs: values and indices.

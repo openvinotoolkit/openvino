@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/preprocess/resize_algorithm.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov {
@@ -71,6 +72,20 @@ public:
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
     PreProcessSteps&& scale(float value) &&;
 
+    /// \brief Add scale preprocess operation - Lvalue version
+    ///
+    /// \param values Scaling values. Layout runtime info with channels dimension must be specified for input tensor
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    PreProcessSteps& scale(const std::vector<float>& values) &;
+
+    /// \brief Add scale preprocess operation - Rvalue version
+    ///
+    /// \param values Scaling values. Layout runtime info with channels dimension must be specified for input tensor
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
+    PreProcessSteps&& scale(const std::vector<float>& values) &&;
+
     /// \brief Add mean preprocess operation - Lvalue version
     /// Subtract specified value from each element of input
     ///
@@ -86,6 +101,20 @@ public:
     ///
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
     PreProcessSteps&& mean(float value) &&;
+
+    /// \brief Add mean preprocess operation - Lvalue version
+    ///
+    /// \param values Mean values. Layout runtime info with channels dimension must be specified for input tensor
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    PreProcessSteps& mean(const std::vector<float>& values) &;
+
+    /// \brief Add mean preprocess operation - Rvalue version
+    ///
+    /// \param values Mean values. Layout runtime info with channels dimension must be specified for input tensor
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
+    PreProcessSteps&& mean(const std::vector<float>& values) &&;
 
     /// \brief Signature for custom preprocessing operation. Custom preprocessing operation takes one input node and
     /// produces one output node. For more advanced cases, client's code can use transformation passes over ov::Function
@@ -111,6 +140,73 @@ public:
     ///
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
     PreProcessSteps&& custom(const CustomPreprocessOp& preprocess_cb) &&;
+
+    /// \brief Add resize operation to known dimensions - Lvalue version.
+    ///
+    /// \param alg Resize algorithm.
+    ///
+    /// \param dst_height Desired height of resized image.
+    ///
+    /// \param dst_width Desired width of resized image.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps& resize(ResizeAlgorithm alg, size_t dst_height, size_t dst_width) &;
+
+    /// \brief Add resize operation to known dimensions - Rvalue version.
+    ///
+    /// \param alg Resize algorithm.
+    ///
+    /// \param dst_height Desired height of resized image.
+    ///
+    /// \param dst_width Desired width of resized image.
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps&& resize(ResizeAlgorithm alg, size_t dst_height, size_t dst_width) &&;
+
+    /// \brief Add resize operation to network dimensions - Lvalue version.
+    ///
+    /// \param alg Resize algorithm.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps& resize(ResizeAlgorithm alg) &;
+
+    /// \brief Add resize operation to network dimensions - Rvalue version.
+    ///
+    /// \param alg Resize algorithm.
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps&& resize(ResizeAlgorithm alg) &&;
+
+    /// \brief Add 'convert layout' operation to specified layout - Lvalue version.
+    ///
+    /// \details Adds appropriate 'transpose' operation between user layout and target layout.
+    /// Current implementation requires source and destination layout to have same number of dimensions
+    ///
+    /// \example Example: when user data has 'NHWC' layout (example is RGB image, [1, 224, 224, 3]) but network expects
+    /// planar input image ('NCHW', [1, 3, 224, 224]). Preprocessing may look like this:
+    ///
+    /// \code{.cpp} auto proc =
+    /// PrePostProcessor()
+    ///     .input(InputInfo()
+    ///            .tensor(InputTensorInfo().set_layout("NHWC")) // User data is NHWC
+    ///            .preprocess(PreProcessSteps()
+    ///                        .convert_layout("NCHW")) // Network expects input as NCHW
+    ///     );
+    /// \endcode
+    ///
+    /// \param dst_layout New layout after conversion. If not specified - destination layout is obtained from
+    /// appropriate network input properties.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps& convert_layout(const Layout& dst_layout = {}) &;
+
+    /// \brief Add resize operation to network dimensions - Rvalue version.
+    ///
+    /// \param dst_layout New layout after conversion. If not specified - destination layout is obtained from
+    /// appropriate network input properties.
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps&& convert_layout(const Layout& dst_layout = {}) &&;
 };
 
 }  // namespace preprocess

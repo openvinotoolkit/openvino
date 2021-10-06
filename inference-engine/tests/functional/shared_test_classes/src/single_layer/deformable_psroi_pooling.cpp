@@ -127,5 +127,6 @@ namespace LayerTestsDefinitions {
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(defomablePSROIPooling)};
         function = std::make_shared<ngraph::Function>(results, params, "deformable_psroi_pooling");
+        functionRefs = ngraph::clone_function(*function);
     }
 }  // namespace LayerTestsDefinitions

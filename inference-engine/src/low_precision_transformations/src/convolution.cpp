@@ -13,6 +13,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
+#include <transformations/rt_info/disable_constant_folding.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -309,7 +310,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
     std::shared_ptr<ngraph::opset1::Multiply> finalDequantization = NetworkHelper::optimizeMultipliesAfter(
         convolution->output(0).get_target_inputs().begin()->get_node()->shared_from_this());
-    copy_runtime_info({ convolution, finalDequantization }, finalDequantization);
+    ngraph::copy_runtime_info({ convolution, finalDequantization }, finalDequantization);
     updateOutput(context, finalDequantization, convolution);
 
     // [C, 1, 1] -> [1, C, 1, 1]
@@ -321,8 +322,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     }
 
     if (ov::is_type<opset1::Subtract>(onWeights)) {
-        auto& rt = onWeights->get_rt_info();
-        rt["DISABLED_CONSTANT_FOLDING"] = std::make_shared<ngraph::VariantWrapper<std::string>>("");
+        ov::disable_constant_folding(onWeights);
     }
     return true;
 }

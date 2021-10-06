@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/layout.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov {
@@ -52,10 +53,70 @@ public:
     /// \brief Set element type for user's input tensor
     /// This version allows chaining for Rvalue objects
     ///
-    /// \param builder Pre-processing data for input tensor of model.
+    /// \param type Element type for user's input tensor.
     ///
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
     InputTensorInfo&& set_element_type(const ov::element::Type& type) &&;
+
+    /// \brief Set layout for user's input tensor
+    /// This version allows chaining for Lvalue objects
+    ///
+    /// \param layout Layout for user's input tensor.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    InputTensorInfo& set_layout(const ov::Layout& layout) &;
+
+    /// \brief Set layout for user's input tensor
+    /// This version allows chaining for Rvalue objects
+    ///
+    /// \param layout Layout for user's input tensor.
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
+    InputTensorInfo&& set_layout(const ov::Layout& layout) &&;
+
+    /// \brief By default, input image shape is inherited from network input shape. This method specifies that user's
+    /// input image has dynamic spatial dimensions (width & height). This can be useful for adding resize preprocessing
+    /// from any input image to network's expected dimensions.
+    ///
+    /// This version allows chaining for Lvalue objects.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    InputTensorInfo& set_spatial_dynamic_shape() &;
+
+    /// \brief By default, input image shape is inherited from network input shape. This method specifies that user's
+    /// input image has dynamic spatial dimensions (width & height). This can be useful for adding resize preprocessing
+    /// from any input image to network's expected dimensions.
+    ///
+    /// This version allows chaining for Rvalue objects.
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
+    InputTensorInfo&& set_spatial_dynamic_shape() &&;
+
+    /// \brief By default, input image shape is inherited from network input shape. Use this method to specify different
+    /// width and height of user's input image. In case if input image size is not known, use
+    /// `set_spatial_dynamic_shape` method.
+    ///
+    /// This version allows chaining for Lvalue objects.
+    ///
+    /// \param height Set fixed user's input image height.
+    ///
+    /// \param width Set fixed user's input image width.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    InputTensorInfo& set_spatial_static_shape(size_t height, size_t width) &;
+
+    /// \brief By default, input image shape is inherited from network input shape. Use this method to specify different
+    /// width and height of user's input image. In case if input image size is not known, use
+    /// `set_spatial_dynamic_shape` method.
+    ///
+    /// This version allows chaining for Rvalue objects.
+    ///
+    /// \param height Set fixed user's input image height.
+    ///
+    /// \param width Set fixed user's input image width.
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
+    InputTensorInfo&& set_spatial_static_shape(size_t height, size_t width) &&;
 };
 
 }  // namespace preprocess

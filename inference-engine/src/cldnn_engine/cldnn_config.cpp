@@ -15,11 +15,11 @@
 
 #ifdef _WIN32
 # include <direct.h>
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 # define mkdir(dir, mode) _wmkdir(dir)
 #else
 # define mkdir(dir, mode) _mkdir(dir)
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #endif  // _WIN32
 
 using namespace InferenceEngine;
@@ -27,8 +27,8 @@ using namespace InferenceEngine;
 namespace CLDNNPlugin {
 
 static void createDirectory(std::string _path) {
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widepath = FileUtils::multiByteCharToWString(_path.c_str());
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    std::wstring widepath = ov::util::string_to_wstring(_path.c_str());
     const wchar_t* path = widepath.c_str();
 #else
     const char* path = _path.c_str();
@@ -46,8 +46,10 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
     for (auto& kvp : configMap) {
         std::string key = kvp.first;
         std::string val = kvp.second;
-
-        if (key.compare(PluginConfigParams::KEY_PERF_COUNT) == 0) {
+        const auto hints = perfHintsConfig.SupportedKeys();
+        if (hints.end() != std::find(hints.begin(), hints.end(), key)) {
+            perfHintsConfig.SetConfig(key, val);
+        } else if (key.compare(PluginConfigParams::KEY_PERF_COUNT) == 0) {
             if (val.compare(PluginConfigParams::YES) == 0) {
                 useProfiling = true;
             } else if (val.compare(PluginConfigParams::NO) == 0) {
@@ -283,10 +285,13 @@ void Config::adjustKeyMapValues() {
     else
         key_config_map[PluginConfigParams::KEY_DYN_BATCH_ENABLED] = PluginConfigParams::NO;
 
-    if (nv12_two_inputs)
+    if (nv12_two_inputs) {
         key_config_map[CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS] = PluginConfigParams::YES;
-    else
+        key_config_map[GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS] = PluginConfigParams::YES;
+    } else {
         key_config_map[CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS] = PluginConfigParams::NO;
+        key_config_map[GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS] = PluginConfigParams::NO;
+    }
 
     if (enable_fp16_for_quantized_models)
         key_config_map[CLDNNConfigParams::KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS] = PluginConfigParams::YES;
@@ -341,6 +346,9 @@ void Config::adjustKeyMapValues() {
         key_config_map[GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING] = PluginConfigParams::YES;
     else
         key_config_map[GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING] = PluginConfigParams::NO;
+    key_config_map[PluginConfigParams::KEY_PERFORMANCE_HINT]= perfHintsConfig.ovPerfHint;
+    key_config_map[PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS] =
+        std::to_string(perfHintsConfig.ovPerfHintNumRequests);
 }
 IE_SUPPRESS_DEPRECATED_END
 

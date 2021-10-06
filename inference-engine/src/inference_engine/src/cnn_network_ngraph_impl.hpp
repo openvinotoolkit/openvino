@@ -40,7 +40,8 @@ IE_SUPPRESS_DEPRECATED_START
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkNGraphImpl) final : public ICNNNetwork {
 public:
     CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph,
-                         const std::vector<IExtensionPtr>& exts = {});
+                         const std::vector<IExtensionPtr>& exts = {},
+                         bool newAPI = false);
     CNNNetworkNGraphImpl(const CNNNetwork& nGraph);
 
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
@@ -72,8 +73,7 @@ public:
 
     virtual void validate(int = 10);
 
-    StatusCode reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
-                       ResponseDesc* resp) noexcept override;
+    StatusCode reshape(const std::map<std::string, SizeVector>& inputShapes, ResponseDesc* resp) noexcept override;
     StatusCode reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes,
                        ResponseDesc* resp) noexcept override;
 
@@ -98,6 +98,7 @@ private:
     std::map<std::string, DataPtr> _outputData;
     const std::vector<IExtensionPtr> _ie_extensions;
     std::unordered_map<std::string, std::string> _tensorNames;
+    bool _new_api = false;
 
     /**
      * @brief Create DataPtr for nGraph operation

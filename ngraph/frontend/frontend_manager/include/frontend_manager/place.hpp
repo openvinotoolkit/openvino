@@ -103,7 +103,7 @@ public:
     ///
     /// \return A vector with all operation node references that consumes data from this
     /// place
-    virtual std::vector<Ptr> get_consuming_operations(const std::string& outputPortName) const;
+    virtual std::vector<Ptr> get_consuming_operations(const std::string& outputName) const;
 
     /// \brief Returns references to all operation nodes that consume data from this place
     /// for specified output port
@@ -127,16 +127,14 @@ public:
     /// \return A tensor place which hold the resulting value for this place
     virtual Ptr get_target_tensor() const;
 
-    /// \brief Returns a tensor place that gets data from this place; applicable for
-    /// operations, output ports and output edges which have only one output port
+    /// \brief Returns a tensor place that gets data from this place; applicable for operations
     ///
     /// \param outputName Name of output port group
     ///
     /// \return A tensor place which hold the resulting value for this place
     virtual Ptr get_target_tensor(const std::string& outputName) const;
 
-    /// \brief Returns a tensor place that gets data from this place; applicable for
-    /// operations, output ports and output edges which have only one output port
+    /// \brief Returns a tensor place that gets data from this place; applicable for operations
     ///
     /// \param outputName Name of output port group, each group can have multiple ports
     ///
@@ -146,8 +144,7 @@ public:
     /// \return A tensor place which hold the resulting value for this place
     virtual Ptr get_target_tensor(const std::string& outputName, int outputPortIndex) const;
 
-    /// \brief Returns a tensor place that gets data from this place; applicable for
-    /// operations, output ports and output edges
+    /// \brief Returns a tensor place that gets data from this place; applicable for operations
     ///
     /// \param output_port_index Output port index if the current place is an operation node
     /// and has multiple output ports
@@ -161,24 +158,21 @@ public:
     /// \return A tensor place which supplies data for this place
     virtual Ptr get_source_tensor() const;
 
-    /// \brief Returns a tensor place that supplies data for this place; applicable for
-    /// operations, input ports and input edges
+    /// \brief Returns a tensor place that supplies data for this place; applicable for operations
     ///
     /// \param input_port_index Input port index for operational nodes.
     ///
     /// \return A tensor place which supplies data for this place
     virtual Ptr get_source_tensor(int input_port_index) const;
 
-    /// \brief Returns a tensor place that supplies data for this place; applicable for
-    /// operations, input ports and input edges
+    /// \brief Returns a tensor place that supplies data for this place; applicable for operations
     ///
     /// \param inputName Name of input port group
     ///
     /// \return A tensor place which supplies data for this place
     virtual Ptr get_source_tensor(const std::string& inputName) const;
 
-    /// \brief Returns a tensor place that supplies data for this place; applicable for
-    /// operations, input ports and input edges
+    /// \brief Returns a tensor place that supplies data for this place; applicable for operations
     ///
     /// \param inputName If a given place is itself an operation node, this specifies name
     /// of output port group, each group can have multiple ports

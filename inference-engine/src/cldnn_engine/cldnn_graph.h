@@ -30,6 +30,11 @@ namespace CLDNNPlugin {
 
 class CLDNNGraph {
 public:
+    enum class Stage : uint32_t {
+        PREPROC = 1,
+        EXECUTE = 2,
+        POSTPROC = 4
+    };
     typedef std::shared_ptr<CLDNNGraph> Ptr;
 
     CLDNNGraph(InferenceEngine::CNNNetwork& network, InferenceEngine::gpu::ClContext::Ptr context, Config config, uint16_t stream_id = 0);
@@ -51,18 +56,32 @@ public:
     InferenceEngine::SizeVector GetOutputSize(std::string outName) const;
     std::string MapOutputName(std::string outName) const;
     std::string getName() const { return m_networkName; }
-    std::mutex& get_mutex() { return m_infer_mutex; }
+    void wait(Stage stage_mask) {
+        std::unique_lock<std::mutex> lock(m_infer_mutex);
+        m_cv.wait(lock, [&] {
+            return (m_state & (uint32_t)stage_mask) == 0;
+        });
+        m_state |= (uint32_t)stage_mask;
+    }
+    void notify(Stage stage_mask) {
+        {
+            std::lock_guard<std::mutex> lock(m_infer_mutex);
+            m_state &= ~(uint32_t)stage_mask;
+        }
+        m_cv.notify_one();
+    }
 
 protected:
+    uint32_t m_state;
+    std::condition_variable m_cv;
     std::mutex m_infer_mutex;
+
     std::string m_networkName;
     Config m_config;
 
     InferenceEngine::gpu::ClContext::Ptr m_context;
     std::vector<std::shared_ptr<cldnn::network>> m_networks;
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
-    std::map<cldnn::primitive_id, std::vector<std::string>> primitivesToIRLayersMap;
-    std::map<cldnn::primitive_id, std::string> IRToNgraphLayersMap;
     std::map<std::string, std::vector<cldnn::primitive_id>> prevPrimitiveIDs;
 
     std::map<cldnn::primitive_id, std::pair<std::string, PerfCounter>> perfMap;

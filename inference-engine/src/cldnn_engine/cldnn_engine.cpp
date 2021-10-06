@@ -32,7 +32,6 @@
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
-#include "transformations/common_optimizations/softmax_fusion.hpp"
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
@@ -64,6 +63,7 @@
 #include <transformations/op_conversions/convert_gather_0d.hpp>
 #include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
+#include "transformations/op_conversions/softmax_decomposition.hpp"
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -333,9 +333,10 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                     return false;
                 });
 
-            pass_config->set_callback<ngraph::pass::SoftmaxFusion>(
+            pass_config->enable<ngraph::pass::SoftmaxDecomposition>();
+            pass_config->set_callback<ngraph::pass::SoftmaxDecomposition>(
                 [](const_node_ptr &node) -> bool {
-                    return node->input_value(0).get_partial_shape().rank().get_length() > 5;
+                    return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
                 });
 
             // List of enabled/disabled transformations
@@ -484,7 +485,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
-        clonedNetwork.serialize(debug_config->dump_graphs + "/transformed_func.xml");
+        clonedNetwork.serialize(debug_config->dump_graphs + "/" + network.getName() + "_" +  "transformed_func.xml");
     }
     return clonedNetwork;
 }
@@ -553,14 +554,44 @@ void clDNNEngine::UpdateConfig(CLDNNPlugin::Config& conf, const InferenceEngine:
     }
 }
 
+std::map<std::string, std::string> clDNNEngine::ConvertPerfHintsToConfig(
+        const std::map<std::string, std::string>& network_config,
+        const CLDNNPlugin::Config& plugin_config) const {
+    // deduces the actual settings from the performance hints and returns fully-defined config
+    auto config = network_config;
+    const auto &mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
+    // the mode may have just arrived to the LoadNetwork, or was set with the plugins' SetConfig
+    if (mode != config.end() || !plugin_config.perfHintsConfig.ovPerfHint.empty()) {
+        const auto mode_name = (mode != config.end())
+                               ? PerfHintsConfig::CheckPerformanceHintValue(mode->second)
+                               : plugin_config.perfHintsConfig.ovPerfHint;
+        //checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
+        const auto streams = config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS);
+        if (streams == config.end() && !streamsSet) {
+            if (mode_name == CONFIG_VALUE(LATENCY)) {
+                config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(1);
+            } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
+                config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
+                //checking throttling (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
+                const auto bInConfig = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||
+                    config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end();
+                if (!bInConfig && !throttlingSet)
+                    config[GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE] = std::to_string(1);
+            }
+        }
+    }
+    return config;
+}
+
 IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                                const std::map<std::string, std::string> &config) {
+                                                                const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl");
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
 
     CLDNNPlugin::Config conf = _impl->m_config;
+    auto config = ConvertPerfHintsToConfig(orig_config, conf);
     UpdateConfig(conf, network, config);
 
     CLDNNRemoteCLContext::Ptr context;
@@ -605,8 +636,8 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
 }
 
 IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                                const IRemoteContext::Ptr &context,
-                                                                const std::map<std::string, std::string> &config) {
+                                                                const RemoteContext::Ptr &context,
+                                                                const std::map<std::string, std::string> &orig_config) {
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
 
@@ -616,13 +647,14 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
     }
 
     CLDNNPlugin::Config conf = getContextImpl(casted)->GetConfig();
+    auto config = ConvertPerfHintsToConfig(orig_config, conf);
     UpdateConfig(conf, network, config);
 
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
     return std::make_shared<CLDNNExecNetwork>(transformedNetwork, casted, conf);
 }
 
-IRemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
+RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
     // parameter map is non-empty
     std::string contextTypeStr = _StrFromParams(params, GPU_PARAM_KEY(CONTEXT_TYPE));
 
@@ -639,7 +671,7 @@ IRemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
     }
 }
 
-IRemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
+RemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
     if (nullptr == m_defaultContext) {
         m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), params, _impl->m_config));
     }
@@ -647,6 +679,9 @@ IRemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
 }
 
 void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
+    streamsSet = (config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) != config.end());
+    throttlingSet = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||
+            config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end();
     _impl->m_config.UpdateFromMap(config);
 }
 

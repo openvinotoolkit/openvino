@@ -85,7 +85,7 @@ The sample application logs each step in a standard output stream and outputs to
 
 ```
 [ INFO ] Creating Inference Engine
-[ INFO ] Loading the network using ngraph function with weights from c:\openvino\deployment_tools\inference_engine\samples\python\ngraph_function_creation_sample\lenet.bin
+[ INFO ] Loading the network using ngraph function with weights from c:\openvino\samples\python\ngraph_function_creation_sample\lenet.bin
 [ INFO ] Configuring input and output blobs
 [ INFO ] Loading the model to the plugin
 [ WARNING ] Image c:\images\3.png is inverted to white over black

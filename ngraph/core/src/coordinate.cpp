@@ -40,4 +40,4 @@ ov::Coordinate& ov::Coordinate::operator=(Coordinate&& v) noexcept {
     return *this;
 }
 
-constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<ov::Coordinate>::type_info;
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::Coordinate>);
