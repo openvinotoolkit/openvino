@@ -5,7 +5,7 @@
 #include "pyopenvino/core/ie_core.hpp"
 
 namespace py = pybind11;
-using namespace ov;
+
 using ConfigMap = std::map<std::string, std::string>;
 
 std::string to_string(py::handle handle) {
@@ -51,7 +51,7 @@ void regclass_Core(py::module m) {
         py::arg("extension_path"));
 
     cls.def("get_versions",
-            (std::map<std::string, ie::Version>(ov::runtime::Core::*)(const std::string&)) &
+            (std::map<std::string, ov::ie::Version>(ov::runtime::Core::*)(const std::string&)) &
                 ov::runtime::Core::get_versions,
             py::arg("device_name"));
 

@@ -45,9 +45,9 @@ path_to_img = image_path()
 
 def test_get_perf_counts(device):
     ie_core = Core()
-    net = ie_core.read_network(test_net_xml, test_net_bin)
+    net = ie_core.read_model(test_net_xml, test_net_bin)
     ie_core.set_config({"PERF_COUNT": "YES"}, device)
-    exec_net = ie_core.load_network(net, device)
+    exec_net = ie_core.compile_model(net, device)
     img = read_image()
     request = exec_net.create_infer_request()
     td = TensorDesc("FP32", [1, 3, 32, 32], "NCHW")
@@ -69,10 +69,10 @@ def test_get_perf_counts(device):
 def test_set_batch_size(device):
     ie_core = Core()
     ie_core.set_config({"DYN_BATCH_ENABLED": "YES"}, device)
-    net = ie_core.read_network(test_net_xml, test_net_bin)
+    net = ie_core.read_model(test_net_xml, test_net_bin)
     net.batch_size = 10
     data = np.ones(shape=net.input_info["data"].input_data.shape)
-    exec_net = ie_core.load_network(net, device)
+    exec_net = ie_core.compile_model(net, device)
     data[0] = read_image()[0]
     request = exec_net.create_infer_request()
     request.set_batch(1)
@@ -90,8 +90,8 @@ def test_set_batch_size(device):
 @pytest.mark.skip(reason="Fix")
 def test_set_zero_batch_size(device):
     ie_core = Core()
-    net = ie_core.read_network(test_net_xml, test_net_bin)
-    exec_net = ie_core.load_network(net, device)
+    net = ie_core.read_model(test_net_xml, test_net_bin)
+    exec_net = ie_core.compile_model(net, device)
     request = exec_net.create_infer_request()
     with pytest.raises(ValueError) as e:
         request.set_batch(0)
@@ -104,8 +104,8 @@ def test_set_zero_batch_size(device):
 @pytest.mark.skip(reason="Fix")
 def test_set_negative_batch_size(device):
     ie_core = Core()
-    net = ie_core.read_network(test_net_xml, test_net_bin)
-    exec_net = ie_core.load_network(net, device)
+    net = ie_core.read_model(test_net_xml, test_net_bin)
+    exec_net = ie_core.compile_model(net, device)
     request = exec_net.create_infer_request()
     with pytest.raises(ValueError) as e:
         request.set_batch(-1)
@@ -117,11 +117,11 @@ def test_set_negative_batch_size(device):
 
 def test_blob_setter(device):
     ie_core = Core()
-    net = ie_core.read_network(test_net_xml, test_net_bin)
-    exec_net_1 = ie_core.load_network(network=net, device_name=device)
+    net = ie_core.read_model(test_net_xml, test_net_bin)
+    exec_net_1 = ie_core.compile_model(network=net, device_name=device)
 
     net.input_info["data"].layout = "NHWC"
-    exec_net_2 = ie_core.load_network(network=net, device_name=device)
+    exec_net_2 = ie_core.compile_model(network=net, device_name=device)
 
     img = read_image()
 
@@ -144,8 +144,8 @@ def test_blob_setter(device):
 
 def test_cancel(device):
     ie_core = Core()
-    net = ie_core.read_network(test_net_xml, test_net_bin)
-    exec_net = ie_core.load_network(net, device)
+    net = ie_core.read_model(test_net_xml, test_net_bin)
+    exec_net = ie_core.compile_model(net, device)
     img = read_image()
     td = TensorDesc("FP32", [1, 3, 32, 32], "NCHW")
     input_blob = Blob(td, img)
