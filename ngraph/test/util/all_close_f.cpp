@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "util/all_close_f.hpp"
+#include "all_close_f.hpp"
 
 #include <climits>
 #include <cmath>

@@ -73,6 +73,7 @@ namespace SubgraphTestsDefinitions {
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(FQ)};
         function = std::make_shared<ngraph::Function>(results, params, "ActivationFakeQuantizeSubgraph");
+        functionRefs = ngraph::clone_function(*function);
     }
 
 InferenceEngine::Blob::Ptr ActivationFakeQuantizeSubgraphTest::GenerateInput(const InferenceEngine::InputInfo &info) const {

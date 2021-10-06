@@ -10,6 +10,9 @@
 #include <random>
 #include <string>
 
+#include "engines_util/execute_tools.hpp"
+#include "engines_util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/ngraph.hpp"
@@ -17,11 +20,8 @@
 #include "runtime/backend.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
-#include "util/engine/test_engines.hpp"
 #include "util/ndarray.hpp"
-#include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 

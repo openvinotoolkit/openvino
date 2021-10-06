@@ -1080,6 +1080,12 @@ IE_CPU.onnx_constant_sparse_tensor_double_3x4
 IE_CPU.onnx_constant_sparse_tensor_int16_3x4
 IE_CPU.onnx_constant_sparse_tensor_uint16_3x4
 
+# 48230
+# Some slight accuracy diviations after recent MatMul changes
+# (for CPU plugin gru_cell with clip decomposes into MatMuls)
+# Fix or increase threshold
+IE_CPU.gru_cell_bias_clip
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes
@@ -1572,3 +1578,6 @@ IE_GPU.deformable_convolution_opset8_2D_integral_offsets_groups_and_deforgroups
 
 # Not yet implemented - refer PR#6601
 IE_CPU.onnx_model_gather_float_2D_neg_indices
+
+# CPU plug-in doesn't support operation with dynamic rank
+onnx_model_skip_layer_normalization_dynamic_shapes

@@ -42,5 +42,8 @@ protected:
 
     KernelsData GetMultiStageKernelsData(const mvn_params& params, const optional_params&) const;
     MultiDispatchData SetDefaultForMulti(const mvn_params& params) const;
+
+private:
+    Datatype GetAccumulatorType(const mvn_params& params) const;
 };
 }  // namespace kernel_selector

@@ -75,7 +75,7 @@ void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMg
 
     status = Ready;
 
-    ENABLE_CPU_DEBUG_CAP(serialize(*this));
+    CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
 template void MKLDNNGraph::CreateGraph(const std::shared_ptr<const ngraph::Function>&,
@@ -219,8 +219,10 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
             const auto inInfo = inputsInfo.find(node->getName());
             if (inInfo != inputsInfo.end()) {
                 inputNodesMap[node->getName()] = node;
+                IE_SUPPRESS_DEPRECATED_START
                 if (inInfo->second->getInputData()->isDynamic())
                     graphHasDynamicInput = true;
+                IE_SUPPRESS_DEPRECATED_END
             }
         }
 
@@ -318,7 +320,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
 void MKLDNNGraph::InitGraph() {
     MKLDNNGraphOptimizer optimizer;
-    ENABLE_CPU_DEBUG_CAP(initNodeDumper(config.debugCaps));
+    CPU_DEBUG_CAP_ENABLE(initNodeDumper(config.debugCaps));
 
     SortTopologically();
     InitNodes();
@@ -395,7 +397,12 @@ void MKLDNNGraph::ExtractConstantAndExecutableNodes() {
     for (const auto& graphNode : graphNodes) {
         if (graphNode->isConstant())
             constantGraphNodes.emplace_back(graphNode);
-        else if (graphNode->isExecutable())
+        else if (CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable()))
+            /* @todo
+             * Revise implementation.
+             * With current way it is possible that with debug_caps enabled
+             * we execute a node, which is not ready to be executed
+             */
             executableGraphNodes.emplace_back(graphNode);
     }
 }
