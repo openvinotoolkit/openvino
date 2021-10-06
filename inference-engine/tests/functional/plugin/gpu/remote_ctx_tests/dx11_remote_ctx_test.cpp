@@ -103,7 +103,7 @@ protected:
     }
 };
 
-TEST_F(DX11RemoteCtx_Test, create_ctx) {
+TEST_F(DX11RemoteCtx_Test, smoke_make_shared_context) {
     auto ie = InferenceEngine::Core();
 
     for (auto adapter : intel_adapters) {
