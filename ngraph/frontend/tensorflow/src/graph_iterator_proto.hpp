@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <fstream>
 #include <tensorflow_frontend/decoder.hpp>
 #include <tensorflow_frontend/graph_iterator.hpp>
 
@@ -17,18 +18,19 @@ namespace tf {
 class GraphIteratorProto : public GraphIterator {
     std::vector<const ::tensorflow::NodeDef*> m_nodes;
     size_t node_index = 0;
+    std::shared_ptr<::tensorflow::GraphDef> m_graph_def;
 
 public:
-    GraphIteratorProto(const ::tensorflow::GraphDef* _graph) {
-        m_nodes.resize(_graph->node_size());
-        for (size_t i = 0; i < m_nodes.size(); ++i)
-            m_nodes[i] = &_graph->node(i);
-    }
+    template <typename T>
+    GraphIteratorProto(const std::basic_string<T>& path) : m_graph_def(std::make_shared<::tensorflow::GraphDef>()) {
+        std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
 
-    GraphIteratorProto(const std::vector<std::shared_ptr<::tensorflow::NodeDef>>& _sorted_nodes) {
-        m_nodes.resize(_sorted_nodes.size());
+        FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");
+        FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(&pb_stream), "Model cannot be parsed");
+
+        m_nodes.resize(m_graph_def->node_size());
         for (size_t i = 0; i < m_nodes.size(); ++i)
-            m_nodes[i] = _sorted_nodes[i].get();
+            m_nodes[i] = &m_graph_def->node(i);
     }
 
     /// Set iterator to the start position

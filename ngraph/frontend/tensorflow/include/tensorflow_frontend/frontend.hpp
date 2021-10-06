@@ -5,21 +5,13 @@
 #pragma once
 
 #include <frontend_manager/frontend.hpp>
+#include <frontend_manager/input_model.hpp>
 #include <tensorflow_frontend/model.hpp>
 #include <tensorflow_frontend/utility.hpp>
 
-using namespace ngraph::frontend;
-
-namespace tf {
-class GraphDef;
-class NodeDef;
-namespace ngraph_bridge {
-class GraphIteratorProto;
-}
-}  // namespace tf
-
 namespace ngraph {
 namespace frontend {
+namespace tf {
 class TF_API FrontEndTF : public FrontEnd {
 public:
     FrontEndTF() {}
@@ -61,7 +53,14 @@ protected:
     bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override;
 
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override;
-};
 
+private:
+    static void translate_graph(const std::shared_ptr<InputModelTF>& model,
+                                const std::string& model_name,
+                                bool fail_fast,
+                                bool no_conversion,
+                                std::shared_ptr<ngraph::Function>& ng_function);
+};
+}  // namespace tf
 }  // namespace frontend
 }  // namespace ngraph

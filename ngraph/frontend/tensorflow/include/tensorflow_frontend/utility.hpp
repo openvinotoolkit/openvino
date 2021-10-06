@@ -46,14 +46,6 @@ namespace ngraph {
 namespace frontend {
 namespace tf {
 
-template <typename T>
-bool endsWith(const std::basic_string<T>& str, const std::basic_string<T>& suffix) {
-    if (str.length() >= suffix.length()) {
-        return (0 == str.compare(str.length() - suffix.length(), suffix.length(), suffix));
-    }
-    return false;
-}
-
 void extract_operation_name_and_port(const std::string& port_name,
                                      std::string& operation_name,
                                      size_t& port_index,
