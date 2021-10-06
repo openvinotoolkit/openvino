@@ -7,6 +7,7 @@ import pytest
 import warnings
 import threading
 from datetime import datetime
+import time
 
 from openvino.inference_engine import ie_api as ie
 from conftest import model_path, image_path
@@ -14,6 +15,19 @@ from conftest import model_path, image_path
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
 path_to_img = image_path()
+
+
+def create_function_with_memory(input_shape, data_type):
+    from ngraph.impl import Function, Type
+    import ngraph as ng
+    input_data = ng.parameter(input_shape, name="input_data", dtype=data_type)
+    rv = ng.read_value(input_data, "var_id_667")
+    add = ng.add(rv, input_data, name="MemoryAdd")
+    node = ng.assign(add, "var_id_667")
+    res = ng.result(add, "res")
+    func = Function(results=[res], sinks=[node], parameters=[input_data], name="name")
+    caps = Function.to_capsule(func)
+    return caps
 
 
 def read_image():
@@ -50,32 +64,6 @@ def test_output_blobs(device):
     executable_network = ie_core.load_network(net, device, num_requests=2)
     td = ie.TensorDesc("FP32", (1, 10), "NC")
     assert executable_network.requests[0].output_blobs['fc_out'].tensor_desc == td
-
-
-def test_inputs_deprecated(device):
-    ie_core = ie.IECore()
-    net = ie_core.read_network(test_net_xml, test_net_bin)
-    executable_network = ie_core.load_network(net, device, num_requests=2)
-    with warnings.catch_warnings(record=True) as w:
-        inputs = executable_network.requests[0].inputs
-    assert "'inputs' property of InferRequest is deprecated. " \
-           "Please instead use 'input_blobs' property." in str(w[-1].message)
-    del executable_network
-    del ie_core
-    del net
-
-
-def test_outputs_deprecated(device):
-    ie_core = ie.IECore()
-    net = ie_core.read_network(test_net_xml, test_net_bin)
-    executable_network = ie_core.load_network(net, device, num_requests=2)
-    with warnings.catch_warnings(record=True) as w:
-        outputs = executable_network.requests[0].outputs
-    assert "'outputs' property of InferRequest is deprecated. Please instead use 'output_blobs' property." in str(
-        w[-1].message)
-    del executable_network
-    del ie_core
-    del net
 
 
 def test_inputs_list(device):
@@ -362,7 +350,7 @@ def test_async_infer_callback_wait_in_callback(device):
             self.cv.release()
             status = self.request.wait(ie.WaitMode.RESULT_READY)
             assert status == ie.StatusCode.OK
-            assert self.status_code == ie.StatusCode.OK
+            assert self.status_code == ie.StatusCode.RESULT_NOT_READY
 
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
@@ -374,11 +362,27 @@ def test_async_infer_callback_wait_in_callback(device):
     del ie_core
 
 
+def test_async_infer_wait_while_callback_will_not_finish(device):
+    def callback(status, callback_status):
+        time.sleep(0.01)
+        callback_status['finished'] = True
+
+    ie_core = ie.IECore()
+    net = ie_core.read_network(test_net_xml, test_net_bin)
+    exec_net = ie_core.load_network(net, device, num_requests=1)
+    callback_status = {}
+    callback_status['finished'] = False
+    request = exec_net.requests[0]
+    request.set_completion_callback(callback, py_data=callback_status)
+    img = read_image()
+    request.async_infer({'data': img})
+    request.wait()
+    assert callback_status['finished'] == True
+
+
+@pytest.mark.ngraph_dependent_test
 def test_get_perf_counts(device):
     ie_core = ie.IECore()
-    if device == "CPU":
-        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-            pytest.skip("Can't run on ARM plugin due-to ngraph")
     net = ie_core.read_network(test_net_xml, test_net_bin)
     ie_core.set_config({"PERF_COUNT": "YES"}, device)
     exec_net = ie_core.load_network(net, device)
@@ -523,3 +527,278 @@ def test_resize_algorithm_work(device):
     res_2 = np.sort(request.output_blobs['fc_out'].buffer)
 
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal"])
+@pytest.mark.parametrize("data_type", ["FP32", "FP16", "I32"])
+@pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+                    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
+                    "Memory layers fully supported only on CPU")
+def test_query_state_write_buffer(device, input_shape, data_type, mode):
+    ie_core = ie.IECore()
+    if device == "CPU":
+        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin")
+
+    layout = ["C", "HW", "CHW", "NCHW"]
+
+    from openvino.inference_engine import TensorDesc, Blob, format_map
+
+    net = ie.IENetwork(create_function_with_memory(input_shape, format_map[data_type]))
+    ie_core = ie.IECore()
+    exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
+    request = exec_net.requests[0]
+    mem_states = request.query_state()
+    mem_state = mem_states[0]
+
+    assert mem_state.name == 'var_id_667'
+    # todo: Uncomment after fix 45611,
+    #  CPU plugin returns outputs and memory state in FP32 in case of FP16 original precision
+    #assert mem_state.state.tensor_desc.precision == data_type
+
+    for i in range(1, 10):
+        if mode == "set_init_memory_state":
+            # create initial value
+            const_init = 5
+            init_array = np.full(input_shape, const_init, dtype=format_map[mem_state.state.tensor_desc.precision])
+            tensor_desc = TensorDesc(mem_state.state.tensor_desc.precision, input_shape, layout[len(input_shape) - 1])
+            blob = Blob(tensor_desc, init_array)
+            mem_state.state = blob
+
+            res = exec_net.infer({"input_data": np.full(input_shape, 1, dtype=format_map[data_type])})
+            expected_res = np.full(input_shape, 1 + const_init, dtype=format_map[data_type])
+        elif mode == "reset_memory_state":
+            # reset initial state of ReadValue to zero
+            mem_state.reset()
+            res = exec_net.infer({"input_data": np.full(input_shape, 1, dtype=format_map[data_type])})
+
+            # always ones
+            expected_res = np.full(input_shape, 1, dtype=format_map[data_type])
+        else:
+            res = exec_net.infer({"input_data": np.full(input_shape, 1, dtype=format_map[data_type])})
+            expected_res = np.full(input_shape, i, dtype=format_map[data_type])
+
+        assert np.allclose(res['MemoryAdd'], expected_res, atol=1e-6), \
+            "Expected values: {} \n Actual values: {} \n".format(expected_res, res)
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+@pytest.mark.parametrize("shape, p_shape, ref_shape", [
+    ([1, 4, 20, 20], [-1, 4, 20, 20], [5, 4, 20, 20]),
+    ([1, 4, 20, 20], [(0,5), 4, 20, 20], [3, 4, 20, 20]),
+    ([1, 4, 20, 20], [(3,5), 4, 20, 20], [2, 4, 20, 20]),
+    ([1, 4, 20, 20], [(3,5), 4, 20, 20], [6, 4, 20, 20]),
+])
+def test_infer_dynamic_network_with_set_shape(shape, p_shape, ref_shape):
+    from conftest import create_encoder
+    import ngraph as ng
+    function = create_encoder(shape)
+    net = ng.function_to_cnn(function)
+    net.reshape({"data": p_shape})
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    exec_net.requests[0].input_blobs["data"].set_shape(ref_shape)
+    assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape
+    exec_net.infer({"data": np.ones(ref_shape)})
+    request = exec_net.requests[0]
+    request.async_infer({"data": np.ones(ref_shape)})
+    status = request.wait(ie.WaitMode.RESULT_READY)
+    assert status == ie.StatusCode.OK
+    assert request.output_blobs['out'].tensor_desc.dims == ref_shape
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+@pytest.mark.parametrize("shape, p_shape, ref_shape", [
+    ([1, 4, 20, 20], [-1, 4, 20, 20], [5, 4, 20, 20]),
+    ([1, 4, 20, 20], [(0,5), 4, 20, 20], [3, 4, 20, 20]),
+    ([1, 4, 20, 20], [(3,5), 4, 20, 20], [2, 4, 20, 20]),
+    ([1, 4, 20, 20], [(3,5), 4, 20, 20], [6, 4, 20, 20]),
+])
+def test_infer_dynamic_network_without_set_shape(shape, p_shape, ref_shape):
+    from conftest import create_encoder
+    import ngraph as ng
+    function = create_encoder(shape)
+    net = ng.function_to_cnn(function)
+    net.reshape({"data": p_shape})
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    exec_net.infer({"data": np.ones(ref_shape)})
+    assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape
+    request = exec_net.requests[0]
+    request.async_infer({"data": np.ones(ref_shape)})
+    status = request.wait(ie.WaitMode.RESULT_READY)
+    assert status == ie.StatusCode.OK
+    assert request.output_blobs['out'].tensor_desc.dims == ref_shape
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+@pytest.mark.parametrize("shape, p_shape, ref_shape", [
+    ([1, 4, 20, 20], [-1, 4, 20, 20], [5, 4, 20, 20]),
+    ([1, 4, 20, 20], [(0,5), 4, 20, 20], [3, 4, 20, 20]),
+    ([1, 4, 20, 20], [(3,5), 4, 20, 20], [2, 4, 20, 20]),
+    ([1, 4, 20, 20], [(3,5), 4, 20, 20], [6, 4, 20, 20]),
+])
+def test_infer_dynamic_network_with_set_blob(shape, p_shape, ref_shape):
+    from conftest import create_encoder
+    import ngraph as ng
+    function = create_encoder(shape)
+    net = ng.function_to_cnn(function)
+    net.reshape({"data": p_shape})
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    tensor_desc = exec_net.requests[0].input_blobs["data"].tensor_desc
+    tensor_desc.dims = ref_shape
+    blob = ie.Blob(tensor_desc)
+    exec_net.requests[0].set_blob("data", blob)
+    assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape
+    request = exec_net.requests[0]
+    request.infer({"data": np.ones(ref_shape)})
+    request.async_infer({"data": np.ones(ref_shape)})
+    status = request.wait(ie.WaitMode.RESULT_READY)
+    assert status == ie.StatusCode.OK
+    assert request.output_blobs["out"].tensor_desc.dims == ref_shape
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+def test_infer_dynamic_network_twice():
+    from conftest import create_encoder
+    import ngraph as ng
+    shape, p_shape = [1, 4, 20, 20], [(0,5), 4, 20, 20]
+    ref_shape1, ref_shape2 = [2, 4, 20, 20], [3, 4, 20, 20]
+    function = create_encoder(shape)
+    net = ng.function_to_cnn(function)
+    net.reshape({"data": p_shape})
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    request = exec_net.requests[0]
+    request.infer({"data": np.ones(ref_shape1)})
+    assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape1
+    assert request.output_blobs['out'].tensor_desc.dims == ref_shape1
+    request.infer({"data": np.ones(ref_shape2)})
+    assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape2
+    assert request.output_blobs['out'].tensor_desc.dims == ref_shape2
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+def test_infer_dynamic_network_with_set_blob_twice():
+    from conftest import create_encoder
+    import ngraph as ng
+    shape, p_shape = [1, 4, 20, 20], [(0,5), 4, 20, 20]
+    ref_shape1, ref_shape2 = [2, 4, 20, 20], [3, 4, 20, 20]
+    function = create_encoder(shape)
+    net = ng.function_to_cnn(function)
+    net.reshape({"data": p_shape})
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    request = exec_net.requests[0]
+    td = request.input_blobs['data'].tensor_desc
+    td.dims = ref_shape1
+    blob = ie.Blob(td)
+    request.set_blob("data", blob)
+    request.infer({"data": np.ones(ref_shape1)})
+    assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape1
+    assert request.output_blobs['out'].tensor_desc.dims == ref_shape1
+    td = request.input_blobs['data'].tensor_desc
+    td.dims = ref_shape2
+    blob = ie.Blob(td)
+    request.set_blob("data", blob)
+    request.infer({"data": np.ones(ref_shape2)})
+    assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == ref_shape2
+    assert request.output_blobs['out'].tensor_desc.dims == ref_shape2
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+@pytest.mark.parametrize("shapes", [
+    ([3, 4, 20, 20], [3, 4, 20, 20], [3, 4, 20, 20]),
+    ([3, 4, 20, 20], [3, 4, 28, 28], [3, 4, 45, 45]),
+])
+def test_async_infer_dynamic_network_3_requests(shapes):
+    from conftest import create_encoder
+    import ngraph as ng
+    function = create_encoder([3, 4, 20, 20])
+    net = ng.function_to_cnn(function)
+    net.reshape({"data": [3, 4, (20, 50), (20, 50)]})
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE", num_requests=3)
+    for i,request in enumerate(exec_net.requests):
+        request.async_infer({"data": np.ones(shapes[i])})
+    for i,request in enumerate(exec_net.requests):
+        status = request.wait(ie.WaitMode.RESULT_READY)
+        assert status == ie.StatusCode.OK
+        assert request.output_blobs['out'].tensor_desc.dims == shapes[i]
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+def test_set_blob_with_incorrect_name():
+    from conftest import create_encoder
+    import ngraph as ng
+    function = create_encoder([4, 4, 20, 20])
+    net = ng.function_to_cnn(function)
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    tensor_desc = exec_net.requests[0].input_blobs["data"].tensor_desc
+    tensor_desc.dims = [4, 4, 20, 20]
+    blob = ie.Blob(tensor_desc)
+    with pytest.raises(RuntimeError) as e:
+        exec_net.requests[0].set_blob("incorrect_name", blob)
+    assert f"Failed to find input or output with name: 'incorrect_name'" in str(e.value)
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+def test_set_blob_with_incorrect_size():
+    from conftest import create_encoder
+    import ngraph as ng
+    function = create_encoder([4, 4, 20, 20])
+    net = ng.function_to_cnn(function)
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    tensor_desc = exec_net.requests[0].input_blobs["data"].tensor_desc
+    tensor_desc.dims = [tensor_desc.dims[0]*2, 4, 20, 20]
+    blob = ie.Blob(tensor_desc)
+    print(exec_net.requests[0].output_blobs)
+    with pytest.raises(RuntimeError) as e:
+        exec_net.requests[0].set_blob("data", blob)
+    assert f"Input blob size is not equal network input size" in str(e.value)
+    with pytest.raises(RuntimeError) as e:
+        exec_net.requests[0].set_blob("out", blob)
+    assert f"Output blob size is not equal network output size" in str(e.value)
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+def test_set_blob_after_async_infer():
+    from conftest import create_encoder
+    import ngraph as ng
+    function = create_encoder([1, 4, 20, 20])
+    net = ng.function_to_cnn(function)
+    net.reshape({"data": [(0, 5), 4, 20, 20]})
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    request = exec_net.requests[0]
+    tensor_desc = request.input_blobs['data'].tensor_desc
+    tensor_desc.dims = [2, 4, 20, 20]
+    blob = ie.Blob(tensor_desc)
+    request.async_infer({"data": np.ones([4, 4, 20, 20])})
+    with pytest.raises(RuntimeError) as e:
+        request.set_blob("data", blob)
+    assert "REQUEST_BUSY" in str(e.value)
+    request.wait()

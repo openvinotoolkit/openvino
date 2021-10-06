@@ -12,7 +12,6 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <low_precision/transformer.hpp>
 #include <low_precision/mat_mul.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -31,7 +30,7 @@ using namespace ngraph::pass;
 
 class SeparateInStandaloneBranchTransformationTestValues {
 public:
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     ngraph::element::Type precisionBefore;
     ngraph::builder::subgraph::DequantizationOperations dequantization;
 };
@@ -81,7 +80,6 @@ public:
                 "SeparateInStandaloneBranchTransformation");
         };
         actualFunction = createActualFunction(testValues.precisionBefore, shape, testValues.dequantization);
-
         const auto result = actualFunction->get_results()[0];
         ngraph::pass::low_precision::NetworkHelper::separateInStandaloneBranch(result->get_input_node_shared_ptr(0));
 
@@ -128,8 +126,10 @@ public:
 
 TEST_P(SeparateInStandaloneBranchTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 const std::vector<ngraph::Shape> shapes = {
@@ -144,6 +144,11 @@ std::vector<SeparateInStandaloneBranchTransformationTestValues> testValues = {
         { ngraph::element::f32, { 127.f }, { 0.02f } }
     },
     {
+        LayerTransformation::createParamsU8U8(),
+        ngraph::element::u8,
+        { ngraph::element::f32, { 127.f }, {} }
+    },
+    {
         LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
         ngraph::element::u8,
         {
@@ -154,7 +159,7 @@ std::vector<SeparateInStandaloneBranchTransformationTestValues> testValues = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     SeparateInStandaloneBranchTransformation,
     ::testing::Combine(

@@ -12,28 +12,27 @@
 #include <vector>
 
 #ifdef _WIN32
-#include <windows.h>
-#define DL_HANDLE HMODULE
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <windows.h>
+#    define DL_HANDLE HMODULE
 #else
-#define DL_HANDLE void*
+#    define DL_HANDLE void*
 #endif
 
 #include "backend_visibility.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 
-namespace ngraph
-{
-    namespace runtime
-    {
-        class Backend;
-        class BackendManager;
-        using BackendConstructor =
-            std::function<std::shared_ptr<ngraph::runtime::Backend>(const std::string& config)>;
-    }
-}
+namespace ngraph {
+namespace runtime {
+class Backend;
+class BackendManager;
+using BackendConstructor = std::function<std::shared_ptr<ngraph::runtime::Backend>(const std::string& config)>;
+}  // namespace runtime
+}  // namespace ngraph
 
-class ngraph::runtime::BackendManager
-{
+class ngraph::runtime::BackendManager {
     friend class Backend;
 
 public:
@@ -42,8 +41,7 @@ public:
     /// \param name The name of the registering backend in UPPER CASE.
     /// \param backend_constructor A BackendConstructor which will be called to
     ////     construct an instance of the registered backend.
-    static BACKEND_API void register_backend(const std::string& name,
-                                             BackendConstructor backend_constructor);
+    static BACKEND_API void register_backend(const std::string& name, BackendConstructor backend_constructor);
 
     /// \brief Query the list of registered devices
     /// \returns A vector of all registered devices.

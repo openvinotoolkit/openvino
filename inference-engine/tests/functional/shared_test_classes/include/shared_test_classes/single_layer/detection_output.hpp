@@ -59,11 +59,12 @@ using DetectionOutputParams = std::tuple<
 
 class DetectionOutputLayerTest : public testing::WithParamInterface<DetectionOutputParams>, virtual public LayerTestsUtils::LayerTestsCommon {
   public:
-    static std::string getTestCaseName(testing::TestParamInfo<DetectionOutputParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<DetectionOutputParams>& obj);
     ngraph::op::DetectionOutputAttrs attrs;
     std::vector<InferenceEngine::SizeVector> inShapes;
     void GenerateInputs() override;
-    void Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual) override;
+    void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+                 const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) override;
   protected:
     void SetUp() override;
 };

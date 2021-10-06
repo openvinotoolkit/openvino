@@ -6,7 +6,8 @@ from copy import deepcopy
 
 import networkx as nx
 
-from mo.front.common.partial_infer.utils import int64_array
+from extensions.ops.parameter import Parameter
+from mo.front.common.partial_infer.utils import int64_array, shape_array
 from mo.graph.graph import Node, Graph
 from mo.middle.pattern_match import all_edges_in_nodes
 from mo.ops.const import Const
@@ -38,7 +39,7 @@ def check_and_update_ports(node, edges_data: list, in_port: bool = True):
 
 def build_graph_with_attrs(nodes_with_attrs: list, edges_with_attrs: list, new_nodes_with_attrs: list = [],
                            new_edges_with_attrs: list = [], update_edge_attrs: dict = None,
-                           update_nodes_attributes: dict = None, nodes_with_edges_only: bool = False,
+                           update_nodes_attributes: list = None, nodes_with_edges_only: bool = False,
                            add_nodes_from_edges: bool = False):
     """
     Build the Graph with specific nodes and edges. Also update of edge and node parameters is supported.
@@ -47,8 +48,9 @@ def build_graph_with_attrs(nodes_with_attrs: list, edges_with_attrs: list, new_n
     :param new_nodes_with_attrs: analogically nodes_with_attrs
     :param new_edges_with_attrs: analogically new_edges
     :param update_edge_attrs: optional dictionary like {('from_node', 'to_node', key): {edge_attrs}}.
-    :param update_nodes_attributes: optional dictionary which specifies nodes names and their attributes to be updated. The
-    key is a node name to update attribute and the value is a dictionary with attribute name and its value.
+    :param update_nodes_attributes: optional list of tuples which specifies nodes names and their attributes to be
+    updated. The first element is a node name to update attribute and the second element is a dictionary with attribute
+    name and its value.
     :param nodes_with_edges_only: add nodes which has at least one incoming or outcoming edge.
     :param add_nodes_from_edges: whether nodes that is not listed in all_nodes but are in all_edges is allowed.
     :return: generated graph.
@@ -188,14 +190,16 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
 
     for node in graph.get_op_nodes():
         # Add in_ports attribute
-        in_edges = node.in_edges()
+        in_edges = node.in_edges(control_flow=True)
         for attr in in_edges.values():
-            node.add_input_port(idx=attr['in'])
+            control_flow = True if 'control_flow_edge' in attr and attr['control_flow_edge'] is True else False
+            node.add_input_port(idx=attr['in'], control_flow=control_flow)
 
         # Add out_ports attribute
-        out_edges = node.out_edges()
+        out_edges = node.out_edges(control_flow=True)
         for attr in out_edges.values():
-            node.add_output_port(idx=attr['out'])
+            control_flow = True if 'control_flow_edge' in attr and attr['control_flow_edge'] is True else False
+            node.add_output_port(idx=attr['out'], control_flow=control_flow)
 
     graph.graph['cmd_params'] = cli
     return graph
@@ -272,24 +276,34 @@ regular_op = lambda name, kwargs: {name: {'kind': 'op', 'type': 'NoType', **kwar
 valued_data = lambda name, value: {name: {'kind': 'data', 'value': value,
                                           'shape': int64_array(value.shape) if value is not None else None}}
 shaped_data = lambda name, shape: {name: {'kind': 'data', 'value': None,
-                                          'shape': int64_array(shape) if shape is not None else None}}
+                                          'shape': shape_array(shape) if shape is not None else None}}
 empty_data = lambda name: valued_data(name, None)
 
-result = lambda name=None: {name if name is not None else 'output': {'kind': 'op', 'type': 'Result', 'op': 'Result',
-                                                                     'infer': lambda x: 0}}
+shaped_parameter = lambda name, shape, kwargs={}: {**regular_op(name, {'op': 'Parameter', 'type': 'Parameter',
+                                                                       'shape': shape, 'infer': Parameter.infer,
+                                                                       **kwargs}),
+                                                   **shaped_data(name + '_d', shape)}
+
+result = lambda name='output': {name: {'kind': 'op', 'type': 'Result', 'op': 'Result', 'infer': lambda x: 0}}
 
 regular_op_with_shaped_data = lambda name, shape, kwargs: {**regular_op(name, kwargs),
                                                            **shaped_data(name + '_d', shape)}
 regular_op_with_empty_data = lambda name, kwargs: {**regular_op(name, kwargs), **empty_data(name + '_d')}
 
 # constants
-const = lambda name, value: {name: {'kind': 'op', 'value': value, 'shape': int64_array(value.shape),
-                                    'type': 'Const', 'infer': Const.infer, 'op': 'Const'}}
-fake_const = lambda name, shape: {name: {'kind': 'op', 'value': None, 'infer': Const.infer,
-                                         'shape': int64_array(shape) if shape is not None else None}}
-shaped_const_with_data = lambda name, shape: {**fake_const(name, shape), **shaped_data(name + '_d', shape)}
+const = lambda name, value, kwargs={}: {name: {'kind': 'op', 'type': 'Const', 'op': 'Const',
+                                               'value': value, 'shape': int64_array(value.shape),
+                                               'infer': Const.infer, 'type_infer': Const.type_infer, **kwargs}}
 
-valued_const_with_data = lambda name, value: {**const(name, value), **valued_data(name + '_d', value)}
+fake_const = lambda name, shape, kwargs={}: {name: {'kind': 'op', 'op': 'Const', 'type': 'Const',
+                                                    'value': None, 'infer': Const.infer, **kwargs,
+                                                    'shape': shape_array(shape) if shape is not None else None}}
+
+shaped_const_with_data = lambda name, shape, kwargs={}: {**fake_const(name, shape, kwargs),
+                                                         **shaped_data(name + '_d', shape)}
+
+valued_const_with_data = lambda name, value, kwargs={}: {**const(name, value, kwargs),
+                                                         **valued_data(name + '_d', value)}
 
 
 def extract_port_from_string(node_name: str):

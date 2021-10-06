@@ -9,6 +9,9 @@
 #include <map>
 
 #include "multi_device_async_infer_request.hpp"
+#include <ie_icore.hpp>
+#include <ie_metric_helpers.hpp>
+#include <ie_plugin_config.hpp>
 
 namespace MultiDevicePlugin {
     using namespace InferenceEngine;
@@ -28,37 +31,39 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
         void run(Task task) override {
             auto workerInferRequest = _this->_workerInferRequest;
             workerInferRequest->_task = std::move(task);
-            workerInferRequest->_inferRequest.StartAsync();
+            workerInferRequest->_inferRequest->StartAsync();
         };
         MultiDeviceAsyncInferRequest* _this = nullptr;
     };
     _pipeline = {
         // if the request is coming with device-specific remote blobs make sure it is scheduled to the specific device only:
         { /*TaskExecutor*/ std::make_shared<ImmediateExecutor>(), /*task*/ [this] {
-               // by default, no preferred device:
-               _multiDeviceExecutableNetwork->_thisPreferredDeviceName = "";
-               // if any input is remote (e.g. was set with SetBlob), let' use the corresponding device
-               for (const auto &it : _multiDeviceExecutableNetwork->GetInputsInfo()) {
-                   auto b = _inferRequest->GetBlob(it.first);
-                   auto r = b->as<RemoteBlob>();
-                   if (r) {
-                       const auto name = r->getDeviceName();
-                       const auto res = std::find_if(
-                               _multiDeviceExecutableNetwork->_devicePrioritiesInitial.cbegin(),
-                               _multiDeviceExecutableNetwork->_devicePrioritiesInitial.cend(),
-                               [&name](const MultiDevicePlugin::DeviceInformation& d){ return d.deviceName == name; });
-                       if (_multiDeviceExecutableNetwork->_devicePrioritiesInitial.cend() == res) {
-                           IE_THROW() << "None of the devices (for which current MULTI-device configuration was "
-                                                 "initialized) supports a remote blob created on the device named " << name;
+                // by default, no preferred device:
+                _multiDeviceExecutableNetwork->_thisPreferredDeviceName = "";
+                // if any input is remote (e.g. was set with SetBlob), let' use the corresponding device
+                for (const auto &it : _multiDeviceExecutableNetwork->GetInputsInfo()) {
+                    auto b = _inferRequest->GetBlob(it.first);
+                    auto r = b->as<RemoteBlob>();
+                    if (r) {
+                        const auto name = r->getDeviceName();
+                        const auto res = std::find_if(
+                                _multiDeviceExecutableNetwork->_devicePrioritiesInitial.cbegin(),
+                                _multiDeviceExecutableNetwork->_devicePrioritiesInitial.cend(),
+                                [&name](const MultiDevicePlugin::DeviceInformation& d) {
+                                    return (d.defaultDeviceID.empty() ? d.deviceName : (d.deviceName + "." + d.defaultDeviceID)) == name;
+                                });
+                        if (_multiDeviceExecutableNetwork->_devicePrioritiesInitial.cend() == res) {
+                            IE_THROW() << "None of the devices (for which current MULTI-device configuration was "
+                                          "initialized) supports a remote blob created on the device named " << name;
 
-                       } else {
+                        } else {
                             // it is ok to take the c_str() here (as pointed in the multi_device_exec_network.hpp we need to use const char*)
                             // as the original strings are from the "persistent" vector (with the right lifetime)
-                           _multiDeviceExecutableNetwork->_thisPreferredDeviceName = res->deviceName.c_str();
-                           break;
-                       }
-                   }
-               }
+                            _multiDeviceExecutableNetwork->_thisPreferredDeviceName = res->deviceName.c_str();
+                            break;
+                        }
+                    }
+                }
         }},
         // as the scheduling algo may select any device, this stage accepts the scheduling decision (actual workerRequest)
         // then sets the device-agnostic blobs to the actual (device-specific) request
@@ -69,18 +74,11 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
         }},
         // final task in the pipeline:
         { /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(this), /*task*/ [this] {
-              auto status = _workerInferRequest->_status;
-              if (InferenceEngine::StatusCode::OK != status) {
-                  if (nullptr != InferenceEngine::CurrentException())
-                      std::rethrow_exception(InferenceEngine::CurrentException());
-                  else
-                      IE_EXCEPTION_SWITCH(status, ExceptionType,
-                        InferenceEngine::details::ThrowNow<ExceptionType>{}
-                            <<= std::stringstream{} << IE_LOCATION
-                            <<  InferenceEngine::details::ExceptionTraits<ExceptionType>::string());
+              if (nullptr != _workerInferRequest->_exceptionPtr) {
+                  std::rethrow_exception(_workerInferRequest->_exceptionPtr);
               }
               if (_needPerfCounters)
-                  _perfMap = _workerInferRequest->_inferRequest.GetPerformanceCounts();
+                  _perfMap = _workerInferRequest->_inferRequest->GetPerformanceCounts();
         }}
     };
 }

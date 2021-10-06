@@ -18,10 +18,9 @@
 #include "ngraph/ngraph.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
-#include "util/known_element_types.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
+#include "engines_util/execute_tools.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -30,8 +29,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, log_softmax_1d_single_value)
-{
+NGRAPH_TEST(${BACKEND_NAME}, log_softmax_1d_single_value) {
     Shape shape{1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
 
@@ -49,8 +47,7 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_1d_single_value)
     EXPECT_TRUE(test::all_close(expected_result, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis0)
-{
+NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis0) {
     Shape shape{2, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape);
 
@@ -68,8 +65,7 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis0)
     EXPECT_TRUE(test::all_close(expected_result, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis1)
-{
+NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis1) {
     Shape shape{2, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape);
 
@@ -79,14 +75,8 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis1)
     copy_data(a, vector<float>{0, 1, 2, 3, 10000, 10001, 10002, 10003});
     auto result = backend->create_tensor(element::f32, shape);
 
-    std::vector<float> expected_result{-3.4401896,
-                                       -2.4401896,
-                                       -1.4401897,
-                                       -0.4401897,
-                                       -3.4401896,
-                                       -2.4401896,
-                                       -1.4401897,
-                                       -0.4401897};
+    std::vector<float>
+        expected_result{-3.4401896, -2.4401896, -1.4401897, -0.4401897, -3.4401896, -2.4401896, -1.4401897, -0.4401897};
 
     auto f = make_shared<Function>(make_shared<op::v5::LogSoftmax>(A, 1), ParameterVector{A});
     auto handle = backend->compile(f);
@@ -94,8 +84,7 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis1)
     EXPECT_TRUE(test::all_close(expected_result, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis_neg1)
-{
+NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis_neg1) {
     Shape shape{2, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape);
 
@@ -105,14 +94,8 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis_neg1)
     copy_data(a, vector<float>{0, 1, 2, 3, 10000, 10001, 10002, 10003});
     auto result = backend->create_tensor(element::f32, shape);
 
-    std::vector<float> expected_result{-3.4401896,
-                                       -2.4401896,
-                                       -1.4401897,
-                                       -0.4401897,
-                                       -3.4401896,
-                                       -2.4401896,
-                                       -1.4401897,
-                                       -0.4401897};
+    std::vector<float>
+        expected_result{-3.4401896, -2.4401896, -1.4401897, -0.4401897, -3.4401896, -2.4401896, -1.4401897, -0.4401897};
 
     auto f = make_shared<Function>(make_shared<op::v5::LogSoftmax>(A, -1), ParameterVector{A});
     auto handle = backend->compile(f);
@@ -120,8 +103,7 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis_neg1)
     EXPECT_TRUE(test::all_close(expected_result, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis_neg2)
-{
+NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis_neg2) {
     Shape shape{2, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape);
 
@@ -139,8 +121,7 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_2d_axis_neg2)
     EXPECT_TRUE(test::all_close(expected_result, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_0)
-{
+NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_0) {
     Shape shape{3, 2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
 
@@ -175,8 +156,7 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_0)
     EXPECT_TRUE(test::all_close(expected_result, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_1)
-{
+NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_1) {
     Shape shape{3, 2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
 
@@ -211,8 +191,7 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_1)
     EXPECT_TRUE(test::all_close(expected_result, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_2)
-{
+NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_2) {
     Shape shape{3, 2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
 
@@ -247,8 +226,7 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_2)
     EXPECT_TRUE(test::all_close(expected_result, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_neg1)
-{
+NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_neg1) {
     Shape shape{3, 2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
 
@@ -283,8 +261,7 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_neg1)
     EXPECT_TRUE(test::all_close(expected_result, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_neg2)
-{
+NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_neg2) {
     Shape shape{3, 2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
 
@@ -319,8 +296,7 @@ NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_neg2)
     EXPECT_TRUE(test::all_close(expected_result, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_neg3)
-{
+NGRAPH_TEST(${BACKEND_NAME}, log_softmax_3d_axis_neg3) {
     Shape shape{3, 2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
 

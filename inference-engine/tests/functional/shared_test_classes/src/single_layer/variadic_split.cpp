@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-    std::string VariadicSplitLayerTest::getTestCaseName(testing::TestParamInfo<VariadicSplitParams> obj) {
+    std::string VariadicSplitLayerTest::getTestCaseName(const testing::TestParamInfo<VariadicSplitParams>& obj) {
         size_t axis;
         std::vector<size_t> numSplits;
         InferenceEngine::Precision netPrecision;
@@ -30,7 +30,6 @@ namespace LayerTestsDefinitions {
     }
 
     void VariadicSplitLayerTest::SetUp() {
-        SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
         size_t axis;
         std::vector<size_t> inputShape, numSplits;
         InferenceEngine::Precision netPrecision;
@@ -46,6 +45,7 @@ namespace LayerTestsDefinitions {
             results.push_back(std::make_shared<ngraph::opset3::Result>(VariadicSplit->output(i)));
         }
         function = std::make_shared<ngraph::Function>(results, params, "VariadicSplit");
+        functionRefs = ngraph::clone_function(*function);
     }
 
 }  // namespace LayerTestsDefinitions

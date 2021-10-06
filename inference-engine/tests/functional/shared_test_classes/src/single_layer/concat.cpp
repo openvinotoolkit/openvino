@@ -22,7 +22,7 @@ std::string ConcatLayerTest::getTestCaseName(const testing::TestParamInfo<concat
     result << "outPRC=" << outPrc.name() << "_";
     result << "inL=" << inLayout << "_";
     result << "outL=" << outLayout << "_";
-    result << "trgDev=" << targetName << "_";
+    result << "trgDev=" << targetName;
     return result.str();
 }
 
@@ -38,5 +38,6 @@ void ConcatLayerTest::SetUp() {
     auto concat = std::make_shared<ngraph::opset1::Concat>(paramOuts, axis);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, params, "concat");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
-#include "include/data_types.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/data_types.cl"
 
 #define ALIGN_TO(val, multiple) (((val) + (multiple) - 1) / (multiple) * (multiple))
 
-#define AS_TYPE(type, val) CAT(as_, type)(val)
 #define INPUT_VEC4 MAKE_VECTOR_TYPE(INPUT0_TYPE, 4)
 
 #define ACTIVATION_VEC4 MAKE_VECTOR_TYPE(ACTIVATION_TYPE, 4)
@@ -182,7 +182,6 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
 }
 
 #undef ALIGN_TO
-#undef AS_TYPE
 
 #undef INIT_VAL
 #undef INPUT_VEC4

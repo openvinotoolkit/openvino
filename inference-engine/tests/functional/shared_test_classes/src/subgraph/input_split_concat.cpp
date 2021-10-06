@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string InputSplitConcatTest::getTestCaseName(testing::TestParamInfo<InputSplitConcatParams> obj) {
+std::string InputSplitConcatTest::getTestCaseName(const testing::TestParamInfo<InputSplitConcatParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
@@ -43,5 +43,6 @@ void InputSplitConcatTest::SetUp() {
 
     ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(relu1), std::make_shared<ngraph::op::Result>(relu2) };
     function = std::make_shared<ngraph::Function>(results, params, "InputSplitConcatTest");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

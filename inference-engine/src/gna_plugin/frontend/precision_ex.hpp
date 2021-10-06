@@ -65,17 +65,6 @@ class TPrecision : public Precision {
     explicit TPrecision(const Precision::ePrecision  value) : Precision(value) {}
 };
 
-template <class T> TPrecision<T> createTPrecision() {
-    TPrecision<T> cnt(InferenceEngine::Precision::fromType<T>());
-    return cnt;
-}
-
-template <InferenceEngine::Precision::ePrecision T>
-TPrecision<typename InferenceEngine::PrecisionTrait<T>::value_type> createTPrecision() {
-    TPrecision<typename InferenceEngine::PrecisionTrait<T>::value_type> cnt(T);
-    return cnt;
-}
-
 
 // special case for Mixed, or undefined precisions
 template <>

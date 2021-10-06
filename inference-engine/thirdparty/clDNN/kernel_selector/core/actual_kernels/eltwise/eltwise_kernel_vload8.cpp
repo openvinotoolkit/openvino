@@ -35,11 +35,13 @@ bool EltwiseKernel_vload8::Validate(const Params& params, const optional_params&
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
         if ((ewParams.inputs[i].GetLayout() == DataLayout::b_fs_yx_fsv16 && ewParams.inputs[i].Feature().v % 16 != 0) ||
             (ewParams.inputs[i].GetLayout() == DataLayout::b_fs_zyx_fsv16 && ewParams.inputs[i].Feature().v % 16 != 0) ||
+            (ewParams.inputs[i].GetLayout() == DataLayout::b_fs_yx_fsv4 && ewParams.inputs[i].Feature().v % 8 != 0) ||
             ewParams.inputs[i].GetLayout() == DataLayout::fs_b_yx_fsv32)
             return false;
     }
     if ((ewParams.output.GetLayout() == DataLayout::b_fs_yx_fsv16 && ewParams.output.Feature().v % 16 != 0) ||
-       (ewParams.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 && ewParams.output.Feature().v % 16 != 0) ||
+        (ewParams.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 && ewParams.output.Feature().v % 16 != 0) ||
+        (ewParams.output.GetLayout() == DataLayout::b_fs_yx_fsv4 && ewParams.output.Feature().v % 8 != 0) ||
         ewParams.output.GetLayout() == DataLayout::fs_b_yx_fsv32)
         return false;
 
@@ -73,6 +75,9 @@ bool EltwiseKernel_vload8::Validate(const Params& params, const optional_params&
         }
     }
 
+    if (IsUnsupportedModeForVecCode(ewParams))
+        return false;
+
     if (!bCheckSizes || !bSupportedCount || !bCheckUpdateInput || !bCheckUseOutput) {
         return false;
     }
@@ -90,7 +95,7 @@ KernelsData EltwiseKernel_vload8::GetKernelsData(const Params& params, const opt
 
     std::pair<std::string, std::string> jit;
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
 
     try {
         auto cldnn_jit = GetJitConstants(newParams);
@@ -100,10 +105,10 @@ KernelsData EltwiseKernel_vload8::GetKernelsData(const Params& params, const opt
     }
 
     auto& kernel = kd.kernels[0];
-    kernel.workGroups.global = {std::max(newParams.inputs[0].LogicalSize() / 8, (size_t)1), 1, 1};
-    kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global, params.engineInfo);
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
+    kernel.params.workGroups.global = {std::max(newParams.inputs[0].LogicalSize() / 8, (size_t)1), 1, 1};
+    kernel.params.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.params.workGroups.global, params.engineInfo);
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
+    kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
 
     return {kd};
 }

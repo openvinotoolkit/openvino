@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-    std::string ClampFakeQuantizeSubgraphTest::getTestCaseName(testing::TestParamInfo<fqSubgraphTestParamsSet> obj) {
+    std::string ClampFakeQuantizeSubgraphTest::getTestCaseName(const testing::TestParamInfo<fqSubgraphTestParamsSet>& obj) {
         fqSpecificParams fqParams;
         InferenceEngine::Precision netPrecision;
         InferenceEngine::Precision inPrc, outPrc;
@@ -75,6 +75,7 @@ namespace SubgraphTestsDefinitions {
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(sigmoid)};
         function = std::make_shared<ngraph::Function>(results, params, "fakeQuantizeSubgraph");
+        functionRefs = ngraph::clone_function(*function);
 
         configuration = config.second;
     }

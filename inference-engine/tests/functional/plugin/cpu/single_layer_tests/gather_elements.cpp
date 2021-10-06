@@ -51,7 +51,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         std::tie(dataShape, indicesShape, axis, dPrecision, iPrecision, targetDevice) = basicParamsSet;
-        selectedType = std::string("unknown_") + dPrecision.name();
+        selectedType = std::string("ref_any_") + dPrecision.name();
 
         auto ngDPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dPrecision);
         auto ngIPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iPrecision);
@@ -60,6 +60,7 @@ protected:
         auto activation = ngraph::builder::makeGatherElements(params[0], indicesShape, ngIPrc, axis);
         activation->get_rt_info() = getCPUInfo();
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params, "GatherElements");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 
@@ -76,7 +77,7 @@ std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nchw}, {nchw}, {}, {})
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_set1, GatherElementsCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_set1, GatherElementsCPUTest,
             ::testing::Combine(
                 ::testing::Combine(
                     ::testing::Values(std::vector<size_t>({2, 3, 5, 7})),     // Data shape

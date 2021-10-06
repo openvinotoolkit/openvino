@@ -51,7 +51,7 @@ std::string ProposalLayerTest::SerializeProposalSpecificParams(proposalSpecificP
     return result.str();
 }
 
-std::string ProposalLayerTest::getTestCaseName(testing::TestParamInfo<proposalLayerTestParamsSet> obj) {
+std::string ProposalLayerTest::getTestCaseName(const testing::TestParamInfo<proposalLayerTestParamsSet>& obj) {
     proposalSpecificParams proposalParams;
     std::string targetDevice;
     std::tie(proposalParams, targetDevice) = obj.param;
@@ -64,11 +64,11 @@ std::string ProposalLayerTest::getTestCaseName(testing::TestParamInfo<proposalLa
 }
 
 void ProposalLayerTest::Compare(
-    const std::vector<std::vector<std::uint8_t>> &expectedOutputs,
+    const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
     const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
     num_selected_boxes = 0;
     for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
-        const auto &expected = expectedOutputs[outputIndex];
+        const auto &expected = expectedOutputs[outputIndex].second;
         const auto &actual = actualOutputs[outputIndex];
         ASSERT_EQ(expected.size(), actual->byteSize());
         const auto &expectedBuffer = expected.data();
@@ -171,6 +171,7 @@ void ProposalLayerTest::SetUp() {
         std::make_shared<ngraph::opset1::Result>(proposal->output(0)),
         std::make_shared<ngraph::opset1::Result>(proposal->output(1))};
     function = std::make_shared<ngraph::Function>(results, params, "proposal");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 InferenceEngine::Blob::Ptr ProposalLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {

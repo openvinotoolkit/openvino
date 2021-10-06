@@ -620,7 +620,7 @@ TEST(TransformationTests, DummyOpNegativeDifferentStringVector) {
     EXPECT_THAT(res.message, HasSubstr(" mismatch in value: 'member' : [a, ba] vs [b, ab]"));
 }
 
-namespace ngraph {
+namespace ov {
 
 struct TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION {};
 
@@ -643,10 +643,10 @@ public:
 constexpr DiscreteTypeInfo
     AttributeAdapter<TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION>::type_info;
 
-}  // namespace ngraph
+}  // namespace ov
 
 TEST(TransformationTests, DummyOpNegativeNotSupportedType) {
-    TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION m{};
+    ov::TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION m{};
     const auto& f1 = createDummyFunc(m);
     const auto& f2 = createDummyFunc(m);
 

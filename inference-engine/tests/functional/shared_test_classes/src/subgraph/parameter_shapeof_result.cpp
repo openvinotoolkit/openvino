@@ -9,7 +9,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string ParameterShapeOfResultSubgraphTest::getTestCaseName(testing::TestParamInfo<parameterShapeOfResultParams> obj) {
+std::string ParameterShapeOfResultSubgraphTest::getTestCaseName(const testing::TestParamInfo<parameterShapeOfResultParams>& obj) {
     ngraph::element::Type inType;
     std::string targetDevice;
     std::tie(inType, targetDevice) = obj.param;
@@ -29,6 +29,7 @@ void ParameterShapeOfResultSubgraphTest::SetUp() {
     const ngraph::ResultVector results{std::make_shared<ngraph::opset6::Result>(shapeOf)};
     ngraph::ParameterVector params = {parameter};
     function = std::make_shared<ngraph::Function>(results, params, "ParameterShapeOfResult");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace SubgraphTestsDefinitions

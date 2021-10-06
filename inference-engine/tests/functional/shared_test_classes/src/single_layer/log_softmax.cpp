@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string LogSoftmaxLayerTest::getTestCaseName(testing::TestParamInfo<logSoftmaxLayerTestParams> obj) {
+std::string LogSoftmaxLayerTest::getTestCaseName(const testing::TestParamInfo<logSoftmaxLayerTestParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
@@ -49,5 +49,6 @@ void LogSoftmaxLayerTest::SetUp() {
     const ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(logSoftmax)};
 
     function = std::make_shared<ngraph::Function>(results, params, "logSoftmax");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

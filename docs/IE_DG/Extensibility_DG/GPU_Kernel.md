@@ -4,7 +4,7 @@ The GPU codepath abstracts many details about OpenCL\*. You need to provide the 
 
 There are two options of using the custom operation configuration file:
 
-* Include a section with your kernels into the global automatically-loaded `cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml` file, which is hosted in the `<INSTALL_DIR>/deployment_tools/inference_engine/bin/intel64/{Debug/Release}` folder
+* Include a section with your kernels into the global automatically-loaded `cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml` file, which is hosted in the `<INSTALL_DIR>/runtime/bin` folder
 * Call the `InferenceEngine::Core::SetConfig()` method from your application with the `InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE` key and the configuration file name as a value before loading the network that uses custom operations to the plugin:
 
 @snippet snippets/GPU_Kernel.cpp part0
@@ -218,22 +218,6 @@ __kernel void example_relu_kernel(
 > Refer to the `cldnn_global_custom_kernels` folder in the GPU plugin installation directory.
 
 ## Debugging Tips<a name="debugging-tips"></a>
-
-* **Dumping the Resulting Kernels**.
-It is recommended to get a dump of the kernel with all of
-the values set by the Inference Engine, such as tensor sizes,
-floating-point, and integer kernel parameters. To get the dump, add the
-following line to your code that configures the GPU plugin to output the
-custom kernels:
-
-@snippet snippets/GPU_Kernel.cpp part1
-
-When the Inference Engine compiles the kernels for the specific network,
-it also outputs the resulting code for the custom kernels. In the
-directory of your executable, find files like
-`clDNN_program0.cl`, `clDNN_program1.cl`. There are as many files as
-distinct sets of parameters for your custom kernel: different input
-tensor sizes and kernel parameters.
 
 * **Using `printf` in the OpenCL™ Kernels**.
 To debug the specific values, you can use `printf` in your kernels.

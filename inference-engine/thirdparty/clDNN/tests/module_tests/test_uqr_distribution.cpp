@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-
-#include "test_utils/uniform_quantized_real_distribution.hpp"
+#include "test_utils.h"
 
 #include <cmath>
 #include <iomanip>
@@ -17,7 +15,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace cldnn { namespace tests {
+namespace tests {
 
 template <typename RealType>
 struct uniform_quantized_real_distribution_test : ::testing::Test
@@ -34,14 +32,10 @@ protected:
     using uqr_dist_param = typename uqr_dist::param_type;
     /// @brief Expected result_type of uniform_quantized_real_distribution.
     using expected_uqr_dist_rt = typename std::conditional<!std::is_same<RealType, void>::value, RealType, float>::type;
-
-    void SetUp() override {}
-
-    void TearDown() override {}
 };
 
 using uniform_quantized_real_distribution_test_types = ::testing::Types<void, float, double, long double>;
-TYPED_TEST_CASE(uniform_quantized_real_distribution_test, uniform_quantized_real_distribution_test_types);
+TYPED_TEST_SUITE(uniform_quantized_real_distribution_test, uniform_quantized_real_distribution_test_types);
 
 TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_default)
 {
@@ -1137,4 +1131,4 @@ TYPED_TEST(uniform_quantized_real_distribution_test, DISABLED_generate_random_eq
     }
 }
 
-}} // namespace cldnn { namespace tests {
+}  // namespace tests

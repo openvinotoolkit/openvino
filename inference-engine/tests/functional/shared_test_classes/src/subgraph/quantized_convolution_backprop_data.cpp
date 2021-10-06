@@ -7,7 +7,7 @@
 namespace SubgraphTestsDefinitions {
 using ngraph::helpers::QuantizationGranularity;
 
-std::string QuantConvBackpropDataLayerTest::getTestCaseName(testing::TestParamInfo<quantConvBackpropDataLayerTestParamsSet> obj) {
+std::string QuantConvBackpropDataLayerTest::getTestCaseName(const testing::TestParamInfo<quantConvBackpropDataLayerTestParamsSet>& obj) {
     quantConvBackpropDataSpecificParams groupConvBackpropDataParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
@@ -77,5 +77,6 @@ void QuantConvBackpropDataLayerTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(convBackpropData)};
     function = std::make_shared<ngraph::Function>(results, params, "QuantConvolutionBackpropData");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

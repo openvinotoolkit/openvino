@@ -10,10 +10,12 @@ namespace LayerTestsDefinitions {
 
 
 TEST_P(LoopTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Run();
 }
 
 TEST_P(StaticShapeLoopTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Run();
 }
 
@@ -67,6 +69,7 @@ TEST_P(TrivialLoopTest, PassThroughBody) {
     function = std::make_shared<ngraph::Function>(
             ngraph::OutputVector    {loop},
             ngraph::ParameterVector {start});
+    functionRefs = ngraph::clone_function(*function);
 
     // Precalculated ref blobs
     auto blob = make_blob_with_precision({iePrc, ieShape, InferenceEngine::TensorDesc::getLayoutByDims(ieShape)});
@@ -111,6 +114,7 @@ TEST_P(TrivialLoopTest, UnusedInputBody) {
     function = std::make_shared<ngraph::Function>(
             ngraph::OutputVector    {loop},
             ngraph::ParameterVector {start});
+    functionRefs = ngraph::clone_function(*function);
 
     // Precalculated ref blobs
     auto blob = make_blob_with_precision({iePrc, ieShape, InferenceEngine::TensorDesc::getLayoutByDims(ieShape)});

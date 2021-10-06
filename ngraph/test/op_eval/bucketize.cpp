@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "engines_util/interpreter_engine.hpp"
+#include "engines_util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/engine/interpreter_engine.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
 #include "util/test_control.hpp"
 
 using namespace std;
@@ -14,8 +14,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(op_eval, bucketize_empty_buckets)
-{
+NGRAPH_TEST(op_eval, bucketize_empty_buckets) {
     Shape data_shape{1, 1, 3};
     Shape bucket_shape{0};
 

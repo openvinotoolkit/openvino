@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string PadLayerTest::getTestCaseName(testing::TestParamInfo<padLayerTestParamsSet> obj) {
+std::string PadLayerTest::getTestCaseName(const testing::TestParamInfo<padLayerTestParamsSet>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout;
@@ -49,5 +49,6 @@ void PadLayerTest::SetUp() {
     auto pad = ngraph::builder::makePad(paramOuts[0], padsBegin, padsEnd, argPadValue, padMode);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pad)};
     function = std::make_shared<ngraph::Function>(results, params, "pad");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

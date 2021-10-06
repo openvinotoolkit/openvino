@@ -9,7 +9,7 @@ namespace {
 
 using namespace ExecutionGraphTests;
 
-INSTANTIATE_TEST_CASE_P(smoke_serialization, ExecGraphSerializationTest,
+INSTANTIATE_TEST_SUITE_P(smoke_serialization, ExecGraphSerializationTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                         ExecGraphSerializationTest::getTestCaseName);
 

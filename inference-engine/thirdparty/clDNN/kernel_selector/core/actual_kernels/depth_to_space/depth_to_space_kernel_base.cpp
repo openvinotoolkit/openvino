@@ -27,18 +27,6 @@ bool DepthToSpaceKernelBase::Validate(const Params& p, const optional_params& o)
     return true;
 }
 
-CommonDispatchData DepthToSpaceKernelBase::SetDefault(const depth_to_space_params& params) const {
-    CommonDispatchData dispatchData;
-
-    dispatchData.gws = { params.output.Batch().v,
-                         params.output.Feature().v,
-                         params.output.Z().v * params.output.Y().v * params.output.X().v };
-
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
-
-    return dispatchData;
-}
-
 JitConstants DepthToSpaceKernelBase::GetJitConstants(const depth_to_space_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
@@ -61,7 +49,7 @@ KernelsData DepthToSpaceKernelBase::GetCommonKernelsData(const Params& params, c
     }
 
     auto dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

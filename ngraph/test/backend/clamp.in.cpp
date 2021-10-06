@@ -14,10 +14,10 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "engines_util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
 #include "util/test_control.hpp"
 
 using namespace std;
@@ -26,35 +26,32 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-namespace
-{
-    template <typename T, test::TestCaseType tct = test::TestCaseType::STATIC>
-    void clamp_test(const element::Type& type,
-                    const PartialShape& dynamic_shape,
-                    const Shape& static_shape,
-                    const std::vector<T>& input,
-                    double min,
-                    double max,
-                    const std::vector<T>& output)
-    {
-        auto data = make_shared<op::Parameter>(type, dynamic_shape);
-        auto clamp = make_shared<op::Clamp>(data, min, max);
-        auto function = make_shared<Function>(clamp, ParameterVector{data});
+namespace {
+template <typename T, test::TestCaseType tct = test::TestCaseType::STATIC>
+void clamp_test(const element::Type& type,
+                const PartialShape& dynamic_shape,
+                const Shape& static_shape,
+                const std::vector<T>& input,
+                double min,
+                double max,
+                const std::vector<T>& output) {
+    auto data = make_shared<op::Parameter>(type, dynamic_shape);
+    auto clamp = make_shared<op::Clamp>(data, min, max);
+    auto function = make_shared<Function>(clamp, ParameterVector{data});
 
-        auto test_case = test::TestCase<TestEngine, tct>(function);
-        test_case.template add_input<T>(static_shape, input);
-        test_case.template add_expected_output<T>(static_shape, output);
-        return test_case.run();
-    }
+    auto test_case = test::TestCase<TestEngine, tct>(function);
+    test_case.template add_input<T>(static_shape, input);
+    test_case.template add_expected_output<T>(static_shape, output);
+    return test_case.run();
 }
+}  // namespace
 
-NGRAPH_TEST(${BACKEND_NAME}, clamp_integral)
-{
+NGRAPH_TEST(${BACKEND_NAME}, clamp_integral) {
     Shape in_shape{6};
     element::Type et = element::i32;
 
-    float min = 0.4; // ceiled to 1
-    float max = 5.6; // floored to 5
+    float min = 0.4;  // ceiled to 1
+    float max = 5.6;  // floored to 5
 
     auto input = make_shared<op::Parameter>(et, in_shape);
     auto clamp = make_shared<op::Clamp>(input, min, max);
@@ -69,13 +66,12 @@ NGRAPH_TEST(${BACKEND_NAME}, clamp_integral)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, clamp_integral_negative)
-{
+NGRAPH_TEST(${BACKEND_NAME}, clamp_integral_negative) {
     Shape in_shape{6};
     element::Type et = element::i32;
 
-    float min = -5.6; // ceiled to -5
-    float max = -0.4; // floored to -1
+    float min = -5.6;  // ceiled to -5
+    float max = -0.4;  // floored to -1
 
     auto input = make_shared<op::Parameter>(et, in_shape);
     auto clamp = make_shared<op::Clamp>(input, min, max);
@@ -90,8 +86,7 @@ NGRAPH_TEST(${BACKEND_NAME}, clamp_integral_negative)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, clamp_float)
-{
+NGRAPH_TEST(${BACKEND_NAME}, clamp_float) {
     auto type = element::f32;
     typedef float ctype;
 
@@ -139,8 +134,7 @@ NGRAPH_TEST(${BACKEND_NAME}, clamp_float)
                       {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, clamp_int8)
-{
+NGRAPH_TEST(${BACKEND_NAME}, clamp_int8) {
     auto type = element::i8;
     typedef int8_t ctype;
 
@@ -160,8 +154,7 @@ NGRAPH_TEST(${BACKEND_NAME}, clamp_int8)
     clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, clamp_int16)
-{
+NGRAPH_TEST(${BACKEND_NAME}, clamp_int16) {
     auto type = element::i16;
     typedef int16_t ctype;
 
@@ -181,8 +174,7 @@ NGRAPH_TEST(${BACKEND_NAME}, clamp_int16)
     clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, clamp_int32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, clamp_int32) {
     auto type = element::i32;
     typedef int32_t ctype;
 
@@ -202,8 +194,7 @@ NGRAPH_TEST(${BACKEND_NAME}, clamp_int32)
     clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, clamp_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, clamp_int64) {
     auto type = element::i64;
     typedef int64_t ctype;
 
@@ -223,8 +214,7 @@ NGRAPH_TEST(${BACKEND_NAME}, clamp_int64)
     clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, clamp_uint8)
-{
+NGRAPH_TEST(${BACKEND_NAME}, clamp_uint8) {
     auto type = element::u8;
     typedef uint8_t ctype;
 
@@ -247,8 +237,7 @@ NGRAPH_TEST(${BACKEND_NAME}, clamp_uint8)
     clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, clamp_uint16)
-{
+NGRAPH_TEST(${BACKEND_NAME}, clamp_uint16) {
     auto type = element::u16;
     typedef uint16_t ctype;
 
@@ -271,8 +260,7 @@ NGRAPH_TEST(${BACKEND_NAME}, clamp_uint16)
     clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, clamp_uint32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, clamp_uint32) {
     auto type = element::u32;
     typedef uint32_t ctype;
 
@@ -295,8 +283,7 @@ NGRAPH_TEST(${BACKEND_NAME}, clamp_uint32)
     clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, clamp_uint64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, clamp_uint64) {
     auto type = element::u64;
     typedef uint64_t ctype;
 
@@ -319,8 +306,7 @@ NGRAPH_TEST(${BACKEND_NAME}, clamp_uint64)
     clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, clamp_float16)
-{
+NGRAPH_TEST(${BACKEND_NAME}, clamp_float16) {
     auto type = element::f16;
     typedef float16 ctype;
 
@@ -368,8 +354,7 @@ NGRAPH_TEST(${BACKEND_NAME}, clamp_float16)
                       {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, clamp_bfloat16)
-{
+NGRAPH_TEST(${BACKEND_NAME}, clamp_bfloat16) {
     auto type = element::bf16;
     typedef bfloat16 ctype;
 

@@ -8,7 +8,7 @@
 
 #include "ngraph/op/pad.hpp"
 
-#include "api/border.hpp"
+#include "cldnn/primitives/border.hpp"
 
 namespace CLDNNPlugin {
 
@@ -27,8 +27,10 @@ static std::vector<int32_t> GetPermuteOrder(const ngraph::CoordinateDiff& ie_ord
     std::vector<int32_t> cldnn_order(ie_order.begin(), ie_order.end());
 
     // 1. Align to min. 4 sizes
-    if (cldnn_order.size() < 4)
-        cldnn_order.push_back(0);
+    if (cldnn_order.size() < 4) {
+        const auto zeros_to_add = 4 - ie_order.size();
+        cldnn_order.insert(cldnn_order.end(), zeros_to_add, 0);
+    }
 
     // 2. Swap spatial positions
     for (int i = 0; i < (cldnn_order.size() - 2) / 2; i++) {
@@ -64,7 +66,8 @@ void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& op) {
                                   pads_begin,
                                   pads_end,
                                   border_mode,
-                                  pad_value);
+                                  pad_value,
+                                  op->get_friendly_name());
 
     p.AddPrimitive(tilePrim);
     p.AddPrimitiveToProfiler(op);

@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string ConcatConvTest::getTestCaseName(testing::TestParamInfo<ConcatConvParams> obj) {
+std::string ConcatConvTest::getTestCaseName(const testing::TestParamInfo<ConcatConvParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
@@ -84,6 +84,7 @@ void ConcatConvTest::SetUp() {
     auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(conv, reshapePattern2, false);
 
     function = std::make_shared<ngraph::Function>(reshape2, params, "ConcatConvTest");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace SubgraphTestsDefinitions

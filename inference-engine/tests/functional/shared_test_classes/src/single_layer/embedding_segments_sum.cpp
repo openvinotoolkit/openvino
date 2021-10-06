@@ -8,7 +8,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string EmbeddingSegmentsSumLayerTest::getTestCaseName(testing::TestParamInfo<embeddingSegmentsSumLayerTestParamsSet> obj) {
+std::string EmbeddingSegmentsSumLayerTest::getTestCaseName(const testing::TestParamInfo<embeddingSegmentsSumLayerTestParamsSet>& obj) {
     embeddingSegmentsSumParams params;
     InferenceEngine::Precision netPrecision, indPrecision;
     std::string targetDevice;
@@ -52,5 +52,6 @@ void EmbeddingSegmentsSumLayerTest::SetUp() {
                 ngPrc, ngIdxPrc, emb_table_node, indices, segmentIds, numSegments, defaultIndex, withWeights, withDefIndex));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(embBag)};
     function = std::make_shared<ngraph::Function>(results, params, "embeddingSegmentsSum");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

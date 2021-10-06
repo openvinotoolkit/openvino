@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string PSROIPoolingLayerTest::getTestCaseName(testing::TestParamInfo<psroiParams> obj) {
+std::string PSROIPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<psroiParams>& obj) {
     std::vector<size_t> inputShape;
     std::vector<size_t> coordsShape;
     size_t outputDim;
@@ -120,5 +120,6 @@ void PSROIPoolingLayerTest::SetUp() {
                                                                                                 mode_);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(psroiPooling)};
     function = std::make_shared<ngraph::Function>(results, params, "psroi_pooling");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

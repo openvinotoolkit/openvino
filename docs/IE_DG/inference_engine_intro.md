@@ -5,7 +5,7 @@
 This Guide provides an overview of the Inference Engine describing the typical workflow for performing
 inference of a pre-trained and optimized deep learning model and a set of sample applications.
 
-> **NOTE:** Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in run-time using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_intel_index).
+> **NOTE:** Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in run-time using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_group_intel).
 
 After you have used the Model Optimizer to create an Intermediate Representation (IR), use the Inference Engine to infer the result for a given input data.
 
@@ -43,13 +43,15 @@ This library contains the classes to:
 
 ### Plugin Libraries to read a network object ###
 
-Starting from 2020.4 release, Inference Engine introduced a concept of `CNNNetwork` reader plugins. Such plugins can be automatically dynamically loaded by Inference Engine in runtime depending on file format:
+Starting from 2022.1 release, OpenVINO Runtime introduced a concept of frontend plugins. Such plugins can be automatically dynamically loaded by OpenVINO Runtime dynamically depending on file format:
 * Unix* OS:
-    - `libinference_engine_ir_reader.so` to read a network from IR
-    - `libinference_engine_onnx_reader.so` to read a network from ONNX model format
+    - `libir_ngraph_frontend.so` to read a network from IR
+    - `libpaddlepaddle_ngraph_frontend.so` to read a network from PaddlePaddle model format
+    - `libonnx_ngraph_frontend.so` to read a network from ONNX model format
 * Windows* OS:
-    - `inference_engine_ir_reader.dll` to read a network from IR
-    - `inference_engine_onnx_reader.dll` to read a network from ONNX model format
+    - `ir_ngraph_frontend.dll` to read a network from IR
+    - `paddlepaddle_ngraph_frontend.dll` to read a network from PaddlePaddle model format
+    - `onnx_ngraph_frontend.dll` to read a network from ONNX model format
 
 ### Device-specific Plugin Libraries ###
 
@@ -84,9 +86,9 @@ Make sure those libraries are in your computer's path or in the place you pointe
 * Windows: `PATH`
 * macOS: `DYLD_LIBRARY_PATH`
 
-On Linux and macOS, use the script `bin/setupvars.sh` to set the environment variables.
+On Linux and macOS, use the script `setupvars.sh` to set the environment variables.
 
-On Windows, run the `bin\setupvars.bat` batch file to set the environment variables.
+On Windows, run the `setupvars.bat` batch file to set the environment variables.
 
 To learn more about supported devices and corresponding plugins, see the [Supported Devices](supported_plugins/Supported_Devices.md) chapter.
 
@@ -100,18 +102,18 @@ The common workflow contains the following steps:
 
 3. **Prepare inputs and outputs format** - After loading the network, specify input and output precision and the layout on the network. For these specification, use the `InferenceEngine::CNNNetwork::getInputsInfo()` and `InferenceEngine::CNNNetwork::getOutputsInfo()`.
 
-4. Pass per device loading configurations specific to this device (`InferenceEngine::Core::SetConfig`), and register extensions to this device (`InferenceEngine::Core::AddExtension`).
+4. **Pass per device loading configurations** specific to this device (`InferenceEngine::Core::SetConfig`) and register extensions to this device (`InferenceEngine::Core::AddExtension`).
 
-4. **Compile and Load Network to device** - Use the `InferenceEngine::Core::LoadNetwork()` method with specific device (e.g. `CPU`, `GPU`, etc.) to compile and load the network on the device. Pass in the per-target load configuration for this compilation and load operation.
+5. **Compile and Load Network to device** - Use the `InferenceEngine::Core::LoadNetwork()` method with specific device (e.g. `CPU`, `GPU`, etc.) to compile and load the network on the device. Pass in the per-target load configuration for this compilation and load operation.
 
-5. **Set input data** - With the network loaded, you have an `InferenceEngine::ExecutableNetwork` object. Use this object to create an `InferenceEngine::InferRequest` in which you signal the input buffers to use for input and output. Specify a device-allocated memory and copy it into the device memory directly, or tell the device to use your application memory to save a copy.
+6. **Set input data** - With the network loaded, you have an `InferenceEngine::ExecutableNetwork` object. Use this object to create an `InferenceEngine::InferRequest` in which you signal the input buffers to use for input and output. Specify a device-allocated memory and copy it into the device memory directly, or tell the device to use your application memory to save a copy.
 
-6. **Execute** - With the input and output memory now defined, choose your execution mode:
+7. **Execute** - With the input and output memory now defined, choose your execution mode:
 
     * Synchronously - `InferenceEngine::InferRequest::Infer()` method. Blocks until inference is completed.
     * Asynchronously - `InferenceEngine::InferRequest::StartAsync()` method. Check status with the `InferenceEngine::InferRequest::Wait()` method (0 timeout), wait, or specify a completion callback.
 
-7. **Get the output** - After inference is completed, get the output memory or read the memory you provided earlier. Do this with the `InferenceEngine::InferRequest::GetBlob()` method.
+8. **Get the output** - After inference is completed, get the output memory or read the memory you provided earlier. Do this with the `InferenceEngine::IInferRequest::GetBlob()` method.
 
 
 Further Reading

@@ -2,7 +2,7 @@
 
 **Versioned name**: *GRUCell-3*
 
-**Category**: Sequence processing
+**Category**: *Sequence processing*
 
 **Short description**: *GRUCell* represents a single GRU Cell that computes the output using the formula described in the [paper](https://arxiv.org/abs/1406.1078).
 
@@ -13,7 +13,6 @@
   * **Description**: *hidden_size* specifies hidden state size.
   * **Range of values**: a positive integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *activations*
@@ -66,7 +65,7 @@
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 **Example**
 ```xml

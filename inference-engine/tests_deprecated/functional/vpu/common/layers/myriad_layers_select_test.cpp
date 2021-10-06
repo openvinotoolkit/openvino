@@ -4,7 +4,7 @@
 
 #include "myriad_layers_select_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsSelect_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadTestsSelect_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseDims))

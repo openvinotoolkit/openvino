@@ -21,8 +21,8 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
+#include "engines_util/test_case.hpp"
 #include "util/test_control.hpp"
 
 using namespace std;
@@ -31,8 +31,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, floor)
-{
+NGRAPH_TEST(${BACKEND_NAME}, floor) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Floor>(A), ParameterVector{A});
@@ -43,8 +42,7 @@ NGRAPH_TEST(${BACKEND_NAME}, floor)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, floor_int32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, floor_int32) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::i32, shape);
     auto f = make_shared<Function>(make_shared<op::Floor>(A), ParameterVector{A});
@@ -55,8 +53,7 @@ NGRAPH_TEST(${BACKEND_NAME}, floor_int32)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, floor_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, floor_int64) {
     // This tests large numbers that will not fit in a double
     Shape shape{3};
     auto A = make_shared<op::Parameter>(element::i64, shape);

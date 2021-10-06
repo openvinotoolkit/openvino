@@ -3,7 +3,7 @@
 //
 
 #include "plg_test.hpp"
-#include "common_test_utils/xml_net_builder/xml_net_builder.hpp"
+#include "xml_net_builder.hpp"
 
 #include <cmath>
 #include <vector>

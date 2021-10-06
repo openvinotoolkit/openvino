@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/topk.hpp"
 
 namespace LayerTestsDefinitions {
-    std::string TopKLayerTest::getTestCaseName(testing::TestParamInfo<TopKParams> obj) {
+    std::string TopKLayerTest::getTestCaseName(const testing::TestParamInfo<TopKParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout;
@@ -51,5 +51,6 @@ void TopKLayerTest::SetUp() {
         results.push_back(std::make_shared<ngraph::opset4::Result>(topk->output(i)));
     }
     function = std::make_shared<ngraph::Function>(results, params, "TopK");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

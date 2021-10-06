@@ -72,6 +72,7 @@ class Eltwise4dBroadcast : public testing::WithParamInterface<eltwiseParams>,
 
             ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape2) };
             function = std::make_shared<ngraph::Function>(results, params, "Eltwise4dBroadcast");
+            functionRefs = ngraph::clone_function(*function);
         }
 };
 
@@ -120,6 +121,7 @@ protected:
 
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape3) };
         function = std::make_shared<ngraph::Function>(results, params, "Eltwise4dMultipleInput");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 
@@ -157,7 +159,7 @@ protected:
         ngraph::helpers::EltwiseTypes::ADD
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_Eltwise4d, Eltwise4dBroadcast,
+    INSTANTIATE_TEST_SUITE_P(smoke_Eltwise4d, Eltwise4dBroadcast,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -165,7 +167,7 @@ protected:
             ::testing::ValuesIn(eltwiseOpTypes)),
         Eltwise4dBroadcast::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Eltwise4d, Eltwise4dMultipleInput,
+    INSTANTIATE_TEST_SUITE_P(smoke_Eltwise4d, Eltwise4dMultipleInput,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),

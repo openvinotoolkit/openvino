@@ -9,7 +9,7 @@ using namespace MKLDNNPlugin;
 impl_desc_type MKLDNNPlugin::parse_impl_name(std::string impl_desc_name) {
     impl_desc_type res = impl_desc_type::unknown;
 
-#define REPLACE_WORD(_wrd, _sub) int pos = impl_desc_name.find(#_wrd); \
+#define REPLACE_WORD(_wrd, _sub) auto pos = impl_desc_name.find(#_wrd); \
     if (pos != std::string::npos) impl_desc_name.replace(pos, std::string(#_wrd).length(), #_sub);
 
     REPLACE_WORD(simple, ref);
@@ -49,4 +49,39 @@ impl_desc_type MKLDNNPlugin::parse_impl_name(std::string impl_desc_name) {
 #undef SEARCH_WORD
 
     return res;
+}
+
+const char* MKLDNNPlugin::impl_type_to_string(impl_desc_type type) {
+#define CASE(_type) do {                    \
+    if (type == _type) return #_type;       \
+} while (0)
+    CASE(unknown);
+    CASE(undef);
+    CASE(ref_any);
+    CASE(reorder);
+    CASE(gemm_any);
+    CASE(gemm_blas);
+    CASE(gemm_avx512);
+    CASE(gemm_avx2);
+    CASE(gemm_avx);
+    CASE(gemm_sse42);
+    CASE(jit_gemm);
+    CASE(jit_avx512_winograd);
+    CASE(jit_avx512);
+    CASE(jit_avx2);
+    CASE(jit_avx);
+    CASE(jit_sse42);
+    CASE(jit_uni);
+    CASE(jit_avx512_1x1);
+    CASE(jit_avx2_1x1);
+    CASE(jit_avx_1x1);
+    CASE(jit_sse42_1x1);
+    CASE(jit_uni_1x1);
+    CASE(jit_avx512_dw);
+    CASE(jit_avx2_dw);
+    CASE(jit_avx_dw);
+    CASE(jit_sse42_dw);
+    CASE(jit_uni_dw);
+#undef CASE
+    return "unknown";
 }

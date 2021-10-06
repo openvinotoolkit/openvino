@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>
 #include <fstream>
 #include <vector>
 #include <mutex>
@@ -20,8 +19,15 @@
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/profiling.hpp>
 
+#include <vpu/configuration/options/protocol.hpp>
+#include <vpu/configuration/options/power_config.hpp>
+#include <vpu/configuration/options/watchdog_interval.hpp>
+#include <vpu/configuration/options/device_id.hpp>
+#include <vpu/configuration/options/device_connect_timeout.hpp>
+#include <vpu/configuration/options/memory_type.hpp>
+#include <vpu/configuration/options/enable_async_dma.hpp>
+
 #include "myriad_executor.h"
-#include "myriad_config.h"
 
 #ifndef _WIN32
 # include <libgen.h>
@@ -74,8 +80,7 @@ MyriadExecutor::MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
 /*
  * @brief Boot available device
  */
-ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
-                                          const MyriadConfig& config) {
+ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, const PluginConfiguration& config) {
     VPU_PROFILE(bootNextDevice);
 // #-17972, #-16790
 #if defined(NO_BOOT)
@@ -85,11 +90,10 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
     }
 #endif
 
-    const ncDevicePlatform_t& configPlatform = config.platform();
-    const ncDeviceProtocol_t& configProtocol = config.protocol();
-    const std::string& configDevName = config.deviceName();
-    PowerConfig powerConfig = config.powerConfig();
-    int enableAsyncDma = config.asyncDma();
+    const ncDeviceProtocol_t& configProtocol = config.get<ProtocolOption>();
+    const std::string& configDevName = config.get<DeviceIDOption>();
+    PowerConfig powerConfig = config.get<PowerConfigOption>();
+    int enableAsyncDma = config.get<EnableAsyncDMAOption>();
     int lastDeviceIdx = devicePool.empty() ? -1 : devicePool.back()->_deviceIdx;
 
     ncStatus_t statusOpen = NC_ERROR;
@@ -109,7 +113,6 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
 #endif
 
     ncDeviceDescr_t in_deviceDesc = {};
-    in_deviceDesc.platform = configPlatform;
     in_deviceDesc.protocol = configProtocol;
 
     if (!configDevName.empty()) {
@@ -121,27 +124,20 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
 
         if (it == availableDevicesDesc.end()) {
             IE_THROW() << "Myriad device: " << configDevName << " not found.";
-        } else {
-            ncDeviceDescr_t deviceDesc = *it;
-            if (configPlatform != NC_ANY_PLATFORM &&
-                configPlatform != deviceDesc.platform) {
-                IE_THROW() << "Input value of device name and platform are contradict each other. Device name: " << configDevName
-                                   << "Platform: " << configPlatform;
-            }
         }
 
         configDevName.copy(in_deviceDesc.name, NC_MAX_NAME_SIZE - 1);
     }
 
-    statusOpen = ncSetDeviceConnectTimeout(static_cast<int>(config.deviceConnectTimeout().count()));
+    statusOpen = ncSetDeviceConnectTimeout(static_cast<int>(config.get<DeviceConnectTimeoutOption>().count()));
     if (statusOpen) {
         return statusOpen;
     }
 
     ncDeviceOpenParams_t deviceOpenParams = {};
     deviceOpenParams.watchdogHndl = _mvnc->watchdogHndl();
-    deviceOpenParams.watchdogInterval = static_cast<int>(config.watchdogInterval().count());
-    deviceOpenParams.memoryType = checked_cast<char>(config.memoryType());
+    deviceOpenParams.watchdogInterval = static_cast<int>(config.get<WatchdogIntervalOption>().count());
+    deviceOpenParams.memoryType = static_cast<char>(config.get<MemoryTypeOption>());
     deviceOpenParams.customFirmwareDirectory = dirName.c_str();
 
     // Open new device with specific path to FW folder
@@ -159,8 +155,8 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
 
     // Get device protocol
     status = ncDeviceGetOption(device._deviceHandle, NC_RO_DEVICE_PLATFORM,
-                                          reinterpret_cast<void*>(&device._platform), &dataLength);
-    if (status != NC_OK || dataLength != sizeof(device._platform)) {
+                                          reinterpret_cast<void*>(&device), &dataLength);
+    if (status != NC_OK) {
         _log->warning("Failed to get device platform");
         ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
         return status != NC_OK ? status : NC_ERROR;     // for dataLength error
@@ -222,7 +218,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
 }
 
 DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
-                                     const MyriadConfig& config) {
+                                     const PluginConfiguration& config) {
     VPU_PROFILE(openDevice);
     std::lock_guard<std::mutex> lock(device_mutex);
 
@@ -238,7 +234,7 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
         return device;
     }
 
-    if (!config.deviceName().empty()) {
+    if (!config.get<DeviceIDOption>().empty()) {
         auto firstBootedBySpecificName = std::find_if(devicePool.begin(), devicePool.end(),
             [&](const DevicePtr& device) {
                 return device->isBooted() && device->isSuitableForConfig(config);
@@ -250,7 +246,7 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
                 device->_graphNum++;
                 return device;
             } else {
-                IE_THROW() << "Maximum number of networks reached for device: " << config.deviceName();
+                IE_THROW() << "Maximum number of networks reached for device: " << config.get<DeviceIDOption>();
             }
         }
     }
@@ -268,15 +264,11 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
                 return device->isBooted() && device->isNotFull()
                        && device->isSuitableForConfig(config);
             });
-
         // Return mock device. If try infer with it, exception will be thrown
-        if (availableDevices.empty() && config.platform() != NC_ANY_PLATFORM) {
+        if (availableDevices.empty()) {
             DeviceDesc device;
-            device._platform = config.platform();
-            device._protocol = config.protocol();
+            device._protocol = config.get<ProtocolOption>();
             return std::make_shared<DeviceDesc>(device);
-        } else if (availableDevices.empty()) {
-            IE_THROW() << "Can not init Myriad device: " << ncStatusToStr(nullptr, booted);
         }
 
         auto deviceWithMinExecutors = std::min_element(availableDevices.begin(), availableDevices.end(),
@@ -288,7 +280,6 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
     }
 
     _log->info("Device #%d %s (%s protocol) allocated", devicePool.size() - 1,
-        devicePool.back()->_platform == NC_MYRIAD_X ? "MYRIAD-X" : "MYRIAD-2",
         devicePool.back()->_protocol == NC_USB? "USB" : "PCIe");
 
     return devicePool.back();
@@ -378,7 +369,7 @@ void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
         IE_THROW() << "Failed to get output description: " << ncStatusToStr(graphDesc._graphHandle, status);
     }
 
-    unsigned int fifo_elements = (device->_platform == NC_MYRIAD_2 && executors == 1) ? 4 : 2 * executors;
+    unsigned int fifo_elements = 2 * executors;
 
     status = ncFifoCreate("input", NC_FIFO_HOST_WO, &graphDesc._inputFifoHandle);
     if (status != NC_OK) {

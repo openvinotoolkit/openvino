@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string NonZeroLayerTest::getTestCaseName(testing::TestParamInfo<NonZeroLayerTestParamsSet> obj) {
+std::string NonZeroLayerTest::getTestCaseName(const testing::TestParamInfo<NonZeroLayerTestParamsSet>& obj) {
     std::vector<size_t> inputShape;
     InferenceEngine::Precision inputPrecision;
     std::string targetDevice;
@@ -21,7 +21,6 @@ std::string NonZeroLayerTest::getTestCaseName(testing::TestParamInfo<NonZeroLaye
 }
 
 void NonZeroLayerTest::SetUp() {
-    SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
     auto inputShape     = std::vector<std::size_t>{};
     auto inputPrecision = InferenceEngine::Precision::UNSPECIFIED;
     ConfigMap additionalConfig;
@@ -36,5 +35,6 @@ void NonZeroLayerTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(nonZeroOp)};
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{paramNode}, "non_zero");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

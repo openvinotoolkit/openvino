@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string SplitConvTest::getTestCaseName(testing::TestParamInfo<SplitConvParams> obj) {
+std::string SplitConvTest::getTestCaseName(const testing::TestParamInfo<SplitConvParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
@@ -86,6 +86,7 @@ void SplitConvTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(relu1),
                                  std::make_shared<ngraph::opset1::Result>(reshape2)};
     function = std::make_shared<ngraph::Function>(results, params, "SplitConvTest");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace SubgraphTestsDefinitions

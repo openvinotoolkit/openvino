@@ -58,7 +58,7 @@ public:
 
     void RunAsyncTest(int numIters = 20) {
         if (!CheckMyriadX()) {
-            SKIP() << "Non-MyriadX device";
+            GTEST_SKIP() << "Non-MyriadX device";
         }
 
         auto fnPtr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
@@ -145,7 +145,7 @@ inline std::string getTestCaseName(const testing::TestParamInfo<HwNetworkParams>
            std::string((std::get<1>(param.param)).name());
 }
 
-INSTANTIATE_TEST_CASE_P(Input_Output_ExecMode, MyriadX_HW_Networks_Tests_nightly,
+INSTANTIATE_TEST_SUITE_P(Input_Output_ExecMode, MyriadX_HW_Networks_Tests_nightly,
     testing::Values(
           std::make_tuple(Precision::FP16, Precision::FP16)
     ),

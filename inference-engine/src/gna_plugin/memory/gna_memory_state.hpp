@@ -6,7 +6,7 @@
 
 #include <memory>
 #include <utility>
-#include <cpp_interfaces/impl/ie_variable_state_internal.hpp>
+#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 #include "gna_plugin.hpp"
 
 namespace  GNAPluginNS {
@@ -14,12 +14,11 @@ namespace memory {
 class GNAVariableState : public InferenceEngine::IVariableStateInternal {
  public:
     GNAVariableState(std::string name, std::shared_ptr<GNAMemoryLayer> state)
-        : name(name), state(state) { IE_ASSERT(state != nullptr); }
+        : InferenceEngine::IVariableStateInternal{name}, state(state) { IE_ASSERT(state != nullptr); }
 
     void Reset() override;
-    void SetState(InferenceEngine::Blob::Ptr newState) override;
+    void SetState(const InferenceEngine::Blob::Ptr& newState) override;
     InferenceEngine::Blob::CPtr GetState() const override;
-    std::string GetName() const override;
     float GetScaleFactor() const;
 
 private:

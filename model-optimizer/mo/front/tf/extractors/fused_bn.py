@@ -5,13 +5,14 @@ import logging as log
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import shape_array
 from mo.front.tf.extractors.utils import tf_dtype_extractor
 
 
 def tf_fused_bn_infer(node):
     output_shape = np.array(node.in_node(0).shape)
     for port, out_node in node.out_nodes().items():
-        out_node.shape = output_shape
+        out_node.shape = shape_array(output_shape)
 
 
 def tf_fused_bn_extractor(pb):

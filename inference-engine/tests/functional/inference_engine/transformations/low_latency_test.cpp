@@ -25,12 +25,18 @@ TEST(TransformationTests, LowLatencyLSTM) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 1, 16});
+        X->set_friendly_name("X");
         auto H_init = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
+        H_init->set_friendly_name("H_init");
         auto C_init = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
+        C_init->set_friendly_name("C_init");
 
         auto Xi = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 1, 16});
+        Xi->set_friendly_name("Xi");
         auto H_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
+        H_t->set_friendly_name("H_t");
         auto C_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
+        C_t->set_friendly_name("C_t");
 
         // Body
         auto axis = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
@@ -68,7 +74,9 @@ TEST(TransformationTests, LowLatencyLSTM) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+        NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
+        NGRAPH_SUPPRESS_DEPRECATED_END
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         manager.run_passes(f);
     }
@@ -77,8 +85,8 @@ TEST(TransformationTests, LowLatencyLSTM) {
         auto H_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
         auto C_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMTensorIterator/variable0");
-        const std::string variable_name_C("LSTMTensorIterator/variable1");
+        const std::string variable_name_H("LSTMTensorIterator/H_t/variable_2");
+        const std::string variable_name_C("LSTMTensorIterator/C_t/variable_0");
         auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<opset6::ReadValue>(H_t, variable_H);
@@ -105,7 +113,7 @@ TEST(TransformationTests, LowLatencyLSTM) {
         assign_H->add_control_dependency(read_value_H);
         assign_C->add_control_dependency(read_value_C);
     }
-    auto res = compare_functions(f, f_ref);
+    auto res = compare_functions(f, f_ref, true, false, false, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -149,7 +157,9 @@ TEST(TransformationTests, LowLatencyGRU) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+        NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
+        NGRAPH_SUPPRESS_DEPRECATED_END
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
@@ -227,7 +237,9 @@ TEST(TransformationTests, LowLatencyRNN) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+        NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
+        NGRAPH_SUPPRESS_DEPRECATED_END
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
@@ -317,7 +329,9 @@ TEST(TransformationTests, LowLatencyLSTMReshape) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+        NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
+        NGRAPH_SUPPRESS_DEPRECATED_END
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         manager.run_passes(f);
     }
@@ -413,7 +427,9 @@ TEST(TransformationTests, LowLatencyLSTM_Loop) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
+        NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
+        NGRAPH_SUPPRESS_DEPRECATED_END
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         manager.run_passes(f);
     }

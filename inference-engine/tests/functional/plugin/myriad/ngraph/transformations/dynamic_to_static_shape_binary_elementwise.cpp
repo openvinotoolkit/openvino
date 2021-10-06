@@ -266,7 +266,7 @@ private:
 TEST_P(DynamicToStaticShapeEltwise, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_EltwiseBroadcast, DynamicToStaticShapeEltwise, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseBroadcast, DynamicToStaticShapeEltwise, testing::Combine(
     testing::Values(
         ngraph::element::f16,
         ngraph::element::f32,

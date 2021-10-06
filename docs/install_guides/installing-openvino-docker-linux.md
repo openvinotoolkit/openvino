@@ -2,7 +2,7 @@
 
 The Intel® Distribution of OpenVINO™ toolkit quickly deploys applications and solutions that emulate human vision. Based on Convolutional Neural Networks (CNN), the toolkit extends computer vision (CV) workloads across Intel® hardware, maximizing performance. The Intel® Distribution of OpenVINO™ toolkit includes the Intel® Deep Learning Deployment Toolkit.  
 
-This guide provides the steps for creating a Docker* image with Intel® Distribution of OpenVINO™ toolkit for Linux* and further installation.  
+This guide provides device specifics for a Docker* image creation with Intel® Distribution of OpenVINO™ toolkit for Linux* and its further usage.  
 
 ## System Requirements
 
@@ -10,54 +10,67 @@ This guide provides the steps for creating a Docker* image with Intel® Distribu
 
 - Ubuntu\* 18.04 long-term support (LTS), 64-bit
 - Ubuntu\* 20.04 long-term support (LTS), 64-bit
-- CentOS\* 7.6
-- Red Hat* Enterprise Linux* 8.2 (64 bit)
+- CentOS\* 7
+- Red Hat\* Enterprise Linux* 8 (64 bit)
 
 **Host Operating Systems**
 
-- Linux with installed GPU driver and with Linux kernel supported by GPU driver
+- Linux
 
 ## Prebuilt images
 
-Prebuilt images are available on: 
+Prebuilt images are available on:
+
 - [Docker Hub](https://hub.docker.com/u/openvino)
 - [Red Hat* Quay.io](https://quay.io/organization/openvino)
 - [Red Hat* Ecosystem Catalog](https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3)
+
+## Build a Docker* Image
+
+You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci).
+The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit.
+You can also try our [Tutorials](https://github.com/openvinotoolkit/docker_ci/tree/master/docs/tutorials) which demonstrate the usage of Docker containers with Intel® Distribution of OpenVINO™ toolkit. You can find device specific steps to configure an Intel® Distribution of OpenVINO™ toolkit Dockerfile below.
 
 ## Use Docker* Image for CPU
 
 - Kernel reports the same information for all containers as for native application, for example, CPU, memory information.
 - All instructions that are available to host process available for process in container, including, for example, AVX2, AVX512. No restrictions.
-- Docker* does not use virtualization or emulation. The process in Docker* is just a regular Linux process, but it is isolated from external world on kernel level. Performance penalty is small.
+- Docker\* does not use virtualization or emulation. The process in Docker* is just a regular Linux process, but it is isolated from external world on kernel level. Performance penalty is small.
 
-### <a name="building-for-cpu"></a>Build a Docker* Image for CPU
+### <a name="configuring-for-cpu"></a>Configure a Docker* Image for CPU
 
-You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. 
-The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit.
+You don't need to do specific steps to configure an Intel® Distribution of OpenVINO™ toolkit Dockerfile for CPU. You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci).
 
 ### Run the Docker* Image for CPU
 
 Run the image with the following command:
+
 ```sh
 docker run -it --rm <image_name>
 ```
+
 ## Use a Docker* Image for GPU
-### Build a Docker* Image for GPU
+
+### Configure a Docker* Image for GPU
+
+> **NOTE**: Only Intel® integrated graphics are supported.
 
 **Prerequisites:**
+
 - GPU is not available in container by default, you must attach it to the container.
 - Kernel driver must be installed on the host.
 - Intel® OpenCL™ runtime package must be included into the container.
-- In the container, non-root user must be in the `video` and `render` groups. To add a user to the render group, follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu* 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md). 
+- In the container, non-root user must be in the `video` and `render` groups. To add a user to the render group, follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu* 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md).
 
-
-Before building a Docker* image on GPU, add the following commands to a Dockerfile:
+To configure a OpenVINO Docker* image with access to GPU, add the following commands to a Dockerfile:
 
 **Ubuntu 18.04/20.04**:
+
 ```sh
 WORKDIR /tmp/opencl
 RUN useradd -ms /bin/bash -G video,users openvino && \
     chown openvino -R /home/openvino
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ocl-icd-libopencl1 && \
     rm -rf /var/lib/apt/lists/* && \
@@ -70,7 +83,24 @@ RUN apt-get update && \
     ldconfig && \
     rm /tmp/opencl
 ```
+
+or you can use the installation script `install_NEO_OCL_driver.sh` if you previously installed OpenVINO in the Dockerfile, where `INTEL_OPENCL` is the variable to store the default version of Intel® Graphics Compute Runtime for OpenCL™ Driver:
+
+```sh
+WORKDIR /tmp/opencl
+RUN useradd -ms /bin/bash -G video,users openvino && \
+    chown openvino -R /home/openvino
+
+# Please use `20.35.17767` for 10th generation Intel® Core™ processor (formerly Ice Lake) or 11th generation Intel® Core™ processor (formerly Tiger Lake)
+ARG INTEL_OPENCL=19.41.14441
+
+WORKDIR ${INTEL_OPENVINO_DIR}/install_dependencies
+RUN ./install_NEO_OCL_driver.sh --no_numa -y --install_driver ${INTEL_OPENCL} && \
+    rm -rf /var/lib/apt/lists/*
+```
+
 **CentOS 7/RHEL 8**:
+
 ```sh
 WORKDIR /tmp/opencl
 RUN useradd -ms /bin/bash -G video,users openvino && \
@@ -92,9 +122,27 @@ RUN yum update -y && yum install -y https://dl.fedoraproject.org/pub/epel/epel-r
     yum remove -y epel-release
 ```
 
+or you can use the installation script `install_NEO_OCL_driver.sh` if you previously installed OpenVINO in the Dockerfile, where `INTEL_OPENCL` is the variable to store the default version of Intel® Graphics Compute Runtime for OpenCL™ Driver:
+
+```sh
+WORKDIR /tmp/opencl
+RUN useradd -ms /bin/bash -G video,users openvino && \
+    chown openvino -R /home/openvino
+RUN groupmod -g 44 video
+
+# Please use `20.35.17767` for 10th generation Intel® Core™ processor (formerly Ice Lake) or 11th generation Intel® Core™ processor (formerly Tiger Lake)
+ARG INTEL_OPENCL=19.41.14441
+
+WORKDIR ${INTEL_OPENVINO_DIR}/install_dependencies
+RUN ./install_NEO_OCL_driver.sh --no_numa -y --install_driver ${INTEL_OPENCL} && \
+    yum clean all && rm -rf /var/cache/yum && \
+    yum remove -y epel-release
+```
+
 ### Run the Docker* Image for GPU
 
 To make GPU available in the container, attach the GPU to the container using `--device /dev/dri` option and run the container:
+
 ```sh
 docker run -it --rm --device /dev/dri <image_name>
 ```
@@ -102,7 +150,7 @@ docker run -it --rm --device /dev/dri <image_name>
 
 ## Use a Docker* Image for Intel® Neural Compute Stick 2
 
-### Build and Run the Docker* Image for Intel® Neural Compute Stick 2
+### Configure and Run the Docker* Image for Intel® Neural Compute Stick 2
 
 **Known limitations:**
 
@@ -112,7 +160,8 @@ docker run -it --rm --device /dev/dri <image_name>
 
 Use one of the following options as **Possible solutions for Intel® Neural Compute Stick 2:**
 
-#### Option #1
+#### Option 1
+
 1. Get rid of UDEV by rebuilding `libusb` without UDEV support in the Docker* image (add the following commands to a `Dockerfile`):
    - **Ubuntu 18.04/20.04**:
 ```sh
@@ -144,7 +193,7 @@ RUN /bin/mkdir -p '/usr/local/lib' && \
 
 WORKDIR /opt/libusb-1.0.22/
 RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
-    cp /opt/intel/openvino_2021/deployment_tools/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
+    cp /opt/intel/openvino_2022/runtime/3rdparty/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
     ldconfig
 ```
    - **CentOS 7**:
@@ -155,7 +204,6 @@ ARG BUILD_DEPENDENCIES="autoconf \
                         unzip \
                         udev"
 
-# hadolint ignore=DL3031, DL3033
 RUN yum update -y && yum install -y ${BUILD_DEPENDENCIES} && \
     yum group install -y "Development Tools" && \
     yum clean all && rm -rf /var/cache/yum
@@ -175,11 +223,11 @@ RUN /bin/mkdir -p '/usr/local/lib' && \
     /bin/mkdir -p '/usr/local/include/libusb-1.0' && \
     /usr/bin/install -c -m 644 libusb.h '/usr/local/include/libusb-1.0' && \
     /bin/mkdir -p '/usr/local/lib/pkgconfig' && \
-    printf "\nexport LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:/usr/local/lib\n" >> /opt/intel/openvino_2021/bin/setupvars.sh
+    printf "\nexport LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:/usr/local/lib\n" >> /opt/intel/openvino_2022/setupvars.sh
 
 WORKDIR /opt/libusb-1.0.22/
 RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
-    cp /opt/intel/openvino_2021/deployment_tools/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
+    cp /opt/intel/openvino_2022/runtime/3rdparty/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
     ldconfig
 ```
 2. Run the Docker* image:
@@ -187,22 +235,23 @@ RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
 docker run -it --rm --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
 ```
 
-#### Option #2
+#### Option 2
 Run container in the privileged mode, enable the Docker network configuration as host, and mount all devices to the container:
 ```sh
 docker run -it --rm --privileged -v /dev:/dev --network=host <image_name>
 ```
 > **NOTES**:
+>
 > - It is not secure.
 > - Conflicts with Kubernetes* and other tools that use orchestration and private networks may occur.
 
 ## Use a Docker* Image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 
-### Build Docker* Image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+### Configure Docker* Image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 To use the Docker container for inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs:
 
-1. Set up the environment on the host machine, that is going to be used for running Docker*. 
-It is required to execute `hddldaemon`, which is responsible for communication between the HDDL plugin and the board. 
+1. Set up the environment on the host machine, that is going to be used for running Docker*.
+It is required to execute `hddldaemon`, which is responsible for communication between the HDDL plugin and the board.
 To learn how to set up the environment (the OpenVINO package or HDDL package must be pre-installed), see [Configuration guide for HDDL device](https://github.com/openvinotoolkit/docker_ci/blob/master/install_guide_vpu_hddl.md) or [Configuration Guide for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](installing-openvino-linux-ivad-vpu.md).
 2. Prepare the Docker* image (add the following commands to a Dockerfile).
    - **Ubuntu 18.04**:
@@ -248,72 +297,70 @@ $HDDL_INSTALL_DIR/hddldaemon
 ```
 
 ### Run the Docker* Image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+
 To run the built Docker* image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, use the following command:
+
 ```sh
 docker run -it --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp <image_name>
 ```
 
 > **NOTES**:
-> - The device `/dev/ion` need to be shared to be able to use ion buffers among the plugin, `hddldaemon` and the kernel.
+>
+> - The device `/dev/ion` needs to be shared to be able to use ion buffers among the plugin, `hddldaemon` and the kernel.
 > - Since separate inference tasks share the same HDDL service communication interface (the service creates mutexes and a socket file in `/var/tmp`), `/var/tmp` needs to be mounted and shared among them.
 
-In some cases, the ion driver is not enabled (for example, due to a newer kernel version or iommu incompatibility). `lsmod | grep myd_ion` returns empty output. To resolve, use the following command:
+In some cases, the ion driver is not enabled (for example, due to a newer kernel version or iommu (Input-Output Memory Management Unit) incompatibility). `lsmod | grep myd_ion` returns empty output. To resolve, use the following command:
+
 ```sh
-docker run -it --rm --net=host -v /var/tmp:/var/tmp –ipc=host <image_name>
+docker run -it --rm --net=host -v /var/tmp:/var/tmp –-ipc=host <image_name>
 ```
+
 > **NOTES**:
-> - When building docker images, create a user in the docker file that has the same UID and GID as the user which runs hddldaemon on the host.
-> - Run the application in the docker with this user.
+>
+> - When building Docker images, create a user in the Dockerfile that has the same UID(User Identifier) and GID(Group Identifier) as the user which runs hddldaemon on the host.
+> - Run the application in the Docker image with this user.
 > - Alternatively, you can start hddldaemon with the root user on host, but this approach is not recommended.
 
-### Run Demos in the Docker* Image 
+### Run Demos in the Docker* Image
 
-To run the Security Barrier Camera Demo on a specific inference device, run the following commands with the root privileges (additional third-party dependencies will be installed):
+To run the Classification Demo Using SqueezeNet on a specific inference device, run the following commands with the root privileges (additional third-party dependencies will be installed):
 
 **CPU**:
+
 ```sh
-docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
-/bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d CPU -sample-options -no_show"
+docker run -itu root:root --rm <image_name>
+/bin/bash -c "apt update && apt install sudo && samples/scripts/run_sample_squeezenet.sh -d CPU"
 ```
 
 **GPU**:
+
 ```sh
-docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
-/bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d GPU -sample-options -no_show"
+docker run -itu root:root --rm --device /dev/dri:/dev/dri <image_name>
+/bin/bash -c "apt update && apt install sudo && samples/scripts/run_sample_squeezenet.sh -d GPU"
 ```
 
 **MYRIAD**:
+
 ```sh
-docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
-/bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d MYRIAD -sample-options -no_show"
+docker run -itu root:root --rm --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
+/bin/bash -c "apt update && apt install sudo && samples/scripts/run_sample_squeezenet.sh -d MYRIAD"
 ```
 
 **HDDL**:
+
 ```sh
-docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
-/bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d HDDL -sample-options -no_show"
+docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp <image_name>
+/bin/bash -c "apt update && apt install sudo && samples/scripts/run_sample_squeezenet.sh -d HDDL"
 ```
-
-## Use a Docker* Image for FPGA
-
-Intel will be transitioning to the next-generation programmable deep-learning solution based on FPGAs in order to increase the level of customization possible in FPGA deep-learning. As part of this transition, future standard releases (i.e., non-LTS releases) of Intel® Distribution of OpenVINO™ toolkit will no longer include the Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA and the Intel® Programmable Acceleration Card with Intel® Arria® 10 GX FPGA.
-
-Intel® Distribution of OpenVINO™ toolkit 2020.3.X LTS release will continue to support Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA and the Intel® Programmable Acceleration Card with Intel® Arria® 10 GX FPGA. For questions about next-generation programmable deep-learning solutions based on FPGAs, please talk to your sales representative or contact us to get the latest FPGA updates.
-
-For instructions for previous releases with FPGA Support, see documentation for the [2020.4 version](https://docs.openvinotoolkit.org/2020.4/openvino_docs_install_guides_installing_openvino_docker_linux.html#use_a_docker_image_for_fpga) or lower.
 
 ## Troubleshooting
 
-If you got proxy issues, please setup proxy settings for Docker. See the Proxy section in the [Install the DL Workbench from Docker Hub* ](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) topic.
+If you got proxy issues, please setup proxy settings for Docker. See the Proxy section in the [Install the DL Workbench from Docker Hub* ](@ref workbench_docs_Workbench_DG_Run_Locally) topic.
 
 ## Additional Resources
 
-* [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the image of OpenVINO™ for your needs.
+- [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the image of OpenVINO™ for your needs.
 
-* Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)  
+- Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
 
-* OpenVINO™ toolkit documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
-
-* Intel® Neural Compute Stick 2 Get Started: [https://software.intel.com/en-us/neural-compute-stick/get-started](https://software.intel.com/en-us/neural-compute-stick/get-started)
-
-* Intel® Distribution of OpenVINO™ toolkit Docker Hub* home page: [https://hub.docker.com/u/openvino](https://hub.docker.com/u/openvino)
+- Intel® Neural Compute Stick 2 Get Started: [https://software.intel.com/en-us/neural-compute-stick/get-started](https://software.intel.com/en-us/neural-compute-stick/get-started)

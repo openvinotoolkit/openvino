@@ -4,8 +4,8 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
+#include "test_case.hpp"
+#include "test_engines.hpp"
 #include "util/test_control.hpp"
 
 using namespace std;
@@ -14,8 +14,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, abc)
-{
+NGRAPH_TEST(${BACKEND_NAME}, abc) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -46,8 +45,7 @@ NGRAPH_TEST(${BACKEND_NAME}, abc)
     test_case_3.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, abc_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, abc_int64) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::i64, shape);
     auto B = make_shared<op::Parameter>(element::i64, shape);

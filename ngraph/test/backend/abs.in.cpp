@@ -21,8 +21,8 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
+#include "engines_util/test_case.hpp"
 #include "util/test_control.hpp"
 
 using namespace std;
@@ -31,8 +31,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, abs)
-{
+NGRAPH_TEST(${BACKEND_NAME}, abs) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Abs>(A), ParameterVector{A});

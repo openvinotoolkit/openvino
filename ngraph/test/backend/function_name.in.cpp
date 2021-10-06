@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
@@ -9,15 +10,13 @@
 #include "util/all_close_f.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, function_name)
-{
+NGRAPH_TEST(${BACKEND_NAME}, function_name) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -36,6 +35,6 @@ NGRAPH_TEST(${BACKEND_NAME}, function_name)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f(read_vector<float>(result),
-                                  (test::NDArray<float, 2>({{6, 8}, {10, 12}})).get_vector()));
+    EXPECT_TRUE(
+        test::all_close_f(read_vector<float>(result), (test::NDArray<float, 2>({{6, 8}, {10, 12}})).get_vector()));
 }

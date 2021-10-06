@@ -18,6 +18,7 @@ nodes_attributes = {
 
     # new Pad layer and inputs
     'pad': {'type': 'Pad', 'kind': 'op', 'op': 'Pad', 'mode': 'constant'},
+    'convert_like': {'type': 'ConvertLike', 'kind': 'op', 'op': 'ConvertLike'},
     **const('pad_begin', int64_array([1, 3, 5])),
     **const('pad_end', int64_array([2, 4, 6])),
     **const('pad_fill', np.array(0.75)),
@@ -36,7 +37,9 @@ class AttributedPadToPadTest(unittest.TestCase):
                                 [('placeholder', 'pad', {'in': 0, 'out': 0}),
                                  ('pad_begin', 'pad', {'in': 1, 'out': 0}),
                                  ('pad_end', 'pad', {'in': 2, 'out': 0}),
-                                 ('pad_fill', 'pad', {'in': 3, 'out': 0}),
+                                 ('pad_fill', 'convert_like', {'in': 0, 'out': 0}),
+                                 ('placeholder', 'convert_like', {'in': 1, 'out': 0}),
+                                 ('convert_like', 'pad', {'in': 3, 'out': 0}),
                                  ('pad', 'result')
                                  ],
                                 {}, nodes_with_edges_only=True)

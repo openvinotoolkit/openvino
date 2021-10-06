@@ -2,18 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "engines_util/execute_tools.hpp"
+#include "engines_util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "runtime/backend.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/known_element_types.hpp"
 #include "util/ndarray.hpp"
-#include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -30,16 +29,20 @@ static void GroupConvolutionTest(const std::vector<float>& inputs,
                                  const Shape outputs_shape,
                                  const Strides& strides,
                                  const CoordinateDiff& padding,
-                                 const Strides& dilations)
-{
+                                 const Strides& dilations) {
     const CoordinateDiff pads_begin{padding};
     const CoordinateDiff pads_end{padding};
     const op::PadType auto_pad{op::PadType::EXPLICIT};
 
     auto inputs_param = make_shared<op::Parameter>(element::f32, inputs_shape);
     auto filters_param = make_shared<op::Parameter>(element::f32, filter_shape);
-    auto conv = make_shared<op::v1::GroupConvolution>(
-        inputs_param, filters_param, strides, pads_begin, pads_end, dilations, auto_pad);
+    auto conv = make_shared<op::v1::GroupConvolution>(inputs_param,
+                                                      filters_param,
+                                                      strides,
+                                                      pads_begin,
+                                                      pads_end,
+                                                      dilations,
+                                                      auto_pad);
     auto f = make_shared<Function>(conv, ParameterVector{inputs_param, filters_param});
 
     auto test_case = test::TestCase<TestEngine>(f);

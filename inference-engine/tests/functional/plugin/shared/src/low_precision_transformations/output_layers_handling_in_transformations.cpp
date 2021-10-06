@@ -21,7 +21,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string OutputLayersHandlingInTransformations::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj) {
+std::string OutputLayersHandlingInTransformations::getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
@@ -87,6 +87,7 @@ void OutputLayersHandlingInTransformations::SetUp() {
     };
 
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input }, "OutputLayersHandling");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(OutputLayersHandlingInTransformations, CompareWithRefImpl) {

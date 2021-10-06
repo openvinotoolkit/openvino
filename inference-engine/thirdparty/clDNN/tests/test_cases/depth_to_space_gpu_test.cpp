@@ -3,19 +3,16 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
 
-#include <api/input_layout.hpp>
-#include <api/memory.hpp>
-#include <api/depth_to_space.hpp>
-#include <api/topology.hpp>
-#include <api/reshape.hpp>
-#include <api/network.hpp>
-#include "api/permute.hpp"
-#include "api/reorder.hpp"
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/depth_to_space.hpp>
+#include <cldnn/primitives/reshape.hpp>
+#include <cldnn/primitives/permute.hpp>
+#include <cldnn/primitives/reorder.hpp>
 
 #include <cstddef>
-#include <tests/test_utils/test_utils.h>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -26,9 +23,9 @@ TEST(depth_to_space_fp16_gpu, d1411_bs2) {
     //  Output : 1x1x2x2
     //  Input values in fp16
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 4, 1, 1 } });
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 4, 1, 1 } });
     size_t block_size = 2;
 
     set_values(input1, {
@@ -37,7 +34,7 @@ TEST(depth_to_space_fp16_gpu, d1411_bs2) {
     });
 
     topology topology;
-    topology.add(input_layout("Input0", input1.get_layout()));
+    topology.add(input_layout("Input0", input1->get_layout()));
     topology.add(
         depth_to_space("depth_to_space", "Input0", block_size, depth_to_space_mode::blocks_first)
     );
@@ -49,7 +46,7 @@ TEST(depth_to_space_fp16_gpu, d1411_bs2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 1.f, 2.f, 3.f
@@ -66,9 +63,9 @@ TEST(depth_to_space_fp16_gpu, d1421_bs2) {
     //  Output : 1x1x4x2
     //  Input values in fp16
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 4, 1, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 4, 1, 2 } });
     size_t block_size = 2;
 
     set_values(input1, {
@@ -79,7 +76,7 @@ TEST(depth_to_space_fp16_gpu, d1421_bs2) {
     });
 
     topology topology;
-    topology.add(input_layout("Input0", input1.get_layout()));
+    topology.add(input_layout("Input0", input1->get_layout()));
     topology.add(
         depth_to_space("depth_to_space", "Input0", block_size, depth_to_space_mode::blocks_first)
     );
@@ -91,7 +88,7 @@ TEST(depth_to_space_fp16_gpu, d1421_bs2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.0f, 2.0f, 4.0f, 6.0f, 1.0f, 3.0f, 5.0f, 7.0f
@@ -108,9 +105,9 @@ TEST(depth_to_space_fp16_gpu, d1933_bs3) {
     //  Output : 1x1x9x9
     //  Input values in fp16
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 9, 3, 3 } });
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 9, 3, 3 } });
     size_t block_size = 3;
 
     set_values(input1, {
@@ -134,7 +131,7 @@ TEST(depth_to_space_fp16_gpu, d1933_bs3) {
     });
 
     topology topology;
-    topology.add(input_layout("Input0", input1.get_layout()));
+    topology.add(input_layout("Input0", input1->get_layout()));
     topology.add(
             depth_to_space("depth_to_space", "Input0", block_size, depth_to_space_mode::blocks_first)
     );
@@ -146,7 +143,7 @@ TEST(depth_to_space_fp16_gpu, d1933_bs3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.0f, 9.0f, 18.0f, 1.0f, 10.0f, 19.0f, 2.0f, 11.0f, 20.0f, 27.0f,
@@ -171,9 +168,9 @@ TEST(depth_to_space_fp32_gpu, d1411_bs2) {
     //  Output : 1x1x2x2
     //  Input values in fp32
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 4, 1, 1 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 1, 1 } });
     size_t block_size = 2;
 
     set_values(input1, {
@@ -181,7 +178,7 @@ TEST(depth_to_space_fp32_gpu, d1411_bs2) {
     });
 
     topology topology;
-    topology.add(input_layout("Input0", input1.get_layout()));
+    topology.add(input_layout("Input0", input1->get_layout()));
     topology.add(
         depth_to_space("depth_to_space", "Input0", block_size, depth_to_space_mode::blocks_first)
     );
@@ -193,7 +190,7 @@ TEST(depth_to_space_fp32_gpu, d1411_bs2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.f, 1.f, 2.f, 3.f
@@ -210,9 +207,9 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
     //  Output : 1x3x1920x1080
     //  Input values in fp16
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 12, 960, 540 } });
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 12, 960, 540 } });
     size_t block_size = 2;
 
     auto random_input = generate_random_4d<FLOAT16>(1, 12, 540, 960, -1, 1);
@@ -220,7 +217,7 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
     set_values(input1, input_rnd_vec);
 
     topology topology_act;
-    topology_act.add(input_layout("Input0", input1.get_layout()));
+    topology_act.add(input_layout("Input0", input1->get_layout()));
     topology_act.add(
         depth_to_space("depth_to_space", "Input0", block_size, depth_to_space_mode::blocks_first)
     );
@@ -232,12 +229,12 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
     auto outputs = network_act.execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    auto output_ptr = output.pointer<FLOAT16>();
+    cldnn::mem_lock<FLOAT16> output_ptr (output, get_test_stream());
 
     std::vector<uint16_t> perm = { 0,4,5,2,1,3 };
 
     topology topology_ref;
-    topology_ref.add(input_layout("Input0", input1.get_layout()));
+    topology_ref.add(input_layout("Input0", input1->get_layout()));
     topology_ref.add(reorder("reorder1", "Input0", { data_types::f16, format::bfwzyx, tensor{ batch(1), feature(12), spatial(1, 1, 960, 540) }
         }));
     topology_ref.add(
@@ -259,9 +256,9 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
     auto outputs_ref = network_ref.execute();
 
     auto output_ref = outputs_ref.at("reshape2").get_memory();
-    auto output_ptr_ref = output_ref.pointer<FLOAT16>();
+    cldnn::mem_lock<FLOAT16> output_ptr_ref(output_ref, get_test_stream());
 
-    for (size_t i = 0; i < output.get_layout().count(); ++i) {
+    for (size_t i = 0; i < output->get_layout().count(); ++i) {
         EXPECT_EQ(output_ptr_ref[i], output_ptr[i]);
     }
 }
@@ -272,9 +269,9 @@ TEST(depth_to_space_fp32_gpu, d1933_bs3) {
     //  Output : 1x1x9x9
     //  Input values in fp32
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 9, 3, 3 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 9, 3, 3 } });
     size_t block_size = 3;
 
     set_values(input1, {
@@ -290,7 +287,7 @@ TEST(depth_to_space_fp32_gpu, d1933_bs3) {
     });
 
     topology topology;
-    topology.add(input_layout("Input0", input1.get_layout()));
+    topology.add(input_layout("Input0", input1->get_layout()));
     topology.add(
         depth_to_space("depth_to_space", "Input0", block_size, depth_to_space_mode::blocks_first)
     );
@@ -302,7 +299,7 @@ TEST(depth_to_space_fp32_gpu, d1933_bs3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.0f, 9.0f, 18.0f, 1.0f, 10.0f, 19.0f, 2.0f, 11.0f, 20.0f, 27.0f,
@@ -328,9 +325,9 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_blocks_first) {
     //  Output : 1x2x4x4
     //  Input values in fp32
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 8, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 8, 2, 2 } });
     size_t block_size = 2;
 
     set_values(input1, {
@@ -345,7 +342,7 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_blocks_first) {
     });
 
     topology topology;
-    topology.add(input_layout("Input0", input1.get_layout()));
+    topology.add(input_layout("Input0", input1->get_layout()));
     topology.add(
         depth_to_space("depth_to_space", "Input0", block_size, depth_to_space_mode::blocks_first)
     );
@@ -357,7 +354,7 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_blocks_first) {
     auto outputs = network.execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.0f, 8.0f, 1.0f, 9.0f, 16.0f, 24.0f, 17.0f, 25.0f,
@@ -378,9 +375,9 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
     //  Output : 1x2x4x4
     //  Input values in fp32
 
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input1 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 8, 2, 2 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 8, 2, 2 } });
     size_t block_size = 2;
 
     set_values(input1, {
@@ -395,7 +392,7 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
     });
 
     topology topology;
-    topology.add(input_layout("Input0", input1.get_layout()));
+    topology.add(input_layout("Input0", input1->get_layout()));
     topology.add(
         depth_to_space("depth_to_space", "Input0", block_size, depth_to_space_mode::depth_first)
     );
@@ -407,7 +404,7 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
     auto outputs = network.execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
         0.0f, 4.0f, 1.0f, 5.0f, 8.0f, 12.0f, 9.0f, 13.0f,

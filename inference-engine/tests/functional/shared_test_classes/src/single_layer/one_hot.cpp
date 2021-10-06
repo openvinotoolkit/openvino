@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string OneHotLayerTest::getTestCaseName(testing::TestParamInfo<oneHotLayerTestParamsSet> obj) {
+std::string OneHotLayerTest::getTestCaseName(const testing::TestParamInfo<oneHotLayerTestParamsSet>& obj) {
     int64_t axis;
     ngraph::element::Type depth_type, set_type;
     int64_t depth_val;
@@ -48,5 +48,6 @@ void OneHotLayerTest::SetUp() {
     auto onehot = ngraph::builder::makeOneHot(paramOuts[0], depth_type, depth_val, set_type, on_val, off_val, axis);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(onehot)};
     function = std::make_shared<ngraph::Function>(results, params, "OneHot");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

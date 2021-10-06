@@ -41,7 +41,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         LayerTestsDefinitions::LSTMCellParams basicParamsSet;
         CPUSpecificParams cpuParams;
         std::map<std::string, std::string> additionalConfig;
@@ -87,6 +87,7 @@ protected:
                                      std::make_shared<ngraph::opset1::Result>(lstm_cell->output(1))};
 
         function = makeNgraphFunction(ngPrc, params, lstm_cell, "lstm_cell");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 
@@ -115,7 +116,7 @@ std::vector<std::vector<std::string>> activations = {{"sigmoid", "tanh", "tanh"}
 std::vector<float> clip{0.f};
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32, InferenceEngine::Precision::BF16};
 
-INSTANTIATE_TEST_CASE_P(smoke_LSTMCellCPU,
+INSTANTIATE_TEST_SUITE_P(smoke_LSTMCellCPU,
                         LSTMCellLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(should_decompose),
                                                               ::testing::ValuesIn(batch),

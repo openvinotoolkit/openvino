@@ -21,7 +21,7 @@ if(ENABLE_CLDNN)
 endif()
 
 if(ENABLE_VPU)
-  add_subdirectory(vpu)
+    add_subdirectory(vpu)
 endif()
 
 if(ENABLE_GNA)
@@ -47,9 +47,9 @@ add_subdirectory(snippets)
 add_custom_target(ie_libraries ALL
                   DEPENDS inference_engine_transformations inference_engine_legacy
                           inference_engine inference_engine_preproc
-                          inference_engine_ir_v7_reader inference_engine_ir_reader
+                          inference_engine_ir_v7_reader ir_ngraph_frontend
                           inference_engine_lp_transformations inference_engine_snippets)
 
-if(NGRAPH_ONNX_IMPORT_ENABLE)
-    add_dependencies(ie_libraries inference_engine_onnx_reader)
+if(NGRAPH_ONNX_FRONTEND_ENABLE)
+    add_dependencies(ie_libraries onnx_ngraph_frontend)
 endif()

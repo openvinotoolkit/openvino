@@ -166,9 +166,10 @@ void EltwiseBeforeConvTest::SetUp() {
     auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(conv, reshapePattern2, false);
 
     function = std::make_shared<ngraph::Function>(reshape2, params, "EltwiseBeforeConvTest");
+    functionRefs = ngraph::clone_function(*function);
 }
 
-std::string EltwiseWithTwoConvsAsInputsTest::getTestCaseName(testing::TestParamInfo<EltwiseConvEltwiseParams> obj) {
+std::string EltwiseWithTwoConvsAsInputsTest::getTestCaseName(const testing::TestParamInfo<EltwiseConvEltwiseParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
@@ -251,6 +252,7 @@ void EltwiseWithTwoConvsAsInputsTest::SetUp() {
 
     auto add = std::make_shared<ngraph::opset1::Add>(reshape2, reshape4);
     function = std::make_shared<ngraph::Function>(add, params, "EltwiseWithTwoConvsAsInputsTest");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace SubgraphTestsDefinitions

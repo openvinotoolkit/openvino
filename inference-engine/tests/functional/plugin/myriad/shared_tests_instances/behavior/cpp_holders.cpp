@@ -18,19 +18,19 @@ namespace {
             {2, 1, 0}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, HoldersTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, HoldersTest,
             ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
             ::testing::ValuesIn(orders)),
             HoldersTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, HoldersTestImportNetwork,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, HoldersTestImportNetwork,
             ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
             ::testing::ValuesIn(orders)),
             HoldersTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, HoldersTestOnImportedNetwork,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, HoldersTestOnImportedNetwork,
             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
             HoldersTestOnImportedNetwork::getTestCaseName);
 

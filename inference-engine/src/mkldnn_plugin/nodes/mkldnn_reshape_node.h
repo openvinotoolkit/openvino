@@ -14,13 +14,23 @@ namespace MKLDNNPlugin {
 
 class MKLDNNReshapeNode : public MKLDNNNode {
 public:
-    MKLDNNReshapeNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNReshapeNode() override = default;
+    MKLDNNReshapeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNReshapeNode(const std::string& name,
+                    const Shape& inDims,
+                    const Shape& outDims,
+                    InferenceEngine::Precision precision,
+                    const mkldnn::engine& eng,
+                    MKLDNNWeightsSharing::Ptr &wCache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
+    bool isExecutable() const override {
+        return false;
+    }
+
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 };
 
 }  // namespace MKLDNNPlugin

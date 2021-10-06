@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/fetch_data.cl"
 
 __attribute__((intel_reqd_sub_group_size(16)))
 KERNEL(deformable_convolution_gpu_bfyx_interp)(

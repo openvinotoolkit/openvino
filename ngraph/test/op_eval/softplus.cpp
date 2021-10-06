@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/softplus.hpp"
+
 #include <string>
 #include <vector>
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
-
-#include "ngraph/op/softplus.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
 #include "runtime/backend.hpp"
@@ -16,8 +17,7 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(op_eval, softplus_4D)
-{
+TEST(op_eval, softplus_4D) {
     auto p = make_shared<op::Parameter>(element::f32, Shape{4});
     auto softplus = make_shared<op::v4::SoftPlus>(p);
     auto fun = make_shared<Function>(OutputVector{softplus}, ParameterVector{p});
@@ -26,8 +26,7 @@ TEST(op_eval, softplus_4D)
     std::vector<float> expected_result{0.31326166, 0.69314718, 1.3132616, 20.0};
 
     auto result = make_shared<HostTensor>();
-    ASSERT_TRUE(
-        fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{4}, inputs)}));
+    ASSERT_TRUE(fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{4}, inputs)}));
     EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{4});
     auto result_data = read_vector<float>(result);

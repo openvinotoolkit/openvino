@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string GroupConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<groupConvLayerTestParamsSet> obj) {
+std::string GroupConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<groupConvLayerTestParamsSet>& obj) {
     groupConvSpecificParams groupConvParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
@@ -58,5 +58,6 @@ void GroupConvolutionLayerTest::SetUp() {
                                              padEnd, dilation, padType, convOutChannels, numGroups));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConv)};
     function = std::make_shared<ngraph::Function>(results, params, "groupConvolution");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

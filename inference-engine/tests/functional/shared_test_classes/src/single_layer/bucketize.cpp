@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-    std::string BucketizeLayerTest::getTestCaseName(testing::TestParamInfo<bucketizeParamsTuple> obj) {
+    std::string BucketizeLayerTest::getTestCaseName(const testing::TestParamInfo<bucketizeParamsTuple>& obj) {
         InferenceEngine::SizeVector dataShape;
         InferenceEngine::SizeVector bucketsShape;
         bool with_right_bound;
@@ -63,5 +63,6 @@ namespace LayerTestsDefinitions {
         buckets->set_friendly_name("b_buckets");
         auto bucketize = std::make_shared<ngraph::op::v3::Bucketize>(data, buckets, ngNetPrc, with_right_bound);
         function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(bucketize), ngraph::ParameterVector{data, buckets}, "Bucketize");
+        functionRefs = ngraph::clone_function(*function);
     }
 } // namespace LayerTestsDefinitions

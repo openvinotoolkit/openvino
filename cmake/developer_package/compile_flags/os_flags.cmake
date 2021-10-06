@@ -3,6 +3,7 @@
 #
 
 include(ProcessorCount)
+include(CheckCXXCompilerFlag)
 
 #
 # Disables deprecated warnings generation
@@ -67,15 +68,15 @@ function(ie_sse42_optimization_flags flags)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
             # No such option for MSVC 2019
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            set(${flags} "/arch:SSE4.2 /QxSSE4.2" PARENT_SCOPE)
+            set(${flags} /QxSSE4.2 PARENT_SCOPE)
         else()
             message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
         endif()
     else()
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            set(${flags} "-msse4.2 -xSSE4.2" PARENT_SCOPE)
+            set(${flags} -xSSE4.2 PARENT_SCOPE)
         else()
-            set(${flags} "-msse4.2" PARENT_SCOPE)
+            set(${flags} -msse4.2 PARENT_SCOPE)
         endif()
     endif()
 endfunction()
@@ -86,17 +87,17 @@ endfunction()
 function(ie_avx2_optimization_flags flags)
     if(WIN32)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            set(${flags} "/QxCORE-AVX2" PARENT_SCOPE)
+            set(${flags} /QxCORE-AVX2 PARENT_SCOPE)
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-            set(${flags} "/arch:AVX2" PARENT_SCOPE)
+            set(${flags} /arch:AVX2 PARENT_SCOPE)
         else()
             message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
         endif()
     else()
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            set(${flags} "-march=core-avx2 -xCORE-AVX2 -mtune=core-avx2" PARENT_SCOPE)
+            set(${flags} -xCORE-AVX2 PARENT_SCOPE)
         else()
-            set(${flags} "-mavx2 -mfma" PARENT_SCOPE)
+            set(${flags} -mavx2 -mfma PARENT_SCOPE)
         endif()
     endif()
 endfunction()
@@ -108,21 +109,21 @@ endfunction()
 function(ie_avx512_optimization_flags flags)
     if(WIN32)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            set(${flags} "/QxCOMMON-AVX512" PARENT_SCOPE)
+            set(${flags} /QxCOMMON-AVX512 PARENT_SCOPE)
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-            set(${flags} "/arch:AVX512" PARENT_SCOPE)
+            set(${flags} /arch:AVX512 PARENT_SCOPE)
         else()
             message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
         endif()
     else()
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            set(${flags} "-xCOMMON-AVX512" PARENT_SCOPE)
+            set(${flags} -xCOMMON-AVX512 PARENT_SCOPE)
         endif()
         if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-            set(${flags} "-mavx512f -mfma" PARENT_SCOPE)
+            set(${flags} -mavx512f -mfma PARENT_SCOPE)
         endif()
         if(CMAKE_CXX_COMPILER_ID MATCHES "^(Clang|AppleClang)$")
-            set(${flags} "-mavx512f -mfma" PARENT_SCOPE)
+            set(${flags} -mavx512f -mfma PARENT_SCOPE)
         endif()
     endif()
 endfunction()
@@ -134,21 +135,39 @@ function(ie_arm_neon_optimization_flags flags)
         # nothing
     elseif(ANDROID)
         if(ANDROID_ABI STREQUAL "arm64-v8a")
-            set(${flags} "-mfpu=neon" PARENT_SCOPE)
+            set(${flags} -mfpu=neon PARENT_SCOPE)
         elseif(ANDROID_ABI STREQUAL "armeabi-v7a-hard with NEON")
-            set(${flags} "-march=armv7-a -mfloat-abi=hard -mhard-float -D_NDK_MATH_NO_SOFTFP=1 -mfpu=neon" PARENT_SCOPE)
+            set(${flags} -march=armv7-a -mfloat-abi=hard -mhard-float -D_NDK_MATH_NO_SOFTFP=1 -mfpu=neon PARENT_SCOPE)
         elseif((ANDROID_ABI STREQUAL "armeabi-v7a with NEON") OR
                (ANDROID_ABI STREQUAL "armeabi-v7a" AND
                 DEFINED CMAKE_ANDROID_ARM_NEON AND CMAKE_ANDROID_ARM_NEON))
-            set(${flags} "-march=armv7-a -mfloat-abi=softfp -mfpu=neon" PARENT_SCOPE)
+            set(${flags} -march=armv7-a -mfloat-abi=softfp -mfpu=neon PARENT_SCOPE)
         endif()
     else()
         if(AARCH64)
-            set(${flags} "-O2 -ftree-vectorize" PARENT_SCOPE)
+            set(${flags} -O2 -ftree-vectorize PARENT_SCOPE)
         elseif(ARM)
-            set(${flags} "-mfpu=neon" PARENT_SCOPE)
+            set(${flags} -mfpu=neon PARENT_SCOPE)
         endif()
     endif()
+endfunction()
+
+#
+# Disables all warnings for 3rd party targets
+#
+function(ov_disable_all_warnings)
+    foreach(target IN LISTS ARGN)
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+            target_compile_options(${target} PRIVATE /WX-)
+        elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+            target_compile_options(${target} PRIVATE -w)
+        elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+            # 193: zero used for undefined preprocessing identifier "XXX"
+            # 1011: missing return statement at end of non-void function "XXX"
+            # 2415: variable "xxx" of static storage duration was declared but never referenced
+            target_compile_options(${target} PRIVATE -diag-disable=warn,193,1011,2415)
+        endif()
+    endforeach()
 endfunction()
 
 #
@@ -210,6 +229,16 @@ set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+
+function(ie_python_minimal_api target)
+    # pybind11 uses a lot of API which is not a part of minimal python API subset
+    # Ref 1: https://docs.python.org/3.11/c-api/stable.html
+    # Ref 2: https://github.com/pybind/pybind11/issues/1755
+    # target_compile_definitions(${target} PRIVATE Py_LIMITED_API=0x03090000)
+    # if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    #     target_compile_options(${target} PRIVATE "-Wno-unused-variable")
+    # endif()
+endfunction()
 
 if(WIN32)
     ie_add_compiler_flags(-D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS)
@@ -275,23 +304,27 @@ else()
     ie_add_compiler_flags(-Wreturn-type)
     ie_add_compiler_flags(-Wunused-variable)
 
-    # Disable noisy warnings
-
     if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
         ie_add_compiler_flags(-Wswitch)
     elseif(UNIX)
         ie_add_compiler_flags(-Wuninitialized -Winit-self)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-            ie_add_compiler_flags(-Wno-error=switch)
+            ie_add_compiler_flags(-Winconsistent-missing-override
+                                  -Wstring-plus-int)
         else()
             ie_add_compiler_flags(-Wmaybe-uninitialized)
+            check_cxx_compiler_flag("-Wsuggest-override" SUGGEST_OVERRIDE_SUPPORTED)
+            if(SUGGEST_OVERRIDE_SUPPORTED)
+                set(CMAKE_CXX_FLAGS "-Wsuggest-override ${CMAKE_CXX_FLAGS}")
+            endif()
         endif()
     endif()
 
+    # Disable noisy warnings
+
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        ie_add_compiler_flags(-diag-disable=remark)
-        # noisy warnings from Intel Compiler 19.1.1.217 20200306
-        ie_add_compiler_flags(-diag-disable=2196)
+        # 177: function "XXX" was declared but never referenced
+        ie_add_compiler_flags(-diag-disable=remark,177,2196)
     endif()
 
     # Linker flags
@@ -299,9 +332,32 @@ else()
     if(APPLE)
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-dead_strip")
         set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,-dead_strip")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-dead_strip")
     elseif(LINUX)
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections -Wl,--exclude-libs,ALL")
         set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,--gc-sections -Wl,--exclude-libs,ALL")
     endif()
 endif()
+
+# Links provided libraries and include their INTERFACE_INCLUDE_DIRECTORIES as SYSTEM
+function(link_system_libraries TARGET_NAME)
+    set(MODE PRIVATE)
+
+    foreach(arg IN LISTS ARGN)
+        if(arg MATCHES "(PRIVATE|PUBLIC|INTERFACE)")
+            set(MODE ${arg})
+        else()
+            if(TARGET "${arg}")
+                target_include_directories(${TARGET_NAME}
+                    SYSTEM ${MODE}
+                        $<TARGET_PROPERTY:${arg},INTERFACE_INCLUDE_DIRECTORIES>
+                        $<TARGET_PROPERTY:${arg},INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
+                )
+            endif()
+
+            target_link_libraries(${TARGET_NAME}
+                ${MODE}
+                    ${arg}
+            )
+        endif()
+    endforeach()
+endfunction()

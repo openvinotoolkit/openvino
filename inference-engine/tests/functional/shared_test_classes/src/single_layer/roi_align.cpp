@@ -12,7 +12,7 @@ using namespace FuncTestUtils::PrecisionUtils;
 
 namespace LayerTestsDefinitions {
 
-std::string ROIAlignLayerTest::getTestCaseName(testing::TestParamInfo<roialignParams> obj) {
+std::string ROIAlignLayerTest::getTestCaseName(const testing::TestParamInfo<roialignParams>& obj) {
     std::vector<size_t> inputShape;
     std::vector<size_t> coordsShape;
 
@@ -108,5 +108,6 @@ void ROIAlignLayerTest::SetUp() {
                                                     poolingMode);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roiAlign)};
     function = std::make_shared<ngraph::Function>(results, params, "roi_align");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

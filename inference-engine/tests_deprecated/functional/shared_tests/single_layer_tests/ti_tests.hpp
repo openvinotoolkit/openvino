@@ -12,11 +12,9 @@
 
 #include "plg_test.hpp"
 #include "single_layer_common.hpp"
-#include "ir_gen_helper.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
-using namespace single_layer_tests;
 
 struct ti_test_params {
     std::string device_name;

@@ -34,7 +34,21 @@ public:
         return result.str();
     }
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
-        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 15, 0, 32768);
+        int32_t data_start_from;
+        uint32_t data_range;
+        int32_t resolution;
+
+        if (activationType == ActivationTypes::Exp && netPrecision == Precision::BF16) {
+            data_start_from = 0;
+            data_range = 2;
+            resolution = 32768;
+        } else {
+            data_start_from = 0;
+            data_range = 15;
+            resolution = 32768;
+        }
+
+        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_range, data_start_from, resolution);
     }
 
 protected:
@@ -45,11 +59,10 @@ protected:
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        InferenceEngine::Precision netPrecision;
         std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
         std::pair<ActivationTypes, std::vector<float>> activationDecl;
         std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice) = basicParamsSet;
-        selectedType = getPrimitiveType() + "_" + inPrc.name();
+        selectedType = getPrimitiveType() + "_" + netPrecision.name();
 
         activationType = activationDecl.first;
         auto constantsValue = activationDecl.second;
@@ -58,7 +71,10 @@ protected:
         auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, shapes.second, constantsValue);
         activation->get_rt_info() = getCPUInfo();
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params, "Activation");
+        functionRefs = ngraph::clone_function(*function);
     }
+
+    InferenceEngine::Precision netPrecision;
 };
 
 TEST_P(ActivationLayerCPUTest, CompareWithRefs) {
@@ -98,14 +114,14 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic4D = {
         {{2, 17, 5, 4}, {{}}},
 };
 
-std::vector<Precision> bf16InpOutPrc = {Precision::BF16, Precision::FP32};
+std::vector<Precision> netPrc = {Precision::BF16, Precision::FP32};
 
 const auto basicCases4D = ::testing::Combine(
         ::testing::Combine(
             ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
-            ::testing::Values(Precision::BF16),
-            ::testing::ValuesIn(bf16InpOutPrc),
-            ::testing::ValuesIn(bf16InpOutPrc),
+            ::testing::ValuesIn(netPrc),
+            ::testing::Values(Precision::FP32),
+            ::testing::Values(Precision::FP32),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::ValuesIn(CommonTestUtils::combineParams(basic4D)),
@@ -113,7 +129,7 @@ const auto basicCases4D = ::testing::Combine(
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D))
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Activation4D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases4D, ActivationLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Activation4D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases4D, ActivationLayerCPUTest::getTestCaseName);
 
 std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
@@ -129,9 +145,9 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic5D = {
 const auto basicCases5D = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
-                ::testing::Values(Precision::BF16),
-                ::testing::ValuesIn(bf16InpOutPrc),
-                ::testing::ValuesIn(bf16InpOutPrc),
+                ::testing::ValuesIn(netPrc),
+                ::testing::Values(Precision::FP32),
+                ::testing::Values(Precision::FP32),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::ValuesIn(CommonTestUtils::combineParams(basic5D)),
@@ -139,6 +155,6 @@ const auto basicCases5D = ::testing::Combine(
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D))
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Activation5D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases5D, ActivationLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Activation5D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases5D, ActivationLayerCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions

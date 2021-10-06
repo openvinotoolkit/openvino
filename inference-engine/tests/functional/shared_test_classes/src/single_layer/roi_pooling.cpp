@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-    std::string ROIPoolingLayerTest::getTestCaseName(testing::TestParamInfo<roiPoolingParamsTuple> obj) {
+    std::string ROIPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<roiPoolingParamsTuple>& obj) {
         std::vector<size_t> inputShape;
         std::vector<size_t> coordsShape;
         std::vector<size_t> poolShape;
@@ -51,8 +51,8 @@ namespace LayerTestsDefinitions {
             if (it == 1) {
                 blob = make_blob_with_precision(info->getTensorDesc());
                 blob->allocate();
-                CommonTestUtils::fill_data_roi(blob->buffer(), blob->size(), feat_map_shape[0] - 1,
-                                               height, width, 1.0f, is_roi_max_mode);
+                CommonTestUtils::fill_data_roi<InferenceEngine::Precision::FP32>(blob, feat_map_shape[0] - 1,
+                                                                                 height, width, 1.0f, is_roi_max_mode);
             } else {
                 blob = GenerateInput(*info);
             }
@@ -82,5 +82,6 @@ namespace LayerTestsDefinitions {
                                                                                     pool_method);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roi_pooling)};
         function = std::make_shared<ngraph::Function>(results, params, "roi_pooling");
+        functionRefs = ngraph::clone_function(*function);
     }
 }  // namespace LayerTestsDefinitions

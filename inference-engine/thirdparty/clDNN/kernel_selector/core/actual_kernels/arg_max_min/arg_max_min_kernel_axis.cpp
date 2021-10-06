@@ -86,14 +86,14 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
     KernelData kd = KernelData::Default<arg_max_min_params>(params);
 
     auto cldnn_jit = GetJitConstants(orgParams);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
     if (orgParams.outputs_num == 2) {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     }
 
     return {kd};

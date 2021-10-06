@@ -5,7 +5,7 @@
 #include "shared_test_classes/subgraph/broadcast_power.hpp"
 
 namespace SubgraphTestsDefinitions {
-std::string BroadcastPowerTest::getTestCaseName(testing::TestParamInfo<BroadCastPowerTuple> obj) {
+std::string BroadcastPowerTest::getTestCaseName(const testing::TestParamInfo<BroadCastPowerTuple>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
@@ -40,5 +40,6 @@ void BroadcastPowerTest::SetUp() {
             inputs_shapes[0]);
     auto reshape_2 = std::make_shared<ngraph::opset1::Reshape>(sum, reshape_pattern_2, false);
     function = std::make_shared<ngraph::Function>(reshape_2, params, "BroadcastPowerPass");
+    functionRefs = ngraph::clone_function(*function);
 }
 } // namespace SubgraphTestsDefinitions

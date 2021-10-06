@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-    std::string ShapeOfLayerTest::getTestCaseName(testing::TestParamInfo<shapeOfParams> obj) {
+    std::string ShapeOfLayerTest::getTestCaseName(const testing::TestParamInfo<shapeOfParams>& obj) {
         InferenceEngine::SizeVector inputShapes;
         InferenceEngine::Precision inputPrecision;
         std::string targetDevice;
@@ -28,6 +28,7 @@ namespace LayerTestsDefinitions {
         auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(paramOuts[0], inType);
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(shapeOf)};
         function = std::make_shared<ngraph::Function>(results, param, "shapeOf");
+        functionRefs = ngraph::clone_function(*function);
     }
 
 }  // namespace LayerTestsDefinitions

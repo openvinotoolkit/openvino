@@ -131,6 +131,7 @@ protected:
         auto relu2 = std::make_shared<ngraph::opset1::Relu>(conv);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(relu2)};
         function = std::make_shared<ngraph::Function>(results, params, "ExportImportNetwork");
+        functionRefs = ngraph::clone_function(*function);
     }
 
 private:
@@ -165,7 +166,7 @@ const std::vector<std::map<std::string, std::string>> importConfigs = {
         }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ImportActConvAct, ImportActConvActTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ImportActConvAct, ImportActConvActTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputShape),
                                 ::testing::ValuesIn(netPrecisions),

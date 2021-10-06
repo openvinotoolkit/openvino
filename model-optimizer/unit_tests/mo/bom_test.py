@@ -16,7 +16,7 @@ full_name_patterns_to_skip = ['^mo/utils/convert.py$',
                               ]
 if platform.system() == 'Windows':
     full_name_patterns_to_skip = [i.replace('/', '\\\\') for i in full_name_patterns_to_skip]
-dirs_to_search = ['mo', 'extensions', 'tf_call_ie_layer', 'telemetry']
+dirs_to_search = ['mo', 'extensions']
 
 
 def is_match(name: str, patterns: ()):
@@ -36,8 +36,8 @@ class TestBOMFile(unittest.TestCase):
                 cls.existing_files = [name.rstrip() for name in bom_file.readlines()]
 
         cls.expected_header = [re.compile(pattern) for pattern in [
-            '^# Copyright \([cC]\) [0-9\-]+ Intel Corporation$',
-            '^# SPDX-License-Identifier: Apache-2.0$',
+            r'^# Copyright \([cC]\) [0-9\-]+ Intel Corporation$',
+            r'^# SPDX-License-Identifier: Apache-2.0$',
         ]]
 
     def test_bom_file(self):

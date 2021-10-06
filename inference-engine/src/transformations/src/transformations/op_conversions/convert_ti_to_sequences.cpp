@@ -15,7 +15,6 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/graph_util.hpp>
-#include <ngraph/specialize_function.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTensorIteratorToLSTMSequence, "ConvertTensorIteratorToLSTMSequence", 0);
@@ -171,8 +170,11 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
             out = std::make_shared<ngraph::opset5::Transpose>(out, order);
         }
         auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(out, axis_out);
+        out_0->set_friendly_name(ti->get_friendly_name() + ".0");
         auto out_1 = std::make_shared<ngraph::opset5::Squeeze>(sequence->output(1), axis_out);
+        out_1->set_friendly_name(ti->get_friendly_name() + ".1");
         auto out_2 = std::make_shared<ngraph::opset5::Squeeze>(sequence->output(2), axis_out);
+        out_2->set_friendly_name(ti->get_friendly_name() + ".2");
 
         ngraph::NodeVector outputs = {out_0, out_1, out_2};
         for (size_t i = 0; i < ordered_out_descs.size(); ++i) {
@@ -322,6 +324,7 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
 
         auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto out_1 = std::make_shared<ngraph::opset5::Squeeze>(sequence->output(1), axis_out);
+        out_1->set_friendly_name(ti->get_friendly_name() + ".1");
 
         Output<Node> out = sequence->output(0);
         if (slice_axis == 0) {
@@ -329,6 +332,7 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
             out = std::make_shared<ngraph::opset5::Transpose>(out, order);
         }
         auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(out, axis_out);
+        out_0->set_friendly_name(ti->get_friendly_name() + ".0");
 
         ngraph::NodeVector outputs = {out_0, out_1};
         for (size_t i = 0; i < ordered_out_descs.size(); ++i) {
@@ -479,6 +483,7 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
 
         auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto out_1 = std::make_shared<ngraph::opset5::Squeeze>(sequence->output(1), axis_out);
+        out_1->set_friendly_name(ti->get_friendly_name() + ".1");
 
         Output<Node> out = sequence->output(0);
         if (slice_axis == 0) {
@@ -486,6 +491,7 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
             out = std::make_shared<ngraph::opset5::Transpose>(out, order);
         }
         auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(out, axis_out);
+        out_0->set_friendly_name(ti->get_friendly_name() + ".0");
 
         ngraph::NodeVector outputs = {out_0, out_1};
         for (size_t i = 0; i < ordered_out_descs.size(); ++i) {

@@ -9,17 +9,20 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-TEST_P(EltwiseLayerTest, Serialize) { Serialize(); }
+TEST_P(EltwiseLayerTest, Serialize) {
+    Serialize();
+}
+
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16,
         InferenceEngine::Precision::I32,
         };
 
-std::vector<std::vector<std::vector<size_t>>> inputShapes = {
-        {{2}},
-        {{1, 5, 50}},
-        {{2, 10, 1, 4}, {2, 10, 1, 1}}
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inputShapes = {
+        {{}, {{{2}}}},
+        {{}, {{{1, 5, 50}}}},
+        {{}, {{{2, 10, 1, 4}, {2, 10, 1, 1}}}}
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
@@ -57,7 +60,7 @@ const auto elementiwiseParams = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additionalConfig));
 
-INSTANTIATE_TEST_CASE_P(smoke_ElementwiseSerialization, EltwiseLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ElementwiseSerialization, EltwiseLayerTest,
                         elementiwiseParams,
                         EltwiseLayerTest::getTestCaseName);
 } // namespace

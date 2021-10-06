@@ -4,8 +4,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/tile.hpp"
+
+#include "cldnn/primitives/tile.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {
@@ -31,7 +33,7 @@ public:
     static std::string to_string(tile_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, tile_node const& desc);
+    typed_primitive_inst(network& network, tile_node const& desc);
 };
 
 using tile_inst = typed_primitive_inst<tile>;

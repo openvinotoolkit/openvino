@@ -14,9 +14,9 @@
 
 namespace LayerTestsDefinitions {
 
-std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(testing::TestParamInfo<FuseFakeQuantizeAndScaleShiftTransformationParams> obj) {
+std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(const testing::TestParamInfo<FuseFakeQuantizeAndScaleShiftTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
@@ -29,7 +29,7 @@ std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(testing
 
 void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = this->GetParam();
@@ -40,25 +40,7 @@ void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
         fakeQuantizeOnData);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
-    validate();
-}
-
-void FuseFakeQuantizeAndScaleShiftTransformation::validate() {
-    ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = this->GetParam();
-
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-    EXPECT_EQ(1ul, transformed->get_output_size());
-    EXPECT_EQ(1ul, function->get_output_op(0)->get_input_size());
-
-    const auto output = transformed->get_output_op(0);
-    const auto fakeQuantize = output->get_input_node_shared_ptr(0);
-    const std::string typeName = fakeQuantize->get_type_name();
-    ASSERT_EQ("FakeQuantize", typeName);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(FuseFakeQuantizeAndScaleShiftTransformation, CompareWithRefImpl) {

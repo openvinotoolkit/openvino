@@ -21,8 +21,8 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
+#include "engines_util/test_case.hpp"
 #include "util/test_control.hpp"
 
 using namespace std;
@@ -31,8 +31,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, floor_mod_int32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, floor_mod_int32) {
     Shape shape{4};
 
     auto A = make_shared<op::Parameter>(element::i32, shape);
@@ -48,8 +47,7 @@ NGRAPH_TEST(${BACKEND_NAME}, floor_mod_int32)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, floor_mod_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, floor_mod_int64) {
     Shape shape{4};
 
     auto A = make_shared<op::Parameter>(element::i32, shape);
@@ -65,8 +63,7 @@ NGRAPH_TEST(${BACKEND_NAME}, floor_mod_int64)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, floor_mod_float)
-{
+NGRAPH_TEST(${BACKEND_NAME}, floor_mod_float) {
     Shape shape{4};
 
     auto A = make_shared<op::Parameter>(element::f32, shape);
@@ -82,8 +79,7 @@ NGRAPH_TEST(${BACKEND_NAME}, floor_mod_float)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, floor_mod_broadcasted)
-{
+NGRAPH_TEST(${BACKEND_NAME}, floor_mod_broadcasted) {
     Shape shape_a{2, 1, 2};
     Shape shape_b{2, 1};
     Shape shape_r{2, 2, 2};
@@ -97,12 +93,10 @@ NGRAPH_TEST(${BACKEND_NAME}, floor_mod_broadcasted)
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(shape_r, {1.0f, 0.0f, 1.0f, 2.0f,
-                                                   1.0f, 0.0f, 0.0f, 1.0f});
+    test_case.add_expected_output<float>(shape_r, {1.0f, 0.0f, 1.0f, 2.0f, 1.0f, 0.0f, 0.0f, 1.0f});
     test_case.run();
 }
-NGRAPH_TEST(${BACKEND_NAME}, floor_mod_scalars)
-{
+NGRAPH_TEST(${BACKEND_NAME}, floor_mod_scalars) {
     Shape shape{};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);

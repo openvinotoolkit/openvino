@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "engines_util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
 #include "util/test_control.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -16,8 +16,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, bucketize_right_edge)
-{
+NGRAPH_TEST(${BACKEND_NAME}, bucketize_right_edge) {
     Shape data_shape{10, 1};
     Shape bucket_shape{4};
 
@@ -37,8 +36,7 @@ NGRAPH_TEST(${BACKEND_NAME}, bucketize_right_edge)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, bucketize_left_edge)
-{
+NGRAPH_TEST(${BACKEND_NAME}, bucketize_left_edge) {
     Shape data_shape{1, 1, 10};
     Shape bucket_shape{4};
 

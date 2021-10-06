@@ -46,9 +46,7 @@ void GatherElementsLayerTest::SetUp() {
             ngraph::builder::makeGatherElements(paramOuts[0], indicesShape, ngIPrc, axis));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gather)};
     function = std::make_shared<ngraph::Function>(results, params, "gatherEl");
+    functionRefs = ngraph::clone_function(*function);
 }
 
-TEST_P(GatherElementsLayerTest, CompareWithRefs) {
-    Run();
-}
 }  // namespace LayerTestsDefinitions

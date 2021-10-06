@@ -22,6 +22,7 @@
 namespace {
 
 using namespace testing;
+using namespace ngraph;
 using namespace ngraph::pass;
 
 class ReshapeTransformationTestValues {
@@ -40,24 +41,12 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::vector<int> reshapeConstValues;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
 };
-
-inline std::ostream& operator<<(std::ostream& os, const std::vector<int>& values) {
-    os << "{ ";
-    for (size_t i = 0; i < values.size(); ++i) {
-        os << values[i];
-        if (i != (values.size() - 1ul)) {
-            os << ", ";
-        }
-    }
-    os << " }";
-    return os;
-}
 
 class ReshapeTransformation : public LayerTransformation, public testing::WithParamInterface<ReshapeTransformationTestValues> {
 public:
@@ -99,11 +88,20 @@ public:
     }
 };
 
+TEST_P(ReshapeTransformation, CompareFunctions) {
+    InitNodeInfo().run_on_function(actualFunction);
+    actualFunction->validate_nodes_and_infer_types();
+    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
+}
+
 const std::vector<ReshapeTransformationTestValues> testValues = {
     // U8: no subtract 3D -> 4D: channels are not affected
     {
-        ngraph::Shape({ 1, 384, 1024 }),
-        { 1, 384, 16, 64},
+        { 1, 384, 1024 },
+        { 1, 384, 16, 64 },
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -116,9 +114,73 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             {{ngraph::element::f32}, {}, {0.1f}}
         }
     },
+    // U8: 3D -> 4D: dynamic shape
+    {
+        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+        { 0, 384, 16, 64 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {0.1f}}
+        }
+    },
+    // U8: 3D -> 4D: dynamic rank: per tensor quantization
+    {
+        PartialShape::dynamic(),
+        { 0, 384, 16, 64 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {0.1f}}
+        }
+    },
+    // U8: 3D -> 4D: dynamic rank: per tensor quantization
+    {
+        PartialShape::dynamic(),
+        { 0, 384, 16, 64 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {0.1f}}
+        }
+    },
+    // U8: 3D -> 4D: dynamic rank
+    {
+        PartialShape::dynamic(),
+        { 0, 3, 16, 64 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, element::f32, {1, 3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, element::f32, {1, 3, 1, 1}}},
+            ngraph::element::f32,
+            {}
+        }
+    },
     // U8: no subtract 3D -> 4D: channels are not affected
     {
-        ngraph::Shape({ 4, 384, 1024 }),
+        { 4, 384, 1024 },
         { 4, 384, 16, 64},
         LayerTransformation::createParamsU8I8(),
         {
@@ -134,7 +196,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     },
     // U8: no subtract 3D -> 4D: channels are not affected: no subtract
     {
-        ngraph::Shape({ 1, 3, 20 }),
+        { 1, 3, 20 },
         { 1, 3, 4, 5},
         LayerTransformation::createParamsU8I8(),
         {
@@ -166,7 +228,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     },
     // U8: no subtract 3D -> 4D: channels are not affected: with subtract
     {
-        ngraph::Shape({ 1, 3, 20 }),
+        { 1, 3, 20 },
         { 1, 3, 4, 5},
         LayerTransformation::createParamsU8I8(),
         {
@@ -188,9 +250,57 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             }
         }
     },
+    // U8: with subtract 3D -> 4D: channels are not affected, dynamic batch
+    {
+        { Dimension::dynamic(), 3, 20 },
+        { 0, 3, 4, 5},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{32, 64, 128}, ngraph::element::f32, {1, 3, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{32, 64, 128}, ngraph::element::f32, {1, 3, 1, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}
+            }
+        }
+    },
+    // U8: with subtract 3D -> 4D: channels are not affected, dynamic shape
+    {
+        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+        { 0, 3, 4, 5},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{32, 64, 128}, ngraph::element::f32, {1, 3, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{32, 64, 128}, ngraph::element::f32, {1, 3, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1}}
+            },
+            ngraph::element::f32,
+            {}
+        }
+    },
     // U8: no subtract 3D -> 4D: channels are not affected: with subtract
     {
-        ngraph::Shape({ 1, 3, 20 }),
+        { 1, 3, 20 },
         { 1, -1, 4, 5},
         LayerTransformation::createParamsU8I8(),
         {
@@ -212,9 +322,29 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             }
         }
     },
+    // U8: no subtract 4D -> 3D: rfcn-resnet101-coco
+    {
+        { 100, 4, 1, 1 },
+        { -1, 1, 400},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32}, {}, {{0.1f, 0.1f, 0.1f, 0.1f}, ngraph::element::f32, {1, 4, 1, 1}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {}}
+            }
+        }
+    },
     // U8: no subtract 4D -> 6D: channels are not affected: no subtract
     {
-        ngraph::Shape({ 1, 3, 4, 5 }),
+        { 1, 3, 4, 5 },
         { 1, 3, 20, 1, 1, 1},
         LayerTransformation::createParamsU8I8(),
         {
@@ -230,7 +360,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     },
     // U8: no subtract 4D -> 6D: channels are not affected: with subtract
     {
-        ngraph::Shape({ 1, 3, 4, 5 }),
+        { 1, 3, 4, 5 },
         { 1, 3, 20, 1, 1, 1},
         LayerTransformation::createParamsU8I8(),
         {
@@ -252,10 +382,9 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             {}
         }
     },
-    // U8: no subtract 2D -> 4D: channels are affected: per tensor quantization
-    // TODO: story 38439
+    // U8: no subtract 4D -> 2D: channels are affected: per tensor quantization
     {
-        ngraph::Shape({ 1, 16, 384, 384 }),
+        { 1, 16, 384, 384 },
         { 6144, -1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -264,14 +393,14 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}},
-            ngraph::element::f32,
-            {}
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {0.1f}}
         }
     },
-    // U8: no subtract 2D -> 4D: channels are affected: per channel quantization
+    // U8: no subtract 4D -> 2D: channels are affected: per channel quantization
     {
-        ngraph::Shape({ 1, 3, 4, 5 }),
+        { 1, 3, 4, 5 },
         { 12, -1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -287,7 +416,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     },
     // U8: no subtract 2D -> 4D: channels are affected: per channel quantization
     {
-        ngraph::Shape({ 1, 3, 4, 8 }),
+        { 1, 3, 4, 8 },
         { 12, -1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -303,7 +432,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     },
     // empty: FP32
     {
-        ngraph::Shape({ 1, 3, 4, 8 }),
+        { 1, 3, 4, 8 },
         { 12, -1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -319,7 +448,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     },
     // empty: U8
     {
-        ngraph::Shape({ 1, 3, 4, 8 }),
+        { 1, 3, 4, 8 },
         { 12, -1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -335,7 +464,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     },
     // U8: no subtract 4D -> 6D: channels are not affected: no subtract
     {
-        ngraph::Shape({ 1, 3, 1, 1 }),
+        { 1, 3, 1, 1 },
         { 1, 3, 1, 1, 1, 1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -349,10 +478,85 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             {}
         }
     },
-    // U8: no subtract 4D -> 2D: channels are not affected: per tensor quantization
-    // TODO: story 38439
+    // U8: no subtract 4D -> 5D: channels are not affected: no subtract
     {
-        ngraph::Shape({ 1, 3, 4, 5 }),
+        { 1, 3, 4, 5 },
+        { 1, 3, 20, 1, 1},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1, 1}}},
+        }
+    },
+    // U8: no subtract 4D -> 5D: channels are affected: no subtract
+    {
+        { 1, 3, 2, 3 },
+        { 1, 18, 1, 1, 1},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {
+                    {0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.2f, 0.2f, 0.2f, 0.2f, 0.2f, 0.2f, 0.3f, 0.3f, 0.3f, 0.3f, 0.3f, 0.3f},
+                    ngraph::element::f32,
+                    {1, 18, 1, 1, 1}
+                }
+            },
+        }
+    },
+    // U8: no subtract 4D -> 5D: channels are affected: no subtract
+    {
+        { 1, 3, 4, 5 },
+        { 1, 12, 1, 1, 5},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {}}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {}}},
+        }
+    },
+    // U8: no subtract 4D -> 5D: channels are affected: no subtract
+    {
+        { 1, 3, 4, 5 },
+        { 1, 12, 1, 1, 5},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{0.1f, 0.1f, 0.1f, 0.1f, 0.2f, 0.2f, 0.2f, 0.2f, 0.3f, 0.3f, 0.3f, 0.3f}, ngraph::element::f32, {1, 12, 1, 1, 1}}
+            }
+        }
+    },
+    // U8: no subtract 4D -> 2D: channels are not affected: per tensor quantization
+    {
+        { 1, 3, 4, 5 },
         { 0, -1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -366,9 +570,49 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             {{ngraph::element::f32}, {{128.f}, ngraph::element::f32, {}}, {{0.1f}, ngraph::element::f32, {}}}
         }
     },
-    // U8: no subtract 4D -> 2D: channels are not affected: per tensor quantization
+    // U8: no subtract 4D -> 2D: channels are affected: per channel quantization
     {
-        ngraph::Shape({ 1, 3, 2, 2 }),
+        { 1, 3, 2, 2 },
+        { 0, -1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {1, 3, 1, 1}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{0.f, 0.f, 0.f, 0.f, 128.f, 128.f, 128.f, 128.f, 255.f, 255.f, 255.f, 255.f}, ngraph::element::f32, {1, 12}},
+                {{0.1f, 0.1f, 0.1f, 0.1f, 0.2f, 0.2f, 0.2f, 0.2f, 0.3f, 0.3f, 0.3f, 0.3f}, ngraph::element::f32, {1, 12}}
+            }
+        }
+    },
+    // U8: no subtract 4D -> 2D: channels are affected: per channel quantization
+    {
+        { 1, 3, 2, 2 },
+        { 0, -1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}, ngraph::element::f32, {3, 1, 1}}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{0.f, 0.f, 0.f, 0.f, 128.f, 128.f, 128.f, 128.f, 255.f, 255.f, 255.f, 255.f}, ngraph::element::f32, {1, 12}},
+                {{0.1f, 0.1f, 0.1f, 0.1f, 0.2f, 0.2f, 0.2f, 0.2f, 0.3f, 0.3f, 0.3f, 0.3f}, ngraph::element::f32, {1, 12}}
+            }
+        }
+    },
+    // U8: 4D -> 2D: per channel dq and dynamic batch
+    {
+        { Dimension::dynamic(), 3, 2, 2 },
         { 0, -1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -388,7 +632,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     },
     // U8: no subtract 4D -> 2D: channels are not affected: per tensor quantization
     {
-        ngraph::Shape({ 4, 3, 2, 2 }),
+        { 4, 3, 2, 2 },
         { 0, -1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -408,7 +652,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     },
     // U8: no subtract 4D -> 2D: channels are not affected: per channel quantization: case #1: dequantization operation constant needs broadcast
     {
-        ngraph::Shape({ 1, 3, 1, 1 }),
+        { 1, 3, 1, 1 },
         { 0, -1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -424,7 +668,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     },
     // U8: no subtract 4D -> 2D: channels are not affected: per channel quantization: case #2: dequantization operation constant doesn't need broadcast
     {
-        ngraph::Shape({ 1, 3, 1, 1 }),
+        { 1, 3, 1, 1 },
         { 0, -1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -440,7 +684,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     },
     // U8: no subtract 4D -> 3D: channels are affected: per tensor quantization: case #1: dequantization operation constant needs broadcast
     {
-        ngraph::Shape({ 1, 3, 4, 5 }),
+        { 1, 3, 4, 5 },
         { 0, 0, -1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -456,7 +700,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     },
     // U8: no subtract 4D -> 3D: channels are affected: per tensor quantization: case #2: dequantization operation constant doesn't need broadcast
     {
-        ngraph::Shape({ 1, 3, 4, 5 }),
+        { 1, 3, 4, 5 },
         { 0, 0, -1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -472,7 +716,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     },
     // U8: no subtract 4D -> 2D
     {
-        ngraph::Shape({ 1, 2048, 1, 1 }),
+        { 1, 2048, 1, 1 },
         { 1, -1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -488,7 +732,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     },
     // U8: no subtract 4D -> 2D
     {
-        ngraph::Shape({ 2, 2048, 1, 1 }),
+        { 2, 2048, 1, 1 },
         { 2, -1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -499,12 +743,12 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             ngraph::element::u8,
             {{}, {}, {}},
             ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {1ul}}}
+            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {}}}
         }
     },
     // U8: no subtract 4D -> 2D
     {
-        ngraph::Shape({ 1, 2048, 1, 1 }),
+        { 1, 2048, 1, 1 },
         { 1, -1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -515,12 +759,12 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             ngraph::element::u8,
             {{}, {}, {}},
             ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {1, 1}}}
+            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {}}}
         }
     },
     // U8: no subtract 4D -> 2D: channels are not affected
     {
-        ngraph::Shape({ 2, 2048, 1, 1 }),
+        { 2, 2048, 1, 1 },
         { 2, -1},
         LayerTransformation::createParamsU8I8(),
         {
@@ -531,12 +775,28 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             ngraph::element::u8,
             {{}, {}, {}},
             ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {1, 1}}}
+            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {}}}
+        }
+    },
+    // U8: no subtract 4D -> 2D: channels are not affected, dynamic batch
+    {
+        { Dimension::dynamic(), 2048, 1, 1 },
+        { 0, -1},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {1, 1, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {}}}
         }
     },
     // U8: no subtract 4D -> 4D: channels are affected
     {
-        ngraph::Shape({ 1, 64, 320, 1 }),
+        { 1, 64, 320, 1 },
         { 0, 2, 3, 1},
         LayerTransformation::createParamsU8I8(),
         {
@@ -552,7 +812,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     },
     // U8: with subtract 4D -> 4D: channels are affected
     {
-        ngraph::Shape({ 1, 64, 320, 1 }),
+        { 1, 64, 320, 1 },
         { 0, 2, 3, 1},
         LayerTransformation::createParamsU8I8(),
         {
@@ -568,7 +828,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     },
     // U8: with subtract 4D -> 3D, Dq after convolution: face-detection-0205 case
     {
-        ngraph::Shape({ 1, 3, 12, 12 }),
+        { 1, 3, 12, 12 },
         { 0, 3, -1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -592,7 +852,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     },
     // U8: without subtract 4D -> 3D, Dq after convolution: face-detection-0205 case
     {
-        ngraph::Shape({ 1, 3, 12, 12 }),
+        { 1, 3, 12, 12 },
         { 0, 3, -1 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -616,7 +876,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     },
     // U8: without subtract 4D -> 3D, Dq after convolution
     {
-        ngraph::Shape({ 1, 3, 12, 12 }),
+        { 1, 3, 12, 12 },
         { 0, -1, 144 },
         LayerTransformation::createParamsU8I8(),
         {
@@ -637,17 +897,74 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
                 {{0.1f, 0.01f, 0.1f}, ngraph::element::f32, {1, 3, 1}}
             }
         }
-    }
+    },
+    // U8: without subtract 2D -> 2D
+    {
+        { 1, 3 },
+        { 1, -1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{0.1f, 0.01f, 0.1f}, ngraph::element::f32, {1, 3}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{0.1f, 0.01f, 0.1f}, ngraph::element::f32, {1, 3}}
+            }
+        }
+    },
+    // U8: without subtract 2D -> 2D
+    {
+        { Dimension::dynamic(), 2 },
+        { -1, 6 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{0.1f, 0.02f}, ngraph::element::f32, {1, 2}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{0.1f,  0.02f, 0.1f, 0.02f, 0.1f, 0.02f}, ngraph::element::f32, {1, 6}}
+            }
+        }
+    },
+    // Nondequantization multiply (I32 precision)
+    {
+        { 1, 384, 1024 },
+        { 1, 384, 16, 64 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::i32,
+            {{}, {}, {2}}
+        },
+        {
+            ngraph::element::i32,
+            {{}, {}, {2}},
+            ngraph::element::i32,
+            {}
+        }
+    },
 };
 
-TEST_P(ReshapeTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
-    actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
-    ASSERT_TRUE(res.first) << res.second;
-}
-
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ReshapeTransformation,
     ::testing::ValuesIn(testValues),

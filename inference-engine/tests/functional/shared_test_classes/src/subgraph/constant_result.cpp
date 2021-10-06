@@ -23,7 +23,7 @@ std::ostream& operator<<(std::ostream &os, ConstantSubgraphType type) {
     return os;
 }
 
-std::string ConstantResultSubgraphTest::getTestCaseName(testing::TestParamInfo<constResultParams> obj) {
+std::string ConstantResultSubgraphTest::getTestCaseName(const testing::TestParamInfo<constResultParams>& obj) {
     ConstantSubgraphType type;
     SizeVector IS;
     Precision inputPrecision;
@@ -38,7 +38,7 @@ std::string ConstantResultSubgraphTest::getTestCaseName(testing::TestParamInfo<c
     return result.str();
 }
 
-void ConstantResultSubgraphTest::createGraph(ConstantSubgraphType type, const SizeVector &inputShape, const Precision &inputPrecision) {
+void ConstantResultSubgraphTest::createGraph(const ConstantSubgraphType& type, const SizeVector &inputShape, const Precision &inputPrecision) {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
 
     ParameterVector params;
@@ -61,6 +61,7 @@ void ConstantResultSubgraphTest::createGraph(ConstantSubgraphType type, const Si
         }
     }
     function = std::make_shared<Function>(results, params, "ConstResult");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void ConstantResultSubgraphTest::SetUp() {

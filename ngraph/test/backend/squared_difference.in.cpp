@@ -21,8 +21,8 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
+#include "engines_util/test_case.hpp"
 #include "util/test_control.hpp"
 
 using namespace std;
@@ -31,8 +31,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, squared_difference_no_broadcast)
-{
+NGRAPH_TEST(${BACKEND_NAME}, squared_difference_no_broadcast) {
     Shape shape{1, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -47,8 +46,7 @@ NGRAPH_TEST(${BACKEND_NAME}, squared_difference_no_broadcast)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, squared_difference_negative_numbers)
-{
+NGRAPH_TEST(${BACKEND_NAME}, squared_difference_negative_numbers) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -63,8 +61,7 @@ NGRAPH_TEST(${BACKEND_NAME}, squared_difference_negative_numbers)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, squared_difference_broadcast)
-{
+NGRAPH_TEST(${BACKEND_NAME}, squared_difference_broadcast) {
     Shape shape_a{1, 2};
     Shape shape_b{3, 2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
@@ -80,8 +77,7 @@ NGRAPH_TEST(${BACKEND_NAME}, squared_difference_broadcast)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, squared_difference_scalars)
-{
+NGRAPH_TEST(${BACKEND_NAME}, squared_difference_scalars) {
     Shape shape{};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -96,8 +92,7 @@ NGRAPH_TEST(${BACKEND_NAME}, squared_difference_scalars)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, squared_difference_vector_and_scalar)
-{
+NGRAPH_TEST(${BACKEND_NAME}, squared_difference_vector_and_scalar) {
     Shape shape_a{2, 2};
     Shape shape_b{};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
@@ -113,8 +108,7 @@ NGRAPH_TEST(${BACKEND_NAME}, squared_difference_vector_and_scalar)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, squared_difference_in_place)
-{
+NGRAPH_TEST(${BACKEND_NAME}, squared_difference_in_place) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -128,6 +122,6 @@ NGRAPH_TEST(${BACKEND_NAME}, squared_difference_in_place)
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(shape, {0, 0 ,0 ,0});
+    test_case.add_expected_output<float>(shape, {0, 0, 0, 0});
     test_case.run();
-} 
+}

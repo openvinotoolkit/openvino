@@ -8,7 +8,7 @@ using ngraph::helpers::QuantizationGranularity;
 
 namespace SubgraphTestsDefinitions {
 
-std::string QuantGroupConvLayerTest::getTestCaseName(testing::TestParamInfo<quantGroupConvLayerTestParamsSet> obj) {
+std::string QuantGroupConvLayerTest::getTestCaseName(const testing::TestParamInfo<quantGroupConvLayerTestParamsSet>& obj) {
     quantGroupConvSpecificParams groupConvParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
@@ -92,5 +92,6 @@ void QuantGroupConvLayerTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConv)};
     function = std::make_shared<ngraph::Function>(results, params, "QuantGroupConvolution");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

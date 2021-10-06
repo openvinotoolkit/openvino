@@ -11,13 +11,12 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "common_test_utils/common_layers_params.hpp"
 #include "ie_core.hpp"
 
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-    std::vector<std::vector<size_t>>,             // input shapes
+    std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>,             // input shapes
     ngraph::helpers::EltwiseTypes,                // eltwise op type
     ngraph::helpers::InputLayerType,              // secondary input type
     CommonTestUtils::OpType,                      // op type
@@ -36,6 +35,6 @@ protected:
     void SetUp() override;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<EltwiseTestParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<EltwiseTestParams>& obj);
 };
 } // namespace LayerTestsDefinitions

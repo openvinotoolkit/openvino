@@ -18,10 +18,9 @@
 #include "ngraph/ngraph.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
-#include "util/known_element_types.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
+#include "engines_util/execute_tools.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -30,11 +29,9 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_center_point_box_format)
-{
-    std::vector<float> boxes_data = {0.5, 0.5,  1.0, 1.0, 0.5, 0.6,   1.0, 1.0,
-                                     0.5, 0.4,  1.0, 1.0, 0.5, 10.5,  1.0, 1.0,
-                                     0.5, 10.6, 1.0, 1.0, 0.5, 100.5, 1.0, 1.0};
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_center_point_box_format) {
+    std::vector<float> boxes_data = {0.5, 0.5,  1.0, 1.0, 0.5, 0.6,  1.0, 1.0, 0.5, 0.4,   1.0, 1.0,
+                                     0.5, 10.5, 1.0, 1.0, 0.5, 10.6, 1.0, 1.0, 0.5, 100.5, 1.0, 1.0};
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
@@ -50,8 +47,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_center_point_box_format)
     auto max_output_boxes_per_class =
         op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
     auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
+    auto score_threshold = op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -77,8 +73,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_center_point_box_format)
 
     auto handle = backend->compile(f);
 
-    handle->call({selected_indeces, selected_scores, valid_outputs},
-                 {backend_boxes, backend_scores});
+    handle->call({selected_indeces, selected_scores, valid_outputs}, {backend_boxes, backend_scores});
 
     auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
     auto selected_scores_value = read_vector<float>(selected_scores);
@@ -93,11 +88,9 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_center_point_box_format)
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_flipped_coordinates)
-{
-    std::vector<float> boxes_data = {1.0, 1.0,  0.0, 0.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, 0.9,  1.0, -0.1, 0.0, 10.0,  1.0, 11.0,
-                                     1.0, 10.1, 0.0, 11.1, 1.0, 101.0, 0.0, 100.0};
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_flipped_coordinates) {
+    std::vector<float> boxes_data = {1.0, 1.0,  0.0, 0.0,  0.0, 0.1,  1.0, 1.1,  0.0, 0.9,   1.0, -0.1,
+                                     0.0, 10.0, 1.0, 11.0, 1.0, 10.1, 0.0, 11.1, 1.0, 101.0, 0.0, 100.0};
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
@@ -113,8 +106,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_flipped_coordinates)
     auto max_output_boxes_per_class =
         op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
     auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
+    auto score_threshold = op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -140,8 +132,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_flipped_coordinates)
 
     auto handle = backend->compile(f);
 
-    handle->call({selected_indeces, selected_scores, valid_outputs},
-                 {backend_boxes, backend_scores});
+    handle->call({selected_indeces, selected_scores, valid_outputs}, {backend_boxes, backend_scores});
 
     auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
     auto selected_scores_value = read_vector<float>(selected_scores);
@@ -156,12 +147,10 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_flipped_coordinates)
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_identical_boxes)
-{
-    std::vector<float> boxes_data = {0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
-                                     1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
-                                     0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
-                                     1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0};
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_identical_boxes) {
+    std::vector<float> boxes_data = {0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
+                                     1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
+                                     0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0};
 
     std::vector<float> scores_data = {0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9};
 
@@ -177,8 +166,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_identical_boxes)
     auto max_output_boxes_per_class =
         op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
     auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
+    auto score_threshold = op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -204,8 +192,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_identical_boxes)
 
     auto handle = backend->compile(f);
 
-    handle->call({selected_indeces, selected_scores, valid_outputs},
-                 {backend_boxes, backend_scores});
+    handle->call({selected_indeces, selected_scores, valid_outputs}, {backend_boxes, backend_scores});
 
     auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
     auto selected_scores_value = read_vector<float>(selected_scores);
@@ -220,11 +207,9 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_identical_boxes)
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_limit_output_size)
-{
-    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_limit_output_size) {
+    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+                                     0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
@@ -240,8 +225,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_limit_output_size)
     auto max_output_boxes_per_class =
         op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
     auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
+    auto score_threshold = op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -267,8 +251,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_limit_output_size)
 
     auto handle = backend->compile(f);
 
-    handle->call({selected_indeces, selected_scores, valid_outputs},
-                 {backend_boxes, backend_scores});
+    handle->call({selected_indeces, selected_scores, valid_outputs}, {backend_boxes, backend_scores});
 
     auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
     auto selected_scores_value = read_vector<float>(selected_scores);
@@ -283,8 +266,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_limit_output_size)
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_single_box)
-{
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_single_box) {
     std::vector<float> boxes_data = {0.0, 0.0, 1.0, 1.0};
 
     std::vector<float> scores_data = {0.9};
@@ -301,8 +283,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_single_box)
     auto max_output_boxes_per_class =
         op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
     auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
+    auto score_threshold = op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -328,8 +309,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_single_box)
 
     auto handle = backend->compile(f);
 
-    handle->call({selected_indeces, selected_scores, valid_outputs},
-                 {backend_boxes, backend_scores});
+    handle->call({selected_indeces, selected_scores, valid_outputs}, {backend_boxes, backend_scores});
 
     auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
     auto selected_scores_value = read_vector<float>(selected_scores);
@@ -344,11 +324,9 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_single_box)
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU)
-{
-    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU) {
+    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+                                     0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
@@ -364,8 +342,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU)
     auto max_output_boxes_per_class =
         op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
     auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
+    auto score_threshold = op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -391,8 +368,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU)
 
     auto handle = backend->compile(f);
 
-    handle->call({selected_indeces, selected_scores, valid_outputs},
-                 {backend_boxes, backend_scores});
+    handle->call({selected_indeces, selected_scores, valid_outputs}, {backend_boxes, backend_scores});
 
     auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
     auto selected_scores_value = read_vector<float>(selected_scores);
@@ -407,11 +383,9 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU)
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores)
-{
-    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores) {
+    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+                                     0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
@@ -427,8 +401,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores)
     auto max_output_boxes_per_class =
         op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
     auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
+    auto score_threshold = op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -454,8 +427,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores)
 
     auto handle = backend->compile(f);
 
-    handle->call({selected_indeces, selected_scores, valid_outputs},
-                 {backend_boxes, backend_scores});
+    handle->call({selected_indeces, selected_scores, valid_outputs}, {backend_boxes, backend_scores});
 
     auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
     auto selected_scores_value = read_vector<float>(selected_scores);
@@ -470,15 +442,13 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores)
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_batches)
-{
-    std::vector<float> boxes_data = {
-        0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-        0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-        0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,  0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_batches) {
+    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+                                     0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
+                                     0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+                                     0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
 
-    std::vector<float> scores_data = {
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
+    std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
     const int64_t max_output_boxes_per_class_data = 2;
     const float iou_threshold_data = 0.5f;
@@ -492,8 +462,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_batches)
     auto max_output_boxes_per_class =
         op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
     auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
+    auto score_threshold = op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -519,16 +488,14 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_batches)
 
     auto handle = backend->compile(f);
 
-    handle->call({selected_indeces, selected_scores, valid_outputs},
-                 {backend_boxes, backend_scores});
+    handle->call({selected_indeces, selected_scores, valid_outputs}, {backend_boxes, backend_scores});
 
     auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
     auto selected_scores_value = read_vector<float>(selected_scores);
     auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
 
     std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0, 1, 0, 3, 1, 0, 0};
-    std::vector<float> expected_selected_scores = {
-        0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 1.0, 0.0, 0.95, 1.0, 0.0, 0.9};
+    std::vector<float> expected_selected_scores = {0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 1.0, 0.0, 0.95, 1.0, 0.0, 0.9};
     std::vector<int64_t> expected_valid_outputs = {4};
 
     EXPECT_EQ(expected_selected_indices, selected_indeces_value);
@@ -536,14 +503,11 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_batches)
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_classes)
-{
-    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_classes) {
+    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+                                     0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
 
-    std::vector<float> scores_data = {
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
+    std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
     const int64_t max_output_boxes_per_class_data = 2;
     const float iou_threshold_data = 0.5f;
@@ -557,8 +521,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_classes)
     auto max_output_boxes_per_class =
         op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
     auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold =
-        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
+    auto score_threshold = op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -584,16 +547,14 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_classes)
 
     auto handle = backend->compile(f);
 
-    handle->call({selected_indeces, selected_scores, valid_outputs},
-                 {backend_boxes, backend_scores});
+    handle->call({selected_indeces, selected_scores, valid_outputs}, {backend_boxes, backend_scores});
 
     auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
     auto selected_scores_value = read_vector<float>(selected_scores);
     auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
 
     std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0, 0, 1, 3, 0, 1, 0};
-    std::vector<float> expected_selected_scores = {
-        0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 0.0, 1.0, 0.95, 0.0, 1.0, 0.9};
+    std::vector<float> expected_selected_scores = {0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 0.0, 1.0, 0.95, 0.0, 1.0, 0.9};
     std::vector<int64_t> expected_valid_outputs = {4};
 
     EXPECT_EQ(expected_selected_indices, selected_indeces_value);
@@ -601,11 +562,9 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_classes)
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores_without_constants)
-{
-    std::vector<float> boxes_data = {0.0f, 0.0f,  1.0f, 1.0f,  0.0f, 0.1f,   1.0f, 1.1f,
-                                     0.0f, -0.1f, 1.0f, 0.9f,  0.0f, 10.0f,  1.0f, 11.0f,
-                                     0.0f, 10.1f, 1.0f, 11.1f, 0.0f, 100.0f, 1.0f, 101.0f};
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores_without_constants) {
+    std::vector<float> boxes_data = {0.0f, 0.0f,  1.0f, 1.0f,  0.0f, 0.1f,  1.0f, 1.1f,  0.0f, -0.1f,  1.0f, 0.9f,
+                                     0.0f, 10.0f, 1.0f, 11.0f, 0.0f, 10.1f, 1.0f, 11.1f, 0.0f, 100.0f, 1.0f, 101.0f};
 
     std::vector<float> scores_data = {0.9f, 0.75f, 0.6f, 0.95f, 0.5f, 0.3f};
 
@@ -632,13 +591,9 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores_withou
                                                       box_encoding,
                                                       false);
 
-    auto f = make_shared<Function>(nms,
-                                   ParameterVector{boxes,
-                                                   scores,
-                                                   max_output_boxes_per_class,
-                                                   iou_threshold,
-                                                   score_treshold,
-                                                   soft_nms_sigma});
+    auto f = make_shared<Function>(
+        nms,
+        ParameterVector{boxes, scores, max_output_boxes_per_class, iou_threshold, score_treshold, soft_nms_sigma});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 

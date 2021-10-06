@@ -19,7 +19,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string MatMulWithConstantTransformation::getTestCaseName(testing::TestParamInfo<MatMulWithConstantTransformationParams> obj) {
+std::string MatMulWithConstantTransformation::getTestCaseName(const testing::TestParamInfo<MatMulWithConstantTransformationParams>& obj) {
     ngraph::element::Type precision;
     std::string targetDevice;
     MatMulWithConstantTransformationTestValues testValues;
@@ -71,25 +71,7 @@ void MatMulWithConstantTransformation::SetUp() {
         testValues.deqOnWeights);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
-
-    if (testValues.deqOnWeights.empty()) {
-        validate();
-    }
-}
-
-void MatMulWithConstantTransformation::validate() {
-    ngraph::element::Type precision;
-    std::string targetDevice;
-    MatMulWithConstantTransformationTestValues testValues;
-    std::tie(precision, targetDevice, testValues) = this->GetParam();
-
-    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams();
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-
-    const auto output = transformed->get_output_op(0);
-    const auto scaleShift = output->get_input_node_shared_ptr(0);
-    const std::string typeName = scaleShift->get_type_name();
-    ASSERT_TRUE("ScaleShiftIE" == typeName || "Eltwise" == typeName);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void MatMulWithConstantTransformation::Run() {

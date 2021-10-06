@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/floor_mod.hpp"
+
 #include <string>
 #include <vector>
 
-#include "ngraph/op/floor_mod.hpp"
+#include "engines_util/interpreter_engine.hpp"
+#include "engines_util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/engine/interpreter_engine.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
 #include "util/test_control.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-TEST(op_eval, floor_mod)
-{
+TEST(op_eval, floor_mod) {
     Shape shape{4};
 
     auto A = make_shared<op::Parameter>(element::f32, shape);
@@ -33,8 +33,7 @@ TEST(op_eval, floor_mod)
     test_case.run();
 }
 
-TEST(op_eval, floor_mod_broadcasted)
-{
+TEST(op_eval, floor_mod_broadcasted) {
     Shape shape_a{2, 1, 2};
     Shape shape_b{2, 1};
     Shape shape_r{2, 2, 2};
@@ -48,13 +47,11 @@ TEST(op_eval, floor_mod_broadcasted)
 
     auto test_case = test::TestCase<ngraph::test::INTERPRETER_Engine>(f);
     test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(shape_r, {1.0f, 0.0f, 1.0f, 2.0f,
-                                                   1.0f, 0.0f, 0.0f, 1.0f});
+    test_case.add_expected_output<float>(shape_r, {1.0f, 0.0f, 1.0f, 2.0f, 1.0f, 0.0f, 0.0f, 1.0f});
     test_case.run();
 }
 
-TEST(op_eval, floor_mod_scalars)
-{
+TEST(op_eval, floor_mod_scalars) {
     Shape shape{};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -69,8 +66,7 @@ TEST(op_eval, floor_mod_scalars)
     test_case.run();
 }
 
-TEST(op_eval, floor_mod_vector_scalar)
-{
+TEST(op_eval, floor_mod_vector_scalar) {
     Shape shape_a{2, 2};
     Shape shape_b{};
 
@@ -87,8 +83,7 @@ TEST(op_eval, floor_mod_vector_scalar)
     test_case.run();
 }
 
-TEST(op_eval, floor_mod_int64)
-{
+TEST(op_eval, floor_mod_int64) {
     Shape shape{4};
 
     auto A = make_shared<op::Parameter>(element::i64, shape);
@@ -104,8 +99,7 @@ TEST(op_eval, floor_mod_int64)
     test_case.run();
 }
 
-TEST(op_eval, floor_mod_broadcasted_int64)
-{
+TEST(op_eval, floor_mod_broadcasted_int64) {
     Shape shape_a{2, 1, 2};
     Shape shape_b{2, 1};
     Shape shape_r{2, 2, 2};
@@ -119,13 +113,11 @@ TEST(op_eval, floor_mod_broadcasted_int64)
 
     auto test_case = test::TestCase<ngraph::test::INTERPRETER_Engine>(f);
     test_case.add_multiple_inputs<int64_t>({a, b});
-    test_case.add_expected_output<int64_t>(shape_r, {1, 0, 1, 2,
-                                                     1, 0, 0, 1});
+    test_case.add_expected_output<int64_t>(shape_r, {1, 0, 1, 2, 1, 0, 0, 1});
     test_case.run();
 }
 
-TEST(op_eval, floor_mod_int32)
-{
+TEST(op_eval, floor_mod_int32) {
     Shape shape{4};
 
     auto A = make_shared<op::Parameter>(element::i32, shape);

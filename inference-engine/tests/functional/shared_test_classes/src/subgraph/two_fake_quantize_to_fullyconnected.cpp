@@ -6,7 +6,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string FakeQuantizeSubgraphTest::getTestCaseName(testing::TestParamInfo<fqSubgraphTestParamsSet> obj) {
+std::string FakeQuantizeSubgraphTest::getTestCaseName(const testing::TestParamInfo<fqSubgraphTestParamsSet>& obj) {
     fqSpecificParams fqParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
@@ -68,7 +68,7 @@ void FakeQuantizeSubgraphTest::SetUp() {
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     const int seed = 0;
-    std::mt19937 gen(static_cast<float>(seed));
+    std::mt19937 gen(seed);
 
 
     auto generateFloatNumbers = [gen](std::size_t vec_len, float min, float max) mutable {
@@ -138,6 +138,7 @@ void FakeQuantizeSubgraphTest::SetUp() {
         results.push_back(std::make_shared<ngraph::opset1::Result>(sigmoid_2));
     }
     function = std::make_shared<ngraph::Function>(results, params, "fakeQuantizeSubgraph");
+    functionRefs = ngraph::clone_function(*function);
 
     configuration = config.second;
 }

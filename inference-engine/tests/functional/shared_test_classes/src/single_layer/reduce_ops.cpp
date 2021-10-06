@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ReduceOpsLayerTest::getTestCaseName(testing::TestParamInfo<reduceMeanParams> obj) {
+std::string ReduceOpsLayerTest::getTestCaseName(const testing::TestParamInfo<reduceMeanParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout;
@@ -65,6 +65,7 @@ void ReduceOpsLayerTest::SetUp() {
     const auto reduce = ngraph::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(reduce)};
     function = std::make_shared<ngraph::Function>(results, params, "Reduce");
+    functionRefs = ngraph::clone_function(*function);
 }
 InferenceEngine::Blob::Ptr ReduceOpsLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::helpers::ReductionType reductionType = std::get<3>(GetParam());
@@ -78,7 +79,11 @@ InferenceEngine::Blob::Ptr ReduceOpsLayerTest::GenerateInput(const InferenceEngi
     auto td = info.getTensorDesc();
     auto blob = make_blob_with_precision(td);
     blob->allocate();
-    CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 5, 0, 1000);
+    if (reductionType == ngraph::helpers::ReductionType::Max) {
+        CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 5, -5, 1000);
+    } else {
+        CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 5, 0, 1000);
+    }
     return blob;
 }
 

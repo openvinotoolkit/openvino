@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-    std::string ActivationFakeQuantizeSubgraphTest::getTestCaseName(testing::TestParamInfo<fqSubgraphTestParamsSet> obj) {
+    std::string ActivationFakeQuantizeSubgraphTest::getTestCaseName(const testing::TestParamInfo<fqSubgraphTestParamsSet>& obj) {
         fqSpecificParams fqParams;
         ngraph::helpers::ActivationTypes activationType;
         InferenceEngine::Precision netPrecision;
@@ -73,6 +73,7 @@ namespace SubgraphTestsDefinitions {
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(FQ)};
         function = std::make_shared<ngraph::Function>(results, params, "ActivationFakeQuantizeSubgraph");
+        functionRefs = ngraph::clone_function(*function);
     }
 
 InferenceEngine::Blob::Ptr ActivationFakeQuantizeSubgraphTest::GenerateInput(const InferenceEngine::InputInfo &info) const {

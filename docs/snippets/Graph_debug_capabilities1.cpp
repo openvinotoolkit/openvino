@@ -1,6 +1,5 @@
-#include <inference_engine.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
-
+#include <ie_core.hpp>
+#include <ngraph/function.hpp>
 
 int main() {
 using namespace InferenceEngine;

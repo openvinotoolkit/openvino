@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string RangeLayerTest::getTestCaseName(testing::TestParamInfo<RangeParams> obj) {
+std::string RangeLayerTest::getTestCaseName(const testing::TestParamInfo<RangeParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
@@ -57,9 +57,10 @@ void RangeLayerTest::SetUp() {
     auto range = std::make_shared<ngraph::opset3::Range>(params[0], params[1], params[2]);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(range)};
     function = std::make_shared<ngraph::Function>(results, params, "Range");
+    functionRefs = ngraph::clone_function(*function);
 }
 
-std::string RangeNumpyLayerTest::getTestCaseName(testing::TestParamInfo<RangeParams> obj) {
+std::string RangeNumpyLayerTest::getTestCaseName(const testing::TestParamInfo<RangeParams>& obj) {
     InferenceEngine::Precision netPrc;
     InferenceEngine::Precision paramPrc;
     InferenceEngine::Precision outPrc;
@@ -112,5 +113,6 @@ void RangeNumpyLayerTest::SetUp() {
     auto range = std::make_shared<ngraph::opset4::Range>(params[0], params[1], params[2], ngNetPrc);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(range)};
     function = std::make_shared<ngraph::Function>(results, params, "Range");
+    functionRefs = ngraph::clone_function(*function);
 }
 } // namespace LayerTestsDefinitions

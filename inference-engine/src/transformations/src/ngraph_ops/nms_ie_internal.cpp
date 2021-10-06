@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::internal::NonMaxSuppressionIEInternal::type_info;
+BWDCMP_RTTI_DEFINITION(op::internal::NonMaxSuppressionIEInternal);
 
 op::internal::NonMaxSuppressionIEInternal::NonMaxSuppressionIEInternal(const Output<Node>& boxes,
                                                                        const Output<Node>& scores,
@@ -20,9 +20,11 @@ op::internal::NonMaxSuppressionIEInternal::NonMaxSuppressionIEInternal(const Out
                                                                        const Output<Node>& score_threshold,
                                                                        int center_point_box,
                                                                        bool sort_result_descending,
-                                                                       const ngraph::element::Type& output_type)
+                                                                       const ngraph::element::Type& output_type,
+                                                                       const ngraph::element::Type& score_output_type)
         : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold}),
-          m_center_point_box(center_point_box), m_sort_result_descending(sort_result_descending), m_output_type(output_type) {
+          m_center_point_box(center_point_box), m_sort_result_descending(sort_result_descending), m_output_type(output_type),
+          m_scores_output_type(score_output_type) {
     constructor_validate_and_infer_types();
 }
 
@@ -34,9 +36,11 @@ op::internal::NonMaxSuppressionIEInternal::NonMaxSuppressionIEInternal(const Out
                                                                        const Output<Node>& soft_nms_sigma,
                                                                        int center_point_box,
                                                                        bool sort_result_descending,
-                                                                       const ngraph::element::Type& output_type)
+                                                                       const ngraph::element::Type& output_type,
+                                                                       const ngraph::element::Type& score_output_type)
         : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma}),
-          m_center_point_box(center_point_box), m_sort_result_descending(sort_result_descending), m_output_type(output_type) {
+          m_center_point_box(center_point_box), m_sort_result_descending(sort_result_descending), m_output_type(output_type),
+          m_scores_output_type(score_output_type) {
     constructor_validate_and_infer_types();
 }
 
@@ -59,6 +63,7 @@ bool op::internal::NonMaxSuppressionIEInternal::visit_attributes(AttributeVisito
     visitor.on_attribute("center_point_box", m_center_point_box);
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     visitor.on_attribute("output_type", m_output_type);
+    visitor.on_attribute("score_output_type", m_scores_output_type);
     return true;
 }
 
@@ -75,7 +80,7 @@ int64_t op::internal::NonMaxSuppressionIEInternal::max_boxes_output_from_input()
     }
 
     const auto max_output_boxes_input =
-        as_type_ptr<op::Constant>(input_value(max_output_boxes_per_class_port).get_node_shared_ptr());
+        ov::as_type_ptr<op::Constant>(input_value(max_output_boxes_per_class_port).get_node_shared_ptr());
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -105,6 +110,6 @@ void op::internal::NonMaxSuppressionIEInternal::validate_and_infer_types() {
     }
 
     set_output_type(0, m_output_type, out_shape);
-    set_output_type(1, element::f32, out_shape);
+    set_output_type(1, m_scores_output_type, out_shape);
     set_output_type(2, m_output_type, Shape{1});
 }

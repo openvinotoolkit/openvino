@@ -24,9 +24,9 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<int64_t>& va
     return os;
 }
 
-std::string StridedSliceTransformation::getTestCaseName(testing::TestParamInfo<StridedSliceTransformationParams> obj) {
+std::string StridedSliceTransformation::getTestCaseName(const testing::TestParamInfo<StridedSliceTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     StridedSliceTransformationParam param;;
@@ -42,7 +42,7 @@ std::string StridedSliceTransformation::getTestCaseName(testing::TestParamInfo<S
 
 void StridedSliceTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     StridedSliceTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
@@ -59,24 +59,7 @@ void StridedSliceTransformation::SetUp() {
         param.newAxisMask,
         param.shrinkAxisMask,
         param.elipsisMask);
-
-    validate();
-}
-
-void StridedSliceTransformation::validate() {
-    ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    StridedSliceTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
-
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-
-    const auto output = transformed->get_output_op(0);
-    const auto layer = output->get_input_node_shared_ptr(0);
-    const std::string typeName = layer->get_type_name();
-    ASSERT_EQ("ScaleShiftIE", typeName);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(StridedSliceTransformation, CompareWithRefImpl) {

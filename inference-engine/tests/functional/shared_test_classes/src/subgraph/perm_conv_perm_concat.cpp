@@ -5,7 +5,7 @@
 #include "shared_test_classes/subgraph/perm_conv_perm_concat.hpp"
 
 namespace SubgraphTestsDefinitions {
-std::string PermConvPermConcat::getTestCaseName(testing::TestParamInfo<PermConvPermConcatParams> obj) {
+std::string PermConvPermConcat::getTestCaseName(const testing::TestParamInfo<PermConvPermConcatParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetName;
     std::array<size_t, 4> input_shape;
@@ -78,6 +78,7 @@ void PermConvPermConcat::SetUp() {
     auto reshape_out = std::make_shared<ngraph::op::v1::Reshape>(concat, reshape_out_pattern, false);
 
     function = std::make_shared<ngraph::Function>(reshape_out, input_parameter, "perm_conv_perm_concat");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void PermConvPermConcat::Run() {

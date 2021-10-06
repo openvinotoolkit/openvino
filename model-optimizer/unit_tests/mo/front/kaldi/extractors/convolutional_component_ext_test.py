@@ -22,7 +22,7 @@ class ConvolutionalComponentFrontExtractorTest(KaldiFrontExtractorTest):
         pb += KaldiFrontExtractorTest.write_tag_with_value('<PatchStride>', 4)
         pb += KaldiFrontExtractorTest.generate_learn_info()
         pb += b'<Filters> '
-        pb += KaldiFrontExtractorTest.generate_matrix([2, 1])
+        pb += KaldiFrontExtractorTest.generate_matrix([2, 4])
         pb += b'<Bias> '
         pb += KaldiFrontExtractorTest.generate_vector(2)
         cls.test_node['parameters'] = TestKaldiUtilsLoading.bytesio_from(pb)
@@ -50,6 +50,6 @@ class ConvolutionalComponentFrontExtractorTest(KaldiFrontExtractorTest):
                 self.assertEqual(self.test_node[attr], val_attrs[attr])
 
     def test_convolution_blobs(self):
-        self.assertTrue(np.array_equal(self.test_node.weights, [0, 1]))
+        self.assertTrue(np.array_equal(self.test_node.weights, [0, 1, 2, 3, 4, 5, 6, 7]))
         self.assertTrue(np.array_equal(self.test_node.biases, [0, 1]))
 

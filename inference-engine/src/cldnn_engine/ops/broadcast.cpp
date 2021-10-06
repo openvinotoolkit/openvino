@@ -8,9 +8,9 @@
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/broadcast.hpp"
-#include "api/reorder.hpp"
-#include "api/reshape.hpp"
+#include "cldnn/primitives/broadcast.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/reshape.hpp"
 
 namespace CLDNNPlugin {
 
@@ -31,8 +31,13 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
         if (targetFormat.value != DefaultFormatForDims(inputRank).value) {
             auto reorderName = layerName + "_cldnn_in_reorder";
             auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(0));
-            auto reorderPrim = cldnn::reorder(reorderName, inputPrimitive, targetFormat, targetDatatype);
-
+            auto reorderPrim = cldnn::reorder(reorderName,
+                                              inputPrimitive,
+                                              targetFormat,
+                                              targetDatatype,
+                                              std::vector<float>(),
+                                              cldnn::reorder_mean_mode::subtract,
+                                              op->get_friendly_name());
             p.AddPrimitive(reorderPrim);
             p.AddInnerPrimitiveToProfiler(reorderName, layerName, op);
 
@@ -66,7 +71,7 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
 
         auto targetShape = CldnnTensorFromIEDims(inputShape);
 
-        auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitive, targetShape);
+        auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitive, targetShape, op->get_friendly_name());
         p.AddPrimitive(reshapePrim);
         p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
 
@@ -75,7 +80,9 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
 
     auto broadcastPrim = cldnn::broadcast(layerName,
                                           inputPrimitive,
-                                          CldnnTensorFromIEDims(op->get_output_shape(0)));
+                                          CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                          {},
+                                          op->get_friendly_name());
 
     p.AddPrimitive(broadcastPrim);
     p.AddPrimitiveToProfiler(op);

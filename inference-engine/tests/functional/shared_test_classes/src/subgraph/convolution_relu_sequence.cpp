@@ -6,7 +6,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string ConvolutionReluSequenceTest::getTestCaseName(testing::TestParamInfo<convReluSequenceTestParamsSet> obj) {
+std::string ConvolutionReluSequenceTest::getTestCaseName(const testing::TestParamInfo<convReluSequenceTestParamsSet>& obj) {
     convReluSpecificParamsAll convParamsAll;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
@@ -88,5 +88,6 @@ void ConvolutionReluSequenceTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(lastOutputs)};
     function = std::make_shared<ngraph::Function>(results, params, "convolution_relu_sequence");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

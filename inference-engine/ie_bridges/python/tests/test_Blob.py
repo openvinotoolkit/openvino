@@ -99,10 +99,11 @@ def test_incompatible_input_precision():
            "doesn't match to TensorDesc precision FP32" in str(e.value)
 
 
-#issue 49903
+# issue 49903
+@pytest.mark.ngraph_dependent_test
 @pytest.mark.skip(reason="Test will enable when CPU fix will be merge")
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
-def test_buffer_values_after_add_outputs(device):  
+def test_buffer_values_after_add_outputs(device):
     path_to_repo = os.environ["MODELS_PATH"]
     test_net_xml_fp16 = os.path.join(path_to_repo, "models", "test_model", 'test_model_fp16.xml')
     test_net_bin_fp16 = os.path.join(path_to_repo, "models", "test_model", 'test_model_fp16.bin')
@@ -120,4 +121,39 @@ def test_buffer_values_after_add_outputs(device):
     result = exec_net.infer(feed_dict)
     assert np.all(abs(result[output_layer])<30)
     assert result[output_layer].dtype == np.float16
-    
+
+
+def test_set_shape():
+    tensor_desc = TensorDesc("FP32", [1, 3, 127, 127], "NHWC")
+    blob = Blob(tensor_desc)
+    blob.set_shape([1, 4, 128, 128])
+    assert blob.tensor_desc.dims == [1, 4, 128, 128]
+    assert blob.buffer.shape == (1, 4, 128, 128)
+
+
+def test_cannot_set_shape_preallocated_memory():
+    tensor_desc = TensorDesc("FP32", [1, 3, 127, 127], "NHWC")
+    array = np.ones([1, 3, 127, 127], dtype=np.float32)
+    blob = Blob(tensor_desc, array)
+    with pytest.raises(RuntimeError) as e:
+        blob.set_shape([1, 4, 128, 128])
+    assert "Cannot call setShape for Blobs created on top of preallocated memory" in str(e.value)
+
+
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.template_plugin
+def test_blob_set_shape_after_async_infer():
+    from conftest import create_encoder
+    import ngraph as ng
+    function = create_encoder([1, 4, 20, 20])
+    net = ng.function_to_cnn(function)
+    net.reshape({"data": [(1, 5), 4, 20, 20]})
+    ie_core = IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    request = exec_net.requests[0]
+    request.async_infer({"data": np.ones([4, 4, 20, 20])})
+    with pytest.raises(RuntimeError) as e:
+        request.input_blobs['data'].set_shape([3, 4, 20, 20])
+    assert "REQUEST_BUSY" in str(e.value)
+    request.wait()

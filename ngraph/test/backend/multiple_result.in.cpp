@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
@@ -9,7 +10,6 @@
 #include "util/all_close_f.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -19,8 +19,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 
 // Multiple retrive values
-NGRAPH_TEST(${BACKEND_NAME}, multiple_result)
-{
+NGRAPH_TEST(${BACKEND_NAME}, multiple_result) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);

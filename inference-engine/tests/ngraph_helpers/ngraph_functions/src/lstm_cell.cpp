@@ -41,7 +41,7 @@ std::shared_ptr<ngraph::Node> makeLSTM(const std::vector<ngraph::Output<Node>>& 
                 for (size_t i = 0; i <= in[0].get_shape().at(0); ++i) {
                     std::vector<float> lengths;
                     seq_lengths = ngraph::builder::makeConstant(element::i64, constants[3], lengths, true,
-                                                                in[0].get_shape()[1], 0);
+                                                                static_cast<float>(in[0].get_shape()[1]), 0.f);
                 }
                 break;
             }

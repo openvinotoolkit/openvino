@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/max_unpooling.hpp"
+#include "cldnn/primitives/max_unpooling.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 #include <memory>
 
@@ -14,7 +15,7 @@ namespace cldnn {
 template <>
 struct typed_program_node<max_unpooling> : public typed_program_node_base<max_unpooling> {
     using parent = typed_program_node_base<max_unpooling>;
-    typed_program_node(const std::shared_ptr<max_unpooling> prim, program_impl& prog);
+    typed_program_node(const std::shared_ptr<max_unpooling> prim, program& prog);
 
 public:
     using parent::parent;
@@ -29,7 +30,7 @@ class typed_primitive_inst<max_unpooling> : public typed_primitive_inst_base<max
     using parent = typed_primitive_inst_base<max_unpooling>;
 
 public:
-    typed_primitive_inst(network_impl& network, max_unpooling_node const& desc);
+    typed_primitive_inst(network& network, max_unpooling_node const& desc);
     static layout calc_output_layout(max_unpooling_node const& node);
     static std::string to_string(max_unpooling_node const& node);
 };

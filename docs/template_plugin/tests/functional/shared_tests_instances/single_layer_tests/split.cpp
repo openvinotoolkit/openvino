@@ -11,7 +11,7 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-INSTANTIATE_TEST_CASE_P(smoke_NumSplitsCheck, SplitLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_NumSplitsCheck, SplitLayerTest,
                         ::testing::Combine(
                                 ::testing::Values(1, 2, 3, 5, 6, 10, 30),
                                 ::testing::Values(0, 1, 2, 3),

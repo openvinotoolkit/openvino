@@ -9,20 +9,20 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-std::vector<std::vector<std::vector<size_t>>> inShapes = {
-        {{2}},
-        {{2, 200}},
-        {{10, 200}},
-        {{1, 10, 100}},
-        {{4, 4, 16}},
-        {{1, 1, 1, 3}},
-        {{2, 17, 5, 4}, {1, 17, 1, 1}},
-        {{2, 17, 5, 1}, {1, 17, 1, 4}},
-        {{1, 2, 4}},
-        {{1, 4, 4}},
-        {{1, 4, 4, 1}},
-        {{1, 4, 3, 2, 1, 3}},
-        {{1, 3, 1, 1, 1, 3}, {1, 3, 1, 1, 1, 1}},
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>>  inShapes = {
+        {{}, {{{2}}}},
+        {{}, {{{2, 200}}}},
+        {{}, {{{10, 200}}}},
+        {{}, {{{1, 10, 100}}}},
+        {{}, {{{4, 4, 16}}}},
+        {{}, {{{1, 1, 1, 3}}}},
+        {{}, {{{2, 17, 5, 4}, {1, 17, 1, 1}}}},
+        {{}, {{{2, 17, 5, 1}, {1, 17, 1, 4}}}},
+        {{}, {{{1, 2, 4}}}},
+        {{}, {{{1, 4, 4}}}},
+        {{}, {{{1, 4, 4, 1}}}},
+        {{}, {{{1, 4, 3, 2, 1, 3}}}},
+        {{}, {{{1, 3, 1, 1, 1, 3}, {1, 3, 1, 1, 1, 1}}}},
 };
 
 std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -66,7 +66,7 @@ const auto multiply_params = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::Values(additional_config));
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
 
 
 std::vector<std::vector<std::vector<size_t>>> inShapesSingleThread = {

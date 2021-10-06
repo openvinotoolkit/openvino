@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string SliceConvTest::getTestCaseName(testing::TestParamInfo<SliceConvParams> obj) {
+std::string SliceConvTest::getTestCaseName(const testing::TestParamInfo<SliceConvParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
@@ -70,6 +70,7 @@ void SliceConvTest::SetUp() {
         { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights);
 
     function = std::make_shared<ngraph::Function>(conv, params, "StridedSliceConvTest");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace SubgraphTestsDefinitions

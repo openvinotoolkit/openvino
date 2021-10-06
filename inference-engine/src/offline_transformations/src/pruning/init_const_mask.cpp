@@ -17,7 +17,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::InitConstMask, "InitConstMask", 0);
 ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
                                            const std::function<bool(const double & value)> & condition) {
     auto constant = pattern::wrap_type<opset6::Constant>(
-            pattern::type_matches_any({element::f16, element::f32, element::f64}));
+            pattern::type_matches_any({element::i8, element::u8, element::f16, element::f32, element::f64}));
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto const_node = std::dynamic_pointer_cast<opset6::Constant>(m.get_match_root());
@@ -40,6 +40,7 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
                 end[dim] = value + 1;
 
                 bool skip_dim_value = false;
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 CoordinateTransform iter(shape, begin, end);
                 for (const Coordinate & coord : iter) {
                     if (!condition(values.at(iter.index(coord)))) {
@@ -47,6 +48,7 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
                         break;
                     }
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
                 if (!skip_dim_value) {
                     mask->at(dim).insert(value);
                 }

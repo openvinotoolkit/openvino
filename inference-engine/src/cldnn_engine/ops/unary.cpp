@@ -41,7 +41,7 @@
 #include "ngraph/op/hsigmoid.hpp"
 #include "ngraph/op/round.hpp"
 
-#include "api/activation.hpp"
+#include "cldnn/primitives/activation.hpp"
 
 namespace CLDNNPlugin {
 
@@ -49,7 +49,7 @@ void CreateUnaryEltwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
                           cldnn::activation_func func, cldnn::activation_additional_params params) {
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
-    auto activationPrimitive = cldnn::activation(layerName, inputs[0], func, params);
+    auto activationPrimitive = cldnn::activation(layerName, inputs[0], func, params, op->get_friendly_name());
     p.AddPrimitive(activationPrimitive);
     p.AddPrimitiveToProfiler(op);
 }
@@ -86,7 +86,11 @@ void CreatePReluOp(Program& p, const std::shared_ptr<ngraph::op::v0::PRelu>& op)
     } else if (out_shape.size() >= 2 && ngraph::shape_size(slope_shape) == out_shape[1]) {
         auto inputs = p.GetInputPrimitiveIDs(op);
         std::string layerName = layer_type_name_ID(op);
-        auto activationPrimitive = cldnn::activation(layerName, inputs[0], inputs[1], cldnn::activation_func::relu_negative_slope);
+        auto activationPrimitive = cldnn::activation(layerName,
+                                                     inputs[0],
+                                                     inputs[1],
+                                                     cldnn::activation_func::relu_negative_slope,
+                                                     op->get_friendly_name());
         p.AddPrimitive(activationPrimitive);
         p.AddPrimitiveToProfiler(op);
     }

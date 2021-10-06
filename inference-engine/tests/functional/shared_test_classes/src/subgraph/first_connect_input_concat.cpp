@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string ConcatFirstInputTest::getTestCaseName(testing::TestParamInfo<concatFirstInputParams> obj) {
+std::string ConcatFirstInputTest::getTestCaseName(const testing::TestParamInfo<concatFirstInputParams>& obj) {
     std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
@@ -36,5 +36,6 @@ void ConcatFirstInputTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(relu)};
 
     function = std::make_shared<ngraph::Function>(results, params, "ConcatMultiInput");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::RNNSequenceIE, "RNNSequenceIE", 4);
+BWDCMP_RTTI_DEFINITION(op::RNNSequenceIE);
 
 op::RNNSequenceIE::RNNSequenceIE(const Output<Node>& X,
                                  const Output<Node>& H_t,
@@ -48,7 +48,7 @@ void op::RNNSequenceIE::validate_and_infer_types() {
     auto b_pshape = get_input_partial_shape(4);
 
     std::vector<ngraph::PartialShape> pshapes = {x_pshape, h_state_pshape, seq_lengths_pshape, wr_pshape, b_pshape};
-    std::vector<std::string> in_names = {"X", "H", "seq_lenghts", "WR", "B"};
+    std::vector<std::string> in_names = {"X", "H", "seq_lengths", "WR", "B"};
     // num_direction dimension should be squeezed, we don't support bidirectional case
     std::vector<size_t> ranks = {3, 2, 1, 2, 1};
     for (size_t i = 0; i < pshapes.size(); ++i) {

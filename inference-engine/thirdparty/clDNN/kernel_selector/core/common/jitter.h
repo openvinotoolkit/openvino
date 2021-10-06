@@ -14,6 +14,7 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include <locale>
 
 namespace kernel_selector {
 
@@ -79,7 +80,10 @@ std::string getMeanOpString(MeanOp op);
 // TODO improve to_code_string specializations
 template <typename T>
 std::string toCodeString(T val) {
-    return std::to_string(val);
+    std::stringstream ss;
+    ss.imbue(std::locale("C"));
+    ss << val;
+    return ss.str();
 }
 
 inline std::string toCodeString(const std::string& val) { return val; }
@@ -87,6 +91,9 @@ inline std::string toCodeString(const char* val) { return val; }
 inline std::string toCodeString(bool val) { return val ? "1" : "0"; }
 std::string toCodeString(float val);
 std::string toCodeString(double val);
+std::string toCodeString(size_t val);
+std::string toCodeString(uint8_t val);
+std::string toCodeString(int8_t val);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JitConstant
@@ -340,7 +347,7 @@ public:
     JitConstants MakeLoadJitConstants(const FusedOpsConfiguration& conf, const DataTensor prim_output) const;
     JitConstants MakeOpJitConstants(const FusedOpsConfiguration& conf,
                                     const std::string in_var, const Datatype in_type,
-                                    std::string& out_var, Datatype& out_type) const;
+                                    std::string& out_var) const;
 
     bool CanPreloadData(const FusedOpsConfiguration& conf) const;
 
@@ -353,7 +360,7 @@ public:
     std::string GetIdx(size_t input_id, idx_desc idx, bool should_be_safe) const;
     std::string GetInputPtrName(size_t input_id) const;
     std::string GetInputVarName(size_t input_id, bool is_shuffled = false, std::string shuffle_var = "") const;
-    std::string GetOutputVarName(std::string input_var_name) const;
+    std::string GetOutputVarName(std::string input_var_name, size_t op_id) const;
     std::string ConvertToOutputType(std::string var, size_t vec_size = 1) const;
     std::string ConvertToType(std::string var, Datatype dt, size_t vec_size = 1) const;
     std::string CastToType(std::string var, Datatype dt, size_t vec_size = 1) const;

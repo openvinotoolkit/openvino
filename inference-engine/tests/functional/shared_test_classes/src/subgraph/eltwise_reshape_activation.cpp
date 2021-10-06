@@ -9,7 +9,7 @@ namespace SubgraphTestsDefinitions {
 using namespace CommonTestUtils;
 using namespace InferenceEngine;
 
-std::string EltwiseReshapeActivation::getTestCaseName(testing::TestParamInfo<ParamType> obj) {
+std::string EltwiseReshapeActivation::getTestCaseName(const testing::TestParamInfo<ParamType>& obj) {
     InferenceEngine::Precision netPrecision;
     std::vector<std::vector<size_t>> shapes;
     std::string targetDevice;
@@ -47,5 +47,6 @@ void EltwiseReshapeActivation::SetUp() {
     auto reshape2 = std::make_shared<ngraph::op::v1::Reshape>(relu, reshape_pattern2, false);
 
     function = std::make_shared<ngraph::Function>(reshape2, input, "EltwiseReshapeActivation");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

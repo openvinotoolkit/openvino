@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
-#include "include/data_types.cl"
+#include "include/batch_headers/data_types.cl"
 #include "include/unit_type.cl"
-#include "include/fetch.cl"
+#include "include/batch_headers/fetch_data.cl"
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 

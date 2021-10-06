@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
@@ -24,8 +25,7 @@ static void BinaryConvolutionTest(const std::vector<T_IN>& inputs,
                                   const Shape outputs_shape,
                                   const Strides& strides,
                                   const CoordinateDiff& padding,
-                                  const Strides& dilations)
-{
+                                  const Strides& dilations) {
     const CoordinateDiff pads_begin{padding};
     const CoordinateDiff pads_end{padding};
     const op::PadType auto_pad{op::PadType::EXPLICIT};
@@ -33,16 +33,16 @@ static void BinaryConvolutionTest(const std::vector<T_IN>& inputs,
 
     auto inputs_param = make_shared<op::Parameter>(element::from<T_IN>(), inputs_shape);
     auto filters_const = make_shared<op::Constant>(element::u1, filters_shape, &filters[0]);
-    auto bin_conv = make_shared<op::v1::BinaryConvolution>(
-        inputs_param,
-        filters_const,
-        strides,
-        pads_begin,
-        pads_end,
-        dilations,
-        op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
-        pad_value,
-        auto_pad);
+    auto bin_conv =
+        make_shared<op::v1::BinaryConvolution>(inputs_param,
+                                               filters_const,
+                                               strides,
+                                               pads_begin,
+                                               pads_end,
+                                               dilations,
+                                               op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
+                                               pad_value,
+                                               auto_pad);
     auto f = make_shared<Function>(bin_conv, ParameterVector{inputs_param});
 
     auto backend = runtime::Backend::create("INTERPRETER");
@@ -65,16 +65,20 @@ static void ConvolutionTest(const std::vector<T_IN>& inputs,
                             const Shape outputs_shape,
                             const Strides& strides,
                             const CoordinateDiff& padding,
-                            const Strides& dilations)
-{
+                            const Strides& dilations) {
     const CoordinateDiff pads_begin{padding};
     const CoordinateDiff pads_end{padding};
     const op::PadType auto_pad{op::PadType::EXPLICIT};
 
     auto inputs_param = make_shared<op::Parameter>(element::from<T_IN>(), inputs_shape);
     auto filters_param = make_shared<op::Parameter>(element::from<T_IN>(), filters_shape);
-    auto conv = make_shared<op::v1::Convolution>(
-        inputs_param, filters_param, strides, pads_begin, pads_end, dilations, auto_pad);
+    auto conv = make_shared<op::v1::Convolution>(inputs_param,
+                                                 filters_param,
+                                                 strides,
+                                                 pads_begin,
+                                                 pads_end,
+                                                 dilations,
+                                                 auto_pad);
     auto f = make_shared<Function>(conv, ParameterVector{inputs_param, filters_param});
 
     auto backend = runtime::Backend::create("INTERPRETER");
@@ -91,8 +95,7 @@ static void ConvolutionTest(const std::vector<T_IN>& inputs,
 }
 
 // --------------------- 1D convolution ------------------------------------------
-TEST(op_eval, bin_convolution_1D_1batch_1channel_no_padding)
-{
+TEST(op_eval, bin_convolution_1D_1batch_1channel_no_padding) {
     const Strides strides{1};
     const CoordinateDiff padding{0};
     const Strides dilations{1};
@@ -103,7 +106,7 @@ TEST(op_eval, bin_convolution_1D_1batch_1channel_no_padding)
 
     const Shape filters_shape{1, 1, 3};
     const std::vector<float> filters_conv{1.0f, -1.0f, 1.0f};
-    const std::vector<uint8_t> filters_bin_conv{0xA0}; // 1010 0000
+    const std::vector<uint8_t> filters_bin_conv{0xA0};  // 1010 0000
 
     const Shape outputs_shape{1, 1, 3};
     const std::vector<float> outputs{1.0f, 1.0f, -3.0f};

@@ -50,6 +50,8 @@ int main(int argc, char **argv) {
   if (!parseAndCheckCommandLine(argc, argv))
     return -1;
 
+  auto status =  _runPipeline();
   StatisticsWriter::Instance().setFile(FLAGS_s);
-  return _runPipeline();
+  StatisticsWriter::Instance().write();
+  return status;
 }

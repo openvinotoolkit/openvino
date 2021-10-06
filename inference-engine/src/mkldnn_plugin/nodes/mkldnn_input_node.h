@@ -6,29 +6,40 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+#include <ngraph/op/constant.hpp>
 #include <string>
 
 namespace MKLDNNPlugin {
 
 class MKLDNNInputNode : public MKLDNNNode {
 public:
-    MKLDNNInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNInputNode() override = default;
+    MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNInputNode(const Shape& shape, const InferenceEngine::Precision &prc, const std::string &name,
+                    const std::string &type, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
 
-    void execute(mkldnn::stream strm) override;
-    void withMeanImage() {
-        isMeanImage = true;
+    void withMeanImage();
+    MKLDNNMemoryCPtr getMemoryPtr() const;
+
+    void executeDynamicImpl(mkldnn::stream strm) override {}
+    bool isExecutable() const override {
+        return false;
     }
 
-private:
-    InferenceEngine::Precision precision;
+    bool needShapeInfer() const override { return false; }
+    bool needPrepareParams() const override { return false; }
 
-    InferenceEngine::Blob::Ptr constBlob;
+private:
+    void cloneBlobIfRequired();
+
+private:
+    std::shared_ptr<ngraph::op::Constant> constOp;
+    InferenceEngine::Precision precision;
+    MKLDNNMemoryCPtr memoryPtr;
     bool isMeanImage = false;
 };
 

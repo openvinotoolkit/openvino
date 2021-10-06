@@ -33,7 +33,7 @@
 
 namespace LayerTestsUtils {
 
-constexpr std::size_t maxFileNameLength = 140;
+
 
 using TargetDevice = std::string;
 
@@ -51,26 +51,32 @@ enum RefMode {
 
 class LayerTestsCommon : public CommonTestUtils::TestsCommon {
 public:
-    virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const;
+    virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &inputInfo) const;
 
     virtual void Run();
 
     virtual void Serialize();
 
-    static void Compare(const std::vector<std::vector<std::uint8_t>> &expected,
+    virtual void QueryNetwork();
+
+    static void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
                         const std::vector<InferenceEngine::Blob::Ptr> &actual,
-                        float threshold);
+                        float threshold,
+                        float abs_threshold = -1.f);
 
-    static void Compare(const std::vector<std::uint8_t> &expected,
+    static void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
                         const InferenceEngine::Blob::Ptr &actual,
-                        float threshold);
+                        float threshold,
+                        float abs_threshold = -1.f);
 
-    virtual void Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs,
+    virtual void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                          const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
 
-    virtual void Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual);
+    virtual void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected, const InferenceEngine::Blob::Ptr &actual);
 
     virtual void Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual);
+
+    virtual void Compare(const InferenceEngine::TensorDesc &actualDesc, const InferenceEngine::TensorDesc &expectedDesc);
 
     virtual void SetRefMode(RefMode mode);
 
@@ -81,22 +87,36 @@ public:
     std::string getRuntimePrecision(const std::string& layerName);
     std::string getRuntimePrecisionByType(const std::string& layerType);
 
-    template<class T>
-    static void Compare(const T *expected, const T *actual, std::size_t size, T threshold) {
+#ifndef NDEBUG
+    void showRuntimePrecisions();
+#endif
+
+    template<class T_IE, class T_NGRAPH>
+    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float abs_threshold = -1.f) {
         for (std::size_t i = 0; i < size; ++i) {
-            const auto &ref = expected[i];
+            const T_NGRAPH &ref = expected[i];
             const auto &res = actual[i];
             const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
+            if (abs_threshold > 0.f && absoluteDifference > abs_threshold) {
+                IE_THROW() << "Absolute comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
+                           << " at index " << i << " with absolute threshold " << abs_threshold
+                           << " failed";
+            }
             if (absoluteDifference <= threshold) {
                 continue;
             }
-
-            const auto max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(ref));
-            float diff = static_cast<float>(absoluteDifference) / static_cast<float>(max);
-            if (max == 0 || (diff > static_cast<float>(threshold))) {
-                IE_THROW() << "Relative comparison of values expected: " << ref << " and actual: " << res
-                                   << " at index " << i << " with threshold " << threshold
-                                   << " failed";
+            double max;
+            if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
+                max = std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref));
+            } else {
+                max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(T_IE(ref)));
+            }
+            double diff = static_cast<float>(absoluteDifference) / max;
+            if (max == 0 || (diff > static_cast<float>(threshold)) ||
+                (std::isnan(static_cast<float>(res)) ^ std::isnan(static_cast<float>(ref)))) {
+                IE_THROW() << "Relative comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
+                           << " at index " << i << " with threshold " << threshold
+                           << " failed";
             }
         }
     }
@@ -122,6 +142,7 @@ protected:
 
     TargetDevice targetDevice;
     std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ngraph::Function> functionRefs = nullptr;
     std::map<std::string, std::string> configuration;
     // Non default values of layouts/precisions will be set to CNNNetwork
     InferenceEngine::Layout inLayout = InferenceEngine::Layout::ANY;
@@ -131,18 +152,26 @@ protected:
     InferenceEngine::ExecutableNetwork executableNetwork;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
     float threshold;
+    float abs_threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
     std::shared_ptr<InferenceEngine::Core> core;
+    // dynamic input shapes
+    std::vector<ngraph::PartialShape> inputDynamicShapes;
+    // index for targetStaticShape
+    size_t index = 0;
+    // target static input shapes which is used for reshape ngraph function & generate input blobs
+    std::vector<std::vector<ngraph::Shape>> targetStaticShapes;
 
     virtual void Validate();
 
-    virtual std::vector<std::vector<std::uint8_t>> CalculateRefs();
+    virtual std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs();
 
     virtual std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
 
     InferenceEngine::InferRequest inferRequest;
 
 private:
+    void ResizeNgraphFunction();
     RefMode refMode = RefMode::INTERPRETER;
 };
 

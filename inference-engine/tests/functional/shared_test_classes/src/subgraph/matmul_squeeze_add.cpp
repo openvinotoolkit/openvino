@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string MatmulSqueezeAddTest::getTestCaseName(testing::TestParamInfo<matmulSqueezeAddParams> obj) {
+std::string MatmulSqueezeAddTest::getTestCaseName(const testing::TestParamInfo<matmulSqueezeAddParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::vector<size_t> inputShape;
     std::size_t outputSize;
@@ -55,5 +55,6 @@ void MatmulSqueezeAddTest::SetUp() {
 
     ngraph::ResultVector results {std::make_shared<ngraph::op::Result>(squeeze_0)};
     function = std::make_shared<ngraph::Function>(results, params, "MatmulSqueezeAddTest");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

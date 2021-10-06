@@ -8,17 +8,18 @@
 #include <vector>
 
 #include "cpp/ie_executable_network.hpp"
-#include "ie_plugin_cpp.hpp"
+#include "cpp/ie_executable_network_base.hpp"
+#include "cpp/ie_plugin.hpp"
 
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
-#include "unit_test_utils/mocks/mock_ie_ivariable_state.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_ivariable_state_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
 
 using testing::_;
+using testing::MatcherCast;
 using testing::Throw;
 using testing::Ref;
 using testing::Return;
@@ -37,23 +38,22 @@ using testing::SetArgReferee;
 class ExecutableNetworkTests : public ::testing::Test {
 protected:
     std::shared_ptr<MockIExecutableNetworkInternal> mockIExeNet;
-    InferenceEngine::ExecutableNetwork exeNetwork;
-    MockIInferencePlugin*                 mockIPlugin;
-    InferencePlugin                       plugin;
+    ov::runtime::SoPtr<IExecutableNetworkInternal>  exeNetwork;
+    MockIInferencePlugin*                           mockIPlugin;
+    InferencePlugin                                 plugin;
 
-
-    virtual void TearDown() {
+    void TearDown() override {
         mockIExeNet.reset();
         exeNetwork = {};
         plugin = {};
     }
 
-    virtual void SetUp() {
+    void SetUp() override {
         mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
-        std::unique_ptr<MockIInferencePlugin> mockIPluginPtr{new MockIInferencePlugin};
-        ON_CALL(*mockIPluginPtr, LoadNetwork(_, _)).WillByDefault(Return(mockIExeNet));
-        plugin = InferenceEngine::InferencePlugin{InferenceEngine::details::SOPointer<MockIInferencePlugin>{mockIPluginPtr.release()}};
-        exeNetwork = plugin.LoadNetwork({}, {});
+        auto mockIPluginPtr = std::make_shared<MockIInferencePlugin>();
+        ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExeNet));
+        plugin = InferenceEngine::InferencePlugin{{}, mockIPluginPtr};
+        exeNetwork = {{}, plugin.LoadNetwork(CNNNetwork{}, {})};
     }
 };
 
@@ -62,14 +62,13 @@ TEST_F(ExecutableNetworkTests, GetOutputsInfoThrowsIfReturnErr) {
             .Times(1)
             .WillOnce(Throw(InferenceEngine::GeneralError{""}));
 
-    ASSERT_THROW(exeNetwork.GetOutputsInfo(), InferenceEngine::Exception);
+    ASSERT_THROW(exeNetwork->GetOutputsInfo(), InferenceEngine::Exception);
 }
 
 TEST_F(ExecutableNetworkTests, GetOutputsInfo) {
     InferenceEngine::ConstOutputsDataMap data;
     EXPECT_CALL(*mockIExeNet.get(), GetOutputsInfo()).Times(1).WillRepeatedly(Return(InferenceEngine::ConstOutputsDataMap{}));
-
-    ASSERT_NO_THROW(data = exeNetwork.GetOutputsInfo());
+    ASSERT_NO_THROW(data = exeNetwork->GetOutputsInfo());
     ASSERT_EQ(data, InferenceEngine::ConstOutputsDataMap{});
 }
 
@@ -78,29 +77,24 @@ TEST_F(ExecutableNetworkTests, GetInputsInfoThrowsIfReturnErr) {
             .Times(1)
             .WillOnce(Throw(InferenceEngine::GeneralError{""}));
 
-    ASSERT_THROW(exeNetwork.GetInputsInfo(), InferenceEngine::Exception);
+    ASSERT_THROW(exeNetwork->GetInputsInfo(), InferenceEngine::Exception);
 }
 
 TEST_F(ExecutableNetworkTests, GetInputsInfo) {
     EXPECT_CALL(*mockIExeNet.get(), GetInputsInfo()).Times(1).WillRepeatedly(Return(InferenceEngine::ConstInputsDataMap{}));
 
     InferenceEngine::ConstInputsDataMap info;
-    ASSERT_NO_THROW(info = exeNetwork.GetInputsInfo());
+    ASSERT_NO_THROW(info = exeNetwork->GetInputsInfo());
     ASSERT_EQ(info, InferenceEngine::ConstInputsDataMap{});
 }
 
 IE_SUPPRESS_DEPRECATED_START
 
-TEST_F(ExecutableNetworkTests, resetThrowsIfResetToNullptr) {
-    InferenceEngine::IExecutableNetwork::Ptr mockIExeNet_2{};
-    ASSERT_THROW(exeNetwork.reset(mockIExeNet_2), InferenceEngine::Exception);
-}
-
 TEST_F(ExecutableNetworkTests, QueryStateThrowsIfReturnErr) {
     EXPECT_CALL(*mockIExeNet.get(), QueryState())
             .Times(1)
             .WillOnce(Throw(InferenceEngine::GeneralError{""}));
-    EXPECT_THROW(exeNetwork.QueryState(), InferenceEngine::Exception);
+    EXPECT_THROW(exeNetwork->QueryState(), InferenceEngine::Exception);
 }
 
 TEST_F(ExecutableNetworkTests, QueryState) {
@@ -108,8 +102,8 @@ TEST_F(ExecutableNetworkTests, QueryState) {
     EXPECT_CALL(*mockIExeNet.get(), QueryState())
             .Times(1)
             .WillOnce(Return(std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>>(1, mockIMemState_p)));
-    std::vector<InferenceEngine::VariableState> MemState_v;
-    EXPECT_NO_THROW(MemState_v = exeNetwork.QueryState());
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr> MemState_v;
+    EXPECT_NO_THROW(MemState_v = exeNetwork->QueryState());
     EXPECT_EQ(MemState_v.size(), 1);
 }
 
@@ -119,12 +113,12 @@ class ExecutableNetworkWithIInferReqTests : public ExecutableNetworkTests {
 protected:
     std::shared_ptr<MockIInferRequestInternal> mockIInferReq_p;
 
-    virtual void TearDown() {
+    void TearDown() override {
         ExecutableNetworkTests::TearDown();
         mockIInferReq_p.reset();
     }
 
-    virtual void SetUp() {
+    void SetUp() override {
         ExecutableNetworkTests::SetUp();
         mockIInferReq_p = std::make_shared<MockIInferRequestInternal>();
     }
@@ -132,38 +126,16 @@ protected:
 
 TEST_F(ExecutableNetworkWithIInferReqTests, CanCreateInferRequest) {
     EXPECT_CALL(*mockIExeNet.get(), CreateInferRequest()).WillOnce(Return(mockIInferReq_p));
-    InferRequest actualInferReq;
-    ASSERT_NO_THROW(actualInferReq = exeNetwork.CreateInferRequest());
+    IInferRequestInternal::Ptr actualInferReq;
+    ASSERT_NO_THROW(actualInferReq = exeNetwork->CreateInferRequest());
 }
 
 TEST_F(ExecutableNetworkWithIInferReqTests, CreateInferRequestThrowsIfReturnNotOK) {
     EXPECT_CALL(*mockIExeNet.get(), CreateInferRequest()).WillOnce(Throw(InferenceEngine::GeneralError{""}));
-    ASSERT_THROW(exeNetwork.CreateInferRequest(), InferenceEngine::Exception);
-}
-
-TEST_F(ExecutableNetworkWithIInferReqTests, CreateInferRequestThrowsIfSetRequestToNullptr) {
-    EXPECT_CALL(*mockIExeNet.get(), CreateInferRequest())
-            .WillOnce(Return(std::shared_ptr<MockIInferRequestInternal>{}));
-    ASSERT_THROW(exeNetwork.CreateInferRequest(), InferenceEngine::Exception);
+    ASSERT_THROW(exeNetwork->CreateInferRequest(), InferenceEngine::Exception);
 }
 
 IE_SUPPRESS_DEPRECATED_START
-
-// CreateInferRequestPtr
-TEST_F(ExecutableNetworkWithIInferReqTests, CanCreateInferRequestPtr) {
-    EXPECT_CALL(*mockIExeNet.get(), CreateInferRequest()).WillOnce(Return(mockIInferReq_p));
-    ASSERT_NO_THROW(exeNetwork.CreateInferRequestPtr());
-}
-
-TEST_F(ExecutableNetworkWithIInferReqTests, CreateInferRequestPtrThrowsIfReturnNotOK) {
-    EXPECT_CALL(*mockIExeNet.get(), CreateInferRequest()).WillOnce(Throw(InferenceEngine::GeneralError{""}));
-    ASSERT_THROW(exeNetwork.CreateInferRequestPtr(), InferenceEngine::Exception);
-}
-
-TEST_F(ExecutableNetworkWithIInferReqTests, CreateInferRequestPtrThrowsIfSetRequestToNullptr) {
-    EXPECT_CALL(*mockIExeNet.get(), CreateInferRequest()).WillOnce(Return(std::shared_ptr<MockIInferRequestInternal>{}));
-    ASSERT_THROW(exeNetwork.CreateInferRequestPtr(), InferenceEngine::Exception);
-}
 
 class ExecutableNetworkBaseTests : public ::testing::Test {
 protected:
@@ -171,10 +143,7 @@ protected:
     std::shared_ptr<IExecutableNetwork> exeNetwork;
     ResponseDesc dsc;
 
-    virtual void TearDown() {
-    }
-
-    virtual void SetUp() {
+    void SetUp() override {
         mock_impl.reset(new MockIExecutableNetworkInternal());
         exeNetwork = std::make_shared<ExecutableNetworkBase>(mock_impl);
     }
@@ -218,5 +187,3 @@ TEST_F(ExecutableNetworkBaseTests, canCatchUnknownErrorInExport) {
     EXPECT_CALL(*mock_impl.get(), Export(_)).WillOnce(Throw(5));
     ASSERT_EQ(UNEXPECTED, exeNetwork->Export({}, nullptr));
 }
-
-

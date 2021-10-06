@@ -8,7 +8,7 @@ namespace SubgraphTestsDefinitions {
 
 // ------------------------------ V0 ------------------------------
 
-std::string RangeAddSubgraphTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::RangeParams> obj) {
+std::string RangeAddSubgraphTest::getTestCaseName(const testing::TestParamInfo<LayerTestsDefinitions::RangeParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
@@ -41,11 +41,12 @@ void RangeAddSubgraphTest::SetUp() {
     auto eltwise = ngraph::builder::makeEltwise(params.front(), range, ngraph::helpers::EltwiseTypes::ADD);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(eltwise)};
     function = std::make_shared<ngraph::Function>(results, params, "RangeEltwise");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 // ------------------------------ V4 ------------------------------
 
-std::string RangeNumpyAddSubgraphTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::RangeParams> obj) {
+std::string RangeNumpyAddSubgraphTest::getTestCaseName(const testing::TestParamInfo<LayerTestsDefinitions::RangeParams>& obj) {
     InferenceEngine::Precision netPrc;
     InferenceEngine::Precision constPrc;
     InferenceEngine::Precision outPrc;
@@ -82,5 +83,6 @@ void RangeNumpyAddSubgraphTest::SetUp() {
     auto eltwise = ngraph::builder::makeEltwise(params.front(), range, ngraph::helpers::EltwiseTypes::ADD);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(eltwise)};
     function = std::make_shared<ngraph::Function>(results, params, "RangeEltwise");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

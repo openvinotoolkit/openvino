@@ -33,7 +33,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         LayerTestsDefinitions::padLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = this->GetParam();
@@ -58,6 +58,7 @@ protected:
         pad->get_rt_info() = getCPUInfo();
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pad)};
         function = std::make_shared<ngraph::Function>(results, params, "pad");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 
@@ -122,7 +123,7 @@ const auto pad4DConstParamsBlocked = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_CPUPad4DConstBlocked,
         PadLayerCPUTest,
         ::testing::Combine(
@@ -145,7 +146,7 @@ const auto pad4DConstParams = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_CPUPad4DConst,
         PadLayerCPUTest,
         ::testing::Combine(
@@ -167,7 +168,7 @@ const auto pad4DParamsBlocked = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_CPUPad4DBlocked,
         PadLayerCPUTest,
         ::testing::Combine(
@@ -189,7 +190,7 @@ const auto pad4DParams = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_CPUPad4D,
         PadLayerCPUTest,
         ::testing::Combine(
@@ -225,7 +226,7 @@ const auto pad5DConstParamsBlocked = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_CPUPad5DConstBlocked,
         PadLayerCPUTest,
         ::testing::Combine(
@@ -247,7 +248,7 @@ const auto pad5DConstParams = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_CPUPad5DConst,
         PadLayerCPUTest,
         ::testing::Combine(
@@ -269,7 +270,7 @@ const auto pad5DParamsBlocked = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_CPUPad5DBlocked,
         PadLayerCPUTest,
         ::testing::Combine(
@@ -291,7 +292,7 @@ const auto pad5DParams = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_CPUPad5D,
         PadLayerCPUTest,
         ::testing::Combine(

@@ -21,6 +21,7 @@ std::string MultipleAllocations::getTestCaseName(const testing::TestParamInfo<Mu
 void MultipleAllocations::SetUp() {
     std::tie(targetDevice, m_allocationsCount) = this->GetParam();
     function = ngraph::builder::subgraph::makeSplitConvConcat();
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(MultipleAllocations, InferWorksCorrectAfterAllocations) {
@@ -30,7 +31,7 @@ TEST_P(MultipleAllocations, InferWorksCorrectAfterAllocations) {
     auto ie = PluginCache::get().ie();
 
     std::cout << "Load the network " << m_allocationsCount << " times..." << std::flush;
-    for (int i = 0; i < m_allocationsCount; ++i) {
+    for (unsigned int i = 0; i < m_allocationsCount; ++i) {
         ie->LoadNetwork(cnnNet, targetDevice, configuration);
     }
 

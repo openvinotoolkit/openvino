@@ -41,7 +41,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         CPUSpecificParams cpuParams;
         LayerTestsDefinitions::GRUCellParams basicParamsSet;
         std::map<std::string, std::string> additionalConfig;
@@ -88,6 +88,7 @@ protected:
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gru_cell->output(0))};
 
         function = makeNgraphFunction(ngPrc, params, gru_cell, "gru_cell");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 
@@ -117,7 +118,7 @@ std::vector<float> clip = {0.f};
 std::vector<bool> linear_before_reset = {true, false};
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
-INSTANTIATE_TEST_CASE_P(smoke_GRUCellCPU,
+INSTANTIATE_TEST_SUITE_P(smoke_GRUCellCPU,
                         GRUCellCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(should_decompose),
                                                               ::testing::ValuesIn(batch),

@@ -88,13 +88,13 @@ const std::vector<ngraph::element::Type> dataTypesVector = {
         ngraph::element::i32,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicReshape, DSR_ReshapeWithStaticDescriptor,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicReshape, DSR_ReshapeWithStaticDescriptor,
     ::testing::Combine(
         ::testing::ValuesIn(dataTypesVector),
         ::testing::ValuesIn(reshapeTestParams),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicReshape, DSR_ReshapeWithDynamicDescriptor,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicReshape, DSR_ReshapeWithDynamicDescriptor,
     ::testing::Combine(
         ::testing::ValuesIn(dataTypesVector),
         ::testing::ValuesIn(reshapeTestParams),

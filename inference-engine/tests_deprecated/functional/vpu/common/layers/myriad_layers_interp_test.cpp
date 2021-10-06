@@ -4,7 +4,7 @@
 
 #include "myriad_layers_interp_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         accuracy, myriadLayersTestsInterp_smoke,
         ::testing::Combine(
 

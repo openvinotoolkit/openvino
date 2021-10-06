@@ -5,16 +5,24 @@ import argparse
 import datetime
 import logging as log
 import os
-import sys
 import platform
 import subprocess
+import sys
 import traceback
 from collections import OrderedDict
+from copy import deepcopy
 
 import numpy as np
 
-import telemetry.telemetry as tm
+try:
+    import openvino_telemetry as tm
+except ImportError:
+    import mo.utils.telemetry_stub as tm
+
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
+from mo.back.ie_ir_ver_2.emitter import append_ir_info
+from mo.moc_frontend.pipeline import moc_pipeline
+from mo.moc_frontend.serialize import moc_emit_ir
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
@@ -22,16 +30,21 @@ from mo.pipeline.unified import unified_pipeline
 from mo.utils import import_extensions
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
-    get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info
-from mo.utils.error import Error, FrameworkError, classify_error_type
+    get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info, \
+    parse_transform, check_available_transforms
+from mo.utils.error import Error, FrameworkError
+from mo.utils.find_ie_version import find_ie_version
 from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.utils.guess_framework import deduce_framework_by_namespace
 from mo.utils.logger import init_logger
 from mo.utils.model_analysis import AnalysisResults
 from mo.utils.utils import refer_to_faq_msg
+from mo.utils.telemetry_utils import send_params_info, send_framework_info
 from mo.utils.version import get_version, get_simplified_mo_version, get_simplified_ie_version
-from mo.utils.versions_checker import check_requirements
-from mo.utils.find_ie_version import find_ie_version
+from mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
+
+# pylint: disable=no-name-in-module,import-error
+from ngraph.frontend import FrontEndManager, FrontEnd
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -83,12 +96,56 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
     print('\n'.join(lines), flush=True)
 
 
-def prepare_ir(argv: argparse.Namespace):
-    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = deduce_framework_by_namespace(argv)
+def get_moc_frontends(argv: argparse.Namespace):
+    fem = argv.feManager
+
+    # Read user flags:
+    use_legacy_frontend = argv.use_legacy_frontend
+    use_new_frontend = argv.use_new_frontend
+
+    if not fem or use_legacy_frontend:
+        return None, []
+
+    available_moc_front_ends = fem.get_available_front_ends()
+
+    if not argv.framework and argv.input_model:
+        moc_front_end = fem.load_by_model(argv.input_model)
+        if not moc_front_end:
+            return None, available_moc_front_ends
+        argv.framework = moc_front_end.get_name()
+    elif argv.framework in available_moc_front_ends:
+        moc_front_end = fem.load_by_framework(argv.framework)
+    else:
+        return None, []
+
+    # Set which frontend to use by default, values should be 'new' or 'legacy'
+    frontend_defaults = {
+        'onnx': 'legacy',
+    }
+    # Disable MOC frontend if default is set to legacy and no user override
+    if frontend_defaults.get(moc_front_end.get_name()) == 'legacy' and not use_new_frontend:
+        moc_front_end = None
+
+    return moc_front_end, available_moc_front_ends
+
+
+def arguments_post_parsing(argv: argparse.Namespace):
+    moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
+
+    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
+        deduce_framework_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
 
     if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
-        raise Error('Framework {} is not a valid target. Please use --framework with one from the list: caffe, tf, '
-                    'mxnet, kaldi, onnx. ' + refer_to_faq_msg(15), argv.framework)
+        frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']
+        frameworks = list(set(frameworks + available_moc_front_ends))
+        if argv.framework not in frameworks:
+            if argv.use_legacy_frontend:
+                raise Error('Framework {} is not a valid target when using the --use_legacy_frontend flag. '
+                            'The following legacy frameworks are available: {}' +
+                            refer_to_faq_msg(15), argv.framework, frameworks)
+            else:
+                raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
+                            refer_to_faq_msg(15), argv.framework, frameworks)
 
     if is_tf and not argv.input_model and not argv.saved_model_dir and not argv.input_meta_graph:
         raise Error('Path to input model or saved model dir is required: use --input_model, --saved_model_dir or '
@@ -103,8 +160,6 @@ def prepare_ir(argv: argparse.Namespace):
 
     log.debug(str(argv))
     log.debug("Model Optimizer started")
-    t = tm.Telemetry()
-    t.start_session()
 
     model_name = "<UNKNOWN_NAME>"
     if argv.model_name:
@@ -138,19 +193,29 @@ def prepare_ir(argv: argparse.Namespace):
 
     # This try-except is additional reinsurance that the IE
     # dependency search does not break the MO pipeline
-    try:
-        if not find_ie_version(silent=argv.silent) and not argv.silent:
-            print("[ WARNING ] Could not find the Inference Engine Python API. At this moment, the Inference Engine dependency is not required, but will be required in future releases.")
-            print("[ WARNING ] Consider building the Inference Engine Python API from sources or try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
+    def raise_ie_not_found():
+        raise Error("Could not find the Inference Engine or nGraph Python API.\n"
+                    "Consider building the Inference Engine and nGraph Python APIs from sources or try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
                     "bat" if sys.platform == "windows" else "sh"))
-            # If the IE was not found, it will not print the MO version, so we have to print it manually
-            print("{}: \t{}".format("Model Optimizer version", get_version()))
+    try:
+        if not find_ie_version(silent=argv.silent):
+            raise_ie_not_found()
     except Exception as e:
-        pass
+        raise_ie_not_found()
 
-    ret_code = check_requirements(framework=argv.framework)
+    # This is just to check that transform key is valid and transformations are available
+    check_available_transforms(parse_transform(argv.transform))
+
+    if argv.legacy_ir_generation and len(argv.transform) != 0:
+        raise Error("--legacy_ir_generation and --transform keys can not be used at the same time.")
+
+    # For C++ frontends there are no specific Python installation requirements, check only generic ones
+    if moc_front_end:
+        ret_code = check_requirements()
+    else:
+        ret_code = check_requirements(framework=argv.framework)
     if ret_code:
-        raise Error('check_requirements exit with return code {}'.format(ret_code))
+        raise Error('check_requirements exited with return code {}'.format(ret_code))
 
     if is_tf and argv.tensorflow_use_custom_operations_config is not None:
         argv.transformations_config = argv.tensorflow_use_custom_operations_config
@@ -217,27 +282,41 @@ def prepare_ir(argv: argparse.Namespace):
     argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
                                                                                    argv.freeze_placeholder_with_value)
     if is_tf:
-        t.send_event('mo', 'framework', 'tf')
         from mo.front.tf.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_caffe:
-        t.send_event('mo', 'framework', 'caffe')
+        send_framework_info('caffe')
         from mo.front.caffe.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_mxnet:
-        t.send_event('mo', 'framework', 'mxnet')
+        send_framework_info('mxnet')
         from mo.front.mxnet.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_kaldi:
-        t.send_event('mo', 'framework', 'kaldi')
+        send_framework_info('kaldi')
         from mo.front.kaldi.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_onnx:
-        t.send_event('mo', 'framework', 'onnx')
+        send_framework_info('onnx')
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-    graph = unified_pipeline(argv)
-    return graph
+
+    return argv
+
+
+def prepare_ir(argv):
+    argv = arguments_post_parsing(argv)
+
+    graph = None
+    ngraph_function = None
+    moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
+
+    if moc_front_end:
+        ngraph_function = moc_pipeline(argv, moc_front_end)
+    else:
+        graph = unified_pipeline(argv)
+
+    return graph, ngraph_function
 
 
 def emit_ir(graph: Graph, argv: argparse.Namespace):
@@ -245,13 +324,23 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
 
+    if 'feManager' in argv:
+        del argv.feManager
+
+    mean_data = deepcopy(graph.graph['mf']) if 'mf' in graph.graph else None
+    input_names = deepcopy(graph.graph['input_names']) if 'input_names' in graph.graph else []
+
     prepare_emit_ir(graph=graph,
                     data_type=graph.graph['cmd_params'].data_type,
                     output_dir=argv.output_dir,
                     output_model_name=argv.model_name,
-                    mean_data=graph.graph['mf'] if 'mf' in graph.graph else None,
-                    input_names=graph.graph['input_names'] if 'input_names' in graph.graph else [],
-                    meta_info=get_meta_info(argv))
+                    mean_data=mean_data,
+                    input_names=input_names,
+                    meta_info=get_meta_info(argv),
+                    use_temporary_path=True)
+
+    # This graph cleanup is required to avoid double memory consumption
+    graph.clear()
 
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
@@ -261,15 +350,17 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         # This try-except is additional reinsurance that the IE
         # dependency search does not break the MO pipeline
         try:
-            if find_ie_version(silent=True):
+            if not argv.legacy_ir_generation:
                 path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
                                                                'offline_transformations.py')
-                status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=10)
+                status = subprocess.run([sys.executable, path_to_offline_transformations,
+                                         "--input_model", orig_model_name,
+                                         "--framework", argv.framework,
+                                         "--transform", argv.transform], env=os.environ)
                 return_code = status.returncode
-                if return_code != 0 and not argv.silent:
-                    print("[ WARNING ] offline_transformations return code {}".format(return_code))
         except Exception as e:
-            pass
+            return_code = "failed"
+            log.error(e)
 
         message = str(dict({
             "platform": platform.system(),
@@ -280,6 +371,21 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         }))
         t = tm.Telemetry()
         t.send_event('mo', 'offline_transformations_status', message)
+
+        if return_code != 0:
+            raise Error("offline transformations step has failed.")
+
+        for suf in [".xml", ".bin", ".mapping"]:
+            # remove existing files
+            path_to_file = orig_model_name + "_tmp" + suf
+            if os.path.exists(path_to_file):
+                os.remove(path_to_file)
+
+        # add meta information to IR
+        append_ir_info(file=orig_model_name,
+                       meta_info=get_meta_info(argv),
+                       mean_data=mean_data,
+                       input_names=input_names)
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
@@ -293,7 +399,11 @@ def driver(argv: argparse.Namespace):
 
     start_time = datetime.datetime.now()
 
-    ret_res = emit_ir(prepare_ir(argv), argv)
+    graph, ngraph_function = prepare_ir(argv)
+    if graph is not None:
+        ret_res = emit_ir(graph, argv)
+    else:
+        ret_res = moc_emit_ir(ngraph_function, argv)
 
     if ret_res != 0:
         return ret_res
@@ -313,9 +423,9 @@ def driver(argv: argparse.Namespace):
     return ret_res
 
 
-def main(cli_parser: argparse.ArgumentParser, framework: str):
+def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: str):
     telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_simplified_mo_version())
-    telemetry.start_session()
+    telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
     try:
         # Initialize logger with 'ERROR' as default level to be able to form nice messages
@@ -323,8 +433,10 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         init_logger('ERROR', False)
 
         argv = cli_parser.parse_args()
+        send_params_info(argv, cli_parser)
         if framework:
             argv.framework = framework
+        argv.feManager = fem
 
         ov_update_message = None
         if not hasattr(argv, 'silent') or not argv.silent:
@@ -333,7 +445,7 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         if ov_update_message:
             print(ov_update_message)
         telemetry.send_event('mo', 'conversion_result', 'success')
-        telemetry.end_session()
+        telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
         return ret_code
     except (FileNotFoundError, NotADirectoryError) as e:
@@ -360,6 +472,12 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         log.error("-------------------------------------------------")
 
     telemetry.send_event('mo', 'conversion_result', 'fail')
-    telemetry.end_session()
+    telemetry.end_session('mo')
     telemetry.force_shutdown(1.0)
     return 1
+
+
+if __name__ == "__main__":
+    from mo.utils.cli_parser import get_all_cli_parser
+    fe_manager = FrontEndManager()
+    sys.exit(main(get_all_cli_parser(fe_manager), fe_manager, None))

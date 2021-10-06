@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string FcAfterConvTest::getTestCaseName(testing::TestParamInfo<FcConvFcParams> obj) {
+std::string FcAfterConvTest::getTestCaseName(const testing::TestParamInfo<FcConvFcParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
@@ -87,7 +87,7 @@ void FcAfterConvTest::SetUp() {
     function = std::make_shared<ngraph::Function>(fc4, params, "FcAfterConvTest");
 }
 
-std::string FcBeforeConvTest::getTestCaseName(testing::TestParamInfo<FcConvFcParams> obj) {
+std::string FcBeforeConvTest::getTestCaseName(const testing::TestParamInfo<FcConvFcParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
@@ -166,7 +166,7 @@ void FcBeforeConvTest::SetUp() {
     function = std::make_shared<ngraph::Function>(reshape2, params, "FcBeforeConvTest");
 }
 
-std::string FcBetweenConvsTest::getTestCaseName(testing::TestParamInfo<FcConvFcParams> obj) {
+std::string FcBetweenConvsTest::getTestCaseName(const testing::TestParamInfo<FcConvFcParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
@@ -255,5 +255,6 @@ void FcBetweenConvsTest::SetUp() {
     auto reshape4 = std::make_shared<ngraph::opset1::Reshape>(conv2, reshapePattern4, false);
 
     function = std::make_shared<ngraph::Function>(reshape4, params, "FcBetweenConvsTest");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

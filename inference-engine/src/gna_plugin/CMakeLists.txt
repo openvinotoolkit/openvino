@@ -29,14 +29,14 @@ endif()
 
 #
 # Shared plugin library
-# 
+#
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GNA"
               SOURCES ${SOURCES} ${HEADERS})
 
-# saving rpath to GNA shared library be used by CI
-log_rpath_from_dir(GNA ${libGNA_LIBRARIES_BASE_PATH})
+# Enable support of CC for the plugin
+ie_mark_target_as_cc(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_legacy inference_engine_transformations
         Threads::Threads libGNA)
@@ -49,6 +49,10 @@ target_compile_definitions(${TARGET_NAME}
         GNA_LIB_VER=${GNA_LIBRARY_VERSION_NUMBER})
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
+if(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CROSSCOMPILING)
+    target_link_options(${TARGET_NAME} PRIVATE -Wl,--unresolved-symbols=ignore-all)
+endif()
 
 #
 # Static version for tests
@@ -67,7 +71,8 @@ target_compile_definitions(${TARGET_NAME}_test_static
 
 target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_preproc_s inference_engine_transformations libGNA::API)
 target_include_directories(${TARGET_NAME}_test_static PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
-    $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
+    PRIVATE $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
 set_target_properties(${TARGET_NAME}_test_static PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_test_static)
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_test_static
@@ -76,6 +81,6 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_test_static
 # install
 
 file(GLOB_RECURSE source_list "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
-install(FILES ${source_list} 
-        DESTINATION ${IE_CPACK_IE_DIR}/external/gna/lib
+install(FILES ${source_list}
+        DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT gna)

@@ -41,7 +41,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         CPUSpecificParams cpuParams;
         LayerTestsDefinitions::RNNCellParams basicParamsSet;
         std::map<std::string, std::string> additionalConfig;
@@ -82,6 +82,7 @@ protected:
             WRB, hidden_size, activations, {}, {}, clip);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(rnn_cell)};
         function = makeNgraphFunction(ngPrc, params, rnn_cell, "rnn_cell");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 
@@ -107,7 +108,7 @@ std::vector<std::vector<std::string>> activations = {{"relu"}, {"sigmoid"}, {"ta
 std::vector<float> clip = {0.f};
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
-INSTANTIATE_TEST_CASE_P(smoke_RNNCellCPU,
+INSTANTIATE_TEST_SUITE_P(smoke_RNNCellCPU,
                         RNNCellCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(should_decompose),
                                                               ::testing::ValuesIn(batch),

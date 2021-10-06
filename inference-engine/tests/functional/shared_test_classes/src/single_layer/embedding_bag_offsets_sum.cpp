@@ -7,7 +7,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string EmbeddingBagOffsetsSumLayerTest::getTestCaseName(testing::TestParamInfo<embeddingBagOffsetsSumLayerTestParamsSet> obj) {
+std::string EmbeddingBagOffsetsSumLayerTest::getTestCaseName(const testing::TestParamInfo<embeddingBagOffsetsSumLayerTestParamsSet>& obj) {
     embeddingBagOffsetsSumParams params;
     InferenceEngine::Precision netPrecision, indPrecision;
     std::string targetDevice;
@@ -50,5 +50,6 @@ void EmbeddingBagOffsetsSumLayerTest::SetUp() {
                 ngPrc, ngIdxPrc, emb_table_node, indices, offsets, defaultIndex, withWeights, withDefIndex));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(embBag)};
     function = std::make_shared<ngraph::Function>(results, params, "embeddingBagOffsetsSum");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

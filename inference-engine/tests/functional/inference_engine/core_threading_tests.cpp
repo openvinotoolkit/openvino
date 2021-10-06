@@ -20,8 +20,16 @@
 #include <fstream>
 
 class CoreThreadingTests : public ::testing::Test {
+protected:
+    std::string modelName = "CoreThreadingTests.xml", weightsName = "CoreThreadingTests.bin";
+
 public:
     void SetUp() override {
+        FuncTestUtils::TestModel::generateTestModel(modelName, weightsName);
+    }
+
+    void TearDown() override {
+        CommonTestUtils::removeIRFiles(modelName, weightsName);
     }
 
     void runParallel(std::function<void(void)> func,
@@ -87,16 +95,16 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
     auto getPluginXml = [&] () -> std::tuple<std::string, std::string> {
         std::string indexStr = std::to_string(index++);
         std::string pluginsXML = InferenceEngine::getIELibraryPath() +
-            FileUtils::FileSeparator +
+            ov::util::FileTraits<char>::file_separator +
             "test_plugins" + indexStr + ".xml";
         std::ofstream file(pluginsXML);
 
         file << "<ie><plugins><plugin location=\"";
-        file << FileUtils::FileTraits<char>::PluginLibraryPrefix();
+        file << ov::util::FileTraits<char>::library_prefix();
         file << "mock_engine";
         file << IE_BUILD_POSTFIX;
-        file << FileUtils::DotSymbol<char>::value;
-        file << FileUtils::FileTraits<char>::PluginLibraryExt();
+        file << ov::util::FileTraits<char>::dot_symbol;
+        file << ov::util::FileTraits<char>::library_ext();
         file << "\" name=\"";
         file << indexStr;
         file << "\"></plugin></plugins></ie>";
@@ -138,11 +146,10 @@ TEST_F(CoreThreadingTests, DISABLED_GetAvailableDevices) {
 // tested function: ReadNetwork, AddExtension
 TEST_F(CoreThreadingTests, ReadNetwork) {
     InferenceEngine::Core ie;
-    auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP32;
-    auto network = ie.ReadNetwork(model.model_xml_str, model.weights_blob);
+    auto network = ie.ReadNetwork(modelName, weightsName);
 
     runParallel([&] () {
         safeAddExtension(ie);
-        (void)ie.ReadNetwork(model.model_xml_str, model.weights_blob);
+        (void)ie.ReadNetwork(modelName, weightsName);
     }, 100, 12);
 }

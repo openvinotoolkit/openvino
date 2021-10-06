@@ -4,7 +4,4 @@
 
 #include <ngraph/op/util/variable.hpp>
 
-namespace ngraph
-{
-    constexpr DiscreteTypeInfo AttributeAdapter<std::shared_ptr<Variable>>::type_info;
-}
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>);

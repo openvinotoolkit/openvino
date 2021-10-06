@@ -34,7 +34,7 @@ public:
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     ngraph::Shape inputShape;
     Actual actual;
     Expected expected;
@@ -163,7 +163,7 @@ const std::vector<NormalizeDequantizationTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     NormalizeDequantizationTransformation,
     ::testing::ValuesIn(testValues),

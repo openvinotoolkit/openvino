@@ -21,8 +21,8 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
+#include "engines_util/test_case.hpp"
 #include "util/test_control.hpp"
 
 using namespace std;
@@ -31,8 +31,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, add)
-{
+NGRAPH_TEST(${BACKEND_NAME}, add) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -47,8 +46,7 @@ NGRAPH_TEST(${BACKEND_NAME}, add)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, add_overload)
-{
+NGRAPH_TEST(${BACKEND_NAME}, add_overload) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -63,8 +61,7 @@ NGRAPH_TEST(${BACKEND_NAME}, add_overload)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, add_in_place)
-{
+NGRAPH_TEST(${BACKEND_NAME}, add_in_place) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -84,8 +81,7 @@ NGRAPH_TEST(${BACKEND_NAME}, add_in_place)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, add_broadcast)
-{
+NGRAPH_TEST(${BACKEND_NAME}, add_broadcast) {
     Shape shape_a{1, 2};
     Shape shape_b{3, 2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
@@ -101,8 +97,7 @@ NGRAPH_TEST(${BACKEND_NAME}, add_broadcast)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, add_scalars)
-{
+NGRAPH_TEST(${BACKEND_NAME}, add_scalars) {
     Shape shape{};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -117,8 +112,7 @@ NGRAPH_TEST(${BACKEND_NAME}, add_scalars)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, add_vector_and_scalar)
-{
+NGRAPH_TEST(${BACKEND_NAME}, add_vector_and_scalar) {
     Shape shape_a{2, 2};
     Shape shape_b{};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);

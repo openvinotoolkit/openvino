@@ -6,7 +6,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string SplitConvConcat::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj) {
+std::string SplitConvConcat::getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::basicParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes, newInputShapes;
     std::string targetDevice;
@@ -46,6 +46,7 @@ void SplitConvConcat::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, params, "SplitConvConcat");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace SubgraphTestsDefinitions
