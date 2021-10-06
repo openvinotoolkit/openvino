@@ -7,8 +7,8 @@
 #include "openvino/core/visibility.hpp"
 
 #define OV_NEW_API 1
-// Now we use the generic helper definitions above to define NGRAPH_API
-// NGRAPH_API is used for the public API symbols. It either DLL imports or DLL exports
+// Now we use the generic helper definitions above to define OPENVINO_API
+// OPENVINO_API is used for the public API symbols. It either DLL imports or DLL exports
 //    (or does nothing for static build)
 
 #ifdef _WIN32

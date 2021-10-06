@@ -14,10 +14,4 @@ public:
     ConvertMatMulToFC();
 };
 
-class ConvertMatMulToGemm: public ngraph::pass::MatcherPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    ConvertMatMulToGemm();
-};
-
 }  // namespace MKLDNNPlugin
