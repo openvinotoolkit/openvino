@@ -105,8 +105,6 @@ public:
 
     Ptr get_output_port() const override;
     Ptr get_output_port(int outputPortIndex) const override;
-    // TODO: implement
-    // Ptr get_output_port(int outputPortIndex) const override;
 
     Ptr get_input_port() const override;
     Ptr get_input_port(int inputPortIndex) const override;
@@ -115,8 +113,6 @@ public:
 
     std::vector<Ptr> get_consuming_operations() const override;
     std::vector<Ptr> get_consuming_operations(int outputPortIndex) const override;
-    // TODO: implement
-    // std::vector<Ptr> get_consuming_operations(int outputPortIndex) const override;
 
     Ptr get_producing_operation() const override;
     Ptr get_producing_operation(int inputPortIndex) const override;
@@ -130,8 +126,6 @@ public:
 
     Ptr get_target_tensor() const override;
     Ptr get_target_tensor(int outputPortIndex) const override;
-    // TODO: implement (this method may be not needed)
-    // Ptr get_target_tensor(int outputPortIndex) const override;
 
 private:
     std::shared_ptr<DecoderBase> m_op_decoder;

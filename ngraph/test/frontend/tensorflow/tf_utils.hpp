@@ -6,4 +6,4 @@
 
 #include <string>
 
-static const std::string TF_FE = "tensorflow";
+static const std::string TF_FE = "tf";
