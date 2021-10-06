@@ -8,7 +8,6 @@ namespace py = pybind11;
 using namespace ov;
 using ConfigMap = std::map<std::string, std::string>;
 
-
 std::string to_string(py::handle handle) {
     auto encodedString = PyUnicode_AsUTF8String(handle.ptr());
     return PyBytes_AsString(encodedString);
@@ -33,8 +32,11 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "compile_model",
-        (ov::runtime::ExecutableNetwork(ov::runtime::Core::*)(const std::shared_ptr<const ov::Function>&, const std::string&, const ConfigMap&)) & ov::runtime::Core::compile_model,
-        // overload_cast_<const std::shared_ptr<const ov::Function>&, const std::string&, const ConfigMap&>(&ov::runtime::Core::compile_model),
+        (ov::runtime::ExecutableNetwork(
+            ov::runtime::Core::*)(const std::shared_ptr<const ov::Function>&, const std::string&, const ConfigMap&)) &
+            ov::runtime::Core::compile_model,
+        // overload_cast_<const std::shared_ptr<const ov::Function>&, const std::string&, const
+        // ConfigMap&>(&ov::runtime::Core::compile_model),
         py::arg("network"),
         py::arg("device_name"),
         py::arg("config") = py::dict());
@@ -48,10 +50,10 @@ void regclass_Core(py::module m) {
         },
         py::arg("extension_path"));
 
-    cls.def(
-        "get_versions",
-        (std::map<std::string, ie::Version>(ov::runtime::Core::*)(const std::string&)) & ov::runtime::Core::get_versions,
-        py::arg("device_name"));
+    cls.def("get_versions",
+            (std::map<std::string, ie::Version>(ov::runtime::Core::*)(const std::string&)) &
+                ov::runtime::Core::get_versions,
+            py::arg("device_name"));
 
     cls.def(
         "read_model",
@@ -99,7 +101,8 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "import_model",
-        (ov::runtime::ExecutableNetwork(ov::runtime::Core::*)(std::istream&, const std::string&, const ConfigMap&)) & ov::runtime::Core::import_model,
+        (ov::runtime::ExecutableNetwork(ov::runtime::Core::*)(std::istream&, const std::string&, const ConfigMap&)) &
+            ov::runtime::Core::import_model,
         py::arg("model_file"),
         py::arg("device_name"),
         py::arg("config") = py::none());
@@ -131,7 +134,9 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "query_model",
-        (ov::runtime::SupportedOpsMap(ov::runtime::Core::*)(const std::shared_ptr<const ov::Function>&, const std::string&, const ConfigMap&)) & ov::runtime::Core::query_model,
+        (ov::runtime::SupportedOpsMap(
+            ov::runtime::Core::*)(const std::shared_ptr<const ov::Function>&, const std::string&, const ConfigMap&)) &
+            ov::runtime::Core::query_model,
         py::arg("model"),
         py::arg("device_name"),
         py::arg("config") = py::dict());
