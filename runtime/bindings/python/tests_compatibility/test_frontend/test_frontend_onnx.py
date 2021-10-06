@@ -8,7 +8,7 @@ from onnx.helper import make_graph, make_model, make_tensor_value_info
 import pytest
 
 from ngraph.frontend import FrontEndManager
-from tests_compatibility_compatibility.runtime import get_runtime
+from tests_compatibility.runtime import get_runtime
 
 
 def create_onnx_model():
