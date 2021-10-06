@@ -167,7 +167,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             }
 
             manager.register_pass<ngraph::pass::InitNodeInfo>();
-            manager.register_pass<ngraph::pass::CommonOptimizations>(enableInt8);
+            manager.register_pass<ngraph::pass::CommonOptimizations>();
 
             if (!config.enable_loop_unrolling) {
                 manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();

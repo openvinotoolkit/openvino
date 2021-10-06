@@ -158,7 +158,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     static const auto precisions = get_convert_precisions();
 
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
-    manager.register_pass<ngraph::pass::CommonOptimizations>(useLpt);
+    manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
     manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
     manager.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();

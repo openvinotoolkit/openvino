@@ -92,8 +92,9 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
     ngraph::pass::Manager manager(get_pass_config());
 
-    // This pass must be called first in pipeline
-    manager.register_pass<ngraph::pass::MOCTransformations>(true, m_low_precision_enabled);
+    // Disable low_precision_enabled as all plugins handle low-precision sub-graph manually
+    // before CommonOptimization pipeline execution
+    manager.register_pass<ngraph::pass::MOCTransformations>(true, false);
 
     // TODO: move to KMB
     manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();

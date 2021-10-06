@@ -30,6 +30,13 @@ class ngraph::pass::MOCTransformations: public ngraph::pass::FunctionPass {
 
 public:
     NGRAPH_RTTI_DECLARATION;
+    /**
+     * use_shapes = True enables transformations which are depends on shapes and also it
+     * enables ConstantFolding for all ShapeOf operations.
+     *
+     * low_precision_enabled = True enables preserving mechanisms that helps to keep
+     * low_precision sub-graphs as is.
+     */
     explicit MOCTransformations(bool use_shapes, bool low_precision_enabled = true)
         : m_use_shapes(use_shapes), m_low_precision_enabled(low_precision_enabled) {}
 
