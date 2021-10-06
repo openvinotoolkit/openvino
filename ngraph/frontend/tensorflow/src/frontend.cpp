@@ -7,7 +7,6 @@
 
 //#include <ngraph/pass/transpose_sinking.h>
 #include <ngraph/pass/constant_folding.hpp>
-#include <transformations/serialize.hpp>
 
 #include "op_table.hpp"
 #include "tf_framework_node.hpp"
