@@ -20,7 +20,37 @@ using namespace google;
 namespace ngraph {
 namespace frontend {
 namespace tf {
+void extract_operation_name_and_port(const std::string& port_name,
+                                     std::string& operation_name,
+                                     size_t& port_index,
+                                     std::string& port_type) {
+    constexpr char delimeter[] = ":";
+    auto pos = port_name.find(delimeter);
+    if (pos == std::string::npos) {
+        operation_name = port_name;
+        port_type = "none";
+        port_index = 0;
+        return;
+    }
 
+    FRONT_END_GENERAL_CHECK((0 < pos) && (pos + 1 < port_name.length()), "Incorrect port name specified: " + port_name);
+
+    auto left_part = port_name.substr(0, pos);
+    auto right_part = port_name.substr(pos + 1, port_name.length() - pos);
+
+    if (left_part.find_first_not_of("0123456789") == std::string::npos) {
+        port_type = "in";
+        operation_name = right_part;
+        port_index = std::atoi(left_part.c_str());
+    } else if (right_part.find_first_not_of("0123456789") == std::string::npos) {
+        port_type = "out";
+        operation_name = left_part;
+        port_index = std::atoi(right_part.c_str());
+    } else {
+        FRONT_END_GENERAL_CHECK(false, "Incorrect port name specified: " + port_name);
+    }
+}
+}  // namespace tf
 class InputModelTF::InputModelTFImpl {
 public:
     InputModelTFImpl(const GraphIterator::Ptr& graph_iterator, const InputModel& input_model);
@@ -243,37 +273,6 @@ Place::Ptr InputModelTF::InputModelTFImpl::getPlaceByTensorName(const std::strin
     return nullptr;
 }
 
-void extract_operation_name_and_port(const std::string& port_name,
-                                     std::string& operation_name,
-                                     size_t& port_index,
-                                     std::string& port_type) {
-    constexpr char delimeter[] = ":";
-    auto pos = port_name.find(delimeter);
-    if (pos == std::string::npos) {
-        operation_name = port_name;
-        port_type = "none";
-        port_index = 0;
-        return;
-    }
-
-    FRONT_END_GENERAL_CHECK((0 < pos) && (pos + 1 < port_name.length()), "Incorrect port name specified: " + port_name);
-
-    auto left_part = port_name.substr(0, pos);
-    auto right_part = port_name.substr(pos + 1, port_name.length() - pos);
-
-    if (left_part.find_first_not_of("0123456789") == std::string::npos) {
-        port_type = "in";
-        operation_name = right_part;
-        port_index = std::atoi(left_part.c_str());
-    } else if (right_part.find_first_not_of("0123456789") == std::string::npos) {
-        port_type = "out";
-        operation_name = left_part;
-        port_index = std::atoi(right_part.c_str());
-    } else {
-        FRONT_END_GENERAL_CHECK(false, "Incorrect port name specified: " + port_name);
-    }
-}
-
 std::shared_ptr<TensorPlaceTF> castToTensorPlace(const Place::Ptr& place) {
     if (auto var_place = std::dynamic_pointer_cast<TensorPlaceTF>(place)) {
         return var_place;
@@ -289,7 +288,7 @@ void InputModelTF::InputModelTFImpl::overrideAllInputs(const std::vector<Place::
     m_graph_changed = true;
     m_inputs.clear();
     for (const auto& input_place : inputs) {
-        m_inputs.push_back(tf::castToTensorPlace(input_place));
+        m_inputs.push_back(castToTensorPlace(input_place));
     }
 }
 
@@ -297,7 +296,7 @@ void InputModelTF::InputModelTFImpl::overrideAllOutputs(const std::vector<Place:
     m_graph_changed = true;
     m_outputs.clear();
     for (const auto& output_place : outputs) {
-        m_outputs.push_back(tf::castToTensorPlace(output_place));
+        m_outputs.push_back(castToTensorPlace(output_place));
     }
 }
 
@@ -313,20 +312,20 @@ void InputModelTF::InputModelTFImpl::setDefaultShape(Place::Ptr place, const ngr
 }
 
 void InputModelTF::InputModelTFImpl::setPartialShape(Place::Ptr place, const ngraph::PartialShape& p_shape) {
-    tf::castToTensorPlace(place)->set_partial_shape(p_shape);
+    castToTensorPlace(place)->set_partial_shape(p_shape);
 }
 
 ngraph::PartialShape InputModelTF::InputModelTFImpl::getPartialShape(Place::Ptr place) const {
-    return tf::castToTensorPlace(place)->get_partial_shape();
+    return castToTensorPlace(place)->get_partial_shape();
 }
 
 void InputModelTF::InputModelTFImpl::setElementType(Place::Ptr place, const ngraph::element::Type& type) {
-    tf::castToTensorPlace(place)->set_element_type(type);
+    castToTensorPlace(place)->set_element_type(type);
 }
 
 void InputModelTF::InputModelTFImpl::setTensorValue(Place::Ptr place, const void* value) {
     m_graph_changed = true;
-    auto tensor_place = tf::castToTensorPlace(place);
+    auto tensor_place = castToTensorPlace(place);
     auto p_shape = tensor_place->get_partial_shape();
     auto type = tensor_place->get_element_type();
     auto constant = opset7::Constant::create(type, p_shape.to_shape(), value);
@@ -389,6 +388,5 @@ void InputModelTF::set_element_type(Place::Ptr place, const ngraph::element::Typ
 void InputModelTF::set_tensor_value(Place::Ptr place, const void* value) {
     _impl->setTensorValue(place, value);
 }
-}  // namespace tf
 }  // namespace frontend
 }  // namespace ngraph

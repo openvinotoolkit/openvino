@@ -24,8 +24,6 @@ using ::tensorflow::DataType;
 // Core. Otherwise returns Status::OK().
 void TFDataTypeToNGraphElementType(DataType tf_dt, ngraph::element::Type* ng_et);
 
-void TFTensorShapeToNGraphShape(const ::tensorflow::TensorShapeProto& tf_shape, ngraph::PartialShape* ng_shape);
-
 template <size_t a, size_t b, size_t c, size_t d>
 void Transpose(ngraph::Output<ngraph::Node>& node) {
     static_assert(a < 4 && b < 4 && c < 4 && d < 4, "Number of dimensions cannot exceed 4");

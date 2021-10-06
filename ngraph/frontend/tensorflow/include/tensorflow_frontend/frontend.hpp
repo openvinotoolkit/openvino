@@ -11,7 +11,6 @@
 
 namespace ngraph {
 namespace frontend {
-namespace tf {
 class TF_API FrontEndTF : public FrontEnd {
 public:
     FrontEndTF() {}
@@ -61,6 +60,5 @@ private:
                                 bool no_conversion,
                                 std::shared_ptr<ngraph::Function>& ng_function);
 };
-}  // namespace tf
 }  // namespace frontend
 }  // namespace ngraph

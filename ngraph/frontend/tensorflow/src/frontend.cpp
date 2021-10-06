@@ -63,7 +63,7 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
 
     std::map<const std::string, const std::function<ngraph::OutputVector(const NodeContext&)>> translate_map;
 
-    const auto TRANSLATE_OP_MAP = op::get_supported_ops();
+    const auto TRANSLATE_OP_MAP = tf::op::get_supported_ops();
     if (no_conversion) {
         const std::set<std::string> required_types{"Placeholder", "_Retval", "NoOp"};
         for (auto& name : required_types) {
