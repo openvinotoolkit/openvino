@@ -8,8 +8,6 @@ import pytest
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node, run_op_numeric_data
 
-from tests import xfail_issue_67415
-
 
 def test_concat():
     a = np.array([[1, 2], [3, 4]]).astype(np.float32)

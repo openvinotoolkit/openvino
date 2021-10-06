@@ -8,7 +8,6 @@ from tests.runtime import get_runtime
 from tests.test_ngraph.test_ops import convolution2d
 from tests.test_ngraph.util import run_op_node
 
-from tests import xfail_issue_67415
 
 def test_convolution_2d():
 
