@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateDepthwiseConv2dNativeOp(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0), ng_filter = node.get_ng_input(1);
@@ -63,28 +63,29 @@ OutputVector TranslateDepthwiseConv2dNativeOp(const NodeContext& node) {
                 ng_padding_above);
 
     // H W I M -> H W I 1 M
-    auto filter_shape = ConstructNgNode<opset::Constant>(
+    auto filter_shape = ConstructNgNode<Constant>(
         node.get_name(),
         element::u64,
         Shape{5},
         ngraph::Shape{ng_filter_shape[0], ng_filter_shape[1], ng_filter_shape[2], 1, ng_filter_shape[3]});
-    auto reshaped_filter = ConstructNgNode<opset::Reshape>(node.get_name(), ng_filter, filter_shape, false);
+    auto reshaped_filter = ConstructNgNode<Reshape>(node.get_name(), ng_filter, filter_shape, false);
 
     // H W I 1 M -> I M 1 H W
-    auto order =
-        ConstructNgNode<opset::Constant>(node.get_name(), element::i64, Shape{5}, vector<int64_t>{2, 4, 3, 0, 1});
-    auto transposed_filter = ConstructNgNode<opset::Transpose>(node.get_name(), reshaped_filter, order);
+    auto order = ConstructNgNode<Constant>(node.get_name(), element::i64, Shape{5}, vector<int64_t>{2, 4, 3, 0, 1});
+    auto transposed_filter = ConstructNgNode<ngraph::opset8::Transpose>(node.get_name(), reshaped_filter, order);
 
-    auto ng_conv = ConstructNgNode<opset::GroupConvolution>(node.get_name(),
-                                                            ng_input,
-                                                            transposed_filter,
-                                                            ng_strides,
-                                                            ng_padding_below,
-                                                            ng_padding_above,
-                                                            ng_dilations);
+    auto ng_conv = ConstructNgNode<GroupConvolution>(node.get_name(),
+                                                     ng_input,
+                                                     transposed_filter,
+                                                     ng_strides,
+                                                     ng_padding_below,
+                                                     ng_padding_above,
+                                                     ng_dilations);
 
     NCHWtoNHWC(node.get_name(), is_nhwc, ng_conv);
     return {ng_conv};
 }
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

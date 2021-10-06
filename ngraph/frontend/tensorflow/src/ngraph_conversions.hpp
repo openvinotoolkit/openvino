@@ -8,13 +8,14 @@
 
 #include <string>
 
-#include "default_opset.h"
+#include <ngraph/opsets/opset8.hpp>
 #include <tensorflow_frontend/utility.hpp>
 #include "graph.pb.h"
 #include "types.pb.h"
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
 
 using ::tensorflow::DataType;
 
@@ -39,10 +40,10 @@ void Transpose(ngraph::Output<ngraph::Node>& node) {
   NGRAPH_VLOG(3) << "transposing " << ngraph::join(s) << " to "
                  << ngraph::join(reshaped_shape) << " axis-order "
                  << ngraph::join(transpose_order);
-  auto input_order = std::make_shared<opset::Constant>(
+  auto input_order = std::make_shared<ngraph::opset8::Constant>(
       ngraph::element::u64, ngraph::Shape{transpose_order.size()},
       transpose_order);
-  node = std::make_shared<opset::Transpose>(node, input_order);
+  node = std::make_shared<ngraph::opset8::Transpose>(node, input_order);
 }
 
 template <size_t a, size_t b, size_t c, size_t d>
@@ -63,10 +64,10 @@ void Transpose3D(ngraph::Output<ngraph::Node>& node) {
   NGRAPH_VLOG(3) << "transposing " << ngraph::join(s) << " to "
                  << ngraph::join(reshaped_shape) << "axis-order "
                  << ngraph::join(transpose_order);
-  auto input_order = std::make_shared<opset::Constant>(
+  auto input_order = std::make_shared<ngraph::opset8::Constant>(
       ngraph::element::u64, ngraph::Shape{transpose_order.size()},
       transpose_order);
-  node = std::make_shared<opset::Transpose>(node, input_order);
+  node = std::make_shared<ngraph::opset8::Transpose>(node, input_order);
 }
 
 template <size_t a, size_t b, size_t c, size_t d, size_t e>
@@ -115,7 +116,8 @@ void NHWCtoHW(bool is_nhwc, const std::vector<T>& src,
 }
 
 
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}
+}
+}
 
 #endif  // NGRAPH_TF_BRIDGE_CONVERSIONS_H_

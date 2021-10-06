@@ -2,21 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
 #if 0
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 // Translate SpaceToDepthOp
 static Status TranslateSpaceToDepthOp(const TFNodeDecoder* op,
-                                      const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>&,
+                                      const std::vector<const ngraph::frontend::tf::detail::TensorWrapper*>&,
                                       Builder::OpMap& ng_op_map) {
   Output<Node> ng_input;
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input));
@@ -35,8 +35,8 @@ static Status TranslateSpaceToDepthOp(const TFNodeDecoder* op,
   bool is_nhwc = (tf_data_format == "NHWC");
 
   NHWCtoNCHW(node.get_name(), is_nhwc, ng_input);
-  auto ng_mode = opset::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
-  auto space_to_depth = ConstructNgNode<opset::SpaceToDepth>(
+  auto ng_mode = SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
+  auto space_to_depth = ConstructNgNode<SpaceToDepth>(
       node.get_name(), ng_input, ng_mode, block_size);
   NCHWtoNHWC(node.get_name(), is_nhwc, space_to_depth);
   SaveNgOp(ng_op_map, node.get_name(), space_to_depth);

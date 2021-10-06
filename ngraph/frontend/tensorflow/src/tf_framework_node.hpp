@@ -12,6 +12,7 @@
 
 namespace ngraph {
 namespace frontend {
+namespace tf {
 
 class TFFrameworkNode : public ::ov::op::util::FrameworkNode {
 public:
@@ -20,7 +21,7 @@ public:
     TFFrameworkNode(const std::shared_ptr<DecoderBase>& decoder, const OutputVector& inputs, size_t num_outputs)
         : FrameworkNode(inputs, std::max(num_outputs, size_t(1))),
           m_decoder(decoder) {
-        op::FrameworkNodeAttrs attrs;
+        ngraph::op::FrameworkNodeAttrs attrs;
         attrs.set_type_name(m_decoder->get_op_type());
         set_attrs(attrs);
 
@@ -44,5 +45,6 @@ public:
 private:
     std::shared_ptr<DecoderBase> m_decoder;
 };
+}  // namespace tf
 }  // namespace frontend
 }  // namespace ngraph

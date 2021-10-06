@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
-namespace tensorflow {
-namespace ngraph_bridge {
-
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 OutputVector TranslateSoftmaxOp(const NodeContext& node) {
     auto ng_inp = node.get_ng_input(0);
     auto inp_shape = ng_inp.get_shape();
@@ -22,8 +21,10 @@ OutputVector TranslateSoftmaxOp(const NodeContext& node) {
         throw errors::InvalidArgument("TF Softmax logits must be >=1 dimension");
     }
 
-    return {ConstructNgNode<opset::Softmax>(node.get_name(), ng_inp, axes)};
+    return {ConstructNgNode<Softmax>(node.get_name(), ng_inp, axes)};
 }
 
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateConv2DOp(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0), ng_filter = node.get_ng_input(1);
@@ -70,16 +70,18 @@ OutputVector TranslateConv2DOp(const NodeContext& node) {
                 ng_padding_below,
                 ng_padding_above);
 
-    Output<Node> ng_conv = ConstructNgNode<opset::Convolution>(node.get_name(),
-                                                               ng_input,
-                                                               ng_filter,
-                                                               ng_strides,
-                                                               ng_padding_below,
-                                                               ng_padding_above,
-                                                               ng_dilations);
+    Output<Node> ng_conv = ConstructNgNode<Convolution>(node.get_name(),
+                                                        ng_input,
+                                                        ng_filter,
+                                                        ng_strides,
+                                                        ng_padding_below,
+                                                        ng_padding_above,
+                                                        ng_dilations);
 
     NCHWtoNHWC(node.get_name(), is_nhwc, ng_conv);
     return {ng_conv};
 }
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

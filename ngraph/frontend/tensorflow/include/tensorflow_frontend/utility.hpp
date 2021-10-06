@@ -22,8 +22,9 @@
 
 #define NOT_IMPLEMENTED(msg) throw std::runtime_error(std::string(msg) + " is not implemented")
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
 
 #define NGRAPH_TF_FE_NOT_IMPLEMENTED                                                        \
     {                                                                                       \
@@ -37,8 +38,9 @@ namespace ngraph_bridge {
 #    define NGRAPH_VLOG(I) std::ostringstream()
 #endif
 
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph
 
 namespace ngraph {
 namespace frontend {

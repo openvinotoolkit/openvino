@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
 #if 0
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateReciprocalOp(
         const NodeContext& node) {
@@ -24,11 +24,11 @@ OutputVector TranslateReciprocalOp(
                 auto et = n.get_element_type();
                 auto shape = n.get_shape();
                 std::vector<std::string> constant_values(shape_size(shape), "-1");
-                auto ng_exponent = ConstructNgNode<opset::Constant>(
+                auto ng_exponent = ConstructNgNode<Constant>(
                         node.get_name(), et, shape, constant_values);
 
                 // Raise each element of the input to the power -1.
-                return ConstructNgNode<opset::Power>(node.get_name(), n, ng_exponent);
+                return ConstructNgNode<Power>(node.get_name(), n, ng_exponent);
             });
 }
 }

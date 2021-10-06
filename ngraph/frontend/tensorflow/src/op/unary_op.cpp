@@ -2,23 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace ngraph::opset8;
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 // Helper function to translate a unary op.
 //
 // Parameters:
 //
 //    TFNodeDecoder* op                   - TF op being translated. Must have one input.
-//    const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map
+//    const std::vector<const ngraph::frontend::tf::detail::TensorWrapper*>& static_input_map
 //                               - the static input map
 //    Builder::OpMap& ng_op_map  - The TF-to-nGraph op map.
 //
@@ -33,7 +33,7 @@ namespace ngraph_bridge {
 //    TF_RETURN_IF_ERROR(TranslateUnaryOp(n, static_input_map, ng_op_map,
 //                       [] (Output<Node> n) {
 //                           return
-//                           (Output<opset::Multiply>(n,n));
+//                           (Output<Multiply>(n,n));
 //                       });
 //  }
 OutputVector TranslateUnaryOp(const NodeContext& op, std::function<Output<Node>(Output<Node>)> create_unary_op) {
@@ -64,30 +64,31 @@ OutputVector TranslateUnaryOp(const NodeContext& node) {
     });
 }
 
-template OutputVector TranslateUnaryOp<opset::Abs>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Acos>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Acosh>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Asin>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Asinh>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Atan>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Atanh>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Ceiling>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Cos>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Cosh>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Exp>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Floor>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Log>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::LogicalNot>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Negative>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Relu>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Sigmoid>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Sin>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Sinh>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Sign>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::SoftPlus>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Sqrt>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Tan>(const NodeContext& node);
-template OutputVector TranslateUnaryOp<opset::Tanh>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Abs>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Acos>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Acosh>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Asin>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Asinh>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Atan>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Atanh>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Ceiling>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Cos>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Cosh>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Exp>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Floor>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Log>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<LogicalNot>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Negative>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Relu>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Sigmoid>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Sin>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Sinh>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Sign>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<SoftPlus>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Tan>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Tanh>(const NodeContext& node);
 
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

@@ -12,14 +12,14 @@
 #include <tensorflow_frontend/utility.hpp>
 
 #include "graph_iterator_proto.hpp"
-#include "ngraph_conversions.h"
+#include "ngraph_conversions.hpp"
 #include "node_context.hpp"
 
 using namespace google;
-using namespace ngraph::frontend;
 
 namespace ngraph {
 namespace frontend {
+namespace tf {
 
 class InputModelTF::InputModelTFImpl {
 public:
@@ -55,7 +55,7 @@ private:
     std::vector<Place::Ptr> m_outputs;
     std::map<std::string, Output<Node>> m_tensor_values;
 
-    std::shared_ptr<::ngraph::frontend::GraphIterator> m_graph_iterator;
+    std::shared_ptr<GraphIterator> m_graph_iterator;
     const InputModel& m_input_model;
 
     // shows if some nodes might be deleted from graph
@@ -127,9 +127,9 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::get_op_p
 }
 
 std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determine_cut_nodes() const {
-    std::queue<std::shared_ptr<::ngraph::frontend::DecoderBase>> decoders_queue;
+    std::queue<std::shared_ptr<DecoderBase>> decoders_queue;
     std::unordered_set<std::string> visited;
-    std::vector<std::shared_ptr<ngraph::frontend::OpPlaceTF>> new_ops;
+    std::vector<std::shared_ptr<OpPlaceTF>> new_ops;
     for (const auto& output_place : m_outputs) {
         FRONT_END_GENERAL_CHECK(output_place->get_names().size() > 0, "TensorPlace must have at least one name.");
         auto output_place_name = output_place->get_names()[0];
@@ -242,7 +242,6 @@ Place::Ptr InputModelTF::InputModelTFImpl::getPlaceByTensorName(const std::strin
     return nullptr;
 }
 
-namespace tf {
 void extract_operation_name_and_port(const std::string& port_name,
                                      std::string& operation_name,
                                      size_t& port_index,
@@ -284,7 +283,6 @@ std::shared_ptr<TensorPlaceTF> castToTensorPlace(const Place::Ptr& place) {
     }
     FRONT_END_GENERAL_CHECK(false, "Cannot cast this Place to TensorPlaceTF.");
 }
-}  // namespace tf
 
 void InputModelTF::InputModelTFImpl::overrideAllInputs(const std::vector<Place::Ptr>& inputs) {
     m_graph_changed = true;
@@ -390,6 +388,6 @@ void InputModelTF::set_element_type(Place::Ptr place, const ngraph::element::Typ
 void InputModelTF::set_tensor_value(Place::Ptr place, const void* value) {
     _impl->setTensorValue(place, value);
 }
-
+}  // namespace tf
 }  // namespace frontend
 }  // namespace ngraph

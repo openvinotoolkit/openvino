@@ -8,17 +8,7 @@
 
 namespace ngraph {
 namespace frontend {
-std::map<::tensorflow::DataType, ngraph::element::Type> TYPE_MAP{
-    {::tensorflow::DataType::DT_BOOL, ngraph::element::boolean},
-    {::tensorflow::DataType::DT_INT16, ngraph::element::i16},
-    {::tensorflow::DataType::DT_INT32, ngraph::element::i32},
-    {::tensorflow::DataType::DT_INT64, ngraph::element::i64},
-    {::tensorflow::DataType::DT_HALF, ngraph::element::f16},
-    {::tensorflow::DataType::DT_FLOAT, ngraph::element::f32},
-    {::tensorflow::DataType::DT_DOUBLE, ngraph::element::f64},
-    {::tensorflow::DataType::DT_UINT8, ngraph::element::u8},
-    {::tensorflow::DataType::DT_INT8, ngraph::element::i8},
-    {::tensorflow::DataType::DT_BFLOAT16, ngraph::element::bf16}};
+namespace tf {
 
 std::shared_ptr<Variant> DecoderTFProto::get_attribute(const std::string& name,
                                                        const VariantTypeInfo& type_info) const {
@@ -117,6 +107,6 @@ std::vector<::tensorflow::AttrValue> DecoderTFProto::decode_attribute_helper(con
     auto value = m_node_def->attr().at(name);
     return {value};
 }
-
+}  // namespace tf
 }  // namespace frontend
 }  // namespace ngraph

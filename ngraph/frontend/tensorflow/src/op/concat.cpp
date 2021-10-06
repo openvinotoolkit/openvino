@@ -2,16 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <default_opset.h>
-
+#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
 using namespace ngraph;
-using namespace ngraph::frontend::tensorflow::detail;
+using namespace opset8;
+using namespace ngraph::frontend;
+using namespace frontend::tf::detail;
 
-namespace tensorflow {
-namespace ngraph_bridge {
+namespace ngraph {
+namespace frontend {
+namespace tf {
+namespace op {
 
 OutputVector TranslateConcatV2Op(const NodeContext& node) {
     ValidateInputCountMin(node, 2);
@@ -33,7 +36,9 @@ OutputVector TranslateConcatV2Op(const NodeContext& node) {
         ng_args.push_back(ng_arg);
     }
 
-    return {ConstructNgNode<opset::Concat>(node.get_name(), ng_args, size_t(concat_axis))};
+    return {ConstructNgNode<Concat>(node.get_name(), ng_args, size_t(concat_axis))};
 }
-}  // namespace ngraph_bridge
-}  // namespace tensorflow
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

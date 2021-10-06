@@ -10,8 +10,9 @@
 #include "tensor.pb.h"
 #include "types.pb.h"
 
-using namespace ngraph;
-using namespace frontend;
+namespace ngraph {
+namespace frontend {
+namespace tf {
 
 std::map<::tensorflow::DataType, ngraph::element::Type> TYPE_MAP{
     {::tensorflow::DataType::DT_BOOL, ngraph::element::boolean},
@@ -366,4 +367,7 @@ Place::Ptr OutPortPlaceTF::get_producing_operation() const {
         return op;
     }
     FRONT_END_THROW("Operation has expired.");
+}
+}
+}
 }
