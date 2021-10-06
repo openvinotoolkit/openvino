@@ -65,7 +65,7 @@ protected:
         UINT adapter_index = 0;
         const unsigned int refIntelVendorID = 0x8086;
         IDXGIAdapter* out_adapter = nullptr;
-        while(factory->EnumAdapters(adapter_index, &out_adapter) != DXGI_ERROR_NOT_FOUND){
+        while (factory->EnumAdapters(adapter_index, &out_adapter) != DXGI_ERROR_NOT_FOUND) {
             CComPtr<IDXGIAdapter> adapter(out_adapter);
 
             DXGI_ADAPTER_DESC desc{};
@@ -94,7 +94,7 @@ protected:
                                         ARRAYSIZE(feature_levels),
                                         D3D11_SDK_VERSION, &ret_device_ptr,
                                         &featureLevel, &ret_ctx_ptr);
-        if(FAILED(err)) {
+        if (FAILED(err)) {
             throw std::runtime_error("Cannot create D3D11CreateDevice, error: " +
                                      std::to_string(HRESULT_CODE(err)));
         }
@@ -104,10 +104,9 @@ protected:
 };
 
 TEST_F(DX11RemoteCtx_Test, create_ctx) {
-
     auto ie = InferenceEngine::Core();
 
-    for(auto adapter : intel_adapters) {
+    for (auto adapter : intel_adapters) {
         CComPtr<ID3D11Device> device_ptr;
         CComPtr<ID3D11DeviceContext> ctx_ptr;
 
@@ -119,7 +118,7 @@ TEST_F(DX11RemoteCtx_Test, create_ctx) {
         ASSERT_TRUE(remote_context);
     }
 
-    for(auto adapter : other_adapters) {
+    for (auto adapter : other_adapters) {
         CComPtr<ID3D11Device> device_ptr;
         CComPtr<ID3D11DeviceContext> ctx_ptr;
 
