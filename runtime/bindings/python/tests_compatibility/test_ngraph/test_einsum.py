@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 from ngraph.utils.types import get_element_type
-from tests import xfail_issue_58033
+from tests_compatibility import xfail_issue_58033
 from tests_compatibility.runtime import get_runtime
 
 

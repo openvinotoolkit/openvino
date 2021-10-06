@@ -1,16 +1,16 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import tests
+import tests_compatibility
 from operator import itemgetter
 from pathlib import Path
 from typing import Sequence, Any
 import numpy as np
 
-from tests.test_onnx.utils import OpenVinoOnnxBackend
-from tests.test_onnx.utils.model_importer import ModelImportRunner
+from tests_compatibility.test_onnx.utils import OpenVinoOnnxBackend
+from tests_compatibility.test_onnx.utils.model_importer import ModelImportRunner
 
-from tests import (
+from tests_compatibility import (
     xfail_issue_38701,
     xfail_issue_43742,
     xfail_issue_45457,
@@ -26,7 +26,7 @@ from tests import (
     xfail_issue_58676,
     xfail_issue_onnx_models_140)
 
-MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
+MODELS_ROOT_DIR = tests_compatibility.MODEL_ZOO_DIR
 
 def yolov3_post_processing(outputs : Sequence[Any]) -> Sequence[Any]:
     concat_out_index = 2
@@ -135,13 +135,13 @@ if len(zoo_models) > 0:
     zoo_models = sorted(zoo_models, key=itemgetter("model_name"))
 
     # Set backend device name to be used instead of hardcoded by ONNX BackendTest class ones.
-    OpenVinoOnnxBackend.backend_name = tests.BACKEND_NAME
+    OpenVinoOnnxBackend.backend_name = tests_compatibility.BACKEND_NAME
 
     # import all test cases at global scope to make them visible to pytest
     backend_test = ModelImportRunner(OpenVinoOnnxBackend, zoo_models, __name__, MODELS_ROOT_DIR)
     test_cases = backend_test.test_cases["OnnxBackendModelImportTest"]
     # flake8: noqa: E501
-    if tests.MODEL_ZOO_XFAIL:
+    if tests_compatibility.MODEL_ZOO_XFAIL:
         import_xfail_list = [
             # ONNX Model Zoo
             (xfail_issue_38701, "test_onnx_model_zoo_text_machine_comprehension_bidirectional_attention_flow_model_bidaf_9_bidaf_bidaf_cpu"),
@@ -159,7 +159,7 @@ if len(zoo_models) > 0:
     del test_cases
 
     test_cases = backend_test.test_cases["OnnxBackendModelExecutionTest"]
-    if tests.MODEL_ZOO_XFAIL:
+    if tests_compatibility.MODEL_ZOO_XFAIL:
         execution_xfail_list = [
             # ONNX Model Zoo
             (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_encoder_12_t5_encoder_cpu"),

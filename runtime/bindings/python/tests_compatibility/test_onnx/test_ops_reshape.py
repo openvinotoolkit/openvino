@@ -7,14 +7,14 @@ import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
 from tests_compatibility.runtime import get_runtime
-from tests.test_onnx.utils import (
+from tests_compatibility.test_onnx.utils import (
     all_arrays_equal,
     get_node_model,
     import_onnx_model,
     run_model,
     run_node,
 )
-from tests import (xfail_issue_35927,
+from tests_compatibility import (xfail_issue_35927,
                    xfail_issue_44854,
                    xfail_issue_44858,
                    xfail_issue_44968)

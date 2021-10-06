@@ -5,7 +5,7 @@ import numpy as np
 
 import ngraph as ng
 from tests_compatibility.runtime import get_runtime
-from tests.test_ngraph.test_ops import convolution2d
+from tests_compatibility.test_ngraph.test_ops import convolution2d
 from tests_compatibility.test_ngraph.util import run_op_node
 
 
