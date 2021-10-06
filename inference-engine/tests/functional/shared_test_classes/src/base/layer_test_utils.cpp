@@ -26,16 +26,16 @@ LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f), abs_threshold(-1.f) {
 }
 void LayerTestsCommon::ResizeNgraphFunction() {
     auto params = function->get_parameters();
+    std::map<std::string, ngraph::PartialShape> shapes;
     ASSERT_LE(params.size(), targetStaticShapes[index].size());
     for (size_t i = 0; i < params.size(); i++) {
-        params[i]->set_partial_shape(targetStaticShapes[index][i]);
+        shapes.insert({*params[i]->get_output_tensor(0).get_names().begin(), targetStaticShapes[index][i]});
     }
-    functionRefs = ngraph::clone_function(*function);
-    functionRefs->set_friendly_name("FunctionRefs");
+    function->reshape(shapes);
+    functionRefs->reshape(shapes);
 }
 
 void LayerTestsCommon::Run() {
-    //TODO: w/a: to identify gaps with functionRefs and init it
     if (functionRefs == nullptr) {
         functionRefs = ngraph::clone_function(*function);
         functionRefs->set_friendly_name("refFunction");
@@ -73,7 +73,12 @@ void LayerTestsCommon::Run() {
                 Validate();
                 s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
             } catch (const std::exception &ex) {
-                THROW_IE_EXCEPTION << "Incorrect target static shape: " << CommonTestUtils::vec2str(targetStaticShapes[i]) << std::endl << ex.what();
+                std::string errorMessage;
+                if (!targetStaticShapes.empty()) {
+                    errorMessage = "Incorrect target static shape: " + CommonTestUtils::vec2str(targetStaticShapes[i]) + "\n";
+                }
+                errorMessage +=  ex.what();
+                THROW_IE_EXCEPTION << ex.what();
             }
         } while (++i < targetStaticShapes.size());
     }
@@ -363,7 +368,7 @@ void LayerTestsCommon::ConfigureNetwork() {
         ASSERT_EQ(params.size(), inputDynamicShapes.size());
         for (size_t i = 0; i < inputDynamicShapes.size(); i++) {
             ngraph::PartialShape dynamicShape = inputDynamicShapes[i];
-            if (dynamicShape.rank() == 0) {
+            if (dynamicShape.rank() == 0 && dynamicShape.is_static()) {
                 continue;
             }
             std::string inputName = params[i]->get_friendly_name();

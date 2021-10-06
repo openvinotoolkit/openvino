@@ -60,7 +60,7 @@ TEST(SmartReshapeTests, TensorIteratorStaticParameters) {
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({1, 1, 1}));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({1, 1, 1}));
 
-    ASSERT_NO_THROW(network.reshape({{"X", {32, 1, 10}}, {"Y", {32, 10, 1}}, {"M", {32, 1, 10}}}));
+    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{{"X", {32, 1, 10}}, {"Y", {32, 10, 1}}, {"M", {32, 1, 10}}}));
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
     ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({32, 1, 10}));
@@ -119,7 +119,7 @@ TEST(SmartReshapeTests, TensorIteratorDynamicParameters) {
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({1, 1, 1}));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({1, 1, 1}));
 
-    ASSERT_NO_THROW(network.reshape({{"X", {32, 1, 10}}, {"Y", {32, 10, 1}}, {"M", {32, 1, 10}}}));
+    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{{"X", {32, 1, 10}}, {"Y", {32, 10, 1}}, {"M", {32, 1, 10}}}));
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
     ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({32, 1, 10}));
@@ -184,7 +184,7 @@ TEST(SmartReshapeTests, LoopStaticParameters) {
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
 
-    ASSERT_NO_THROW(network.reshape({{"X", {32, 1, 10}}, {"Y", {32, 10, 1}}, {"M", {32, 1, 10}}}));
+    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{{"X", {32, 1, 10}}, {"Y", {32, 10, 1}}, {"M", {32, 1, 10}}}));
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
     ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({32, 1, 10}));
@@ -249,7 +249,7 @@ TEST(SmartReshapeTests, LoopDynamicParameters) {
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
 
-    ASSERT_NO_THROW(network.reshape({{"X", {32, 1, 10}}, {"Y", {32, 10, 1}}, {"M", {32, 1, 10}}}));
+    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{{"X", {32, 1, 10}}, {"Y", {32, 10, 1}}, {"M", {32, 1, 10}}}));
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
     ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({32, 1, 10}));
@@ -317,7 +317,7 @@ TEST(SmartReshapeTests, LoopParentParametersUsedInBody) {
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
 
-    ASSERT_NO_THROW(network.reshape({{"X", {4, 3, 2}}, {"Y", {4, 3, 2}}, {"M", {4, 3, 2}}}));
+    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{{"X", {4, 3, 2}}, {"Y", {4, 3, 2}}, {"M", {4, 3, 2}}}));
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
     ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({4, 3, 2}));
@@ -379,7 +379,7 @@ TEST(SmartReshapeTests, TensorIteratorParentParameterUsedInBody) {
     ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({1, 1, 1}));
     ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({1, 1, 1}));
 
-    ASSERT_NO_THROW(network.reshape({{"X", {32, 1, 10}}, {"Y", {1, 1, 1}}, {"M", {32, 1, 10}}}));
+    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{{"X", {32, 1, 10}}, {"Y", {1, 1, 1}}, {"M", {32, 1, 10}}}));
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
     ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({32, 1, 10}));
