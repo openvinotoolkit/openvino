@@ -12,28 +12,6 @@ using namespace ov;
 
 namespace {
 struct SwishParams {
-/*    
-    template <class IT>
-    SwishParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues)
-        : pshape(shape),
-          inType(iType),
-          outType(iType),
-          inputData(CreateTensor(iType, iValues)),
-          testDefaults(true) {
-              std::vector<IT> oValues;
-              std::vector<float> output;
-              for (auto element : iValues)
-                  output.push_back(static_cast<float>(element));
-
-              std::transform(output.begin(), output.end(), output.begin(), [](float x) -> float {
-                  return (x / (1.0f + std::exp(x * -1.0f)));
-              });
-
-              for (auto element : output)
-                  oValues.push_back(static_cast<IT>(element));
-              refData = CreateTensor(outType, oValues);
-          }
-*/
     template <class IT>
     SwishParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues,
                 const float beta = 1)
