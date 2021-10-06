@@ -58,7 +58,7 @@ public:
      * @param[in]  order  Transpose order.
      * @param[in]  legacy_type  Legacy type.
      */
-    explicit OldApiMapAttr(std::vector<uint64_t> order, ngraph::element::Type legacy_type)
+    explicit OldApiMapAttr(std::vector<uint64_t> order, const ngraph::element::Type& legacy_type)
              : m_order(std::move(order)), m_legacy_type(legacy_type) {}
 
     /**
@@ -104,5 +104,21 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 };
+
+inline bool has_old_api_map(const std::shared_ptr<Node>& node) {
+    const auto& rt_map = node->get_rt_info();
+    return rt_map.count(OldApiMap::get_type_info_static());
+}
+
+inline OldApiMap get_old_api_map(const std::shared_ptr<Node>& node) {
+    const auto& rt_map = node->get_rt_info();
+    const auto& var = rt_map.at(OldApiMap::get_type_info_static());
+    return ngraph::as_type_ptr<OldApiMap>(var)->get();
+}
+
+inline void set_old_api_map(std::shared_ptr<Node>& node, const OldApiMap& old_api_map) {
+    auto& rt_map = node->get_rt_info();
+    rt_map[OldApiMap::get_type_info_static()] = std::make_shared<OldApiMap>(old_api_map);
+}
 
 }  // namespace ov

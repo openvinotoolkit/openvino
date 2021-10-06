@@ -153,6 +153,7 @@ TEST_F(RTInfoDeserialization, NodeV10) {
         param->get_output_tensor(0).set_names({"input_tensor"});
 
         auto convert_param = std::make_shared<opset8::Convert>(param, ngraph::element::f16);
+        convert_param->get_output_tensor(0).set_names({"input_tensor/convert_element_type"});
 
         auto round = std::make_shared<opset8::Round>(convert_param,
             ngraph::opset8::Round::RoundMode::HALF_TO_EVEN);
@@ -409,7 +410,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         EXPECT_EQ(fused_names_attr->get().getNames(), names);
     };
 
-    auto check_old_api_map = [](const RTMap & info, const std::vector<uint64_t> & order, ngraph::element::Type type) {
+    auto check_old_api_map = [](const RTMap & info, const std::vector<uint64_t> & order, const ngraph::element::Type& type) {
         const std::string & old_api_map_key = ov::OldApiMap::get_type_info_static();
         ASSERT_TRUE(info.count(old_api_map_key));
         auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
@@ -467,10 +468,14 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         param->get_output_tensor(0).set_names({"input_tensor"});
 
         auto convert_param = std::make_shared<opset8::Convert>(param, ngraph::element::f32);
+        convert_param->set_friendly_name("in1/convert_element_type");
+        convert_param->get_output_tensor(0).set_names({"input_tensor/convert_element_type"});
 
         auto constant_param = std::make_shared<opset8::Constant>(ngraph::element::i64, ngraph::Shape{4},
             std::vector<int64_t>{0, 2, 3, 1});
         auto transpose_param = std::make_shared<opset8::Transpose>(convert_param, constant_param);
+        transpose_param->set_friendly_name("in1/convert_element_type/convert_layout");
+        transpose_param->get_output_tensor(0).set_names({"input_tensor/convert_element_type/convert_layout"});
 
         auto round = std::make_shared<opset8::Round>(transpose_param,
             ngraph::opset8::Round::RoundMode::HALF_TO_EVEN);

@@ -92,15 +92,13 @@ void PreProcessSteps::PreProcessStepsImpl::add_convert_impl(const ov::element::T
             for (const auto& node : nodes) {
                 OPENVINO_ASSERT(node->get_element_type().is_static(),
                                 "Can't insert 'convert_element_type' for dynamic source tensor type.");
-                // WA
                 if (node->get_element_type() != type) {
                     auto convert = std::make_shared<op::v0::Convert>(node, type);
-                    convert->set_friendly_name(nodes[0]->get_friendly_name() + "/convert_element_type");
-                    return {convert};
+                    inherit_friendly_names(function, node, convert, "/convert_element_type");
+                    res.emplace_back(convert);
+                } else {
+                    res.emplace_back(node);
                 }
-                auto convert = std::make_shared<op::v0::Convert>(node, type);
-                inherit_friendly_names(function, node, convert, "/convert_element_type");
-                res.emplace_back(convert);
             }
             return res;
         },
