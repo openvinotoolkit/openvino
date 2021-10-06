@@ -9,12 +9,14 @@
 #include <map>
 #include <mutex>
 
+#include "cnn_network_ngraph_impl.hpp"
 #include "details/ie_so_pointer.hpp"
 #include "file_utils.h"
 #include "frontend_manager/frontend_manager.hpp"
 #include "ie_ir_version.hpp"
 #include "ie_itt.hpp"
 #include "ie_reader.hpp"
+#include "openvino/core/deprecated.hpp"
 
 namespace InferenceEngine {
 
@@ -266,7 +268,10 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return CNNNetwork(ngFunc, exts, newAPI);
+        auto ngImpl = std::make_shared<details::CNNNetworkNGraphImpl>(ngFunc, exts, newAPI);
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        return CNNNetwork(ngImpl);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     IE_THROW(NetworkNotRead) << "Unable to read the model: " << modelPath
                              << " Please check that model format: " << fileExt
@@ -314,7 +319,10 @@ CNNNetwork details::ReadNetwork(const std::string& model,
         inputModel = FE->load(params);
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return CNNNetwork(ngFunc, exts, newAPI);
+        auto ngImpl = std::make_shared<details::CNNNetworkNGraphImpl>(ngFunc, exts, newAPI);
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        return CNNNetwork(ngImpl);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     IE_THROW(NetworkNotRead)

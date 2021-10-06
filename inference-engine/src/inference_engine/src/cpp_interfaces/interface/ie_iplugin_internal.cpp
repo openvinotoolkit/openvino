@@ -252,7 +252,6 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
         results.push_back(std::make_shared<ngraph::op::v0::Result>(node->output(i)));
         ++i;
     }
-    exeNetwork->setRuntimeFunction(std::make_shared<ov::Function>(results, parameters, "execution_info"));
     exeNetwork->SetPointerToPlugin(shared_from_this());
 }
 

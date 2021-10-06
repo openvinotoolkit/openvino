@@ -76,12 +76,6 @@ public:
     virtual const std::vector<std::shared_ptr<const ov::Node>>& getOutputs() const;
 
     /**
-     * @brief      Sets function with network inputs and outpus info
-     * @param[in]  function The function with network inputs and outpus info
-     */
-    virtual void setRuntimeFunction(std::shared_ptr<ov::Function> function);
-
-    /**
      * @brief Gets the Executable network output Data node information. The received info is stored in the given Data
      * node.
      * @return out Reference to the ConstOutputsDataMap object
@@ -175,7 +169,6 @@ protected:
     virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                           OutputsDataMap networkOutputs);
 
-    std::shared_ptr<ov::Function> _runtime_function;  //!< Holds information about network inputs and outputs
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
     std::vector<std::shared_ptr<const ov::Node>> _parameters;

@@ -55,8 +55,7 @@ public:
      * @param newAPI Flag which allows to change behavior
      */
     explicit CNNNetwork(const std::shared_ptr<ngraph::Function>& network,
-                        const std::vector<std::shared_ptr<IExtension>>& exts = {},
-                        bool newAPI = false);
+                        const std::vector<std::shared_ptr<IExtension>>& exts = {});
 
     /**
      * @brief Gets the network output Data node information. The received info is stored in the given Data node.
