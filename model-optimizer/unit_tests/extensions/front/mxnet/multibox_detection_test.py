@@ -21,7 +21,7 @@ class TestMultiBoxDetection_Parsing(unittest.TestCase):
 
         exp_attrs = {
             'type': 'DetectionOutput',
-            'num_classes': 21,
+            'num_classes': None,
             'keep_top_k': 400,
             'variance_encoded_in_target': 0,
             'code_type': "caffe.PriorBoxParameter.CENTER_SIZE",
@@ -51,7 +51,7 @@ class TestMultiBoxDetection_Parsing(unittest.TestCase):
 
         exp_attrs = {
             'type': 'DetectionOutput',
-            'num_classes': 21,
+            'num_classes': None,
             'keep_top_k': -1,
             'variance_encoded_in_target': 0,
             'code_type': "caffe.PriorBoxParameter.CENTER_SIZE",
