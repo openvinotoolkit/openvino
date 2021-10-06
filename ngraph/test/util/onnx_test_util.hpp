@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <functional>
 
 namespace ngraph {
 namespace test {
@@ -27,7 +28,12 @@ struct ComparisonResult {
     }
 };
 
-ComparisonResult compare_onnx_models(const std::string& model, const std::string& reference_model_path);
+bool default_name_comparator(std::string lhs, std::string rhs);
+
+// comp is a function to compare inputs and outputs names (as default it is a usual std::string comparison)
+ComparisonResult compare_onnx_models(const std::string& model,
+                                     const std::string& reference_model_path,
+                                     std::function<bool(std::string, std::string)> comp = default_name_comparator);
 
 }  // namespace test
 }  // namespace ngraph
