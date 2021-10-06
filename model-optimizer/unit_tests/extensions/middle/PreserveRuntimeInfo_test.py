@@ -38,7 +38,7 @@ class PreserveRuntimeInfoTest(unittest.TestCase):
     @generate(*[
         ([0, 3, 1, 2], [0, 2, 3, 1], True),
         ([0, 4, 1, 2, 3], [0, 2, 3, 4, 1], True),
-        ([0, 1, 2], [0, 1, 2], False),
+        (None, None, False),
     ])
     def test_transpose_insert(self, nhwc_to_nchw_order, nchw_to_nhwc_order, add_permutation_attrs):
         graph_nodes = {
