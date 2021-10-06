@@ -445,6 +445,11 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         function->remove_parameter(param);
     }
 
+    // Validate nodes after preprocessing if needed (no need to repeat it after post-processing)
+    if (tensor_data_updated) {
+        function->validate_nodes_and_infer_types();
+    }
+
     // Post processing
     for (const auto& output : m_impl->out_contexts) {
         std::shared_ptr<op::v0::Result> result;
@@ -479,7 +484,6 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
             for (const auto& action : output->m_postprocess->actions()) {
                 auto action_result = action({node}, context);
                 node = std::get<0>(action_result);
-                tensor_data_updated |= std::get<1>(action_result);
             }
         }
         // Implicit: Convert element type + layout to user's tensor implicitly
@@ -495,7 +499,6 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         for (const auto& action : implicit_steps.actions()) {
             auto action_result = action({node}, context);
             node = std::get<0>(action_result);
-            tensor_data_updated |= std::get<1>(action_result);
         }
 
         // Create result
@@ -508,10 +511,6 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         function->remove_result(result);
     }
 
-    // Validate nodes
-    if (tensor_data_updated) {
-        function->validate_nodes_and_infer_types();
-    }
     guard.reset();
     return function;
 }
