@@ -71,7 +71,7 @@ class Output;
 class Node;
 
 /// EvaluationContext stores and manages a context (additional parameters, values and
-/// environment) for evaluating ngraph::function.
+/// environment) for evaluating ov::Function.
 using EvaluationContext = std::map<std::string, std::shared_ptr<Variant>>;
 
 using ResultVector = std::vector<std::shared_ptr<ov::op::v0::Result>>;
@@ -222,7 +222,7 @@ public:
     virtual bool evaluate_upper(const ov::HostTensorVector& output_values) const;
 
     virtual bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values);
-    /// \brief Decomposes the FusedOp into a sub-graph consisting of core ngraph ops
+    /// \brief Decomposes the FusedOp into a sub-graph consisting of core openvino ops
     ///
     /// \return A vector of nodes comprising the sub-graph. The order of output
     ///         tensors must match the match output tensors of the FusedOp
@@ -558,11 +558,11 @@ using RawNodeOutputMap = std::map<RawNodeOutput, Output<Node>>;
 
 class OPENVINO_API NodeValidationFailure : public ov::AssertFailure {
 public:
-    NodeValidationFailure(const ngraph::CheckLocInfo& check_loc_info, const Node* node, const std::string& explanation)
+    NodeValidationFailure(const ov::CheckLocInfo& check_loc_info, const Node* node, const std::string& explanation)
         : AssertFailure(check_loc_info, node_validation_failure_loc_string(node), explanation) {}
 };
 }  // namespace ov
-#define NODE_VALIDATION_CHECK(node, ...) NGRAPH_CHECK_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)
+#define NODE_VALIDATION_CHECK(node, ...) OPENVINO_ASSERT_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)
 
 namespace ov {
 template <typename T>

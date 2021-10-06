@@ -8,7 +8,7 @@
 #include <string>
 #include <utility>
 
-#include "ngraph/check.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov {
 /// Uses a pairings defined by EnumTypes::get() to convert between strings
@@ -30,7 +30,7 @@ public:
                 return p.second;
             }
         }
-        NGRAPH_CHECK(false, "\"", name, "\"", " is not a member of enum ", get().m_enum_name);
+        OPENVINO_ASSERT(false, "\"", name, "\"", " is not a member of enum ", get().m_enum_name);
     }
 
     /// Converts enum values to strings
@@ -40,7 +40,7 @@ public:
                 return p.first;
             }
         }
-        NGRAPH_CHECK(false, " invalid member of enum ", get().m_enum_name);
+        OPENVINO_ASSERT(false, " invalid member of enum ", get().m_enum_name);
     }
 
 private:

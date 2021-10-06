@@ -25,7 +25,7 @@ public:
         // not
         bool sort_result_across_batch = false;
         // specifies the output tensor type
-        ngraph::element::Type output_type = ngraph::element::i64;
+        ov::element::Type output_type = ov::element::i64;
         // specifies minimum score to consider box for the processing
         float score_threshold = 0.0f;
         // specifies maximum number of boxes to be selected per class, -1 meaning to

@@ -7,7 +7,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "ngraph/attribute_adapter.hpp"
+#include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rank.hpp"

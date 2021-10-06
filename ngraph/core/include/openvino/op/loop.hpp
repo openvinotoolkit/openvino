@@ -15,7 +15,7 @@ namespace ov {
 namespace op {
 namespace v5 {
 /// \brief  Iterate a body over tensors, accumulating into tensors.
-class NGRAPH_API Loop : public op::util::SubGraphOp {
+class OPENVINO_API Loop : public op::util::SubGraphOp {
 public:
     /// \brief  Allows to define the purpose of inputs/outputs in the body
     struct SpecialBodyPorts {
@@ -76,7 +76,7 @@ private:
 }  // namespace op
 
 template <>
-class NGRAPH_API AttributeAdapter<op::v5::Loop::SpecialBodyPorts>
+class OPENVINO_API AttributeAdapter<op::v5::Loop::SpecialBodyPorts>
     : public DirectValueAccessor<op::v5::Loop::SpecialBodyPorts> {
 public:
     AttributeAdapter(op::v5::Loop::SpecialBodyPorts& value)
