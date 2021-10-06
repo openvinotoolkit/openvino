@@ -60,6 +60,7 @@ static std::shared_ptr<Function> create_simple_function(element::Type type, cons
     data1->get_output_tensor(0).set_names({"tensor_input1"});
     auto res = std::make_shared<op::v0::Result>(data1);
     res->set_friendly_name("Result");
+    res->get_output_tensor(0).set_names({"tensor_output1"});
     return std::make_shared<ov::Function>(ResultVector{res}, ParameterVector{data1});
 }
 
@@ -72,8 +73,10 @@ static std::shared_ptr<Function> create_2inputs(element::Type type, const Partia
     data1->get_output_tensor(0).set_names({"tensor_input2"});
     auto res1 = std::make_shared<op::v0::Result>(data1);
     res1->set_friendly_name("Result1");
+    res1->get_output_tensor(0).set_names({"tensor_output1"});
     auto res2 = std::make_shared<op::v0::Result>(data2);
     res2->set_friendly_name("Result2");
+    res2->get_output_tensor(0).set_names({"tensor_output2"});
     return std::make_shared<ov::Function>(ResultVector{res1, res2}, ParameterVector{data1, data2});
 }
 
@@ -505,6 +508,29 @@ static RefPreprocessParams resize_and_convert_layout() {
     return res;
 }
 
+static RefPreprocessParams postprocess_2_inputs_basic() {
+    RefPreprocessParams res("postprocess_2_inputs_basic");
+    res.function = []() {
+        auto f = create_2inputs(element::f32, Shape{1, 3, 1, 2});
+        f = PrePostProcessor()
+                .output(OutputInfo("tensor_output1")
+                                .network(OutputNetworkInfo().set_layout("NCHW"))
+                                .postprocess(PostProcessSteps().convert_layout())
+                                .tensor(OutputTensorInfo().set_layout("NHWC")))
+                .output(OutputInfo("tensor_output2")
+                                .postprocess(PostProcessSteps().convert_element_type())
+                                .tensor(OutputTensorInfo().set_element_type(element::u8)))
+                .build(f);
+        return f;
+    };
+
+    res.inputs.emplace_back(Shape{1, 3, 1, 2}, element::f32, std::vector<float>{1.1, 2.1, 3.1, 4.1, 5.1, 6.1});
+    res.inputs.emplace_back(Shape{1, 3, 1, 2}, element::f32, std::vector<float>{1.1, 2.1, 3.1, 4.1, 5.1, 6.1});
+    res.expected.emplace_back(Shape{1, 1, 2, 3}, element::f32, std::vector<float>{1.1, 3.1, 5.1, 2.1, 4.1, 6.1});
+    res.expected.emplace_back(Shape{1, 3, 1, 2}, element::u8, std::vector<uint8_t>{1, 2, 3, 4, 5, 6});
+    return res;
+}
+
 
 std::vector<RefPreprocessParams> allPreprocessTests() {
     return std::vector<RefPreprocessParams> {
@@ -526,7 +552,8 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
         resize_lvalues(),
         convert_layout_nhwc_to_nchw_lvalue(),
         convert_layout_nhwc_to_net_no_tensor_shape(),
-        resize_and_convert_layout()
+        resize_and_convert_layout(),
+        postprocess_2_inputs_basic()
              };
 }
 
