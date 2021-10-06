@@ -94,6 +94,16 @@ public:
         adapter.set(value);
     }
 
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<uint64_t>>& adapter) override {
+        check_attribute_name(name);
+        std::string val;
+        if (!getStrAttribute(m_node, name, val))
+            return;
+        std::vector<uint64_t> value;
+        str_to_container(val, value);
+        adapter.set(value);
+    }
+
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<std::string>>& adapter) override {
         check_attribute_name(name);
         std::string val;
