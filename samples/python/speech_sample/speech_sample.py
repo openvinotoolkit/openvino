@@ -42,13 +42,15 @@ def infer_data(
         batch_size = shape[0]
         result[blob_name] = np.ndarray((matrix_shape[0], shape[-1]))
 
-    index = 0 - cw_l
-
-    while index < matrix_shape[0]:
-        if index < 0:
-            vectors = {blob_name: data[blob_name][0] for blob_name in input_blobs}
+    for i in range(-cw_l, matrix_shape[0] + cw_r, batch_size):
+        if i < 0:
+            index = 0
+        elif i >= matrix_shape[0]:
+            index = matrix_shape[0] - 1
         else:
-            vectors = {blob_name: data[blob_name][index:index + batch_size] for blob_name in input_blobs}
+            index = i
+
+        vectors = {blob_name: data[blob_name][index:index + batch_size] for blob_name in input_blobs}
 
         num_of_vectors = next(iter(vectors.values())).shape[0]
 
@@ -62,11 +64,11 @@ def infer_data(
 
         vector_results = exec_net.infer(vectors)
 
-        if index >= 0:
-            for blob_name in output_blobs:
-                result[blob_name][index:index + batch_size] = vector_results[blob_name][:num_of_vectors]
+        if i - cw_r < 0:
+            continue
 
-        index += batch_size
+        for blob_name in output_blobs:
+            result[blob_name][i - cw_r:i - cw_r + batch_size] = vector_results[blob_name][:num_of_vectors]
 
     return result
 
