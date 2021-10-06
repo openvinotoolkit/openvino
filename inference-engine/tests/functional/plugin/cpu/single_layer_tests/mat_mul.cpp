@@ -18,6 +18,24 @@ enum class MatMulNodeType {
     FullyConnected
 };
 
+using ShapesDefenition = std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>;
+
+struct ShapeRelatedParams {
+    ShapesDefenition inputShapes;
+    std::pair<bool, bool> transpose;
+};
+
+typedef std::tuple<
+        ShapeRelatedParams,
+        InferenceEngine::Precision,        // Network precision
+        InferenceEngine::Precision,        // Input precision
+        InferenceEngine::Precision,        // Output precision
+        InferenceEngine::Layout,           // Input layout
+        ngraph::helpers::InputLayerType,   // Secondary input type
+        LayerTestsUtils::TargetDevice,     // Device name
+        std::map<std::string, std::string> // Additional network configuration
+> MatMulLayerTestParamsSet;
+
 using MatMulLayerCPUTestParamSet = std::tuple<MatMulLayerTestParamsSet,
                                               MatMulNodeType,
                                               fusingSpecificParams>;
@@ -32,10 +50,45 @@ public:
 
         std::tie(basicParamsSet, nodeType, fusingParams) = obj.param;
 
+        InferenceEngine::Precision netPrecision;
+        InferenceEngine::Precision inPrc, outPrc;
+        InferenceEngine::Layout inLayout;
+        ShapeRelatedParams shapeRelatedParams;
+        ngraph::helpers::InputLayerType secondaryInputType;
+        std::string targetDevice;
+        std::map<std::string, std::string> additionalConfig;
+        std::tie(shapeRelatedParams, netPrecision, inPrc, outPrc, inLayout, secondaryInputType, targetDevice, additionalConfig) =
+                basicParamsSet;
+
         std::ostringstream result;
         result << (nodeType == MatMulNodeType::MatMul ? "MatMul_" : "FullyConnected_");
-        result << LayerTestsDefinitions::MatMulTest::getTestCaseName(
-            testing::TestParamInfo<LayerTestsDefinitions::MatMulLayerTestParamsSet>(basicParamsSet, 0));
+        if (!shapeRelatedParams.inputShapes.first.empty()) {
+            result << "IS=" << CommonTestUtils::partialShape2str(shapeRelatedParams.inputShapes.first) << "_";
+        }
+        result << "TS=";
+        for (const auto& shape : shapeRelatedParams.inputShapes.second) {
+            result << "(";
+            if (!shape.empty()) {
+                auto itr = shape.begin();
+                do {
+                    result << CommonTestUtils::vec2str(*itr);
+                } while (++itr != shape.end() && result << "_");
+            }
+            result << ")_";
+        }
+        result << "transpose_a=" << shapeRelatedParams.transpose.first << "_";
+        result << "transpose_b=" << shapeRelatedParams.transpose.second << "_";
+        result << "secondaryInputType=" << secondaryInputType << "_";
+        result << "netPRC=" << netPrecision.name() << "_";
+        result << "inPRC=" << inPrc.name() << "_";
+        result << "outPRC=" << outPrc.name() << "_";
+        result << "inL=" << inLayout << "_";
+        result << "trgDev=" << targetDevice;
+        result << "config=(";
+        for (const auto configEntry : additionalConfig) {
+            result << configEntry.first << ", " << configEntry.second << ":";
+        }
+        result << ")";
         result << CpuTestWithFusing::getTestCaseName(fusingParams);
 
         return result.str();
@@ -58,10 +111,30 @@ protected:
 
         std::tie(shapeRelatedParams, netPrecision, inPrc, outPrc, inLayout, secondaryInputType, targetDevice, additionalConfig) = basicParamsSet;
 
-        SizeVector inShapeA = shapeRelatedParams.input1.first;
-        SizeVector inShapeB = shapeRelatedParams.input2.first;
-        bool transpA = shapeRelatedParams.input1.second;
-        bool transpB = shapeRelatedParams.input2.second;
+        bool transpA = shapeRelatedParams.transpose.first;
+        bool transpB = shapeRelatedParams.transpose.second;
+
+        auto transpose = [](ngraph::Shape& shape) {
+            IE_ASSERT(shape.size() > 1);
+            std::swap(*(shape.end() - 1), *(shape.end() - 2));
+        };
+
+        if (transpA) {
+            for (auto& item : shapeRelatedParams.inputShapes.second) {
+                transpose(item[0]);
+            }
+        }
+        if (transpB) {
+            for (auto& item : shapeRelatedParams.inputShapes.second) {
+                transpose(item[1]);
+            }
+        }
+
+        SizeVector inShapeA = shapeRelatedParams.inputShapes.second[0][0];
+        SizeVector inShapeB = shapeRelatedParams.inputShapes.second[0][1];
+
+        inputDynamicShapes = shapeRelatedParams.inputShapes.first;
+        targetStaticShapes = shapeRelatedParams.inputShapes.second;
 
         /* @todo
          * Currently nodes are not fused thought Reshape
@@ -78,14 +151,6 @@ protected:
             inPrc = outPrc = netPrecision;
 
         cpuNodeType = nodeType == MatMulNodeType::MatMul ? "MatMul" : "FullyConnected";
-
-        auto transpose = [](SizeVector& shape) {
-            IE_ASSERT(shape.size() > 1);
-            std::swap(*(shape.end() - 1), *(shape.end() - 2));
-        };
-
-        if (transpA) transpose(inShapeA);
-        if (transpB) transpose(inShapeB);
 
         auto ngPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = builder::makeParams(ngPrec, {inShapeA});
@@ -110,10 +175,6 @@ TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
 namespace {
 
 /* ============= Common params ============= */
-const std::vector<bool> transpose = {
-    true, false
-};
-
 std::vector<std::map<std::string, std::string>> additionalConfig {
     std::map<std::string, std::string>{/* empty config */},
     {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
@@ -133,26 +194,26 @@ const auto fusingBiasFC = fusingSpecificParams{std::make_shared<postNodesMgr>(st
                 return std::make_shared<opset1::Add>(inpNode, bias);
             }, "fusingBiasFC"}}), {"Add"}};
 
-const std::vector<ShapeRelatedParams> IS2D {
-    {{{59, 1}, false}, {{1, 120}, false}},
-    {{{59, 1}, true}, {{1, 120}, false}},
-    {{{59, 1}, false}, {{1, 120}, true}},
-    {{{59, 1}, true}, {{1, 120}, true}},
+const std::vector<ShapeRelatedParams> IS2D = {
+    {{{}, {{{59, 1}, {1, 120}}}}, {false, false}},
+    {{{}, {{{59, 1}, {1, 120}}}}, {true, false}},
+    {{{}, {{{59, 1}, {1, 120}}}}, {false, true}},
+    {{{}, {{{59, 1}, {1, 120}}}}, {true, true}},
 
-    {{{59, 120}, false}, {{120, 1}, false}},
-    {{{59, 120}, true}, {{120, 1}, false}},
-    {{{59, 120}, false}, {{120, 1}, true}},
-    {{{59, 120}, true}, {{120, 1}, true}},
+    {{{}, {{{59, 120}, {120, 1}}}}, {false, false}},
+    {{{}, {{{59, 120}, {120, 1}}}}, {true, false}},
+    {{{}, {{{59, 120}, {120, 1}}}}, {false, true}},
+    {{{}, {{{59, 120}, {120, 1}}}}, {true, true}},
 
-    {{{1, 120}, false}, {{120, 59}, false}},
-    {{{1, 120}, true}, {{120, 59}, false}},
-    {{{1, 120}, false}, {{120, 59}, true}},
-    {{{1, 120}, true}, {{120, 59}, true}},
+    {{{}, {{{1, 120}, {120, 59}}}}, {false, false}},
+    {{{}, {{{1, 120}, {120, 59}}}}, {true, false}},
+    {{{}, {{{1, 120}, {120, 59}}}}, {false, true}},
+    {{{}, {{{1, 120}, {120, 59}}}}, {true, true}},
 
-    {{{71, 128}, false}, {{128, 20}, false}},
-    {{{71, 128}, true}, {{128, 20}, false}},
-    {{{71, 128}, false}, {{128, 20}, true}},
-    {{{71, 128}, true}, {{128, 20}, true}},
+    {{{}, {{{71, 128}, {128, 20}}}}, {false, false}},
+    {{{}, {{{71, 128}, {128, 20}}}}, {true, false}},
+    {{{}, {{{71, 128}, {128, 20}}}}, {false, true}},
+    {{{}, {{{71, 128}, {128, 20}}}}, {true, true}},
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet2D {
@@ -179,15 +240,15 @@ const auto testParams2D = ::testing::Combine(fullyConnectedParams2D,
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D, MatMulLayerCPUTest, testParams2D, MatMulLayerCPUTest::getTestCaseName);
 
 const std::vector<ShapeRelatedParams> IS3D = {
-    {{{1, 32, 120}, false}, {{120, 5}, false}},
-    {{{1, 32, 120}, true}, {{120, 5}, false}},
-    {{{1, 32, 120}, false}, {{120, 5}, true}},
-    {{{1, 32, 120}, true}, {{120, 5}, true}},
+    {{{}, {{{1, 32, 120}, {120, 5}}}}, {false, false}},
+    {{{}, {{{1, 32, 120}, {120, 5}}}}, {true, false}},
+    {{{}, {{{1, 32, 120}, {120, 5}}}}, {false, true}},
+    {{{}, {{{1, 32, 120}, {120, 5}}}}, {true, true}},
 
-    {{{7, 32, 120}, false}, {{120, 50}, false}},
-    {{{7, 32, 120}, true}, {{120, 50}, false}},
-    {{{7, 32, 120}, false}, {{120, 50}, true}},
-    {{{7, 32, 120}, true}, {{120, 50}, true}},
+    {{{}, {{{1, 32, 120}, {120, 50}}}}, {false, false}},
+    {{{}, {{{1, 32, 120}, {120, 50}}}}, {true, false}},
+    {{{}, {{{1, 32, 120}, {120, 50}}}}, {false, true}},
+    {{{}, {{{1, 32, 120}, {120, 50}}}}, {true, true}},
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet3D {
@@ -217,30 +278,56 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D, MatMulLayerCPUTest, testParams3D, MatMulLa
 namespace matmul {
 
 const std::vector<ShapeRelatedParams> IS = {
-    {{{1, 2, 32, 120}, false}, {{120, 5}, false}},
-    {{{1, 2, 32, 120}, true}, {{120, 5}, false}},
-    {{{1, 2, 32, 120}, false}, {{120, 5}, true}},
-    {{{1, 2, 32, 120}, true}, {{120, 5}, true}},
+    {{{}, {{{1, 2, 32, 120}, {120, 5}}}}, {false, false}},
+    {{{}, {{{1, 2, 32, 120}, {120, 5}}}}, {true, false}},
+    {{{}, {{{1, 2, 32, 120}, {120, 5}}}}, {false, true}},
+    {{{}, {{{1, 2, 32, 120}, {120, 5}}}}, {true, true}},
 
-    {{{7, 32, 120}, false}, {{3, 7, 120, 50}, false}},
-    {{{7, 32, 120}, true}, {{3, 7, 120, 50}, false}},
-    {{{7, 32, 120}, false}, {{3, 7, 120, 50}, true}},
-    {{{7, 32, 120}, true}, {{3, 7, 120, 50}, true}},
+    {{{}, {{{7, 32, 120}, {3, 7, 120, 50}}}}, {false, false}},
+    {{{}, {{{7, 32, 120}, {3, 7, 120, 50}}}}, {true, false}},
+    {{{}, {{{7, 32, 120}, {3, 7, 120, 50}}}}, {false, true}},
+    {{{}, {{{7, 32, 120}, {3, 7, 120, 50}}}}, {true, true}},
 
-    {{{10, 10, 10}, false}, {{10, 10, 10}, false}},
-    {{{10, 10, 10}, true}, {{10, 10, 10}, false}},
-    {{{10, 10, 10}, false}, {{10, 10, 10}, true}},
-    {{{10, 10, 10}, true}, {{10, 10, 10}, true}},
+    {{{}, {{{10, 10, 10}, {10, 10, 10}}}}, {false, false}},
+    {{{}, {{{10, 10, 10}, {10, 10, 10}}}}, {true, false}},
+    {{{}, {{{10, 10, 10}, {10, 10, 10}}}}, {false, true}},
+    {{{}, {{{10, 10, 10}, {10, 10, 10}}}}, {true, true}},
 
-    {{{55, 12}, false}, {{12, 55}, false}},
-    {{{55, 12}, true}, {{12, 55}, false}},
-    {{{55, 12}, false}, {{12, 55}, true}},
-    {{{55, 12}, true}, {{12, 55}, true}},
+    {{{}, {{{55, 12}, {12, 55}}}}, {false, false}},
+    {{{}, {{{55, 12}, {12, 55}}}}, {true, false}},
+    {{{}, {{{55, 12}, {12, 55}}}}, {false, true}},
+    {{{}, {{{55, 12}, {12, 55}}}}, {true, true}},
+
+    {{{{-1, -1}, {-1, -1}}, {{{55, 12}, {12, 55}}, {{33, 7}, {7, 33}}}}, {false, false}},
+    {{{{-1, -1}, {-1, -1}}, {{{55, 12}, {12, 55}}, {{33, 7}, {7, 33}}}}, {true, false}},
+    {{{{-1, -1}, {-1, -1}}, {{{55, 12}, {12, 55}}, {{33, 7}, {7, 33}}}}, {false, true}},
+    {{{{-1, -1}, {-1, -1}}, {{{55, 12}, {12, 55}}, {{33, 7}, {7, 33}}}}, {true, true}},
+
+    {{{{-1, -1, -1, -1}, {-1, -1}}, {{{1, 2, 32, 60}, {60, 5}}, {{1, 2, 32, 30}, {30, 5}}}}, {false, false}},
+    {{{{-1, -1, -1, -1}, {-1, -1}}, {{{1, 2, 32, 60}, {60, 5}}, {{1, 2, 32, 30}, {30, 5}}}}, {true, false}},
+    {{{{-1, -1, -1, -1}, {-1, -1}}, {{{1, 2, 32, 60}, {60, 5}}, {{1, 2, 32, 30}, {30, 5}}}}, {false, true}},
+    {{{{-1, -1, -1, -1}, {-1, -1}}, {{{1, 2, 32, 60}, {60, 5}}, {{1, 2, 32, 30}, {30, 5}}}}, {true, true}},
+
+    {{{{-1, -1, -1}, {-1, -1, -1, -1}}, {{{7, 32, 60}, {3, 7, 60, 25}}, {{7, 32, 30}, {3, 7, 30, 25}}}}, {false, false}},
+    {{{{-1, -1, -1}, {-1, -1, -1, -1}}, {{{7, 32, 60}, {3, 7, 60, 25}}, {{7, 32, 30}, {3, 7, 30, 25}}}}, {true, false}},
+    {{{{-1, -1, -1}, {-1, -1, -1, -1}}, {{{7, 32, 60}, {3, 7, 60, 25}}, {{7, 32, 30}, {3, 7, 30, 25}}}}, {false, true}},
+    {{{{-1, -1, -1}, {-1, -1, -1, -1}}, {{{7, 32, 60}, {3, 7, 60, 25}}, {{7, 32, 30}, {3, 7, 30, 25}}}}, {true, true}},
+
+    {{{{-1, -1, -1}, {-1, -1, -1}}, {{{10, 10, 10}, {10, 10, 10}}, {{5, 5, 5}, {5, 5, 5}}}}, {false, false}},
+    {{{{-1, -1, -1}, {-1, -1, -1}}, {{{10, 10, 10}, {10, 10, 10}}, {{5, 5, 5}, {5, 5, 5}}}}, {true, false}},
+    {{{{-1, -1, -1}, {-1, -1, -1}}, {{{10, 10, 10}, {10, 10, 10}}, {{5, 5, 5}, {5, 5, 5}}}}, {false, true}},
+    {{{{-1, -1, -1}, {-1, -1, -1}}, {{{10, 10, 10}, {10, 10, 10}}, {{5, 5, 5}, {5, 5, 5}}}}, {true, true}},
+
+    {{{{{1, 15}, {1, 15}, {1, 15}}, {{1, 15}, {1, 15}, {1, 15}}}, {{{10, 10, 10}, {10, 10, 10}}, {{5, 5, 5}, {5, 5, 5}}}}, {false, false}},
+    {{{{{1, 15}, {1, 15}, {1, 15}}, {{1, 15}, {1, 15}, {1, 15}}}, {{{10, 10, 10}, {10, 10, 10}}, {{5, 5, 5}, {5, 5, 5}}}}, {true, false}},
+    {{{{{1, 15}, {1, 15}, {1, 15}}, {{1, 15}, {1, 15}, {1, 15}}}, {{{10, 10, 10}, {10, 10, 10}}, {{5, 5, 5}, {5, 5, 5}}}}, {false, true}},
+    {{{{{1, 15}, {1, 15}, {1, 15}}, {{1, 15}, {1, 15}, {1, 15}}}, {{{10, 10, 10}, {10, 10, 10}}, {{5, 5, 5}, {5, 5, 5}}}}, {true, true}},
 };
 
 std::vector<fusingSpecificParams> matmulFusingParams {
         emptyFusingSpec,
         fusingElu,
+        fusingSqrt
 };
 
 const auto matMulParams = ::testing::Combine(::testing::ValuesIn(IS),

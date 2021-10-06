@@ -81,6 +81,14 @@ public:
      static std::shared_ptr<MemoryDesc> makeDummyDesc(const MemoryDesc& desc, Dim dummyVal = 64);
 
     /**
+    * @brief Makes a static dummy shape where all undefined values are replaced with the upper bound (if defined) or the parameter value
+    * @param desc MemoryDesc from which the new static shape is generated
+    * @param dummyVal Dim value to replace undefined dimensions
+    * @return a new Shape with dummy values instead of undefined dims
+    */
+    static Shape makeDummyShape(const Shape& shape, Dim dummyVal = 64);
+
+    /**
      * @brief Converts dim to string, undefined dim represented as ?
      * @param dim Dim to be converted
      * @return dim as string

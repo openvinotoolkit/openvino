@@ -8,15 +8,11 @@
 #include "cpu_types.h"
 #include "mkldnn_eltwise_node.h"
 
-#include <functional>
 #include <numeric>
 #include <string>
 #include <vector>
 #include <memory>
-#include <algorithm>
-#include <cmath>
 #include <mkldnn_types.h>
-#include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include <ngraph/opsets/opset1.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -30,29 +26,21 @@ using namespace InferenceEngine;
 
 bool MKLDNNMatMulNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
-
         const auto matMul = std::dynamic_pointer_cast<const ngraph::opset1::MatMul>(op);
         if (!matMul) {
             errorMessage = "Only opset1 MatMul operation is supported";
             return false;
         }
 
-        const auto shapeA = matMul->get_input_shape(0);
-        const auto shapeB = matMul->get_input_shape(1);
-
         for (size_t i = 0; i < matMul->get_input_size(); i++) {
-            const auto inShapeRank = matMul->get_input_shape(i).size();
+            const auto inShapeRank = matMul->get_input_partial_shape(i).rank().get_length();
             if (inShapeRank < 2) {
                 errorMessage = "Unsupported rank: " + std::to_string(inShapeRank) + " on " + std::to_string(i) + " input";
                 return false;
             }
         }
 
-        const auto outShapeRank = matMul->get_shape().size();
+        const auto outShapeRank = matMul->get_output_partial_shape(0).rank().get_length();
         if (outShapeRank < 2) {
             errorMessage = "Unsupported rank: " + std::to_string(outShapeRank) + " on output";
             return false;
@@ -107,6 +95,34 @@ std::shared_ptr<mkldnn::primitive_attr> MKLDNNMatMulNode::initPrimitiveAttr() co
     return attr;
 }
 
+/* Example MatMul:
+ * 2x128x512(T) * 2x128x512 = 2x512x512
+ * First input 2x128x512(T) should be transposed
+ * oneDNN requires memory::desc for this input to:
+ * - change shapes configuration as if input already transposed (2x128x512) -> (2x512x128)
+ * - provide transposed strides (66536, 128, 1) -> (66536, 1, 512)
+ */
+static VectorDims getStridesAndModifyShape(Shape& shape, const bool transpose) {
+    const auto getRank = shape.getRank();
+
+    VectorDims strides(getRank, 1);
+    for (size_t i = 1; i < getRank; i++) {
+        strides[getRank - i - 1 ] = strides[getRank - i] * shape.getStaticDims()[getRank - i];
+    }
+
+    if (transpose && getRank > 1) {
+        // form new shape
+        auto dims = shape.getStaticDims();
+        std::swap(dims[getRank - 2], dims[getRank - 1]);
+        shape = Shape{dims};
+        // update strides
+        strides[getRank - 1] = shape.getStaticDims()[getRank - 2];
+        strides[getRank - 2] = 1;
+    }
+
+    return strides;
+}
+
 void MKLDNNMatMulNode::getSupportedDescriptors() {
     if (getParentEdges().size() != 2)
         IE_THROW()  << errorPrefix << " has incorrect number of input edges for layer " << getName();
@@ -135,63 +151,37 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
     const auto xAxis1 = transposeIn[1] ? yAxis : xAxis;
     const auto yAxis1 = transposeIn[1] ? xAxis : yAxis;
 
-    const auto& inDims0 = getInputShapeAtPort(0).getStaticDims();
-    const auto& inDims1 = getInputShapeAtPort(1).getStaticDims();
-    const auto& outDims = getOutputShapeAtPort(0).getStaticDims();
+    const auto& inDims0 = getInputShapeAtPort(0).getDims();
+    const auto& inDims1 = getInputShapeAtPort(1).getDims();
+    const auto& outDims = getOutputShapeAtPort(0).getDims();
 
     // coverity[copy_paste_error]
-    if (inDims0[xAxis0] != inDims1[yAxis1] ||
-        inDims0[yAxis0] != outDims[yAxis] ||
-        inDims1[xAxis1] != outDims[xAxis])
+    if (!dimsEqualWeak(inDims0[xAxis0], inDims1[yAxis1]) ||
+        !dimsEqualWeak(inDims0[yAxis0], outDims[yAxis]) ||
+        !dimsEqualWeak(inDims1[xAxis1], outDims[xAxis]))
         IE_THROW()  << errorPrefix << " has incorrect spatial input and output dimensions";
 
     for (int dim_idx = nDims - 3; dim_idx >= 0; dim_idx--) {
-        if ((inDims0[dim_idx] != outDims[dim_idx] &&
-             inDims0[dim_idx] != 1) ||
-            (inDims1[dim_idx] != outDims[dim_idx] &&
-             inDims1[dim_idx] != 1)) {
+        if ((!dimsEqualWeak(inDims0[dim_idx], outDims[dim_idx]) &&
+             !dimsEqualWeak(inDims0[dim_idx], 1)) ||
+            (!dimsEqualWeak(inDims1[dim_idx], outDims[dim_idx]) &&
+             !dimsEqualWeak(inDims1[dim_idx], 1))) {
             IE_THROW()  << errorPrefix << " has incorrect input batch dimensions";
         }
     }
 
-    /* Example MatMul:
-     * 2x128x512(T) * 2x128x512 = 2x512x512
-     * First input 2x128x512(T) should be transposed
-     * oneDNN requires memory::desc for this input to:
-     * - change shapes configuration as if input already transposed (2x128x512) -> (2x512x128)
-     * - provide transposed strides (66536, 128, 1) -> (66536, 1, 512)
-     */
-    auto getStridesAndDims = [](Shape& shape, const bool transpose) {
-        const auto getRank = shape.getRank();
+    std::vector<Shape> staticInputShapes(2);
+    staticInputShapes[0] = inputShapes[0].isStatic() ? inputShapes[0] : MemoryDescUtils::makeDummyShape(inputShapes[0]);
+    staticInputShapes[1] = inputShapes[1].isStatic() ? inputShapes[1] : MemoryDescUtils::makeDummyShape(inputShapes[1]);
 
-        VectorDims strides(getRank, 1);
-        for (size_t i = 1; i < getRank; i++) {
-            strides[getRank - i - 1 ] = strides[getRank - i] * shape.getStaticDims()[getRank - i];
-        }
+    auto staticOutputShape = outputShapes[0].isStatic() ? outputShapes[0] : Shape(shapeInferGeneric(staticInputShapes).front());
 
-        if (transpose && getRank > 1) {
-            // form new shape
-            auto dims = shape.getStaticDims();
-            std::swap(dims[getRank - 2], dims[getRank - 1]);
-            shape = Shape{dims};
-            // update strides
-            strides[getRank - 1] = shape.getStaticDims()[getRank - 2];
-            strides[getRank - 2] = 1;
-        }
+    const VectorDims inStrides0 = getStridesAndModifyShape(staticInputShapes[0], transposeIn[0]);
+    const VectorDims inStrides1 = getStridesAndModifyShape(staticInputShapes[1], transposeIn[1]);
 
-        return strides;
-    };
-
-    initialInShapes[0] = inputShapes[0];
-    initialInShapes[1] = inputShapes[1];
-
-    const VectorDims inStrides0 = getStridesAndDims(inputShapes[0], transposeIn[0]);
-    const VectorDims inStrides1 = getStridesAndDims(inputShapes[1], transposeIn[1]);
-    const VectorDims outStrides = getStridesAndDims(outputShapes[0], false);
-
-    inDataDesc[0] = std::make_shared<DnnlBlockedMemoryDesc>(firstInPortPrec, inputShapes[0], inStrides0);
-    inDataDesc[1] = std::make_shared<DnnlBlockedMemoryDesc>(secondInPortPrec, inputShapes[1], inStrides1);
-    outDataDesc   = std::make_shared<DnnlBlockedMemoryDesc>(outPortPrec, getOutputShapeAtPort(0), outStrides);
+    inDataDesc[0] = std::make_shared<DnnlBlockedMemoryDesc>(firstInPortPrec, staticInputShapes[0], inStrides0);
+    inDataDesc[1] = std::make_shared<DnnlBlockedMemoryDesc>(secondInPortPrec, staticInputShapes[1], inStrides1);
+    outDataDesc   = std::make_shared<DnnlBlockedMemoryDesc>(outPortPrec, staticOutputShape);
 
     createDescriptor({inDataDesc[0], inDataDesc[1]}, {outDataDesc});
 }
@@ -199,10 +189,9 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
 void MKLDNNMatMulNode::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                                         const std::vector<MemoryDescPtr>& outputDesc) {
     MKLDNNDescriptor desc{
-        std::shared_ptr<matmul::desc>(
-            new matmul::desc(MemoryDescUtils::convertToDnnlMemoryDesc(inDataDesc[0])->getDnnlDesc(),
-                             MemoryDescUtils::convertToDnnlMemoryDesc(inDataDesc[1])->getDnnlDesc(),
-                             MemoryDescUtils::convertToDnnlMemoryDesc(outDataDesc)->getDnnlDesc()))};
+        std::make_shared<matmul::desc>(inDataDesc[0]->getDnnlDesc(),
+                                       inDataDesc[1]->getDnnlDesc(),
+                                       outDataDesc->getDnnlDesc())};
 
     descs.push_back(desc);
 }
@@ -258,31 +247,11 @@ void MKLDNNMatMulNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNMatMulNode::createPrimitive() {
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto& src1MemPtr = getParentEdgeAt(1)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW()  << errorPrefix << " did not allocate destination memory";
-    if (!src0MemPtr || !src0MemPtr->GetPrimitivePtr() || !src1MemPtr || !src1MemPtr->GetPrimitivePtr())
-        IE_THROW()  << errorPrefix << " did not allocate input memory";
-    if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW()  << errorPrefix << " did not set preferable primitive descriptor";
-
-    if (prim)
-        return;
-
-    std::shared_ptr<mkldnn::primitive_attr> attr = initPrimitiveAttr();
-    std::shared_ptr<matmul::primitive_desc> prim_desc;
-    prim_desc = std::make_shared<matmul::primitive_desc>(
-            createPrimitiveDescriptor<matmul::primitive_desc, matmul::desc>(*attr));
-
-    prim.reset(new matmul(*prim_desc));
-
-    auto src0 = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    auto src1 = getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPrimitive();
-    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-
-    primArgs = {{DNNL_ARG_SRC_0, src0}, {DNNL_ARG_WEIGHTS_0, src1}, {DNNL_ARG_DST, dst}};
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
 }
 
 MemoryDescPtr MKLDNNMatMulNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
@@ -290,7 +259,7 @@ MemoryDescPtr MKLDNNMatMulNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &p
 
     return std::make_shared<CpuBlockedMemoryDesc>(
         MKLDNNExtensionUtils::DataTypeToIEPrecision(static_cast<mkldnn::memory::data_type>(desc.data.data_type)),
-        initialInShapes[idx]); /* provide initial shapes, so hide transpose effect */
+        inputShapes[idx]); /* provide initial shapes, so hide transpose effect */
 }
 
 bool MKLDNNMatMulNode::created() const {
@@ -305,6 +274,80 @@ size_t MKLDNNMatMulNode::getMaxBatch() const {
 
 InferenceEngine::Precision MKLDNNMatMulNode::getRuntimePrecision() const {
     return getMaxPrecision(getInputPrecisions());
+}
+
+void MKLDNNMatMulNode::prepareParams() {
+    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto& src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto& src1MemPtr = getParentEdgeAt(1)->getMemoryPtr();
+    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+        IE_THROW()  << errorPrefix << " did not allocate destination memory";
+    if (!src0MemPtr || !src0MemPtr->GetPrimitivePtr() || !src1MemPtr || !src1MemPtr->GetPrimitivePtr())
+        IE_THROW()  << errorPrefix << " did not allocate input memory";
+
+    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        IE_THROW()  << errorPrefix << " did not set preferable primitive descriptor";
+
+    DnnlMemoryDescPtr src0TransposedDesc;
+    DnnlMemoryDescPtr src1TransposedDesc;
+
+    AttrPtr attr;
+
+    if (isDynamicNode()) {
+        if (!pAttr) {
+            pAttr = initPrimitiveAttr();
+        }
+        attr = pAttr;
+
+        const auto& src0Desc = src0MemPtr->getDesc();
+        const auto& src1Desc = src1MemPtr->getDesc();
+
+        auto src0Shape = src0Desc.getShape();
+        auto src0Strides = getStridesAndModifyShape(src0Shape, transposeIn[0]);
+        src0TransposedDesc = std::make_shared<DnnlBlockedMemoryDesc>(src0Desc.getPrecision(), src0Shape, src0Strides);
+
+        auto src1Shape = src1Desc.getShape();
+        auto src1Strides = getStridesAndModifyShape(src1Shape, transposeIn[1]);
+        src1TransposedDesc = std::make_shared<DnnlBlockedMemoryDesc>(src1Desc.getPrecision(), src1Shape, src1Strides);
+    } else {
+        attr = initPrimitiveAttr();
+        src0TransposedDesc = inDataDesc[0];
+        src1TransposedDesc = inDataDesc[1];
+    }
+
+    auto dstDnnlDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
+
+    MKLDNNDescriptor desc{
+            std::make_shared<matmul::desc>(src0TransposedDesc->getDnnlDesc(),
+                                           src1TransposedDesc->getDnnlDesc(),
+                                           dstDnnlDesc->getDnnlDesc())};
+
+    matmul::primitive_desc prim_desc;
+    primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(getEngine(), *attr);
+
+    while (static_cast<bool>(itpd))  {
+        impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+
+        if (impl_type == selected_pd->getImplementationType()) {
+            prim_desc = itpd.get();
+            break;
+        }
+        if (!itpd.next_impl())
+            IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+    }
+
+    prim.reset(new matmul(prim_desc));
+
+    const auto& src0 = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    const auto& src1 = getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPrimitive();
+    const auto& dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+
+    primArgs = {{DNNL_ARG_SRC_0, src0}, {DNNL_ARG_WEIGHTS_0, src1}, {DNNL_ARG_DST, dst}};
+}
+
+void MKLDNNMatMulNode::executeDynamicImpl(dnnl::stream strm) {
+    MKLDNNNode::execute(strm);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNMatMulNode, MatMul);
