@@ -30,6 +30,7 @@ OP_CONVERTER(elementwise_mul);
 OP_CONVERTER(elementwise_pow);
 OP_CONVERTER(elementwise_sub);
 OP_CONVERTER(embedding);
+OP_CONVERTER(exp);
 OP_CONVERTER(expand_v2);
 OP_CONVERTER(fill_any_like);
 OP_CONVERTER(fill_constant_batch_size_like);
@@ -64,6 +65,7 @@ OP_CONVERTER(softmax);
 OP_CONVERTER(sigmoid);
 OP_CONVERTER(split);
 OP_CONVERTER(squeeze);
+OP_CONVERTER(stack);
 OP_CONVERTER(tanh);
 OP_CONVERTER(transpose2);
 OP_CONVERTER(unsqueeze);
@@ -102,6 +104,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"elementwise_pow", op::elementwise_pow},
             {"elementwise_sub", op::elementwise_sub},
             {"equal", op::elementwise_equal},
+            {"exp", op::exp},
             {"expand_v2", op::expand_v2},
             {"fill_any_like", op::fill_any_like},
             {"fill_constant_batch_size_like", op::fill_constant_batch_size_like},
@@ -140,6 +143,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"sigmoid", op::sigmoid},
             {"split", op::split},
             {"squeeze2", op::squeeze},
+            {"stack", op::stack},
             {"sync_batch_norm", op::batch_norm},
             {"tanh", op::tanh},
             {"transpose2", op::transpose2},
