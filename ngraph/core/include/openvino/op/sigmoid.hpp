@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/op/util/unary_elementwise_arithmetic.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ov {
 namespace op {
