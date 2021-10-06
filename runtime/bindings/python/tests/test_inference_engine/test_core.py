@@ -72,36 +72,36 @@ def test_ie_core_class():
     assert np.allclose(result, expected_output)
 
 
-def test_load_network(device):
+def test_compile_model(device):
     ie = ov.Core()
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie.load_network(net, device)
+    net = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = ie.compile_model(net, device)
     assert isinstance(exec_net, ov.ExecutableNetwork)
 
 
-def test_read_network():
+def test_read_model():
     ie_core = ov.Core()
-    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    net = ie_core.read_model(model=test_net_xml, weights=test_net_bin)
     assert isinstance(net, ov.IENetwork)
 
-    net = ie_core.read_network(model=test_net_xml)
-    assert isinstance(net, ov.IENetwork)
-
-
-def test_read_network_from_blob():
-    ie_core = ov.Core()
-    model = open(test_net_xml).read()
-    blob = ov.blob_from_file(test_net_bin)
-    net = ie_core.read_network(model=model, blob=blob)
+    net = ie_core.read_model(model=test_net_xml)
     assert isinstance(net, ov.IENetwork)
 
 
-def test_read_network_from_blob_valid():
+def test_read_model_from_blob():
     ie_core = ov.Core()
     model = open(test_net_xml).read()
     blob = ov.blob_from_file(test_net_bin)
-    net = ie_core.read_network(model=model, blob=blob)
-    ref_net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    net = ie_core.read_model(model=model, blob=blob)
+    assert isinstance(net, ov.IENetwork)
+
+
+def test_read_model_from_blob_valid():
+    ie_core = ov.Core()
+    model = open(test_net_xml).read()
+    blob = ov.blob_from_file(test_net_bin)
+    net = ie_core.read_model(model=model, blob=blob)
+    ref_net = ie_core.read_model(model=test_net_xml, weights=test_net_bin)
     assert net.name == ref_net.name
     assert net.batch_size == ref_net.batch_size
     ii_net = net.input_info
@@ -112,27 +112,27 @@ def test_read_network_from_blob_valid():
     assert o_net.keys() == o_net2.keys()
 
 
-def test_read_network_as_path():
+def test_read_model_as_path():
     ie_core = ov.Core()
-    net = ie_core.read_network(model=Path(test_net_xml), weights=Path(test_net_bin))
+    net = ie_core.read_model(model=Path(test_net_xml), weights=Path(test_net_bin))
     assert isinstance(net, ov.IENetwork)
 
-    net = ie_core.read_network(model=test_net_xml, weights=Path(test_net_bin))
+    net = ie_core.read_model(model=test_net_xml, weights=Path(test_net_bin))
     assert isinstance(net, ov.IENetwork)
 
-    net = ie_core.read_network(model=Path(test_net_xml))
+    net = ie_core.read_model(model=Path(test_net_xml))
     assert isinstance(net, ov.IENetwork)
 
 
-def test_read_network_from_onnx():
+def test_read_model_from_onnx():
     ie_core = ov.Core()
-    net = ie_core.read_network(model=test_net_onnx)
+    net = ie_core.read_model(model=test_net_onnx)
     assert isinstance(net, ov.IENetwork)
 
 
-def test_read_network_from_onnx_as_path():
+def test_read_model_from_onnx_as_path():
     ie_core = ov.Core()
-    net = ie_core.read_network(model=Path(test_net_onnx))
+    net = ie_core.read_model(model=Path(test_net_onnx))
     assert isinstance(net, ov.IENetwork)
 
 
@@ -142,7 +142,7 @@ def test_read_net_from_buffer():
         bin = f.read()
     with open(model_path()[0], "rb") as f:
         xml = f.read()
-    net = ie_core.read_network(model=xml, weights=bin)
+    net = ie_core.read_model(model=xml, weights=bin)
     assert isinstance(net, ov.IENetwork)
 
 
@@ -152,8 +152,8 @@ def test_net_from_buffer_valid():
         bin = f.read()
     with open(model_path()[0], "rb") as f:
         xml = f.read()
-    net = ie_core.read_network(model=xml, weights=bin)
-    ref_net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    net = ie_core.read_model(model=xml, weights=bin)
+    ref_net = ie_core.read_model(model=test_net_xml, weights=test_net_bin)
     assert net.name == ref_net.name
     assert net.batch_size == ref_net.batch_size
     ii_net = net.input_info
@@ -232,7 +232,7 @@ def test_get_metric_str():
 
 def test_query_network(device):
     ie = ov.Core()
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    net = ie.read_model(model=test_net_xml, weights=test_net_bin)
     query_res = ie.query_network(network=net, device_name=device)
     func_net = net.get_function()
     ops_net = func_net.get_ordered_ops()
@@ -246,7 +246,7 @@ def test_query_network(device):
 def test_register_plugin():
     ie = ov.Core()
     ie.register_plugin("MKLDNNPlugin", "BLA")
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    net = ie.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.load_network(net, "BLA")
     assert isinstance(exec_net, ov.ExecutableNetwork), \
         "Cannot load the network to the registered plugin with name 'BLA'"
@@ -262,7 +262,7 @@ def test_register_plugins():
     elif platform == "win32":
         ie.register_plugins(plugins_win_xml)
 
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    net = ie.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.load_network(net, "CUSTOM")
     assert isinstance(exec_net,
                       ov.ExecutableNetwork), "Cannot load the network to " \
