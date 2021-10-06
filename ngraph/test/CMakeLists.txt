@@ -39,6 +39,7 @@ set(SRC
     eval.cpp
     file_util.cpp
     float16.cpp
+    framework_node.cpp
     function.cpp
     graph_rewrite.cpp
     includes.cpp
