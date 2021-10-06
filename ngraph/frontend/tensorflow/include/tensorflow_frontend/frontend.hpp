@@ -60,6 +60,5 @@ private:
                                 bool no_conversion,
                                 std::shared_ptr<ngraph::Function>& ng_function);
 };
-
 }  // namespace frontend
 }  // namespace ngraph

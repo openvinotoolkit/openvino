@@ -25,6 +25,7 @@ std::map<::tensorflow::DataType, ngraph::element::Type> TYPE_MAP{
     {::tensorflow::DataType::DT_UINT8, ngraph::element::u8},
     {::tensorflow::DataType::DT_INT8, ngraph::element::i8},
     {::tensorflow::DataType::DT_BFLOAT16, ngraph::element::bf16}};
+}
 
 bool PlaceTF::is_input() const {
     const auto& model_ins = m_input_model.get_inputs();
@@ -368,6 +369,5 @@ Place::Ptr OutPortPlaceTF::get_producing_operation() const {
     }
     FRONT_END_THROW("Operation has expired.");
 }
-}  // namespace tf
 }  // namespace frontend
 }  // namespace ngraph

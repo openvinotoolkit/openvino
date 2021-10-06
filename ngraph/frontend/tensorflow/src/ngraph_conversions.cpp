@@ -86,14 +86,6 @@ void TFDataTypeToNGraphElementType(DataType tf_dt, ngraph::element::Type* ng_et)
     }
 }
 
-void TFTensorShapeToNGraphShape(const ::tensorflow::TensorShapeProto& tf_shape, ngraph::PartialShape* ng_shape) {
-    std::vector<ngraph::Dimension> dims;
-    for (int i = 0; i < tf_shape.dim_size(); i++) {
-        dims.push_back(tf_shape.dim(i).size());
-    }
-    *ng_shape = ngraph::PartialShape(dims);
-}
-
 }  // namespace tf
 }  // namespace frontend
 }  // namespace ngraph

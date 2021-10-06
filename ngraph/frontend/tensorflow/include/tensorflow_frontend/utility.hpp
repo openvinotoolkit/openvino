@@ -38,14 +38,6 @@ namespace tf {
 #    define NGRAPH_VLOG(I) std::ostringstream()
 #endif
 
-}  // namespace tf
-}  // namespace frontend
-}  // namespace ngraph
-
-namespace ngraph {
-namespace frontend {
-namespace tf {
-
 void extract_operation_name_and_port(const std::string& port_name,
                                      std::string& operation_name,
                                      size_t& port_index,
