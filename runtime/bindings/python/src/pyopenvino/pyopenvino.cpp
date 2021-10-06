@@ -21,6 +21,19 @@
 #if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
 #    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
 #endif
+#include "core/containers.hpp"
+#include "core/ie_blob.hpp"
+#include "core/ie_core.hpp"
+#include "core/ie_data.hpp"
+#include "core/ie_executable_network.hpp"
+#include "core/ie_infer_queue.hpp"
+#include "core/ie_infer_request.hpp"
+#include "core/ie_input_info.hpp"
+#include "core/ie_network.hpp"
+#include "core/ie_parameter.hpp"
+#include "core/ie_preprocess_info.hpp"
+#include "core/ie_version.hpp"
+#include "core/tensor_description.hpp"
 #include "pyopenvino/graph/dimension.hpp"
 #include "pyopenvino/graph/frontend/frontend.hpp"
 #include "pyopenvino/graph/frontend/frontend_manager.hpp"
@@ -38,20 +51,6 @@
 #include "pyopenvino/graph/types/regmodule_graph_types.hpp"
 #include "pyopenvino/graph/util.hpp"
 #include "pyopenvino/graph/variant.hpp"
-
-#include "core/containers.hpp"
-#include "core/ie_blob.hpp"
-#include "core/ie_core.hpp"
-#include "core/ie_data.hpp"
-#include "core/ie_executable_network.hpp"
-#include "core/ie_infer_queue.hpp"
-#include "core/ie_infer_request.hpp"
-#include "core/ie_input_info.hpp"
-#include "core/ie_network.hpp"
-#include "core/ie_parameter.hpp"
-#include "core/ie_preprocess_info.hpp"
-#include "core/ie_version.hpp"
-#include "core/tensor_description.hpp"
 
 namespace py = pybind11;
 
@@ -87,7 +86,6 @@ PYBIND11_MODULE(pyopenvino, m) {
         .value("RESULT_READY", InferenceEngine::IInferRequest::WaitMode::RESULT_READY)
         .value("STATUS_ONLY", InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY)
         .export_values();
-
 
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);
