@@ -18,7 +18,7 @@ class RTInfo:
     def __init__(self):
         """
         Dictionary with runtime information.
-        Key is a tuple that contains name of runtime info attribute and version version of the attribute.
+        Key is a tuple that contains name of runtime info attribute and version of the attribute.
         Value is an instance of a class derived from RTInfoElement that represents a particular runtime info attribute.
 
         Example of usage:
