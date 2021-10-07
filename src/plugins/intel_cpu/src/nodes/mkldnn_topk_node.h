@@ -94,8 +94,6 @@ private:
     int dim = 0;
     int before_num = 0;
 
-    std::string errorPrefix;
-
 #if defined(HAVE_AVX512F)
     const int count_vec = 32;
 #elif defined(HAVE_SSE) || defined(HAVE_AVX2)
