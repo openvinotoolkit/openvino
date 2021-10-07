@@ -27,12 +27,14 @@ inline std::shared_ptr<ov::Function> readIR(const std::string& model_path, const
     return nullptr;
 }
 
-inline std::shared_ptr<ov::Function> readIR(const std::string& model_path) {
+inline std::shared_ptr<ov::Function> readIR(const std::string& model) {
     static ngraph::frontend::FrontEndManager manager;
     ngraph::frontend::FrontEnd::Ptr FE;
     ngraph::frontend::InputModel::Ptr inputModel;
+    std::istringstream modelStringStream(model);
+    std::istream& modelStream = modelStringStream;
 
-    ov::VariantVector params{ov::make_variant(model_path)};
+    ov::VariantVector params{ov::make_variant(&modelStream)};
 
     FE = manager.load_by_model(params);
     if (FE)
