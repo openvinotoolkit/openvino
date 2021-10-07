@@ -33,13 +33,12 @@ bool ngraph::pass::UnrollIf::run_on_function(std::shared_ptr<ngraph::Function> f
         auto body = (cond_value[0]) ? if_node->get_then_body() : if_node->get_else_body();
         auto input_descriptions = if_node->get_input_descriptions(static_cast<int>(!cond_value[0]));
         auto output_descriptions = if_node->get_output_descriptions(static_cast<int>(!cond_value[0]));
+
         // connect inputs instead of body parameters
         for (const auto& input_descr : input_descriptions) {
             auto in_data = if_node->input_value(input_descr->m_input_index);
-            const auto& param = body->get_parameters()[input_descr->m_body_parameter_index];
-            for (auto& output : param->outputs()) {
-                output.replace(in_data);
-            }
+            auto& param = body->get_parameters()[input_descr->m_body_parameter_index];
+            ngraph::replace_node(param, in_data.get_node_shared_ptr());
         }
         for (const auto& output_desc : output_descriptions) {
             std::shared_ptr<opset8::Result> result = body->get_results()[output_desc->m_body_value_index];
