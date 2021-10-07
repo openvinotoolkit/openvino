@@ -67,6 +67,11 @@ Layout Layout::scalar() {
 // 2. can define order and meaning for dimensions "NCHW"
 // 3. partial layout specialization "NC?"
 Layout::Layout(const std::string& layout_str) {
+    if (layout_str.empty()) {
+        m_dynamic = true;
+        m_left_size = m_right_size = 0;
+        return;
+    }
     auto layout = ngraph::trim(layout_str);
     OPENVINO_ASSERT(layout.length() > 0, "Cannot parse ov::Layout from an empty string");
     if (layout == SCALAR) {

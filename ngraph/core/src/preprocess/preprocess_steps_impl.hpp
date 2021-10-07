@@ -18,12 +18,7 @@ namespace ov {
 namespace preprocess {
 
 inline size_t get_and_check_width_idx(const Layout& layout, const PartialShape& shape) {
-    if (!ov::layout::has_width(layout)) {
-        OPENVINO_ASSERT(ov::layout::has_width(layout),
-                        "Layout ",
-                        layout.to_string(),
-                        " doesn't have `width` dimension");
-    }
+    OPENVINO_ASSERT(ov::layout::has_width(layout), "Layout ", layout.to_string(), " doesn't have `width` dimension");
     OPENVINO_ASSERT(shape.rank().is_static(), "Can't get shape width index for shape with dynamic rank");
     auto idx = ov::layout::width(layout);
     if (idx < 0) {
