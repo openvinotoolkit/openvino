@@ -857,6 +857,13 @@ bool ov::Node::evaluate(ov::runtime::TensorVector& output_values,
     return sts;
 }
 
+bool ov::Node::evaluate_lower(ov::runtime::TensorVector& output_values) const {
+    HostTensorVector output = create_tmp_tensors(output_values);
+    bool sts = evaluate_lower(output);
+    update_output_tensors(output_values, output);
+    return sts;
+}
+
 bool ov::Node::evaluate_lower(const HostTensorVector& output_values) const {
     const auto& inputs = input_values();
     bool dyn_inputs = std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& output) {
@@ -865,6 +872,13 @@ bool ov::Node::evaluate_lower(const HostTensorVector& output_values) const {
     if (dyn_inputs)
         return false;
     return ngraph::default_lower_bound_evaluator(this, output_values);
+}
+
+bool ov::Node::evaluate_upper(ov::runtime::TensorVector& output_values) const {
+    HostTensorVector output = create_tmp_tensors(output_values);
+    bool sts = evaluate_upper(output);
+    update_output_tensors(output_values, output);
+    return sts;
 }
 
 bool ov::Node::evaluate_upper(const HostTensorVector& output_values) const {

@@ -237,6 +237,8 @@ public:
     virtual bool evaluate(ov::runtime::TensorVector& output_values,
                           const ov::runtime::TensorVector& input_values,
                           const ov::EvaluationContext& evaluationContext) const;
+    virtual bool evaluate_lower(ov::runtime::TensorVector& output_values) const;
+    virtual bool evaluate_upper(ov::runtime::TensorVector& output_values) const;
 
     virtual bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values);
     /// \brief Decomposes the FusedOp into a sub-graph consisting of core openvino ops
