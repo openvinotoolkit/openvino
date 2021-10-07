@@ -108,7 +108,6 @@ void HeteroSyntheticTest::SetUp() {
         --num;
     }
     function = std::get<Function>(param)._function;
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void HeteroSyntheticTest::TearDown() {

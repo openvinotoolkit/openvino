@@ -245,7 +245,6 @@ void MatrixNmsLayerTest::SetUp() {
     auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(attrs.output_type, Shape{1}, {1}));
     auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(attrs.output_type, Shape{1}, {1}));
     function = std::make_shared<Function>(OutputVector{nms_0_identity, nms_1_identity, nms_2_identity}, params, "NMS");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace LayerTestsDefinitions

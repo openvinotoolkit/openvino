@@ -22,7 +22,6 @@ void MultipleAllocations::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::tie(targetDevice, m_allocationsCount) = this->GetParam();
     function = ngraph::builder::subgraph::makeSplitConvConcat();
-    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(MultipleAllocations, InferWorksCorrectAfterAllocations) {

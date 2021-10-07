@@ -379,7 +379,6 @@ void NmsLayerTest::SetUp() {
         nms_2_identity->set_friendly_name("Multiply_2");
         function = std::make_shared<Function>(OutputVector{nms_0_identity, nms_1_identity, nms_2_identity}, params, "NMS");
     }
-    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace LayerTestsDefinitions
