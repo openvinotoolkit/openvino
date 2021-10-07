@@ -304,13 +304,9 @@ InputModel::Ptr FrontEndTF::load_impl(const std::vector<std::shared_ptr<Variant>
 
 std::shared_ptr<ngraph::Function> FrontEndTF::convert(InputModel::Ptr model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
-    std::cout << "[ INFO ] FrontEndTensorflow::convert invoked\n";
 
     std::shared_ptr<ngraph::Function> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", true, false, f);
-    std::cout << "[ STATUS ] TranslateGraph was called successfully.\n";
-    std::cout << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
-
     normalize(f);
 
     // TODO: check that nGraph function does not contain operations which are not in the opset
@@ -320,25 +316,16 @@ std::shared_ptr<ngraph::Function> FrontEndTF::convert(InputModel::Ptr model) con
 
 std::shared_ptr<ngraph::Function> FrontEndTF::convert_partially(InputModel::Ptr model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
-    std::cout << "[ INFO ] FrontEndTensorflow::convert_partially invoked\n";
-
     std::shared_ptr<ngraph::Function> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", false, false, f);
-    std::cout << "[ STATUS ] TranslateGraph was called successfully.\n";
-    std::cout << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
-
     normalize(f);
     return f;
 }
 
 std::shared_ptr<ngraph::Function> FrontEndTF::decode(InputModel::Ptr model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
-    std::cout << "[ INFO ] FrontEndTensorflow::decode invoked\n";
-
     std::shared_ptr<ngraph::Function> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", false, true, f);
-    std::cout << "[ STATUS ] TranslateGraphFWNode was called successfully.\n";
-    std::cout << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
     return f;
 }
 
@@ -356,12 +343,8 @@ void FrontEndTF::convert(std::shared_ptr<ngraph::Function> partiallyConverted) c
 }
 
 void FrontEndTF::normalize(std::shared_ptr<ngraph::Function> function) const {
-    std::cout << "[ STATUS ] Running Transpose Sinking transformation\n";
-
     ngraph::pass::Manager manager;
     // manager.register_pass<ngraph::pass::TransposeSinking>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.run_passes(function);
-
-    std::cout << "[ INFO ] Resulting nGraph function contains " << function->get_ops().size() << " nodes." << std::endl;
 }
