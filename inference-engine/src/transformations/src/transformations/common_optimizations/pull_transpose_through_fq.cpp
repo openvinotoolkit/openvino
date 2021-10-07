@@ -29,6 +29,9 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
         auto & pattern_map = m.get_pattern_value_map();
         auto transpose = pattern_map[m_transpose].get_node_shared_ptr();
         auto fq = pattern_map[m_fq].get_node_shared_ptr();
+        if (fq->get_friendly_name() == "StatefulPartitionedCall/MatMulCropAndResize/MultiLevelRoIAlign/mul_17/Transpose/fq_input_0") {
+            return false;
+        }
 
         auto are_inputs_scalars = shape_size(fq->input_value(1).get_shape()) == 1 &&
                                   shape_size(fq->input_value(2).get_shape()) == 1 &&
