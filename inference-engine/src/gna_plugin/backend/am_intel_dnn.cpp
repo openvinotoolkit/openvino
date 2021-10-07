@@ -259,6 +259,38 @@ bool GNAPluginNS::backend::AMIntelDNN::isOperationCnnLegacySpecific(const Gna2Op
         static_cast<Gna2Shape*>(op.Parameters[PoolStrideParamIdx])->NumberOfDimensions == 1 &&
         static_cast<Gna2Shape*>(op.Parameters[PoolStrideParamIdx])->Dimensions[0] > static_cast<Gna2Shape*>(op.Parameters[PoolWinParamIdx])->Dimensions[0];
 }
+
+void GNAPluginNS::backend::AMIntelDNN::updateNumberOfOutputsIfPoolingEnabled(Gna2Model& gnaModel, bool useLegacyFormula) {
+    for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
+        IE_ASSERT(gnaModel.Operations != nullptr);
+        auto& gnaOp = gnaModel.Operations[i];
+        IE_ASSERT(gnaOp.Operands != nullptr);
+        IE_ASSERT(gnaOp.Parameters != nullptr);
+        IE_ASSERT(gnaOp.Operands[InOpIdx] != nullptr);
+        auto& inputShape = gnaOp.Operands[InOpIdx]->Shape;
+        if (gnaOp.Type == Gna2OperationTypeConvolution && inputShape.NumberOfDimensions == 2 &&
+            gnaOp.NumberOfParameters >= PoolStrideParamIdx) {
+            IE_ASSERT(gnaOp.Operands[OutOpIdx] != nullptr);
+            IE_ASSERT(gnaOp.Operands[FilterOpIdx] != nullptr);
+            IE_ASSERT(gnaOp.Parameters[ConvStrideParamIdx] != nullptr);
+            IE_ASSERT(gnaOp.Parameters[PoolWinParamIdx] != nullptr);
+            IE_ASSERT(gnaOp.Parameters[PoolStrideParamIdx] != nullptr);
+
+            const auto& fltStrideShape = *reinterpret_cast<Gna2Shape*>(gnaOp.Parameters[ConvStrideParamIdx]);
+            const auto fltStride = fltStrideShape.Dimensions[0];
+            const auto inVecCnt = inputShape.Dimensions[1];
+            const auto nFltSize = gnaOp.Operands[FilterOpIdx]->Shape.Dimensions[1];
+            const auto outFromConv = GNAPluginNS::GNAConvolutionLayer::outputFromConv(inVecCnt, nFltSize, fltStride);
+            const auto& poolWindow = *static_cast<Gna2Shape*>(gnaOp.Parameters[PoolWinParamIdx]);
+            const auto& poolStride = *static_cast<Gna2Shape*>(gnaOp.Parameters[PoolStrideParamIdx]);
+            const auto numberOfOutputs = GNAPluginNS::GNAConvolutionLayer::outputFromPooling(
+                outFromConv, poolWindow.Dimensions[0], poolStride.Dimensions[0],
+                useLegacyFormula || isOperationCnnLegacySpecific(gnaOp));
+            auto& outputTensor = *gnaOp.Operands[OutOpIdx];
+            const_cast<uint32_t&>(outputTensor.Shape.Dimensions[1]) = numberOfOutputs;
+        }
+    }
+}
 #endif
 
 void GNAPluginNS::backend::AMIntelDNN::InitMaxpoolComponentPrivate(intel_dnn_component_t &comp,
@@ -1677,28 +1709,10 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                         HelperGna2OperationSetParameter(gnaOperation, gnaUserAllocator, gnaUserFree, PoolWinParamIdx, poolWindow);
                         HelperGna2OperationSetParameter(gnaOperation, gnaUserAllocator, gnaUserFree, PoolStrideParamIdx, poolStride);
 
-                        auto& outputTensor = const_cast<Gna2Tensor&>(*gnaOperation->Operands[OutOpIdx]);
-                        const auto fltStrideShape = reinterpret_cast<Gna2Shape*>(gnaOperation->Parameters[ConvStrideParamIdx]);
                         // adjust Gna2OperationTypeConvolution fused layer output dimensions to reflect convolution zeroPadding and pooling
-                        if (gnaOperation->Operands[InOpIdx]->Shape.NumberOfDimensions == 2) { // kDnnConvolutional1dOp
-                            const auto inVecCnt = gnaOperation->Operands[InOpIdx]->Shape.Dimensions[1];
-
-                            const auto nFltSize = gnaOperation->Operands[FilterOpIdx]->Shape.Dimensions[1];
-                            //  Always move 1 "row"
-                            const auto fltStride = fltStrideShape->Dimensions[0];
-                            const auto outFromConv = outputFromConv(inVecCnt, nFltSize, fltStride);
-                            //  FLAT input matrix, pooled outputs per filter
-                            auto effectiveCompileTarget = gnaCompileTarget;
-                            if (isOperationCnnLegacySpecific(*gnaOperation)) {
-                                effectiveCompileTarget = InferenceEngine::GNAConfigParams::GNA_TARGET_2_0;
-                            }
-                            if (effectiveCompileTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0) {
-                                outputTensor.Shape.Dimensions[1] = outputFromPooling(outFromConv, poolWindow->Dimensions[0], poolStride->Dimensions[0]);
-                            } else {
-                                outputTensor.Shape.Dimensions[1] = outputFromPoolingLegacy(outFromConv, poolStride->Dimensions[0]);
-                            }
-
-                        } else { // kDnnConvolutional2dOp
+                        if (gnaOperation->Operands[InOpIdx]->Shape.NumberOfDimensions != 2) { // kDnnConvolutional2dOp
+                            auto& outputTensor = const_cast<Gna2Tensor&>(*gnaOperation->Operands[OutOpIdx]);
+                            const auto fltStrideShape = reinterpret_cast<Gna2Shape*>(gnaOperation->Parameters[ConvStrideParamIdx]);
                             // Override GNA operation output pointer with the one from pooling component
                             outputTensor.Data = comp.ptr_outputs;
 
