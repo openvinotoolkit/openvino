@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <common_test_utils/file_utils.hpp>
 #include <gtest/gtest.h>
 
 #include <file_utils.h>
@@ -13,6 +14,7 @@
 #include "transformations/serialize.hpp"
 #include <openvino/opsets/opset8.hpp>
 #include <transformations/rt_info/attributes.hpp>
+#include "frontend_manager/frontend_manager.hpp"
 
 using namespace ngraph;
 
@@ -23,9 +25,28 @@ protected:
     std::string m_out_bin_path = test_name + ".bin";
 
     void TearDown() override {
-        std::remove(m_out_xml_path.c_str());
-        std::remove(m_out_bin_path.c_str());
+        CommonTestUtils::removeIRFiles(m_out_xml_path, m_out_bin_path);
     }
+
+    std::shared_ptr<ngraph::Function> getWithIRFrontend(const std::string& model_path,
+                                                        const std::string& weights_path) {
+        ngraph::frontend::FrontEnd::Ptr FE;
+        ngraph::frontend::InputModel::Ptr inputModel;
+
+        ov::VariantVector params{ov::make_variant(model_path), ov::make_variant(weights_path)};
+
+        FE = manager.load_by_model(params);
+        if (FE)
+            inputModel = FE->load(params);
+
+        if (inputModel)
+            return FE->convert(inputModel);
+
+        return nullptr;
+    }
+
+private:
+    ngraph::frontend::FrontEndManager manager;
 };
 
 TEST_F(RTInfoSerializationTest, all_attributes_latest) {
@@ -53,9 +74,8 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
     m.register_pass<pass::Serialize>(m_out_xml_path, m_out_bin_path);
     m.run_passes(function);
 
-    auto core = InferenceEngine::Core();
-    auto net = core.ReadNetwork(m_out_xml_path, m_out_bin_path);
-    auto f = net.getFunction();
+    auto f = getWithIRFrontend(m_out_xml_path, m_out_bin_path);
+    ASSERT_NE(nullptr, f);
 
     auto check_info = [](const RTMap & info) {
         const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
@@ -109,9 +129,8 @@ TEST_F(RTInfoSerializationTest, all_attributes_v10) {
     m.register_pass<pass::Serialize>(m_out_xml_path, m_out_bin_path, pass::Serialize::Version::IR_V10);
     m.run_passes(function);
 
-    auto core = InferenceEngine::Core();
-    auto net = core.ReadNetwork(m_out_xml_path, m_out_bin_path);
-    auto f = net.getFunction();
+    auto f = getWithIRFrontend(m_out_xml_path, m_out_bin_path);
+    ASSERT_NE(nullptr, f);
 
     auto check_info = [](const RTMap & info) {
         const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
@@ -148,9 +167,8 @@ TEST_F(RTInfoSerializationTest, all_attributes_v11) {
     m.register_pass<pass::Serialize>(m_out_xml_path, m_out_bin_path);
     m.run_passes(function);
 
-    auto core = InferenceEngine::Core();
-    auto net = core.ReadNetwork(m_out_xml_path, m_out_bin_path);
-    auto f = net.getFunction();
+    auto f = getWithIRFrontend(m_out_xml_path, m_out_bin_path);
+    ASSERT_NE(nullptr, f);
 
     auto check_info = [](const RTMap & info) {
         const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
@@ -201,9 +219,8 @@ TEST_F(RTInfoSerializationTest, parameter_result_v11) {
     m.register_pass<pass::Serialize>(m_out_xml_path, m_out_bin_path, pass::Serialize::Version::IR_V11);
     m.run_passes(function);
 
-    auto core = InferenceEngine::Core();
-    auto net = core.ReadNetwork(m_out_xml_path, m_out_bin_path);
-    auto f = net.getFunction();
+    auto f = getWithIRFrontend(m_out_xml_path, m_out_bin_path);
+    ASSERT_NE(nullptr, f);
 
     ASSERT_EQ(function->get_results().size(), f->get_results().size());
     ASSERT_EQ(function->get_parameters().size(), f->get_parameters().size());

@@ -57,7 +57,7 @@ StatusCode CNNNetReaderImpl::ReadNetwork(const void* model, size_t size, Respons
     xmlDoc = std::make_shared<pugi::xml_document>();
     pugi::xml_parse_result res = xmlDoc->load_buffer(model, size);
     if (res.status != pugi::status_ok) {
-        return DescriptionBuffer(resp) << res.description() << "at offset " << res.offset;
+        return DescriptionBuffer(resp) << res.description() << " at offset " << res.offset;
     }
     StatusCode ret = ReadNetwork();
     if (ret != OK) {

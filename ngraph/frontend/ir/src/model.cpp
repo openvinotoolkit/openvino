@@ -194,7 +194,7 @@ public:
           m_extensions(extensions) {
         pugi::xml_parse_result res = m_xml_doc.load(stream);
         if (res.status != pugi::status_ok) {
-            IE_THROW() << res.description() << "at offset " << res.offset;
+            IE_THROW() << res.description() << " at offset " << res.offset;
         }
         m_root = m_xml_doc.document_element();
     }

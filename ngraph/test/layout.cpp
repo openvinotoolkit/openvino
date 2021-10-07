@@ -48,6 +48,7 @@ TEST(layout, advanced_syntax) {
 
 TEST(layout, empty) {
     Layout l;
+    EXPECT_TRUE(Layout("").empty());
     EXPECT_FALSE(layout::has_batch(l));
     EXPECT_THROW(layout::batch(l), ov::AssertFailure);
     EXPECT_FALSE(layout::has_channels(l));
@@ -132,7 +133,6 @@ TEST(layout, dims_valid_syntax) {
 
 TEST(layout, dims_wrong_syntax) {
     Layout l;
-    EXPECT_THROW(l = "", ov::AssertFailure);
     EXPECT_THROW(l = " ", ov::AssertFailure);
     std::string invalidChars = "`~!@#$%^&*()-=+{}\"'><,|";
     for (auto c : invalidChars) {
