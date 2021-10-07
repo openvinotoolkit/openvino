@@ -80,7 +80,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*InferRequestSetBlobByType.*Batched.*)",
         R"(.*Auto_Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
         // azure is failing after #6199
-        R"(.*/NmsLayerTest.*)",
+//        R"(.*/NmsLayerTest.*)",
         // TODO: 56520 Accuracy mismatch
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",

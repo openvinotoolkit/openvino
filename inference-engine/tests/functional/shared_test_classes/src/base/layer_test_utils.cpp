@@ -333,6 +333,8 @@ void LayerTestsCommon::ConfigureNetwork() {
 
 void LayerTestsCommon::LoadNetwork() {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
+//    cnnNetwork = core->ReadNetwork("/home/nsemaev/Documents/ops/NonMaxSuppression/i64/NonMaxSuppression_175260.xml",
+//                                   "/home/nsemaev/Documents/ops/NonMaxSuppression/i64/NonMaxSuppression_175260.bin");
     CoreConfiguration(this);
     ConfigureNetwork();
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
