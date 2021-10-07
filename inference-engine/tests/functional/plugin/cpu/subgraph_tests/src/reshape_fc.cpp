@@ -60,6 +60,7 @@ protected:
         auto matMul = builder::makeMatMul(reshape, matrixB, false, transpB);
 
         function = makeNgraphFunction(element::f32, inputParams, matMul, "ReshapeFC");
+        functionRefs = ngraph::clone_function(*function);
     }
 };
 

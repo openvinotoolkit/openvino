@@ -43,5 +43,6 @@ void InputSplitConcatTest::SetUp() {
 
     ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(relu1), std::make_shared<ngraph::op::Result>(relu2) };
     function = std::make_shared<ngraph::Function>(results, params, "InputSplitConcatTest");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

@@ -59,6 +59,7 @@ void GroupConvolutionTransformation::SetUp() {
         param.fakeQuantizeOnData,
         param.fakeQuantizeOnWeights,
         addPrecisionPreserved);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void GroupConvolutionTransformation::Run() {

@@ -76,7 +76,7 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
             opt_x_block_size = GetOptimalDivisor(out.X().v, 32);
         }
 
-        dispatchData.gws[0] = CeilDiv(out.X().v, GetOptimalBlockSize(arg)) * out.Y().v;
+        dispatchData.gws[0] = CeilDiv(out.X().v, opt_x_block_size) * out.Y().v;
         dispatchData.gws[1] = Align(out.Feature().v, sub_group_size);
         dispatchData.gws[2] = arg.output.Batch().v;
 
