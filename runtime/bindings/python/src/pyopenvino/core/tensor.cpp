@@ -3,10 +3,12 @@
 //
 
 #include "pyopenvino/core/tensor.hpp"
-#include "openvino/runtime/tensor.hpp"
 
 #include <pybind11/numpy.h>
+
 #include <map>
+
+#include "openvino/runtime/tensor.hpp"
 
 namespace py = pybind11;
 using namespace ov::runtime;
