@@ -13,7 +13,7 @@
 namespace py = pybind11;
 using namespace ov::runtime;
 
-std::map<ov::element::Type, pybind11::dtype> dtype_map = {
+std::map<ov::element::Type, pybind11::dtype> ov_type_to_dtype = {
     {ov::element::f16, py::dtype("float16")},
     {ov::element::bf16, py::dtype("float16")},
     {ov::element::f32, py::dtype("float32")},
@@ -30,10 +30,26 @@ std::map<ov::element::Type, pybind11::dtype> dtype_map = {
     {ov::element::u1, py::dtype("uint8")},
 };
 
-template <typename T>
-Tensor create_Tensor(const ov::element::Type type, py::array_t<T>& array) {
+std::map<py::str, ov::element::Type> dtype_to_ov_type = {
+    {"float16", ov::element::f16},
+    {"float32", ov::element::f32},
+    {"float64", ov::element::f64},
+    {"int8", ov::element::i8},
+    {"int16", ov::element::i16},
+    {"int32", ov::element::i32},
+    {"int64", ov::element::i64},
+    {"uint8", ov::element::u8},
+    {"uint16", ov::element::u16},
+    {"uint32", ov::element::u32},
+    {"uint64", ov::element::u64},
+    {"bool", ov::element::boolean},
+};
+
+
+Tensor create_Tensor(const ov::element::Type type, py::array& array) {
     std::vector<size_t> shape(array.shape(), array.shape() + array.ndim());
-    return Tensor(type, ov::Shape(shape), (void*)array.data());
+    std::vector<size_t> strides(array.strides(), array.strides() + array.ndim());
+    return Tensor(type, shape, (void*)array.data(), strides);
 }
 
 void regclass_Tensor(py::module m) {
@@ -41,42 +57,8 @@ void regclass_Tensor(py::module m) {
 
     cls.def(py::init());
     cls.def(py::init<const ov::element::Type, const ov::Shape>());
-    cls.def(py::init([](py::array_t<float>& array) {
-        return create_Tensor(ov::element::f32, array);
-    }));
-    cls.def(py::init([](py::array_t<double>& array) {
-        return create_Tensor(ov::element::f64, array);
-    }));
-    cls.def(py::init([](py::array_t<int64_t>& array) {
-        return create_Tensor(ov::element::i64, array);
-    }));
-    cls.def(py::init([](py::array_t<uint64_t>& array) {
-        return create_Tensor(ov::element::u64, array);
-    }));
-    cls.def(py::init([](py::array_t<int32_t>& array) {
-        return create_Tensor(ov::element::i32, array);
-    }));
-    cls.def(py::init([](py::array_t<uint32_t>& array) {
-        return create_Tensor(ov::element::u32, array);
-    }));
-    cls.def(py::init([](py::array_t<int16_t>& array) {
-        return create_Tensor(ov::element::i16, array);
-    }));
-    cls.def(py::init([](py::array_t<uint16_t>& array) {
-        return create_Tensor(ov::element::u16, array);
-    }));
-    cls.def(py::init([](py::array_t<int8_t>& array) {
-        return create_Tensor(ov::element::i8, array);
-    }));
-    cls.def(py::init([](py::array_t<uint8_t>& array) {
-        return create_Tensor(ov::element::u8, array);
-    }));
-    cls.def(py::init([](py::array_t<bool>& array) {
-        return create_Tensor(ov::element::boolean, array);
-    }));
-    cls.def(py::init([](py::array& f16_array) {
-        std::vector<size_t> shape(f16_array.shape(), f16_array.shape() + f16_array.ndim());
-        return Tensor(ov::element::f16, ov::Shape(shape), (void*)f16_array.data());
+    cls.def(py::init([](py::array& array) {
+        return create_Tensor(dtype_to_ov_type[py::str(array.dtype())], array);
     }));
 
     cls.def_property_readonly("element_type", &Tensor::get_element_type);
@@ -84,6 +66,6 @@ void regclass_Tensor(py::module m) {
 
     cls.def_property_readonly("data", [](Tensor& self) {
         ov::element::Type dtype = self.get_element_type();
-        return py::array(dtype_map[dtype], self.get_shape(), self.data(), py::cast(self));
+        return py::array(ov_type_to_dtype[dtype], self.get_shape(), self.data(), py::cast(self));
     });
 }
