@@ -111,4 +111,4 @@ def test_cannot_set_shape_on_preallocated_memory():
     ov_tensor = Tensor(ones_arr)
     with pytest.raises(RuntimeError) as e:
         ov_tensor.shape = ng.impl.Shape([1, 3, 48, 48])
-    assert "Cannot call setShape for Blobs created on top of preallocated memory" in str(e.value)
+    assert "Blob::setShape requires dense blob" in str(e.value)
