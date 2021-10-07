@@ -302,7 +302,7 @@ memory::ptr primitive_inst::allocate_output() {
         // Skip memory reset for input_layout primitives, since data will be copied from cldnn::data primitive
         // or just reuse primitive's memory
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << _node.id() << ": constant]" << std::endl;
+            GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
         }
         return engine.allocate_memory(layout, alloc_type, false);
     } else if (_network.is_internal() || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
@@ -316,6 +316,62 @@ memory::ptr primitive_inst::allocate_output() {
                                              _node.get_memory_dependencies(),
                                              alloc_type,
                                              true);
+    }
+}
+
+memory::ptr primitive_inst::allocate_output(engine& _engine, const program_node& _node, std::shared_ptr<memory_pool> pool) {
+    auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
+                                    allocation_type type, bool reusable) {
+        if (_engine.configuration().use_memory_pool)
+                return pool->get_memory(layout, id, 0, dependencies, type, reusable);
+        return pool->get_memory(layout, type);
+    };
+    auto layout = _node.get_output_layout();
+    // For outputs, cpu prim we want to have lockable alloc type
+    // Also if the successor of a node is an cpu, then memory needs to be lockable.
+    auto use_lockable_memory = _node.is_output() || _node.get_preferred_impl_type() == impl_types::cpu
+                               || std::any_of(_node.get_users().begin(), _node.get_users().end(),
+                                              [](const program_node* n) {
+                                     return n->get_selected_impl()->is_cpu() || is_any_user_cpu(n->get_users());
+                                  }) || !_engine.supports_allocation(allocation_type::usm_device);
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    const auto& lockable_mem_type = _engine.get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d());
+    const auto& alloc_type = use_lockable_memory ? lockable_mem_type : allocation_type::usm_device;
+
+    if ((_node.can_be_optimized() || _node.is_type<generic_layer>())) {
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
+        }
+        return get_memory_from_pool(_engine, layout,
+                                    _node.id(),
+                                    _node.get_memory_dependencies(),
+                                    alloc_type,
+                                    false);
+    } else if (_node.is_output() && _node.is_type<generic_layer>() &&
+               _engine.supports_allocation(allocation_type::usm_device)) {
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
+        }
+        return _engine.allocate_memory(layout, allocation_type::usm_device, false);
+    } else if (!_node.is_output() && _node.is_type<input_layout>()) {
+        // Skip memory reset for input_layout primitives, since data will be copied from cldnn::data primitive
+        // or just reuse primitive's memory
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << _node.id() << ": constant]" << std::endl;
+        }
+        return _engine.allocate_memory(layout, alloc_type, false);
+    } else if (!_node.can_share_buffer() || _node.can_be_optimized() || _node.is_output()) {
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
+        }
+        return _engine.allocate_memory(layout, alloc_type, false);
+    } else {
+        return get_memory_from_pool(_engine, layout,
+                                   _node.id(),
+                                   _node.get_memory_dependencies(),
+                                   alloc_type,
+                                   true);
     }
 }
 

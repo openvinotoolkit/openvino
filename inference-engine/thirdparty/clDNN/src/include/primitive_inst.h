@@ -154,6 +154,8 @@ public:
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
 
+    static memory::ptr allocate_output(engine& engine, const program_node& node, std::shared_ptr<memory_pool> pool);
+
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 

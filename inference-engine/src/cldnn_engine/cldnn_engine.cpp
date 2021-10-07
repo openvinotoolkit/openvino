@@ -11,7 +11,6 @@
 #include <tuple>
 #include <cctype>
 #include <memory>
-
 #include "ie_metric_helpers.hpp"
 #include "ie_plugin_config.hpp"
 #include <ie_ngraph_utils.hpp>
@@ -29,7 +28,6 @@
 
 #include "cldnn/runtime/device_query.hpp"
 #include "cldnn/runtime/debug_configuration.hpp"
-
 #ifdef __linux__
 # include <dlfcn.h>
 #endif
@@ -661,11 +659,11 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         metrics.push_back(METRIC_KEY(RANGE_FOR_STREAMS));
         metrics.push_back(METRIC_KEY(DEVICE_TYPE));
         metrics.push_back(METRIC_KEY(DEVICE_GOPS));
+        metrics.push_back(METRIC_KEY(MAX_BATCH_SIZE));
         metrics.push_back(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
         metrics.push_back(GPU_METRIC_KEY(UARCH_VERSION));
         metrics.push_back(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
         metrics.push_back(GPU_METRIC_KEY(MEMORY_STATISTICS));
-
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         std::vector<std::string> availableDevices = { };
@@ -739,11 +737,70 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
             }
         }
         IE_SET_METRIC_RETURN(GPU_MEMORY_STATISTICS, statistics);
+    } else if (name == METRIC_KEY(MAX_BATCH_SIZE)) {
+        const auto& config = _impl->m_configs.GetConfig(device_id);
+        auto n_streams = config.throughput_streams;
+        auto available_device_mem = device_info.max_global_mem_size;
+        size_t max_batch_size = 0;
+
+        if (options.find("CNN_NETWORK") == options.end()) {
+            throw std::runtime_error("No CNN_NETWORK option given!");
+        }
+        if (options.find("GPU_THROUGHPUT_STREAMS") != options.end()) {
+            n_streams = options.find("GPU_THROUGHPUT_STREAMS")->second.as<uint16_t>();
+        }
+        if (options.find("OCCUPIED_DEVICE_MEM") != options.end()) {
+            auto occupied_device_mem = options.find("OCCUPIED_DEVICE_MEM")->second.as<int64_t>();
+            available_device_mem -= occupied_device_mem;
+            if (available_device_mem < 0)
+                throw std::runtime_error("No available device mem");
+        }
+
+        auto network = options.find("CNN_NETWORK")->second.as<InferenceEngine::CNNNetwork*>();
+
+        auto input_shapes = network->getInputShapes();
+        std::string input_name;
+        SizeVector input_shape;
+        std::tie(input_name, input_shape) = *input_shapes.begin();
+        size_t batch_size = input_shape[0];
+
+        auto engine = cldnn::engine::create(cldnn::engine_types::ocl, cldnn::runtime_types::ocl, iter->second, {});
+        std::shared_ptr<Program> program;
+
+        if (options.find("BASE_BATCH_SIZE") != options.end()) {
+            batch_size = options.find("BASE_BATCH_SIZE")->second.as<int32_t>();
+            //reshape the network to user-specified batchsize
+            auto cloned_network = InferenceEngine::details::cloneNetwork(*network);
+            auto input_shapes = cloned_network.getInputShapes();
+            std::string input_name;
+            SizeVector input_shape;
+            std::tie(input_name, input_shape) = *input_shapes.begin();
+            input_shape[0] = batch_size;
+            input_shapes[input_name] = input_shape;
+            cloned_network.reshape(input_shapes);
+            auto t_config = Config(config);
+            auto nGraphFunc = cloned_network.getFunction();
+#ifdef ENABLE_ONEDNN_FOR_GPU
+            if (GetDeviceInfo(config.key_config_map).supports_immad)
+                t_config.enable_fp16_for_quantized_models = false;
+#endif
+            TransformationsPipeline transformations(t_config, device_info);
+            transformations.apply(nGraphFunc);
+            program = std::make_shared<Program>(cloned_network, engine, config, false, true);
+        } else {
+            auto transformedNetwork = CloneAndTransformNetwork(*network, config);
+            program = std::make_shared<Program>(transformedNetwork, engine, config, false, true);
+        }
+
+        std::pair<int64_t, int64_t> device_memory_usage =  program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
+        max_batch_size = static_cast<size_t>((available_device_mem - device_memory_usage.first)
+                                / (n_streams * (device_memory_usage.second / batch_size)));
+
+        IE_SET_METRIC_RETURN(MAX_BATCH_SIZE, static_cast<int32_t>(max_batch_size));
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }
 }
-
 };  // namespace CLDNNPlugin
 
 static const Version version = { {2, 1}, CI_BUILD_NUMBER, "clDNNPlugin" };
