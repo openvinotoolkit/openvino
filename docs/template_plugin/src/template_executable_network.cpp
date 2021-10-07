@@ -9,10 +9,10 @@
 #include <threading/ie_executor_manager.hpp>
 
 #include "ie_icore.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "template/template_config.hpp"
 #include "template_itt.hpp"
 #include "template_plugin.hpp"
-#include "openvino/pass/serialize.hpp"
 
 using namespace TemplatePlugin;
 

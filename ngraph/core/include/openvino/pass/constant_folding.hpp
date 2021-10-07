@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "openvino/pass/pass.hpp"
 #include "openvino/core/variant.hpp"
+#include "openvino/pass/pass.hpp"
 
 namespace ov {
 namespace pass {
@@ -38,9 +38,11 @@ public:
 
     DisableConstantFolding() = default;
 
-    DisableConstantFolding(const value_type &value) : VariantImpl<value_type>(value) {}
+    DisableConstantFolding(const value_type& value) : VariantImpl<value_type>(value) {}
 
-    bool is_copyable() const override { return false; }
+    bool is_copyable() const override {
+        return false;
+    }
 };
 }  // namespace pass
 }  // namespace ov

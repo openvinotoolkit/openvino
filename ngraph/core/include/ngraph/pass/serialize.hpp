@@ -12,4 +12,3 @@ namespace pass {
 using ov::pass::Serialize;
 }  // namespace pass
 }  // namespace ngraph
-

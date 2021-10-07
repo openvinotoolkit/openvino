@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include <set>
 #include <string>
 #include <type_traits>
 #include <vector>
-#include <set>
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/enum_names.hpp"
