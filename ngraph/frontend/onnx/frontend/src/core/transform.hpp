@@ -26,9 +26,7 @@ static const std::vector<std::string> onnx_functions_to_expand = {"Bernoulli",
                                                                   "GreaterOrEqual",
                                                                   "LessOrEqual",
                                                                   "NegativeLogLikelihoodLoss",
-                                                                  "SoftmaxCrossEntropyLoss",
-                                                                  "MyCustomOp",
-                                                                  "LogSoftmax"};
+                                                                  "SoftmaxCrossEntropyLoss"};
 
 /// \brief Replace nodes with expanded body of ONNX functions
 ///
