@@ -18,7 +18,12 @@ namespace ov {
 namespace preprocess {
 
 inline size_t get_and_check_width_idx(const Layout& layout, const PartialShape& shape) {
-    OPENVINO_ASSERT(ov::layout::has_width(layout), "Layout ", layout.to_string(), " doesn't have `width` dimension");
+    if (!ov::layout::has_width(layout)) {
+        OPENVINO_ASSERT(ov::layout::has_width(layout),
+                        "Layout ",
+                        layout.to_string(),
+                        " doesn't have `width` dimension");
+    }
     OPENVINO_ASSERT(shape.rank().is_static(), "Can't get shape width index for shape with dynamic rank");
     auto idx = ov::layout::width(layout);
     if (idx < 0) {
@@ -60,15 +65,13 @@ inline size_t get_and_check_channels_idx(const Layout& layout, const PartialShap
 }
 
 inline void inherit_friendly_names(const std::shared_ptr<ov::Function>& function,
-                                   const std::shared_ptr<ov::Node>& src_node,
-                                   const std::shared_ptr<ov::Node>& dst_node,
+                                   const Output<ov::Node>& src_node,
+                                   const Output<ov::Node>& dst_node,
                                    const std::string& suffix,
                                    bool search_for_available_name = true) {
-    OPENVINO_ASSERT(src_node->get_output_size() == 1 && dst_node->get_output_size() == 1,
-                    "Internal error. Preprocessing steps must contain nodes with one output");
-    dst_node->set_friendly_name(src_node->get_friendly_name() + suffix);
+    dst_node.get_node_shared_ptr()->set_friendly_name(src_node.get_node_shared_ptr()->get_friendly_name() + suffix);
     std::unordered_set<std::string> new_names;
-    for (const auto& tensor_name : src_node->output(0).get_tensor().get_names()) {
+    for (const auto& tensor_name : src_node.get_tensor().get_names()) {
         auto new_tensor_name = tensor_name + suffix;
         if (!suffix.empty()) {
             // Verify that new names are unique for a function
@@ -82,7 +85,21 @@ inline void inherit_friendly_names(const std::shared_ptr<ov::Function>& function
         }
         new_names.emplace(new_tensor_name);
     }
-    dst_node->output(0).get_tensor().set_names(new_names);
+    dst_node.get_tensor().set_names(new_names);
+}
+
+// TODO: add uniqueness check like for preprocessing (or remove from pre-processing)
+inline void inherit_friendly_names_postprocess(const Output<ov::Node>& inserted_output,
+                                               const Output<ov::Node>& previous_output,
+                                               const std::string& suffix) {
+    inserted_output.get_node_shared_ptr()->set_friendly_name(
+        previous_output.get_node_shared_ptr()->get_friendly_name() + suffix);
+    std::unordered_set<std::string> new_names;  // New name for previous node
+    for (const auto& tensor_name : previous_output.get_tensor().get_names()) {
+        auto new_tensor_name = tensor_name + suffix;
+        new_names.emplace(new_tensor_name);
+    }
+    previous_output.get_tensor().set_names(new_names);
 }
 
 /// \brief Context passed to each pre/post-processing operation.
@@ -167,12 +184,12 @@ private:
 };
 
 using InternalPreprocessOp =
-    std::function<std::vector<std::shared_ptr<ov::Node>>(const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                                                         const std::shared_ptr<ov::Function>& function,
-                                                         PreprocessingContext& context)>;
+    std::function<std::tuple<std::vector<Output<Node>>, bool>(const std::vector<Output<Node>>& nodes,
+                                                              const std::shared_ptr<Function>& function,
+                                                              PreprocessingContext& context)>;
 
 /// \brief PreProcessStepsImpl - internal data structure
-class PreProcessSteps::PreProcessStepsImpl {
+class PreStepsList {
 public:
     void add_scale_impl(const std::vector<float>& values);
     void add_mean_impl(const std::vector<float>& values);
@@ -181,16 +198,18 @@ public:
     void add_convert_layout_impl(const Layout& layout);
     void add_convert_color_impl(const ColorFormat& dst_format);
 
-    const std::list<std::tuple<InternalPreprocessOp, bool>>& actions() const {
+    const std::list<InternalPreprocessOp>& actions() const {
         return m_actions;
     }
-    std::list<std::tuple<InternalPreprocessOp, bool>>& actions() {
+    std::list<InternalPreprocessOp>& actions() {
         return m_actions;
     }
 
 private:
-    std::list<std::tuple<InternalPreprocessOp, bool>> m_actions;
+    std::list<InternalPreprocessOp> m_actions;
 };
+
+class PreProcessSteps::PreProcessStepsImpl : public PreStepsList {};
 
 //------ Post process -----
 class PostprocessingContext : public PrePostProcessingContextBase {
