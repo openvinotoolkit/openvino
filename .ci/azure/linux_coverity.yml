@@ -128,11 +128,11 @@ jobs:
     displayName: 'List install files'
 
   # todo add coverity intercept
-  - script: $(Agent.ToolsDirectory)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int $(INSTALL_DIR)/samples/cpp/build_samples.sh
+  - script: $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int $(INSTALL_DIR)/samples/cpp/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples with Coverity'
 
-  - script: $(Agent.ToolsDirectory)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int $(INSTALL_DIR)/samples/c/build_samples.sh
+  - script: $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int $(INSTALL_DIR)/samples/c/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples with Coverity'
 
