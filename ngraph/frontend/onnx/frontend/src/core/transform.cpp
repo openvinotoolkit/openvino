@@ -8,6 +8,8 @@
 #include <onnx/defs/schema.h>
 #include <onnx/shape_inference/implementation.h>
 
+#include <algorithm>
+
 #include "core/model.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/log.hpp"
@@ -33,13 +35,21 @@ ONNX_NAMESPACE::TypeProto get_input_type(std::string const& name, ONNX_NAMESPACE
 
 inline void function_expand_and_remove_original_node(const ONNX_NAMESPACE::NodeProto& node,
                                                      const ONNX_NAMESPACE::FunctionProto& func_proto,
-                                                     ONNX_NAMESPACE::GraphProto& graph) {
-    const auto before_expand_size = graph.node().size();
-    ONNX_NAMESPACE::FunctionExpandHelper(node, func_proto, graph);
-    const auto added_nodes = graph.node().size() - before_expand_size;
+                                                     ONNX_NAMESPACE::GraphProto* graph,
+                                                     int& current_node_idx) {
+    const auto before_expand_size = graph->node().size();
+    ONNX_NAMESPACE::FunctionExpandHelper(node, func_proto, *graph);
+    const auto added_nodes = graph->node().size() - before_expand_size;
 
-    // Remove the original node which contained the function.
-    graph.mutable_node()->erase(graph.mutable_node()->end() - added_nodes - 1);
+    // Remove the original node which contained the function
+    graph->mutable_node()->erase(graph->mutable_node()->begin() + current_node_idx);
+
+    // Move nodes from expanded function to position of removed node
+    std::rotate(graph->mutable_node()->begin() + current_node_idx,
+                graph->mutable_node()->end() - added_nodes,
+                graph->mutable_node()->end());
+    // Move index to the previous position because first node of expanded function can be also function
+    current_node_idx--;
 }
 
 }  // namespace detail
@@ -50,29 +60,19 @@ inline void function_expand_and_remove_original_node(const ONNX_NAMESPACE::NodeP
 void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::ModelProto& model_proto) {
     auto graph_proto = model_proto.mutable_graph();
 
-    ONNX_NAMESPACE::GraphProto new_graph;
-    int origin_graph_index = 0;
-    int new_graph_index = 0;
-    while (origin_graph_index < graph_proto->node().size() || new_graph_index < new_graph.node().size()) {
-        ONNX_NAMESPACE::NodeProto* node = nullptr;
-        if (new_graph_index < new_graph.node().size()) {
-            // nodes expenaded from function can have another functions
-            node = new_graph.mutable_node(new_graph_index++);
-        } else {
-            node = new_graph.add_node();
-            node->Swap(graph_proto->mutable_node(origin_graph_index++));
-        }
+    for (int i = 0; i < graph_proto->node().size(); ++i) {
+        ONNX_NAMESPACE::NodeProto node = graph_proto->node().Get(i);
 
         // Check if node operation is one of the functions we want to expand
-        if (std::find(onnx_functions_to_expand.begin(), onnx_functions_to_expand.end(), node->op_type()) ==
+        if (std::find(onnx_functions_to_expand.begin(), onnx_functions_to_expand.end(), node.op_type()) ==
             onnx_functions_to_expand.end()) {
             continue;
         }
 
         // Retrieve the operation schema from ONNX library
-        int opset_version = static_cast<int>(get_opset_version(model_proto, node->domain()));
+        int opset_version = static_cast<int>(get_opset_version(model_proto, node.domain()));
         const auto* schema_registry = ONNX_NAMESPACE::OpSchemaRegistry::Instance();
-        const auto node_op_schema = schema_registry->GetSchema(node->op_type(), opset_version, node->domain());
+        const auto node_op_schema = schema_registry->GetSchema(node.op_type(), opset_version, node.domain());
 
         // Check if operation schema found
         if (!node_op_schema) {
@@ -82,7 +82,7 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
         // Check if operation schema contains a function body and expand function
         if (node_op_schema->HasFunction()) {
             const auto* func_proto = node_op_schema->GetFunction();
-            detail::function_expand_and_remove_original_node(*node, *func_proto, new_graph);
+            detail::function_expand_and_remove_original_node(node, *func_proto, graph_proto, i);
         }
 
         else if (node_op_schema->HasContextDependentFunction()) {
@@ -94,18 +94,16 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
             }
 
             std::vector<ONNX_NAMESPACE::TypeProto> input_types;
-            for (const auto& input : node->input()) {
+            for (const auto& input : node.input()) {
                 input_types.push_back(ngraph::onnx_import::transform::detail::get_input_type(input, *graph_proto));
             }
 
-            ONNX_NAMESPACE::FunctionBodyBuildContextImpl ctx(*node, input_types);
+            ONNX_NAMESPACE::FunctionBodyBuildContextImpl ctx(node, input_types);
             ONNX_NAMESPACE::FunctionProto func_proto;
             node_op_schema->BuildContextDependentFunction(ctx, func_proto);
-            detail::function_expand_and_remove_original_node(*node, func_proto, new_graph);
+            detail::function_expand_and_remove_original_node(node, func_proto, graph_proto, i);
         }
     }
-    graph_proto->mutable_node()->Clear();
-    graph_proto->mutable_node()->Swap(new_graph.mutable_node());
 }
 
 void ngraph::onnx_import::transform::update_external_data_paths(ONNX_NAMESPACE::ModelProto& model_proto,

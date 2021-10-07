@@ -5,10 +5,7 @@
 #include "editor.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
-#include "onnx/defs/function.h"
-#include "onnx/defs/schema.h"
-#include "onnx/defs/tensor_proto_util.h"
-#include "util/onnx_test_util.hpp"
+#include "onnx_test_util.hpp"
 #include "util/test_control.hpp"
 
 static std::string s_manifest = "${MANIFEST}";
