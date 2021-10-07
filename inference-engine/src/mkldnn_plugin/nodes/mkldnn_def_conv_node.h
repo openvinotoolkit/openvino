@@ -30,7 +30,8 @@ struct jit_def_conv_params {
     int ur_w_tail;
     int typesize_in;
     int typesize_off;
-    int typesize_modulation;
+    int typesize_sampled_wei;
+    int typesize_sampled_offsets;
     int typesize_bia;
     int typesize_out;
     bool with_bias;
@@ -41,8 +42,8 @@ struct jit_def_conv_params {
 
 struct jit_def_conv_call_args {
     const void *src;
-    const void *off;
-    const void *modulation;
+    const void *sampledWei;
+    const void *sampledCoords;
     const void *filt;
     const void *bias;
     const void *dst;
@@ -80,6 +81,7 @@ public:
         return false;
     }
     bool enforceRef = false;
+    constexpr static int sampledPointsPerPixel = 4;  // count of sampling points ({top|bottom}, {left|right})
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
@@ -94,14 +96,18 @@ private:
 
     jit_def_conv_params jcp = {};
 
+    std::vector<int> sampledCoordsVector;
+    std::vector<float> interpWeightsVector;
+
     std::shared_ptr<jit_uni_def_conv_kernel> def_conv_kernel = nullptr;
 
-    void executeReference(const float* src, const float* offsets, const float* weights, float* dst,
-                          const std::vector<size_t>& src_strides, const std::vector<size_t>& off_strides,
-                          const std::vector<size_t>& wei_strides, const std::vector<size_t>& dst_strides,
-                          const float* modulation = nullptr, const std::vector<size_t>& modulation_strides = {});
-    void executeOptimized(const float* src, const float* offsets, const float* weights, float* dst,
-                          const std::vector<size_t>& src_strides, const std::vector<size_t>& off_strides, const std::vector<size_t>& dst_strides);
+    void prepareSamplingWeights(const std::vector<size_t>& src_strides, const float* offsets, const std::vector<size_t>& off_strides,
+                                const float* modulation = nullptr, const std::vector<size_t>& modulation_strides = {});
+
+    void executeReference(const float* src, const float* weights, float* dst, const std::vector<size_t>& src_strides,
+                          const std::vector<size_t>& wei_strides, const std::vector<size_t>& dst_strides);
+    void executeOptimized(const float* src, const float* weights, float* dst,
+                          const std::vector<size_t>& src_strides, const std::vector<size_t>& dst_strides);
 };
 
 }  // namespace MKLDNNPlugin
