@@ -14,6 +14,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/test_model/test_model.hpp"
 #include "network_utils.hpp"
+#include "openvino/runtime/core.hpp"
 
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -54,21 +55,14 @@ protected:
 };
 
 TEST_P(NetReaderTest, ReadNetworkTwiceSeparately) {
-    InferenceEngine::Core ie;
+    ov::runtime::Core ie;
 
-    auto network = read(_modelPath, _weightsPath, ie);
-    auto network2 = read(_modelPath, _weightsPath, ie);
+    auto network = ie.read_model(_modelPath, _weightsPath);
+    auto network2 = ie.read_model(_modelPath, _weightsPath);
 
-    IE_SUPPRESS_DEPRECATED_START
-
-    auto& icnn = static_cast<InferenceEngine::ICNNNetwork &>(network);
-    auto& icnn2 = static_cast<InferenceEngine::ICNNNetwork &>(network2);
-
-    ASSERT_NE(&icnn,
-              &icnn2);
-    ASSERT_NO_THROW(FuncTestUtils::compareCNNNetworks(network, network2));
-
-    IE_SUPPRESS_DEPRECATED_END
+    ASSERT_NE(network.get(), network2.get());
+    ASSERT_NO_THROW(FuncTestUtils::compareCNNNetworks(InferenceEngine::CNNNetwork(network),
+                InferenceEngine::CNNNetwork(network2)));
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

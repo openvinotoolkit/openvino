@@ -52,6 +52,7 @@ void ConcatTransformation::SetUp() {
         inputShape,
         testValues.fqOnData1,
         testValues.fqOnData2);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(ConcatTransformation, CompareWithRefImpl) {
