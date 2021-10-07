@@ -60,7 +60,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines**
 
-|                                 | Intel® Xeon® E-2124G               | Intel® Xeon® W1290P                | Intel® Xeon® Silver 4216R               | 
+| Configuration                   | Intel® Xeon® E-2124G               | Intel® Xeon® W1290P                | Intel® Xeon® Silver 4216R               | 
 | ------------------------------- | ----------------------             | ---------------------------        | ----------------------------            |
 | Motherboard                     | ASUS* WS C246 PRO                  | ASUS* WS W480-ACE                  | Intel® Server Board S2600STB            |
 | CPU                             | Intel® Xeon® E-2124G CPU @ 3.40GHz | Intel® Xeon® W-1290P CPU @ 3.70GHz | Intel® Xeon® Silver 4216R CPU @ 2.20GHz |
@@ -82,7 +82,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines (continue)**
 
-|                                 | Intel® Xeon® Gold 5218T                 | Intel® Xeon® Platinum 8270               | Intel® Xeon® Platinum 8380               |
+| Configuration                   | Intel® Xeon® Gold 5218T                 | Intel® Xeon® Platinum 8270               | Intel® Xeon® Platinum 8380               |
 | ------------------------------- | ----------------------------            | ----------------------------             | -----------------------------------------|
 | Motherboard                     | Intel® Server Board S2600STB            | Intel® Server Board S2600STB             | Intel Corporation / WilsonCity           |
 | CPU                             | Intel® Xeon® Gold 5218T CPU @ 2.10GHz   | Intel® Xeon® Platinum 8270 CPU @ 2.70GHz | Intel® Xeon® Platinum 8380 CPU @ 2.30GHz |
@@ -105,7 +105,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines (continue)**
 
-|                      | Intel® Core™ i7-8700T               | Intel® Core™ i9-10920X               |
+| Configuration        | Intel® Core™ i7-8700T               | Intel® Core™ i9-10920X               |
 | -------------------- | ----------------------------------- |--------------------------------------|
 | Motherboard          | GIGABYTE* Z370M DS3H-CF             | ASUS* PRIME X299-A II                |
 | CPU                  | Intel® Core™ i7-8700T CPU @ 2.40GHz | Intel® Core™ i9-10920X CPU @ 3.50GHz |
@@ -126,7 +126,7 @@ Testing by Intel done on: see test date for each HW platform below.
 | CPU Price/socket on June 21, 2021, USD<br>Prices may vary    | [303](https://ark.intel.com/content/www/us/en/ark/products/129948/intel-core-i7-8700t-processor-12m-cache-up-to-4-00-ghz.html)                | [700](https://ark.intel.com/content/www/us/en/ark/products/198012/intel-core-i9-10920x-x-series-processor-19-25m-cache-3-50-ghz.html) |
 
 **CPU Inference Engines (continue)**
-|                      | 11th Gen Intel® Core™ i7-1185G7 | 11th Gen Intel® Core™ i7-11850HE |
+| Configuration        | 11th Gen Intel® Core™ i7-1185G7 | 11th Gen Intel® Core™ i7-11850HE |
 | -------------------- | --------------------------------|----------------------------------|
 | Motherboard          | Intel Corporation<br>internal/Reference<br>Validation Platform | Intel Corporation<br>internal/Reference<br>Validation Platform |
 | CPU                  | 11th Gen Intel® Core™ i7-1185G7 @ 3.00GHz | 11th Gen Intel® Core™ i7-11850HE @ 2.60GHz |
@@ -148,7 +148,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines (continue)**
 
-|                      | Intel® Core™ i3-8100               | Intel® Core™ i5-8500               | Intel® Core™ i5-10500TE               |
+| Configuration        | Intel® Core™ i3-8100               | Intel® Core™ i5-8500               | Intel® Core™ i5-10500TE               |
 | -------------------- |----------------------------------- | ---------------------------------- | -----------------------------------   |
 | Motherboard          | GIGABYTE* Z390 UD                  | ASUS* PRIME Z370-A                 | GIGABYTE* Z490 AORUS PRO AX           |
 | CPU                  | Intel® Core™ i3-8100 CPU @ 3.60GHz | Intel® Core™ i5-8500 CPU @ 3.00GHz | Intel® Core™ i5-10500TE CPU @ 2.30GHz |
@@ -171,7 +171,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines (continue)**
 
-|                      | Intel Atom® x5-E3940                  | Intel Atom® x6425RE                               | Intel® Celeron® 6305E            |
+| Configuration        | Intel Atom® x5-E3940                  | Intel Atom® x6425RE                               | Intel® Celeron® 6305E            |
 | -------------------- | --------------------------------------|-------------------------------                    |----------------------------------|
 | Motherboard          | Intel Corporation<br>internal/Reference<br>Validation Platform | Intel Corporation<br>internal/Reference<br>Validation Platform | Intel Corporation<br>internal/Reference<br>Validation Platform      |
 | CPU                  | Intel Atom® Processor E3940 @ 1.60GHz | Intel Atom® x6425RE<br>Processor @ 1.90GHz        | Intel® Celeron®<br>6305E @ 1.80GHz  |
@@ -195,7 +195,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **Accelerator Inference Engines**
 
-|                                         | Intel® Neural Compute Stick 2         | Intel® Vision Accelerator Design<br>with Intel® Movidius™ VPUs (Mustang-V100-MX8) | 
+| Configuration                           | Intel® Neural Compute Stick 2         | Intel® Vision Accelerator Design<br>with Intel® Movidius™ VPUs (Mustang-V100-MX8) | 
 | --------------------------------------- | ------------------------------------- | ------------------------------------- |
 | VPU                                     | 1 X Intel® Movidius™ Myriad™ X MA2485 | 8 X Intel® Movidius™ Myriad™ X MA2485 |
 | Connection                              | USB 2.0/3.0                           | PCIe X4                               |

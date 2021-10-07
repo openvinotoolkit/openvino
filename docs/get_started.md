@@ -120,12 +120,7 @@
    gst_samples_README
 
 
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Post-Training Optimization Tool
 
-   pot_README
 
 
 @endsphinxdirective
