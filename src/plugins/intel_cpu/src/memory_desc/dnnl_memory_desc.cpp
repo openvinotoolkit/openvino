@@ -15,7 +15,7 @@ DnnlMemoryDesc::DnnlMemoryDesc(const mkldnn::memory::desc& desc) :
         IE_THROW(Unexpected) << "Memory format any is prohibited!";
     mkldnn::impl::memory_desc_wrapper wrapperThis(desc.data);
     if (wrapperThis.has_runtime_dims_or_strides())
-        IE_THROW(Unexpected) << "Can't create DnnlMemoryDesc from undefined dims or strides!";
+        IE_THROW(Unexpected) << "Can't create DnnlMemoryDesc from mkldnn::memory::desc with undefined dims or strides!";
 }
 
 bool DnnlMemoryDesc::canComputeMemSizeZeroDims() const {

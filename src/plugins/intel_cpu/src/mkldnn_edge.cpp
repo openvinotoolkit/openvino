@@ -316,7 +316,7 @@ void MKLDNNEdge::changeStatus(MKLDNNEdge::Status state) {
     status = state;
 }
 
-MemoryDescPtr MKLDNNEdge::getInputDescPtr() const {
+MemoryDescCPtr MKLDNNEdge::getInputDescPtr() const {
     auto parentPtr = getParent();
     if (parentPtr->getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Primitive descriptor for node " << parentPtr->getName() << " is not selected.";
@@ -335,7 +335,7 @@ MemoryDescPtr MKLDNNEdge::getInputDescPtr() const {
     return outConfs[inputIdx].desc;
 }
 
-MemoryDescPtr MKLDNNEdge::getOutputDescPtr() const {
+MemoryDescCPtr MKLDNNEdge::getOutputDescPtr() const {
     auto childPtr = getChild();
 
     if (childPtr->getSelectedPrimitiveDescriptor() == nullptr)
@@ -355,7 +355,7 @@ MemoryDescPtr MKLDNNEdge::getOutputDescPtr() const {
     return inConfs[outputIdx].desc;
 }
 
-MemoryDescPtr MKLDNNEdge::getDescPtr() const {
+MemoryDescCPtr MKLDNNEdge::getDescPtr() const {
     if (!getInputDesc().isCompatible(getOutputDesc()))
         IE_THROW() << "Cannot get descriptor for edge: " << getParent()->getName() << "->"
                    << getChild()->getName();
@@ -386,8 +386,8 @@ const MKLDNNMemory &MKLDNNEdge::getMemory() {
 MKLDNNMemoryPtr &MKLDNNEdge::getMemoryPtr() {
     if (status == Status::NotAllocated) {
         memoryPtr.reset(new MKLDNNMemory(getParent()->getEngine()));
-        const auto &desc = getDesc();
-        memoryPtr->Create(getDescPtr(), desc.isDefined() ? getSharedEdge()->getMemoryPtr()->GetData() : nullptr);
+        const auto &desc = getDescPtr();
+        memoryPtr->Create(desc, desc->isDefined() ? getSharedEdge()->getMemoryPtr()->GetData() : nullptr);
         memoryFromEdge.reset();
         changeStatus(Status::Allocated);
     }

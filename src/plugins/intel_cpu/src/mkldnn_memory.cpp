@@ -88,8 +88,8 @@ void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bo
     }
 }
 
-void MKLDNNMemory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
-    pMemDesc = std::move(desc);
+void MKLDNNMemory::Create(MemoryDescCPtr desc, const void* data, bool pads_zeroing) {
+    pMemDesc = std::const_pointer_cast<MemoryDesc>(desc);
     if (nullptr != data) {
         useExternalStorage = true;
     } else {
@@ -139,7 +139,7 @@ void *MKLDNNMemory::GetPtr() const  {
     return ptr;
 }
 
-void MKLDNNMemory::redefineDesc(MemoryDescPtr desc, void *data) {
+void MKLDNNMemory::redefineDesc(MemoryDescCPtr desc, void *data) {
     if (data != nullptr) {
         this->Create(std::move(desc), data, false);
     } else if (useExternalStorage) {

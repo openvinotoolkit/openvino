@@ -100,7 +100,7 @@ InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const MKLDNNMemory &
 
 InferenceEngine::TensorDesc MemoryDescUtils::convertToTensorDesc(const MemoryDesc& desc) {
     if (auto blockingDesc = dynamic_cast<const BlockedMemoryDesc*>(&desc)) {
-        if (!convertToDnnlBlockedMemoryDesc(*blockingDesc).hasEmptyExtraData())
+        if (desc.getType() == DnnlBlocked && !desc.as<DnnlBlockedMemoryDesc>()->hasEmptyExtraData())
             IE_THROW() << "Cannot convert MemoryDesc to InferenceEngine::TensorDesc because ExtraData isn't empty!";
 
         InferenceEngine::BlockingDesc blkDesc = desc.getShape().hasZeroDims() ? InferenceEngine::BlockingDesc(blockingDesc->getBlockDims(),

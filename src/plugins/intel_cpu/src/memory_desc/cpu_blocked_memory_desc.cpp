@@ -278,7 +278,7 @@ MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) 
 
 bool CpuBlockedMemoryDesc::blocksExtended() const {
     if (shape.isDynamic())
-        IE_THROW() << "Can't define blockExtended if dims are undefined";
+        IE_THROW() << "Can't check that blocks extended for desc with dynamic shape";
     const size_t rank = shape.getRank();
     for (size_t i = rank; i < order.size(); i++) {
         size_t idx = order[i];

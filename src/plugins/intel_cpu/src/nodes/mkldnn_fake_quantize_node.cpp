@@ -1303,7 +1303,7 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
 
             if (internalBlobMemory.empty() || needUpdThr) {
                 auto binarizationThresholdsDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                binarizationThresholdsDataMem->Create(weightsDataDesc, getBinarizationTresholdsPtr());
+                binarizationThresholdsDataMem->Create(std::make_shared<DnnlBlockedMemoryDesc>(weightsDataDesc), getBinarizationTresholdsPtr());
                 if (internalBlobMemory.empty()) {
                     internalBlobMemory.push_back(binarizationThresholdsDataMem);
                 } else {
@@ -1313,7 +1313,7 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
 
             if (internalBlobMemory.size() == (numBinFqIntBlob - 1) || needUpdMask) {
                 auto binarizationMaskDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                binarizationMaskDataMem->Create(weightsDataDesc, getBinarizationOutputMaskPtr());
+                binarizationMaskDataMem->Create(std::make_shared<DnnlBlockedMemoryDesc>(weightsDataDesc), getBinarizationOutputMaskPtr());
                 if (internalBlobMemory.size() == (numBinFqIntBlob - 1)) {
                     internalBlobMemory.push_back(binarizationMaskDataMem);
                 } else {
@@ -1327,7 +1327,7 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
                 auto memory = std::make_shared<MKLDNNMemory>(getEngine());
                 bool needOverwrite = getInputShapeAtPort(0).getDims()[getAxis()] == Shape::UNDEFINED_DIM && data.size() == 1;
                 if (needOverwrite) {
-                    memory->Create(weightsDataDesc);
+                    memory->Create(std::make_shared<DnnlBlockedMemoryDesc>(weightsDataDesc));
                     float *ptr = reinterpret_cast<float *>(memory->GetPtr());
                     std::fill(ptr, ptr + newPaddedSize, data[0]);
                 } else {
@@ -1336,7 +1336,7 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
                     } else {
                         data.resize(newPaddedSize);
                     }
-                    memory->Create(weightsDataDesc, &data[0]);
+                    memory->Create(std::make_shared<DnnlBlockedMemoryDesc>(weightsDataDesc), &data[0]);
                 }
 
                 if (internalBlobMemory.size() != numFqIntBlob) {
@@ -1736,7 +1736,7 @@ void MKLDNNFakeQuantizeNode::appendBinPostOps(mkldnn::post_ops& ops, const Vecto
 
         if (!memPtr) {
             memPtr.reset(new MKLDNNMemory(getEngine()));
-            memPtr->Create(memoryDesc, data);
+            memPtr->Create(std::make_shared<DnnlBlockedMemoryDesc>(memoryDesc), data);
 
             binaryPostOpsMem.push_back(memPtr);
         }

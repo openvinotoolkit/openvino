@@ -543,7 +543,6 @@ void MKLDNNRNN::fillBiases(const int *gate_map) {
         IE_THROW() << "Doesn't support bias precision: " << getOriginalInputPrecisionAtPort(bIdx);
     }
 
-<<<<<<< HEAD
     InferenceEngine::SizeVector dims_b = { L, D, Gb, SC };
     InferenceEngine::TensorDesc w_bias_data_desc(Prec, dims_b, getWeightsLayoutByDims(dims_b, false));
     Blob::Ptr w_bias_data_mem = InferenceEngine::make_shared_blob<dataType>(w_bias_data_desc);
@@ -551,11 +550,6 @@ void MKLDNNRNN::fillBiases(const int *gate_map) {
     auto b_ptr = static_cast<dataType*>(w_bias_data_mem->buffer());
     if (b_ptr == nullptr)
         IE_THROW(NotAllocated) << "Internal blob was not allocated for node " << getName() << ".";
-=======
-    auto w_bias_mem = std::make_shared<MKLDNNMemory>(getEngine());
-    w_bias_mem->Create(w_bias_d);
-    internalBlobMemory.push_back(w_bias_mem);
->>>>>>> d83bcc44e... Clone method removed from descriptors
 
     auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(getParentEdgesAtPort(bIdx)[0]->getParent().get());
     auto constBlob = constInputNode->getMemoryPtr();

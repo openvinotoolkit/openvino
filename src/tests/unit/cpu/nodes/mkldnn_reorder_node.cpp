@@ -89,12 +89,13 @@ protected:
 
         auto parentMemory = std::make_shared<MKLDNNPlugin::MKLDNNMemory>(cpuEngine);
         auto childMemory = std::make_shared<MKLDNNPlugin::MKLDNNMemory>(cpuEngine);
-        parentMemory->Create(inputDesc, srcData);
-        childMemory->Create(outputDesc, dstData);
+        parentMemory->Create(std::make_shared<MKLDNNPlugin::CpuBlockedMemoryDesc>(inputDesc), srcData);
+        childMemory->Create(std::make_shared<MKLDNNPlugin::CpuBlockedMemoryDesc>(outputDesc), dstData);
         parentEdge->reuse(parentMemory);
         childEdge->reuse(childMemory);
 
-        reorderNode->setDescs(inputDesc, outputDesc);
+        reorderNode->setDescs(std::make_shared<MKLDNNPlugin::CpuBlockedMemoryDesc>(inputDesc),
+                              std::make_shared<MKLDNNPlugin::CpuBlockedMemoryDesc>(outputDesc));
         std::vector<std::shared_ptr<MKLDNNPlugin::MKLDNNNode>> nodes {inputNode, reorderNode, outputNode};
         for (auto &n : nodes) {
             n->init();

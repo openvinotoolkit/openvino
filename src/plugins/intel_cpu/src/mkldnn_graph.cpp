@@ -441,9 +441,9 @@ void MKLDNNGraph::ExecuteConstantNodesOnly() const {
     }
 }
 
-static bool isReorderAvailable(MemoryDescPtr parentDesc, MemoryDescPtr childDesc, const mkldnn::engine& eng) {
-    memory::desc dstMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(childDesc)->getDnnlDesc();
-    memory::desc srcMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(parentDesc)->getDnnlDesc();
+static bool isReorderAvailable(MemoryDescCPtr parentDesc, MemoryDescCPtr childDesc, const mkldnn::engine& eng) {
+    memory::desc dstMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(std::const_pointer_cast<MemoryDesc>(childDesc))->getDnnlDesc();
+    memory::desc srcMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(std::const_pointer_cast<MemoryDesc>(parentDesc))->getDnnlDesc();
     mkldnn::primitive_attr attr;
 
     dnnl_primitive_desc_t result = nullptr;
@@ -479,7 +479,10 @@ void MKLDNNGraph::InitEdges() {
         uniqueLayerNames.insert(layerName);
 
         // optimized flag indicate that just desc update w/o actual physical memory movement.
-        InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
+        InsertReorder(edge, layerName,
+                      std::const_pointer_cast<MemoryDesc>(edge->getInputDescPtr()),
+                      std::const_pointer_cast<MemoryDesc>(edge->getOutputDescPtr()),
+                       isOptimized);
     };
 
     auto updateEdge = [&](int& i) {
@@ -505,7 +508,8 @@ void MKLDNNGraph::InitEdges() {
 
                 auto convertNode = std::make_shared<MKLDNNConvertNode>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
                                                                        convertName, this->getEngine(), this->weightsCache);
-                convertNode->setDescs(edge->getInputDescPtr(), edge->getOutputDescPtr());
+                convertNode->setDescs(std::const_pointer_cast<MemoryDesc>(edge->getInputDescPtr()),
+                                      std::const_pointer_cast<MemoryDesc>(edge->getOutputDescPtr()));
                 InsertNode(edge, convertNode, true);
 
                 //Check if reorder is still needed
@@ -655,8 +659,7 @@ void MKLDNNGraph::AllocateWithReuse() {
     size_t total_size = static_cast<size_t>(memSolver.solve()) * alignment;
 
     memWorkspace = std::make_shared<MKLDNNMemory>(eng);
-    memWorkspace->Create(std::make_shared<DnnlBlockedMemoryDesc>(DnnlBlockedMemoryDesc(InferenceEngine::Precision::I8,
-                                                                 Shape(InferenceEngine::SizeVector{total_size}))));
+    memWorkspace->Create(std::make_shared<DnnlBlockedMemoryDesc>(InferenceEngine::Precision::I8, Shape(VectorDims {total_size})));
 
     if (edge_clusters.empty())
         return;

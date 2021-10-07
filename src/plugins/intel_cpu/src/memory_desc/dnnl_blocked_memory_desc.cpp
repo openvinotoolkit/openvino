@@ -426,81 +426,6 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims)
     return DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(cloneDescWithNewDims(desc, dims, order)));
 }
 
-<<<<<<< HEAD
-bool DnnlBlockedMemoryDesc::isSame(mkldnn::memory::format_tag fmt) const {
-    mkldnn::memory::desc refDesc(desc.dims(), desc.data_type(), fmt);
-
-    if (desc.data.ndims != refDesc.data.ndims)
-        return false;
-
-    if (desc.data.format_kind != dnnl_blocked || refDesc.data.format_kind != dnnl_blocked)
-        IE_THROW() << "DnnlMemoryDesc::isSame is not implemented for non blocked memory format";
-
-    auto actualBlkDesc = desc.data.format_desc.blocking;
-    auto refBlkDesc = refDesc.data.format_desc.blocking;
-    if (actualBlkDesc.inner_nblks != refBlkDesc.inner_nblks)
-        return false;
-
-    for (size_t i = 0; i < actualBlkDesc.inner_nblks; ++i)
-        if (actualBlkDesc.inner_blks[i] != refBlkDesc.inner_blks[i])
-            return false;
-
-    for (size_t i = 0; i < actualBlkDesc.inner_nblks; ++i)
-        if (actualBlkDesc.inner_idxs[i] != refBlkDesc.inner_idxs[i])
-            return false;
-
-    auto actualStrides = desc.data.format_desc.blocking.strides;
-    auto refStrides = refDesc.data.format_desc.blocking.strides;
-
-    VectorDims actualOrder(desc.data.ndims);
-    {
-        const auto dims = desc.dims();
-        VectorDims total_block_per_dim(dims.size(), 1);
-        const auto &blk_desc = desc.data.format_desc.blocking;
-        for (int i = 0; i < blk_desc.inner_nblks; i++) {
-            total_block_per_dim[blk_desc.inner_idxs[i]] *= blk_desc.inner_blks[i];
-        }
-        VectorDims outer_block_dims(std::begin(dims), std::begin(dims) + dims.size());
-        for (size_t i = 0; i < outer_block_dims.size(); i++) {
-            outer_block_dims[i] = div_up(outer_block_dims[i], total_block_per_dim[i]);
-        }
-
-        std::iota(actualOrder.begin(), actualOrder.end(), 0);
-        std::sort(actualOrder.begin(), actualOrder.end(),
-                  [&actualStrides, &outer_block_dims] (size_t ind_l, size_t ind_r) {
-                      return (actualStrides[ind_l] > actualStrides[ind_r]) ||
-                             (actualStrides[ind_l] == actualStrides[ind_r] && outer_block_dims[ind_l] > outer_block_dims[ind_r]);
-                  });
-    }
-
-    VectorDims refOrder(refDesc.data.ndims);
-    {
-        const auto dims = refDesc.dims();
-        VectorDims total_block_per_dim(dims.size(), 1);
-        const auto &blk_desc = refDesc.data.format_desc.blocking;
-        for (int i = 0; i < blk_desc.inner_nblks; i++) {
-            total_block_per_dim[blk_desc.inner_idxs[i]] *= blk_desc.inner_blks[i];
-        }
-        VectorDims outer_block_dims(std::begin(dims), std::begin(dims) + dims.size());
-        for (size_t i = 0; i < outer_block_dims.size(); i++) {
-            outer_block_dims[i] = div_up(outer_block_dims[i], total_block_per_dim[i]);
-        }
-
-        std::iota(refOrder.begin(), refOrder.end(), 0);
-        std::sort(refOrder.begin(), refOrder.end(),
-                  [&refStrides, &outer_block_dims] (size_t ind_l, size_t ind_r) {
-                      return (refStrides[ind_l] > refStrides[ind_r]) ||
-                             (refStrides[ind_l] == refStrides[ind_r] && outer_block_dims[ind_l] > outer_block_dims[ind_r]);
-                  });
-    }
-
-    if (actualOrder != refOrder) {
-        return false;
-    }
-
-    return true;
-}
-
 size_t DnnlBlockedMemoryDesc::getMaxMemSize() const {
     if (shape.isStatic() || shape.hasZeroDims()) {
         return getCurrentMemSize();
@@ -531,7 +456,7 @@ size_t DnnlBlockedMemoryDesc::getPaddedElementsCount() const {
 
 bool DnnlBlockedMemoryDesc::blocksExtended() const {
     if (shape.isDynamic())
-        IE_THROW() << "Can't define blockExtended if dims are undefined";
+        IE_THROW() << "Can't check that blocks extended for desc with dynamic shape";
     for (int i = 0; i < desc.data.ndims; i++) {
         if (desc.data.dims[i] != desc.data.padded_dims[i])
             return true;

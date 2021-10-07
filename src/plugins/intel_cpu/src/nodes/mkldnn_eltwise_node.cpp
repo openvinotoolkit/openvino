@@ -1821,7 +1821,7 @@ void MKLDNNEltwiseNode::appendBinPostOps(mkldnn::post_ops& ops, const VectorDims
 
         if (!memPtr) {
             memPtr.reset(new MKLDNNMemory(getEngine()));
-            memPtr->Create(memoryDesc, &data[0]);
+            memPtr->Create(std::make_shared<DnnlBlockedMemoryDesc>(memoryDesc), &data[0]);
 
             binaryPostOpsMem.push_back(memPtr);
         }

@@ -90,9 +90,9 @@ private:
     MKLDNNMemoryPtr memoryPtr;
     Status status = Status::Uninitialized;
 
-    MemoryDescPtr getInputDescPtr() const;
-    MemoryDescPtr getOutputDescPtr() const;
-    MemoryDescPtr getDescPtr() const;
+    MemoryDescCPtr getInputDescPtr() const;
+    MemoryDescCPtr getOutputDescPtr() const;
+    MemoryDescCPtr getDescPtr() const;
 
     const MemoryDesc& getInputDesc() const;
     const MemoryDesc& getOutputDesc() const;
