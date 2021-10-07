@@ -23,8 +23,7 @@ TEST(type_prop, sigmoid_partial) {
     ASSERT_TRUE(sigmoid_func->get_output_partial_shape(0).same_scheme(data->get_output_partial_shape(0)));
 
     // rank unknown
-    auto sigmoid_partial =
-        make_shared<op::Sigmoid>(make_shared<op::Parameter>(element::f32, PartialShape::dynamic()));
+    auto sigmoid_partial = make_shared<op::Sigmoid>(make_shared<op::Parameter>(element::f32, PartialShape::dynamic()));
     ASSERT_TRUE(sigmoid_partial->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
