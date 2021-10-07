@@ -27,8 +27,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 43793
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*iPRC=0.*_iLT=1.*)",
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*_oLT=1.*)",
-        // TODO: Issue: 34348
-        R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue: 63469
         R"(.*ConversionLayerTest.*ConvertLike.*)",
         // TODO: Issue: 34055
@@ -81,6 +79,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(Auto|Multi).*Behavior.*CorrectConfigAPITests.*CanSetExclusiveAsyncRequests.*)",
         R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
         R"(.*OVExecutableNetworkBaseTest.*(CanGetInputsInfoAndCheck|CanSetConfigToExecNet|canLoadCorrectNetworkToGetExecutableWithIncorrectConfig).*)",
+        R"(.*Behavior.*CorrectConfigCheck.*(canSetConfigAndCheckGetConfig|canSetConfigTwiceAndCheckGetConfig).*CPU_BIND_THREAD=YES.*)",
         // azure is failing after #6199
         R"(.*/NmsLayerTest.*)",
         // TODO: 56520 Accuracy mismatch

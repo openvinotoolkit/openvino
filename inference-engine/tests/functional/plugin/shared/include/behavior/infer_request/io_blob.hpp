@@ -336,6 +336,7 @@ public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
+        ie = PluginCache::get().ie(targetDevice);
         function = ngraph::builder::subgraph::makeConvPoolRelu();
         cnnNet = InferenceEngine::CNNNetwork(function);
         execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
@@ -412,6 +413,7 @@ public:
         if (!configuration.empty()) {
             PluginCache::get().reset();
         }
+        function.reset();
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();

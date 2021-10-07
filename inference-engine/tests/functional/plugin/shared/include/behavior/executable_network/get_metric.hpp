@@ -40,6 +40,7 @@ protected:
     std::string configValue;
 public:
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         IEClassNetworkTest::SetUp();
         deviceName = std::get<0>(GetParam());
         std::tie(configKey, configValue) = std::get<1>(GetParam());
@@ -57,6 +58,7 @@ protected:
     std::string heteroDeviceName;
 public:
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         IEClassNetworkTest::SetUp();
         deviceName = GetParam();
         heteroDeviceName = CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName + std::string(",") + CommonTestUtils::DEVICE_CPU;

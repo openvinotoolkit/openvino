@@ -6,7 +6,7 @@
 
 #include <exec_graph_info.hpp>
 #include <transformations/serialize.hpp>
-#include "base/behavior_test_utils.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 
@@ -14,10 +14,10 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-class OVExecutableNetworkBaseTest : public testing::WithParamInterface<BehaviorTestsUtils::InferRequestParams>,
+class OVExecutableNetworkBaseTest : public testing::WithParamInterface<InferRequestParams>,
                                     public CommonTestUtils::TestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<BehaviorTestsUtils::InferRequestParams> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
         std::tie(targetDevice, configuration) = obj.param;
@@ -43,6 +43,7 @@ public:
         if (!configuration.empty()) {
             PluginCache::get().reset();
         }
+        function.reset();
     }
 
 protected:

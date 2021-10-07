@@ -37,6 +37,7 @@ public:
         if (!configuration.empty()) {
             PluginCache::get().reset();
         }
+        function.reset();
     }
 
 protected:

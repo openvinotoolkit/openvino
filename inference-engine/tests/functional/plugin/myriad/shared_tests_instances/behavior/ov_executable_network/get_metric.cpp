@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/executable_network/ov_get_metric.hpp"
+#include "behavior/ov_executable_network/get_metric.hpp"
 
 #include <functional_test_utils/skip_tests_config.hpp>
 

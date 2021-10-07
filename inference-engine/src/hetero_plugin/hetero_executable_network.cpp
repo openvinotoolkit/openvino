@@ -60,9 +60,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     auto clonedFunction = ngraph::clone_function(*function);
     auto itDumpDotFile = _config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
     bool dumpDotFile = itDumpDotFile != _config.end() ? (itDumpDotFile->second == YES) : false;
-#ifndef NDEBUG
-    dumpDotFile  = true;
-#endif
+//#ifndef NDEBUG
+//    dumpDotFile  = true;
+//#endif
     QueryNetworkResult queryNetworkResult;
     auto orderedOps = clonedFunction->get_ordered_ops();
     bool allEmpty = true;

@@ -76,6 +76,7 @@ protected:
         if (!configuration.empty()) {
             ov::test::PluginCache::get().reset();
         }
+        function.reset();
     }
 
     std::shared_ptr<ov::runtime::Core> ie = ov::test::PluginCache::get().core();

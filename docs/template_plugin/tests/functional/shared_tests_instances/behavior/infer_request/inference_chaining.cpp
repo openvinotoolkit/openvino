@@ -5,7 +5,7 @@
 #include "behavior/infer_request/inference_chaining.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace ov::test;
+using namespace ov::test::behavior;
 
 namespace {
 

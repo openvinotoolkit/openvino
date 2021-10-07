@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/plugin/ov_core_integration.hpp"
+#include "behavior/ov_plugin/core_integration.hpp"
 
 #ifdef _WIN32
 #    include "gpu/gpu_context_api_dx.hpp"
@@ -73,7 +73,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetAvailableDevices, OVClassGetAvailable
 //
 // GPU specific metrics
 //
-using OVClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE = BehaviorTestsUtils::OVClassBaseTestP;
+using OVClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE = OVClassBaseTestP;
 TEST_P(OVClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie;
     ov::runtime::Parameter p;
@@ -90,7 +90,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
         OVClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE,
         ::testing::Values("GPU"));
 
-using OVClassGetMetricTest_GPU_UARCH_VERSION = BehaviorTestsUtils::OVClassBaseTestP;
+using OVClassGetMetricTest_GPU_UARCH_VERSION = OVClassBaseTestP;
 TEST_P(OVClassGetMetricTest_GPU_UARCH_VERSION, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie;
     ov::runtime::Parameter p;
@@ -106,7 +106,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
         OVClassGetMetricTest_GPU_UARCH_VERSION,
         ::testing::Values("GPU"));
 
-using OVClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT = BehaviorTestsUtils::OVClassBaseTestP;
+using OVClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT = OVClassBaseTestP;
 TEST_P(OVClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie;
     ov::runtime::Parameter p;

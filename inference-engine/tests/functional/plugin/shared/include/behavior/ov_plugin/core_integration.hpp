@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include <gtest/gtest.h>
-
-#include "base/behavior_test_utils.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -46,27 +44,27 @@ public:
     }
 };
 
-using OVClassNetworkTestP = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassQueryNetworkTest = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassImportExportTestP = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassGetMetricTest_SUPPORTED_METRICS = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassGetMetricTest_AVAILABLE_DEVICES = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassGetMetricTest_FULL_DEVICE_NAME = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassGetMetricTest_DEVICE_GOPS = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassGetMetricTest_DEVICE_TYPE = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassGetMetricTest_ThrowUnsupported = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassGetConfigTest = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassGetConfigTest_ThrowUnsupported = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassGetConfigTest_ThrowUnsupported = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassGetConfigTest_ThrowUnsupported = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassGetAvailableDevices = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassGetMetricTest_RANGE_FOR_STREAMS = BehaviorTestsUtils::OVClassBaseTestP;
-using OVClassLoadNetworkAfterCoreRecreateTest = BehaviorTestsUtils::OVClassBaseTestP;
+using OVClassNetworkTestP = OVClassBaseTestP;
+using OVClassQueryNetworkTest = OVClassBaseTestP;
+using OVClassImportExportTestP = OVClassBaseTestP;
+using OVClassGetMetricTest_SUPPORTED_METRICS = OVClassBaseTestP;
+using OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS = OVClassBaseTestP;
+using OVClassGetMetricTest_AVAILABLE_DEVICES = OVClassBaseTestP;
+using OVClassGetMetricTest_FULL_DEVICE_NAME = OVClassBaseTestP;
+using OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES = OVClassBaseTestP;
+using OVClassGetMetricTest_DEVICE_GOPS = OVClassBaseTestP;
+using OVClassGetMetricTest_DEVICE_TYPE = OVClassBaseTestP;
+using OVClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS = OVClassBaseTestP;
+using OVClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS = OVClassBaseTestP;
+using OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS = OVClassBaseTestP;
+using OVClassGetMetricTest_ThrowUnsupported = OVClassBaseTestP;
+using OVClassGetConfigTest = OVClassBaseTestP;
+using OVClassGetConfigTest_ThrowUnsupported = OVClassBaseTestP;
+using OVClassGetConfigTest_ThrowUnsupported = OVClassBaseTestP;
+using OVClassGetConfigTest_ThrowUnsupported = OVClassBaseTestP;
+using OVClassGetAvailableDevices = OVClassBaseTestP;
+using OVClassGetMetricTest_RANGE_FOR_STREAMS = OVClassBaseTestP;
+using OVClassLoadNetworkAfterCoreRecreateTest = OVClassBaseTestP;
 using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
 
 inline bool supportsAvaliableDevices(ov::runtime::Core& ie, const std::string& deviceName) {
@@ -80,18 +78,18 @@ TEST(OVClassBasicTest, smoke_createDefault) {
 }
 
 TEST_P(OVClassBasicTestP, registerExistingPluginThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.register_plugin(pluginName, deviceName), ov::Exception);
 }
 
 TEST_P(OVClassBasicTestP, registerNewPluginNoThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.register_plugin(pluginName, "NEW_DEVICE_NAME"));
     ASSERT_NO_THROW(ie.get_metric("NEW_DEVICE_NAME", METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
 }
 
 TEST(OVClassBasicTest, smoke_registerExistingPluginFileThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.register_plugins("nonExistPlugins.xml"), ov::Exception);
     ASSERT_THROW(ie.register_plugins("nonExistPlugins.xml"), ov::Exception);
 }
@@ -142,7 +140,7 @@ TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
 
             GTEST_COUT << "Test " << testIndex << std::endl;
 
-            ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+            ov::runtime::Core ie = createCoreWithTemplate();
             GTEST_COUT << "Core created " << testIndex << std::endl;
             ASSERT_NO_THROW(ie.register_plugins(::ov::util::wstring_to_string(pluginsXmlW)));
             CommonTestUtils::removeFile(pluginsXmlW);
@@ -173,17 +171,17 @@ TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
 //
 
 TEST_P(OVClassBasicTestP, getVersionsByExactDeviceNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.get_versions(deviceName + ".0"));
 }
 
 TEST_P(OVClassBasicTestP, getVersionsByDeviceClassNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.get_versions(deviceName));
 }
 
 TEST_P(OVClassBasicTestP, getVersionsNonEmpty) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_EQ(2, ie.get_versions(CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName).size());
 }
 
@@ -192,7 +190,7 @@ TEST_P(OVClassBasicTestP, getVersionsNonEmpty) {
 //
 
 TEST_P(OVClassBasicTestP, unregisterExistingPluginNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     // device instance is not created yet
     ASSERT_THROW(ie.unload_plugin(deviceName), ov::Exception);
 
@@ -203,7 +201,7 @@ TEST_P(OVClassBasicTestP, unregisterExistingPluginNoThrow) {
 }
 
 TEST_P(OVClassBasicTestP, accessToUnregisteredPluginThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.unload_plugin(deviceName), ov::Exception);
     ASSERT_NO_THROW(ie.get_versions(deviceName));
     ASSERT_NO_THROW(ie.unload_plugin(deviceName));
@@ -213,7 +211,7 @@ TEST_P(OVClassBasicTestP, accessToUnregisteredPluginThrows) {
 }
 
 TEST(OVClassBasicTest, smoke_unregisterNonExistingPluginThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.unload_plugin("unkown_device"), ov::Exception);
 }
 
@@ -222,41 +220,41 @@ TEST(OVClassBasicTest, smoke_unregisterNonExistingPluginThrows) {
 //
 
 TEST_P(OVClassBasicTestP, SetConfigAllThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.set_config({{"unsupported_key", "4"}}));
     ASSERT_ANY_THROW(ie.get_versions(deviceName));
 }
 
 TEST_P(OVClassBasicTestP, SetConfigForUnRegisteredDeviceThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.set_config({{"unsupported_key", "4"}}, "unregistered_device"), ov::Exception);
 }
 
 TEST_P(OVClassBasicTestP, SetConfigNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.set_config({{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}},
                                   deviceName));
 }
 
 TEST_P(OVClassBasicTestP, SetConfigAllNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.set_config({{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}}));
     ASSERT_NO_THROW(ie.get_versions(deviceName));
 }
 
 TEST(OVClassBasicTest, smoke_SetConfigHeteroThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.set_config({{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}},
                                   CommonTestUtils::DEVICE_HETERO));
 }
 
 TEST_P(OVClassBasicTestP, SetConfigHeteroTargetFallbackThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.set_config({{"TARGET_FALLBACK", deviceName}}, CommonTestUtils::DEVICE_HETERO));
 }
 
 TEST(OVClassBasicTest, smoke_SetConfigHeteroNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     bool value = false;
 
     ASSERT_NO_THROW(ie.set_config({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), InferenceEngine::PluginConfigParams::YES}},
@@ -275,12 +273,12 @@ TEST(OVClassBasicTest, smoke_SetConfigHeteroNoThrow) {
 //
 
 TEST_P(OVClassNetworkTestP, QueryNetworkActualThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.query_model(actualNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName));
 }
 
 TEST_P(OVClassNetworkTestP, QueryNetworkActualNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
 
     try {
         ie.query_model(actualNetwork, deviceName);
@@ -291,7 +289,7 @@ TEST_P(OVClassNetworkTestP, QueryNetworkActualNoThrow) {
 }
 
 TEST_P(OVClassNetworkTestP, QueryNetworkWithKSO) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
 
     try {
         auto rl_map = ie.query_model(ksoNetwork, deviceName);
@@ -308,7 +306,7 @@ TEST_P(OVClassNetworkTestP, QueryNetworkWithKSO) {
 }
 
 TEST_P(OVClassNetworkTestP, SetAffinityWithConstantBranches) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
 
     try {
         std::shared_ptr<ngraph::Function> func;
@@ -354,7 +352,7 @@ TEST_P(OVClassNetworkTestP, SetAffinityWithConstantBranches) {
 }
 
 TEST_P(OVClassNetworkTestP, SetAffinityWithKSO) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
 
     try {
         auto rl_map = ie.query_model(ksoNetwork, deviceName);
@@ -376,7 +374,7 @@ TEST_P(OVClassNetworkTestP, SetAffinityWithKSO) {
 }
 
 TEST_P(OVClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ov::runtime::SupportedOpsMap res;
     ASSERT_NO_THROW(
             res = ie.query_model(actualNetwork, CommonTestUtils::DEVICE_HETERO, {{"TARGET_FALLBACK", deviceName}}));
@@ -384,12 +382,12 @@ TEST_P(OVClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
 }
 
 TEST_P(OVClassNetworkTestP, QueryNetworkMultiThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.query_model(actualNetwork, CommonTestUtils::DEVICE_MULTI), ov::Exception);
 }
 
 TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
     std::string deviceName = CommonTestUtils::DEVICE_HETERO;
 
@@ -405,7 +403,7 @@ TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
 }
 
 TEST(OVClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
     std::string deviceName = CommonTestUtils::DEVICE_HETERO;
 
@@ -421,14 +419,14 @@ TEST(OVClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroNoThrow) {
 }
 
 TEST(OVClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     // TODO: check
     std::string targetDevice = CommonTestUtils::DEVICE_HETERO + std::string(":") + CommonTestUtils::DEVICE_CPU;
     ASSERT_THROW(ie.get_metric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)), ov::Exception);
 }
 
 TEST_P(OVClassGetMetricTest_SUPPORTED_METRICS, GetMetricAndPrintNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_METRICS)));
@@ -443,7 +441,7 @@ TEST_P(OVClassGetMetricTest_SUPPORTED_METRICS, GetMetricAndPrintNoThrow) {
 }
 
 TEST_P(OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricAndPrintNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
@@ -458,7 +456,7 @@ TEST_P(OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricAndPrintNoThrow) {
 }
 
 TEST_P(OVClassGetMetricTest_AVAILABLE_DEVICES, GetMetricAndPrintNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)));
@@ -473,7 +471,7 @@ TEST_P(OVClassGetMetricTest_AVAILABLE_DEVICES, GetMetricAndPrintNoThrow) {
 }
 
 TEST_P(OVClassGetMetricTest_FULL_DEVICE_NAME, GetMetricAndPrintNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)));
@@ -484,7 +482,7 @@ TEST_P(OVClassGetMetricTest_FULL_DEVICE_NAME, GetMetricAndPrintNoThrow) {
 }
 
 TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES)));
@@ -499,7 +497,7 @@ TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow)
 }
 
 TEST_P(OVClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(DEVICE_GOPS)));
@@ -514,7 +512,7 @@ TEST_P(OVClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {
 }
 
 TEST_P(OVClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(DEVICE_TYPE)));
@@ -526,7 +524,7 @@ TEST_P(OVClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
 }
 
 TEST_P(OVClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(NUMBER_OF_WAITING_INFER_REQUESTS)));
@@ -538,7 +536,7 @@ TEST_P(OVClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS, GetMetricAndPrintN
 }
 
 TEST_P(OVClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS)));
@@ -550,7 +548,7 @@ TEST_P(OVClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS, GetMetricAndPrintNoTh
 }
 
 TEST_P(OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)));
@@ -572,7 +570,7 @@ TEST_P(OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoT
 }
 
 TEST_P(OVClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(RANGE_FOR_STREAMS)));
@@ -591,14 +589,14 @@ TEST_P(OVClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
 }
 
 TEST_P(OVClassGetMetricTest_ThrowUnsupported, GetMetricThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
     ASSERT_THROW(p = ie.get_metric(deviceName, "unsupported_metric"), ov::Exception);
 }
 
 TEST_P(OVClassGetConfigTest, GetConfigNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
@@ -612,7 +610,7 @@ TEST_P(OVClassGetConfigTest, GetConfigNoThrow) {
 }
 
 TEST_P(OVClassGetConfigTest, GetConfigHeteroNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
@@ -624,14 +622,14 @@ TEST_P(OVClassGetConfigTest, GetConfigHeteroNoThrow) {
 }
 
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
     ASSERT_THROW(p = ie.get_config(CommonTestUtils::DEVICE_HETERO, "unsupported_config"), ov::Exception);
 }
 
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
     ASSERT_THROW(p = ie.get_config(CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName,
@@ -640,14 +638,14 @@ TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
 }
 
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     InferenceEngine::Parameter p;
 
     ASSERT_THROW(p = ie.get_config(deviceName, "unsupported_config"), ov::Exception);
 }
 
 TEST_P(OVClassGetAvailableDevices, GetAvailableDevicesNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     std::vector<std::string> devices;
 
     ASSERT_NO_THROW(devices = ie.get_available_devices());
@@ -677,7 +675,7 @@ bool supportsDeviceID(ov::runtime::Core& ie, const std::string& deviceName) {
 }
 
 TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         auto deviceIDs = ie.get_metric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
@@ -692,7 +690,7 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
 }
 
 TEST_P(OVClassQueryNetworkTest, QueryNetworkWithDeviceID) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         try {
@@ -707,7 +705,7 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkWithDeviceID) {
 }
 
 TEST_P(OVClassQueryNetworkTest, QueryNetworkWithBigDeviceIDThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.query_model(actualNetwork, deviceName + ".110"), ov::Exception);
@@ -717,7 +715,7 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkWithBigDeviceIDThrows) {
 }
 
 TEST_P(OVClassQueryNetworkTest, QueryNetworkWithInvalidDeviceIDThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.query_model(actualNetwork, deviceName + ".l0"), ov::Exception);
@@ -727,7 +725,7 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkWithInvalidDeviceIDThrows) {
 }
 
 TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.query_model(actualNetwork,
@@ -739,29 +737,29 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
     }
 }
 
-using OVClassNetworkTestP = BehaviorTestsUtils::OVClassBaseTestP;
+using OVClassNetworkTestP = OVClassBaseTestP;
 
 //
 // LoadNetwork
 //
 
 TEST_P(OVClassNetworkTestP, LoadNetworkActualNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.compile_model(actualNetwork, deviceName));
 }
 
 TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDeviceNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName));
 }
 
 TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_HETERO, {{"TARGET_FALLBACK", deviceName}}));
 }
 
 TEST_P(OVClassNetworkTestP, LoadNetworkCreateDefaultExecGraphResult) {
-    auto ie = BehaviorTestsUtils::createCoreWithTemplate();
+    auto ie = createCoreWithTemplate();
     auto net = ie.compile_model(actualNetwork, deviceName);
     auto runtime_function = net.get_runtime_function();
     ASSERT_NE(nullptr, runtime_function);
@@ -793,7 +791,7 @@ TEST_P(OVClassNetworkTestP, LoadNetworkCreateDefaultExecGraphResult) {
 // LoadNetwork with HETERO on particular device
 //
 TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROWithDeviceIDNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         auto deviceIDs = ie.get_metric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
@@ -808,7 +806,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROWithDeviceIDNoThrow) {
 }
 
 TEST_P(OVClassLoadNetworkTest, LoadNetworkWithDeviceIDNoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         auto deviceIDs = ie.get_metric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
@@ -821,7 +819,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithDeviceIDNoThrow) {
 }
 
 TEST_P(OVClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.compile_model(actualNetwork, deviceName + ".10"), ov::Exception);
@@ -831,7 +829,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
 }
 
 TEST_P(OVClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.compile_model(actualNetwork, deviceName + ".l0"), ov::Exception);
@@ -841,7 +839,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
 }
 
 TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROWithBigDeviceIDThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.compile_model(actualNetwork,
@@ -854,7 +852,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROWithBigDeviceIDThrows) {
 }
 
 TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.compile_model(actualNetwork,
@@ -872,7 +870,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
 //
 
 TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
         std::string devices;
         auto availableDevices = ie.get_metric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
@@ -893,7 +891,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
 }
 
 TEST_P(OVClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
         std::string devices;
@@ -918,7 +916,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
 //
 
 TEST_P(OVClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
         std::string devices;
@@ -953,7 +951,7 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
 }
 
 TEST_P(OVClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
         std::string devices;
@@ -988,7 +986,7 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
 
 // TODO: Enable this test with pre-processing
 TEST_P(OVClassLoadNetworkAfterCoreRecreateTest, LoadAfterRecreateCoresAndPlugins) {
-    ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    ov::runtime::Core ie = createCoreWithTemplate();
     {
         auto versions = ie.get_versions(std::string(CommonTestUtils::DEVICE_MULTI) + ":" + deviceName + "," +
                                         CommonTestUtils::DEVICE_CPU);
@@ -999,7 +997,7 @@ TEST_P(OVClassLoadNetworkAfterCoreRecreateTest, LoadAfterRecreateCoresAndPlugins
         config.insert({"CPU_THREADS_NUM", "3"});
     }
     // ASSERT_NO_THROW({
-    //     ov::runtime::Core ie = BehaviorTestsUtils::createCoreWithTemplate();
+    //     ov::runtime::Core ie = createCoreWithTemplate();
     //     std::string name = actualNetwork.getInputsInfo().begin()->first;
     //     actualNetwork.getInputsInfo().at(name)->setPrecision(Precision::U8);
     //     auto executableNetwork = ie.compile_model(actualNetwork, deviceName, config);

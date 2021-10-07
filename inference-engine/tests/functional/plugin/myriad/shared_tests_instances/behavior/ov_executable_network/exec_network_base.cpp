@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/executable_network/ov_exec_network_base.hpp"
+#include "behavior/ov_executable_network/exec_network_base.hpp"
 
 using namespace ov::test::behavior;
 namespace {
