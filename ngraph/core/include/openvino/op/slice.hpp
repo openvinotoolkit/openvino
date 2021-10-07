@@ -32,11 +32,14 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    bool has_evaluate() const override;
+    bool evaluate(const HostTensorVector&, const HostTensorVector&) const override;
+
     PartialShape calculate_output_shape(const std::vector<int64_t>& starts,
                                         const std::vector<int64_t>& stops,
                                         const std::vector<int64_t>& steps,
                                         const std::vector<int64_t>& axes,
-                                        const PartialShape& data_shape);
+                                        const PartialShape& data_shape) const;
 };
 }  // namespace v8
 }  // namespace op

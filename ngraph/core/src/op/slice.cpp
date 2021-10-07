@@ -10,6 +10,7 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/runtime/reference/slice.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -133,13 +134,13 @@ void op::v8::Slice::validate_and_infer_types() {
     if (data_rank.is_static()) {
         const auto data_rank_length = data_rank.get_length();
         NODE_VALIDATION_CHECK(this,
-                              start_rank.is_dynamic() || start_shape[0].get_max_length() <= data_rank_length,
+                              start_rank.is_dynamic() || start_shape[0].get_min_length() <= data_rank_length,
                               "Slice `start` input dim size can't be bigger than `data` rank.");
         NODE_VALIDATION_CHECK(this,
-                              stop_rank.is_dynamic() || stop_shape[0].get_max_length() <= data_rank_length,
+                              stop_rank.is_dynamic() || stop_shape[0].get_min_length() <= data_rank_length,
                               "Slice `stop` input dim size can't be bigger than `data` rank.");
         NODE_VALIDATION_CHECK(this,
-                              step_rank.is_dynamic() || step_shape[0].get_max_length() <= data_rank_length,
+                              step_rank.is_dynamic() || step_shape[0].get_min_length() <= data_rank_length,
                               "Slice `step` input dim size can't be bigger than `data` rank.");
     }
 
@@ -209,7 +210,7 @@ void op::v8::Slice::validate_and_infer_types() {
                                       data_static_rank - 1,
                                       "]. Got: ",
                                       axis);
-                output_shape[axis] = Dimension(0, data_shape[axis].get_max_length());
+                output_shape[norm_axis] = Dimension(0, data_shape[norm_axis].get_max_length());
             }
         } else {
             // Otherwise `axes` values are also unknown,
@@ -240,7 +241,7 @@ PartialShape op::v8::Slice::calculate_output_shape(const std::vector<int64_t>& s
                                                    const std::vector<int64_t>& stops,
                                                    const std::vector<int64_t>& steps,
                                                    const std::vector<int64_t>& axes,
-                                                   const PartialShape& data_shape) {
+                                                   const PartialShape& data_shape) const {
     NGRAPH_OP_SCOPE(v8_Slice_calculate_output_shape);
     const auto ind_size = starts.size();
     NODE_VALIDATION_CHECK(this,
@@ -303,4 +304,74 @@ PartialShape op::v8::Slice::calculate_output_shape(const std::vector<int64_t>& s
         output_shape[norm_axis] = Dimension(min_dim_size, max_dim_size);
     }
     return output_shape;
+}
+
+bool op::v8::Slice::has_evaluate() const {
+    NGRAPH_OP_SCOPE(v8_Slice_has_evaluate);
+    switch (get_input_element_type(1)) {
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+        break;
+    default:
+        return false;
+    }
+
+    if (get_input_size() > 4) {
+        switch (get_input_element_type(4)) {
+        case ngraph::element::i8:
+        case ngraph::element::i16:
+        case ngraph::element::i32:
+        case ngraph::element::i64:
+        case ngraph::element::u8:
+        case ngraph::element::u16:
+        case ngraph::element::u32:
+        case ngraph::element::u64:
+            break;
+        default:
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(v8_Slice_evaluate);
+
+    std::vector<int64_t> starts = host_tensor_2_vector<int64_t>(inputs[1]);
+    std::vector<int64_t> stops = host_tensor_2_vector<int64_t>(inputs[2]);
+    std::vector<int64_t> steps = host_tensor_2_vector<int64_t>(inputs[3]);
+
+    std::vector<int64_t> axes(starts.size());
+    if (inputs.size() < 5) {
+        std::iota(axes.begin(), axes.end(), 0);
+    } else {
+        axes = host_tensor_2_vector<int64_t>(inputs[4]);
+    }
+
+    // Static HostTensor data shape is needed to clamp and normalize `start` values
+    const auto data_shape = inputs[0]->get_partial_shape();
+    OPENVINO_ASSERT(data_shape.is_static(), "Can't evaluate Slice elements without static HostTensor data shape.");
+    // We need calculate static output shape based on HostTensor inputs
+    PartialShape output_shape = calculate_output_shape(starts, stops, steps, axes, data_shape);
+    OPENVINO_ASSERT(output_shape.is_static(), "Can't calculate static output shape for Slice evaluation.");
+
+    outputs[0]->set_shape(output_shape.to_shape());
+    outputs[0]->set_element_type(inputs[0]->get_element_type());
+
+    runtime::reference::slice(inputs[0]->get_data_ptr<char>(),
+                              data_shape.to_shape(),
+                              outputs[0]->get_data_ptr<char>(),
+                              output_shape.to_shape(),
+                              inputs[0]->get_element_type().size(),
+                              starts,
+                              steps,
+                              axes);
+    return true;
 }

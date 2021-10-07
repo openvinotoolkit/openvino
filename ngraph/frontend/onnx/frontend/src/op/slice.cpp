@@ -23,18 +23,20 @@ OutputVector slice(const Node& node) {
     const auto& starts = inputs.at(1);
     const auto& ends = inputs.at(2);
 
+    const bool axes_input_provided = inputs.size() >= 4 && !is_null(inputs.at(3));
+    const bool steps_input_provided = inputs.size() == 5 && !is_null(inputs.at(4));
+
     Output<ngraph::Node> steps;
-    if (inputs.size() == 5 && !is_null(inputs.at(4)))  // steps input provided
-    {
+    if (steps_input_provided) {
         steps = inputs.at(4);
     } else {
         const auto& default_step = default_opset::Constant::create(starts.get_element_type(), {1}, {1});
         steps =
-            std::make_shared<default_opset::Broadcast>(default_step, std::make_shared<default_opset::ShapeOf>(starts));
+            std::make_shared<default_opset::Broadcast>(default_step,
+                                                       std::make_shared<default_opset::ShapeOf>(starts, element::i64));
     }
 
-    if (inputs.size() >= 4 && !is_null(inputs.at(3)))  // axes input provided
-    {
+    if (axes_input_provided) {
         const auto& axes = inputs.at(3);
         return {std::make_shared<ov::opset8::Slice>(data, starts, ends, steps, axes)};
     } else {
