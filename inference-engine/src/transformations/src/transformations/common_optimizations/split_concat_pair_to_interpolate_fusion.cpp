@@ -5,7 +5,6 @@
 #include "itt.hpp"
 #include "transformations/common_optimizations/split_concat_pair_to_interpolate_fusion.hpp"
 
-#include <iostream>
 #include <memory>
 #include <numeric>
 #include <set>
@@ -55,56 +54,31 @@ std::shared_ptr<ngraph::opset8::Split> get_split_before_concat(const std::shared
 
     std::vector<size_t> idx;
     std::unordered_set<std::shared_ptr<ngraph::opset8::Split>> splits;
-    size_t concat_input_port_index = 0;
     for (const auto& input : concat->input_values()) {
         // If 'concat' has some non-Split producer, then the transformation is not applicable.
         auto split = std::dynamic_pointer_cast<ngraph::opset8::Split>(input.get_node_shared_ptr());
-        std::cout << "Producer for the input port " << concat_input_port_index << (split ? " is Split\n" : "  is not Split.\n");
         if (!split) return nullptr;
-        concat_input_port_index++;
         idx.emplace_back(input.get_index());
         splits.insert(split);
     }
-    std::cout << ((splits.size() == 1) ? "Concat has a unique Split as producer.\n" : "Concat has more than one Split as producers.\n");
     // If 'concat' has more than one Splits as producers, then the transformation is not applicable.
     if (splits.size() != 1) return nullptr;
 
     auto split = *(splits.begin());
-    std::cout << "Info about unique Split: " << split << "\n";
 
     // If 'split' node has more than one consumer, then the transformation is not applicable.
-    size_t split_output_port_index = 0;
     for (const auto& output : split->outputs()) {
-        std::cout << "Checking output port " << split_output_port_index << " Split..\n";
         for (const auto& consumer : output.get_target_inputs()) {
-            std::cout << "    Current consumer: " << consumer << "\n";
-            std::cout << ((consumer.get_node() == concat.get()) ? "    Current consumer is the Concat.\n" : "    Current consumer is not the Concat.\n");
             if (consumer.get_node() != concat.get()) return nullptr;
         }
-        split_output_port_index++;
     }
 
     // If numbers of consumer ports are various for various output ports of 'split', then the transformation is not applicable.
-    std::cout << "idx: {";
-    for (auto i : idx) {
-        std::cout << i << " ";
-    }
-    std::cout << "}\n";
     auto grouped_idx = grouped_vector(idx);
-    std::cout << "grouped_idx: {";
-    for (const auto& group : grouped_idx) {
-        std::cout << "{";
-        for (auto i : group) {
-            std::cout << i << " ";
-        }
-        std::cout << "} ";
-    }
-    std::cout << "}\n";
     std::set<size_t> sizes_of_groups;
     for (const auto& group : grouped_idx) {
         sizes_of_groups.insert(group.size());
     }
-    std::cout << "sizes_of_groups.size(): " << sizes_of_groups.size() << "\n";
     if (sizes_of_groups.size() != 1) return nullptr;
     size_t size_of_group = *(sizes_of_groups.begin());
     size_t num_of_groups = grouped_idx.size();
@@ -151,20 +125,15 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
     // Detect only concat, because we don't know how many inputs will go into concat.
     auto concat_pattern = ngraph::pattern::wrap_type<ngraph::opset8::Concat>();
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        std::cout << "We are in the transformation callback.\n";
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto concat = std::dynamic_pointer_cast<ngraph::opset8::Concat>(pattern_to_output.at(concat_pattern).get_node_shared_ptr());
-        std::cout << (concat ? "Concat was found.\n" : "Concat was not found.\n");
         if (!concat) return false;
 
         auto split = get_split_before_concat(concat);
-        std::cout << (split ? "Split was found before Concat.\n" : "Split was not found before Concat.\n");
         if (!split) return false;
 
         Shape split_input_shape = split->get_input_shape(0);
-        std::cout << "Split input shape for the port 0: " << split_input_shape << "\n";
         size_t split_input_rank = split_input_shape.size();
-        std::cout << "Split input data rank: " << split_input_rank << "\n";
         if (split_input_rank != 4 && split_input_rank != 5) return false;
 
         auto split_axis_const = std::dynamic_pointer_cast<ngraph::opset8::Constant>(split->input_value(1).get_node_shared_ptr());
