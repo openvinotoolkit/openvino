@@ -438,10 +438,8 @@ inline ov::runtime::Tensor create_tmp_tensor(const ngraph::HostTensorPtr& tensor
         return std::move(ov::runtime::Tensor(tensor->get_element_type(), shape, tensor->get_data_ptr()));
     } else {
         if (tensor->get_element_type().is_dynamic()) {
-            // use f32 as default precision for dynamic tensors
             return std::move(ov::runtime::Tensor());
         } else {
-            // use f32 as default precision for dynamic tensors
             return std::move(ov::runtime::Tensor(tensor->get_element_type(), {0}));
         }
     }

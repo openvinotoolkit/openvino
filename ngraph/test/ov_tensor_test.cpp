@@ -121,12 +121,10 @@ TEST_F(OVTensorTest, saveDimsAndSizeAfterMove) {
     ASSERT_EQ(ov::row_major_strides(shape), new_tensor.get_strides());
 
     ASSERT_THROW(t.get_size(), ov::Exception);
-    ASSERT_NO_THROW(t.get_element_type());
-    ASSERT_EQ(t.get_element_type(), ov::element::dynamic);
+    ASSERT_THROW(t.get_element_type(), ov::Exception);
     ASSERT_THROW(t.get_byte_size(), ov::Exception);
     ASSERT_THROW(t.get_strides(), ov::Exception);
-    ASSERT_NO_THROW(t.get_shape());
-    ASSERT_EQ(t.get_shape(), ov::Shape({0}));
+    ASSERT_THROW(t.get_shape(), ov::Exception);
     ASSERT_THROW(t.set_shape({}), ov::Exception);
     ASSERT_THROW(t.data(), ov::Exception);
     ASSERT_THROW(t.data<float>(), ov::Exception);

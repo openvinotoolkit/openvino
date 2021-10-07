@@ -814,9 +814,12 @@ inline ngraph::HostTensorVector create_tmp_tensors(const ov::runtime::TensorVect
     ngraph::HostTensorVector result;
     result.reserve(tensors.size());
     for (const auto& tensor : tensors) {
-        if (tensor.get_shape() == ov::Shape{0}) {
+        if (!tensor || tensor.get_shape() == ov::Shape{0}) {
+            auto el_type = ov::element::dynamic;
+            if (tensor)
+                el_type = tensor.get_element_type();
             // Create dynamic tensor
-            result.emplace_back(std::make_shared<DynamicTensor>(tensor.get_element_type()));
+            result.emplace_back(std::make_shared<DynamicTensor>(el_type));
         } else {
             result.emplace_back(std::make_shared<ngraph::runtime::HostTensor>(tensor.get_element_type(),
                                                                               tensor.get_shape(),
