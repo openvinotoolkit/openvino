@@ -17,7 +17,6 @@ using namespace ov::runtime;
 void regclass_Tensor(py::module m) {
     py::class_<Tensor, std::shared_ptr<Tensor>> cls(m, "Tensor");
 
-    cls.def(py::init());
     cls.def(py::init<const ov::element::Type, const ov::Shape>());
     cls.def(py::init([](py::array& array) {
         std::vector<size_t> shape(array.shape(), array.shape() + array.ndim());
