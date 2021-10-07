@@ -8,43 +8,34 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-#if 0
 
 namespace ngraph {
 namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateIsFiniteOp(
-    const NodeContext& node) {
-  // Implemented tf.is_finite by checking:
-  // (in != inf) && (in != -inf) && (in == in)
-  //                                 ^^^^^^^^ checks for NaN's
-  Output<Node> ng_input;
-  TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input));
+OutputVector TranslateIsFiniteOp(const NodeContext& node) {
+    // TODO (itikhono): Refactor this code. Not sure about in == in.
+    // Implemented tf.is_finite by checking:
+    // (in != inf) && (in != -inf) && (in == in)
+    //                                 ^^^^^^^^ checks for NaN's
 
-  auto const_inf = ConstructNgNode<Constant>(
-      node.get_name(), ng_input.get_element_type(), Shape{},
-      std::vector<float>{std::numeric_limits<float>::infinity()});
+    auto input = node.get_ng_input(0);
+    auto el_type = input.get_element_type();
 
-  auto const_neg_inf = ConstructNgNode<Constant>(
-      node.get_name(), ng_input.get_element_type(), Shape{},
-      std::vector<float>{-std::numeric_limits<float>::infinity()});
+    auto inf = make_shared<Constant>(el_type, Shape{}, vector<float>{numeric_limits<float>::infinity()});
+    auto neg_inf = make_shared<Constant>(el_type, Shape{}, vector<float>{-numeric_limits<float>::infinity()});
 
-  auto neq_inf =
-      ConstructNgNode<NotEqual>(node.get_name(), ng_input, const_inf);
-  auto neq_neg_inf =
-      ConstructNgNode<NotEqual>(node.get_name(), ng_input, const_neg_inf);
-  auto eq_nan = ConstructNgNode<Equal>(node.get_name(), ng_input, ng_input);
+    auto neq_inf = make_shared<NotEqual>(input, inf);
+    auto neq_neg_inf = make_shared<NotEqual>(input, neg_inf);
+    auto eq_nan = make_shared<Equal>(input, input);
 
-  auto neq_inf_and_neq_neg_inf =
-      ConstructNgNode<LogicalAnd>(node.get_name(), neq_inf, neq_neg_inf);
-  auto is_finite = ConstructNgNode<LogicalAnd>(
-      node.get_name(), neq_inf_and_neq_neg_inf, eq_nan);
-
-  SaveNgOp(ng_op_map, node.get_name(), is_finite);
-  return Status::OK();
+    auto neq_inf_and_neq_neg_inf = make_shared<LogicalAnd>(neq_inf, neq_neg_inf);
+    auto is_finite = make_shared<LogicalAnd>(neq_inf_and_neq_neg_inf, eq_nan);
+    is_finite->set_friendly_name(node.get_name());
+    return is_finite->outputs();
 }
 }
 }
-#endif
+}
+}

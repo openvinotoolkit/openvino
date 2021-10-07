@@ -8,41 +8,23 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-#if 0
 
 namespace ngraph {
 namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateSplitOp(
-    const NodeContext& node) {
-  Output<Node> ng_input;
-  TF_RETURN_IF_ERROR(GetInputNode(ng_op_map, op, 1, ng_input));
-  // num_split : The number of ways to split. Must evenly divide
-  // value.shape[split_dim]
-  int32_t num_split;
-  TF_RETURN_IF_ERROR(GetNodeAttr(op->attrs(), "num_split", &num_split));
+OutputVector TranslateSplitOp(const NodeContext& node) {
+    auto input = node.get_ng_input(0);
+    auto axes = node.get_ng_input(1);
+    auto num_split = node.get_attribute<int64_t>("num_split");
 
-  Shape shape = ng_input.get_shape();
-  int rank = shape.size();
-
-  std::vector<int> split_dim_vec;
-  TF_RETURN_IF_ERROR(
-      GetStaticInputVector(ng_op_map, op, 0, static_input_map, &split_dim_vec));
-  int split_dim = split_dim_vec[0] + (split_dim_vec[0] < 0 ? (int64_t)rank : 0);
-  auto ng_split_dim = ConstructNgNode<Constant>(
-      node.get_name(), element::u64, Shape{}, split_dim);
-  auto ng_split = make_shared<Split>(ng_input, ng_split_dim, num_split);
-
-  for (int i = 0; i < num_split; ++i) {
-    auto out = ng_split->output(i);
-    Builder::SetTracingInfo(node.get_name(), out);
-    SaveNgOp(ng_op_map, node.get_name(), out);
-  }
-  return Status::OK();
+    auto ng_split = make_shared<Split>(input, axes, num_split);
+    ng_split->set_friendly_name(node.get_name());
+    return ng_split->outputs();
 }
 
+/*
 OutputVector TranslateSplitVOp(
     const NodeContext& node) {
   Output<Node> ng_input, ng_split_length, ng_split_dim;
@@ -120,6 +102,8 @@ OutputVector TranslateSplitVOp(
 
   return Status::OK();
 }
+ */
 }
 }
-#endif
+}
+}

@@ -17,7 +17,7 @@ ov::op::util::ReductionBase::ReductionBase() = default;
 ov::op::util::ReductionBase::ReductionBase(const Output<Node>& arg, const Output<Node>& reduction_axes)
     : Op({arg, reduction_axes}) {}
 
-ov::PartialShape ov::op::util::ReductionBase::infer_reduction_output_shape(const bool keep_dims) {
+ov::PartialShape ov::op::util::ReductionBase::  infer_reduction_output_shape(const bool keep_dims) {
     const PartialShape& data_ps = get_input_partial_shape(0);
     PartialShape result_ps{PartialShape::dynamic()};
     Rank data_rank = data_ps.rank();

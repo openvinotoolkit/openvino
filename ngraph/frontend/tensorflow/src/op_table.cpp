@@ -12,10 +12,8 @@ namespace ngraph {
 namespace frontend {
 namespace tf {
 namespace op {
-#define OP_CONVERTER(op) ngraph::OutputVector op(const NodeContext& node)
-#define OP_T_CONVERTER(op) \
-    template <class T>     \
-    ngraph::OutputVector op(const NodeContext& node)
+#define OP_CONVERTER(op) OutputVector op(const NodeContext& node)
+#define OP_T_CONVERTER(op) template <class T> OutputVector op(const NodeContext& node)
 
 OP_T_CONVERTER(TranslateUnaryOp);
 OP_T_CONVERTER(TranslateBinaryOp);
@@ -45,7 +43,7 @@ OP_CONVERTER(TranslateGatherV2Op);
 OP_CONVERTER(TranslateFusedConv2DOp);
 OP_CONVERTER(TranslateFusedMatMulOp);
 OP_CONVERTER(TranslateIdentityOp);
-// OP_CONVERTER(TranslateIsFiniteOp);
+OP_CONVERTER(TranslateIsFiniteOp);
 // OP_CONVERTER(TranslateL2LossOp);
 OP_CONVERTER(TranslateLogSoftmaxOp);
 OP_CONVERTER(TranslateLog1pOp);
@@ -71,16 +69,15 @@ OP_CONVERTER(TranslateSelectOp);
 OP_CONVERTER(TranslateShapeOp);
 OP_CONVERTER(TranslateSizeOp);
 // OP_CONVERTER(TranslateSliceOp);
-// OP_CONVERTER(transpose2);
 OP_CONVERTER(TranslateSoftmaxOp);
 // OP_CONVERTER(TranslateSpaceToDepthOp);
-// OP_CONVERTER(TranslateSplitOp);
-// OP_CONVERTER(TranslateSplitOp);
+OP_CONVERTER(TranslateSplitOp);
+// OP_CONVERTER(TranslateSplitVOp);
 OP_CONVERTER(TranslateSquareOp);
 OP_CONVERTER(TranslateSqueezeOp);
 // OP_CONVERTER(TranslateStridedSliceOp);
 OP_CONVERTER(TranslateSqrtOp);
-// OP_CONVERTER(TranslateTileOp);
+OP_CONVERTER(TranslateTileOp);
 // OP_CONVERTER(TranslateTopKV2Op);
 OP_CONVERTER(TranslateTransposeOp);
 // OP_CONVERTER(TranslateUnpackOp);
@@ -172,7 +169,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"_FusedConv2D", TranslateFusedConv2DOp},
         {"_FusedMatMul", TranslateFusedMatMulOp},
         {"Identity", TranslateIdentityOp},
-        //{"IsFinite", TranslateIsFiniteOp},
+        {"IsFinite", TranslateIsFiniteOp},
         //{"L2Loss", TranslateL2LossOp},
         {"LogSoftmax", TranslateLogSoftmaxOp},
         {"Log1p", TranslateLog1pOp},
@@ -208,13 +205,13 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Snapshot", TranslateIdentityOp},
         {"Softmax", TranslateSoftmaxOp},
         //{"SpaceToDepth", TranslateSpaceToDepthOp},
-        //{"Split", TranslateSplitOp},
-        //{"SplitV", TranslateSplitVOp},
+        {"Split", TranslateSplitOp},
+        // {"SplitV", TranslateSplitVOp},
         {"Sqrt", TranslateSqrtOp},
         {"Square", TranslateSquareOp},
         {"Squeeze", TranslateSqueezeOp},
         //{"StridedSlice", TranslateStridedSliceOp},
-        //{"Tile", TranslateTileOp},
+        {"Tile", TranslateTileOp},
         //{"TopKV2", TranslateTopKV2Op},
         {"Transpose", TranslateTransposeOp},
         //{"Unpack", TranslateUnpackOp},
