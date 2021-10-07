@@ -63,7 +63,9 @@ OP_CONVERTER(TranslateRelu6Op);
 OP_CONVERTER(TranslateReciprocalOp);
 OP_CONVERTER(TranslateReshapeOp);
 OP_CONVERTER(RetvalOp);
+OP_CONVERTER(TranslateReverseOp);
 OP_CONVERTER(TranslateRollOp);
+OP_CONVERTER(TranslateRoundOp);
 OP_CONVERTER(TranslateRsqrtOp);
 OP_CONVERTER(TranslateSelectOp);
 OP_CONVERTER(TranslateShapeOp);
@@ -195,7 +197,10 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Relu6", TranslateRelu6Op},
         {"Reshape", TranslateReshapeOp},
         {"_Retval", RetvalOp},
+        {"Reverse", TranslateReverseOp},
+        {"ReverseV2", TranslateReverseOp},
         {"Roll", TranslateRollOp},
+        {"Round", TranslateRoundOp},
         {"Rsqrt", TranslateRsqrtOp},
         {"Select", TranslateSelectOp},
         {"SelectV2", TranslateSelectOp},
