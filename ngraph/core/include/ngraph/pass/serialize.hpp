@@ -10,5 +10,6 @@
 namespace ngraph {
 namespace pass {
 using ov::pass::Serialize;
+using ov::pass::StreamSerialize;
 }  // namespace pass
 }  // namespace ngraph
