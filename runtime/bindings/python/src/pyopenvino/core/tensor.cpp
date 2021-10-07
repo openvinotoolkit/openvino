@@ -4,16 +4,14 @@
 
 #include "pyopenvino/core/tensor.hpp"
 
-#include "pyopenvino/core/common.hpp"
-
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
 #include "openvino/runtime/tensor.hpp"
+#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 using namespace ov::runtime;
-
 
 void regclass_Tensor(py::module m) {
     py::class_<Tensor, std::shared_ptr<Tensor>> cls(m, "Tensor");

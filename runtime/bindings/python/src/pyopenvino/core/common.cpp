@@ -73,7 +73,6 @@ std::map<py::str, ov::element::Type> dtype_to_ov_type = {
     {"bool", ov::element::boolean},
 };
 
-
 InferenceEngine::Layout get_layout_from_string(const std::string& layout) {
     return layout_str_to_enum.at(layout);
 }
