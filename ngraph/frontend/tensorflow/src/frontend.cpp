@@ -16,10 +16,11 @@ using namespace ::ngraph::frontend;
 using namespace ::ngraph::frontend::tf;
 
 namespace {
-void TranslateFWNode(const std::shared_ptr<TFFrameworkNode>& node) {
+void translate_framework_node(const std::shared_ptr<TFFrameworkNode>& node,
+                              const FrontEndTF::TranslatorDictionaryType& op_translators) {
     auto type = node->get_op_type();
-
-    const auto TRANSLATE_OP_MAP = tf::op::get_supported_ops();
+    
+    const auto& TRANSLATE_OP_MAP = op_translators;
     auto translator_it = TRANSLATE_OP_MAP.find(type);
     FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
 
@@ -45,11 +46,13 @@ void TranslateFWNode(const std::shared_ptr<TFFrameworkNode>& node) {
 }
 }  // namespace
 
+FrontEndTF::FrontEndTF() : m_op_translators(tf::op::get_supported_ops()) {}
+
 void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
                                  const std::string& model_name,
                                  bool fail_fast,
                                  bool no_conversion,
-                                 std::shared_ptr<ngraph::Function>& ng_function) {
+                                 std::shared_ptr<ngraph::Function>& ng_function) const {
     using OpMap = std::unordered_map<std::string, std::vector<ngraph::Output<ngraph::Node>>>;
     // a map from operation names to generated nGraph Output<TFNodeDecoder>
     OpMap ng_op_map;
@@ -63,7 +66,7 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
 
     std::map<const std::string, const std::function<ngraph::OutputVector(const NodeContext&)>> translate_map;
 
-    const auto TRANSLATE_OP_MAP = tf::op::get_supported_ops();
+    const auto& TRANSLATE_OP_MAP = m_op_translators;
     if (no_conversion) {
         const std::set<std::string> required_types{"Placeholder", "_Retval", "NoOp"};
         for (auto& name : required_types) {
@@ -342,7 +345,7 @@ std::shared_ptr<ngraph::Function> FrontEndTF::decode(InputModel::Ptr model) cons
 void FrontEndTF::convert(std::shared_ptr<ngraph::Function> partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<TFFrameworkNode>(node)) {
-            TranslateFWNode(std::dynamic_pointer_cast<TFFrameworkNode>(node));
+            translate_framework_node(std::dynamic_pointer_cast<TFFrameworkNode>(node), m_op_translators);
         }
     }
     for (auto result : partiallyConverted->get_results()) {
