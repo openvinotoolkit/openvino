@@ -47,7 +47,7 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D1) {
         manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
         // manager.register_pass<ngraph::pass::VisualizeTree>("/home/gavrilov-vs/after-split-concat-fusion.svg");
         manager.run_passes(f);
-//         ASSERT_NO_THROW(check_rt_info(f));
+        ASSERT_NO_THROW(check_rt_info(f));
 //         ASSERT_TRUE(true);
     }
     {

@@ -209,9 +209,11 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
                                                                           scales_node, axis_node, attrs);
 
         interpolate->set_friendly_name(concat->get_friendly_name());
-        ngraph::copy_runtime_info({split, concat},
-                                  {interpolate, cast_mul_result_to_int, scales_node, axis_node, floor_node, mul_node,
-                                   cast_shape_to_float, strided_slice_node, sslice_begin, sslice_end});
+//         ngraph::copy_runtime_info({split, concat},
+//                                   {interpolate, cast_mul_result_to_int, scales_node, axis_node, floor_node, mul_node,
+//                                    cast_shape_to_float, strided_slice_node, sslice_begin, sslice_end});
+        ngraph::copy_runtime_info(concat, {scales_node, axis_node, shape_node, sslice_begin, sslice_end, strided_slice_node, cast_shape_to_float, mul_node,
+                                           floor_node, cast_mul_result_to_int, interpolate});
         ngraph::replace_node(concat, interpolate);
 
         return true;
