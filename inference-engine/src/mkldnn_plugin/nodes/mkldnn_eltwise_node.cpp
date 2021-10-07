@@ -7,6 +7,7 @@
 #include <ie_parallel.hpp>
 
 #include <mkldnn_types.h>
+#include "cpu_types.h"
 #include "utils/bfloat16.hpp"
 #include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
 #include <cpu/ref_eltwise.hpp>
@@ -31,6 +32,7 @@
 #include "ngraph_transformations/op/leaky_relu.hpp"
 #include "ngraph_transformations/op/swish_cpu.hpp"
 
+#include <oneapi/dnnl/dnnl.hpp>
 #include <string>
 #include <vector>
 #include <memory>
@@ -1713,103 +1715,127 @@ void MKLDNNEltwiseNode::fuseInto(MKLDNNNodePtr& parentNode) {
             getInputShapeAtPort(0) == getInputShapeAtPort(1);
     if (!specialConvolutionAddFusing && canBePerformedAsScaleShift(parentNode.get())) {
         std::tie(scales, shifts) = getScalesAndShifts(parentNode.get());
+        if ((parentNode->getType() == FullyConnected) && one_of(getAlgorithm(), EltwiseAdd, EltwiseSubtract,
+                EltwiseMultiply, EltwiseDivide, EltwiseMulAdd, EltwisePowerStatic, EltwisePrelu)) {
+            std::tie(scales, shifts) = getScalesAndShifts(parentNode.get());
+        } else {
+            getScalesAndShifts(parentNode.get());
+        }
     }
     MKLDNNNode::fuseInto(parentNode);
 }
 
-void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align, bool initAsBinary, bool initBinaryMemory) {
+void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align) {
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' ";
 
     if (getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
         switch (getMKLDNNAlgorithm()) {
-            case mkldnn::algorithm::eltwise_relu:
-            case mkldnn::algorithm::eltwise_tanh:
-            case mkldnn::algorithm::eltwise_elu:
-            case mkldnn::algorithm::eltwise_square:
-            case mkldnn::algorithm::eltwise_abs:
-            case mkldnn::algorithm::eltwise_sqrt:
-            case mkldnn::algorithm::eltwise_linear:
-            case mkldnn::algorithm::eltwise_bounded_relu:
-            case mkldnn::algorithm::eltwise_soft_relu:
-            case mkldnn::algorithm::eltwise_logistic:
-            case mkldnn::algorithm::eltwise_exp:
-            case mkldnn::algorithm::eltwise_gelu_erf:
-            case mkldnn::algorithm::eltwise_gelu_tanh:
-            case mkldnn::algorithm::eltwise_clip:
-            case mkldnn::algorithm::eltwise_swish:
-            case mkldnn::algorithm::eltwise_hardswish:
-            case mkldnn::algorithm::eltwise_mish:
-            case mkldnn::algorithm::eltwise_hsigmoid:
-            case mkldnn::algorithm::eltwise_round_half_to_even:
-            case mkldnn::algorithm::eltwise_round_half_away_from_zero:
-                ops.append_eltwise(1.0, getMKLDNNAlgorithm(), getAlpha(), getBeta());
-                break;
-            default: IE_THROW() << errorPrefix << "as post operation is not supported";
+        case mkldnn::algorithm::eltwise_relu:
+        case mkldnn::algorithm::eltwise_tanh:
+        case mkldnn::algorithm::eltwise_elu:
+        case mkldnn::algorithm::eltwise_square:
+        case mkldnn::algorithm::eltwise_abs:
+        case mkldnn::algorithm::eltwise_sqrt:
+        case mkldnn::algorithm::eltwise_linear:
+        case mkldnn::algorithm::eltwise_bounded_relu:
+        case mkldnn::algorithm::eltwise_soft_relu:
+        case mkldnn::algorithm::eltwise_logistic:
+        case mkldnn::algorithm::eltwise_exp:
+        case mkldnn::algorithm::eltwise_gelu_erf:
+        case mkldnn::algorithm::eltwise_gelu_tanh:
+        case mkldnn::algorithm::eltwise_clip:
+        case mkldnn::algorithm::eltwise_swish:
+        case mkldnn::algorithm::eltwise_hardswish:
+        case mkldnn::algorithm::eltwise_mish:
+        case mkldnn::algorithm::eltwise_hsigmoid:
+        case mkldnn::algorithm::eltwise_round_half_to_even:
+        case mkldnn::algorithm::eltwise_round_half_away_from_zero:
+            ops.append_eltwise(1.0, getMKLDNNAlgorithm(), getAlpha(), getBeta());
+            break;
+        default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
     } else {
-        const size_t chIdx = postOpDims.size() > 1 ? 1 : 0;
+        const size_t chIdx = postOpDims.size() > 1 ? getChannelAxis() : 0;
         scalesBuffer = makeAlignedBuffer(postOpDims[chIdx], scales, align);
         if (getAlgorithm() != EltwisePrelu) {
             shiftsBuffer = makeAlignedBuffer(postOpDims[chIdx], shifts, align);
         }
 
-        if (initAsBinary) {
-            auto appendBinary = [&](const mkldnn::algorithm alg, MKLDNNMemoryPtr &memPtr, const std::vector<float> &data) {
-                if (data.empty())
-                    IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
-
-                std::vector<size_t> binaryDims(postOpDims.size(), 1);
-                binaryDims[chIdx] = postOpDims[chIdx];
-
-                DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, Shape(binaryDims));
-                ops.append_binary(alg, memoryDesc.getDnnlDesc());
-
-                if (initBinaryMemory) {
-                    memPtr.reset(new MKLDNNMemory(getEngine()));
-                    memPtr->Create(memoryDesc, &data[0]);
-                }
-            };
-            switch (getAlgorithm()) {
-                case EltwiseAdd:
-                case EltwiseSubtract:
-                    appendBinary(mkldnn::algorithm::binary_add, shiftsMemory, shiftsBuffer);
-                    break;
-                case EltwiseMultiply:
-                case EltwiseDivide:
-                    appendBinary(mkldnn::algorithm::binary_mul, scalesMemory, scalesBuffer);
-                    break;
-                case EltwiseMulAdd:
-                case EltwisePowerStatic:
-                    appendBinary(mkldnn::algorithm::binary_mul, scalesMemory, scalesBuffer);
-                    appendBinary(mkldnn::algorithm::binary_add, shiftsMemory, shiftsBuffer);
-                    break;
-                case EltwisePrelu:
-                    appendBinary(mkldnn::algorithm::binary_prelu, scalesMemory, scalesBuffer);
-                    break;
-                default:
-                    IE_THROW() << errorPrefix << "as post operation is not supported";
-            }
-        } else {
-            switch (getAlgorithm()) {
-                case EltwiseAdd:
-                case EltwiseSubtract:
-                case EltwiseMultiply:
-                case EltwiseDivide:
-                case EltwiseMulAdd:
-                case EltwisePowerStatic:
-                    if (scalesBuffer.empty() || shiftsBuffer.empty())
-                        IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
-                    ops.append_depthwise(mkldnn::algorithm::depthwise_scale_shift, &scalesBuffer[0], &shiftsBuffer[0]);
-                    break;
-                case EltwisePrelu:
-                    if (scalesBuffer.empty())
-                        IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
-                    ops.append_depthwise(mkldnn::algorithm::depthwise_prelu, &scalesBuffer[0], nullptr);
-                    break;
-                default:
-                    IE_THROW() << errorPrefix << "as post operation is not supported";
-            }
+        /* @todo legacy depthwise post ops are kept for now
+         * for performance reasons
+         */
+        switch (getAlgorithm()) {
+        case EltwiseAdd:
+        case EltwiseSubtract:
+        case EltwiseMultiply:
+        case EltwiseDivide:
+        case EltwiseMulAdd:
+        case EltwisePowerStatic:
+            if (scales.empty() || shifts.empty())
+                IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
+            ops.append_depthwise(mkldnn::algorithm::depthwise_scale_shift, &scalesBuffer[0], &shiftsBuffer[0]);
+            break;
+        case EltwisePrelu:
+            if (scales.empty())
+                IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
+            ops.append_depthwise(mkldnn::algorithm::depthwise_prelu, &scalesBuffer[0], nullptr);
+            break;
+        default:
+            IE_THROW() << errorPrefix << "as post operation is not supported";
         }
+    }
+}
+
+void MKLDNNEltwiseNode::appendBinPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem) {
+    const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' as binary post op ";
+    VectorDims broadcastBinaryShape(postOpDims.size(), 1);
+
+    int align = 16;
+    const size_t chIdx = postOpDims.size() > 1 ? getChannelAxis() : 0;
+    scalesBuffer = makeAlignedBuffer(postOpDims[chIdx], scales, align);
+    if (getAlgorithm() != EltwisePrelu) {
+        shiftsBuffer = makeAlignedBuffer(postOpDims[chIdx], shiftsBuffer, align);
+    }
+
+
+    auto appendBinary = [&](const mkldnn::algorithm alg, MKLDNNMemoryPtr &memPtr, const std::vector<float> &data) {
+        if (data.empty())
+            IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
+
+        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, Shape(postOpDims));
+        ops.append_binary(alg, memoryDesc.getDnnlDesc());
+
+        if (!memPtr) {
+            memPtr.reset(new MKLDNNMemory(getEngine()));
+            memPtr->Create(memoryDesc, &data[0]);
+
+            binaryPostOpsMem.push_back(memPtr);
+        }
+    };
+
+    switch (getAlgorithm()) {
+    case EltwiseAdd:
+        appendBinary(mkldnn::algorithm::binary_add, shiftsMemory, shiftsBuffer);
+        break;
+    case EltwiseSubtract:
+        appendBinary(mkldnn::algorithm::binary_sub, shiftsMemory, shiftsBuffer);
+        break;
+    case EltwiseMultiply:
+        appendBinary(mkldnn::algorithm::binary_mul, scalesMemory, scalesBuffer);
+        break;
+    case EltwiseDivide:
+        appendBinary(mkldnn::algorithm::binary_div, scalesMemory, scalesBuffer);
+        break;
+    case EltwiseMulAdd:
+    case EltwisePowerStatic:
+        appendBinary(mkldnn::algorithm::binary_mul, scalesMemory, scalesBuffer);
+        appendBinary(mkldnn::algorithm::binary_add, shiftsMemory, shiftsBuffer);
+        break;
+    case EltwisePrelu:
+        appendBinary(mkldnn::algorithm::binary_prelu, scalesMemory, scalesBuffer);
+        break;
+    default:
+        IE_THROW() << errorPrefix << "as post operation is not supported";
     }
 }
 
