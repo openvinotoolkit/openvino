@@ -43,12 +43,9 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D1) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        // manager.register_pass<ngraph::pass::VisualizeTree>("/home/gavrilov-vs/before-split-concat-fusion.svg");
         manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
-        // manager.register_pass<ngraph::pass::VisualizeTree>("/home/gavrilov-vs/after-split-concat-fusion.svg");
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
-//         ASSERT_TRUE(true);
     }
     {
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;
@@ -114,9 +111,7 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D2) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        // manager.register_pass<ngraph::pass::VisualizeTree>("/home/gavrilov-vs/before-split-concat-fusion.svg");
         manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
-        // manager.register_pass<ngraph::pass::VisualizeTree>("/home/gavrilov-vs/after-split-concat-fusion.svg");
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -184,9 +179,7 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial3D1) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        // manager.register_pass<ngraph::pass::VisualizeTree>("/home/gavrilov-vs/before-split-concat-fusion.svg");
         manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
-        // manager.register_pass<ngraph::pass::VisualizeTree>("/home/gavrilov-vs/after-split-concat-fusion.svg");
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -254,9 +247,7 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial3D2) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        // manager.register_pass<ngraph::pass::VisualizeTree>("/home/gavrilov-vs/before-split-concat-fusion.svg");
         manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
-        // manager.register_pass<ngraph::pass::VisualizeTree>("/home/gavrilov-vs/after-split-concat-fusion.svg");
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -322,9 +313,7 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionTwoSplitsOneConcat) 
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        // manager.register_pass<ngraph::pass::VisualizeTree>("/home/gavrilov-vs/before-split-concat-fusion.svg");
         manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
-        // manager.register_pass<ngraph::pass::VisualizeTree>("/home/gavrilov-vs/after-split-concat-fusion.svg");
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
