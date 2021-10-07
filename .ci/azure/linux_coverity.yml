@@ -111,6 +111,7 @@ jobs:
         tar xvf coverity_tool.tgz
         rm coverity_tool.tgz
     workingDirectory: $(WORK_DIR)
+    displayName: 'Install coverity tool'
 
   - script: $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int ninja
     workingDirectory: $(BUILD_DIR)
