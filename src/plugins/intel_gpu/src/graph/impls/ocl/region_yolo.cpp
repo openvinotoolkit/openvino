@@ -21,7 +21,7 @@ struct region_yolo_impl : typed_primitive_impl_ocl<region_yolo> {
         return make_unique<region_yolo_impl>(*this);
     }
 
-    static primitive_impl* create(const region_yolo_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const region_yolo_node& arg) {
         auto ry_params = get_default_params<kernel_selector::region_yolo_params>(arg);
         auto ry_optional_params =
             get_default_optional_params<kernel_selector::region_yolo_optional_params>(arg.get_program());
@@ -41,7 +41,7 @@ struct region_yolo_impl : typed_primitive_impl_ocl<region_yolo> {
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new region_yolo_impl(arg, best_kernels[0]);
+        return make_unique<region_yolo_impl>(arg, best_kernels[0]);
     }
 };
 

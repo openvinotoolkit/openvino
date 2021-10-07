@@ -104,7 +104,7 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
         return make_unique<resample_impl>(*this);
     }
 
-    static primitive_impl* create(const resample_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const resample_node& arg) {
         auto us_params = get_default_params<kernel_selector::resample_params>(arg);
         auto us_optional_params =
             get_default_optional_params<kernel_selector::resample_optional_params>(arg.get_program());
@@ -135,7 +135,7 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new resample_impl(arg, best_kernels[0]);
+        return make_unique<resample_impl>(arg, best_kernels[0]);
     }
 };
 

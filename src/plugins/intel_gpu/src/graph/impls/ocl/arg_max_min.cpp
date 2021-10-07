@@ -34,7 +34,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const arg_max_min_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const arg_max_min_node& arg) {
         const auto& primitive = arg.get_primitive();
 
         const auto& axis = primitive->axis;
@@ -98,7 +98,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new arg_max_min_impl(arg, best_kernels[0]);
+        return make_unique<arg_max_min_impl>(arg, best_kernels[0]);
     }
 };
 

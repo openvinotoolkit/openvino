@@ -21,7 +21,7 @@ struct average_unpooling_impl : typed_primitive_impl_ocl<average_unpooling> {
         return make_unique<average_unpooling_impl>(*this);
     }
 
-    static primitive_impl* create(const average_unpooling_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const average_unpooling_node& arg) {
         auto average_unpooling_params = get_default_params<kernel_selector::average_unpooling_params>(arg);
         auto average_unpooling_optional_params =
             get_default_optional_params<kernel_selector::average_unpooling_optional_params>(arg.get_program());
@@ -45,7 +45,7 @@ struct average_unpooling_impl : typed_primitive_impl_ocl<average_unpooling> {
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new average_unpooling_impl(arg, best_kernels[0]);
+        return make_unique<average_unpooling_impl>(arg, best_kernels[0]);
     }
 };
 

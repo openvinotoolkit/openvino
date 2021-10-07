@@ -24,7 +24,7 @@ struct shuffle_channels_impl : typed_primitive_impl_ocl<shuffle_channels> {
     }
 
 public:
-    static primitive_impl* create(const shuffle_channels_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const shuffle_channels_node& arg) {
         auto shuffle_channels_params = get_default_params<kernel_selector::shuffle_channels_params>(arg);
         auto shuffle_channels_optional_params =
             get_default_optional_params<kernel_selector::shuffle_channels_optional_params>(arg.get_program());
@@ -46,7 +46,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new shuffle_channels_impl(arg, best_kernels[0]);
+        return make_unique<shuffle_channels_impl>(arg, best_kernels[0]);
     }
 };
 

@@ -11,6 +11,7 @@
 #include <string>
 #include <sstream>
 #include "to_string_utils.h"
+#include <memory>
 
 namespace cldnn {
 
@@ -152,7 +153,7 @@ class implementation_map {
 public:
     using key_builder = implementation_key<primitive_kind>;
     using key_type = typename key_builder::type;
-    using factory_type = std::function<primitive_impl*(const typed_program_node<primitive_kind>&)>;
+    using factory_type = std::function<std::unique_ptr<primitive_impl>(const typed_program_node<primitive_kind>&)>;
     using map_type = singleton_map<impl_types, std::pair<std::set<key_type>, factory_type>>;
 
     static factory_type get(const typed_program_node<primitive_kind>& primitive) {

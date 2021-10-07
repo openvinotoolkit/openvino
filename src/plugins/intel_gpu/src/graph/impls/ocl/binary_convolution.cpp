@@ -76,7 +76,7 @@ protected:
     int32_t get_split() const override { return _split; }
 
 public:
-    static primitive_impl* create(const binary_convolution_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const binary_convolution_node& arg) {
         const auto& primitive = arg.get_primitive();
         const auto& weights_layout = arg.weights(0).get_output_layout();
         const auto& weights_size = weights_layout.size;
@@ -141,7 +141,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new binary_convolution_impl(arg, best_kernels[0]);
+        return make_unique<binary_convolution_impl>(arg, best_kernels[0]);
     }
 
 private:

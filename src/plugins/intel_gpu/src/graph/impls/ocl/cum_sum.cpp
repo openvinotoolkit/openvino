@@ -45,7 +45,7 @@ struct cum_sum_impl : typed_primitive_impl_ocl<cum_sum> {
     }
 
 public:
-    static primitive_impl* create(const cum_sum_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const cum_sum_node& arg) {
         auto cum_sum_params = get_default_params<kernel_selector::cum_sum_params>(arg);
         auto cum_sum_optional_params =
             get_default_optional_params<kernel_selector::cum_sum_optional_params>(arg.get_program());
@@ -62,7 +62,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new cum_sum_impl(arg, best_kernels[0]);
+        return make_unique<cum_sum_impl>(arg, best_kernels[0]);
     }
 };
 

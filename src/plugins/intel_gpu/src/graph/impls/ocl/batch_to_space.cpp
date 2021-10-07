@@ -25,7 +25,7 @@ struct batch_to_space_impl : typed_primitive_impl_ocl<batch_to_space> {
     }
 
 public:
-    static primitive_impl* create(const batch_to_space_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const batch_to_space_node& arg) {
         auto batch_to_space_params = get_default_params<kernel_selector::batch_to_space_params>(arg);
         auto batch_to_space_optional_params =
             get_default_optional_params<kernel_selector::batch_to_space_optional_params>(arg.get_program());
@@ -44,7 +44,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new batch_to_space_impl(arg, best_kernels[0]);
+        return make_unique<batch_to_space_impl>(arg, best_kernels[0]);
     }
 };
 

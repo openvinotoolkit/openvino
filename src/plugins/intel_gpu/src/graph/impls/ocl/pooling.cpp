@@ -77,7 +77,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const pooling_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const pooling_node& arg) {
         validate_args(arg);
 
         auto pool_params = get_default_params<kernel_selector::pooling_params>(arg);
@@ -167,7 +167,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new pooling_impl(arg, best_kernels[0]);
+        return make_unique<pooling_impl>(arg, best_kernels[0]);
     }
 };
 

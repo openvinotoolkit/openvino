@@ -23,7 +23,7 @@ struct extract_image_patches_impl : typed_primitive_impl_ocl<extract_image_patch
     }
 
 public:
-    static primitive_impl* create(const extract_image_patches_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const extract_image_patches_node& arg) {
         auto params = get_default_params<kernel_selector::extract_image_patches_params>(arg);
         auto optional_params =
             get_default_optional_params<kernel_selector::extract_image_patches_optional_params>(arg.get_program());
@@ -41,7 +41,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new extract_image_patches_impl(arg, best_kernels[0]);
+        return make_unique<extract_image_patches_impl>(arg, best_kernels[0]);
     }
 };
 

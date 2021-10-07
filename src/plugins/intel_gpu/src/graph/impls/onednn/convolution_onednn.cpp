@@ -211,13 +211,13 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const convolution_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const convolution_node& arg) {
         auto& engine = arg.get_program().get_engine();
         auto desc = get_convolution_descriptor(arg);
         auto attr = get_primitive_attributes(arg);
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return new convolution_onednn(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));
+        return make_unique<convolution_onednn>(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));
     }
 
 private:

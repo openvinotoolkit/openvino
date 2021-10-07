@@ -68,7 +68,7 @@ struct gather_impl : typed_primitive_impl_ocl<gather> {
     }
 
 public:
-    static primitive_impl* create(const gather_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const gather_node& arg) {
         auto gather_params = get_default_params<kernel_selector::gather_params>(arg);
         auto gather_optional_params =
             get_default_optional_params<kernel_selector::gather_optional_params>(arg.get_program());
@@ -88,7 +88,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new gather_impl(arg, best_kernels[0]);
+        return make_unique<gather_impl>(arg, best_kernels[0]);
     }
 };
 

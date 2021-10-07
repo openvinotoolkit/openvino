@@ -22,7 +22,7 @@ struct border_impl : typed_primitive_impl_ocl<border> {
         return make_unique<border_impl>(*this);
     }
 
-    static primitive_impl* create(const border_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const border_node& arg) {
         auto b_params = get_default_params<kernel_selector::border_params>(arg, 1);
         auto b_optional_params =
             get_default_optional_params<kernel_selector::border_optional_params>(arg.get_program());
@@ -60,7 +60,7 @@ struct border_impl : typed_primitive_impl_ocl<border> {
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new border_impl(arg, best_kernels[0]);
+        return make_unique<border_impl>(arg, best_kernels[0]);
     }
 };
 

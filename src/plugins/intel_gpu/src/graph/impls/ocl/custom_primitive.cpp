@@ -199,7 +199,7 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer) {
     return oss.str();
 }
 
-static primitive_impl* create(const custom_gpu_primitive_node& arg) {
+static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& arg) {
     const auto primitive = arg.get_primitive().get();
 
     auto cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
@@ -218,7 +218,7 @@ static primitive_impl* create(const custom_gpu_primitive_node& arg) {
         cl_kernel->params.arguments.push_back(get_arg(p));
     }
 
-    return new custom_gpu_primitive_impl(arg, cl_kernel);
+    return make_unique<custom_gpu_primitive_impl>(arg, cl_kernel);
 }
 
 namespace detail {

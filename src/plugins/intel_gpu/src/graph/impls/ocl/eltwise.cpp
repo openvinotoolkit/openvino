@@ -22,7 +22,7 @@ struct eltwise_impl : typed_primitive_impl_ocl<eltwise> {
         return make_unique<eltwise_impl>(*this);
     }
 
-    static primitive_impl* create(const eltwise_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const eltwise_node& arg) {
         auto ew_params = get_default_params<kernel_selector::eltwise_params>(arg);
         auto ew_optional_params =
             get_default_optional_params<kernel_selector::eltwise_optional_params>(arg.get_program());
@@ -106,7 +106,7 @@ struct eltwise_impl : typed_primitive_impl_ocl<eltwise> {
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new eltwise_impl(arg, best_kernels[0]);
+        return make_unique<eltwise_impl>(arg, best_kernels[0]);
     }
 };
 

@@ -37,7 +37,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const lstm_gemm_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const lstm_gemm_node& arg) {
         const auto& weights_layout = arg.weights().get_output_layout();
 
         auto lstm_gemm_params = get_default_params<kernel_selector::lstm_gemm_params>(arg);
@@ -81,7 +81,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new lstm_gemm_impl(arg, best_kernels[0]);
+        return make_unique<lstm_gemm_impl>(arg, best_kernels[0]);
     }
 };
 

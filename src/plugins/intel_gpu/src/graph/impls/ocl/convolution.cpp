@@ -82,7 +82,7 @@ protected:
     bool get_depthwise_sep_opt() const override { return _depthwise_sep_opt; }
 
 public:
-    static primitive_impl* create(const convolution_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const convolution_node& arg) {
         const auto& primitive = arg.get_primitive();
         const auto& weights_layout = arg.weights(0).get_output_layout();
         const auto& weights_size = weights_layout.size;
@@ -176,7 +176,7 @@ public:
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
-        return new convolution_impl(arg, best_kernels[0]);
+        return make_unique<convolution_impl>(arg, best_kernels[0]);
     }
 
 private:

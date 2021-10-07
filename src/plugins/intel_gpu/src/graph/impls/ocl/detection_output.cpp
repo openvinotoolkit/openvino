@@ -51,7 +51,7 @@ private:
     }
 
 public:
-    static primitive_impl* create(const detection_output_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const detection_output_node& arg) {
         auto detect_out_params = get_default_params<kernel_selector::detection_output_params>(arg);
         auto detect_out_optional_params =
             get_default_optional_params<kernel_selector::detection_output_optional_params>(arg.get_program());
@@ -68,7 +68,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new detection_output_impl(arg, best_kernels[0]);
+        return make_unique<detection_output_impl>(arg, best_kernels[0]);
     }
 };
 

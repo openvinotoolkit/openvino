@@ -26,7 +26,7 @@ struct strided_slice_impl : typed_primitive_impl_ocl<strided_slice> {
     }
 
 public:
-    static primitive_impl* create(const strided_slice_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const strided_slice_node& arg) {
         auto params = get_default_params<kernel_selector::strided_slice_params>(arg);
         auto op_params = get_default_optional_params<kernel_selector::strided_slice_optional_params>(arg.get_program());
         const size_t dims_num = params.inputs[0].Dimentions();
@@ -120,7 +120,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new strided_slice_impl(arg, best_kernels[0]);
+        return make_unique<strided_slice_impl>(arg, best_kernels[0]);
     }
 };
 

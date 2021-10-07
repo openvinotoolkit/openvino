@@ -26,7 +26,7 @@ struct ctc_greedy_decoder_impl : typed_primitive_impl_ocl<ctc_greedy_decoder> {
     }
 
 public:
-    static primitive_impl* create(const ctc_greedy_decoder_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const ctc_greedy_decoder_node& arg) {
         auto ctc_gd_params = get_default_params<kernel_selector::ctc_greedy_decoder_params>(arg);
         auto ctc_gd_optional_params = get_default_optional_params<kernel_selector::ctc_greedy_decoder_optional_params>(arg.get_program());
         auto prim = arg.get_primitive();
@@ -51,7 +51,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new ctc_greedy_decoder_impl(arg, best_kernels[0]);
+        return make_unique<ctc_greedy_decoder_impl>(arg, best_kernels[0]);
     }
 };
 

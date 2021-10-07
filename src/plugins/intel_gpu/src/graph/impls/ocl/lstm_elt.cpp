@@ -34,7 +34,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const lstm_elt_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const lstm_elt_node& arg) {
         auto lstm_elt_params = get_default_params<kernel_selector::lstm_elt_params>(arg);
         auto lstm_elt_optional_params =
             get_default_optional_params<kernel_selector::lstm_elt_optional_params>(arg.get_program());
@@ -84,7 +84,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new lstm_elt_impl(arg, best_kernels[0]);
+        return make_unique<lstm_elt_impl>(arg, best_kernels[0]);
     }
 };
 

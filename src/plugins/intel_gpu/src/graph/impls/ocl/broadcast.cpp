@@ -22,7 +22,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         return make_unique<broadcast_impl>(*this);
     }
 
-    static primitive_impl* create(const broadcast_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const broadcast_node& arg) {
         auto bc_params = get_default_params<kernel_selector::broadcast_params>(arg, 1);
         auto bc_optional_params =
             get_default_optional_params<kernel_selector::broadcast_optional_params>(arg.get_program());
@@ -53,7 +53,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new broadcast_impl(arg, best_kernels[0]);
+        return make_unique<broadcast_impl>(arg, best_kernels[0]);
     }
 };
 

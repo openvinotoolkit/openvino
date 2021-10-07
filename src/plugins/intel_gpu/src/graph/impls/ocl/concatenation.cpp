@@ -82,9 +82,9 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const concatenation_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const concatenation_node& arg) {
         if (arg.can_be_optimized()) {
-            return new concatenation_impl(arg, {});
+            return make_unique<concatenation_impl>(arg, kernel_selector::kernel_data());
         }
 
         auto concat_params = get_default_params<kernel_selector::concatenation_params>(arg);
@@ -108,7 +108,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new concatenation_impl(arg, best_kernels[0]);
+        return make_unique<concatenation_impl>(arg, best_kernels[0]);
     }
 
 private:

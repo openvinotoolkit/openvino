@@ -208,7 +208,7 @@ public:
         return ev;
     }
 
-    static primitive_impl* create(const loop_node& arg) { return new loop_impl(arg); }
+    static std::unique_ptr<primitive_impl> create(const loop_node& arg) { return make_unique<loop_impl>(arg); }
 };
 
 namespace detail {

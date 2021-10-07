@@ -21,7 +21,7 @@ struct lrn_impl : typed_primitive_impl_ocl<lrn> {
         return make_unique<lrn_impl>(*this);
     }
 
-    static primitive_impl* create(const lrn_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const lrn_node& arg) {
         auto lrn_params = get_default_params<kernel_selector::lrn_params>(arg);
         auto lrn_optional_params = get_default_optional_params<kernel_selector::lrn_optional_params>(arg.get_program());
 
@@ -44,7 +44,7 @@ struct lrn_impl : typed_primitive_impl_ocl<lrn> {
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new lrn_impl(arg, best_kernels[0]);
+        return make_unique<lrn_impl>(arg, best_kernels[0]);
     }
 };
 

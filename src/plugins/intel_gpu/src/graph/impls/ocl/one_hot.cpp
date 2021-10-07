@@ -23,7 +23,7 @@ struct one_hot_impl : typed_primitive_impl_ocl<one_hot> {
         return make_unique<one_hot_impl>(*this);
     }
 
-    static primitive_impl* create(const one_hot_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const one_hot_node& arg) {
         auto oh_params = get_default_params<kernel_selector::one_hot_params>(arg, 1);
         auto oh_optional_params =
             get_default_optional_params<kernel_selector::one_hot_optional_params>(arg.get_program());
@@ -44,7 +44,7 @@ struct one_hot_impl : typed_primitive_impl_ocl<one_hot> {
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
 
-        return new one_hot_impl(arg, best_kernels[0]);
+        return make_unique<one_hot_impl>(arg, best_kernels[0]);
     }
 };
 

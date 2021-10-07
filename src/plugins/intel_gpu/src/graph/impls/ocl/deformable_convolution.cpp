@@ -54,7 +54,7 @@ protected:
     uint32_t get_groups() const override { return _groups; }
 
 public:
-    static primitive_impl* create(const deformable_conv_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const deformable_conv_node& arg) {
         const auto& primitive = arg.get_primitive();
         const auto& weights_layout = arg.weights(0).get_output_layout();
         const auto& weights_size = weights_layout.size;
@@ -88,7 +88,7 @@ public:
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
-        return new deformable_conv_impl(arg, best_kernels[0]);
+        return make_unique<deformable_conv_impl>(arg, best_kernels[0]);
     }
 
 private:
@@ -110,7 +110,7 @@ protected:
     uint32_t get_groups() const override { return 1; }
 
 public:
-    static primitive_impl* create(const deformable_interp_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const deformable_interp_node& arg) {
         const auto& primitive = arg.get_primitive();
         const auto& input_layout = arg.input().get_output_layout();
         const auto& kernel_size = primitive->kernel_size;
@@ -165,7 +165,7 @@ public:
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
-        return new deformable_interp_impl(arg, best_kernels[0]);
+        return make_unique<deformable_interp_impl>(arg, best_kernels[0]);
     }
 };
 

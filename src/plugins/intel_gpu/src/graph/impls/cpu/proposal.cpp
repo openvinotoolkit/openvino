@@ -425,7 +425,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
     void init_kernels(const program_node&) override {}
 
-    static primitive_impl* create(const proposal_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const proposal_node& arg) {
         const layout& l = arg.image_info().get_output_layout();
         const size_t count = l.size.feature[0] == 1 ? static_cast<size_t>(l.size.batch[0]) : static_cast<size_t>(l.size.feature[0]);
 
@@ -437,7 +437,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
             CLDNN_ERROR_MESSAGE(arg.id(), "image_info must have either 3, 4 or 6 items");
         }
 
-        return new proposal_impl();
+        return make_unique<proposal_impl>();
     }
 };
 

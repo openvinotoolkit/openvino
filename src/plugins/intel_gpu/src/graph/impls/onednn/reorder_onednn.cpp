@@ -59,13 +59,13 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const reorder_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const reorder_node& arg) {
         auto desc = get_reorder_descriptor(arg);
         auto attr = arg.get_onednn_primitive_attributes();
 
         std::shared_ptr<void> dummy = nullptr;
 
-        return new reorder_onednn(dummy, attr, *desc);
+        return make_unique<reorder_onednn>(dummy, attr, *desc);
     }
 };
 

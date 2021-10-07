@@ -74,7 +74,7 @@ protected:
     uint32_t get_groups() const override { return _groups; }
 
 public:
-    static primitive_impl* create(const deconvolution_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const deconvolution_node& arg) {
         const auto& primitive = arg.get_primitive();
         const auto& weights_layout = arg.weights(0).get_output_layout();
 
@@ -131,7 +131,7 @@ public:
                          "Best_kernel.empty()",
                          best_kernels.empty(),
                          "Cannot find a proper kernel with these arguments");
-        return new deconvolution_impl(arg, best_kernels[0]);
+        return make_unique<deconvolution_impl>(arg, best_kernels[0]);
     }
 
 private:

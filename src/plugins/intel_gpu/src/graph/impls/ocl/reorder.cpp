@@ -58,7 +58,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const reorder_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const reorder_node& arg) {
         auto&& input_layout = arg.input().get_output_layout();
         auto&& output_layout = arg.get_output_layout();
 
@@ -125,7 +125,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new reorder_impl(arg, best_kernels[0]);
+        return make_unique<reorder_impl>(arg, best_kernels[0]);
     }
 
 private:

@@ -22,9 +22,9 @@ struct reshape_impl : public typed_primitive_impl_ocl<reshape> {
     }
 
 public:
-    static primitive_impl* create(reshape_node const& arg) {
+    static std::unique_ptr<primitive_impl> create(reshape_node const& arg) {
         if (arg.can_be_optimized()) {
-            return new reshape_impl(arg, {});
+            return make_unique<reshape_impl>(arg, kernel_selector::kernel_data());
         }
 
         auto reorder_params = get_default_params<kernel_selector::reshape_params>(arg);
@@ -39,7 +39,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new reshape_impl(arg, best_kernels[0]);
+        return make_unique<reshape_impl>(arg, best_kernels[0]);
     }
 };
 

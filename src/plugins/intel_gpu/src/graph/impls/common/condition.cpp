@@ -47,7 +47,7 @@ struct condition_impl : typed_primitive_impl<condition> {
         return ev;
     }
 
-    static primitive_impl* create(const condition_node& arg) { return new condition_impl(arg); }
+    static std::unique_ptr<primitive_impl> create(const condition_node& arg) { return make_unique<condition_impl>(arg); }
 
     void init_kernels(const program_node&) override {}
 

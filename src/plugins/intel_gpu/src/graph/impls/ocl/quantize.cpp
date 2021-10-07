@@ -43,7 +43,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const quantize_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const quantize_node& arg) {
         auto quantize_params = get_default_params<kernel_selector::quantize_params>(arg);
         auto quantize_optional_params =
             get_default_optional_params<kernel_selector::quantize_optional_params>(arg.get_program());
@@ -88,7 +88,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new quantize_impl(arg, best_kernels[0]);
+        return make_unique<quantize_impl>(arg, best_kernels[0]);
     }
 };
 

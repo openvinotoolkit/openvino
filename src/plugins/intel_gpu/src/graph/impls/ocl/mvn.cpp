@@ -26,7 +26,7 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
     }
 
 public:
-    static primitive_impl* create(const mvn_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const mvn_node& arg) {
         auto mvn_params = get_default_params<kernel_selector::mvn_params>(arg);
         auto mvn_optional_params = get_default_optional_params<kernel_selector::mvn_optional_params>(arg.get_program());
 
@@ -46,7 +46,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new mvn_impl(arg, best_kernels[0]);
+        return make_unique<mvn_impl>(arg, best_kernels[0]);
     }
 };
 

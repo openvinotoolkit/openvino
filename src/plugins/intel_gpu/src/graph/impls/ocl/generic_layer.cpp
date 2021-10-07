@@ -61,8 +61,8 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
     }
 };
 
-static primitive_impl* create(const generic_layer_node& arg) {
-    return new generic_layer_impl(arg);
+static std::unique_ptr<primitive_impl> create(const generic_layer_node& arg) {
+    return make_unique<generic_layer_impl>(arg);
 }
 
 namespace detail {

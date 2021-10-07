@@ -50,7 +50,7 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
         return make_unique<permute_impl>(*this);
     }
 
-    static primitive_impl* create(const permute_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const permute_node& arg) {
         auto permute_params = get_default_params<kernel_selector::permute_params>(arg);
         auto permute_optional_params =
             get_default_optional_params<kernel_selector::permute_optional_params>(arg.get_program());
@@ -66,7 +66,7 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new permute_impl(arg, best_kernels[0]);
+        return make_unique<permute_impl>(arg, best_kernels[0]);
     }
 };
 

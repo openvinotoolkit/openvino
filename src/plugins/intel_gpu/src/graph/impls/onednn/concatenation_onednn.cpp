@@ -62,13 +62,13 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const concatenation_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const concatenation_node& arg) {
         auto desc = get_concatenation_descriptor(arg);
         auto attr = arg.get_onednn_primitive_attributes();
 
         std::shared_ptr<void> dummy = nullptr;
 
-        return new concatenation_onednn(dummy, attr, *desc);
+        return make_unique<concatenation_onednn>(dummy, attr, *desc);
     }
 };
 

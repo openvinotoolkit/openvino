@@ -33,7 +33,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const normalize_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const normalize_node& arg) {
         auto norm_params = get_default_params<kernel_selector::normalize_params>(arg);
         auto norm_optional_params =
             get_default_optional_params<kernel_selector::normalize_optional_params>(arg.get_program());
@@ -53,7 +53,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new normalize_impl(arg, best_kernels[0]);
+        return make_unique<normalize_impl>(arg, best_kernels[0]);
     }
 };
 

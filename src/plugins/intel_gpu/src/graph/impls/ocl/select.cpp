@@ -22,7 +22,7 @@ struct select_impl : typed_primitive_impl_ocl<select> {
     }
 
 public:
-    static primitive_impl* create(const select_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const select_node& arg) {
         auto select_params = get_default_params<kernel_selector::select_params>(arg);
         auto select_optional_params =
             get_default_optional_params<kernel_selector::select_optional_params>(arg.get_program());
@@ -39,7 +39,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new select_impl(arg, best_kernels[0]);
+        return make_unique<select_impl>(arg, best_kernels[0]);
     }
 };
 

@@ -59,7 +59,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const roi_pooling_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const roi_pooling_node& arg) {
         const auto& input_layout = arg.input().get_output_layout();
         const auto& output_layout = arg.get_output_layout();
         const auto& rois_layout = arg.rois().get_output_layout();
@@ -108,7 +108,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new roi_pooling_impl(arg, best_kernels[0]);
+        return make_unique<roi_pooling_impl>(arg, best_kernels[0]);
     }
 };
 

@@ -58,7 +58,7 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
     }
 
 public:
-    static primitive_impl* create(const reduce_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const reduce_node& arg) {
         auto reduce_params = get_default_params<kernel_selector::reduce_params>(arg);
         auto reduce_optional_params = get_default_optional_params<kernel_selector::reduce_optional_params>(arg.get_program());
 
@@ -71,7 +71,7 @@ public:
 
         CLDNN_ERROR_BOOL(arg.id(), "Best_kernel.empty()", best_kernels.empty(), "Cannot find a proper kernel with this arguments");
 
-        return new reduce_impl(arg, best_kernels[0]);
+        return make_unique<reduce_impl>(arg, best_kernels[0]);
     }
 };
 

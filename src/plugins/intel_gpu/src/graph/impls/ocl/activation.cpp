@@ -44,7 +44,7 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
         return args;
     }
 
-    static primitive_impl* create(const activation_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const activation_node& arg) {
         auto activation_params = get_default_params<kernel_selector::activation_params>(arg);
         auto activation_optional_params =
             get_default_optional_params<kernel_selector::activation_optional_params>(arg.get_program());
@@ -75,7 +75,7 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new activation_impl(arg, best_kernels[0]);
+        return make_unique<activation_impl>(arg, best_kernels[0]);
     }
 
 private:

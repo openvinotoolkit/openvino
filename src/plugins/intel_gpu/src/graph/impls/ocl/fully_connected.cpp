@@ -40,7 +40,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const fully_connected_node& arg) {
+    static std::unique_ptr<primitive_impl> create(const fully_connected_node& arg) {
         auto fc_params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(arg);
         auto fc_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::fully_connected_optional_params>(
@@ -73,7 +73,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        return new fully_connected_impl(arg, best_kernels[0]);
+        return make_unique<fully_connected_impl>(arg, best_kernels[0]);
     }
 };
 
