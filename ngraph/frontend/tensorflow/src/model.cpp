@@ -14,6 +14,7 @@
 #include "graph_iterator_proto.hpp"
 #include "ngraph_conversions.hpp"
 #include "node_context.hpp"
+#include "utils.hpp"
 
 using namespace google;
 

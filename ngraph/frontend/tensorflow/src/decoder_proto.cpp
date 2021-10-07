@@ -88,11 +88,11 @@ void DecoderTFProto::get_input_node(const size_t input_port_idx,
     producer_output_port_index = 0;
 }
 
-std::string DecoderTFProto::get_op_type() const {
+const std::string& DecoderTFProto::get_op_type() const {
     return m_node_def->op();
 }
 
-std::string DecoderTFProto::get_op_name() const {
+const std::string& DecoderTFProto::get_op_name() const {
     return m_node_def->name();
 }
 

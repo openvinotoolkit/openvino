@@ -31,10 +31,10 @@ public:
                                 size_t& producer_output_port_index) const = 0;
 
     /// \brief Get operation type
-    virtual std::string get_op_type() const = 0;
+    virtual const std::string& get_op_type() const = 0;
 
     /// \brief Get node name
-    virtual std::string get_op_name() const = 0;
+    virtual const std::string& get_op_name() const = 0;
 };
 }  // namespace frontend
 }  // namespace ngraph

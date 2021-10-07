@@ -11,6 +11,7 @@
 
 #include "op_table.hpp"
 #include "tf_framework_node.hpp"
+#include "utils.hpp"
 
 using namespace ::ngraph::frontend;
 using namespace ::ngraph::frontend::tf;
@@ -69,7 +70,7 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
     const auto& TRANSLATE_OP_MAP = m_op_translators;
     if (no_conversion) {
         const std::set<std::string> required_types{"Placeholder", "_Retval", "NoOp"};
-        for (auto& name : required_types) {
+        for (const auto& name : required_types) {
             translate_map.emplace(name, TRANSLATE_OP_MAP.at(name));
         }
     } else {
@@ -103,7 +104,7 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
     }
 
     // create the nGraph ops from TensorFlow ops
-    for (auto& operation_place : operation_places) {
+    for (const auto& operation_place : operation_places) {
         auto operation_decoder = operation_place->get_decoder();
         auto operation_name = operation_place->get_names()[0];
 
