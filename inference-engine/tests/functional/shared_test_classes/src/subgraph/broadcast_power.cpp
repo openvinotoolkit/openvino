@@ -40,6 +40,5 @@ void BroadcastPowerTest::SetUp() {
             inputs_shapes[0]);
     auto reshape_2 = std::make_shared<ngraph::opset1::Reshape>(sum, reshape_pattern_2, false);
     function = std::make_shared<ngraph::Function>(reshape_2, params, "BroadcastPowerPass");
-    functionRefs = ngraph::clone_function(*function);
 }
 } // namespace SubgraphTestsDefinitions
