@@ -49,7 +49,7 @@ inline void function_expand_and_remove_original_node(const ONNX_NAMESPACE::NodeP
                 graph->mutable_node()->end() - added_nodes,
                 graph->mutable_node()->end());
     // Move index to the previous position because first node of expanded function can be also function
-    current_node_idx--;
+    --current_node_idx;
 }
 
 }  // namespace detail

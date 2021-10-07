@@ -20,7 +20,7 @@ namespace {
 // Names of input and output names of nodes after a function expanding have names based on a node address.
 // As a result, the names are different during each tests execution.
 // It requires custom way of name comparison.
-// https://github.com/onnx/onnx/blob/master/onnx/defs/function.cc#L23
+// https://github.com/onnx/onnx/blob/767f752829f83dbc9bd0a364d6138890f667fc38/onnx/defs/function.cc#L23
 bool after_func_expand_name_comp(std::string lhs, std::string rhs) {
     const int lhs_begin_address_pos = lhs.find("0x");
     const int rhs_begin_address_pos = rhs.find("0x");
