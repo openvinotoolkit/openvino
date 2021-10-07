@@ -491,10 +491,12 @@ void MKLDNNNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNNode::executeDynamic(mkldnn::stream strm) {
-    if (needShapeInfer())
+    if (needShapeInfer()) {
         redefineOutputMemory(shapeInfer());
-    if (needPrepareParams())
+    }
+    if (needPrepareParams()) {
         prepareParams();
+    }
     executeDynamicImpl(strm);
     updateLastInputDims();
 }

@@ -683,16 +683,17 @@ MKLDNNMVNNode::MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkld
             epsMode_ = OUTSIDE_SQRT;
         }
 
-        acrossChannels_ = false;
+        initAcrossChannels_ = false;
         const auto& inDataShapeSize = inputShapes[0].getRank();
         if (inDataShapeSize == mvnOp->input_value(1).get_shape()[0] + 1 || inDataShapeSize == 1)
-            acrossChannels_ = true;
+            initAcrossChannels_ = true;
     } else if (auto mvnOp = ngraph::as_type_ptr<ngraph::op::v0::MVN>(op)) {
         normalizeVariance_ = mvnOp->get_normalize_variance();
         epsValue_ = mvnOp->get_eps();
         epsMode_ = INSIDE_SQRT;
-        acrossChannels_ = mvnOp->get_across_channels();
+        initAcrossChannels_ = mvnOp->get_across_channels();
     }
+    execAcrossChannels_ = initAcrossChannels_;
 }
 
 void MKLDNNMVNNode::getSupportedDescriptors() {}
@@ -814,7 +815,7 @@ void MKLDNNMVNNode::prepareParams() {
         jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(MKLDNNExtensionUtils::IEPrecisionToDataType(jcp.dst_prc));
         jcp.planar_layout = selectedPD->getConfig().inConfs[0].desc->hasLayoutType(LayoutType::ncsp);
         jcp.normalize_variance = normalizeVariance_;
-        jcp.across_channels = acrossChannels_;
+        jcp.across_channels = execAcrossChannels_;
         int N = 0;
         std::tie(N, jcp.C, jcp.D, jcp.H, jcp.W) = shape5D;
 
@@ -838,21 +839,21 @@ void MKLDNNMVNNode::createPrimitive() {
 
 void MKLDNNMVNNode::transformTo5DCase(const SizeVector& shape) {
     switch (shape.size()) {
-        // for 1 and 2 rank, if acrossChannels_ is true, adjust shape to fully vectorize under unified 5d procedure.
+        // for 1 and 2 rank, if initAcrossChannels_ is true, adjust shape to fully vectorize under unified 5d procedure.
         // otherwise there are not enough data in spatial dimension to process in one kernel.
         case 1 :  // C
-            if (acrossChannels_) {
+            if (initAcrossChannels_) {
                 shape5D = std::make_tuple(1, 1, 1, 1, shape[0]);
-                acrossChannels_ = false;
+                execAcrossChannels_ = false;
                 break;
             } else {
                 shape5D = std::make_tuple(1, shape[0], 1, 1, 1);
                 break;
             }
         case 2 :  // NC
-            if (acrossChannels_) {
+            if (initAcrossChannels_) {
                 shape5D = std::make_tuple(1, shape[0], 1, shape[1], 1);
-                acrossChannels_ = false;
+                execAcrossChannels_ = false;
                 break;
             } else {
                 shape5D = std::make_tuple(shape[0], shape[1], 1, 1, 1);
@@ -930,7 +931,7 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data) {
 
     for (size_t b = 0lu; b < N; b++) {
         size_t cb = b * C3;
-        if (acrossChannels_) {
+        if (execAcrossChannels_) {
             // Calculate mean value for one instance in batch
             // Parallel sum for each channel
             float C3inv = 1.f / static_cast<float>(C3);
@@ -1055,7 +1056,7 @@ void MKLDNNMVNNode::mvn_ref(const uint8_t* src_data, uint8_t* dst_data) {
 
     for (size_t b = 0lu; b < N; b++) {
         size_t cb = b * C3;
-        if (acrossChannels_) {
+        if (execAcrossChannels_) {
             // Parallel sum for each channel for mean
             float C3inv = 1.f / static_cast<float>(C3);
             float mean_temp = 0.0f;
@@ -1163,7 +1164,7 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data) {
     size_t C5 = C * D * H * W;
 
     size_t threads_num = parallel_get_num_threads();
-    size_t aux_buffer_size = acrossChannels_ ? blk_size : rnd_up(C, blk_size);
+    size_t aux_buffer_size = execAcrossChannels_ ? blk_size : rnd_up(C, blk_size);
     std::vector<float> mean_buffer(aux_buffer_size * threads_num);
     std::vector<float> variance_buffer(aux_buffer_size * threads_num);
 
@@ -1172,7 +1173,7 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data) {
 
     for (size_t b = 0lu; b < N; b++) {
         size_t b_offset = is_nhwc ? b * C5 : b * C3;
-        if (acrossChannels_) {
+        if (execAcrossChannels_) {
             // mean for this instance in batch
             float C5inv = 1.f / static_cast<float>(C5);
             float mean_temp = 0.0f;
@@ -1388,7 +1389,7 @@ bool MKLDNNMVNNode::canFuse(const MKLDNNNodePtr& node) const {
                                             EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
                                             EltwiseRoundHalfAwayFromZero, EltwiseAbs, EltwiseSqrt, EltwiseSoftRelu);
     if ((inputRank == 1 && !unaryEltwise) ||
-        (inputRank == 2 && !unaryEltwise && acrossChannels_)) {
+        (inputRank == 2 && !unaryEltwise && initAcrossChannels_)) {
         return false;
     }
 
