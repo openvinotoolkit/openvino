@@ -21,7 +21,7 @@ OutputVector TranslateTransposeOp(const NodeContext& node) {
     return transpose->outputs();
 }
 
-}
-}
-}
-}
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

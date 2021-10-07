@@ -21,7 +21,7 @@ OutputVector TranslateLog1pOp(const NodeContext& node) {
     log->set_friendly_name(node.get_name());
     return log->outputs();
 }
-}
-}
-}
-}
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

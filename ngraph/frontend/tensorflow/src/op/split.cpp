@@ -8,7 +8,6 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-
 namespace ngraph {
 namespace frontend {
 namespace tf {
@@ -103,7 +102,7 @@ OutputVector TranslateSplitVOp(
   return Status::OK();
 }
  */
-}
-}
-}
-}
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

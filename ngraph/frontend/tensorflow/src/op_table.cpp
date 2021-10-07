@@ -13,7 +13,9 @@ namespace frontend {
 namespace tf {
 namespace op {
 #define OP_CONVERTER(op) OutputVector op(const NodeContext& node)
-#define OP_T_CONVERTER(op) template <class T> OutputVector op(const NodeContext& node)
+#define OP_T_CONVERTER(op) \
+    template <class T>     \
+    OutputVector op(const NodeContext& node)
 
 OP_T_CONVERTER(TranslateUnaryOp);
 OP_T_CONVERTER(TranslateBinaryOp);

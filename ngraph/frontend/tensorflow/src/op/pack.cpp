@@ -8,7 +8,6 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-
 namespace ngraph {
 namespace frontend {
 namespace tf {
@@ -28,7 +27,7 @@ OutputVector TranslatePackOp(const NodeContext& node) {
     concat->set_friendly_name(node.get_name());
     return concat->outputs();
 }
-}
-}
-}
-}
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

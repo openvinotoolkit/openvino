@@ -8,7 +8,6 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-
 namespace ngraph {
 namespace frontend {
 namespace tf {
@@ -21,7 +20,7 @@ OutputVector TranslateSquareOp(const NodeContext& node) {
     return square->outputs();
 }
 
-}
-}
-}
-}
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

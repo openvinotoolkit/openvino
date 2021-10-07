@@ -20,7 +20,7 @@ OutputVector TranslateReciprocalOp(const NodeContext& node) {
     power->set_friendly_name(node.get_name());
     return power->outputs();
 }
-}
-}
-}
-}
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

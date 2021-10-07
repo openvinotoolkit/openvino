@@ -8,7 +8,6 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-
 namespace ngraph {
 namespace frontend {
 namespace tf {
@@ -23,7 +22,7 @@ OutputVector TranslateZerosLikeOp(const NodeContext& node) {
     return broadcast->outputs();
 }
 
-}
-}
-}
-}
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

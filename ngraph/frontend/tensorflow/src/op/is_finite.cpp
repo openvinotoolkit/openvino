@@ -8,7 +8,6 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-
 namespace ngraph {
 namespace frontend {
 namespace tf {
@@ -35,7 +34,7 @@ OutputVector TranslateIsFiniteOp(const NodeContext& node) {
     is_finite->set_friendly_name(node.get_name());
     return is_finite->outputs();
 }
-}
-}
-}
-}
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph
