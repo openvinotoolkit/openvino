@@ -105,6 +105,7 @@ class AddOutputRecursive(BackReplacementPattern):
     Path structure: [node_loop_1, loop_2_in_loop_1,.., if_node, [then_list, else_list]]
     After if operation should be sub-list with 2 elements then_list and else_list where each is one node or list of
     nodes in according path
+    Created Result for path [loop1, loop2, node] will be loop1.loop2.node:<port number>
     """
     enabled = False
     run_not_recursively = True
@@ -114,6 +115,12 @@ class AddOutputRecursive(BackReplacementPattern):
         # add output to nodes according to path
         step_node = nodes_path[-1]
         cur_graph = graphs_path[-1]
+
+        final_res_name = ""
+        for n in nodes_path:
+            final_res_name += n.soft_get('name', n.id) + "_"
+        final_res_name = final_res_name[:-1]
+
         ports_to_add_nodes = []
         for o_p in step_node.out_ports():
             ports_to_add_nodes.append(o_p)
@@ -181,9 +188,14 @@ class AddOutputRecursive(BackReplacementPattern):
 
         for p_num in ports_to_add_nodes:
             port = step_node.out_port(p_num)
-            out_name = port.node.soft_get('name', step_node.id) + ":" + str(p_num)
+            out_name = final_res_name + ":" + str(p_num)
             res_node = Result(cur_graph, {'name': out_name}).create_node()
             port.connect(res_node.in_port(0))
+            # add name of Result to fw_tebsor_debug_info to avoid renaming
+            if step_node.out_nodes()[p_num].has_and_set('fw_tensor_debug_info'):
+                step_node.out_nodes()[p_num]['fw_tensor_debug_info'].append(out_name)
+            else:
+                step_node.out_nodes()[p_num]['fw_tensor_debug_info'] = [[out_name, out_name]]
             if step_node.op == 'TensorIterator':
                 step_node.out_edges()[len(step_node.out_edges())-1]['external_port_id'] = p_num + \
                                                                                           len(step_node.in_ports())
