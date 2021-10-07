@@ -4,15 +4,6 @@
 
 set(TARGET_NAME "tensorflow_ngraph_frontend")
 
-if(SUGGEST_OVERRIDE_SUPPORTED)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
-endif()
-if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wno-undef)
-elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable=10121")
-endif()
-
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
@@ -32,15 +23,6 @@ set(PROTO_HDRS)
 # Generate protobuf file on build time for each '.proto' file in src/proto
 file(GLOB proto_files ${CMAKE_CURRENT_SOURCE_DIR}/src/proto/*.proto)
 
-if(CMAKE_CROSSCOMPILING)
-    set(TENSORFLOW_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
-else()
-    set(TENSORFLOW_PROTOC_EXECUTABLE $<TARGET_FILE:protoc>)
-    #set(TENSORFLOW_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
-endif()
-
-message("TENSORFLOW_PROTOC_EXECUTABLE is [${TENSORFLOW_PROTOC_EXECUTABLE}]")
-
 foreach(INFILE ${proto_files})
     get_filename_component(FILE_DIR ${INFILE} DIRECTORY)
     get_filename_component(FILE_WE ${INFILE} NAME_WE)
@@ -49,10 +31,11 @@ foreach(INFILE ${proto_files})
     set(GENERATED_PROTO ${INFILE})
     add_custom_command(
             OUTPUT "${OUTPUT_PB_SRC}" "${OUTPUT_PB_HEADER}"
-            COMMAND ${TENSORFLOW_PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
-            DEPENDS ${TENSORFLOW_PROTOC_EXECUTABLE} ${GENERATED_PROTO}
-            COMMENT "Running C++ protocol buffer compiler (${TENSORFLOW_PROTOC_EXECUTABLE}) on ${GENERATED_PROTO}"
-            VERBATIM)
+            COMMAND ${PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
+            DEPENDS ${PROTOC_EXECUTABLE} ${GENERATED_PROTO}
+            COMMENT "Running C++ protocol buffer compiler (${PROTOC_EXECUTABLE}) on ${GENERATED_PROTO}"
+            VERBATIM
+            COMMAND_EXPAND_LISTS)
     list(APPEND PROTO_SRCS "${OUTPUT_PB_SRC}")
     list(APPEND PROTO_HDRS "${OUTPUT_PB_HEADER}")
 endforeach()
@@ -66,38 +49,51 @@ set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIO
 
 # Create shared library
 add_library(${TARGET_NAME} SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
+add_library(openvino::frontend::tensorflow ALIAS ${TARGET_NAME})
 
-add_dependencies(${TARGET_NAME} libprotobuf tensorflow_ngraph_frontend_proto)
+add_dependencies(${TARGET_NAME} tensorflow_ngraph_frontend_proto)
+
+ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
+                    INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                    ADDITIONAL_INCLUDE_DIRECTORIES
+                        $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}
         PUBLIC
-        $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
-        $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>
+            $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
+            $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>
         PRIVATE
-        ${Protobuf_INCLUDE_DIRS}
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_BINARY_DIR})
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${CMAKE_CURRENT_BINARY_DIR})
+
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${Protobuf_INCLUDE_DIRS}
+                                                         ${CMAKE_CURRENT_BINARY_DIR})
 
 if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME ${TARGET_NAME}
-            FILEDESCRIPTION "FrontEnd to load and convert TensorFlow file format")
+                           FILEDESCRIPTION "FrontEnd to load and convert TensorFlow file format")
 endif()
 
-target_link_libraries(${TARGET_NAME} PUBLIC frontend_manager
-        PRIVATE ngraph::builder inference_engine inference_engine_transformations libprotobuf openvino::util)
+link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
+
+target_link_libraries(${TARGET_NAME} PRIVATE frontend_manager::static
+                                     PRIVATE ngraph::builder inference_engine_transformations libprotobuf openvino::util)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
-        EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})
+                        EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})
 
-install(TARGETS ${TARGET_NAME} EXPORT ngraphTargets
-        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::tensorflow)
 
-install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/tensorflow_frontend
-        DESTINATION ${FRONTEND_INSTALL_INCLUDE}
-        COMPONENT ngraph_dev
-        FILES_MATCHING PATTERN "*.hpp"
-        )
+# TODO: add install commands once TensorFlow frontend is complete
+#install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
+#        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
+#        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
+#        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph)
 
-export(TARGETS ${TARGET_NAME} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+#install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/tensorflow_frontend
+#        DESTINATION ${FRONTEND_INSTALL_INCLUDE}
+#        COMPONENT ngraph_dev
+#        FILES_MATCHING PATTERN "*.hpp")
+
+export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
+       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
