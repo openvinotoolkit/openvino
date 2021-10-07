@@ -4,6 +4,13 @@
 
 #include "pyopenvino/core/ie_core.hpp"
 
+#include <pybind11/stl.h>
+
+#include <ie_core.hpp>
+#include <openvino/runtime/core.hpp>
+
+#include "common.hpp"
+
 namespace py = pybind11;
 
 using ConfigMap = std::map<std::string, std::string>;

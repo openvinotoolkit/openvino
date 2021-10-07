@@ -3,13 +3,7 @@
 //
 #pragma once
 
-#include "common.hpp"
-
-#include <pybind11/stl.h>
-
-#include <ie_core.hpp>
-
-#include <openvino/runtime/core.hpp>
+#include <pybind11/pybind11.h>
 
 
 namespace py = pybind11;
