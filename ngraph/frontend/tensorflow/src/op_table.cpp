@@ -63,13 +63,13 @@ OP_CONVERTER(TranslateRankOp);
 OP_CONVERTER(TranslateRandomUniformOp);
 OP_CONVERTER(TranslateRelu6Op);
 // OP_CONVERTER(TranslateReciprocalOp);
-// OP_CONVERTER(TranslateReshapeOp);
+OP_CONVERTER(TranslateReshapeOp);
 OP_CONVERTER(RetvalOp);
 OP_CONVERTER(TranslateRollOp);
 OP_CONVERTER(TranslateRsqrtOp);
 OP_CONVERTER(TranslateSelectOp);
-// OP_CONVERTER(TranslateShapeOp);
-// OP_CONVERTER(TranslateSizeOp);
+OP_CONVERTER(TranslateShapeOp);
+OP_CONVERTER(TranslateSizeOp);
 // OP_CONVERTER(TranslateSliceOp);
 // OP_CONVERTER(transpose2);
 OP_CONVERTER(TranslateSoftmaxOp);
@@ -190,19 +190,19 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Placeholder", PlaceholderOp},
         // PreventGradient is just Identity in dataflow terms, so reuse that.
         {"PreventGradient", TranslateIdentityOp},
-        //{"Range", TranslateRangeOp},
-        //{"Rank", TranslateRankOp},
+        {"Range", TranslateRangeOp},
+        {"Rank", TranslateRankOp},
         {"RandomUniform", TranslateRandomUniformOp},
         //{"Reciprocal", TranslateReciprocalOp},
         {"Relu6", TranslateRelu6Op},
-        //{"Reshape", TranslateReshapeOp},
+        {"Reshape", TranslateReshapeOp},
         {"_Retval", RetvalOp},
         {"Roll", TranslateRollOp},
         {"Rsqrt", TranslateRsqrtOp},
         {"Select", TranslateSelectOp},
         {"SelectV2", TranslateSelectOp},
-        //{"Shape", TranslateShapeOp},
-        //{"Size", TranslateSizeOp},
+        {"Shape", TranslateShapeOp},
+        {"Size", TranslateSizeOp},
         //{"Slice", TranslateSliceOp},
         //{"Snapshot", TranslateIdentityOp},
         {"Softmax", TranslateSoftmaxOp},

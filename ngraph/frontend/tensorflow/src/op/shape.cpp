@@ -8,30 +8,20 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-#if 0
-
 namespace ngraph {
 namespace frontend {
 namespace tf {
 namespace op {
-static Status TranslateShapeOp(const TFNodeDecoder* op,
-                               const std::vector<const ngraph::frontend::tf::detail::TensorWrapper*>&,
-                               Builder::OpMap& ng_op_map) {
-    Output<Node> ng_input;
-    TF_RETURN_IF_ERROR(GetInputNode(ng_op_map, op, 0, ng_input));
 
-    DataType dtype;
-    TF_RETURN_IF_ERROR(GetNodeAttr(op->attrs(), "out_type", &dtype));
-
-    element::Type type;
-    TF_RETURN_IF_ERROR(TFDataTypeToNGraphElementType(dtype, &type));
-
-    // default output_type = element::i64
-    SaveNgOp(ng_op_map, node.get_name(),
-             ConstructNgNode<ShapeOf>(node.get_name(), ng_input, type));
-    return Status::OK();
-}
-}
+ngraph::OutputVector TranslateShapeOp(const NodeContext& node) {
+    auto data = node.get_ng_input(0);
+    auto out_type = node.get_attribute<ngraph::element::Type>("out_type");
+    auto shape_of = make_shared<ShapeOf>(data, out_type);
+    shape_of->set_friendly_name(node.get_name());
+    return shape_of->outputs();
 }
 
-#endif
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

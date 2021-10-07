@@ -8,32 +8,19 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-#if 0
-
 namespace ngraph {
 namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateReshapeOp(
-        const NodeContext& node) {
-    Output<Node> ng_input, ng_shape_op;
-    TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input, ng_shape_op));
-
-    NGRAPH_VLOG(3) << "Input shape: " << join(ng_input.get_shape());
-
-    std::vector<int64_t> shape;
-    TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 1, static_input_map, &shape));
-
-    NGRAPH_VLOG(3) << "Requested result shape: " << join(shape);
-
-    auto ng_shape = ConstructNgNode<Constant>(
-            node.get_name(), element::i64, Shape{shape.size()}, shape);
-    SaveNgOp(ng_op_map, node.get_name(), ConstructNgNode<Reshape>(
-            node.get_name(), ng_input, ng_shape, false));
-    return Status::OK();
+OutputVector TranslateReshapeOp(const NodeContext& node) {
+    auto data = node.get_ng_input(0);
+    auto shape = node.get_ng_input(1);
+    auto reshape = make_shared<Reshape>(data, shape, false);
+    reshape->set_friendly_name(node.get_name());
+    return reshape->outputs();
 }
-}
-}
-
-#endif
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

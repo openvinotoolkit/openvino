@@ -8,28 +8,20 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-#if 0
-
 namespace ngraph {
 namespace frontend {
 namespace tf {
 namespace op {
-static Status TranslateRankOp(const TFNodeDecoder* op, const std::vector<const ngraph::frontend::tf::detail::TensorWrapper*>&,
-                              Builder::OpMap& ng_op_map) {
-    Output<Node> ng_input;
-    TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input));
 
-    Shape input_shape = ng_input.get_shape();
-    auto input_rank = static_cast<int>(input_shape.size());
-
-    auto ng_rank = ConstructNgNode<Constant>(
-            node.get_name(), element::i32, Shape(),
-            std::vector<int>({input_rank}));
-
-    SaveNgOp(ng_op_map, node.get_name(), ng_rank);
-    return Status::OK();
-}
-}
+ngraph::OutputVector TranslateRankOp(const NodeContext& node) {
+    auto data = node.get_ng_input(0);
+    auto shape_of_1 = make_shared<ShapeOf>(data, ngraph::element::i64);
+    auto shape_of_2 = make_shared<ShapeOf>(shape_of_1, ngraph::element::i64);
+    shape_of_2->set_friendly_name(node.get_name());
+    return shape_of_2->outputs();
 }
 
-#endif
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

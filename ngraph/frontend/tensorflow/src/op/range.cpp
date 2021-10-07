@@ -8,38 +8,23 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-#if 0
-
 namespace ngraph {
 namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateRangeOp(
-    const NodeContext& node) {
-  Output<Node> ng_start, ng_stop, ng_step;
-  TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_start, ng_stop, ng_step));
+OutputVector TranslateRangeOp(const NodeContext& node) {
+    auto start = node.get_ng_input(0);
+    auto stop = node.get_ng_input(1);
+    auto step = node.get_ng_input(2);
+    auto out_type = node.get_attribute<ngraph::element::Type>("Tidx");
 
-  //DataType start_type = op->input_type(0);
-  //DataType stop_type = op->input_type(1);
-  //DataType step_type = op->input_type(2);
-  element::Type out_type;
-  TF_RETURN_IF_ERROR(
-      TFDataTypeToNGraphElementType(op->output_type(0), &out_type));
-  //Output<Node> start_node, stop_node, step_node;
-  //TF_RETURN_IF_ERROR(
-  //    GetStaticInputNode(op, 0, static_input_map, start_type, start_node));
-  //TF_RETURN_IF_ERROR(
-  //    GetStaticInputNode(op, 1, static_input_map, stop_type, stop_node));
-  //TF_RETURN_IF_ERROR(
-  //    GetStaticInputNode(op, 2, static_input_map, step_type, step_node));
-  auto ng_range = ConstructNgNode<Range>(node.get_name(), ng_start,
-                                                ng_stop, ng_step, out_type);
-
-  SaveNgOp(ng_op_map, node.get_name(), ng_range);
-  return Status::OK();
-}
-}
+    auto range = make_shared<Range>(start, stop, step, out_type);
+    range->set_friendly_name(node.get_name());
+    return range->outputs();
 }
 
-#endif
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph
