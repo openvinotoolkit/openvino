@@ -4,12 +4,11 @@
 
 #pragma once
 
+#include <frontend_manager/frontend.hpp>
+#include <frontend_manager/input_model.hpp>
 #include <functional>
 #include <map>
 #include <ngraph/output_vector.hpp>
-
-#include <frontend_manager/frontend.hpp>
-#include <frontend_manager/input_model.hpp>
 #include <tensorflow_frontend/model.hpp>
 #include <tensorflow_frontend/utility.hpp>
 
@@ -74,10 +73,10 @@ protected:
 
 private:
     void translate_graph(const std::shared_ptr<InputModelTF>& model,
-                                const std::string& model_name,
-                                bool fail_fast,
-                                bool no_conversion,
-                                std::shared_ptr<ngraph::Function>& ng_function) const;
+                         const std::string& model_name,
+                         bool fail_fast,
+                         bool no_conversion,
+                         std::shared_ptr<ngraph::Function>& ng_function) const;
 };
 }  // namespace frontend
 }  // namespace ngraph

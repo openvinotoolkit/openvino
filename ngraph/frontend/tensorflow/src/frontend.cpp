@@ -20,7 +20,7 @@ namespace {
 void translate_framework_node(const std::shared_ptr<TFFrameworkNode>& node,
                               const FrontEndTF::TranslatorDictionaryType& op_translators) {
     auto type = node->get_op_type();
-    
+
     const auto& TRANSLATE_OP_MAP = op_translators;
     auto translator_it = TRANSLATE_OP_MAP.find(type);
     FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
