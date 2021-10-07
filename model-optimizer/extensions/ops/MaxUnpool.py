@@ -18,8 +18,8 @@ class MaxUnpool(Op):
     def __init__(self, graph: Graph, attrs: dict):
         print(attrs)
         super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset8',
             'in_ports_count': 4,
             'out_ports_count': 1,
