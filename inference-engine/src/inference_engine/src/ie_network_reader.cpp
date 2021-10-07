@@ -26,6 +26,7 @@
 #include "ngraph/function.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/variant.hpp"
+#include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/preprocess/input_network_info.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
@@ -267,7 +268,9 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
         using namespace ov::preprocess;
         PrePostProcessor prepost;
 
-        const int64_t ir_version = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second)->get();
+        auto iv_version_impl = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second);
+        OPENVINO_ASSERT(iv_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
+        const int64_t ir_version = iv_version_impl->get();
 
         if (ir_version == 10 && newAPI) {
             const auto inputs = function->inputs();
@@ -394,9 +397,9 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
         rt_info.erase(it);
     }
 
-    IE_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(function, exts, newAPI));
-    IE_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 }  // namespace
@@ -411,7 +414,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
         registerReaders();
         auto cnnnetwork = load_ir_v7_network(modelPath, binPath, exts);
 
-        IE_SUPPRESS_DEPRECATED_START
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (static_cast<ICNNNetwork::Ptr>(cnnnetwork) != nullptr) {
             OPENVINO_ASSERT(!newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
             return cnnnetwork;
