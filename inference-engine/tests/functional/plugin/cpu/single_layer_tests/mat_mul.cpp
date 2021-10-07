@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <shared_test_classes/single_layer/normalize_l2.hpp>
+#include "shared_test_classes/single_layer/mat_mul.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 
@@ -18,42 +18,24 @@ enum class MatMulNodeType {
     FullyConnected
 };
 
-using MatMulLayerTestParams = std::tuple<std::pair<SizeVector, SizeVector>,
-                                         Precision,
-                                         helpers::InputLayerType,
-                                         bool,
-                                         bool>;
-
-using MatMulLayerCPUTestParamSet = std::tuple<MatMulLayerTestParams,
+using MatMulLayerCPUTestParamSet = std::tuple<MatMulLayerTestParamsSet,
                                               MatMulNodeType,
                                               fusingSpecificParams>;
 
 class MatMulLayerCPUTest : public testing::WithParamInterface<MatMulLayerCPUTestParamSet>,
                                 virtual public LayerTestsUtils::LayerTestsCommon, public CpuTestWithFusing {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MatMulLayerCPUTestParamSet> obj) {
-        MatMulLayerTestParams basicParamsSet;
-        fusingSpecificParams fusingParams;
+    static std::string getTestCaseName(const testing::TestParamInfo<MatMulLayerCPUTestParamSet>& obj) {
+        MatMulLayerTestParamsSet basicParamsSet;
         MatMulNodeType nodeType;
-        std::tie(basicParamsSet, nodeType, fusingParams) = obj.param;
+        fusingSpecificParams fusingParams;
 
-        std::pair<SizeVector, SizeVector> IS;
-        SizeVector isA, isB;
-        bool transpA, transpB;
-        Precision prec;
-        helpers::InputLayerType typeB;
-        std::tie(IS, prec, typeB, transpA, transpB) = basicParamsSet;
-        isA = IS.first; isB = IS.second;
+        std::tie(basicParamsSet, nodeType, fusingParams) = obj.param;
 
         std::ostringstream result;
         result << (nodeType == MatMulNodeType::MatMul ? "MatMul_" : "FullyConnected_");
-        result << "IS_A=" << CommonTestUtils::vec2str(isA) << "_";
-        result << "IS_B=" << CommonTestUtils::vec2str(isB) << "_";
-        result << "Transp_A=" << transpA << "_";
-        result << "Transp_B=" << transpB << "_";
-        result << "Prec=" << prec << "_";
-        result << "typeB=" << typeB;
-
+        result << LayerTestsDefinitions::MatMulTest::getTestCaseName(
+            testing::TestParamInfo<LayerTestsDefinitions::MatMulLayerTestParamsSet>(basicParamsSet, 0));
         result << CpuTestWithFusing::getTestCaseName(fusingParams);
 
         return result.str();
@@ -63,36 +45,52 @@ protected:
      std::string cpuNodeType;
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
-        MatMulLayerTestParams basicParamsSet;
+        MatMulLayerTestParamsSet basicParamsSet;
         MatMulNodeType nodeType;
         fusingSpecificParams fusingParams;
+
         std::tie(basicParamsSet, nodeType, fusingParams) = this->GetParam();
-        std::tie(postOpMgrPtr, fusedOps) = fusingParams;
+
+        ShapeRelatedParams shapeRelatedParams;
+        Precision netPrecision;
+        helpers::InputLayerType secondaryInputType;
+        std::map<std::string, std::string> additionalConfig;
+
+        std::tie(shapeRelatedParams, netPrecision, inPrc, outPrc, inLayout, secondaryInputType, targetDevice, additionalConfig) = basicParamsSet;
+
+        SizeVector inShapeA = shapeRelatedParams.input1.first;
+        SizeVector inShapeB = shapeRelatedParams.input2.first;
+        bool transpA = shapeRelatedParams.input1.second;
+        bool transpB = shapeRelatedParams.input2.second;
+
+        /* @todo
+         * Currently nodes are not fused thought Reshape
+         * Check can be deleted after this limitation is gone
+         */
+        if (nodeType == MatMulNodeType::MatMul && inShapeA.size() < 4 && inShapeB.size() < 4)
+            std::tie(postOpMgrPtr, fusedOps) = fusingParams;
+
+        configuration.insert(additionalConfig.begin(), additionalConfig.end());
+
+        if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
+            inPrc = outPrc = netPrecision = Precision::BF16;
+        else
+            inPrc = outPrc = netPrecision;
 
         cpuNodeType = nodeType == MatMulNodeType::MatMul ? "MatMul" : "FullyConnected";
 
-        std::pair<SizeVector, SizeVector> IS;
-        SizeVector isA, isB;
-        bool transpA, transpB;
-        Precision prec;
-        helpers::InputLayerType typeB;
-        std::tie(IS, prec, typeB, transpA, transpB) = basicParamsSet;
+        auto transpose = [](SizeVector& shape) {
+            IE_ASSERT(shape.size() > 1);
+            std::swap(*(shape.end() - 1), *(shape.end() - 2));
+        };
 
-        isA = IS.first; isB = IS.second;
-        if (transpA) {
-            IE_ASSERT(isA.size() > 1);
-            std::swap(*(isA.end() - 1), *(isA.end() - 2));
-        }
-        if (transpB) {
-            IE_ASSERT(isB.size() > 1);
-            std::swap(*(isB.end() - 1), *(isB.end() - 2));
-        }
+        if (transpA) transpose(inShapeA);
+        if (transpB) transpose(inShapeB);
 
-        auto ngPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prec);
-        auto params = builder::makeParams(ngPrec, {isA});
-        auto matrixB = builder::makeInputLayer(ngPrec, typeB, isB);
-        if (typeB == helpers::InputLayerType::PARAMETER) {
+        auto ngPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto params = builder::makeParams(ngPrec, {inShapeA});
+        auto matrixB = builder::makeInputLayer(ngPrec, secondaryInputType, inShapeB);
+        if (secondaryInputType == helpers::InputLayerType::PARAMETER) {
             params.push_back(std::dynamic_pointer_cast<opset1::Parameter>(matrixB));
         }
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
@@ -117,6 +115,16 @@ const std::vector<bool> transpose = {
     true, false
 };
 
+std::vector<std::map<std::string, std::string>> additionalConfig {
+    std::map<std::string, std::string>{/* empty config */},
+    {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
+};
+
+const std::vector<Precision> netPRCs {
+    Precision::FP32,
+    Precision::BF16
+};
+
 /* ============= FullyConnected ============= */
 namespace fullyConnected {
 
@@ -126,11 +134,26 @@ const auto fusingBiasFC = fusingSpecificParams{std::make_shared<postNodesMgr>(st
                 return std::make_shared<opset1::Add>(inpNode, bias);
             }, "fusingBiasFC"}}), {"Add"}};
 
-const std::vector<std::pair<SizeVector, SizeVector>> IS2D = {
-    {{59, 1}, {1, 120}},
-    {{59, 120}, {120, 1}},
-    {{1, 120}, {120, 59}},
-    {{71, 128}, {128, 20}}
+const std::vector<ShapeRelatedParams> IS2D {
+    {{{59, 1}, false}, {{1, 120}, false}},
+    {{{59, 1}, true}, {{1, 120}, false}},
+    {{{59, 1}, false}, {{1, 120}, true}},
+    {{{59, 1}, true}, {{1, 120}, true}},
+
+    {{{59, 120}, false}, {{120, 1}, false}},
+    {{{59, 120}, true}, {{120, 1}, false}},
+    {{{59, 120}, false}, {{120, 1}, true}},
+    {{{59, 120}, true}, {{120, 1}, true}},
+
+    {{{1, 120}, false}, {{120, 59}, false}},
+    {{{1, 120}, true}, {{120, 59}, false}},
+    {{{1, 120}, false}, {{120, 59}, true}},
+    {{{1, 120}, true}, {{120, 59}, true}},
+
+    {{{71, 128}, false}, {{128, 20}, false}},
+    {{{71, 128}, true}, {{128, 20}, false}},
+    {{{71, 128}, false}, {{128, 20}, true}},
+    {{{71, 128}, true}, {{128, 20}, true}},
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet2D {
@@ -142,20 +165,30 @@ std::vector<fusingSpecificParams> fusingParamsSet2D {
 };
 
 const auto fullyConnectedParams2D = ::testing::Combine(::testing::ValuesIn(IS2D),
-                                                       ::testing::Values(Precision::FP32),
+                                                       ::testing::ValuesIn(netPRCs),
+                                                       ::testing::Values(Precision::UNSPECIFIED),
+                                                       ::testing::Values(Precision::UNSPECIFIED),
+                                                       ::testing::Values(Layout::ANY),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
-                                                       ::testing::ValuesIn(transpose),
-                                                       ::testing::ValuesIn(transpose));
+                                                       ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                       ::testing::ValuesIn(additionalConfig));
 
 const auto testParams2D = ::testing::Combine(fullyConnectedParams2D,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet2D));
 
-INSTANTIATE_TEST_SUITE_P(smoke_Check_2D, MatMulLayerCPUTest, testParams2D, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D, MatMulLayerCPUTest, testParams2D, MatMulLayerCPUTest::getTestCaseName);
 
-const std::vector<std::pair<SizeVector, SizeVector>> IS3D = {
-    {{1, 32, 120}, {120, 5}},
-    {{7, 32, 120}, {120, 50}}
+const std::vector<ShapeRelatedParams> IS3D = {
+    {{{1, 32, 120}, false}, {{120, 5}, false}},
+    {{{1, 32, 120}, true}, {{120, 5}, false}},
+    {{{1, 32, 120}, false}, {{120, 5}, true}},
+    {{{1, 32, 120}, true}, {{120, 5}, true}},
+
+    {{{7, 32, 120}, false}, {{120, 50}, false}},
+    {{{7, 32, 120}, true}, {{120, 50}, false}},
+    {{{7, 32, 120}, false}, {{120, 50}, true}},
+    {{{7, 32, 120}, true}, {{120, 50}, true}},
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet3D {
@@ -164,43 +197,69 @@ std::vector<fusingSpecificParams> fusingParamsSet3D {
 };
 
 const auto fullyConnectedParams3D = ::testing::Combine(::testing::ValuesIn(IS3D),
-                                                       ::testing::Values(Precision::FP32),
+                                                       ::testing::ValuesIn(netPRCs),
+                                                       ::testing::Values(Precision::UNSPECIFIED),
+                                                       ::testing::Values(Precision::UNSPECIFIED),
+                                                       ::testing::Values(Layout::ANY),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
-                                                       ::testing::ValuesIn(transpose),
-                                                       ::testing::ValuesIn(transpose));
+                                                       ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                       ::testing::ValuesIn(additionalConfig));
 
 const auto testParams3D = ::testing::Combine(fullyConnectedParams3D,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet3D));
 
-INSTANTIATE_TEST_SUITE_P(smoke_Check_3D, MatMulLayerCPUTest, testParams3D, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FC_3D, MatMulLayerCPUTest, testParams3D, MatMulLayerCPUTest::getTestCaseName);
 
 }; // namespace fullyConnected
 
 
-/* ============= Gemm ============= */
-namespace gemm {
+/* ============= MatMul ============= */
+namespace matmul {
 
-const std::vector<std::pair<SizeVector, SizeVector>> IS = {
-    {{1, 2, 32, 120}, {120, 5}},
-    {{7, 32, 120}, {3, 7, 120, 50}},
-    {{10, 10, 10}, {10, 10, 10}},
-    {{55, 12}, {12, 55}}
+const std::vector<ShapeRelatedParams> IS = {
+    {{{1, 2, 32, 120}, false}, {{120, 5}, false}},
+    {{{1, 2, 32, 120}, true}, {{120, 5}, false}},
+    {{{1, 2, 32, 120}, false}, {{120, 5}, true}},
+    {{{1, 2, 32, 120}, true}, {{120, 5}, true}},
+
+    {{{7, 32, 120}, false}, {{3, 7, 120, 50}, false}},
+    {{{7, 32, 120}, true}, {{3, 7, 120, 50}, false}},
+    {{{7, 32, 120}, false}, {{3, 7, 120, 50}, true}},
+    {{{7, 32, 120}, true}, {{3, 7, 120, 50}, true}},
+
+    {{{10, 10, 10}, false}, {{10, 10, 10}, false}},
+    {{{10, 10, 10}, true}, {{10, 10, 10}, false}},
+    {{{10, 10, 10}, false}, {{10, 10, 10}, true}},
+    {{{10, 10, 10}, true}, {{10, 10, 10}, true}},
+
+    {{{55, 12}, false}, {{12, 55}, false}},
+    {{{55, 12}, true}, {{12, 55}, false}},
+    {{{55, 12}, false}, {{12, 55}, true}},
+    {{{55, 12}, true}, {{12, 55}, true}},
 };
 
-const auto gemmParams = ::testing::Combine(::testing::ValuesIn(IS),
-                                           ::testing::Values(Precision::FP32),
-                                           ::testing::Values(helpers::InputLayerType::PARAMETER),
-                                           ::testing::ValuesIn(transpose),
-                                           ::testing::ValuesIn(transpose));
+std::vector<fusingSpecificParams> matmulFusingParams {
+        emptyFusingSpec,
+        fusingElu,
+};
 
-const auto testParams = ::testing::Combine(gemmParams,
+const auto matMulParams = ::testing::Combine(::testing::ValuesIn(IS),
+                                             ::testing::ValuesIn(netPRCs),
+                                             ::testing::Values(Precision::UNSPECIFIED),
+                                             ::testing::Values(Precision::UNSPECIFIED),
+                                             ::testing::Values(Layout::ANY),
+                                             ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                             ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                             ::testing::ValuesIn(additionalConfig));
+
+const auto testParams = ::testing::Combine(matMulParams,
                                            ::testing::Values(MatMulNodeType::MatMul),
-                                           ::testing::Values(emptyFusingSpec));
+                                           ::testing::ValuesIn(matmulFusingParams));
 
-INSTANTIATE_TEST_SUITE_P(smoke_Check, MatMulLayerCPUTest, testParams, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MM, MatMulLayerCPUTest, testParams, MatMulLayerCPUTest::getTestCaseName);
 
-}; // namespace gemm
+}; // namespace matmul
 
 } // namespace
 

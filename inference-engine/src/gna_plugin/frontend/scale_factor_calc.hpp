@@ -1354,6 +1354,12 @@ class ScaleFactorCalculator {
                 } else {
                     return frontend::FakeQuantI16().getWeightsPrecision().size();
                 }
+            } else {
+                if (!info.isSynthetic()) {
+                    gnawarn() << "The layer (" << ptr->name << ") has not quantization statistics\n";
+                }
+
+                return GetOptionalWeightsBytesSize();
             }
         }
 
