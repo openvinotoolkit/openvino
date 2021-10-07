@@ -8,26 +8,18 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-#if 0
 
 namespace ngraph {
 namespace frontend {
 namespace tf {
 namespace op {
-static Status TranslateLRNOp(const TFNodeDecoder* op,
-                             const std::vector<const ngraph::frontend::tf::detail::TensorWrapper*>& static_input_map,
-                             Builder::OpMap& ng_op_map) {
-    Output<Node> ng_inp;
-    TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_inp));
 
-    float alpha;
-    TF_RETURN_IF_ERROR(GetNodeAttr(op->attrs(), "alpha", &alpha));
-    float beta;
-    TF_RETURN_IF_ERROR(GetNodeAttr(op->attrs(), "beta", &beta));
-    float bias;
-    TF_RETURN_IF_ERROR(GetNodeAttr(op->attrs(), "bias", &bias));
-    int64_t depth_radius;
-    TF_RETURN_IF_ERROR(GetNodeAttr(op->attrs(), "depth_radius", &depth_radius));
+OutputVector TranslateLRNOp(const NodeContext& node) {
+    auto input = node.get_ng_input(0);
+    auto alpha = node.get_attribute<float>("alpha");
+    auto beta = node.get_attribute<float>("beta");
+    auto bias = node.get_attribute<float>("bias");
+    auto depth_radius = node.get_attribute<int64_t>("depth_radius");
 
     // OV: Each input value is divided by (bias+(alpha/size)*sum(xi^2 for every xi
     // in the local region))^beta
@@ -36,15 +28,13 @@ static Status TranslateLRNOp(const TFNodeDecoder* op,
     //     output = input / (bias + alpha * sqr_sum) ** beta
     int64_t size = depth_radius * 2 + 1;
     alpha = alpha * size;
-    // nGraph expects the input to be in NCHW format
-    NHWCtoNCHW(node.get_name(), true, ng_inp);
-    auto ng_output = ConstructNgNode<LRN>(node.get_name(), ng_inp, alpha, beta,
-                                                 bias, (size_t)size);
-    NCHWtoNHWC(node.get_name(), true, ng_output);
-    SaveNgOp(ng_op_map, node.get_name(), ng_output);
-    return Status::OK();
+    // todo: input is in NHWC, need to apply NHWC to NCHW?
+    auto lrn = make_shared<LRN>(input, alpha, beta, bias, static_cast<size_t>(size));
+    lrn->set_friendly_name(node.get_name());
+    return lrn->outputs();
+}
 
 }
 }
 }
-#endif
+}

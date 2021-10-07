@@ -15,12 +15,10 @@ namespace op {
 
 OutputVector TranslateReduceOp(const NodeContext& node,
                                std::function<Output<Node>(Output<Node>, Output<Node>, const bool)> create_ng_node) {
-    Output<Node> input = node.get_ng_input(0);
-    Output<Node> reduction_axes = node.get_ng_input(0);
+    auto input = node.get_ng_input(0);
+    auto reduction_axes = node.get_ng_input(1);
     auto tf_keep_dims = node.get_attribute<bool>("keep_dims", false);
-    Output<Node> ng_node = create_ng_node(input, reduction_axes, tf_keep_dims);
-
-    return {ng_node};
+    return {create_ng_node(input, reduction_axes, tf_keep_dims)};
 }
 
 template <typename T>

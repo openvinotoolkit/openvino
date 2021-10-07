@@ -42,6 +42,7 @@ OP_CONVERTER(TranslateFloorDivOp);
 OP_CONVERTER(TranslateFusedBatchNormOp);
 OP_CONVERTER(TranslateGatherOp);
 OP_CONVERTER(TranslateGatherV2Op);
+OP_CONVERTER(TranslateGatherNdOp);
 OP_CONVERTER(TranslateFusedConv2DOp);
 OP_CONVERTER(TranslateFusedMatMulOp);
 OP_CONVERTER(TranslateIdentityOp);
@@ -49,7 +50,7 @@ OP_CONVERTER(TranslateIsFiniteOp);
 OP_CONVERTER(TranslateL2LossOp);
 OP_CONVERTER(TranslateLogSoftmaxOp);
 OP_CONVERTER(TranslateLog1pOp);
-// OP_CONVERTER(TranslateLRNOp);
+OP_CONVERTER(TranslateLRNOp);
 OP_CONVERTER(TranslateMatMulOp);
 OP_CONVERTER(TranslateMaxPoolOp);
 OP_CONVERTER(TranslateNonMaxSuppressionV2Op);
@@ -82,7 +83,7 @@ OP_CONVERTER(TranslateSqueezeOp);
 // OP_CONVERTER(TranslateStridedSliceOp);
 OP_CONVERTER(TranslateSqrtOp);
 OP_CONVERTER(TranslateTileOp);
-// OP_CONVERTER(TranslateTopKV2Op);
+OP_CONVERTER(TranslateTopKV2Op);
 OP_CONVERTER(TranslateTransposeOp);
 OP_CONVERTER(TranslateUnpackOp);
 OP_CONVERTER(TranslateWhereOp);
@@ -170,6 +171,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"FusedBatchNormV3", TranslateFusedBatchNormOp},
         {"Gather", TranslateGatherOp},
         {"GatherV2", TranslateGatherV2Op},
+        {"GatherNd", TranslateGatherNdOp},
         {"_FusedConv2D", TranslateFusedConv2DOp},
         {"_FusedMatMul", TranslateFusedMatMulOp},
         {"Identity", TranslateIdentityOp},
@@ -177,7 +179,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"L2Loss", TranslateL2LossOp},
         {"LogSoftmax", TranslateLogSoftmaxOp},
         {"Log1p", TranslateLog1pOp},
-        //{"LRN", TranslateLRNOp},
+        {"LRN", TranslateLRNOp},
         {"MatMul", TranslateMatMulOp},
         {"MaxPool", TranslateMaxPoolOp},
         {"MaxPool3D", TranslateMaxPoolOp},
@@ -219,7 +221,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Squeeze", TranslateSqueezeOp},
         //{"StridedSlice", TranslateStridedSliceOp},
         {"Tile", TranslateTileOp},
-        //{"TopKV2", TranslateTopKV2Op},
+        {"TopKV2", TranslateTopKV2Op},
         {"Transpose", TranslateTransposeOp},
         {"Unpack", TranslateUnpackOp},
         {"Where", TranslateWhereOp},

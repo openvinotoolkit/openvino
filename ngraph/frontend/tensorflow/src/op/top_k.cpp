@@ -8,54 +8,26 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-// Translate TopKV2 Op using ngraph core op TopK
 namespace ngraph {
 namespace frontend {
 namespace tf {
 namespace op {
 
-#if 0
-OutputVector TranslateTopKV2Op(
-        const NodeContext& node) {
-    Output<ngraph::Node> ng_input;
+OutputVector TranslateTopKV2Op(const NodeContext& node) {
+    auto input = node.get_ng_input(0);
+    auto k = node.get_ng_input(1);
 
-    TF_RETURN_IF_ERROR(ValidateInputCount(op, 2));
-    TF_RETURN_IF_ERROR(GetInputNode(ng_op_map, op, 0, ng_input));
-
+    TF_OP_VALIDATION_CHECK(node, input.get_partial_shape().rank().is_static(), "Rank must be static.");
+    TF_OP_VALIDATION_CHECK(node, input.get_partial_shape().size() >= 1, "Rank must be >= 1.");
     // axis along which to compute top k indices
-    int64_t k_axis = ng_input.get_shape().size() - 1;
-
-    // scalar input tensor specifying how many max/min elts should be computed
-    // CPU backend only supports element type i64
-    std::vector<int64_t> ng_k_vec;
-    TF_RETURN_IF_ERROR(GetStaticInputVector(ng_op_map, op, 1, static_input_map, &ng_k_vec));
-    auto ng_k = ConstructNgNode<Constant>(node.get_name(), element::i64,
-                                                 Shape{}, ng_k_vec[0]);
-
-    std::string mode = "max";
-
-    std::string sort = "value";
-    bool sorted = true;
-    TF_RETURN_IF_ERROR(GetNodeAttr(op->attrs(), "sorted", &sorted));
-    if (!sorted) {
-        sort = "index";
-    }
-
-    auto ng_result =
-            std::make_shared<TopK>(ng_input, ng_k, k_axis, mode, sort);
-
-    Output<Node> ng_values = ng_result->output(0);
-    Builder::SetTracingInfo(node.get_name(), ng_values);
-    Output<Node> ng_indices = ng_result->output(1);
-    Builder::SetTracingInfo(node.get_name(), ng_indices);
-
-    SaveNgOp(ng_op_map, node.get_name(), ng_values);
-    SaveNgOp(ng_op_map, node.get_name(), ng_indices);
-
-    return Status::OK();
+    int64_t k_axis = input.get_partial_shape().size() - 1;
+    bool sorted = node.get_attribute<bool>("sorted", true);
+    auto top_k = std::make_shared<TopK>(input, k, k_axis, TopK::Mode::MAX,
+                                        sorted ? TopK::SortType::SORT_VALUES : TopK::SortType::SORT_INDICES);
+    top_k->set_friendly_name(node.get_name());
+    return top_k->outputs();
 }
 
-#endif
 }  // namespace op
 }  // namespace tf
 }  // namespace frontend
