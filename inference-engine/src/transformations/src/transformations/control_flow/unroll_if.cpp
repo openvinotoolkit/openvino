@@ -6,13 +6,10 @@
 
 #include <memory>
 #include <ngraph/graph_util.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
-#include <vector>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
@@ -21,12 +18,13 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::UnrollIf, "UnrollIf", 0);
 
 bool ngraph::pass::UnrollIf::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(UnrollIf);
-    for (const auto& op : f->get_ops()) {
-        auto if_node = std::dynamic_pointer_cast<ngraph::op::v8::If>(op);
+    bool is_applicable = false;
+    for (const auto& op : f->get_ordered_ops()) {
+        auto if_node = std::dynamic_pointer_cast<opset8::If>(op);
         if (!if_node || transformation_callback(if_node)) {
             continue;
         }
-        Output<Node> cond{ if_node->input_value(0) };
+        Output<Node> cond = if_node->input_value(0);
         const auto cond_is_const = ngraph::get_constant_from_source(cond);
         if (!cond_is_const) {
             continue;
@@ -37,14 +35,14 @@ bool ngraph::pass::UnrollIf::run_on_function(std::shared_ptr<ngraph::Function> f
         auto output_descriptions = if_node->get_output_descriptions(static_cast<int>(!cond_value[0]));
         // connect inputs instead of body parameters
         for (const auto& input_descr : input_descriptions) {
-            auto in_data = if_node->input_values()[input_descr->m_input_index];
+            auto in_data = if_node->input_value(input_descr->m_input_index);
             const auto& param = body->get_parameters()[input_descr->m_body_parameter_index];
             for (auto& output : param->outputs()) {
                 output.replace(in_data);
             }
         }
         for (const auto& output_desc : output_descriptions) {
-            std::shared_ptr<opset6::Result> result = body->get_results()[output_desc->m_body_value_index];
+            std::shared_ptr<opset8::Result> result = body->get_results()[output_desc->m_body_value_index];
             const auto& in_value = result->input_value(0);
 
             // set output name to Tensor to store it for ngraph to cnn conversion
@@ -55,9 +53,9 @@ bool ngraph::pass::UnrollIf::run_on_function(std::shared_ptr<ngraph::Function> f
                     input.replace_source_output(result->get_input_source_output(0));
                 }
         }
-
+        is_applicable |= true;
         f->add_sinks(body->get_sinks());
         copy_runtime_info(if_node, body->get_ops());
     }
-    return true;
+    return is_applicable;
 }

@@ -83,7 +83,7 @@
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
 
-#include "transformations/control_flow/unroll_if.hpp"
+#include <transformations/control_flow/unroll_if.hpp>
 #include <transformations/op_conversions/normalize_l2_decomposition.hpp>
 #include <transformations/op_conversions/softmax_decomposition.hpp>
 
@@ -217,7 +217,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     // other optimizations
     manager.register_pass<ngraph::pass::StridesOptimization>();
 
-    auto unroll_if = manager.register_pass<ngraph::pass::UnrollIf>();
+    manager.register_pass<ngraph::pass::UnrollIf>();
 
     manager.run_passes(f);
 
