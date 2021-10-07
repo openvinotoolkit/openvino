@@ -224,6 +224,7 @@ public:
     std::shared_ptr<cldnn::engine> GetEngine() const { return m_engine; }
     Config& GetConfig() { return m_config; }
     ContextType GetType() const { return m_type; }
+    InferenceEngine::gpu_handle_param GetExternalQueue() const { return m_external_queue; }
     const std::weak_ptr<InferenceEngine::IInferencePlugin> GetPlugin() const { return m_plugin; }
 
     void acquire_lock() {
@@ -238,6 +239,7 @@ protected:
     // TODO: refactor to unique_ptr
     std::shared_ptr<cldnn::engine> m_engine;
     InferenceEngine::gpu_handle_param m_va_display;
+    InferenceEngine::gpu_handle_param m_external_queue;
     Config m_config;
 
     ContextType m_type;

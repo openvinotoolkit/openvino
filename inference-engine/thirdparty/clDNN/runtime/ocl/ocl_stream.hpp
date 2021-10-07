@@ -50,6 +50,7 @@ public:
     const ocl_queue_type& get_cl_queue() const { return _command_queue; }
 
     explicit ocl_stream(const ocl_engine& engine);
+    ocl_stream(const ocl_engine &engine, void *handle);
     ocl_stream(ocl_stream&& other)
         : stream(other._engine.configuration().queue_type)
         , _engine(other._engine)

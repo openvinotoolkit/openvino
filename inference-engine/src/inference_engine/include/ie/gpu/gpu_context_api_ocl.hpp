@@ -233,6 +233,25 @@ static inline RemoteContext::Ptr make_shared_context(Core& core,
 }
 
 /**
+ * @brief This function is used to obtain remote context object from user-supplied OpenCL context handle
+ * @param core A reference to Inference Engine Core object
+ * @param deviceName A name of device to create a remote context for
+ * @param queue A OpenCL queue to be used to create shared remote context. Queue will be reused inside the plugin.
+ * @note Only latency mode is supported for such context sharing case.
+ * @return A shared remote context instance
+ */
+static inline RemoteContext::Ptr make_shared_context(Core& core, std::string deviceName, cl_command_queue queue) {
+    cl_context ctx;
+    auto res = clGetCommandQueueInfo(queue, CL_QUEUE_CONTEXT, sizeof(cl_context), &ctx, nullptr);
+    if (res != CL_SUCCESS)
+        IE_THROW() << "Can't get context from given opencl queue";
+    ParamMap contextParams = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL)},
+                              {GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx)},
+                              {GPU_PARAM_KEY(OCL_QUEUE), static_cast<gpu_handle_param>(queue)}};
+    return core.CreateContext(deviceName, contextParams);
+}
+
+/**
  * @brief This function is used to create remote blob object within default GPU plugin OpenCL context
  * @param desc A tensor descriptor object representing remote blob configuration
  * @param ctx A remote context used to create remote blob

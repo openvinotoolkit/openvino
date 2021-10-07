@@ -253,18 +253,24 @@ void set_arguments_impl(ocl_kernel_type& kernel,
         }
     }
 }
+
+sync_methods get_expected_sync_method(const engine_configuration &config) {
+    return config.enable_profiling ? sync_methods::events : config.queue_type == queue_types::out_of_order ? sync_methods::barriers
+                                                                                                           : sync_methods::none;
+}
+
 }  // namespace
 
-ocl_stream::ocl_stream(const ocl_engine& engine) : stream(engine.configuration().queue_type), _engine(engine) {
+ocl_stream::ocl_stream(const ocl_engine &engine)
+    : stream(engine.configuration().queue_type)
+    , _engine(engine)
+    , sync_method(get_expected_sync_method(engine.configuration())) {
     auto context = engine.get_cl_context();
     auto device = engine.get_cl_device();
     auto config = engine.configuration();
     ocl::command_queues_builder queue_builder;
     queue_builder.set_profiling(config.enable_profiling);
     queue_builder.set_out_of_order((config.queue_type == queue_types::out_of_order));
-
-    sync_method = _engine.configuration().enable_profiling ? sync_methods::events :
-                  config.queue_type == queue_types::out_of_order ? sync_methods::barriers : sync_methods::none;
 
     if (sync_method == sync_methods::none && config.queue_type == queue_types::out_of_order) {
         throw std::runtime_error("[CLDNN] Unexpected sync method (none) is specified for out_of_order queue");
@@ -281,6 +287,22 @@ ocl_stream::ocl_stream(const ocl_engine& engine) : stream(engine.configuration()
 
     _command_queue = queue_builder.build(context, device);
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    if (config.queue_type == queue_types::in_order) {
+        auto onednn_engine = engine.get_onednn_engine();
+        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(engine.get_onednn_engine(), _command_queue.get()));
+    }
+#endif
+}
+
+ocl_stream::ocl_stream(const ocl_engine &engine, void *handle)
+    : stream(engine.configuration().queue_type)
+    , _engine(engine)
+    , sync_method(get_expected_sync_method(engine.configuration())) {
+    auto casted_handle = static_cast<cl_command_queue>(handle);
+    _command_queue = ocl_queue_type(casted_handle, true);
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    auto config = engine.configuration();
     if (config.queue_type == queue_types::in_order) {
         auto onednn_engine = engine.get_onednn_engine();
         _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(engine.get_onednn_engine(), _command_queue.get()));

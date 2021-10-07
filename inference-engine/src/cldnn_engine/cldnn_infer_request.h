@@ -54,6 +54,9 @@ public:
     void enqueue_dynamic();
     void wait_dynamic();
 
+    bool use_external_queue() const { return m_useExternalQueue; }
+    void enable_external_queue() { m_useExternalQueue = true; }
+
 private:
     InferenceEngine::BlobMap _deviceOutputs;
     std::map<std::string, cldnn::primitive_id> inputsMap;
@@ -61,6 +64,7 @@ private:
 
     bool m_useProfiling;
     bool m_useStreams;
+    bool m_useExternalQueue;
     std::shared_ptr<CLDNNGraph> m_graph;
 
     // dynamic batch stuff

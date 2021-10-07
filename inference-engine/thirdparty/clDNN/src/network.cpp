@@ -234,7 +234,10 @@ network::network(engine& engine,
     : network(program::build_program(engine, nodes, options, is_internal), engine.create_stream(), is_internal) {}
 
 network::network(program::ptr program, uint16_t stream_id)
-    : network(program, program->get_engine().create_stream(), false, stream_id ==0) {}
+    : network(program, program->get_engine().create_stream(), false, stream_id == 0) {}
+
+network::network(program::ptr program, stream::ptr stream, uint16_t stream_id)
+    : network(program, stream, false, stream_id == 0) {}
 
 network::~network() {
     _memory_pool->clear_pool_for_network(net_id);

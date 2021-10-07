@@ -94,9 +94,26 @@ void CLDNNGraph::Build() {
     }
 }
 
+bool CLDNNGraph::use_external_queue() const {
+    auto impl = getContextImpl(m_context);
+    return impl->GetExternalQueue() != nullptr;
+}
+
 std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::program> program) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::BuildNetwork");
-    auto network = std::make_shared<cldnn::network>(program, m_stream_id);
+    std::shared_ptr<cldnn::network> network = nullptr;
+
+    auto impl = getContextImpl(m_context);
+    auto externalQueue = impl->GetExternalQueue();
+    if (externalQueue) {
+        if (m_config.throughput_streams != 1)
+            IE_THROW(ParameterMismatch) << "Throughput streams can't be used with shared queue!\n";
+        auto &engine = m_program->GetEngine();
+        network = std::make_shared<cldnn::network>(program, engine.create_stream(externalQueue), m_stream_id);
+    } else {
+        network = std::make_shared<cldnn::network>(program, m_stream_id);
+    }
+
 
     if (!m_config.graph_dumps_dir.empty() && m_stream_id == 0) {
         static int net_id = 0;

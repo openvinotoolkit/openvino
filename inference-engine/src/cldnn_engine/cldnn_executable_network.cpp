@@ -87,6 +87,10 @@ IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMa
     }
     if (m_config.useProfiling)
         ptr->EnableProfiling();
+
+    if (m_graphs.front()->use_external_queue()) {
+        ptr->enable_external_queue();
+    }
     ptr->SetGraph(m_graphs.front());
 
     return ptr;

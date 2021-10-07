@@ -71,6 +71,8 @@ public:
         m_cv.notify_one();
     }
 
+    bool use_external_queue() const;
+
 protected:
     uint32_t m_state;
     std::condition_variable m_cv;

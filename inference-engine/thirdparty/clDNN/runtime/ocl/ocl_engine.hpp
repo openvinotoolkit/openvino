@@ -40,6 +40,7 @@ public:
     bool extension_supported(std::string extension) const;
 
     stream_ptr create_stream() const override;
+    stream_ptr create_stream(void *handle) const override;
     stream& get_program_stream() const override;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
