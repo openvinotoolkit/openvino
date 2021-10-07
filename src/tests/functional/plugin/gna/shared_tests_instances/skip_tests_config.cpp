@@ -6,9 +6,10 @@
 #include <string>
 
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "functional_test_utils/layer_test_utils/external_network_tool.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
-    return {
+    std::vector<std::string> standardPatterns {
         // TODO: FIX BUG 31661
         // TODO: support InferRequest in GNAPlugin
         ".*InferRequestMultithreadingTests\\.canRun3AsyncRequestsConsistentlyFromThreadsWithoutWait.*",
@@ -85,4 +86,28 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 71070
         R"(.*OVInferenceChaining.*(StaticOutputToStaticInput).*)"
     };
+
+    std::vector<std::string> serializationPatterns = {};
+
+    std::vector<std::string> loadingPatterns = {
+        R"(.*smoke_convert_matmul_to_fc.*)",
+        R"(.*MultipleInputTest.*)",
+    };
+
+    auto& e_t = LayerTestsUtils::ExternalNetworkTool::getInstance();
+
+    if (e_t.getMode() == LayerTestsUtils::ExternalNetworkMode::EXPORT ||
+        e_t.getMode() == LayerTestsUtils::ExternalNetworkMode::EXPORT_MODELS_ONLY) {
+        standardPatterns.insert(std::end(standardPatterns),
+                                std::begin(serializationPatterns),
+                                std::end(serializationPatterns));
+    }
+
+    if (e_t.getMode() == LayerTestsUtils::ExternalNetworkMode::IMPORT) {
+        standardPatterns.insert(std::end(standardPatterns),
+                                std::begin(loadingPatterns),
+                                std::end(loadingPatterns));
+    }
+
+    return standardPatterns;
 }
