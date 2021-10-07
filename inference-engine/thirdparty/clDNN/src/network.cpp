@@ -219,6 +219,8 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     build_exec_order();
     validate_primitives();
     add_default_output_chains();
+    if (!is_internal)
+        std::cout << "[Actual] total allocated device mem : " << program->get_engine().get_used_device_memory(allocation_type::usm_device) << std::endl;
 }
 
 network::network(engine& engine,

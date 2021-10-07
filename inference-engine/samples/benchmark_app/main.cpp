@@ -425,6 +425,9 @@ int main(int argc, char* argv[]) {
 
             auto startTime = Time::now();
             CNNNetwork cnnNetwork = ie.ReadNetwork(FLAGS_m);
+            std::map<std::string, Parameter> options = {{"CNN_NETWORK", &cnnNetwork}};
+//            auto max_batch_size = ie.GetMetric("GPU.1", METRIC_KEY(MAX_BATCH_SIZE), options).as<unsigned int>();
+//            std::cout << "max batch size is " << max_batch_size << std::endl;
             auto duration_ms = double_to_string(get_total_ms_time(startTime));
             slog::info << "Read network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
@@ -462,6 +465,8 @@ int main(int argc, char* argv[]) {
                     statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                               {{"reshape network time (ms)", duration_ms}});
             }
+            auto max_batch_size = ie.GetMetric("GPU.1", METRIC_KEY(MAX_BATCH_SIZE), options).as<unsigned int>();
+            std::cout << "max batch size is " << max_batch_size << std::endl;
             // use batch size according to provided layout and shapes
             batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info) : cnnNetwork.getBatchSize();
 
@@ -493,6 +498,8 @@ int main(int argc, char* argv[]) {
             exeNetwork = ie.LoadNetwork(cnnNetwork, device_name);
             duration_ms = double_to_string(get_total_ms_time(startTime));
             slog::info << "Load network took " << duration_ms << " ms" << slog::endl;
+
+//            exit(1);
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"load network time (ms)", duration_ms}});

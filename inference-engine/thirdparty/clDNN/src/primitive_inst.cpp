@@ -248,7 +248,9 @@ memory::ptr primitive_inst::allocate_output() {
         else
             return a;
     };
-
+    if (!_network.is_internal()) {
+        std::cout << _node.id() << std::endl;
+    }
     bool usm_device_allocatable = true;
     const auto& total_device_input_mem_size = std::accumulate(inst_deps.begin(), inst_deps.end(), 0, device_mem_acc);
     if (total_device_input_mem_size > engine.get_device_info().max_global_mem_size)
@@ -281,12 +283,15 @@ memory::ptr primitive_inst::allocate_output() {
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
             GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
         }
+        if (std::getenv("DUMP_ACTUAL")) {
+            std::cout << "[const node]" << _node.id() << ", " << layout.bytes_count() << std::endl;
+        }
         return engine.allocate_memory(layout, allocation_type::usm_device, false);
     } else if (_network.is_internal() && !_node.is_output() && _node.is_type<input_layout>()) {
         // Skip memory reset for input_layout primitives, since data will be copied from cldnn::data primitive
         // or just reuse primitive's memory
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << _node.id() << ": constant]" << std::endl;
+            GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
         }
         return engine.allocate_memory(layout, alloc_type, false);
     } else if (_network.is_internal() || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
@@ -303,6 +308,80 @@ memory::ptr primitive_inst::allocate_output() {
     }
 }
 
+memory::ptr primitive_inst::allocate_output(engine& _engine, const program_node& _node, std::shared_ptr<memory_pool> pool) {
+    auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
+                                    allocation_type type, bool reusable) {
+        if (_engine.configuration().use_memory_pool)
+                return pool->get_memory(layout, id, 0, dependencies, type, reusable);
+        return pool->get_memory(layout, type);
+    };
+    auto layout = _node.get_output_layout();
+#if 0
+    auto& engine = get_network().get_engine();
+    const auto& inst_deps = _network.get_primitives(_node.get_dependencies());
+    auto device_mem_acc = [&](size_t a, std::shared_ptr<primitive_inst> b) {
+        if (!b->mem_allocated()) return a;
+        if (b->output_memory().get_allocation_type() == allocation_type::usm_device
+            || b->output_memory().get_allocation_type() == allocation_type::cl_mem)
+            return a + b->output_memory().size();
+        else
+            return a;
+    };
+    bool usm_device_allocatable = true;
+    const auto& total_device_input_mem_size = std::accumulate(inst_deps.begin(), inst_deps.end(), 0, device_mem_acc);
+    if (total_device_input_mem_size > engine.get_device_info().max_global_mem_size)
+        usm_device_allocatable = false;
+#endif
+
+    // For outputs, cpu prim we want to have lockable alloc type
+    // Also if the successor of a node is an cpu, then memory needs to be lockable.
+    auto use_lockable_memory = _node.is_output() || _node.get_preferred_impl_type() == impl_types::cpu
+                               || std::any_of(_node.get_users().begin(), _node.get_users().end(),
+                                              [](const program_node* n) {
+                                     return n->get_selected_impl()->is_cpu() || is_any_user_cpu(n->get_users());
+                                  }) || !_engine.supports_allocation(allocation_type::usm_device);
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    const auto& lockable_mem_type = _engine.get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d());
+    const auto& alloc_type = use_lockable_memory ? lockable_mem_type : allocation_type::usm_device;
+//                             : usm_device_allocatable ? allocation_type::usm_device : lockable_mem_type;
+
+    if ((_node.can_be_optimized() || _node.is_type<generic_layer>())) {
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
+        }
+        return get_memory_from_pool(_engine, layout,
+                                    _node.id(),
+                                    _node.get_memory_dependencies(),
+                                    alloc_type,
+                                    false);
+    } else if (_node.is_output() && _node.is_type<generic_layer>() &&
+//               _engine.supports_allocation(allocation_type::usm_device) && usm_device_allocatable) {
+               _engine.supports_allocation(allocation_type::usm_device)) {
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
+        }
+        return _engine.allocate_memory(layout, allocation_type::usm_device, false);
+    } else if (!_node.is_output() && _node.is_type<input_layout>()) {
+        // Skip memory reset for input_layout primitives, since data will be copied from cldnn::data primitive
+        // or just reuse primitive's memory
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << _node.id() << ": constant]" << std::endl;
+        }
+        return _engine.allocate_memory(layout, alloc_type, false);
+    } else if (!_node.can_share_buffer() || _node.can_be_optimized() || _node.is_output()) {
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
+        }
+        return _engine.allocate_memory(layout, alloc_type, false);
+    } else {
+        return get_memory_from_pool(_engine, layout,
+                                   _node.id(),
+                                   _node.get_memory_dependencies(),
+                                   alloc_type,
+                                   true);
+    }
+}
 std::vector<std::shared_ptr<primitive_inst>> primitive_inst::build_exec_deps(
     std::vector<std::shared_ptr<primitive_inst>> const& deps) {
     std::vector<std::shared_ptr<primitive_inst>> exec_deps;

@@ -83,6 +83,7 @@
 #include <utility>
 #include <vector>
 #include <stdexcept>
+#include <unordered_set>
 
 program::program(engine& engine_ref,
                  topology const& topology,
@@ -433,6 +434,10 @@ void program::build_program(bool is_internal) {
     {
 #endif
         prepare_memory_dependencies();
+        if (options.get<build_option_type::partial_build_program>()->enabled()) {
+            return;
+        }
+
         compile();
         init_kernels();
     }
@@ -441,7 +446,9 @@ void program::build_program(bool is_internal) {
         prim_info = get_current_stage_info();
         transfer_memory_to_device();
     }
-
+//    if (!is_internal) {
+//      std::cout << "##################### build program finished" << std::endl;
+//' }
     cleanup();
 }
 
@@ -531,7 +538,9 @@ void program::pre_optimize_graph(bool is_internal) {
 
     if (!is_internal) {
         // ToDo remove hidden dependencies from propagate_constants pass
+//        std::cout << "############### [Pre Opt] Start Propagate_constants!!!!! #########" << std::endl;
         apply_opt_pass<propagate_constants>();
+//        std::cout << "############### [Pre Opt] Finished Propagate_constants!!!!! #########" << std::endl;
     }
 
     // try to fuse buffers (i.e. depth_concat in bfyx format) after padding calculations
@@ -554,9 +563,11 @@ void program::post_optimize_graph(bool is_internal) {
 
     apply_opt_pass<remove_redundant_reorders>(lo, false, true);  // TODO: do we need it at this place also?
 
-    if (!is_internal) {
+    if (!is_internal && !options.get<build_option_type::partial_build_program>()->enabled()) {
+//        std::cout << "############### [Post Opt] Start Propagate_constants!!!!! #########" << std::endl;
         // ToDo remove hidden dependencies from propagate_constants pass
         apply_opt_pass<propagate_constants>();
+//        std::cout << "############### [Post Opt ] Finished Propagate_constants!!!!! #########" << std::endl;
     }
 
     if (options.get<build_option_type::optimize_data>()->enabled())
@@ -621,6 +632,9 @@ void program::transfer_memory_to_device() {
                 GPU_DEBUG_GET_INSTANCE(debug_config);
                 GPU_DEBUG_IF(debug_config->verbose >= 2) {
                     GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
+                }
+                if (std::getenv("DUMP_TRANS")) {
+                    std::cout << "[const node]" << data_node.id() << ", " << data_node_layout.bytes_count() << std::endl;
                 }
                 // Allocate and transfer memory
                 auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
@@ -1392,4 +1406,53 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     if (engine.get_device_info().supports_immad && engine.configuration().queue_type == queue_types::in_order)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
 #endif
+}
+
+std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
+//    auto available_device_mem = get_engine().get_device_info().max_global_mem_size - occupied_mem;
+    auto max_alloc_size = get_engine().get_device_info().max_alloc_mem_size;
+//    auto global_device_mem_size = get_engine().get_device_info().max_global_mem_size;
+    std::shared_ptr<memory_pool> pool(new memory_pool(get_engine()));
+    int64_t const_sum = 0;
+    int64_t tensor_sum = 0;
+    std::unordered_set<memory::ptr> allocated_mem_ptrs;
+//    const auto magic_weight = 1.5; // (1.5x additional buffer considering the unaligned layout and internal buffer)
+    std::cout << "###### get_estimated_device_mem_usage" << std::endl;
+    std::cout << "device mem before estimation: " << get_engine().get_used_device_memory(allocation_type::usm_device) << std::endl;
+    std::cout << "host mem before estimation: " << get_engine().get_used_device_memory(allocation_type::usm_host) << std::endl;
+//    std::cout << "############### [Estimation] start allocation!  #########" << std::endl;
+    for (const auto& node : processing_order) {
+        // single allocation constraint
+        auto out_size = node->get_output_layout().bytes_count();
+        if (out_size > max_alloc_size) {
+            continue; // to be allocated to host
+        }
+        if (node->can_be_optimized())
+            continue;
+        if (node->is_type<data>() && node->get_users().size() == 1 && node->have_user_with_type<generic_layer>())  {
+            //std::cout << "[const node]" << node->id() << ", " << out_size << std::endl;
+            continue;
+        }            //std::cout << "[const node]" << node->id() << ", " << out_size << std::endl;
+        if (node->is_type<data>() || node->is_type<generic_layer>() && node->get_dependency(0).is_type<data>()) {
+//            if (std::getenv("DUMP_PRED")) {
+//                std::cout << "[const node]" << node->id() << ", " << out_size << std::endl;
+//            }
+//            if (std::getenv("ALLOC_BOTH")) {
+//                allocated_mem_ptrs.insert(primitive_inst::allocate_output(get_engine(), *node, pool));
+//            }
+            const_sum += out_size;
+        } else if (node->have_user_with_type<concatenation>() && node->get_users().size() == 1 && node->get_users().front()->can_be_optimized()) {
+            continue;
+        } else {
+            allocated_mem_ptrs.insert(primitive_inst::allocate_output(get_engine(), *node, pool));
+            tensor_sum += out_size;
+        }
+    }
+
+//    std::cout << "calculated device mem usage: " << const_sum + tensor_sum << " (const :" << const_sum << ", data : " << tensor_sum << std::endl;
+//    std::cout << "total allocated device mem : " << get_engine().get_used_device_memory(allocation_type::usm_device) << std::endl;
+//    std::cout << "total allocated host mem : " << get_engine().get_used_device_memory(allocation_type::usm_host) << std::endl;
+//    return (global_device_mem_size - const_sum) / std::max(1.0, tensor_sum * n_streams * magic_weight);
+//    return static_cast<int64_t>(get_engine().get_used_device_memory(allocation_type::usm_device));
+    return std::make_pair(const_sum, get_engine().get_used_device_memory(allocation_type::usm_device));
 }
