@@ -344,6 +344,10 @@ class LayerInfo {
         return isConcatAlignFilter() || isSyntheticScaleShift() || isCropAffined();
     }
 
+    bool isSynthetic() const noexcept {
+        return isConcatAlignFilter() || isSyntheticScaleShift() || isConvolutionFilter() || isAffineFilter();
+    }
+
     size_t paddingSize() const {
         static InferenceEngine::details::caseless_set<std::string> layersWithPossiblePadding = {"FullyConnected",
                                                                         "InnerProduct",
