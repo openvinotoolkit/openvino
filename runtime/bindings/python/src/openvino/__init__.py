@@ -20,6 +20,7 @@ from openvino.pyopenvino import MeanVariant
 from openvino.pyopenvino import ResizeAlgorithm
 from openvino.pyopenvino import ColorFormat
 from openvino.pyopenvino import PreProcessChannel
+from openvino.pyopenvino import Tensor
 
 from openvino.ie_api import BlobWrapper
 from openvino.ie_api import infer
