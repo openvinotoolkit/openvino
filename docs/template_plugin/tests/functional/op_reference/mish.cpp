@@ -14,14 +14,17 @@ using namespace ov;
 namespace {
 struct MishParams {
     template <class IT>
-    MishParams(const ov::PartialShape& shape, const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
-        : pshape(shape),
+    MishParams(const ov::PartialShape& dynamicShape, const ov::Shape& inputShape,
+               const ov::element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
+        : dynamicShape(dynamicShape),
+          inputShape(inputShape),
           inType(iType),
           outType(iType),
           inputData(CreateTensor(iType, iValues)),
           refData(CreateTensor(iType, oValues)) {}
 
-    ov::PartialShape pshape;
+    ov::PartialShape dynamicShape;
+    ov::PartialShape inputShape;
     ov::element::Type inType;
     ov::element::Type outType;
     ov::runtime::Tensor inputData;
@@ -32,14 +35,15 @@ class ReferenceMishLayerTest : public testing::TestWithParam<MishParams>, public
 public:
     void SetUp() override {
         auto params = GetParam();
-        function = CreateFunction(params.pshape, params.inType, params.outType);
+        function = CreateFunction(params.dynamicShape, params.inType, params.outType);
         inputData = {params.inputData};
         refOutData = {params.refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<MishParams>& obj) {
         auto param = obj.param;
         std::ostringstream result;
-        result << "shape=" << param.pshape << "_";
+        result << "dShape=" << param.dynamicShape << "_";
+        result << "iShape=" << param.inputShape << "_";
         result << "iType=" << param.inType << "_";
         result << "oType=" << param.outType;
         return result.str();
@@ -59,7 +63,7 @@ TEST_P(ReferenceMishLayerTest, CompareWithRefs) {
 }
 
 template <element::Type_t IN_ET>
-std::vector<MishParams> generateMishFloatParams(const Shape& staticShape) {
+std::vector<MishParams> generateMishFloatParams(const PartialShape& dynamicShape, const Shape& staticShape) {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     // generate input tensor (with possible type conversion)
@@ -79,20 +83,21 @@ std::vector<MishParams> generateMishFloatParams(const Shape& staticShape) {
     }
 
     std::vector<MishParams> mishParams {
-        MishParams(staticShape,
-                    IN_ET,
-                    input,
-                    expected)
+        MishParams(dynamicShape, staticShape, IN_ET, input, expected)
     };
     return mishParams;
 }
 
 std::vector<MishParams> generateMishCombinedParams() {
     const std::vector<std::vector<MishParams>> mishTypeParams {
-        generateMishFloatParams<element::Type_t::f32>({2, 5}),
-        generateMishFloatParams<element::Type_t::f32>({2, 3, 4, 5}),
-        generateMishFloatParams<element::Type_t::f16>({2, 5}),
-        generateMishFloatParams<element::Type_t::f16>({2, 3, 4, 5})
+        generateMishFloatParams<element::Type_t::f32>({2, 5}, {2, 5}),
+        generateMishFloatParams<element::Type_t::f32>({2, 3, 4, 5}, {2, 3, 4, 5}),
+        generateMishFloatParams<element::Type_t::f32>(PartialShape::dynamic(), {2, 3, 4, 5}),
+        generateMishFloatParams<element::Type_t::f32>({2, Dimension::dynamic(), 4, 5}, {2, 3, 4, 5}),
+        generateMishFloatParams<element::Type_t::f16>({2, 5}, {2, 5}),
+        generateMishFloatParams<element::Type_t::f16>({2, 3, 4, 5}, {2, 3, 4, 5}),
+        generateMishFloatParams<element::Type_t::f16>(PartialShape::dynamic(), {2, 3, 4, 5}),
+        generateMishFloatParams<element::Type_t::f16>({2, Dimension::dynamic(), 4, 5}, {2, 3, 4, 5})
         };
     std::vector<MishParams> combinedParams;
 

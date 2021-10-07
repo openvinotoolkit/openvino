@@ -21,6 +21,7 @@ CommonReferenceTest::CommonReferenceTest(): targetDevice("TEMPLATE") {
 }
 
 void CommonReferenceTest::Exec() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     LoadNetwork();
     FillInputs();
     Infer();
