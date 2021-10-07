@@ -24,14 +24,3 @@ if(NGRAPH_UNIT_TEST_ENABLE)
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
     add_dependencies(_pyngraph pybind_mock_frontend)
 endif()
-
-# install Python samples
-
-ie_cpack_add_component(python_samples)
-
-install(DIRECTORY samples/
-        DESTINATION samples/python
-        USE_SOURCE_PERMISSIONS
-        COMPONENT python_samples)
-
-ie_cpack(${PYTHON_COMPONENT} python_samples)
