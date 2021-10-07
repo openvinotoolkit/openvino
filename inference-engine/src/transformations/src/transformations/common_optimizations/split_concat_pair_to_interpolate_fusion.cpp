@@ -5,8 +5,10 @@
 #include "itt.hpp"
 #include "transformations/common_optimizations/split_concat_pair_to_interpolate_fusion.hpp"
 
+#include <iostream>
 #include <memory>
 #include <numeric>
+#include <set>
 #include <unordered_set>
 #include <vector>
 
@@ -40,56 +42,86 @@ std::vector<std::vector<T>> grouped_vector(const std::vector<T>& v) {
     return result;
 }
 
-std::shared_ptr<ngraph::opset8::Concat> get_concat_after_split(const std::shared_ptr<ngraph::opset8::Split>& split) {
-    // This function gets consumers of the 'split' node, checks that the following conditions are fulfilled:
-    // 1) 'split' node has only one consumer;
-    // 2) for any output port of 'split', number of corresponding input ports of the consumer is the same;
-    // 3) for any output port 'i' of the 'split', corresponding input ports of the consumer are
+std::shared_ptr<ngraph::opset8::Split> get_split_before_concat(const std::shared_ptr<ngraph::opset8::Concat>& concat) {
+    // This function gets producers of the 'concat' node, checks that the following conditions are fulfilled:
+    // 1) all producers for 'concat' are Split nodes;
+    // 2) 'concat' has only one unique producer ('split');
+    // 3) 'split' node has only one consumer;
+    // 4) for any output port of 'split', number of corresponding input ports of the consumer is the same;
+    // 5) for any output port 'i' of the 'split', corresponding input ports of the consumer are
     //    [i * m, ..., i * m + (m - 1)], where 'm' is the same for all 'i';
-    // 4) the consumer operation is 'Concat';
-    // 5) 'split' is a unique producer for this 'Concat';
     // and, if all these conditions are fulfilled, returns the above mentioned 'Concat' node. Otherwise, if some of these
     // conditions is false, this functions returns nullptr.
 
-    // If number of output nodes of 'split' is not equal to 1, then the transformation is not applicable.
-    // Also, the transformation is not applicable, if there are some non-Concat consumers of 'split'.
-    std::unordered_set<std::shared_ptr<ngraph::opset8::Concat>> concats;
-    for (auto output : split->outputs()) {
-        auto concat = std::dynamic_pointer_cast<ngraph::opset8::Concat>(output.get_node_shared_ptr());
-        if (!concat) return nullptr;
-        concats.insert(concat);
-    }
-    if (concats.size() != 1) return nullptr;
-
-    auto concat = *(concats.begin());
-
-    // The transformation is applicable, only if 'split' is a unique producer for Concat.
     std::vector<size_t> idx;
-    for (auto input : concat->input_values()) {
-        if (input.get_node() != split.get()) return nullptr;
+    std::unordered_set<std::shared_ptr<ngraph::opset8::Split>> splits;
+    size_t concat_input_port_index = 0;
+    for (const auto& input : concat->input_values()) {
+        // If 'concat' has some non-Split producer, then the transformation is not applicable.
+        auto split = std::dynamic_pointer_cast<ngraph::opset8::Split>(input.get_node_shared_ptr());
+        std::cout << "Producer for the input port " << concat_input_port_index << (split ? " is Split\n" : "  is not Split.\n");
+        if (!split) return nullptr;
+        concat_input_port_index++;
         idx.emplace_back(input.get_index());
+        splits.insert(split);
+    }
+    std::cout << ((splits.size() == 1) ? "Concat has a unique Split as producer.\n" : "Concat has more than one Split as producers.\n");
+    // If 'concat' has more than one Splits as producers, then the transformation is not applicable.
+    if (splits.size() != 1) return nullptr;
+
+    auto split = *(splits.begin());
+    std::cout << "Info about unique Split: " << split << "\n";
+
+    // If 'split' node has more than one consumer, then the transformation is not applicable.
+    size_t split_output_port_index = 0;
+    for (const auto& output : split->outputs()) {
+        std::cout << "Checking output port " << split_output_port_index << " Split..\n";
+        for (const auto& consumer : output.get_target_inputs()) {
+            std::cout << "    Current consumer: " << consumer << "\n";
+            std::cout << ((consumer.get_node() == concat.get()) ? "    Current consumer is the Concat.\n" : "    Current consumer is not the Concat.\n");
+            if (consumer.get_node() != concat.get()) return nullptr;
+        }
+        split_output_port_index++;
     }
 
     // If numbers of consumer ports are various for various output ports of 'split', then the transformation is not applicable.
+    std::cout << "idx: {";
+    for (auto i : idx) {
+        std::cout << i << " ";
+    }
+    std::cout << "}\n";
     auto grouped_idx = grouped_vector(idx);
+    std::cout << "grouped_idx: {";
+    for (const auto& group : grouped_idx) {
+        std::cout << "{";
+        for (auto i : group) {
+            std::cout << i << " ";
+        }
+        std::cout << "} ";
+    }
+    std::cout << "}\n";
     std::set<size_t> sizes_of_groups;
     for (const auto& group : grouped_idx) {
         sizes_of_groups.insert(group.size());
     }
+    std::cout << "sizes_of_groups.size(): " << sizes_of_groups.size() << "\n";
     if (sizes_of_groups.size() != 1) return nullptr;
+    size_t size_of_group = *(sizes_of_groups.begin());
+    size_t num_of_groups = grouped_idx.size();
 
     // The transformation is applicable iff output port 0 of 'split' goes to ports [0, ..., m-1] of next node,
     // output port 1 of 'split' goes to ports [m, ..., m + (m-1)] of next node, ..., output port i of 'split'
     // goes to ports [i * m, ..., i * m + (m - 1)], and so on.
-    std::vector<size_t> expected_ports_consuming_split(idx.size());
-    std::iota(expected_ports_consuming_split.begin(), expected_ports_consuming_split.end(), 0);
-    if (idx != expected_ports_consuming_split) return nullptr;
+    std::vector<std::vector<size_t>> expected_producing_ports_groups(num_of_groups);
+    for (size_t i = 0; i < num_of_groups; ++i) {
+        expected_producing_ports_groups[i] = std::vector<size_t>(size_of_group, i);
+    }
+    if (grouped_idx != expected_producing_ports_groups) return nullptr;
 
-    return concat;
+    return split;
 }
 
-int64_t get_split_scale(const std::shared_ptr<ngraph::opset8::Split>& split_node,
-                        const std::shared_ptr<ngraph::opset8::Concat>& concat) {
+int64_t get_split_scale(const std::shared_ptr<ngraph::opset8::Concat>& concat) {
     // The transformation is applicable, only if the number of output ports of 'split' is multiple of
     // the number of inputs of Concat.
     // This function returns 0, if the number of output ports of 'split' is not multiple of the number of inputs of Concat,
@@ -97,7 +129,7 @@ int64_t get_split_scale(const std::shared_ptr<ngraph::opset8::Split>& split_node
     const auto concat_inputs = concat->input_values();
     size_t num_of_concat_inputs = concat_inputs.size();
 
-    std::unordered_set<size_t> split_output_ports;
+    std::set<size_t> split_output_ports;
     for (auto input : concat_inputs) {
         split_output_ports.insert(input.get_index());
     }
@@ -116,28 +148,31 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::SplitConcatPairToInterpolateFusion, "SplitC
 
 ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion() {
     MATCHER_SCOPE(SplitConcatPairToInterpolateFusion);
-    auto split_pattern = ngraph::pattern::wrap_type<ngraph::opset8::Split>({pattern::any_input(pattern::has_static_shape()),
-                                                                            pattern::any_input(pattern::has_static_shape())});
-
+    // Detect only concat, because we don't know how many inputs will go into concat.
+    auto concat_pattern = ngraph::pattern::wrap_type<ngraph::opset8::Concat>();
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        std::cout << "We are in the transformation callback.\n";
         const auto& pattern_to_output = m.get_pattern_value_map();
-        auto split = std::dynamic_pointer_cast<ngraph::opset8::Split>(pattern_to_output.at(split_pattern).get_node_shared_ptr());
+        auto concat = std::dynamic_pointer_cast<ngraph::opset8::Concat>(pattern_to_output.at(concat_pattern).get_node_shared_ptr());
+        std::cout << (concat ? "Concat was found.\n" : "Concat was not found.\n");
+        if (!concat) return false;
+
+        auto split = get_split_before_concat(concat);
+        std::cout << (split ? "Split was found before Concat.\n" : "Split was not found before Concat.\n");
         if (!split) return false;
 
         Shape split_input_shape = split->get_input_shape(0);
+        std::cout << "Split input shape for the port 0: " << split_input_shape << "\n";
         size_t split_input_rank = split_input_shape.size();
+        std::cout << "Split input data rank: " << split_input_rank << "\n";
         if (split_input_rank != 4 && split_input_rank != 5) return false;
-
-        auto concat = get_concat_after_split(split);
-
-        if (!concat) return false;
 
         auto split_axis_const = std::dynamic_pointer_cast<ngraph::opset8::Constant>(split->input_value(1).get_node_shared_ptr());
         if (!split_axis_const) return false;
 
         int64_t axis = split_axis_const->cast_vector<int64_t>()[0];
 
-        int64_t scale_factor = get_split_scale(split, concat);
+        int64_t scale_factor = get_split_scale(concat);
         if (scale_factor == 0) return false;
 
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;
@@ -170,8 +205,8 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
         auto floor_node = std::make_shared<ngraph::opset8::Floor>(mul_node);
         auto cast_mul_result_to_int = std::make_shared<ngraph::opset8::Convert>(floor_node, ngraph::element::i64);
 
-        auto interpolate = std::make_shared<ngraph::opset8::Interpolate>(split->input_value(0), cast_mul_result_to_int,
-                                                                         scales_node, axis_node, attrs);
+        auto interpolate = register_new_node<ngraph::opset8::Interpolate>(split->input_value(0), cast_mul_result_to_int,
+                                                                          scales_node, axis_node, attrs);
 
         interpolate->set_friendly_name(concat->get_friendly_name());
         ngraph::copy_runtime_info({split, concat},
@@ -182,6 +217,6 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(split_pattern, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(concat_pattern, matcher_name);
     register_matcher(m, callback);
 }
