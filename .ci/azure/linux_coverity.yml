@@ -93,11 +93,11 @@ jobs:
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
 
-  - script: tar czvf openvino.tgz $(BUILD_DIR)/cov-int
+  - script: tar -C $(BUILD_DIR) -czvf openvino.tgz cov-int
     workingDirectory: $(BUILD_DIR)
     displayName: 'Pack cov-int folder for submission'
 
-  - publish: $(BUILD_DIR)\openvino.tgz
+  - publish: $(BUILD_DIR)/openvino.tgz
     artifact: openvino.tgz
     continueOnError: true
     displayName: 'Publish submission'
