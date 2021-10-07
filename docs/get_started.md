@@ -5,21 +5,6 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Get Started Guides
-   
-   openvino_overview
-   openvino_docs_get_started_get_started_linux
-   openvino_docs_get_started_get_started_windows
-   openvino_docs_install_guides_installing_openvino_windows
-   openvino_docs_install_guides_installing_openvino_windows_fpga
-   openvino_docs_install_guides_installing_openvino_macos
-   openvino_docs_install_guides_installing_openvino_raspbian
-   openvino_docs_get_started_get_started_dl_workbench
-   openvino_docs_Legal_Information
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
    :caption: Installation Guides
    
    openvino_docs_install_guides_installing_openvino_linux
@@ -54,6 +39,22 @@
    
    openvino_docs_install_guides_movidius_setup_guide
    openvino_docs_install_guides_VisionAcceleratorFPGA_Configure
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Get Started Guides
+   
+   openvino_overview
+   openvino_get_started_demos_samples
+   openvino_docs_get_started_get_started_linux
+   openvino_docs_get_started_get_started_windows
+   openvino_docs_install_guides_installing_openvino_windows
+   openvino_docs_install_guides_installing_openvino_windows_fpga
+   openvino_docs_install_guides_installing_openvino_macos
+   openvino_docs_install_guides_installing_openvino_raspbian
+   openvino_docs_get_started_get_started_dl_workbench
+   openvino_docs_Legal_Information
 
 .. toctree::
    :maxdepth: 1
