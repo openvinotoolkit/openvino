@@ -402,6 +402,316 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_onnx_example) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_2d_simple_zero_point) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input(std::vector<uint8_t>{11, 7, 3,
+                                             10, 6, 2,
+                                              9, 5, 1,
+                                              8, 4, 0});                        // A
+    test_case.add_input(std::vector<uint8_t>{1, 4,
+                                             2, 5,
+                                             3, 6});                            // B
+    test_case.add_input(std::vector<uint8_t>{12});                              // a_zero_point
+    test_case.add_input(std::vector<uint8_t>{0});                               // b_zero_point
+
+    test_case.add_expected_output({4, 2}, std::vector<int32_t>{-38,  -83,
+                                                               -44,  -98,
+                                                               -50, -113,
+                                                               -56, -128});     // Y
+    // clang-format on
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_int8) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_int8.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input(std::vector<int8_t>{-3,  7, 5, -6,
+                                             4, -5, 8,  7});                            // A
+    test_case.add_input(std::vector<int8_t>{ 5, -3,  7,  8,
+                                            -6, -8, -3,  6,
+                                             7,  9,  9, -5,
+                                             8,  7, -6,  7});                           // B
+    test_case.add_input(std::vector<int8_t>{5});                                        // a_zero_point
+    test_case.add_input(std::vector<int8_t>{5});                                        // b_zero_point
+
+    test_case.add_expected_output({2, 4}, std::vector<int32_t>{-55,  16, 89, -44,
+                                                               122, 154, 68, -39});     // Y
+    // clang-format on
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_vectorized_zero_point) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_vectorized_zero_point.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input(std::vector<uint8_t>{11, 22, 33, 44, 55,
+                                             22, 33, 44, 55, 66,
+                                             33, 44, 55, 66, 77,
+                                             44, 55, 66, 77, 88});                  // A
+    test_case.add_input(std::vector<uint8_t>{ 13,  1,   3,
+                                              21, 49,  31,
+                                               9,  0,   2,
+                                             107,  7,  94,
+                                               1, 63, 127});                        // B
+    test_case.add_input(std::vector<uint8_t>{33, 44, 55, 66});                      // a_zero_point
+    test_case.add_input(std::vector<uint8_t>{10, 20, 30});                          // b_zero_point
+
+    test_case.add_expected_output({4, 3}, std::vector<int32_t>{682, 902, 3421,
+                                                               682, 902, 3421,
+                                                               682, 902, 3421,
+                                                               682, 902, 3421});     // Y
+    // clang-format on
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_no_zero_point) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_no_zero_point.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input(std::vector<uint8_t>{11, 22, 33, 44, 55,
+                                             22, 33, 44, 55, 66,
+                                             33, 44, 55, 66, 77,
+                                             44, 55, 66, 77, 88});                      // A
+    test_case.add_input(std::vector<uint8_t>{ 13,  1,   3,
+                                              21, 49,  31,
+                                               9,  0,   2,
+                                             107,  7,  94,
+                                               1, 63, 127});                            // B
+
+    test_case.add_expected_output({4, 3}, std::vector<int32_t>{ 5665, 4862, 11902,
+                                                                7326, 6182, 14729,
+                                                                8987, 7502, 17556,
+                                                               10648, 8822, 20383});    // Y
+    // clang-format on
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_2d_x_3d) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_2d_x_3d.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input(std::vector<int8_t>{7, -3,  1, 2,
+                                            0,  2, -4, 6});                         // A
+    test_case.add_input(std::vector<int8_t>{1, -13, 10,
+                                            2, -16, 14,
+                                            3, -19, 18,
+                                            4, -22,  22,
+
+                                            -1, 13, -10,
+                                            -2, 16, -14,
+                                            -3, 19, -18,
+                                            -4, 22, -22});                          // B
+    test_case.add_input(std::vector<int8_t>{-4});                                   // a_zero_point
+
+    test_case.add_expected_output({2, 2, 3}, std::vector<int32_t>{52, -386, 346,
+                                                                  56, -368, 344,
+
+                                                                  -52, 386, -346,
+                                                                  -56, 368, -344}); // Y
+    // clang-format on
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_3d_x_2d) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_3d_x_2d.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input(std::vector<int8_t>{-13, 11, -1, -2,
+                                              4, -2,  3, 10,
+
+                                              8, -2,  4,  5,
+                                             -4, -3,  1,  2});                         // A
+    test_case.add_input(std::vector<int8_t>{  1, -3,   5,
+                                              7, -2, -10,
+                                            -13,  9,   7,
+                                             11,  3,  -3});                             // B
+    test_case.add_input(std::vector<int8_t>{4});                                        // a_zero_point
+    test_case.add_input(std::vector<int8_t>{-3});                                       // a_zero_point
+
+    test_case.add_expected_output({2, 2, 3}, std::vector<int32_t>{-32, -89, -235,
+                                                                   34,  18,   32,
+
+                                                                  -30,   0,   74,
+                                                                 -100, -55,  -45});     // Y
+    // clang-format on
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_3d) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_3d.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input(std::vector<uint8_t>{125, 135, 145, 155,
+                                             130, 140, 150, 160,
+
+                                             125, 135, 145, 155,
+                                             130, 140, 150, 160});                          // A
+    test_case.add_input(std::vector<int8_t>{-10, -5,  0,   5,
+                                             -5,  0,  5,  10,
+                                             -5, -4, -3,  -2,
+                                             -1,  0,  1,   2,
+
+                                             10,  5,  0,  -5,
+                                              5,  0, -5, -10,
+                                              5,  4,  3,   2,
+                                              1,  0, -1,  -2});                             // B
+    test_case.add_input(std::vector<uint8_t>{150});                                         // a_zero_point
+    test_case.add_input(std::vector<int8_t>{5,  10,  15,  20,
+                                           -5, -10, -15, -20});                             // b_zero_point
+
+    test_case.add_expected_output({2, 2, 4}, std::vector<int32_t>{545,  545,  545,  545,
+                                                                  340,  300,  260,  220,
+
+                                                                 -545, -545, -545, -545,
+                                                                 -340, -300, -260, -220});  // Y
+    // clang-format on
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_4d.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input(std::vector<uint8_t>{0, 1,  2,  3,
+                                             4, 5,  6,  7,
+                                             8, 9, 10, 11,
+
+                                             12, 13, 14,
+                                             15, 16, 17,
+                                             18, 19, 20,
+                                             21, 22, 23});                                      // A
+    test_case.add_input(std::vector<uint8_t>{0,  1,  2,
+                                             3,  4,  5,
+                                             6,  7,  8,
+                                             9,  10, 11,
+
+                                             12, 13, 14,
+                                             15, 16, 17,
+                                             18, 19, 20,
+                                             21, 22, 23});                                      // B
+    test_case.add_input(std::vector<uint8_t>{0});                                               // a_zero_point
+    test_case.add_input(std::vector<uint8_t>{0});                                               // b_zero_point
+
+    test_case.add_expected_output<int32_t>({1, 2, 3, 3}, std::vector<int32_t> {42,  48,  54,
+                                                                              114, 136, 158,
+                                                                              186, 224, 262,
+
+                                                                               906,  960, 1014,
+                                                                              1170, 1240, 1310,
+                                                                              1434, 1520, 1606});  // Y
+    // clang-format on
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d_zero_point) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_4d.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input(std::vector<uint8_t>{0,  1,  2,  3,
+                                             4,  5,  6,  7,
+                                             8,  9, 10, 11,
+
+                                            12, 13, 14, 15,
+                                            16, 17, 18, 19,
+                                            20, 21, 22, 23});                                   // A
+    test_case.add_input(std::vector<uint8_t>{0,  1,  2,
+                                             3,  4,  5,
+                                             6,  7,  8,
+                                             9, 10, 11,
+
+                                            12, 13, 14,
+                                            15, 16, 17,
+                                            18, 19, 20,
+                                            21, 22, 23});                                       // B
+    test_case.add_input(std::vector<uint8_t>{1});                                               // a_zero_point
+    test_case.add_input(std::vector<uint8_t>{1});                                               // b_zero_point
+
+    test_case.add_expected_output<int32_t>({1, 2, 3, 3}, std::vector<int32_t>{22,   24,   26,
+                                                                              78,   96,  114,
+                                                                             134,  168,  202,
+
+                                                                             790,  840,  890,
+                                                                            1038, 1104, 1170,
+                                                                            1286, 1368, 1450}); // Y
+    // clang-format on
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_matrix_zero_point) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_matrix_zero_point.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input(std::vector<uint8_t>{0, 1, 2, 3,
+                                             4, 5, 6, 7,
+
+                                             8,  9, 10, 11,
+                                            12, 13, 14, 15});                                   // A
+    test_case.add_input(std::vector<uint8_t>{0,  1,  2,
+                                             3,  4,  5,
+                                             6,  7,  8,
+                                             9, 10, 11,
+
+                                            12, 13, 14,
+                                            15, 16, 17,
+                                            18, 19, 20,
+                                            21, 22, 23});                                       // B
+    test_case.add_input(std::vector<uint8_t>{1,
+                                             2,
+
+                                             3,
+                                             4});                                               // a_zero_point
+    test_case.add_input(std::vector<uint8_t>{1, 2, 3,
+
+                                             4, 5, 6});                                         // b_zero_point
+
+    test_case.add_expected_output<int32_t>({1, 2, 2, 3}, std::vector<int32_t>{22,  22,  22,
+                                                                              64,  64,  64,
+
+                                                                             340, 340, 340,
+                                                                             490, 490, 490});   // Y
+    // clang-format on
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_qlinear_matmul_3d) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/qlinear_matmul_3d.onnx"));
 
