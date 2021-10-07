@@ -8,21 +8,20 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-#if 0
 
 namespace ngraph {
 namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateSquareOp(
-    const NodeContext& node) {
-  return TranslateUnaryOp(
-      op, static_input_map, ng_op_map, [&op](Output<Node> n) {
-        return ConstructNgNode<Multiply>(node.get_name(), n, n);
-      });
+OutputVector TranslateSquareOp(const NodeContext& node) {
+    auto n = node.get_ng_input(0);
+    auto square = make_shared<Multiply>(n, n);
+    square->set_friendly_name(node.get_name());
+    return square->outputs();
 }
 
 }
 }
-#endif
+}
+}

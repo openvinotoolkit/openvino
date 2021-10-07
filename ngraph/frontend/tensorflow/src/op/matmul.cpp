@@ -8,30 +8,23 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-#if 0
 
 namespace ngraph {
 namespace frontend {
 namespace tf {
 namespace op {
-static Status TranslateMatMulOp(const TFNodeDecoder* op,
-                                const std::vector<const ngraph::frontend::tf::detail::TensorWrapper*>&,
-                                Builder::OpMap& ng_op_map) {
-  Output<Node> ng_lhs, ng_rhs;
-  TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_lhs, ng_rhs));
 
-  // Transpose arguments if requested.
-  bool transpose_a = false;
-  TF_RETURN_IF_ERROR(GetNodeAttr(op->attrs(), "transpose_a", &transpose_a));
+OutputVector TranslateMatMulOp(const NodeContext& node) {
+    auto a = node.get_ng_input(0);
+    auto b = node.get_ng_input(1);
+    auto transpose_a = node.get_attribute<bool>("transpose_a", false);
+    auto transpose_b = node.get_attribute<bool>("transpose_b", false);
 
-  bool transpose_b = false;
-  TF_RETURN_IF_ERROR(GetNodeAttr(op->attrs(), "transpose_b", &transpose_b));
-
-  SaveNgOp(ng_op_map, node.get_name(),
-           ConstructNgNode<MatMul>(node.get_name(), ng_lhs, ng_rhs,
-                                          transpose_a, transpose_b));
-  return Status::OK();
+    auto matmul = make_shared<MatMul>(a, b, transpose_a, transpose_b);
+    matmul->set_friendly_name(node.get_name());
+    return matmul->outputs();
 }
 }
 }
-#endif
+}
+}

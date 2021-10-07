@@ -8,27 +8,33 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-#if 0
 
 namespace ngraph {
 namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateXdivyOp(
-        const NodeContext& node) {
-    Output<ngraph::Node> ng_x, ng_y;
-    TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_x, ng_y));
-    auto zero =
-            ConstructNgNode<Constant>(node.get_name(), ng_x.get_element_type(),
-                                             ngraph::Shape{}, std::vector<int>({0}));
-    auto x_is_zero = ConstructNgNode<Equal>(node.get_name(), ng_x, zero);
-    auto ng_xdivy = ConstructNgNode<Divide>(node.get_name(), ng_x, ng_y);
-    SaveNgOp(ng_op_map, node.get_name(), ConstructNgNode<Select>(
-            node.get_name(), x_is_zero, ng_x, ng_xdivy));
-    return Status::OK();
+OutputVector TranslateXdivyOp(const NodeContext& node) {
+    auto x = node.get_ng_input(0);
+    auto y = node.get_ng_input(1);
+
+    auto zero = make_shared<Constant>(x.get_element_type(), Shape{}, 0);
+    auto one = make_shared<Constant>(x.get_element_type(), Shape{}, 1);
+    auto x_is_zero = make_shared<Equal>(x, zero);
+
+
+    // todo (itikhono) : looks wrong, verify
+    // in OV TF it was:
+    //    auto xdivy = make_shared<Divide>(x, y);
+    //    auto select = make_shared<Select>(x_is_zero, y, xdivy);
+    // current:
+    auto select = make_shared<Select>(x_is_zero, one, y);
+    auto xdivy = make_shared<Divide>(x, select);
+    xdivy->set_friendly_name(node.get_name());
+    return xdivy->outputs();
 }
 
 }
 }
-#endif
+}
+}

@@ -50,7 +50,7 @@ OP_CONVERTER(TranslateIdentityOp);
 OP_CONVERTER(TranslateLogSoftmaxOp);
 // OP_CONVERTER(TranslateLog1pOp);
 // OP_CONVERTER(TranslateLRNOp);
-// OP_CONVERTER(TranslateMatMulOp);
+OP_CONVERTER(TranslateMatMulOp);
 OP_CONVERTER(TranslateMaxPoolOp);
 OP_CONVERTER(TranslateNonMaxSuppressionV2Op);
 OP_CONVERTER(TranslatePadOp);
@@ -62,7 +62,7 @@ OP_CONVERTER(TranslateRangeOp);
 OP_CONVERTER(TranslateRankOp);
 OP_CONVERTER(TranslateRandomUniformOp);
 OP_CONVERTER(TranslateRelu6Op);
-// OP_CONVERTER(TranslateReciprocalOp);
+OP_CONVERTER(TranslateReciprocalOp);
 OP_CONVERTER(TranslateReshapeOp);
 OP_CONVERTER(RetvalOp);
 OP_CONVERTER(TranslateRollOp);
@@ -76,6 +76,7 @@ OP_CONVERTER(TranslateSoftmaxOp);
 // OP_CONVERTER(TranslateSpaceToDepthOp);
 // OP_CONVERTER(TranslateSplitOp);
 // OP_CONVERTER(TranslateSplitOp);
+OP_CONVERTER(TranslateSquareOp);
 OP_CONVERTER(TranslateSqueezeOp);
 // OP_CONVERTER(TranslateStridedSliceOp);
 OP_CONVERTER(TranslateSqrtOp);
@@ -84,7 +85,7 @@ OP_CONVERTER(TranslateSqrtOp);
 // OP_CONVERTER(TranslateTransposeOp);
 // OP_CONVERTER(TranslateUnpackOp);
 // OP_CONVERTER(TranslateWhereOp);
-// OP_CONVERTER(TranslateXdivyOp);
+OP_CONVERTER(TranslateXdivyOp);
 // OP_CONVERTER(TranslateZerosLikeOp);
 
 const std::map<const std::string, const CreatorFunction> get_supported_ops() {
@@ -176,7 +177,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"LogSoftmax", TranslateLogSoftmaxOp},
         //{"Log1p", TranslateLog1pOp},
         //{"LRN", TranslateLRNOp},
-        //{"MatMul", TranslateMatMulOp},
+        {"MatMul", TranslateMatMulOp},
         {"MaxPool", TranslateMaxPoolOp},
         {"MaxPool3D", TranslateMaxPoolOp},
         //{"NonMaxSuppressionV2", TranslateNonMaxSuppressionV2Op},
@@ -193,7 +194,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Range", TranslateRangeOp},
         {"Rank", TranslateRankOp},
         {"RandomUniform", TranslateRandomUniformOp},
-        //{"Reciprocal", TranslateReciprocalOp},
+        {"Reciprocal", TranslateReciprocalOp},
         {"Relu6", TranslateRelu6Op},
         {"Reshape", TranslateReshapeOp},
         {"_Retval", RetvalOp},
@@ -210,7 +211,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         //{"Split", TranslateSplitOp},
         //{"SplitV", TranslateSplitVOp},
         {"Sqrt", TranslateSqrtOp},
-        //{"Square", TranslateSquareOp},
+        {"Square", TranslateSquareOp},
         {"Squeeze", TranslateSqueezeOp},
         //{"StridedSlice", TranslateStridedSliceOp},
         //{"Tile", TranslateTileOp},
@@ -218,7 +219,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         //{"Transpose", TranslateTransposeOp},
         //{"Unpack", TranslateUnpackOp},
         //{"Where", TranslateWhereOp},
-        //{"Xdivy", TranslateXdivyOp},
+        {"Xdivy", TranslateXdivyOp},
         //{"ZerosLike", TranslateZerosLikeOp},
     };
 };
