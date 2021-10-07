@@ -19,7 +19,7 @@ OutputVector TranslateSelectOp(const NodeContext& node) {
     auto in_3 = node.get_ng_input(2);
     if (in_1.get_partial_shape().is_static() && in_2.get_partial_shape().is_static()) {
         // select broadcast
-        if (in_1.get_shape().size() == 1 and in_2.get_shape().size() > 1) {
+        if (in_1.get_shape().size() == 1 && in_2.get_shape().size() > 1) {
             std::vector<uint64_t> axes(in_2.get_shape().size() - 1);
             std::iota(axes.begin(), axes.end(), 1);
             auto unsqueeze_axes = make_shared<Constant>(ngraph::element::i64, Shape{in_2.get_shape().size() - 1}, axes);

@@ -11,7 +11,7 @@ namespace frontend {
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
 class GraphIterator {
 public:
-    typedef std::shared_ptr<GraphIterator> Ptr;
+    using Ptr = std::shared_ptr<GraphIterator>;
 
     /// \brief Get a number of operation nodes in the graph
     virtual size_t size() const = 0;

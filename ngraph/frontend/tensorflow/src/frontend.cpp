@@ -28,9 +28,9 @@ void translate_framework_node(const std::shared_ptr<TFFrameworkNode>& node,
     ngraph::OutputVector ng_inputs;
     NamedInputs named_inputs;
     size_t input_port_idx = 0;
-    for (const auto& input : node->inputs()) {
-        ng_inputs.push_back(input.get_source_output());
-        named_inputs[input_port_idx++] = {input.get_source_output()};
+    for (const auto& input : node->input_values()) {
+        ng_inputs.push_back(input);
+        named_inputs[input_port_idx++] = {input};
     }
 
     NodeContext node_ctx(*node->get_decoder(), named_inputs);
@@ -54,7 +54,7 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
                                  bool fail_fast,
                                  bool no_conversion,
                                  std::shared_ptr<ngraph::Function>& ng_function) const {
-    using OpMap = std::unordered_map<std::string, std::vector<ngraph::Output<ngraph::Node>>>;
+    using OpMap = std::unordered_map<std::string, ngraph::OutputVector>;
     // a map from operation names to generated nGraph Output<TFNodeDecoder>
     OpMap ng_op_map;
 
@@ -74,13 +74,15 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
             translate_map.emplace(name, TRANSLATE_OP_MAP.at(name));
         }
     } else {
-        translate_map = TRANSLATE_OP_MAP;
+        translate_map.insert(TRANSLATE_OP_MAP.begin(), TRANSLATE_OP_MAP.end());
     }
 
     // fill ng_op_map with Constant outputs for frozen inputs
     for (const auto& frozen_input : model_frozen_inputs) {
         const auto& frozen_input_name = frozen_input.first;
         const auto& frozen_input_value = frozen_input.second;
+        FRONT_END_GENERAL_CHECK(ng_op_map.count(frozen_input_name) == 0,
+                                "Input with frozen value has been already met: " + frozen_input_name);
         ng_op_map[frozen_input_name] = {frozen_input_value};
     }
 

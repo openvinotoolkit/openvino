@@ -220,7 +220,6 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
             FRONT_END_GENERAL_CHECK(m_op_places_map.count(producer_name),
                                     "There is no operation node with name: " + producer_name);
             const auto& producer_operation_place = m_op_places_map.at(producer_name);
-            auto op_it = m_op_places_map.find(producer_name);
             if (m_tensor_places.count(producer_name)) {
                 const auto& tensor_place = m_tensor_places[producer_name];
                 is_input = is_input || (tensor_place->is_input() ? true : false);
