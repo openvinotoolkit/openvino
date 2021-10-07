@@ -7,7 +7,69 @@ $(document).ready(function() {
     init_switchers();
     handleSwitcherParam();
     initViewerJS();
+    var TABLE_SORT = window.TABLE_SORT;
+    if (TABLE_SORT) {
+        addTableSort();
+    }
 });
+
+
+function addTableSort() {
+    var tables = $('table.table');
+    tables.each(function() {
+        var table = $(this);
+        var headings = table.find('th');
+        headings.each(function() {
+            var th = $(this);
+            var index = th.index();
+            var sortBtn = $('<span class="sort-btn"></span>');
+            sortBtn.click(function(){
+                sortBtn.addClass('sort-active');
+                sortBy = sortBtn.data('sortby');
+                var trs = table.find('tbody tr');
+                sortBtn.toggleClass('ascending');
+                trs.sort(function(item1, item2) {
+                    
+                    if (sortBtn.hasClass('ascending')) {
+                        var text1 = $(item1).find('td').eq(index).text();
+                        var text2 = $(item2).find('td').eq(index).text();
+                    }
+                    else {
+                        var text1 = $(item2).find('td').eq(index).text();
+                        var text2 = $(item1).find('td').eq(index).text();
+                    }
+                    // try converting to num
+                    var _text1 = parseFloat(text1);
+                    var _text2 = parseFloat(text2);
+
+                    if (!isNaN(_text1) && !isNaN(_text2)) {
+                        text1 = _text1;
+                        text2 = _text2;
+                    }
+                    if (text1 > text2) {
+                        return 1;
+                    }
+                    else if (text1 < text2) {
+                        return -1;
+                    }
+                    else {
+                        return 0;
+                    }
+                }).map(function() {
+                    table.find('tbody').append($(this));
+                });
+
+                headings.each(function() {
+                    if ($(this).index() !== index) {
+                        $(this).find('.sort-btn').removeClass('ascending');
+                        $(this).find('.sort-btn').removeClass('sort-active');
+                    }
+                });
+            });
+            th.find('p').append(sortBtn);
+        });
+    });
+}
 
 function initViewerJS() {
     try {
