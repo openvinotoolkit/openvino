@@ -59,26 +59,44 @@ class OldAPIMap(RTInfoElement):
     def old_api_convert(self, legacy_type: np.dtype):
         self.info['legacy_type'] = legacy_type
 
-    def serialize_old_api_map_for_parameter(self) -> Dict:
+    def serialize_old_api_map_for_parameter(self, node) -> Dict:
+        result = {}
         if 'legacy_type' not in self.info and 'inverse_order' not in self.info:
-            return {}
-        result = {'order': '', 'element_type': 'undefined'}
+            return result
+
+        result['order'] = ''
+        result['element_type'] = 'undefined'
+
         if 'legacy_type' in self.info:
             result['element_type'] = np_data_type_to_destination_type(self.info['legacy_type'])
+        else:
+            if node.has_port('out', 0) and not node.out_port(0).disconnected():
+                result['element_type'] = np_data_type_to_destination_type(node.out_port(0).get_data_type())
 
         if 'inverse_order' in self.info:
             result['order'] = ','.join(map(str, self.info['inverse_order']))
+        else:
+            if node.has_port('out', 0) and not node.out_port(0).disconnected():
+                result['order'] = list(range(len(node.out_port(0).data.get_shape())))
+
         return result
 
-    def serialize_old_api_map_for_result(self) -> Dict:
-        if 'order' in self.info:
-            return {'order': ','.join(map(str, self.info['order'])), 'element_type': 'undefined'}
-        return {}
+    def serialize_old_api_map_for_result(self, node) -> Dict:
+        if 'order' not in self.info:
+            return {}
+
+        result = {'element_type': 'undefined'}
+        if node.has_port('in', 0) and node.has_valid('_in_port_precision'):
+            result['element_type'] = np_data_type_to_destination_type(node.soft_get('_in_port_precision')[0])
+
+        result['order'] = ','.join(map(str, self.info['order']))
+
+        return result
 
     def serialize(self, node) -> Dict:
         result = {}
         if node.soft_get('type') == 'Parameter':
-            result = self.serialize_old_api_map_for_parameter()
+            result = self.serialize_old_api_map_for_parameter(node)
         elif node.soft_get('type') == 'Result':
-            result = self.serialize_old_api_map_for_result()
+            result = self.serialize_old_api_map_for_result(node)
         return result
