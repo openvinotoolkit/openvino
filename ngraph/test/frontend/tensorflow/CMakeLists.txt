@@ -43,6 +43,7 @@ if (tensorflow_FOUND)
                 ${GEN_SCRIPT}
                 ${TEST_TENSORFLOW_MODELS}
                 ${OUT_DONE_FILE}
+                JOB_POOL four_jobs
                 DEPENDS ${TENSORFLOW_ALL_SCRIPTS}
                 )
     endforeach()
