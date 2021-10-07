@@ -60,7 +60,6 @@ protected:
         auto activation = ngraph::builder::makeGatherElements(params[0], indicesShape, ngIPrc, axis);
         activation->get_rt_info() = getCPUInfo();
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params, "GatherElements");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

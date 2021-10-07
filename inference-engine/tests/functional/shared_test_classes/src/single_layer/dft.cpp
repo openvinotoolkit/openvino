@@ -43,6 +43,5 @@ void DFTLayerTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(dft)};
     function = std::make_shared<ngraph::Function>(results, paramVector, "DFT");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

@@ -102,8 +102,6 @@ protected:
         auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
 
         function = makeNgraphFunction(ngPrc, input, eltwise, "Eltwise");
-        functionRefs = ngraph::clone_function(*function);
-        functionRefs->set_friendly_name("EltwiseRefs");
     }
 };
 

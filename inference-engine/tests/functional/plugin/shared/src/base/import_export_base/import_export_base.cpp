@@ -42,11 +42,13 @@ void ImportNetworkTestBase::exportImportNetwork() {
 }
 
 void ImportNetworkTestBase::Run() {
+    functionRefs = ngraph::clone_function(*function);
     TestRun(false);
 }
 
 void ImportNetworkTestBase::TestRun(bool isModelChanged) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    functionRefs = ngraph::clone_function(*function);
     // load export configuration and save outputs
     configuration.insert(exportConfiguration.begin(), exportConfiguration.end());
     LoadNetwork();

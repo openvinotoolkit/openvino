@@ -77,7 +77,6 @@ protected:
                                                                               attributes.do_softmax, mask, attributes.start_axis, attributes.end_axis);
 
         function = makeNgraphFunction(ngPrc, paramRegionYolo, region_yolo, "RegionYolo");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

@@ -98,7 +98,6 @@ protected:
         threshold = 1e-2;
         const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roialign)};
         function = std::make_shared<ngraph::Function>(results, params, "ROIAlign");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

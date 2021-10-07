@@ -14,7 +14,6 @@ void QueryNetworkTest::SetUp() {
     auto& param = GetParam();
     targetDevice = std::get<Plugin>(param);
     function = std::get<Function>(param);
-    functionRefs = ngraph::clone_function(*function);
     cnnNetwork = InferenceEngine::CNNNetwork{function};
 }
 

@@ -436,11 +436,6 @@ void LayerTestsCommon::Infer() {
 }
 
 std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTestsCommon::CalculateRefs() {
-    //TODO: w/a: to identify gaps with functionRefs and init it
-    if (functionRefs == nullptr) {
-        functionRefs = ngraph::clone_function(*function);
-    }
-    // nGraph interpreter does not support f16/bf16
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
 
@@ -508,6 +503,9 @@ void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type
 }
 
 void LayerTestsCommon::Validate() {
+    if (functionRefs == nullptr) {
+        functionRefs = ngraph::clone_function(*function);
+    }
     auto expectedOutputs = CalculateRefs();
     const auto &actualOutputs = GetOutputs();
 

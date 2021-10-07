@@ -53,7 +53,6 @@ void ConvolutionQDqTransformation::SetUp() {
         param.convertOnWeights,
         param.dequantizationOnWeights,
         {});
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void ConvolutionQDqTransformation::Run() {

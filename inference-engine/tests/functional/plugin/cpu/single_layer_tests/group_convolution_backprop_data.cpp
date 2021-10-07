@@ -94,7 +94,6 @@ protected:
                                                 padEnd, dilation, padType, convOutChannels, numGroups, false, outputPadding));
         }
         function = makeNgraphFunction(ngPrc, params, groupConv, "groupConvolutionBackpropData");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

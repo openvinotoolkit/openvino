@@ -123,7 +123,6 @@ protected:
         fq->get_rt_info() = getCPUInfo();
 
         function = std::make_shared<Function>(fq, params, "FakeQuantizeCPU");
-        functionRefs = ngraph::clone_function(*function);
     }
 
 private:

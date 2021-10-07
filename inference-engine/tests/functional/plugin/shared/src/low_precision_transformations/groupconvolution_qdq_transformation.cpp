@@ -53,7 +53,6 @@ void GroupConvolutionQDqTransformation::SetUp() {
         param.convertOnWeights,
         param.dequantizationOnWeights,
         {}, {}, {}, param.reshape, {}, "GroupConvolution", param.multiplyAfter);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void GroupConvolutionQDqTransformation::Run() {

@@ -100,7 +100,6 @@ protected:
 
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape3)};
         function = std::make_shared<ngraph::Function>(results, params, "InsertTransposeBetweenConvs");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 
@@ -179,7 +178,6 @@ protected:
 
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape3)};
         function = std::make_shared<ngraph::Function>(results, params, "InsertTransposeBetweenConvs");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

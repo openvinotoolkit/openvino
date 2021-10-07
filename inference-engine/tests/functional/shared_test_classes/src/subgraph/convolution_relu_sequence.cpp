@@ -88,6 +88,5 @@ void ConvolutionReluSequenceTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(lastOutputs)};
     function = std::make_shared<ngraph::Function>(results, params, "convolution_relu_sequence");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

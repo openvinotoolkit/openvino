@@ -124,7 +124,6 @@ void PoolingLayerTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pooling)};
     function = std::make_shared<ngraph::Function>(results, params, "pooling");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void GlobalPoolingLayerTest::SetUp() {
@@ -159,6 +158,5 @@ void GlobalPoolingLayerTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pooling)};
     function = std::make_shared<ngraph::Function>(results, params, "pooling");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

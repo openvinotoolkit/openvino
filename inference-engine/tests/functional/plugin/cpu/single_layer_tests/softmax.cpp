@@ -67,7 +67,6 @@ protected:
         const auto softMax = std::make_shared<ngraph::opset1::Softmax>(paramOuts.at(0), config.axis);
 
         function = makeNgraphFunction(ngPrc, params, softMax, "SoftMax");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

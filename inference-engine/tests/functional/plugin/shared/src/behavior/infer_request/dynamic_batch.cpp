@@ -47,7 +47,6 @@ namespace ConfigurationTestsDefinitions {
         max_batch_size = *std::max_element(batch_sizes.begin(), batch_sizes.end());
 
         function = ngraph::builder::subgraph::makeSingleConv();
-        functionRefs = ngraph::clone_function(*function);
     }
 
     void DynamicBatchTest::LoadNetwork() {

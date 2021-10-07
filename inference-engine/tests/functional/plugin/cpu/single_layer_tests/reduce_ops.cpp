@@ -74,7 +74,6 @@ protected:
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(reduce)};
         function = std::make_shared<ngraph::Function>(results, params, "Reduce");
-        functionRefs = ngraph::clone_function(*function);
     }
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
         if (ngraph::helpers::ReductionType::Prod == reductionType) {

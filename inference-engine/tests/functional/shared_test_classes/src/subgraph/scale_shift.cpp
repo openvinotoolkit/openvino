@@ -37,6 +37,5 @@ namespace SubgraphTestsDefinitions {
         auto add_const = std::make_shared<ngraph::op::Constant>(ngPrc, paramsShape, shift);
         auto add = std::make_shared<ngraph::opset1::Add>(mul, add_const);
         function = std::make_shared<ngraph::Function>(add, paramsIn, "scale_shift");
-        functionRefs = ngraph::clone_function(*function);
     }
 } // namespace SubgraphTestsDefinitions

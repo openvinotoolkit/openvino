@@ -54,7 +54,6 @@ void MulConvFusion::SetUp() {
     }
 
     function = std::make_shared<ngraph::Function>(ngraph::OutputVector{conv}, ngraph::ParameterVector{param});
-    functionRefs = ngraph::clone_function(*function);
     auto cloned_function = ngraph::clone_function(*function);
 
     ngraph::pass::Manager manager;

@@ -59,7 +59,6 @@ protected:
         }
 
         function = makeNgraphFunction(element::f32, inputParams, pooling, "ConvPoolActiv");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

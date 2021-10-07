@@ -41,6 +41,5 @@ namespace LayerTestsDefinitions {
         auto select = std::dynamic_pointer_cast<ngraph::opset1::Select>(ngraph::builder::makeSelect(paramOuts, broadcast));
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(select)};
         function = std::make_shared<ngraph::Function>(results, paramNodesVector, "select");
-        functionRefs = ngraph::clone_function(*function);
     }
 }  // namespace LayerTestsDefinitions

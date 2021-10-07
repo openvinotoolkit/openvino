@@ -107,20 +107,19 @@ public:
 
         function            = make_ngraph(false);
         reference_function  = make_ngraph(true);  //use extra ops to mimic the preprocessing
-        functionRefs        = ngraph::clone_function(*function);
     }
 
     void Validate() override {
         // w/a: copy of original function is required to provide correct op coverage report (overflow of convert counter issue)
         auto copyOriginalFunction = function;
         //force the reference implementation to use graph with extra Convert operation
-        functionRefs = ngraph::clone_function(*reference_function);
         LayerTestsUtils::LayerTestsCommon::Validate();
         function = copyOriginalFunction;
     }
 
     void Run() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        functionRefs = ngraph::clone_function(*function);
         try {
             LoadNetwork();
             GenerateInputs();

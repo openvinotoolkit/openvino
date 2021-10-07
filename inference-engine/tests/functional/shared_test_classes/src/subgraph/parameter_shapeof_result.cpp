@@ -29,7 +29,6 @@ void ParameterShapeOfResultSubgraphTest::SetUp() {
     const ngraph::ResultVector results{std::make_shared<ngraph::opset6::Result>(shapeOf)};
     ngraph::ParameterVector params = {parameter};
     function = std::make_shared<ngraph::Function>(results, params, "ParameterShapeOfResult");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace SubgraphTestsDefinitions

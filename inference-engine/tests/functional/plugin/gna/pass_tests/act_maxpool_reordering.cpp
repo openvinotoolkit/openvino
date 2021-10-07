@@ -90,7 +90,6 @@ protected:
 
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(maxpool)};
         function = std::make_shared<ngraph::Function>(results, inputVector, "ActMaxpoolReordering");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

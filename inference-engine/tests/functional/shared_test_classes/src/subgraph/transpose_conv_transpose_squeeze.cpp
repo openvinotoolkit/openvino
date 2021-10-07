@@ -77,7 +77,6 @@ void TransposeConvTest::SetUp() {
     auto squeeze = std::make_shared<ngraph::op::Squeeze>(transpose2, constant_squeeze);
 
     function = std::make_shared<ngraph::Function>(squeeze, params, "transposeConv");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 InferenceEngine::Blob::Ptr TransposeConvTest::GenerateInput(const InferenceEngine::InputInfo &info) const {

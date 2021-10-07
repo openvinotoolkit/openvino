@@ -49,7 +49,6 @@ void ReverseSequenceLayerTest::SetUp() {
     auto reverse = std::make_shared<ngraph::opset1::ReverseSequence>(paramsIn[0], secondaryInput, batchAxisIndx, seqAxisIndx);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reverse)};
     function = std::make_shared<ngraph::Function>(results, paramsIn, "ReverseSequence");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 } // namespace LayerTestsDefinitions

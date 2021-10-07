@@ -56,7 +56,5 @@ void SoftMaxLayerTest::SetUp() {
     const ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(softMax)};
 
     function = std::make_shared<ngraph::Function>(results, params, "softMax");
-    functionRefs = ngraph::clone_function(*function);
-    functionRefs->set_friendly_name("softMaxRefs");
 }
 }  // namespace LayerTestsDefinitions

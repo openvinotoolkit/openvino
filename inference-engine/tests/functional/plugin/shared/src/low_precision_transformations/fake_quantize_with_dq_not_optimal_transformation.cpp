@@ -46,7 +46,6 @@ void FakeQuantizeWithNotOptimalTransformation::SetUp() {
         testValues.convertOnWeights,
         testValues.dequantizationOnWeights,
         testValues.dequantizationAfter);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void FakeQuantizeWithNotOptimalTransformation::Run() {

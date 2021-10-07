@@ -48,6 +48,5 @@ void OneHotLayerTest::SetUp() {
     auto onehot = ngraph::builder::makeOneHot(paramOuts[0], depth_type, depth_val, set_type, on_val, off_val, axis);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(onehot)};
     function = std::make_shared<ngraph::Function>(results, params, "OneHot");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

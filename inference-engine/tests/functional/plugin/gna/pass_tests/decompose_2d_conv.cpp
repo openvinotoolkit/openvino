@@ -199,7 +199,6 @@ protected:
 
         auto result = std::make_shared<Result>(lastOp);
         function = std::make_shared<Function>(ResultVector{result}, ParameterVector{input});
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

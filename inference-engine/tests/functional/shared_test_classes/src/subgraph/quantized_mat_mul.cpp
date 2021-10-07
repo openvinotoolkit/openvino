@@ -99,6 +99,5 @@ void QuantMatMulTest::SetUp() {
             ngraph::builder::makeMatMul(dataFq0, dataFq1));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(MatMul)};
     function = std::make_shared<ngraph::Function>(results, params, "QuantMatMul");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

@@ -69,6 +69,5 @@ void ConvolutionBackpropDataLayerTest::SetUp() {
     }
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(convBackpropData)};
     function = std::make_shared<ngraph::Function>(results, params, "convolutionBackpropData");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

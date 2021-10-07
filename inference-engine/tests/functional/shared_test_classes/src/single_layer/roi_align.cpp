@@ -108,6 +108,5 @@ void ROIAlignLayerTest::SetUp() {
                                                     poolingMode);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roiAlign)};
     function = std::make_shared<ngraph::Function>(results, params, "roi_align");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

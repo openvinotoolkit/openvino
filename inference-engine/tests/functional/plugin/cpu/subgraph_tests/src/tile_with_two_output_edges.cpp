@@ -29,7 +29,6 @@ protected:
 
         NodeVector results{add1, add2};
         function = std::make_shared<ngraph::Function>(results, inputParams, "TileWithTwoOutputEdges");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

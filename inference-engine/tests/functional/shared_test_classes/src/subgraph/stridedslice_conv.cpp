@@ -70,7 +70,6 @@ void SliceConvTest::SetUp() {
         { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, outputChannels, false, filterWeights);
 
     function = std::make_shared<ngraph::Function>(conv, params, "StridedSliceConvTest");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace SubgraphTestsDefinitions

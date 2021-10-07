@@ -64,7 +64,6 @@ void DepthToSpaceTransformation::SetUp() {
     }
 
     function = ngraph::builder::subgraph::DepthToSpaceFunction::getOriginal(precision, inputShape, mode, blockSize);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(DepthToSpaceTransformation, CompareWithRefImpl) {

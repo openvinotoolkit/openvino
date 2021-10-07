@@ -53,6 +53,5 @@ namespace SubgraphTestsDefinitions {
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape3),
                                       std::make_shared<ngraph::opset1::Result>(reshape4)};
         function = std::make_shared<ngraph::Function>(results, params, "RemovePermutationPass");
-        functionRefs = ngraph::clone_function(*function);
     }
 } // namespace SubgraphTestsDefinitions

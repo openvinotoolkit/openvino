@@ -41,7 +41,6 @@ void RangeAddSubgraphTest::SetUp() {
     auto eltwise = ngraph::builder::makeEltwise(params.front(), range, ngraph::helpers::EltwiseTypes::ADD);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(eltwise)};
     function = std::make_shared<ngraph::Function>(results, params, "RangeEltwise");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 // ------------------------------ V4 ------------------------------
@@ -83,6 +82,5 @@ void RangeNumpyAddSubgraphTest::SetUp() {
     auto eltwise = ngraph::builder::makeEltwise(params.front(), range, ngraph::helpers::EltwiseTypes::ADD);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(eltwise)};
     function = std::make_shared<ngraph::Function>(results, params, "RangeEltwise");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

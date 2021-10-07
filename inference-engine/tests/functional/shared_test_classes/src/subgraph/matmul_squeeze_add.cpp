@@ -55,6 +55,5 @@ void MatmulSqueezeAddTest::SetUp() {
 
     ngraph::ResultVector results {std::make_shared<ngraph::op::Result>(squeeze_0)};
     function = std::make_shared<ngraph::Function>(results, params, "MatmulSqueezeAddTest");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

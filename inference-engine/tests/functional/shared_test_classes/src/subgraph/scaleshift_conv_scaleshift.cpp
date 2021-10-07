@@ -90,7 +90,6 @@ void ScaleShiftAfterConvTest::SetUp() {
     auto reshape3 = std::make_shared<ngraph::opset1::Reshape>(add, reshapePattern3, false);
 
     function = std::make_shared<ngraph::Function>(mul, params, "ScaleShiftAfterConvTest");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 std::string ScaleShiftBeforeConvTest::getTestCaseName(const testing::TestParamInfo<ScaleShiftConvScaleShiftParams>& obj) {
@@ -175,6 +174,5 @@ void ScaleShiftBeforeConvTest::SetUp() {
     auto reshape3 = std::make_shared<ngraph::opset1::Reshape>(conv, reshapePattern3, false);
 
     function = std::make_shared<ngraph::Function>(reshape3, params, "ScaleShiftBeforeConvTest");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

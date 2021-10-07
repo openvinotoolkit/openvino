@@ -77,7 +77,6 @@ void ConvEltwiseFusion::SetUp() {
         }
 
         function = std::make_shared<ngraph::Function>(ngraph::OutputVector{eltwise}, ngraph::ParameterVector{param}, "conv_eltwise");
-        functionRefs = ngraph::clone_function(*function);
     }
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
