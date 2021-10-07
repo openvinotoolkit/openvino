@@ -85,7 +85,7 @@ public:
     }
 
     inline bool getAcrossChannels() const {
-        return acrossChannels_;
+        return initAcrossChannels_;
     }
 
     inline bool getNormalizeVariance() const {
@@ -135,7 +135,8 @@ private:
 
     std::tuple<size_t, size_t, size_t, size_t, size_t> shape5D;
 
-    bool acrossChannels_ = false;
+    bool initAcrossChannels_ = false;
+    bool execAcrossChannels_ = false;
     bool normalizeVariance_ = true;
     float epsValue_ = 1e-9f;
     // Defines way to add epsilon: inside sqrt or outside.
