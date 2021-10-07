@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gtest/gtest.h>
+
 #include <fstream>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "ie_core.hpp"
-#include "gtest/gtest.h"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "util/test_common.hpp"
 
-#include <ngraph/function.hpp>
-#include <openvino/pass/serialize.hpp>
-
-class SerializatioConstantCompressionTest : public ::testing::Test {
+class SerializatioConstantCompressionTest : public ov::test::TestsCommon {
 protected:
-    std::string test_name =
-        ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    std::string test_name = GetTestName();
     std::string m_out_xml_path_1 = test_name + "1" + ".xml";
     std::string m_out_bin_path_1 = test_name + "1" + ".bin";
 
@@ -23,7 +21,7 @@ protected:
         std::remove(m_out_bin_path_1.c_str());
     }
 
-    std::uintmax_t file_size(std::ifstream &f) {
+    std::uintmax_t file_size(std::ifstream& f) {
         // get length of file:
         const auto pos_to_restore = f.tellg();
         f.seekg(0, f.end);
@@ -35,212 +33,177 @@ protected:
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsI32) {
     constexpr int unique_const_count = 1;
-    const ngraph::Shape shape{2, 2, 2};
+    const ov::Shape shape{2, 2, 2};
 
-    auto A = ngraph::op::Constant::create(ngraph::element::i32, shape,
-        {1, 2, 3, 4, 5, 6, 7, 8});
-    auto B = ngraph::op::Constant::create(ngraph::element::i32, shape,
-        {1, 2, 3, 4, 5, 6, 7, 8});
+    auto A = ov::opset8::Constant::create(ov::element::i32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
+    auto B = ov::opset8::Constant::create(ov::element::i32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
 
-    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
-        ngraph::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B}, ov::ParameterVector{});
 
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int32_t));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsI64) {
     constexpr int unique_const_count = 1;
-    const ngraph::Shape shape{2, 2, 2};
+    const ov::Shape shape{2, 2, 2};
 
-    auto A = ngraph::op::Constant::create(ngraph::element::i64, shape,
-        {1, 2, 3, 4, 5, 6, 7, 8});
-    auto B = ngraph::op::Constant::create(ngraph::element::i64, shape,
-        {1, 2, 3, 4, 5, 6, 7, 8});
+    auto A = ov::opset8::Constant::create(ov::element::i64, shape, {1, 2, 3, 4, 5, 6, 7, 8});
+    auto B = ov::opset8::Constant::create(ov::element::i64, shape, {1, 2, 3, 4, 5, 6, 7, 8});
 
-    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
-        ngraph::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B}, ov::ParameterVector{});
 
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int64_t));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(int64_t));
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsFP16) {
     constexpr int unique_const_count = 1;
-    const ngraph::Shape shape{2, 2, 2};
+    const ov::Shape shape{2, 2, 2};
 
-    auto A = ngraph::op::Constant::create(ngraph::element::f16, shape,
-        {1, 2, 3, 4, 5, 6, 7, 8});
-    auto B = ngraph::op::Constant::create(ngraph::element::f16, shape,
-        {1, 2, 3, 4, 5, 6, 7, 8});
+    auto A = ov::opset8::Constant::create(ov::element::f16, shape, {1, 2, 3, 4, 5, 6, 7, 8});
+    auto B = ov::opset8::Constant::create(ov::element::f16, shape, {1, 2, 3, 4, 5, 6, 7, 8});
 
-    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
-        ngraph::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B}, ov::ParameterVector{});
 
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(ngraph::float16));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(ov::float16));
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsFP32) {
     constexpr int unique_const_count = 1;
-    const ngraph::Shape shape{2, 2, 2};
+    const ov::Shape shape{2, 2, 2};
 
-    auto A = ngraph::op::Constant::create(ngraph::element::f32, shape,
-        {1, 2, 3, 4, 5, 6, 7, 8});
-    auto B = ngraph::op::Constant::create(ngraph::element::f32, shape,
-        {1, 2, 3, 4, 5, 6, 7, 8});
+    auto A = ov::opset8::Constant::create(ov::element::f32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
+    auto B = ov::opset8::Constant::create(ov::element::f32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
 
-    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
-        ngraph::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B}, ov::ParameterVector{});
 
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(float));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(float));
 }
 
 TEST_F(SerializatioConstantCompressionTest, NonIdenticalConstantsI64) {
     constexpr int unique_const_count = 2;
-    const ngraph::Shape shape{2};
+    const ov::Shape shape{2};
 
     // hash_combine returns the same hash for this two constants so we also check the content of arrays
-    auto A = ngraph::op::Constant::create(ngraph::element::i64, shape, {2, 2});
-    auto B = ngraph::op::Constant::create(ngraph::element::i64, shape, {0, 128});
+    auto A = ov::opset8::Constant::create(ov::element::i64, shape, {2, 2});
+    auto B = ov::opset8::Constant::create(ov::element::i64, shape, {0, 128});
 
-    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
-                                                       ngraph::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B}, ov::ParameterVector{});
 
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int64_t));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(int64_t));
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsTimesTwo) {
     constexpr int unique_const_count = 2;
-    const ngraph::Shape shape{2, 2, 2};
+    const ov::Shape shape{2, 2, 2};
 
-    auto A = ngraph::op::Constant::create(ngraph::element::i32, shape,
-        {1, 2, 3, 4, 5, 6, 7, 8});
-    auto B = ngraph::op::Constant::create(ngraph::element::i32, shape,
-        {1, 2, 3, 4, 5, 6, 7, 8});
-    auto C = ngraph::op::Constant::create(ngraph::element::i32, shape,
-        {0, 3, 1, 2, 5, 6, 25, 3});
-    auto D = ngraph::op::Constant::create(ngraph::element::i32, shape,
-        {0, 3, 1, 2, 5, 6, 25, 3});
+    auto A = ov::opset8::Constant::create(ov::element::i32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
+    auto B = ov::opset8::Constant::create(ov::element::i32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
+    auto C = ov::opset8::Constant::create(ov::element::i32, shape, {0, 3, 1, 2, 5, 6, 25, 3});
+    auto D = ov::opset8::Constant::create(ov::element::i32, shape, {0, 3, 1, 2, 5, 6, 25, 3});
 
-    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B, C, D},
-        ngraph::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B, C, D}, ov::ParameterVector{});
 
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int32_t));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsTimesTwoMultipleOccurences) {
     constexpr int unique_const_count = 2;
-    const ngraph::Shape shape{2, 2, 2};
+    const ov::Shape shape{2, 2, 2};
 
-    auto A = ngraph::op::Constant::create(ngraph::element::i32, shape,
-        {1, 2, 3, 4, 5, 6, 7, 8});
-    auto B = ngraph::op::Constant::create(ngraph::element::i32, shape,
-        {0, 3, 1, 2, 5, 6, 25, 3});
-    auto C = ngraph::op::Constant::create(ngraph::element::i32, shape,
-        {1, 2, 3, 4, 5, 6, 7, 8});
-    auto D = ngraph::op::Constant::create(ngraph::element::i32, shape,
-        {0, 3, 1, 2, 5, 6, 25, 3});
-    auto E = ngraph::op::Constant::create(ngraph::element::i32, shape,
-        {1, 2, 3, 4, 5, 6, 7, 8});
-    auto F = ngraph::op::Constant::create(ngraph::element::i32, shape,
-        {0, 3, 1, 2, 5, 6, 25, 3});
+    auto A = ov::opset8::Constant::create(ov::element::i32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
+    auto B = ov::opset8::Constant::create(ov::element::i32, shape, {0, 3, 1, 2, 5, 6, 25, 3});
+    auto C = ov::opset8::Constant::create(ov::element::i32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
+    auto D = ov::opset8::Constant::create(ov::element::i32, shape, {0, 3, 1, 2, 5, 6, 25, 3});
+    auto E = ov::opset8::Constant::create(ov::element::i32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
+    auto F = ov::opset8::Constant::create(ov::element::i32, shape, {0, 3, 1, 2, 5, 6, 25, 3});
 
-    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B, C, D, E, F},
-        ngraph::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B, C, D, E, F}, ov::ParameterVector{});
 
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int32_t));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
 }
 
 TEST_F(SerializatioConstantCompressionTest, NonIdenticalConstants) {
     constexpr int unique_const_count = 2;
-    const ngraph::Shape shape{2, 2, 2};
+    const ov::Shape shape{2, 2, 2};
 
-    auto A = ngraph::op::Constant::create(ngraph::element::i32, shape,
-        {1, 2, 3, 4, 5, 6, 7, 8});
-    auto B = ngraph::op::Constant::create(ngraph::element::i32, shape,
-        {2, 2, 3, 4, 5, 6, 7, 8});
+    auto A = ov::opset8::Constant::create(ov::element::i32, shape, {1, 2, 3, 4, 5, 6, 7, 8});
+    auto B = ov::opset8::Constant::create(ov::element::i32, shape, {2, 2, 3, 4, 5, 6, 7, 8});
 
-    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
-        ngraph::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B}, ov::ParameterVector{});
 
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int32_t));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsDifferentTypesI32I64) {
     constexpr int unique_const_count = 1;
-    const ngraph::Shape shape{2, 2, 2};
+    const ov::Shape shape{2, 2, 2};
 
-    auto A = ngraph::op::Constant::create(ngraph::element::i32, shape,
-        {1, 0, 2, 0, 3, 0, 4, 0});
-    auto B = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape({1, 2, 2}),
-        {1, 2, 3, 4});
+    auto A = ov::opset8::Constant::create(ov::element::i32, shape, {1, 0, 2, 0, 3, 0, 4, 0});
+    auto B = ov::opset8::Constant::create(ov::element::i64, ov::Shape({1, 2, 2}), {1, 2, 3, 4});
 
-    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
-        ngraph::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B}, ov::ParameterVector{});
 
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int32_t));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
 }
 
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsDifferentTypesI32I8) {
     constexpr int unique_const_count = 1;
-    const ngraph::Shape shape{1, 1, 2};
+    const ov::Shape shape{1, 1, 2};
 
-    auto A = ngraph::op::Constant::create(ngraph::element::i32, shape,
-        {1, 2});
-    auto B = ngraph::op::Constant::create(ngraph::element::i8, ngraph::Shape({1, 2, 4}),
-        {1, 0, 0, 0,
-         2, 0, 0, 0});
+    auto A = ov::opset8::Constant::create(ov::element::i32, shape, {1, 2});
+    auto B = ov::opset8::Constant::create(ov::element::i8, ov::Shape({1, 2, 4}), {1, 0, 0, 0, 2, 0, 0, 0});
 
-    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
-        ngraph::ParameterVector{});
+    auto ngraph_a = std::make_shared<ov::Function>(ov::NodeVector{A, B}, ov::ParameterVector{});
 
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
 
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int32_t));
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ov::shape_size(shape) * sizeof(int32_t));
 }

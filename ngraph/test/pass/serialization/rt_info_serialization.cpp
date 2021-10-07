@@ -4,18 +4,17 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_api.h>
-#include <ie_iextension.h>
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "ie_core.hpp"
-#include "ngraph/ngraph.hpp"
+#include "frontend_manager/frontend_manager.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
-#include <openvino/opsets/opset8.hpp>
-#include <transformations/rt_info/attributes.hpp>
+#include "read_ir.hpp"
+#include "transformations/rt_info/attributes.hpp"
+#include "util/test_common.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-class RTInfoSerializationTest : public CommonTestUtils::TestsCommon {
+class RTInfoSerializationTest : public ov::test::TestsCommon {
 protected:
     std::string test_name = GetTestName() + "_" + GetTimestamp();
     std::string m_out_xml_path = test_name + ".xml";
@@ -28,13 +27,12 @@ protected:
 };
 
 TEST_F(RTInfoSerializationTest, all_attributes_latest) {
-    auto init_info = [](RTMap & info) {
+    auto init_info = [](RTMap& info) {
         info[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
-                std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("add"));
-        info[ov::PrimitivesPriority::get_type_info_static()] =
-                std::make_shared<ov::PrimitivesPriority>("priority");
+            std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("add"));
+        info[ov::PrimitivesPriority::get_type_info_static()] = std::make_shared<ov::PrimitivesPriority>("priority");
         info[ov::OldApiMap::get_type_info_static()] = std::make_shared<ov::OldApiMap>(
-                ov::OldApiMapAttr(std::vector<uint64_t>{0, 2, 3, 1}, ngraph::element::Type_t::f32));
+            ov::OldApiMapAttr(std::vector<uint64_t>{0, 2, 3, 1}, ngraph::element::Type_t::f32));
     };
 
     std::shared_ptr<ngraph::Function> function;
@@ -52,24 +50,22 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
     m.register_pass<ov::pass::Serialize>(m_out_xml_path, m_out_bin_path);
     m.run_passes(function);
 
-    auto core = InferenceEngine::Core();
-    auto net = core.ReadNetwork(m_out_xml_path, m_out_bin_path);
-    auto f = net.getFunction();
+    auto f = ov::test::readIR(m_out_xml_path, m_out_bin_path);
 
-    auto check_info = [](const RTMap & info) {
-        const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+    auto check_info = [](const RTMap& info) {
+        const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
         ASSERT_TRUE(info.count(key));
         auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(info.at(key));
         ASSERT_TRUE(fused_names_attr);
         ASSERT_EQ(fused_names_attr->get().getNames(), "add");
 
-        const std::string & pkey = ov::PrimitivesPriority::get_type_info_static();
+        const std::string& pkey = ov::PrimitivesPriority::get_type_info_static();
         ASSERT_TRUE(info.count(pkey));
         auto primitives_priority_attr = std::dynamic_pointer_cast<ov::PrimitivesPriority>(info.at(pkey));
         ASSERT_TRUE(primitives_priority_attr);
         ASSERT_EQ(primitives_priority_attr->get(), "priority");
 
-        const std::string & old_api_map_key = ov::OldApiMap::get_type_info_static();
+        const std::string& old_api_map_key = ov::OldApiMap::get_type_info_static();
         ASSERT_TRUE(info.count(old_api_map_key));
         auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
         ASSERT_TRUE(old_api_map_attr);
@@ -86,11 +82,10 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
 }
 
 TEST_F(RTInfoSerializationTest, all_attributes_v10) {
-    auto init_info = [](RTMap & info) {
+    auto init_info = [](RTMap& info) {
         info[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
-                std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("add"));
-        info[ov::PrimitivesPriority::get_type_info_static()] =
-                std::make_shared<ov::PrimitivesPriority>("priority");
+            std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("add"));
+        info[ov::PrimitivesPriority::get_type_info_static()] = std::make_shared<ov::PrimitivesPriority>("priority");
     };
 
     std::shared_ptr<ngraph::Function> function;
@@ -108,12 +103,10 @@ TEST_F(RTInfoSerializationTest, all_attributes_v10) {
     m.register_pass<ov::pass::Serialize>(m_out_xml_path, m_out_bin_path, ov::pass::Serialize::Version::IR_V10);
     m.run_passes(function);
 
-    auto core = InferenceEngine::Core();
-    auto net = core.ReadNetwork(m_out_xml_path, m_out_bin_path);
-    auto f = net.getFunction();
+    auto f = ov::test::readIR(m_out_xml_path, m_out_bin_path);
 
-    auto check_info = [](const RTMap & info) {
-        const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+    auto check_info = [](const RTMap& info) {
+        const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
         ASSERT_FALSE(info.count(key));
     };
 
@@ -125,11 +118,10 @@ TEST_F(RTInfoSerializationTest, all_attributes_v10) {
 }
 
 TEST_F(RTInfoSerializationTest, all_attributes_v11) {
-    auto init_info = [](RTMap & info) {
+    auto init_info = [](RTMap& info) {
         info[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
-                std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("add"));
-        info[ov::PrimitivesPriority::get_type_info_static()] =
-                std::make_shared<ov::PrimitivesPriority>("priority");
+            std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("add"));
+        info[ov::PrimitivesPriority::get_type_info_static()] = std::make_shared<ov::PrimitivesPriority>("priority");
     };
 
     std::shared_ptr<ngraph::Function> function;
@@ -147,18 +139,16 @@ TEST_F(RTInfoSerializationTest, all_attributes_v11) {
     m.register_pass<ov::pass::Serialize>(m_out_xml_path, m_out_bin_path);
     m.run_passes(function);
 
-    auto core = InferenceEngine::Core();
-    auto net = core.ReadNetwork(m_out_xml_path, m_out_bin_path);
-    auto f = net.getFunction();
+    auto f = ov::test::readIR(m_out_xml_path, m_out_bin_path);
 
-    auto check_info = [](const RTMap & info) {
-        const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+    auto check_info = [](const RTMap& info) {
+        const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
         ASSERT_TRUE(info.count(key));
         auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(info.at(key));
         ASSERT_TRUE(fused_names_attr);
         ASSERT_EQ(fused_names_attr->get().getNames(), "add");
 
-        const std::string & pkey = ov::PrimitivesPriority::get_type_info_static();
+        const std::string& pkey = ov::PrimitivesPriority::get_type_info_static();
         ASSERT_TRUE(info.count(pkey));
         auto primitives_priority_attr = std::dynamic_pointer_cast<ov::PrimitivesPriority>(info.at(pkey));
         ASSERT_TRUE(primitives_priority_attr);
@@ -200,9 +190,7 @@ TEST_F(RTInfoSerializationTest, parameter_result_v11) {
     m.register_pass<ov::pass::Serialize>(m_out_xml_path, m_out_bin_path, ov::pass::Serialize::Version::IR_V11);
     m.run_passes(function);
 
-    auto core = InferenceEngine::Core();
-    auto net = core.ReadNetwork(m_out_xml_path, m_out_bin_path);
-    auto f = net.getFunction();
+    auto f = ov::test::readIR(m_out_xml_path, m_out_bin_path);
 
     ASSERT_EQ(function->get_results().size(), f->get_results().size());
     ASSERT_EQ(function->get_parameters().size(), f->get_parameters().size());

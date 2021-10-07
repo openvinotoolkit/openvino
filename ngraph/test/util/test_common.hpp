@@ -9,12 +9,6 @@
 #include <memory>
 #include <string>
 
-#include "openvino/core/function.hpp"
-
-namespace InferenceEngine {
-class IExtension;
-}
-
 namespace ov {
 namespace test {
 

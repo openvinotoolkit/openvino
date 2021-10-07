@@ -8,6 +8,7 @@
 #include <string>
 
 #include "ngraph/opsets/opset.hpp"
+#include "openvino/core/function.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov {
@@ -29,7 +30,7 @@ public:
         IR_V10 = 10,  // v10 IR
         IR_V11 = 11   // v11 IR
     };
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_function(std::shared_ptr<ov::Function> f) override;
 
     Serialize(std::ostream& xmlFile,
               std::ostream& binFile,
@@ -70,7 +71,7 @@ public:
         size_t model_size;
     };
 
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_function(std::shared_ptr<ov::Function> f) override;
 
     StreamSerialize(std::ostream& stream,
                     std::map<std::string, ngraph::OpSet>&& custom_opsets = {},

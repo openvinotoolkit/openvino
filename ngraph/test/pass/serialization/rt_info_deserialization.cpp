@@ -4,14 +4,14 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
+#include <string>
 
-#include <inference_engine.hpp>
-#include <transformations/rt_info/fused_names_attribute.hpp>
-#include <transformations/rt_info/old_api_map_attribute.hpp>
-
-using namespace ngraph;
+#include "frontend_manager/frontend_manager.hpp"
+#include "openvino/core/variant.hpp"
+#include "read_ir.hpp"
+#include "transformations/rt_info/fused_names_attribute.hpp"
+#include "transformations/rt_info/old_api_map_attribute.hpp"
 
 TEST(RTInfoDeserialization, NodeV10) {
     std::string model = R"V0G0N(
@@ -70,19 +70,17 @@ TEST(RTInfoDeserialization, NodeV10) {
     </edges>
 </net>
 )V0G0N";
-    auto core = InferenceEngine::Core();
-    auto net = core.ReadNetwork(model, InferenceEngine::Blob::Ptr());
-    auto f = net.getFunction();
+    auto f = ov::test::readIR(model);
 
-    auto check_rt_info = [](const RTMap & info) {
-        const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+    auto check_rt_info = [](const ov::RTMap& info) {
+        const std::string& key = ov::VariantWrapper<ngraph::FusedNames>::get_type_info_static();
         ASSERT_FALSE(info.count(key));
     };
 
     auto check_version = [](const std::shared_ptr<ov::Function>& f) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
+        auto version = std::dynamic_pointer_cast<ov::VariantWrapper<int64_t>>(rt_info.at("version"));
         ASSERT_NE(version, nullptr);
         ASSERT_EQ(version->get(), 10);
     };
@@ -168,19 +166,17 @@ TEST(RTInfoDeserialization, InputAndOutputV10) {
     </edges>
 </net>
 )V0G0N";
-    auto core = InferenceEngine::Core();
-    auto net = core.ReadNetwork(model, InferenceEngine::Blob::Ptr());
-    auto f = net.getFunction();
+    auto f = ov::test::readIR(model);
 
-    auto check_rt_info = [](const RTMap & info) {
-        const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+    auto check_rt_info = [](const ov::RTMap& info) {
+        const std::string& key = ov::VariantWrapper<ngraph::FusedNames>::get_type_info_static();
         ASSERT_FALSE(info.count(key));
     };
 
     auto check_version = [](const std::shared_ptr<ov::Function>& f) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
+        auto version = std::dynamic_pointer_cast<ov::VariantWrapper<int64_t>>(rt_info.at("version"));
         ASSERT_NE(version, nullptr);
         ASSERT_EQ(version->get(), 10);
     };
@@ -259,31 +255,30 @@ TEST(RTInfoDeserialization, NodeV11) {
     </edges>
 </net>
 )V0G0N";
-    auto core = InferenceEngine::Core();
-    auto net = core.ReadNetwork(model, InferenceEngine::Blob::Ptr());
-    auto f = net.getFunction();
+    auto f = ov::test::readIR(model);
 
-    auto check_fused_names = [](const RTMap & info, const std::string & names) {
-        const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+    auto check_fused_names = [](const ov::RTMap& info, const std::string& names) {
+        const std::string& key = ov::VariantWrapper<ngraph::FusedNames>::get_type_info_static();
         ASSERT_TRUE(info.count(key));
-        auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(info.at(key));
+        auto fused_names_attr = std::dynamic_pointer_cast<ov::VariantWrapper<ngraph::FusedNames>>(info.at(key));
         ASSERT_TRUE(fused_names_attr);
         ASSERT_EQ(fused_names_attr->get().getNames(), names);
     };
 
-    auto check_old_api_map = [](const RTMap & info, const std::vector<uint64_t> & order, const ngraph::element::Type& type) {
-        const std::string & old_api_map_key = ov::OldApiMap::get_type_info_static();
-        ASSERT_TRUE(info.count(old_api_map_key));
-        auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
-        ASSERT_TRUE(old_api_map_attr);
-        auto old_api_map_attr_val = old_api_map_attr->get();
-        ASSERT_EQ(old_api_map_attr_val.get_order(), order);
-        ASSERT_EQ(old_api_map_attr_val.get_type(), type);
-    };
+    auto check_old_api_map =
+        [](const ov::RTMap& info, const std::vector<uint64_t>& order, const ngraph::element::Type& type) {
+            const std::string& old_api_map_key = ov::OldApiMap::get_type_info_static();
+            ASSERT_TRUE(info.count(old_api_map_key));
+            auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
+            ASSERT_TRUE(old_api_map_attr);
+            auto old_api_map_attr_val = old_api_map_attr->get();
+            ASSERT_EQ(old_api_map_attr_val.get_order(), order);
+            ASSERT_EQ(old_api_map_attr_val.get_type(), type);
+        };
     auto check_version = [](const std::shared_ptr<ov::Function>& f) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
+        auto version = std::dynamic_pointer_cast<ov::VariantWrapper<int64_t>>(rt_info.at("version"));
         ASSERT_NE(version, nullptr);
         ASSERT_EQ(version->get(), 11);
     };
@@ -291,14 +286,10 @@ TEST(RTInfoDeserialization, NodeV11) {
 
     auto param = f->get_parameters()[0];
     check_fused_names(param->get_rt_info(), "in1");
-    check_old_api_map(param->get_rt_info(),
-                                std::vector<uint64_t>({0, 2, 3, 1}),
-                                ngraph::element::Type_t::f32);
+    check_old_api_map(param->get_rt_info(), std::vector<uint64_t>({0, 2, 3, 1}), ngraph::element::Type_t::f32);
 
     auto result = f->get_results()[0];
-    check_old_api_map(result->get_rt_info(),
-                      std::vector<uint64_t>({0, 3, 1, 2}),
-                      ngraph::element::Type_t::undefined);
+    check_old_api_map(result->get_rt_info(), std::vector<uint64_t>({0, 3, 1, 2}), ngraph::element::Type_t::undefined);
     auto round = result->get_input_node_ptr(0);
     check_fused_names(round->get_rt_info(), "Round1,Round2");
 }
@@ -378,29 +369,27 @@ TEST(RTInfoDeserialization, InputAndOutputV11) {
     </edges>
 </net>
 )V0G0N";
-    auto core = InferenceEngine::Core();
-    auto net = core.ReadNetwork(model, InferenceEngine::Blob::Ptr());
-    auto f = net.getFunction();
+    auto f = ov::test::readIR(model);
 
     auto check_version = [](const std::shared_ptr<ov::Function>& f) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
+        auto version = std::dynamic_pointer_cast<ov::VariantWrapper<int64_t>>(rt_info.at("version"));
         ASSERT_NE(version, nullptr);
         ASSERT_EQ(version->get(), 11);
     };
     check_version(f);
 
-    auto check_fused_names = [](const RTMap & info, const std::string & names) {
-        const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+    auto check_fused_names = [](const ov::RTMap& info, const std::string& names) {
+        const std::string& key = ov::VariantWrapper<ngraph::FusedNames>::get_type_info_static();
         ASSERT_TRUE(info.count(key));
-        auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(info.at(key));
+        auto fused_names_attr = std::dynamic_pointer_cast<ov::VariantWrapper<ngraph::FusedNames>>(info.at(key));
         ASSERT_TRUE(fused_names_attr);
         ASSERT_EQ(fused_names_attr->get().getNames(), names);
     };
 
-    auto check_old_api_map = [](const RTMap & info, const std::vector<uint64_t> & order, ngraph::element::Type type) {
-        const std::string & old_api_map_key = ov::OldApiMap::get_type_info_static();
+    auto check_old_api_map = [](const ov::RTMap& info, const std::vector<uint64_t>& order, ngraph::element::Type type) {
+        const std::string& old_api_map_key = ov::OldApiMap::get_type_info_static();
         ASSERT_TRUE(info.count(old_api_map_key));
         auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
         ASSERT_TRUE(old_api_map_attr);
@@ -411,9 +400,7 @@ TEST(RTInfoDeserialization, InputAndOutputV11) {
 
     auto param = f->get_parameters()[0];
     check_fused_names(param->output(0).get_rt_info(), "test1,test2");
-    check_old_api_map(param->get_rt_info(),
-                      std::vector<uint64_t>({}),
-                      ngraph::element::Type_t::u8);
+    check_old_api_map(param->get_rt_info(), std::vector<uint64_t>({}), ngraph::element::Type_t::u8);
 
     auto result = f->get_results()[0];
     check_fused_names(result->input(0).get_rt_info(), "test5,test6");
@@ -522,14 +509,12 @@ TEST(RTInfoDeserialization, IndexesInputAndOutputV11) {
     </edges>
 </net>
 )V0G0N";
-    auto core = InferenceEngine::Core();
-    auto net = core.ReadNetwork(model, InferenceEngine::Blob::Ptr());
-    auto f = net.getFunction();
+    auto f = ov::test::readIR(model);
 
     auto check_version = [](const std::shared_ptr<ov::Function>& f) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
+        auto version = std::dynamic_pointer_cast<ov::VariantWrapper<int64_t>>(rt_info.at("version"));
         ASSERT_NE(version, nullptr);
         ASSERT_EQ(version->get(), 11);
     };

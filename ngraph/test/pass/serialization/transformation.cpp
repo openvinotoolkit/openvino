@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gtest/gtest.h>
+
 #include <fstream>
 
-#include "gtest/gtest.h"
-#include "ie_core.hpp"
-#include "ngraph/ngraph.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
-#include "common_test_utils/file_utils.hpp"
 #include "openvino/util/file_util.hpp"
+#include "read_ir.hpp"
+#include "util/test_common.hpp"
 
-class SerializationTransformationTest : public ::testing::Test {
+class SerializationTransformationTest : public ov::test::TestsCommon {
 protected:
-    std::string test_name =
-        ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    std::string test_name = GetTestName();
     std::string m_out_xml_path = test_name + ".xml";
     std::string m_out_bin_path = test_name + ".bin";
     std::shared_ptr<ngraph::Function> m_function;
@@ -22,8 +22,7 @@ protected:
     void SetUp() override {
         const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc.xml"});
         const std::string weights = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc.bin"});
-        InferenceEngine::Core ie;
-        m_function = ie.ReadNetwork(model, weights).getFunction();
+        m_function = ov::test::readIR(model, weights);
     }
 
     void TearDown() override {
@@ -43,9 +42,8 @@ TEST_F(SerializationTransformationTest, DirectInstantiation) {
 }
 
 TEST_F(SerializationTransformationTest, PassManagerInstantiation) {
-    ngraph::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(m_out_xml_path,
-                                                   m_out_bin_path);
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>(m_out_xml_path, m_out_bin_path);
     manager.run_passes(m_function);
 
     std::ifstream xml(m_out_xml_path);
