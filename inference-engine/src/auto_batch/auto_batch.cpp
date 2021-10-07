@@ -206,7 +206,7 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
         if (!batch_id) {  //need new request
             _workerRequests.push_back(std::make_shared<WorkerInferRequest>());
             auto workerRequestPtr = _workerRequests.back();
-            workerRequestPtr->_inferRequest = {_network, _network->CreateInferRequest()};
+            workerRequestPtr->_inferRequest = {_network._so, _network->CreateInferRequest()};
             workerRequestPtr->_batchSize = _device.batchForDevice;
             workerRequestPtr->_cond = std::promise<void>();
             workerRequestPtr->_event = workerRequestPtr->_cond.get_future().share();
