@@ -186,9 +186,10 @@ class AddOutputRecursive(BackReplacementPattern):
             step_node = cur_loop_node
             cur_graph = graphs_path[i-1]
 
+        i = 0
         for p_num in ports_to_add_nodes:
             port = step_node.out_port(p_num)
-            out_name = final_res_name + ":" + str(p_num)
+            out_name = final_res_name + ":" + str(i)
             res_node = Result(cur_graph, {'name': out_name}).create_node()
             port.connect(res_node.in_port(0))
             # add name of Result to fw_tebsor_debug_info to avoid renaming
@@ -201,6 +202,7 @@ class AddOutputRecursive(BackReplacementPattern):
                                                                                           len(step_node.in_ports())
             nodes_path.insert(len(nodes_path)-1, res_node)
             graphs_path.insert(len(nodes_path)-1, cur_graph)
+            i += 1
         return nodes_path, graphs_path
 
     @staticmethod
