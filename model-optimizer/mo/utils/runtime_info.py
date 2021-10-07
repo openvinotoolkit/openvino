@@ -7,6 +7,7 @@ from typing import Dict
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 
 
@@ -50,10 +51,10 @@ class OldAPIMap(RTInfoElement):
     def __init__(self):
         self.info = defaultdict(dict)
 
-    def old_api_transpose_parameter(self, inv: np.array):
+    def old_api_transpose_parameter(self, inv: int64_array):
         self.info['inverse_order'] = inv
 
-    def old_api_transpose_result(self, order: np.array):
+    def old_api_transpose_result(self, order: int64_array):
         self.info['order'] = order
 
     def old_api_convert(self, legacy_type: np.dtype):
