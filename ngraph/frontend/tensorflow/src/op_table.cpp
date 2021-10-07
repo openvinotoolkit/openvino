@@ -46,7 +46,7 @@ OP_CONVERTER(TranslateFusedConv2DOp);
 OP_CONVERTER(TranslateFusedMatMulOp);
 OP_CONVERTER(TranslateIdentityOp);
 OP_CONVERTER(TranslateIsFiniteOp);
-// OP_CONVERTER(TranslateL2LossOp);
+OP_CONVERTER(TranslateL2LossOp);
 OP_CONVERTER(TranslateLogSoftmaxOp);
 OP_CONVERTER(TranslateLog1pOp);
 // OP_CONVERTER(TranslateLRNOp);
@@ -84,7 +84,7 @@ OP_CONVERTER(TranslateSqrtOp);
 OP_CONVERTER(TranslateTileOp);
 // OP_CONVERTER(TranslateTopKV2Op);
 OP_CONVERTER(TranslateTransposeOp);
-// OP_CONVERTER(TranslateUnpackOp);
+OP_CONVERTER(TranslateUnpackOp);
 OP_CONVERTER(TranslateWhereOp);
 OP_CONVERTER(TranslateXdivyOp);
 OP_CONVERTER(TranslateZerosLikeOp);
@@ -174,7 +174,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"_FusedMatMul", TranslateFusedMatMulOp},
         {"Identity", TranslateIdentityOp},
         {"IsFinite", TranslateIsFiniteOp},
-        //{"L2Loss", TranslateL2LossOp},
+        {"L2Loss", TranslateL2LossOp},
         {"LogSoftmax", TranslateLogSoftmaxOp},
         {"Log1p", TranslateLog1pOp},
         //{"LRN", TranslateLRNOp},
@@ -221,7 +221,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Tile", TranslateTileOp},
         //{"TopKV2", TranslateTopKV2Op},
         {"Transpose", TranslateTransposeOp},
-        //{"Unpack", TranslateUnpackOp},
+        {"Unpack", TranslateUnpackOp},
         {"Where", TranslateWhereOp},
         {"Xdivy", TranslateXdivyOp},
         {"ZerosLike", TranslateZerosLikeOp},

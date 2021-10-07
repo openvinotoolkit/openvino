@@ -8,41 +8,41 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-#if 0
+
 namespace ngraph {
 namespace frontend {
 namespace tf {
 namespace op {
 
-static Status TranslateL2LossOp(const TFNodeDecoder* op,
-                                const std::vector<const ngraph::frontend::tf::detail::TensorWrapper*>&,
-                                Builder::OpMap& ng_op_map) {
-  Output<Node> ng_input;
-  TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input));
+OutputVector TranslateL2LossOp(const NodeContext& node) {
+  auto input = node.get_ng_input(0);
 
   std::vector<float> val;
   val.push_back(2.0);
-  auto const_2 = ConstructNgNode<Constant>(
-      node.get_name(), ng_input.get_element_type(), Shape{}, val[0]);
+  auto const_2 = make_shared<Constant>(input.get_element_type(), Shape{}, 2);
+  auto pow = make_shared<Multiply>(input, input);
+  auto p_shape = input.get_partial_shape();
 
-  auto ng_pow =
-      ConstructNgNode<Multiply>(node.get_name(), ng_input, ng_input);
-
-  size_t input_rank = ng_input.get_shape().size();
-  std::vector<int64_t> axes;
-  for (size_t i = 0; i < input_rank; ++i) {
-    axes.push_back(i);
+  Output<Node> reduction_axes;
+  if (p_shape.rank().is_static()) {
+      std::vector<int64_t> axes(p_shape.size());
+      std::iota(axes.begin(), axes.end(), 0);
+      reduction_axes = make_shared<Constant>(element::i64, Shape{axes.size()}, axes);
+  } else {
+      auto shape = make_shared<ShapeOf>(input);
+      auto rank = make_shared<ShapeOf>(shape);
+      auto start = make_shared<Constant>(element::i64, Shape{1}, 0);
+      auto step = make_shared<Constant>(element::i64, Shape{1}, 1);
+      reduction_axes = make_shared<Range>(start, rank, step, element::i64);
   }
 
-  auto ng_reduction_axes = ConstructNgNode<Constant>(
-      node.get_name(), element::i64, Shape{axes.size()}, axes);
-  auto ng_sum =
-      ConstructNgNode<ReduceSum>(node.get_name(), ng_pow, ng_reduction_axes);
-  auto ng_l2loss = ConstructNgNode<Divide>(node.get_name(), ng_sum, const_2);
-  SaveNgOp(ng_op_map, node.get_name(), ng_l2loss);
-  return Status::OK();
+  auto sum = make_shared<ReduceSum>(pow, reduction_axes);
+  auto l2loss = make_shared<Divide>(sum, const_2);
+  l2loss->set_friendly_name(node.get_name());
+  return l2loss->outputs();
 }
 
 }
 }
-#endif
+}
+}

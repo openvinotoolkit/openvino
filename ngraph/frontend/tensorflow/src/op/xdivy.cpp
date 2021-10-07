@@ -18,7 +18,6 @@ OutputVector TranslateXdivyOp(const NodeContext& node) {
     auto y = node.get_ng_input(1);
 
     auto zero = make_shared<Constant>(x.get_element_type(), Shape{}, 0);
-    auto one = make_shared<Constant>(x.get_element_type(), Shape{}, 1);
     auto x_is_zero = make_shared<Equal>(x, zero);
 
     // todo (itikhono) : looks wrong, verify
@@ -26,6 +25,7 @@ OutputVector TranslateXdivyOp(const NodeContext& node) {
     //    auto xdivy = make_shared<Divide>(x, y);
     //    auto select = make_shared<Select>(x_is_zero, y, xdivy);
     // current:
+    auto one = make_shared<Constant>(x.get_element_type(), Shape{}, 1);
     auto select = make_shared<Select>(x_is_zero, one, y);
     auto xdivy = make_shared<Divide>(x, select);
     xdivy->set_friendly_name(node.get_name());
