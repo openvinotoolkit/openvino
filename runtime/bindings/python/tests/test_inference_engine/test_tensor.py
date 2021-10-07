@@ -45,12 +45,21 @@ def test_init_with_ngraph(ov_type, numpy_dtype):
     (ng.impl.Type.boolean, np.bool)
 ])
 def test_init_with_numpy(ov_type, numpy_dtype):
-    ones_arr = np.ones(shape=(1, 3, 127, 127), dtype=numpy_dtype)
+    shape = (1, 3, 127, 127)
+    ov_tensor = Tensor(np.dtype(numpy_dtype), shape)
+    assert ov_tensor.element_type == ov_type
+    assert ov_tensor.data.dtype == numpy_dtype
+
+    ov_tensor = Tensor(np.dtype(numpy_dtype), np.array(shape))
+    assert ov_tensor.element_type == ov_type
+    assert ov_tensor.data.dtype == numpy_dtype
+
+    ones_arr = np.ones(shape, numpy_dtype)
     ov_tensor = Tensor(ones_arr)
     assert ov_tensor.element_type == ov_type
     assert isinstance(ov_tensor.data, np.ndarray)
     assert ov_tensor.data.dtype == numpy_dtype
-    assert ov_tensor.data.shape == (1, 3, 127, 127)
+    assert ov_tensor.data.shape == shape
     assert np.shares_memory(ones_arr, ov_tensor.data)
     assert np.array_equal(ov_tensor.data, ones_arr)
 

@@ -7,6 +7,7 @@
 #include "pyopenvino/core/common.hpp"
 
 #include <pybind11/numpy.h>
+#include <pybind11/stl.h>
 
 #include "openvino/runtime/tensor.hpp"
 
@@ -24,12 +25,14 @@ void regclass_Tensor(py::module m) {
         ov::element::Type ov_type = Common::dtype_to_ov_type[py::str(array.dtype())];
         return Tensor(ov_type, shape, (void*)array.data(), strides);
     }));
+    cls.def(py::init([](py::dtype np_dtype, std::vector<size_t> shape) {
+        return Tensor(Common::dtype_to_ov_type[py::str(np_dtype)], shape);
+    }));
 
     cls.def_property_readonly("element_type", &Tensor::get_element_type);
-    cls.def_property("shape", &Tensor::get_shape, &Tensor::set_shape);
-
     cls.def_property_readonly("data", [](Tensor& self) {
         ov::element::Type ov_type = self.get_element_type();
         return py::array(Common::ov_type_to_dtype[ov_type], self.get_shape(), self.data(), py::cast(self));
     });
+    cls.def_property("shape", &Tensor::get_shape, &Tensor::set_shape);
 }
