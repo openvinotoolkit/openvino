@@ -78,6 +78,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*OVExecutableNetworkBaseTest.*CanGetInputsInfoAndCheck.*)",
             R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
             // TODO: Issue 66516
-            R"(.*smoke_PrePostProcess_GPU.*convert_element_type_and_mean.*)"
+            R"(.*smoke_PrePostProcess_GPU.*convert_element_type_and_mean.*)",
+            // TODO: Issue 67408
+            R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
     };
 }
