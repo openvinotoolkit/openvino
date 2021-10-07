@@ -63,6 +63,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_Data(m);
     regclass_TensorDecription(m);
 
+    // Blob will be removed
     // Registering template of Blob
     regclass_Blob(m);
     // Registering specific types of Blobs
