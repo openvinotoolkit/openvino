@@ -32,6 +32,10 @@ public:
         return getOriginalInputsNumber();
     }
 
+    size_t getChannelAxis() const override {
+        return getOutputShapeAtPort(0).getRank() - 1;
+    }
+
     void prepareParams() override;
     void executeDynamicImpl(mkldnn::stream strm) override;
 

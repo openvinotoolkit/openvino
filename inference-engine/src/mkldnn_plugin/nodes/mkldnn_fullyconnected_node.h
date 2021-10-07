@@ -47,8 +47,7 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
-protected:
-    AttrPtr initPrimitiveAttr();
+    std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() override;
 
 private:
     void createDescriptorInternal(const mkldnn::memory::desc &inputDesc,

@@ -17,6 +17,7 @@
 #include "common/cpu_memcpy.h"
 #include <ngraph/opsets/opset1.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "nodes/mkldnn_fake_quantize_node.h"
 #include "utils/general_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "mkldnn_extension_utils.h"
@@ -56,29 +57,64 @@ bool MKLDNNMatMulNode::isSupportedOperation(const std::shared_ptr<const ngraph::
 MKLDNNMatMulNode::MKLDNNMatMulNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
     MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
+    errorPrefix = "MatMul node with name '" + getName() + "'";
+
     if (!isSupportedOperation(op, errorMessage))
         IE_THROW(NotImplemented) << errorMessage;
 
-    errorPrefix = "MatMul node with name '" + getName() + "'";
-
     const auto matMul = std::dynamic_pointer_cast<const ngraph::opset1::MatMul>(op);
+
+    if (!matMul) {
+        IE_THROW(NotImplemented) << "Operation with name " << op->get_friendly_name() << ":" << op->get_type_name();
+        " is not an instance of MatMul from opset1";
+    }
 
     transposeIn[0] = matMul->get_transpose_a();
     transposeIn[1] = matMul->get_transpose_b();
 }
 
 bool MKLDNNMatMulNode::canFuse(const MKLDNNNodePtr& node) const {
-    return one_of(node->getAlgorithm(), EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseClamp, EltwiseTanh,
-                  EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
-                  EltwiseRoundHalfAwayFromZero, EltwiseAbs, EltwiseSqrt, EltwiseSoftRelu);
+    // per channel binary post op for rank > 2D is supported only by oneDNN reference implementation because of unusual MatMul channel axis (issue 6669)
+    if (getOutputShapeAtPort(0).getRank() > 2) {
+        if (const auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
+            if (one_of(eltwiseNode->getAlgorithm(),
+                       EltwiseAdd, EltwiseMultiply, EltwiseSubtract, EltwiseDivide, EltwisePrelu, EltwiseMulAdd, EltwisePowerStatic) &&
+                eltwiseNode->getPolicy() != MKLDNNEltwiseNode::PerTensor) {
+                return false;
+            }
+        } else if (const auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get())) {
+            if (fakeQuantizeNode->getPolicy() != MKLDNNFakeQuantizeNode::PerTensor) {
+                return false;
+            }
+        }
+    }
+
+    return canFuseSimpleOperation(node);
 }
 
 void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims& dims, bool initWeights = false) const {
     mkldnn::post_ops ops;
 
-    for (auto &node : fusedWith) {
+    auto getBinPostOpShape = [&](){
+        const auto outShape = getOutputShapeAtPort(0).getStaticDims();
+        const auto outShapeRank = getOutputShapeAtPort(0).getRank();
+        const auto chIdx = getChannelAxis();
+        std::vector<size_t> binaryShape(outShapeRank, 1);
+        binaryShape[chIdx] = outShape[chIdx];
+        return binaryShape;
+    };
+
+    for (const auto &node : fusedWith) {
         if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
-            eltwiseNode->appendPostOps(ops, dims);
+            // TODO [DS]: change to shape from memory
+            if (eltwiseNode->getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
+                eltwiseNode->appendPostOps(ops, dims);
+            } else {
+                eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
+            }
+            continue;
+        } else if (auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get())) {
+            fakeQuantizeNode->appendBinPostOps(ops, getBinPostOpShape(), binaryPostOpsArgs);
             continue;
         }
 
@@ -87,7 +123,6 @@ void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims
 
     attr.set_post_ops(ops);
 }
-
 
 MKLDNNNode::AttrPtr MKLDNNMatMulNode::initPrimitiveAttr(const VectorDims &dims) const {
     auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
@@ -137,6 +172,10 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW()  << errorPrefix << " has incorrect number of output edges for layer " << getName();
 
+    auto canBeExecutedInInt8 = [](const Precision firstInput, const Precision secondInput) {
+        return one_of(firstInput, Precision::U8, Precision::I8) && secondInput == Precision::I8;
+    };
+
     auto firstInPortPrec = getOriginalInputPrecisionAtPort(0);
     auto secondInPortPrec = getOriginalInputPrecisionAtPort(1);
     auto outPortPrec = getOriginalOutputPrecisionAtPort(0);
@@ -153,6 +192,9 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
     if (!fusedWith.empty()) {
         outPortPrec = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
+
+    if (!canBeExecutedInInt8(firstInPortPrec, secondInPortPrec) && one_of(outPortPrec, Precision::U8, Precision::I8))
+        outPortPrec = Precision::FP32; // INT output is not supported for non-INT inputs
 
     const auto& inputShape0 = getInputShapeAtPort(0);
     const auto& inputShape1 = getInputShapeAtPort(1);
@@ -347,6 +389,8 @@ void MKLDNNMatMulNode::prepareParams() {
     primArgs[DNNL_ARG_SRC_0] = src0MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_WEIGHTS_0] = src1MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
+
+    appendPostOpArgs(*attr);
 }
 
 void MKLDNNMatMulNode::executeDynamicImpl(dnnl::stream strm) {

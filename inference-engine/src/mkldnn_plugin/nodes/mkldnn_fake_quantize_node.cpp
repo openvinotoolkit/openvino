@@ -860,7 +860,15 @@ bool MKLDNNFakeQuantizeNode::isSupportedOperation(const std::shared_ptr<const ng
                         count_not_unit_axis++;
                     }
                 }
-                if (count_not_unit_axis > 1 || not_unit_axis > 1) {
+
+                /* @todo
+                 * Channel axis 2 is added for 3D MatMul (most common one).
+                 * FQ for non-1 channel fallbacks to reference implementation.
+                 * Expected to be fused for 3D MatMul
+                 * Long term idea: restore limitation for channel axis 1 and
+                 * support fusing of unfolded FQ (see FakeQuantizeDecomposition transformation)
+                 */
+                if (count_not_unit_axis > 1 || !one_of(not_unit_axis, 1, 2)) {
                     errorMessage = "Supports only per-tensor and per-channel quantizations";
                     return false;
                 }
@@ -1056,6 +1064,13 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
             inputShiftSize = inputShift.size();
             outputScaleSize = outputScale.size();
             outputShiftSize = outputShift.size();
+
+            if (everyone_is(1, cropLowSize, cropHighSize, inputScaleSize, inputShiftSize, outputScaleSize, outputShiftSize))
+                policy = PerTensor;
+            else if (one_of(1, cropLowSize, cropHighSize, inputScaleSize, inputShiftSize, outputScaleSize, outputShiftSize))
+                policy = Mixed;
+            else
+                policy = PerChannel;
 
             bool quantizationOnly = true;
 

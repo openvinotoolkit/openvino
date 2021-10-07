@@ -98,7 +98,16 @@ public:
 
     void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
 
+    enum Policy {
+        PerChannel,
+        PerTensor,
+        Undefined,
+    };
+
+    Policy getPolicy() const { return policy; }
+
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+
 
 private:
     struct EltwiseExecutor {
@@ -131,6 +140,8 @@ private:
         size_t fullWorkAmount = 0;
     };
 
+    Policy policy;
+
     mkldnn::algorithm mkldnnAlgorithm = mkldnn::algorithm::undef;
 
     static const int optimalTensorRank = 6;
@@ -157,6 +168,8 @@ private:
 
     using Initializer = std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>;
     static const std::map<const ngraph::DiscreteTypeInfo, Initializer> initializers;
+
+    static Policy determinePolicy(const std::shared_ptr<ngraph::Node>& op);
 
     void executeOptimized6D(const std::unique_ptr<jit_uni_eltwise_kernel> &pKernel, const jit_eltwise_call_args_ptrs &args_ptrs,
                             const VectorDims &dims_out) const;

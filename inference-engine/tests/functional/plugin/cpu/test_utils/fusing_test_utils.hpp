@@ -5,6 +5,7 @@
 #pragma once
 
 #include "cpu_test_utils.hpp"
+#include <memory>
 #include <shared_test_classes/single_layer/activation.hpp>
 
 namespace CPUTestUtils {
@@ -75,6 +76,25 @@ protected:
     bool checkFusingPosition = true;
 };
 
+static size_t getChannelAxis(const std::shared_ptr<ngraph::Node>& node) {
+    if (std::dynamic_pointer_cast<ngraph::op::MatMul>(node))
+        return node->get_shape().size() - 1; // last dimension
+    else
+        return 1; // second dimension
+}
+
+static ngraph::Shape generatePerChannelShape(const std::shared_ptr<ngraph::Node>& node) {
+    const auto shape = node->get_output_partial_shape(0);
+    if (shape.size() == 1)
+        IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
+    ngraph::Shape perChannelShape(shape.size(), 1);
+    const auto channelAxis = getChannelAxis(node);
+
+    perChannelShape[channelAxis] = shape[channelAxis];
+
+    return perChannelShape;
+}
+
 /* FUSING PATTERNS */
 const auto emptyFusingSpec = fusingSpecificParams{nullptr, {}};
 
@@ -120,11 +140,7 @@ const auto fusingSqrt = fusingSpecificParams{std::make_shared<postNodesMgr>(std:
 
 const auto fusingPReluPerChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-                auto shape = inpNode->get_output_partial_shape(0);
-                if (shape.size() == 1)
-                    IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
-                ngraph::Shape newShape(shape.size(), 1);
-                newShape[1] = shape[1].get_length();
+                ngraph::Shape newShape = generatePerChannelShape(inpNode);
                 auto data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(newShape));
                 return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::LeakyRelu, newShape, data);
             }, "PRelu(PerChannel)"}}), {"PRelu"}};
@@ -166,11 +182,7 @@ const auto fusingReluAdd = fusingSpecificParams{std::make_shared<postNodesMgr>(s
                 return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::Relu);
             }, "Relu"},
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-                auto shape = inpNode->get_output_partial_shape(0);
-                if (shape.size() == 1)
-                    IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
-                ngraph::Shape newShape(shape.size(), 1);
-                newShape[1] = shape[1].get_length();
+                ngraph::Shape newShape = generatePerChannelShape(inpNode);
                 auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
                 return std::make_shared<ngraph::opset1::Add>(inpNode, constNode);
             }, "Add(PerChannel)"}}), {"Relu", "Add"}};
@@ -180,40 +192,24 @@ const auto fusingReluScaleShift = fusingSpecificParams{std::make_shared<postNode
                 return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::Relu);
             }, "Relu"},
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-                 auto shape = inpNode->get_output_partial_shape(0);
-                 if (shape.size() == 1)
-                     IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
-                 ngraph::Shape newShape(shape.size(), 1);
-                 newShape[1] = shape[1].get_length();
-                 auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
-                 return std::make_shared<ngraph::opset1::Multiply>(inpNode, constNode);
+                ngraph::Shape newShape = generatePerChannelShape(inpNode);
+                auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
+                return std::make_shared<ngraph::opset1::Multiply>(inpNode, constNode);
             }, "Multiply(PerChannel)"},
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-                auto shape = inpNode->get_output_partial_shape(0);
-                if (shape.size() == 1)
-                 IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
-                ngraph::Shape newShape(shape.size(), 1);
-                newShape[1] = shape[1].get_length();
+                ngraph::Shape newShape = generatePerChannelShape(inpNode);
                 auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
                 return std::make_shared<ngraph::opset1::Add>(inpNode, constNode);
             }, "Add(PerChannel)"}}), {"Relu", "Add"}};
 
 const auto fusingScaleShift = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
-                 auto shape = inpNode->get_output_partial_shape(0);
-                 if (shape.size() == 1)
-                     IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
-                 ngraph::Shape newShape(shape.size(), 1);
-                 newShape[1] = shape[1].get_length();
-                 auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
-                 return std::make_shared<ngraph::opset1::Multiply>(inpNode, constNode);
+                ngraph::Shape newShape = generatePerChannelShape(inpNode);
+                auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
+                return std::make_shared<ngraph::opset1::Multiply>(inpNode, constNode);
             }, "Multiply(PerChannel)"},
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
-                auto shape = inpNode->get_output_partial_shape(0);
-                if (shape.size() == 1)
-                 IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
-                ngraph::Shape newShape(shape.size(), 1);
-                newShape[1] = shape[1].get_length();
+                ngraph::Shape newShape = generatePerChannelShape(inpNode);
                 auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
                 return std::make_shared<ngraph::opset1::Add>(inpNode, constNode);
             }, "Add(PerChannel)"}}), {"Add"} };
@@ -228,22 +224,14 @@ const auto fusingFakeQuantizePerTensor = fusingSpecificParams{ std::make_shared<
 const auto fusingFakeQuantizePerChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
                 auto localPrc = inpNode->get_element_type();
-                auto shape = inpNode->get_output_partial_shape(0);
-                if (shape.size() == 1)
-                    IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
-                ngraph::Shape newShape(shape.size(), 1);
-                newShape[1] = shape[1].get_length();
+                ngraph::Shape newShape = generatePerChannelShape(inpNode);
                 return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
             }, "FakeQuantize(PerChannel)"}}), {"FakeQuantize"}};
 
 const auto fusingFakeQuantizePerChannelRelu = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
                 auto localPrc = inpNode->get_element_type();
-                auto shape = inpNode->get_output_partial_shape(0);
-                if (shape.size() == 1)
-                 IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
-                ngraph::Shape newShape(shape.size(), 1);
-                newShape[1] = shape[1].get_length();
+                ngraph::Shape newShape = generatePerChannelShape(inpNode);
                 return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
             }, "FakeQuantize(PerChannel)"},
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
@@ -291,60 +279,56 @@ const auto fusingSumEluFQ = fusingSpecificParams{std::make_shared<postNodesMgr>(
 const auto fusingMultiplyPerTensor = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
             ngraph::Shape secondMultInShape(1, 1);
-            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, ngraph::Shape(secondMultInShape), std::vector<float>{}, true);
+            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::op::v1::Multiply>(inpNode, secondMultInput);
         }, "Multiply(PerTensor)"}}), {"Multiply"}};
 
 const auto fusingMultiplyPerChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-            ngraph::Shape secondMultInShape(inpNode->get_output_partial_shape(0).size(), 1);
-            secondMultInShape[1] = inpNode->get_output_partial_shape(0)[1].get_length();
-            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, ngraph::Shape(secondMultInShape), std::vector<float>{}, true);
+            ngraph::Shape secondMultInShape = generatePerChannelShape(inpNode);
+            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Multiply>(inpNode, secondMultInput);
         }, "Multiply(PerChannel)"}}), {"Multiply"}};
 
 const auto fusingAddPerTensor = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
             ngraph::Shape secondMultInShape(1, 1);
-            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, ngraph::Shape(secondMultInShape), std::vector<float>{}, true);
+            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Add>(inpNode, secondMultInput);
         }, "Add(PerTensor)"}}), {"Add"}};
 
 const auto fusingAddPerChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-            ngraph::Shape secondMultInShape(inpNode->get_output_partial_shape(0).size(), 1);
-            secondMultInShape[1] = inpNode->get_output_partial_shape(0)[1].get_length();
-            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, ngraph::Shape(secondMultInShape), std::vector<float>{}, true);
+            ngraph::Shape secondMultInShape = generatePerChannelShape(inpNode);
+            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Add>(inpNode, secondMultInput);
         }, "Add(PerChannel)"}}), {"Add"}};
 
 const auto fusingSubtractPerTensor = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
             ngraph::Shape secondMultInShape(1, 1);
-            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, ngraph::Shape(secondMultInShape), std::vector<float>{}, true);
+            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Subtract>(inpNode, secondMultInput);
         }, "Subtract(PerTensor)"}}), {"Subtract"}};
 
 const auto fusingSubtractPerChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-            ngraph::Shape secondMultInShape(inpNode->get_output_partial_shape(0).size(), 1);
-            secondMultInShape[1] = inpNode->get_output_partial_shape(0)[1].get_length();
-            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, ngraph::Shape(secondMultInShape), std::vector<float>{}, true);
+            ngraph::Shape secondMultInShape = generatePerChannelShape(inpNode);
+            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Subtract>(inpNode, secondMultInput);
         }, "Subtract(PerChannel)"}}), {"Subtract"}};
 
 const auto fusingDividePerTensor = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
             ngraph::Shape secondMultInShape(1, 1);
-            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, ngraph::Shape(secondMultInShape), std::vector<float>{}, true);
+            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Divide>(inpNode, secondMultInput);
         }, "Divide(PerTensor)"}}), {"Divide"}};
 
 const auto fusingDividePerChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
-            ngraph::Shape secondMultInShape(inpNode->get_output_partial_shape(0).size(), 1);
-            secondMultInShape[1] = inpNode->get_output_partial_shape(0)[1].get_length();
-            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, ngraph::Shape(secondMultInShape), std::vector<float>{}, true);
+            ngraph::Shape secondMultInShape = generatePerChannelShape(inpNode);
+            auto secondMultInput = ngraph::builder::makeConstant(ngPrc, secondMultInShape, std::vector<float>{}, true);
             return std::make_shared<ngraph::opset1::Divide>(inpNode, secondMultInput);
         }, "Divide(PerChannel)"}}), {"Divide"}};
 

@@ -603,7 +603,7 @@ protected:
     virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, int align = -1);
     virtual void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims& postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem);
 
-    virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() const { return nullptr; }
+    virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() { return nullptr; }
 
     typedef std::function<DnnlMemoryDescPtr (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>
             GetPrimitiveMemoryFormatFunc;

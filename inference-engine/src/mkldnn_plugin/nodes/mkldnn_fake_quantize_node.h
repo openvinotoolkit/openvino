@@ -129,6 +129,14 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
+    enum Policy {
+        PerChannel, // all FQ operations are per channel
+        PerTensor,  // all FQ operations are per tensor
+        Mixed,      // some per channel, some per tensor
+    };
+
+    Policy getPolicy() const { return policy; }
+
     MKLDNNMemoryPtr cropLowMemory;
     MKLDNNMemoryPtr cropHighMemory;
     MKLDNNMemoryPtr inputScaleMemory;
@@ -199,6 +207,8 @@ private:
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
 
     std::string errorPrefix;
+
+    Policy policy;
 };
 
 }  // namespace MKLDNNPlugin

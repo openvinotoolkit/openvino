@@ -7,6 +7,7 @@
 #include "ie_precision.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
+#include <string>
 
 using namespace ngraph;
 using namespace InferenceEngine;
@@ -141,7 +142,11 @@ protected:
         const auto& inShapeA = inputDynamicShapes[0];
         const auto& inShapeB = inputDynamicShapes[1];
 
-        std::tie(postOpMgrPtr, fusedOps) = fusingParams;
+        // see comment in MKLDNNMatMulNode::canFuse
+        if (!(nodeType == MatMulNodeType::MatMul &&
+              std::get<0>(fusingParams) && std::get<0>(fusingParams)->getFusedOpsNames().find("(PerChannel)") != std::string::npos &&
+              std::max(inShapeA.size(), inShapeB.size()) > 2))
+            std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
@@ -548,7 +553,14 @@ const std::vector<ShapeRelatedParams> IS = {
 std::vector<fusingSpecificParams> matmulFusingParams {
         emptyFusingSpec,
         fusingElu,
-        fusingSqrt
+        fusingSqrt,
+        fusingPReluPerTensor,
+        fusingMultiplyPerChannel,
+        fusingFakeQuantizePerChannel,
+        /* @todo FQ unfolds into FQ + Convert + Substract + Multiply after LPT,
+         * so Relu cannot be fused in this case. Should be analysed */
+        // fusingFakeQuantizePerChannelRelu,
+        fusingFakeQuantizePerTensorRelu,
 };
 
 const auto matMulParams = ::testing::Combine(::testing::ValuesIn(IS),
