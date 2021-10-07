@@ -106,12 +106,13 @@ jobs:
     displayName: 'List temp SDKs'
 
   - script: |
+        set -e
         wget https://scan.coverity.com/download/linux64 --post-data "token=$(COVERITY_TOKEN)&project=openvino" -O coverity_tool.tgz
-        tar xvf coverity_tool.tgz --directory $(Agent.ToolsDirectory)
+        tar xvf coverity_tool.tgz
         rm coverity_tool.tgz
-    workingDirectory: $(TEMP)
+    workingDirectory: $(WORK_DIR)
 
-  - script: $(Agent.ToolsDirectory)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int ninja
+  - script: $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int ninja
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Lin with Coverity'
   
@@ -135,6 +136,7 @@ jobs:
     displayName: 'Build c samples with Coverity'
 
   - script: |
+        set -e
         tar czvf openvino.tgz $(BUILD_DIR)/cov-int
         curl --form token=$(COVERITY_TOKEN) \
           --form email=$(COVERITY_USER) \
