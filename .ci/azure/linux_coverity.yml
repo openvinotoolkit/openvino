@@ -72,6 +72,9 @@ jobs:
       $(REPO_DIR)/install_build_dependencies.sh
       # Move jdk into contrib
       sudo apt --assume-yes install openjdk-11-jdk
+      python3 -m pip install --upgrade pip
+      # For building Python API
+      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
       # Speed up build
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
