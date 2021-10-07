@@ -653,11 +653,18 @@ class DataQuantizer<Desc, InferenceEngine::WeightableLayer *> : public DataQuant
 
     void operator()(InferenceEngine::WeightableLayer *wl, const FakeQuant&) const {
         auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*wl);
-        IE_ASSERT(quantData->_weights_quant.IsStatsSet());
-        if (quantData->_weights_quant.GetLevels() <= std::numeric_limits<uint8_t>::max()) {
-            quantizeWeightsBiases<FakeQuantI8>(FakeQuantI8(), wl, Quant<FakeQuantI8>());
+        if (quantData->_weights_quant.IsStatsSet()) {
+            if (quantData->_weights_quant.GetLevels() <= std::numeric_limits<uint8_t>::max()) {
+                quantizeWeightsBiases<FakeQuantI8>(FakeQuantI8(), wl, Quant<FakeQuantI8>());
+            } else {
+                quantizeWeightsBiases<FakeQuantI16>(FakeQuantI16(), wl, Quant<FakeQuantI16>());
+            }
         } else {
-            quantizeWeightsBiases<FakeQuantI16>(FakeQuantI16(), wl, Quant<FakeQuantI16>());
+            if (std::is_same<typename Desc::OptionalType, FakeQuant>()) {
+                THROW_GNA_EXCEPTION << "Infinite recursion. The type Desc::OptionalType is equal FakeQuant.";
+            }
+
+            (*this)(wl, typename Desc::OptionalType());
         }
     }
 };
