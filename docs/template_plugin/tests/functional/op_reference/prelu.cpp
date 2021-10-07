@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <ngraph_functions/builders.hpp>
 #include "openvino/op/prelu.hpp"
 #include "base_reference_test.hpp"
 
@@ -38,7 +39,7 @@ class ReferencePreluLayerTest : public testing::TestWithParam<PreluParams>, publ
 public:
     void SetUp() override {
         auto params = GetParam();
-        function = CreateFunction(params);
+        function = CreateFunction(params.pshape, params.negativeSlopeShape, params.inType, params.negativeSlope);
         inputData = {params.inputData, params.negativeSlope};
         refOutData = {params.refData};
     }
@@ -59,10 +60,28 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PreluParams& params) {
-        const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.pshape);
+    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const Shape& slope_shape,
+                                                    const element::Type& input_type, const ov::runtime::Tensor& negativeSlope) {
+/*
+        const auto& element_type = negativeSlope.get_element_type();
+        switch (element_type) {
+        case ov::element::f32:
+            std::vector<float> slopeArray = negativeSlope.data<const float>();
+            ngraph::builder::makeConstant<float>(element_type, slope_shape, slopeArray);
+            break;
+        case ov::element::f16:
+            negativeSlope.data<const ov::float16>();
+            break;
+        case ov::element::bf16:
+            negativeSlope.data<const ov::bfloat16>();
+            break;
+        default:
+            break;
+        }
+*/
+        const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         //const auto SLOPE = op::Constant::create(input_type, negativeSlopeShape, negativeSlope->get());
-        const auto SLOPE = std::make_shared<op::v0::Parameter>(params.inType, params.negativeSlopeShape);
+        const auto SLOPE = std::make_shared<op::v0::Parameter>(input_type, slope_shape);
         const auto Prelu = std::make_shared<op::v0::PRelu>(in, SLOPE);
         return std::make_shared<ov::Function>(NodeVector {Prelu}, ParameterVector {in, SLOPE});
     }
