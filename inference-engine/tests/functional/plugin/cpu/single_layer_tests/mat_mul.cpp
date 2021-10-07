@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_layer/mat_mul.hpp"
+#include "ie_precision.hpp"
 #include "test_utils/fusing_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 
@@ -63,12 +64,7 @@ protected:
         bool transpA = shapeRelatedParams.input1.second;
         bool transpB = shapeRelatedParams.input2.second;
 
-        /* @todo
-         * Currently nodes are not fused thought Reshape
-         * Check can be deleted after this limitation is gone
-         */
-        if (nodeType == MatMulNodeType::MatMul && inShapeA.size() < 4 && inShapeB.size() < 4)
-            std::tie(postOpMgrPtr, fusedOps) = fusingParams;
+        std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
@@ -113,6 +109,9 @@ namespace {
 const std::vector<bool> transpose = {
     true, false
 };
+
+
+std::map<std::string, std::string> emptyAdditionalConfig;
 
 std::vector<std::map<std::string, std::string>> additionalConfig {
     std::map<std::string, std::string>{/* empty config */},
@@ -160,23 +159,42 @@ std::vector<fusingSpecificParams> fusingParamsSet2D {
         fusingBiasFC,
         fusingRelu,
         fusingMultiplyPerChannel,
-        fusingPReluPerTensor
+        fusingPReluPerTensor,
+        fusingFakeQuantizePerChannelRelu,
+        fusingFakeQuantizePerTensorRelu,
 };
 
-const auto fullyConnectedParams2D = ::testing::Combine(::testing::ValuesIn(IS2D),
-                                                       ::testing::ValuesIn(netPRCs),
-                                                       ::testing::Values(Precision::UNSPECIFIED),
-                                                       ::testing::Values(Precision::UNSPECIFIED),
-                                                       ::testing::Values(Layout::ANY),
-                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
-                                                       ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                                       ::testing::ValuesIn(additionalConfig));
+std::vector<fusingSpecificParams> fusingParamsSet2DBF16 {
+        emptyFusingSpec,
+        fusingBiasFC,
+        fusingRelu,
+        fusingPReluPerTensor,
+};
 
-const auto testParams2D = ::testing::Combine(fullyConnectedParams2D,
+const auto testParams2D = ::testing::Combine(::testing::Combine(::testing::ValuesIn(IS2D),
+                                                                ::testing::Values(Precision::FP32),
+                                                                ::testing::Values(Precision::UNSPECIFIED),
+                                                                ::testing::Values(Precision::UNSPECIFIED),
+                                                                ::testing::Values(Layout::ANY),
+                                                                ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                                ::testing::Values(emptyAdditionalConfig)),
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet2D));
 
+const auto testParams2DBF16 = ::testing::Combine(::testing::Combine(::testing::ValuesIn(IS2D),
+                                                                    ::testing::ValuesIn(netPRCs),
+                                                                    ::testing::Values(Precision::UNSPECIFIED),
+                                                                    ::testing::Values(Precision::UNSPECIFIED),
+                                                                    ::testing::Values(Layout::ANY),
+                                                                    ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                                    ::testing::ValuesIn(additionalConfig)),
+                                                 ::testing::Values(MatMulNodeType::FullyConnected),
+                                                 ::testing::ValuesIn(fusingParamsSet2DBF16));
+
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D, MatMulLayerCPUTest, testParams2D, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_BF16, MatMulLayerCPUTest, testParams2DBF16, MatMulLayerCPUTest::getTestCaseName);
 
 const std::vector<ShapeRelatedParams> IS3D = {
     {{{1, 32, 120}, false}, {{120, 5}, false}},

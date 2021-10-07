@@ -201,6 +201,12 @@ public:
 
     bool isInplace() const;
 
+    virtual size_t getChannelAxis() const {
+        return 1;
+    }
+
+    void appendPostOpArgs(const mkldnn::primitive_attr& attr);
+
     bool isFusedWith(Type type) const;
 
     void addFusedNode(const MKLDNNNodePtr &fusingNode) {
@@ -559,7 +565,10 @@ public:
 protected:
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
     // TODO [mandrono]: place outside of the node API
-    void fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align = -1);
+    void fillScalesAndShifts(const MKLDNNNodePtr& parentNode,
+                             std::vector<float> &scales,
+                             std::vector<float> &shifts,
+                             int align = -1);
 
     void setType(Type type) {
         this->type = type;
@@ -578,7 +587,9 @@ protected:
      * Seed node should call this routine and pass its post operations list as parameter.
      * @param ops List of fused post operations
      */
-    virtual void appendPostOps(mkldnn::post_ops& ops, bool initAsBinary = false, bool initBinaryMemory = false);
+    virtual void appendPostOps(mkldnn::post_ops& ops);
+    virtual void appendBinPostOps(mkldnn::post_ops& ops, const std::vector<size_t>& binaryShape, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem);
+
     virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() const { return nullptr; }
 
     typedef std::function<DnnlMemoryDescPtr (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>
@@ -613,7 +624,7 @@ protected:
     std::vector<MKLDNNMemoryPtr> internalBlobMemory;
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, mkldnn::memory> primArgs;
-    std::vector<mkldnn::memory> binaryPostOpsArgs;
+    std::vector<MKLDNNMemoryPtr> binaryPostOpsArgs;
     MKLDNNPrimitive prim;
     std::vector<MKLDNNDescriptor> descs;
 

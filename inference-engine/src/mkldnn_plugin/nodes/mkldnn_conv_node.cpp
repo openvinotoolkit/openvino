@@ -325,46 +325,40 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false, bool initAsBinary = false) {
-    bool initBinaryMemory = initWeights;
+void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) {
     mkldnn::post_ops ops;
+    bool useLegacyPostOps = true; // @todo remove after issue with performance of binary post ops fixed
+
+    auto getPostOpShape = [&](){
+        const auto outShape = outputShapes[0].getStaticDims();
+        std::vector<size_t> binaryShape(outShape.size(), 1);
+        const size_t channelAxis = getChannelAxis();
+        binaryShape[channelAxis] = outShape[channelAxis];
+        return binaryShape;
+    };
 
     for (auto &node : fusedWith) {
         if (node->getType() == Split || node->getType() == Concatenation)
             continue;
 
-        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
-        if (eltwiseNode) {
+        if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
             if (eltwiseNode->isSpecialConvolutionAddFusing()) {
                 ops.append_sum(1.0, MKLDNNExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
             } else {
-                eltwiseNode->appendPostOps(ops, initAsBinary, initBinaryMemory);
-                if (initBinaryMemory) {
-                    if (eltwiseNode->scalesMemory)
-                        binaryPostOpsArgs.push_back(eltwiseNode->scalesMemory->GetPrimitive());
-                    if (eltwiseNode->shiftsMemory)
-                        binaryPostOpsArgs.push_back(eltwiseNode->shiftsMemory->GetPrimitive());
+                if (useLegacyPostOps || eltwiseNode->getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
+                    eltwiseNode->appendPostOps(ops);
+                } else {
+                    eltwiseNode->appendBinPostOps(ops, getPostOpShape(), binaryPostOpsArgs);
                 }
             }
             continue;
         }
 
-        auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
-        if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, initAsBinary, initBinaryMemory);
-            if (initBinaryMemory) {
-                if (fakeQuantizeNode->cropHighMemory)
-                    binaryPostOpsArgs.push_back(fakeQuantizeNode->cropHighMemory->GetPrimitive());
-                if (fakeQuantizeNode->cropLowMemory)
-                    binaryPostOpsArgs.push_back(fakeQuantizeNode->cropLowMemory->GetPrimitive());
-                if (fakeQuantizeNode->inputScaleMemory)
-                    binaryPostOpsArgs.push_back(fakeQuantizeNode->inputScaleMemory->GetPrimitive());
-                if (fakeQuantizeNode->inputShiftMemory)
-                    binaryPostOpsArgs.push_back(fakeQuantizeNode->inputShiftMemory->GetPrimitive());
-                if (fakeQuantizeNode->outputScaleMemory)
-                    binaryPostOpsArgs.push_back(fakeQuantizeNode->outputScaleMemory->GetPrimitive());
-                if (fakeQuantizeNode->outputShiftMemory)
-                    binaryPostOpsArgs.push_back(fakeQuantizeNode->outputShiftMemory->GetPrimitive());
+        if (auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get())) {
+            if (useLegacyPostOps) {
+                fakeQuantizeNode->appendPostOps(ops);
+            } else {
+                fakeQuantizeNode->appendBinPostOps(ops, getPostOpShape(), binaryPostOpsArgs);
             }
             continue;
         }
@@ -409,7 +403,6 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
     // attr[1] - binary
     mkldnn::primitive_attr attrs[1];
     setPostOps(attrs[0]);
-//    setPostOps(attrs[1], false, true);
 
     bool containJitImpl = false;
 
@@ -494,11 +487,8 @@ void MKLDNNConvolutionNode::createPrimitive() {
 
     mkldnn::primitive_attr attr;
     addZeroPoints(attr);
-    if (false && getSelectedPrimitiveDescriptor()->getImplementationType() == jit_gemm) {
-        setPostOps(attr, true, true);
-    } else {
-        setPostOps(attr, true);
-    }
+
+    setPostOps(attr, true);
 
     auto prim_desc = createPrimitiveDescriptor<convolution_forward::primitive_desc,
             convolution_forward::desc>(attr);
@@ -512,13 +502,7 @@ void MKLDNNConvolutionNode::createPrimitive() {
     else
         primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()}, {DNNL_ARG_DST, dst}};
 
-//    auto post_ops = attr.get_post_ops();
-//    int idx = 0;
-//    for (int i = 0; i < post_ops.len(); i++) {
-//        if (post_ops.kind(i) == mkldnn::primitive::kind::binary) {
-//            primArgs.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(i) | DNNL_ARG_SRC_1, binaryPostOpsArgs[idx++]});
-//        }
-//    }
+    appendPostOpArgs(attr);
 }
 
 bool MKLDNNConvolutionNode::created() const {

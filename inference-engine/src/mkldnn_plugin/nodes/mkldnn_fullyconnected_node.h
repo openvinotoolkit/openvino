@@ -26,6 +26,10 @@ public:
         return false;
     }
 
+    size_t getChannelAxis() const override {
+        return getOutputShapeAtPort(0).getRank() == 3 ? 2 : 1;
+    }
+
     const std::vector<impl_desc_type>& getPrimitivesPriority() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
@@ -54,7 +58,7 @@ private:
     InferenceEngine::SizeVector biasesDims;
 
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights, bool initAsBinary);
+    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);
 
     bool withBiases = false;
 

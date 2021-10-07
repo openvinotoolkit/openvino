@@ -4,6 +4,13 @@
 
 #pragma once
 
+#include <cstddef>
+#include <numeric>
+#include <vector>
+
+#include "ie_common.h"
+#include "ie_layouts.h"
+
 namespace MKLDNNPlugin {
 
 /**
@@ -34,7 +41,9 @@ inline std::vector<size_t> getNormalizedDimsBySize(const InferenceEngine::SizeVe
 * shape which should be broadcastable
 * @return true if broadcastable, false otherwise.
 */
-inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims, const InferenceEngine::SizeVector& secondInputDims) {
+inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims,
+                                                 const InferenceEngine::SizeVector& secondInputDims,
+                                                 size_t channelAxis) {
     if (secondInputDims.size() > firstInputDims.size())
         return false;
     if (std::accumulate(secondInputDims.begin(), secondInputDims.end(), 1, std::multiplies<size_t>()) == 1)
@@ -42,7 +51,7 @@ inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVect
 
     std::vector<size_t> normalizedSecondInputDims = getNormalizedDimsBySize(secondInputDims, firstInputDims.size());
     for (size_t i = 0; i < normalizedSecondInputDims.size(); i++) {
-        if ((i == 1 && normalizedSecondInputDims[i] != firstInputDims[1]) || (i != 1 && normalizedSecondInputDims[i] != 1))
+        if ((i == channelAxis && normalizedSecondInputDims[i] != firstInputDims[1]) || (i != channelAxis && normalizedSecondInputDims[i] != 1))
             return false;
     }
     return true;

@@ -1584,80 +1584,86 @@ void MKLDNNFakeQuantizeNode::execute(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNFakeQuantizeNode::appendPostOps(mkldnn::post_ops& ops, bool initAsBinary, bool initBinaryMemory) {
+void MKLDNNFakeQuantizeNode::initializePostOpData(const size_t bufferAlignment) {
+    if (isPostOpDataInitialized)
+        return;
+
+    if (getAlgorithm() == FQBinarization) {
+        const size_t paddedSize = rnd_up(binarizationThresholds.size(), bufferAlignment);
+        binarizationThresholds.resize(paddedSize, 0);
+        binarizationOutputMask.resize(paddedSize, 0);
+    } else {
+        if (cropLow.size() > 1)
+            cropLow.resize(rnd_up(cropLow.size(), bufferAlignment), 0);
+        if (cropHigh.size() > 1)
+            cropHigh.resize(rnd_up(cropHigh.size(), bufferAlignment), 0);
+        if (inputScale.size() > 1)
+            inputScale.resize(rnd_up(inputScale.size(), bufferAlignment), 0);
+        if (inputShift.size() > 1)
+            inputShift.resize(rnd_up(inputShift.size(), bufferAlignment), 0);
+        if (outputScale.size() > 1)
+            outputScale.resize(rnd_up(outputScale.size(), bufferAlignment), 0);
+        if (outputShift.size() > 1)
+            outputShift.resize(rnd_up(outputShift.size(), bufferAlignment), 0);
+
+        cropLowData.set(cropLow.size(), 1 << 1, &cropLow[0]);
+        cropHighData.set(cropHigh.size(), 1 << 1, &cropHigh[0]);
+        inputScaleData.set(inputScale.size(), 1 << 1, &inputScale[0]);
+        inputShiftData.set(inputShift.size(), 1 << 1, &inputShift[0]);
+        outputScaleData.set(outputScale.size(), 1 << 1, &outputScale[0]);
+        outputShiftData.set(outputShift.size(), 1 << 1, &outputShift[0]);
+    }
+
+    isPostOpDataInitialized = true;
+}
+
+void MKLDNNFakeQuantizeNode::appendPostOps(mkldnn::post_ops& ops) {
     // MKLDNN quantization_injectors assumes that quantization data memory is always aligned on 16
     // by length of AVX512 vector register which is also enough for AVX2 and SSE42 implementations.
     // Otherwise it can lead to buffer over-read and performance penalties due to denormals.
-    const size_t bufferAlignment = 16;
+    static const size_t bufferAlignment = 16;
+    initializePostOpData(bufferAlignment);
 
     if (getAlgorithm() == FQBinarization) {
-        if (!isPostOpDataInitialized) {
-            size_t paddedSize = rnd_up(binarizationThresholds.size(), bufferAlignment);
-            binarizationThresholds.resize(paddedSize, 0);
-            binarizationOutputMask.resize(paddedSize, 0);
-        }
-
         ops.append_binarization(mkldnn::algorithm::binarization_depthwise, (const float*)&binarizationThresholds[0], (const float*)&binarizationOutputMask[0]);
     } else {
-        if (!isPostOpDataInitialized) {
-            if (cropLow.size() > 1)
-                cropLow.resize(rnd_up(cropLow.size(), bufferAlignment), 0);
-            if (cropHigh.size() > 1)
-                cropHigh.resize(rnd_up(cropHigh.size(), bufferAlignment), 0);
-            if (inputScale.size() > 1)
-                inputScale.resize(rnd_up(inputScale.size(), bufferAlignment), 0);
-            if (inputShift.size() > 1)
-                inputShift.resize(rnd_up(inputShift.size(), bufferAlignment), 0);
-            if (outputScale.size() > 1)
-                outputScale.resize(rnd_up(outputScale.size(), bufferAlignment), 0);
-            if (outputShift.size() > 1)
-                outputShift.resize(rnd_up(outputShift.size(), bufferAlignment), 0);
-
-            cropLowData.set(cropLow.size(), 1 << 1, &cropLow[0]);
-            cropHighData.set(cropHigh.size(), 1 << 1, &cropHigh[0]);
-            inputScaleData.set(inputScale.size(), 1 << 1, &inputScale[0]);
-            inputShiftData.set(inputShift.size(), 1 << 1, &inputShift[0]);
-            outputScaleData.set(outputScale.size(), 1 << 1, &outputScale[0]);
-            outputShiftData.set(outputShift.size(), 1 << 1, &outputShift[0]);
-        }
-
         mkldnn::algorithm alg = getAlgorithm() == FQCommon ? mkldnn::algorithm::quantization_quantize_dequantize :
                                                              mkldnn::algorithm::quantization_quantize;
-
-        if (initAsBinary) {
-            auto appendBinary = [&](const mkldnn::algorithm alg, const size_t dataSize, MKLDNNMemoryPtr &memPtr, const void *data) {
-                auto outShape = outputShapes[0].getStaticDims();
-                auto chIdx = outputShapes[0].getRank() > 1 ? 1 : 0;
-
-                std::vector<size_t> binaryShape(outShape.size(), 1);
-                binaryShape[chIdx] = dataSize;
-
-                DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, Shape(binaryShape));
-                ops.append_binary(alg, memoryDesc.getDnnlDesc());
-
-                if (initBinaryMemory) {
-                    memPtr.reset(new MKLDNNMemory(getEngine()));
-                    memPtr->Create(memoryDesc, data);
-                }
-            };
-
-            appendBinary(mkldnn::algorithm::binary_min, cropHighSize, cropHighMemory, &cropHighData.shifts_[0]);
-            appendBinary(mkldnn::algorithm::binary_max, cropLowSize, cropLowMemory, &cropLowData.shifts_[0]);
-            appendBinary(mkldnn::algorithm::binary_mul, inputScaleSize, inputScaleMemory, &inputScaleData.scales_[0]);
-            appendBinary(mkldnn::algorithm::binary_add, inputShiftSize, inputShiftMemory, &inputShiftData.shifts_[0]);
-            if (alg == mkldnn::algorithm::quantization_quantize_dequantize) {
-                ops.append_eltwise(1.0f, mkldnn::algorithm::eltwise_round_half_to_even, 0, 0);
-            }
-            appendBinary(mkldnn::algorithm::binary_mul, outputScaleSize, outputScaleMemory, &outputScaleData.scales_[0]);
-            appendBinary(mkldnn::algorithm::binary_add, outputShiftSize, outputShiftMemory, &outputShiftData.shifts_[0]);
-
-        } else {
-            ops.append_quantization(alg, &cropLowData, &cropHighData, &inputScaleData, &inputShiftData, &outputScaleData, &outputShiftData);
-        }
+        ops.append_quantization(alg, &cropLowData, &cropHighData, &inputScaleData, &inputShiftData, &outputScaleData, &outputShiftData);
     }
+}
 
-    if (!isPostOpDataInitialized)
-        isPostOpDataInitialized = true;
+void MKLDNNFakeQuantizeNode::appendBinPostOps(mkldnn::post_ops& ops, const std::vector<size_t>& binaryShape, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem) {
+    static const size_t bufferAlignment = 1;
+
+    initializePostOpData(bufferAlignment);
+
+    std::vector<size_t> broadcastBinaryShape(binaryShape.size(), 1);
+
+    auto appendBinary = [&](const mkldnn::algorithm alg, const size_t dataSize, MKLDNNMemoryPtr &memPtr, const void *data) {
+        DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, dataSize == 1 ? Shape(broadcastBinaryShape) : Shape(binaryShape));
+        ops.append_binary(alg, memoryDesc.getDnnlDesc());
+
+        if (!memPtr) {
+            memPtr.reset(new MKLDNNMemory(getEngine()));
+            memPtr->Create(memoryDesc, data);
+
+            binaryPostOpsMem.push_back(memPtr);
+        }
+    };
+
+    mkldnn::algorithm alg = getAlgorithm() == FQCommon ? mkldnn::algorithm::quantization_quantize_dequantize :
+                                                         mkldnn::algorithm::quantization_quantize;
+
+    appendBinary(mkldnn::algorithm::binary_min, cropHighSize, cropHighMemory, &cropHighData.shifts_[0]);
+    appendBinary(mkldnn::algorithm::binary_max, cropLowSize, cropLowMemory, &cropLowData.shifts_[0]);
+    appendBinary(mkldnn::algorithm::binary_mul, inputScaleSize, inputScaleMemory, &inputScaleData.scales_[0]);
+    appendBinary(mkldnn::algorithm::binary_add, inputShiftSize, inputShiftMemory, &inputShiftData.shifts_[0]);
+    if (alg == mkldnn::algorithm::quantization_quantize_dequantize) {
+        ops.append_eltwise(1.0f, mkldnn::algorithm::eltwise_round_half_to_even, 0, 0);
+    }
+    appendBinary(mkldnn::algorithm::binary_mul, outputScaleSize, outputScaleMemory, &outputScaleData.scales_[0]);
+    appendBinary(mkldnn::algorithm::binary_add, outputShiftSize, outputShiftMemory, &outputShiftData.shifts_[0]);
 }
 
 bool MKLDNNFakeQuantizeNode::created() const {
