@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <regex>
+
 #include "editor.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
@@ -22,17 +24,12 @@ namespace {
 // It requires custom way of name comparison.
 // https://github.com/onnx/onnx/blob/767f752829f83dbc9bd0a364d6138890f667fc38/onnx/defs/function.cc#L23
 bool after_func_expand_name_comp(std::string lhs, std::string rhs) {
-    const int lhs_begin_address_pos = lhs.find("0x");
-    const int rhs_begin_address_pos = rhs.find("0x");
+    std::regex address_pattern("(0x)?[0-9A-Fa-f]{8,}");
 
-    if (lhs_begin_address_pos != std::string::npos) {
-        lhs.erase(lhs_begin_address_pos, 14);
-    }
-    if (rhs_begin_address_pos != std::string::npos) {
-        rhs.erase(rhs_begin_address_pos, 14);
-    }
+    const auto lhs_sanitized = std::regex_replace(lhs, address_pattern, "");
+    const auto rhs_sanitized = std::regex_replace(rhs, address_pattern, "");
 
-    return lhs == rhs;
+    return lhs_sanitized == rhs_sanitized;
 }
 }  // namespace
 
