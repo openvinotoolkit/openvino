@@ -226,16 +226,16 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     exeNetwork->setNetworkInputs(copyInfo(constMapCast(inputs)));
     exeNetwork->setNetworkOutputs(copyInfo(constMapCast(outputs)));
 
-    ngraph::ParameterVector parameters;
-    ngraph::ResultVector results;
+    ov::ParameterVector parameters;
+    ov::ResultVector results;
     std::vector<ngraph::Output<ngraph::Node>> node_outputs;
 
     for (auto&& input : inputs) {
         auto tensor_desc = input.second->getTensorDesc();
         auto dims = tensor_desc.getDims();
         parameters.push_back(
-            std::make_shared<ngraph::op::v0::Parameter>(details::convertPrecision(tensor_desc.getPrecision()),
-                                                        std::vector<ov::Dimension>{dims.begin(), dims.end()}));
+            std::make_shared<ov::op::v0::Parameter>(details::convertPrecision(tensor_desc.getPrecision()),
+                                                    std::vector<ov::Dimension>{dims.begin(), dims.end()}));
         parameters.back()->set_friendly_name(input.first);
         node_outputs.push_back(parameters.back()->output(0));
     }
