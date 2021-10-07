@@ -8,27 +8,22 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-#if 0
 
 namespace ngraph {
 namespace frontend {
 namespace tf {
 namespace op {
 
-static Status TranslateZerosLikeOp(const TFNodeDecoder* op,
-                                   const std::vector<const ngraph::frontend::tf::detail::TensorWrapper*>&,
-                                   Builder::OpMap& ng_op_map) {
-  Output<Node> ng_input;
-  TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input));
-
-  Shape input_shape = ng_input.get_shape();
-  std::vector<std::string> const_values(shape_size(input_shape), "0");
-  auto ng_result = ConstructNgNode<Constant>(
-      node.get_name(), ng_input.get_element_type(), input_shape, const_values);
-  SaveNgOp(ng_op_map, node.get_name(), ng_result);
-  return Status::OK();
+OutputVector TranslateZerosLikeOp(const NodeContext& node) {
+    auto x = node.get_ng_input(0);
+    auto shape_of = make_shared<ShapeOf>(x);
+    auto zero = make_shared<Constant>(x.get_element_type(), Shape{1}, 0);
+    auto broadcast = make_shared<Broadcast>(zero, shape_of);
+    broadcast->set_friendly_name(node.get_name());
+    return broadcast->outputs();
 }
 
 }
 }
-#endif
+}
+}

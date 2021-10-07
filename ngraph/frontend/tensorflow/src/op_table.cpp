@@ -48,7 +48,7 @@ OP_CONVERTER(TranslateIdentityOp);
 // OP_CONVERTER(TranslateIsFiniteOp);
 // OP_CONVERTER(TranslateL2LossOp);
 OP_CONVERTER(TranslateLogSoftmaxOp);
-// OP_CONVERTER(TranslateLog1pOp);
+OP_CONVERTER(TranslateLog1pOp);
 // OP_CONVERTER(TranslateLRNOp);
 OP_CONVERTER(TranslateMatMulOp);
 OP_CONVERTER(TranslateMaxPoolOp);
@@ -57,7 +57,7 @@ OP_CONVERTER(TranslatePadOp);
 OP_CONVERTER(PlaceholderOp);
 OP_CONVERTER(NoOp);
 OP_CONVERTER(TranslateOneHotOp);
-// OP_CONVERTER(TranslatePackOp);
+OP_CONVERTER(TranslatePackOp);
 OP_CONVERTER(TranslateRangeOp);
 OP_CONVERTER(TranslateRankOp);
 OP_CONVERTER(TranslateRandomUniformOp);
@@ -82,11 +82,11 @@ OP_CONVERTER(TranslateSqueezeOp);
 OP_CONVERTER(TranslateSqrtOp);
 // OP_CONVERTER(TranslateTileOp);
 // OP_CONVERTER(TranslateTopKV2Op);
-// OP_CONVERTER(TranslateTransposeOp);
+OP_CONVERTER(TranslateTransposeOp);
 // OP_CONVERTER(TranslateUnpackOp);
-// OP_CONVERTER(TranslateWhereOp);
+OP_CONVERTER(TranslateWhereOp);
 OP_CONVERTER(TranslateXdivyOp);
-// OP_CONVERTER(TranslateZerosLikeOp);
+OP_CONVERTER(TranslateZerosLikeOp);
 
 const std::map<const std::string, const CreatorFunction> get_supported_ops() {
     return {
@@ -175,7 +175,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         //{"IsFinite", TranslateIsFiniteOp},
         //{"L2Loss", TranslateL2LossOp},
         {"LogSoftmax", TranslateLogSoftmaxOp},
-        //{"Log1p", TranslateLog1pOp},
+        {"Log1p", TranslateLog1pOp},
         //{"LRN", TranslateLRNOp},
         {"MatMul", TranslateMatMulOp},
         {"MaxPool", TranslateMaxPoolOp},
@@ -184,7 +184,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"MirrorPad", TranslatePadOp},
         {"NoOp", NoOp},  // do nothing
         {"OneHot", TranslateOneHotOp},
-        //{"Pack", TranslatePackOp},
+        {"Pack", TranslatePackOp},
         {"Pad", TranslatePadOp},
         {"PadV2", TranslatePadOp},
         //{"_Arg", ArgOp}, // should be registered as an extension in OVTF
@@ -205,7 +205,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Shape", TranslateShapeOp},
         {"Size", TranslateSizeOp},
         //{"Slice", TranslateSliceOp},
-        //{"Snapshot", TranslateIdentityOp},
+        {"Snapshot", TranslateIdentityOp},
         {"Softmax", TranslateSoftmaxOp},
         //{"SpaceToDepth", TranslateSpaceToDepthOp},
         //{"Split", TranslateSplitOp},
@@ -216,11 +216,11 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         //{"StridedSlice", TranslateStridedSliceOp},
         //{"Tile", TranslateTileOp},
         //{"TopKV2", TranslateTopKV2Op},
-        //{"Transpose", TranslateTransposeOp},
+        {"Transpose", TranslateTransposeOp},
         //{"Unpack", TranslateUnpackOp},
-        //{"Where", TranslateWhereOp},
+        {"Where", TranslateWhereOp},
         {"Xdivy", TranslateXdivyOp},
-        //{"ZerosLike", TranslateZerosLikeOp},
+        {"ZerosLike", TranslateZerosLikeOp},
     };
 };
 }  // namespace op

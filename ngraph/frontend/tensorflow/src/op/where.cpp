@@ -8,26 +8,21 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-#if 0
-
 namespace ngraph {
 namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateWhereOp(
-    const NodeContext& node) {
-  Output<Node> ng_cond;
-  TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_cond));
-  auto non_zero = ConstructNgNode<NonZero>(node.get_name(), ng_cond);
-  auto transpose_order = ConstructNgNode<Constant>(
-      node.get_name(), ngraph::element::i64, ngraph::Shape{2},
-      std::vector<int64_t>({1, 0}));
-  SaveNgOp(ng_op_map, node.get_name(), ConstructNgNode<Transpose>(
-                                      node.get_name(), non_zero, transpose_order));
-  return Status::OK();
+OutputVector TranslateWhereOp(const NodeContext& node) {
+    auto x = node.get_ng_input(0);
+    auto non_zero = make_shared<NonZero>(x);
+    auto transpose_order = make_shared<Constant>(element::i64, Shape{2}, vector<int64_t>{1, 0});
+    auto transpose = make_shared<opset8::Transpose>(non_zero, transpose_order);
+    transpose->set_friendly_name(node.get_name());
+    return transpose->outputs();
 }
 
 }
 }
-#endif
+}
+}
