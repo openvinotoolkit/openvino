@@ -681,13 +681,11 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
     } else if (name == METRIC_KEY(OPTIMAL_BATCH)) {
         auto network = options.find("MODEL_ADDRESS")->second.as<InferenceEngine::CNNNetwork const*>();
         auto networkCloned = CloneAndTransformNetwork(*network, _impl->m_config);
-        // i7_1185G7
-        const float L2_cache_size = 6*1024*1024;
+        // DG1
         const float L3_cache_size = 12*1024*1024;
         unsigned int batch = 1;
         ov::MemBandwidthPressure memPressure = ov::MemBandwidthPressureTolerance(
-                networkCloned.getFunction(),
-                L2_cache_size, L3_cache_size);
+                networkCloned.getFunction(), L3_cache_size);
         if (memPressure.max_mem_tolerance > 8*ov::MemBandwidthPressure::LIMITED) {
             batch = 32;
         } else if (memPressure.max_mem_tolerance > 4*ov::MemBandwidthPressure::LIMITED) {

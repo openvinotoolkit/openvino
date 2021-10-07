@@ -1150,11 +1150,12 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     const std::string& deviceNameOrig,
                                     const std::map<std::string, std::string>& config) {
     auto deviceName = deviceNameOrig;
-    if (deviceNameOrig == "GPU") {
+    if (deviceNameOrig.find("GPU") != std::string::npos) {
         std::map<std::string, Parameter> options;
         options["MODEL_ADDRESS"] = &network;
         auto optimalBatchSize =
-            _impl->GetCPPPluginByName(deviceNameOrig).get_metric(METRIC_KEY(OPTIMAL_BATCH), options).as<unsigned int>();
+            _impl->GetCPPPluginByName(DeviceIDParser(deviceName).getDeviceName()).
+                    get_metric(METRIC_KEY(OPTIMAL_BATCH), options).as<unsigned int>();
         auto function = network.getFunction();
         bool bDetectionOutput = false;
         for (auto&& node : function->get_ops()) {
