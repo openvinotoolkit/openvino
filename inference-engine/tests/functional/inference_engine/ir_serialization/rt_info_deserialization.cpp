@@ -9,6 +9,7 @@
 
 #include <inference_engine.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+#include <transformations/rt_info/old_api_map_attribute.hpp>
 
 using namespace ngraph;
 
@@ -205,6 +206,7 @@ TEST(RTInfoDeserialization, NodeV11) {
             <data element_type="f32" shape="1,3,22,22"/>
             <rt_info>
                 <attribute name="fused_names" version="0" value="in1"/>
+                <attribute name="old_api_map" version="0" order="0,2,3,1" element_type="f32"/>
             </rt_info>
             <output>
                 <port id="0" precision="FP32">
@@ -238,6 +240,9 @@ TEST(RTInfoDeserialization, NodeV11) {
             </output>
         </layer>
         <layer name="output" type="Result" id="2" version="opset8">
+            <rt_info>
+                <attribute name="old_api_map" version="0" order="0,3,1,2" element_type="undefined"/>
+            </rt_info>
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -266,6 +271,15 @@ TEST(RTInfoDeserialization, NodeV11) {
         ASSERT_EQ(fused_names_attr->get().getNames(), names);
     };
 
+    auto check_old_api_map = [](const RTMap & info, const std::vector<uint64_t> & order, const ngraph::element::Type& type) {
+        const std::string & old_api_map_key = ov::OldApiMap::get_type_info_static();
+        ASSERT_TRUE(info.count(old_api_map_key));
+        auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
+        ASSERT_TRUE(old_api_map_attr);
+        auto old_api_map_attr_val = old_api_map_attr->get();
+        ASSERT_EQ(old_api_map_attr_val.get_order(), order);
+        ASSERT_EQ(old_api_map_attr_val.get_type(), type);
+    };
     auto check_version = [](const std::shared_ptr<ov::Function>& f) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
@@ -277,8 +291,14 @@ TEST(RTInfoDeserialization, NodeV11) {
 
     auto param = f->get_parameters()[0];
     check_fused_names(param->get_rt_info(), "in1");
+    check_old_api_map(param->get_rt_info(),
+                                std::vector<uint64_t>({0, 2, 3, 1}),
+                                ngraph::element::Type_t::f32);
 
     auto result = f->get_results()[0];
+    check_old_api_map(result->get_rt_info(),
+                      std::vector<uint64_t>({0, 3, 1, 2}),
+                      ngraph::element::Type_t::undefined);
     auto round = result->get_input_node_ptr(0);
     check_fused_names(round->get_rt_info(), "Round1,Round2");
 }
@@ -289,6 +309,9 @@ TEST(RTInfoDeserialization, InputAndOutputV11) {
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset8">
             <data element_type="f32" shape="1,3,22,22"/>
+            <rt_info>
+                <attribute name="old_api_map" version="0" order="" element_type="u8"/>
+            </rt_info>
             <output>
                 <port id="0" precision="FP32">
                     <rt_info>
@@ -376,8 +399,21 @@ TEST(RTInfoDeserialization, InputAndOutputV11) {
         ASSERT_EQ(fused_names_attr->get().getNames(), names);
     };
 
+    auto check_old_api_map = [](const RTMap & info, const std::vector<uint64_t> & order, ngraph::element::Type type) {
+        const std::string & old_api_map_key = ov::OldApiMap::get_type_info_static();
+        ASSERT_TRUE(info.count(old_api_map_key));
+        auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
+        ASSERT_TRUE(old_api_map_attr);
+        auto old_api_map_attr_val = old_api_map_attr->get();
+        ASSERT_EQ(old_api_map_attr_val.get_order(), order);
+        ASSERT_EQ(old_api_map_attr_val.get_type(), type);
+    };
+
     auto param = f->get_parameters()[0];
     check_fused_names(param->output(0).get_rt_info(), "test1,test2");
+    check_old_api_map(param->get_rt_info(),
+                      std::vector<uint64_t>({}),
+                      ngraph::element::Type_t::u8);
 
     auto result = f->get_results()[0];
     check_fused_names(result->input(0).get_rt_info(), "test5,test6");
