@@ -33,6 +33,9 @@ namespace Common
         }
     }
 
+    extern std::map<ov::element::Type, pybind11::dtype> ov_type_to_dtype;
+    extern std::map<py::str, ov::element::Type> dtype_to_ov_type;
+
     InferenceEngine::Layout get_layout_from_string(const std::string& layout);
 
     const std::string& get_layout_from_enum(const InferenceEngine::Layout& layout);
