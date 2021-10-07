@@ -432,26 +432,55 @@ int64_t ov::Function::get_result_index(const Output<Node>& value) const {
 
 namespace {
 
-inline ov::runtime::TensorVector copy_tensor(const ngraph::HostTensorVector& tensors) {
+inline ov::runtime::Tensor create_tmp_tensor(const ngraph::HostTensorPtr& tensor) {
+    if (tensor->get_partial_shape().is_static()) {
+        ov::Shape shape = tensor->get_shape();
+        return std::move(ov::runtime::Tensor(tensor->get_element_type(), shape, tensor->get_data_ptr()));
+    } else {
+        if (tensor->get_element_type().is_dynamic()) {
+            // use f32 as default precision for dynamic tensors
+            return std::move(ov::runtime::Tensor());
+        } else {
+            // use f32 as default precision for dynamic tensors
+            return std::move(ov::runtime::Tensor(tensor->get_element_type(), {0}));
+        }
+    }
+}
+inline ov::runtime::TensorVector create_tmp_tensors(const ngraph::HostTensorVector& tensors) {
     ov::runtime::TensorVector result;
     result.reserve(tensors.size());
     for (const auto& tensor : tensors) {
-        result.emplace_back(
-            ov::runtime::Tensor(tensor->get_element_type(), tensor->get_shape(), tensor->get_data_ptr()));
+        result.emplace_back(create_tmp_tensor(tensor));
     }
     return std::move(result);
+}
+
+inline void update_output_tensors(const ngraph::HostTensorVector& output_values,
+                                  const ov::runtime::TensorVector& outputs) {
+    OPENVINO_ASSERT(output_values.size(), outputs.size());
+    for (size_t i = 0; i < outputs.size(); i++) {
+        const auto& tensor = output_values[i];
+        if (tensor->get_partial_shape().is_dynamic()) {
+            tensor->set_element_type(outputs[i].get_element_type());
+            tensor->set_shape(outputs[i].get_shape());
+            void* dst_data = tensor->get_data_ptr();
+            memcpy(dst_data, outputs[i].data(), tensor->get_size_in_bytes());
+        }
+    }
 }
 }  // namespace
 
 bool ov::Function::evaluate(const HostTensorVector& output_tensors,
                             const HostTensorVector& input_tensors,
                             EvaluationContext evaluation_context) const {
-    ov::runtime::TensorVector outputs = copy_tensor(output_tensors);
-    ov::runtime::TensorVector inputs = copy_tensor(input_tensors);
-    return evaluate(outputs, inputs, std::move(evaluation_context));
+    ov::runtime::TensorVector outputs = create_tmp_tensors(output_tensors);
+    ov::runtime::TensorVector inputs = create_tmp_tensors(input_tensors);
+    bool sts = evaluate(outputs, inputs, std::move(evaluation_context));
+    update_output_tensors(output_tensors, outputs);
+    return sts;
 }
 
-bool ov::Function::evaluate(const ov::runtime::TensorVector& output_tensors,
+bool ov::Function::evaluate(ov::runtime::TensorVector& output_tensors,
                             const ov::runtime::TensorVector& input_tensors,
                             ov::EvaluationContext evaluation_context) const {
     if (evaluation_context.find("VariableContext") == evaluation_context.end())
@@ -481,13 +510,25 @@ bool ov::Function::evaluate(const ov::runtime::TensorVector& output_tensors,
             for (const auto& v : node->outputs()) {
                 auto it = output_tensor_map.find(v);
                 if (it == output_tensor_map.end()) {
-                    ov::runtime::Tensor c(v.get_element_type(), v.get_shape());
-                    output_tensors.push_back(c);
+                    if (v.get_partial_shape().is_dynamic() || v.get_element_type().is_dynamic()) {
+                        ov::runtime::Tensor c = create_tmp_tensor(std::make_shared<HostTensor>(v));
+                        output_tensors.push_back(c);
+                    } else {
+                        ov::runtime::Tensor c(v.get_element_type(), v.get_shape());
+                        output_tensors.push_back(c);
+                    }
                 } else {
                     output_tensors.push_back(it->second);
                 }
             }
             if (node->evaluate(output_tensors, input_tensors, evaluation_context)) {
+                for (size_t i = 0; i < node->outputs().size(); i++) {
+                    const auto& v = node->output(i);
+                    auto it = output_tensor_map.find(v);
+                    if (it != output_tensor_map.end()) {
+                        it->second = output_tensors[i];
+                    }
+                }
                 return output_tensors;
             } else {
                 OPENVINO_ASSERT(false, "Evaluation failed on ", node);
@@ -497,6 +538,10 @@ bool ov::Function::evaluate(const ov::runtime::TensorVector& output_tensors,
         evaluator.evaluate(value);
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
+    for (size_t i = 0; i < m_results.size(); ++i) {
+        auto result = m_results.at(i)->output(0);
+        output_tensors.at(i) = output_tensor_map[result];
+    }
     return true;
 }
 

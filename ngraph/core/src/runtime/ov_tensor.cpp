@@ -73,6 +73,8 @@ Tensor::Tensor(const Tensor& owner, const Coordinate& begin, const Coordinate& e
 }
 
 element::Type Tensor::get_element_type() const {
+    if (_impl == nullptr)
+        return element::dynamic;
     OV_TENSOR_STATEMENT(return ie::details::convertPrecision(_impl->getTensorDesc().getPrecision()));
 }
 
@@ -81,6 +83,8 @@ void Tensor::set_shape(const ov::Shape& shape) {
 }
 
 Shape Tensor::get_shape() const {
+    if (_impl == nullptr)
+        return {0};
     OV_TENSOR_STATEMENT({ return _impl->getTensorDesc().getDims(); });
 }
 

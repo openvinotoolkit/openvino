@@ -197,7 +197,7 @@ public:
     /// \param input_tensors Tensors for the inputs. One for each inputs.
     /// \param evaluation_context Storage of additional settings and attributes that can be used
     /// when evaluating the function. This additional information can be shared across nodes.
-    bool evaluate(const ov::runtime::TensorVector& output_tensors,
+    bool evaluate(ov::runtime::TensorVector& output_tensors,
                   const ov::runtime::TensorVector& input_tensors,
                   ov::EvaluationContext evaluation_context = ov::EvaluationContext()) const;
 

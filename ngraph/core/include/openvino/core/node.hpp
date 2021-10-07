@@ -226,7 +226,7 @@ public:
     /// \param output_values Tensors for the outputs to compute. One for each result
     /// \param input_values Tensors for the inputs. One for each inputs.
     /// \returns true if successful
-    virtual bool evaluate(const ov::runtime::TensorVector& output_values,
+    virtual bool evaluate(ov::runtime::TensorVector& output_values,
                           const ov::runtime::TensorVector& input_values) const;
     /// \brief Evaluates the op on input_values putting results in output_values
     /// \param output_values Tensors for the outputs to compute. One for each result
@@ -234,7 +234,7 @@ public:
     /// \param evaluation_context Storage of additional settings and attributes that can be used
     /// when evaluating the op.
     /// \returns true if successful
-    virtual bool evaluate(const ov::runtime::TensorVector& output_values,
+    virtual bool evaluate(ov::runtime::TensorVector& output_values,
                           const ov::runtime::TensorVector& input_values,
                           const ov::EvaluationContext& evaluationContext) const;
 
