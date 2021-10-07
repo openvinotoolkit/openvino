@@ -14,10 +14,8 @@ from mo.utils.runtime_info import RTInfo
 from unit_tests.utils.graph import build_graph, connect, valued_const_with_data, regular_op_with_empty_data
 
 nodes = {
-    **regular_op_with_empty_data('placeholder1', {'type': 'Parameter', 'rt_info': RTInfo()}),
     **regular_op_with_empty_data('placeholder2', {'type': 'Parameter'}),
     **regular_op_with_empty_data('add', {'type': 'Add', 'op': 'Add'}),
-    **regular_op_with_empty_data('result', {'type': 'Result', 'rt_info': RTInfo()}),
 
     **regular_op_with_empty_data('transpose_parameter', {'type': 'Transpose', 'op': 'Transpose'}),
     **regular_op_with_empty_data('transpose_result', {'type': 'Transpose', 'op': 'Transpose'}),
@@ -46,6 +44,14 @@ class PreserveRuntimeInfoTest(unittest.TestCase):
             **valued_const_with_data('transpose_result_order', np.array(nchw_to_nhwc_order))
         }
         graph_nodes.update(nodes)
+        shape_len = len(nhwc_to_nchw_order) if add_permutation_attrs else 3
+        graph_nodes.update(
+            {
+                **regular_op_with_empty_data('placeholder1', {'type': 'Parameter', 'rt_info': RTInfo(), 'shape': list(range(shape_len))}),
+                **regular_op_with_empty_data('result', {'type': 'Result', 'rt_info': RTInfo(), 'shape': list(range(shape_len))})
+            }
+        )
+
         graph = build_graph(graph_nodes, edges)
         graph_ref = build_graph(graph_nodes, edges_with_transpose if add_permutation_attrs else edges)
 
