@@ -46,6 +46,10 @@ def test_init_with_ngraph(ov_type, numpy_dtype):
 ])
 def test_init_with_numpy(ov_type, numpy_dtype):
     shape = (1, 3, 127, 127)
+    ov_tensor = Tensor(numpy_dtype, shape)
+    assert ov_tensor.element_type == ov_type
+    assert ov_tensor.data.dtype == numpy_dtype
+
     ov_tensor = Tensor(np.dtype(numpy_dtype), shape)
     assert ov_tensor.element_type == ov_type
     assert ov_tensor.data.dtype == numpy_dtype
@@ -109,6 +113,11 @@ def test_set_shape(ov_type, numpy_dtype):
     ref_shape_np = (1, 3, 48, 48)
     ov_tensor = Tensor(ov_type, shape)
     ov_tensor.shape = ref_shape
+    assert ov_tensor.data.shape == ref_shape_np
+    ones_arr = np.ones(ref_shape_np, numpy_dtype)
+    ov_tensor.data[:] = ones_arr
+    assert np.array_equal(ov_tensor.data, ones_arr)
+    ov_tensor.shape = ref_shape_np
     assert ov_tensor.data.shape == ref_shape_np
     ones_arr = np.ones(ref_shape_np, numpy_dtype)
     ov_tensor.data[:] = ones_arr

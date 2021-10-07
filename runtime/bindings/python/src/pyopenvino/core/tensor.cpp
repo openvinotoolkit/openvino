@@ -28,6 +28,9 @@ void regclass_Tensor(py::module m) {
     cls.def(py::init([](py::dtype np_dtype, std::vector<size_t> shape) {
         return Tensor(Common::dtype_to_ov_type[py::str(np_dtype)], shape);
     }));
+    cls.def(py::init([](py::object np_literal, std::vector<size_t> shape) {
+        return Tensor(Common::dtype_to_ov_type[py::str(py::dtype::from_args(np_literal))], shape);
+    }));
 
     cls.def_property_readonly("element_type", &Tensor::get_element_type);
     cls.def_property_readonly("data", [](Tensor& self) {
@@ -35,4 +38,7 @@ void regclass_Tensor(py::module m) {
         return py::array(Common::ov_type_to_dtype[ov_type], self.get_shape(), self.data(), py::cast(self));
     });
     cls.def_property("shape", &Tensor::get_shape, &Tensor::set_shape);
+    cls.def_property("shape", &Tensor::get_shape, [](Tensor& self, std::vector<size_t> shape) {
+        self.set_shape(shape);
+    });
 }
