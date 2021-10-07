@@ -250,17 +250,17 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
     float adjustScaleFactor(float sf, InferenceEngine::CNNLayer const* cnnLayer,
                             GNAPluginNS::LayerInfo const& layer,
                             QuantizedLayerParams* quantizedParams) {
-        auto get_rank = [](int32_t value) {
-            int8_t rank = 0;
+        auto get_rank = [](uint32_t value) {
+            uint8_t rank = 0;
             while (value >= 1) {
                 ++rank;
                 value /= 10;
             }
             return rank;
         };
-        auto pow_10 = [](int8_t degree) {
-            int16_t value = 1;
-            for (int8_t i = 0; i < degree; ++i) {
+        auto pow_10 = [](uint8_t degree) {
+            uint32_t value = 1;
+            for (uint8_t i = 0; i < degree; ++i) {
                 value *= 10;
             }
             return value;
@@ -269,11 +269,11 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
         auto slopes = getPWLSlopes(layer);
         if (!slopes.empty()) {
             auto div = 10;
-            auto startRange = sf > 1.0f ? static_cast<int32_t>(sf) : sf;
+            auto startRange = sf > 1.0f ? static_cast<uint32_t>(sf) : sf;
             auto endRange = startRange - startRange / div;
-            endRange = endRange > 1.0f ? static_cast<int32_t>(endRange) : endRange;
-            int32_t steps = 10000;
-            int16_t rangeSize = static_cast<int32_t>(startRange - endRange);
+            endRange = endRange > 1.0f ? static_cast<uint32_t>(endRange) : endRange;
+            uint32_t steps = 10000;
+            uint32_t rangeSize = static_cast<uint32_t>(startRange - endRange);
             if (rangeSize >= 1) {
                 steps *= rangeSize / pow_10(get_rank(rangeSize) - 1);
             }
