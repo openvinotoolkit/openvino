@@ -170,8 +170,8 @@ TEST_P(BroadcastConstTestFixture, CompareFunctions) {
 
 INSTANTIATE_TEST_SUITE_P(BroadcastConstTestSuite, BroadcastConstTestFixture,
                          ::testing::Combine(::testing::ValuesIn(eltwise_factories),
-                                            ::testing::ValuesIn({ true, false }),
-                                            ::testing::ValuesIn({ true, false }),
-                                            ::testing::ValuesIn({ true, false })));
+                                            ::testing::Bool(),
+                                            ::testing::Bool(),
+                                            ::testing::Bool()));
 
 } // namespace testing
