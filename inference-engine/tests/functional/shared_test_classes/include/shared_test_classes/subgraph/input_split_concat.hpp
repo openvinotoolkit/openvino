@@ -23,7 +23,7 @@ typedef std::tuple<
 > InputSplitConcatParams;
 
 class InputSplitConcatTest : public testing::WithParamInterface<InputSplitConcatParams>,
-                             public LayerTestsUtils::LayerTestsCommon {
+                             virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<InputSplitConcatParams>& obj);
 

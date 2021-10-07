@@ -24,7 +24,7 @@ typedef std::tuple<
 
 class DelayedCopyTestBase
        : public testing::WithParamInterface<DelayedCopyTuple>,
-         public LayerTestsUtils::LayerTestsCommon {
+         virtual public LayerTestsUtils::LayerTestsCommon {
 private:
     void InitMemory();
     virtual void switchToNgraphFriendlyModel() = 0;

@@ -25,7 +25,7 @@ typedef std::tuple<
 
 std::ostream& operator<< (std::ostream& os, const midOutputType& oType);
 
-class OutputBeforeActivation : public LayerTestsUtils::LayerTestsCommon,
+class OutputBeforeActivation : virtual public LayerTestsUtils::LayerTestsCommon,
     public testing::WithParamInterface<outputBeforeActivationParams> {
 protected:
     void SetUp() override;

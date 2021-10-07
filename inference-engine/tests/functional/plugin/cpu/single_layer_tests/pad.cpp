@@ -16,7 +16,7 @@ typedef std::tuple<
 > padLayerCPUTestParamsSet;
 
 class PadLayerCPUTest : public testing::WithParamInterface<padLayerCPUTestParamsSet>,
-                        public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
+                        virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<padLayerCPUTestParamsSet> obj) {
         LayerTestsDefinitions::padLayerTestParamsSet basicParamsSet;

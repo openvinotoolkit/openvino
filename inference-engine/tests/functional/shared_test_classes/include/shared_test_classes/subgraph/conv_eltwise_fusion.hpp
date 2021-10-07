@@ -29,7 +29,7 @@ typedef std::tuple<
 
 class ConvEltwiseFusion
         : public testing::WithParamInterface<ConvEltwiseFusionParams>,
-          public LayerTestsUtils::LayerTestsCommon {
+          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvEltwiseFusionParams> &obj);
 

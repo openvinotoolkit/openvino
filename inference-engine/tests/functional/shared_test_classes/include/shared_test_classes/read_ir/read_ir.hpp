@@ -10,7 +10,7 @@
 
 namespace LayerTestsDefinitions {
 class ReadIRTest : public testing::WithParamInterface<std::tuple<std::string, std::string>>,
-                   public LayerTestsUtils::LayerTestsCommon {
+                   virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<std::string, std::string>> &obj);
 

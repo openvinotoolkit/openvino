@@ -24,7 +24,7 @@ typedef std::tuple<
 > basicLstmParams;
 
 class Basic_LSTM_S : public testing::WithParamInterface<basicLstmParams>,
-                     public LayerTestsUtils::LayerTestsCommon {
+                     virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<basicLstmParams>& obj);
 

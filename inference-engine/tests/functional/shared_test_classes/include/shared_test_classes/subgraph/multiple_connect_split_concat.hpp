@@ -23,7 +23,7 @@ typedef std::tuple<
 
 class MultipleConnectSplitConcatTest:
         public testing::WithParamInterface<MultipleConnectSplitConcatParams>,
-        public LayerTestsUtils::LayerTestsCommon{
+        virtual public LayerTestsUtils::LayerTestsCommon{
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MultipleConnectSplitConcatParams> &obj);
 protected:

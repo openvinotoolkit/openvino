@@ -25,7 +25,7 @@ typedef std::tuple<
 
 class ConvertPadToConvTests
         : public testing::WithParamInterface<PadParams>,
-          public LayerTestsUtils::LayerTestsCommon {
+          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PadParams> &obj);
 
