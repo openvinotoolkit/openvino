@@ -20,8 +20,8 @@
 #include "core/ie_parameter.hpp"
 #include "core/ie_preprocess_info.hpp"
 #include "core/ie_version.hpp"
-#include "core/tensor_description.hpp"
 #include "core/tensor.hpp"
+#include "core/tensor_description.hpp"
 
 namespace py = pybind11;
 
