@@ -33,6 +33,8 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
                 std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("add"));
         info[ov::PrimitivesPriority::get_type_info_static()] =
                 std::make_shared<ov::PrimitivesPriority>("priority");
+        info[ov::OldApiMap::get_type_info_static()] = std::make_shared<ov::OldApiMap>(
+                ov::OldApiMapAttr(std::vector<uint64_t>{0, 2, 3, 1}, ngraph::element::Type_t::f32));
     };
 
     std::shared_ptr<ngraph::Function> function;
@@ -66,6 +68,14 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
         auto primitives_priority_attr = std::dynamic_pointer_cast<ov::PrimitivesPriority>(info.at(pkey));
         ASSERT_TRUE(primitives_priority_attr);
         ASSERT_EQ(primitives_priority_attr->get(), "priority");
+
+        const std::string & old_api_map_key = ov::OldApiMap::get_type_info_static();
+        ASSERT_TRUE(info.count(old_api_map_key));
+        auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
+        ASSERT_TRUE(old_api_map_attr);
+        auto old_api_map_attr_val = old_api_map_attr->get();
+        ASSERT_EQ(old_api_map_attr_val.get_order(), std::vector<uint64_t>({0, 2, 3, 1}));
+        ASSERT_EQ(old_api_map_attr_val.get_type(), ngraph::element::Type_t::f32);
     };
 
     auto add = f->get_results()[0]->get_input_node_ptr(0);

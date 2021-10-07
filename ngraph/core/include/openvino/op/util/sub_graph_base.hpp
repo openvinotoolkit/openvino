@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "ngraph/op/parameter.hpp"
-#include "ngraph/op/util/multi_subgraph_base.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 
 namespace ov {
 namespace op {
@@ -57,7 +57,7 @@ public:
     /// \param      end        The last index on axis of the slicing
     /// \param      axis       The axis to slice along
     ///
-    virtual void set_sliced_input(const std::shared_ptr<ngraph::op::Parameter>& parameter,
+    virtual void set_sliced_input(const std::shared_ptr<ov::op::v0::Parameter>& parameter,
                                   const Output<Node>& value,
                                   int64_t start,
                                   int64_t stride,
@@ -75,7 +75,7 @@ public:
     ///                               The value is what is active in the most recent
     ///                               completed iteration.
     ///
-    virtual void set_merged_input(const std::shared_ptr<ngraph::op::Parameter>& body_parameter,
+    virtual void set_merged_input(const std::shared_ptr<ov::op::v0::Parameter>& body_parameter,
                                   const Output<Node>& initial_value,
                                   const Output<Node>& successive_value);
     ///
@@ -86,7 +86,7 @@ public:
     /// \param      body_parameter  The body parameter
     /// \param      value           The value supplied as an input to the block
     ///
-    virtual void set_invariant_input(const std::shared_ptr<ngraph::op::Parameter>& body_parameter,
+    virtual void set_invariant_input(const std::shared_ptr<ov::op::v0::Parameter>& body_parameter,
                                      const Output<Node>& value);
     ///
     /// \brief      Gets a value for a particular iteration point
