@@ -231,7 +231,8 @@ std::vector<LogSoftmaxParams> generateLogSoftmaxFloatParams() {
 
 std::vector<LogSoftmaxParams> generateLogSoftmaxCombinedParams() {
     const std::vector<std::vector<LogSoftmaxParams>> logSoftmaxTypeParams {
-        generateLogSoftmaxFloatParams<element::Type_t::f32>()
+        generateLogSoftmaxFloatParams<element::Type_t::f32>(),
+        generateLogSoftmaxFloatParams<element::Type_t::f16>()
         };
     std::vector<LogSoftmaxParams> combinedParams;
 
