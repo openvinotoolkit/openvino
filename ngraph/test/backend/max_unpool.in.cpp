@@ -39,9 +39,8 @@ NGRAPH_TEST(${BACKEND_NAME}, max_unpool_2d) {
     auto maxUnpool = make_shared<op::v8::MaxUnpool>(A, maxPool, relu, A, strides, pads_begin, pads_end, kernel);
     auto f = make_shared<Function>(maxUnpool, ParameterVector{A});
 
-    std::vector<float> a;
-    for (int i = 1; i <= 49; ++i)
-        a.push_back(i);
+    std::vector<float> a(49);
+    std::iota(a.begin(), a.end(), 1);
     std::vector<float> result{0, 0,  0, 0, 0, 0, 0, 0, 9, 0, 11, 0,  13, 0,  0, 0,  0, 0, 0, 0, 0, 0, 23, 0, 25,
                               0, 27, 0, 0, 0, 0, 0, 0, 0, 0, 0,  37, 0,  39, 0, 41, 0, 0, 0, 0, 0, 0, 0,  0};
 
@@ -68,9 +67,8 @@ NGRAPH_TEST(${BACKEND_NAME}, max_unpool_2d_output_smaller_then_input) {
     auto maxUnpool = make_shared<op::v8::MaxUnpool>(A, maxPool, relu, B, strides, pads_begin, pads_end, kernel);
     auto f = make_shared<Function>(maxUnpool, ParameterVector{A, B});
 
-    std::vector<float> a;
-    for (int i = 1; i <= 36; ++i)
-        a.push_back(i);
+    std::vector<float> a(36);
+    std::iota(a.begin(), a.end(), 1);
     std::vector<float> b(24, 0);
     std::vector<float> result{0, 0, 0, 0, 0, 0, 0, 8, 0, 10, 0, 12, 0, 0, 0, 0, 0, 0, 0, 20, 0, 22, 0, 24};
 
@@ -97,9 +95,9 @@ NGRAPH_TEST(${BACKEND_NAME}, max_unpool_2d_reshape_output) {
     auto maxUnpool = make_shared<op::v8::MaxUnpool>(A, maxPool, relu, B, strides, pads_begin, pads_end, kernel);
     auto f = make_shared<Function>(maxUnpool, ParameterVector{A, B});
 
-    std::vector<float> a;
-    for (int i = 1; i <= 42; ++i)
-        a.push_back(i);
+
+    std::vector<float> a(42);
+    std::iota(a.begin(), a.end(), 1);
     std::vector<float> b(42, 0);
     std::vector<float> result{0, 0,  0, 0,  0, 0,  0, 0, 9, 0, 11, 0, 13, 0, 0, 0,  0, 0,  0, 0,  0,
                               0, 23, 0, 25, 0, 27, 0, 0, 0, 0, 0,  0, 0,  0, 0, 37, 0, 39, 0, 41, 0};
