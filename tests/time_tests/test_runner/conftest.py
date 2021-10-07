@@ -139,7 +139,7 @@ def cl_cache_dir(pytestconfig, instance):
         if cl_cache_dir.exists():
             shutil.rmtree(cl_cache_dir)
         cl_cache_dir.mkdir()
-        logging.info("cl_cache will be created in {}".format(cl_cache_dir))
+        logging.info(f"cl_cache will be created in {cl_cache_dir}")
         yield cl_cache_dir
         shutil.rmtree(cl_cache_dir)
     else:
@@ -156,7 +156,7 @@ def model_cache_dir(pytestconfig, instance):
         if model_cache_dir.exists():
             shutil.rmtree(model_cache_dir)
         model_cache_dir.mkdir()
-        logging.info("model_cache will be created in {}".format(model_cache_dir))
+        logging.info(f"model_cache will be created in {model_cache_dir}")
         yield model_cache_dir
         shutil.rmtree(model_cache_dir)
     else:
@@ -375,9 +375,9 @@ def pytest_runtest_makereport(item, call):
         yield
         return
 
-    data = item._request.test_info["db_info"].copy()
-    data["results"] = item._request.test_info["results"].copy()
-    data["raw_results"] = item._request.test_info["raw_results"].copy()
+    data = item._request.test_info["db_info"].copy()  # pylint: disable=protected-access
+    data["results"] = item._request.test_info["results"].copy()  # pylint: disable=protected-access
+    data["raw_results"] = item._request.test_info["raw_results"].copy()  # pylint: disable=protected-access
     data["cpu_info"] = get_cpu_info()
     data["status"] = "not_finished"
     data["error_msg"] = ""
@@ -393,5 +393,6 @@ def pytest_runtest_makereport(item, call):
 
         db_url = item.config.getoption("db_url")
         db_collection = item.config.getoption("db_collection")
-        logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, 'timetests', db_collection, data))
+        logging.info(f"Upload data to {db_url}/{'timetests'}.{db_collection}. "
+                     f"Data: {data}")
         upload_data(data, db_url, 'timetests', db_collection)

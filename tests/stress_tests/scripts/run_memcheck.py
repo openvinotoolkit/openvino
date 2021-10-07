@@ -16,15 +16,11 @@ import subprocess
 import sys
 from glob import glob
 
-from compare_memcheck_2_runs import compare_memcheck_2_runs, \
-    get_memcheck_records, get_db_memcheck_records
+from compare_memcheck_2_runs import compare_memcheck_2_runs, get_memcheck_records, get_db_memcheck_records
 # Database arguments
 from memcheck_upload import DATABASE, DB_COLLECTIONS
-from memcheck_upload import create_memcheck_records, \
-    upload_memcheck_records, \
-    create_memcheck_report, \
-    metadata_from_manifest, \
-    info_from_test_config
+from memcheck_upload import create_memcheck_records, upload_memcheck_records, create_memcheck_report, \
+    metadata_from_manifest, info_from_test_config
 
 
 def run(args, log=None, verbose=True):
@@ -74,7 +70,7 @@ def main():
     binary_args = []
     for idx, arg in enumerate(sys.argv):
         if arg == '--':
-            binary_args = sys.argv[idx+1:]
+            binary_args = sys.argv[idx + 1:]
             sys.argv = sys.argv[:idx]
             break
 
@@ -146,11 +142,11 @@ def main():
                 sys.exit(1)
 
     return_code, _ = run([sys.executable, args.gtest_parallel] +
-                        (['--output_dir', f'{args.output_dir}'] if args.output_dir else []) +
-                        (['--workers', f'{args.workers}'] if args.workers else []) +
-                        (['--timeout', f'{args.timeout}'] if args.timeout else []) +
-                        [args.binary] +
-                        ['--'] + binary_args)
+                         (['--output_dir', f'{args.output_dir}'] if args.output_dir else []) +
+                         (['--workers', f'{args.workers}'] if args.workers else []) +
+                         (['--timeout', f'{args.timeout}'] if args.timeout else []) +
+                         [args.binary] +
+                         ['--'] + binary_args)
 
     if args.upload or args.timeline_report or args.compare:
         # prepare commit information
