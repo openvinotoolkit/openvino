@@ -135,7 +135,9 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) 
             configKeys.push_back(value.first);
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        unsigned int nr = m_config.throughput_streams * 2u;
+        unsigned int nr = m_config.throughput_streams;
+        if (m_config.perfHintsConfig.ovPerfHint != CONFIG_VALUE(LATENCY))
+            nr *= 2;
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, nr);
     } else {
         IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
