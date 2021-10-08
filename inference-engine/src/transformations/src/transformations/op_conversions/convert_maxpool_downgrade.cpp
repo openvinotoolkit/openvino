@@ -24,8 +24,7 @@ pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto maxpool_v8_node = std::dynamic_pointer_cast<ngraph::opset8::MaxPool>(m.get_match_root());
 
-        if (!maxpool_v8_node || maxpool_v8_node->get_output_target_inputs(1).size() != 0 ||
-             maxpool_v8_node->get_axis() != 0)
+        if (!maxpool_v8_node || maxpool_v8_node->get_output_target_inputs(1).size() != 0)
             return false;
 
         for (auto dilation : maxpool_v8_node->get_dilations())
