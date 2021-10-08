@@ -34,7 +34,7 @@ def run(args, log=None, verbose=True):
         log = logging.getLogger('run_memcheck')
     log_out = log.info if verbose else log.debug
 
-    log.info(f'========== cmd: {args}')  # pylint: disable=logging-format-interpolation
+    log.info(f'========== cmd: {" ".join(args)}')  # pylint: disable=logging-format-interpolation
 
     proc = subprocess.Popen(args,
                             stdout=subprocess.PIPE,
@@ -153,7 +153,8 @@ def main():
     return_code, _ = run([sys.executable, args.gtest_parallel,
                           '--output_dir', f'{args.output_dir}',
                           '--workers', f'{args.workers}',
-                          '--timeout', f'{args.timeout}', args.binary, '--', binary_args])
+                          '--timeout', f'{args.timeout}',
+                          args.binary, '--'] + binary_args)
 
     if args.upload or args.timeline_report or args.compare:
         # prepare commit information
