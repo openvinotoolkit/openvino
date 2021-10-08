@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/op/util/gather_base.hpp"
+#include "openvino/op/util/gather_nd_base.hpp"
 
 namespace ov {
 namespace op {
@@ -27,13 +27,6 @@ public:
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-    size_t get_batch_dims() const {
-        return m_batch_dims;
-    }
-
-private:
-    size_t m_batch_dims;
 };
 }  // namespace v5
 
@@ -57,13 +50,6 @@ namespace v8 {
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-    size_t get_batch_dims() const {
-        return m_batch_dims;
-    }
-
-    private:
-    size_t m_batch_dims;
 };
 }  // namespace v8
 }  // namespace op

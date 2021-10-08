@@ -32,7 +32,7 @@ public:
         return m_batch_dims;
     }
 
-private:
+protected:
     size_t m_batch_dims = 0;
 };
 }  // namespace util

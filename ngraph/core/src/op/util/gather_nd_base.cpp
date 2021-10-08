@@ -6,16 +6,13 @@
 
 #include <ngraph/validation_util.hpp>
 
-#include "itt.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/squeeze.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/gather_nd.hpp"
 #include "ngraph/shape.hpp"
 
 using namespace std;
-
 
 BWDCMP_RTTI_DEFINITION(ov::op::util::GatherNDBase);
 
