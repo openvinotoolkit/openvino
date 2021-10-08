@@ -7,7 +7,6 @@
 
 #include <memory>
 #include <numeric>
-#include <set>
 #include <unordered_set>
 #include <vector>
 
@@ -75,7 +74,7 @@ std::shared_ptr<ngraph::opset8::Split> get_split_before_concat(const std::shared
 
     // If numbers of consumer ports are various for various output ports of 'split', then the transformation is not applicable.
     auto grouped_idx = grouped_vector(idx);
-    std::set<size_t> sizes_of_groups;
+    std::unordered_set<size_t> sizes_of_groups;
     for (const auto& group : grouped_idx) {
         sizes_of_groups.insert(group.size());
     }
@@ -103,7 +102,7 @@ int64_t get_split_scale(const std::shared_ptr<ngraph::opset8::Concat>& concat) {
     const auto concat_inputs = concat->input_values();
     size_t num_of_concat_inputs = concat_inputs.size();
 
-    std::set<size_t> split_output_ports;
+    std::unordered_set<size_t> split_output_ports;
     for (auto input : concat_inputs) {
         split_output_ports.insert(input.get_index());
     }
