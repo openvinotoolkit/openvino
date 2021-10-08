@@ -66,7 +66,7 @@ jobs:
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/runtime/bindings/python/src/compatibility/openvino/requirements.txt
       # For running Python API tests
-      python3 -m pip install -r $(REPO_DIR)/runtime/bindings/python/src/compatibility/openvino/src/requirements-dev.txt
+      python3 -m pip install -r $(REPO_DIR)/runtime/bindings/python/src/compatibility/openvino/requirements-dev.txt
       # Speed up build
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip

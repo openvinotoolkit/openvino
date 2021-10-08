@@ -86,7 +86,7 @@ jobs:
       python3 -m pip install -r $(REPO_DIR)/runtime/bindings/python/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/runtime/bindings/python/wheel/requirements-dev.txt
       # For running Python API tests
-      python3 -m pip install -r $(REPO_DIR)/runtime/bindings/python/src/compatibility/openvino/src/requirements-dev.txt
+      python3 -m pip install -r $(REPO_DIR)/runtime/bindings/python/src/compatibility/openvino/requirements-dev.txt
       # For running PaddlePaddle frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/ngraph/test/frontend/paddlepaddle/requirements_dev.txt
       # For running ONNX frontend unit tests
