@@ -50,11 +50,20 @@ void regclass_Tensor(py::module m) {
     }),
     py::arg("dtype"), py::arg("shape"));
 
+    cls.def(py::init<Tensor, ov::Coordinate, ov::Coordinate>(),
+    py::arg("other"), py::arg("begin"), py::arg("end"));
+
+    cls.def(py::init<Tensor, std::vector<size_t>, std::vector<size_t>>(),
+    py::arg("other"), py::arg("begin"), py::arg("end"));
+
     cls.def_property_readonly("element_type", &Tensor::get_element_type);
+
     cls.def_property_readonly("data", [](Tensor& self) {
         return py::array(Common::ov_type_to_dtype.at(self.get_element_type()), self.get_shape(), self.data(), py::cast(self));
     });
+
     cls.def_property("shape", &Tensor::get_shape, &Tensor::set_shape);
+
     cls.def_property("shape", &Tensor::get_shape, [](Tensor& self, std::vector<size_t>& shape) {
         self.set_shape(shape);
     });

@@ -28,6 +28,7 @@ def test_init_with_ngraph(ov_type, numpy_dtype):
     ov_tensors.append(Tensor(type=ov_type, shape=ng.impl.Shape([1, 3, 32, 32])))
     ov_tensors.append(Tensor(type=ov_type, shape = [1, 3, 32, 32]))
     for ov_tensor in ov_tensors:
+        assert list(ov_tensor.shape) == [1, 3, 32, 32]
         assert ov_tensor.element_type == ov_type
         assert ov_tensor.data.dtype == numpy_dtype
         assert ov_tensor.data.shape == (1, 3, 32, 32)
@@ -60,6 +61,7 @@ def test_init_with_numpy(ov_type, numpy_dtype):
     ov_tensors.append(Tensor(dtype=numpy_dtype, shape=ov_shape))
     ov_tensors.append(Tensor(dtype=np.dtype(numpy_dtype), shape=ov_shape))
     for ov_tensor in ov_tensors:
+        assert tuple(ov_tensor.shape) == shape
         assert ov_tensor.element_type == ov_type
         assert isinstance(ov_tensor.data, np.ndarray)
         assert ov_tensor.data.dtype == numpy_dtype
@@ -67,6 +69,14 @@ def test_init_with_numpy(ov_type, numpy_dtype):
 
     assert np.shares_memory(ones_arr, ones_ov_tensor.data)
     assert np.array_equal(ones_ov_tensor.data, ones_arr)
+
+
+def test_init_with_roi_tensor():
+    ones = np.random.normal(size=[1, 3, 48, 48])
+    ov_tensor1 = Tensor(ones)
+    ov_tensor2 = Tensor(ov_tensor1, [0, 0, 24, 24], [1, 1, 48, 48])
+    assert list(ov_tensor2.shape) == [1, 1, 24, 24]
+    assert ov_tensor2.element_type == ov_tensor2.element_type
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
@@ -111,18 +121,18 @@ def test_write_to_buffer(ov_type, numpy_dtype):
 def test_set_shape(ov_type, numpy_dtype):
     shape = ng.impl.Shape([1, 3, 32, 32])
     ref_shape = ng.impl.Shape([1, 3, 48, 48])
-    ref_shape_np = (1, 3, 48, 48)
+    ref_shape_np = [1, 3, 28, 28]
     ov_tensor = Tensor(ov_type, shape)
     ov_tensor.shape = ref_shape
-    assert ov_tensor.data.shape == ref_shape_np
-    ones_arr = np.ones(ref_shape_np, numpy_dtype)
+    assert list(ov_tensor.shape) == list(ref_shape)
+    ones_arr = np.ones(list(ov_tensor.shape), numpy_dtype)
     ov_tensor.data[:] = ones_arr
     assert np.array_equal(ov_tensor.data, ones_arr)
     ov_tensor.shape = ref_shape_np
-    assert ov_tensor.data.shape == ref_shape_np
-    ones_arr = np.ones(ref_shape_np, numpy_dtype)
-    ov_tensor.data[:] = ones_arr
-    assert np.array_equal(ov_tensor.data, ones_arr)
+    assert list(ov_tensor.shape) == ref_shape_np
+    zeros = np.zeros(ref_shape_np, numpy_dtype)
+    ov_tensor.data[:] = zeros
+    assert np.array_equal(ov_tensor.data, zeros)
 
 
 def test_cannot_set_shape_on_preallocated_memory():
