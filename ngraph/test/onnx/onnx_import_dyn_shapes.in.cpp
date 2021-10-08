@@ -988,7 +988,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_axes) {
     test_case.add_expected_output<float>(Shape{1, 1, 1}, {9});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_10_the_same_output_same) {
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_the_same_output_same) {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/slice_2d_the_same_out_shape.onnx"));
 
