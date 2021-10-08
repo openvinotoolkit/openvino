@@ -37,7 +37,6 @@ void SubtractMultiplyToMultiplyAddTransformation::SetUp() {
         testValues.inputShape,
         testValues.precision,
         testValues.fqOnData);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(SubtractMultiplyToMultiplyAddTransformation, CompareWithRefImpl) {
