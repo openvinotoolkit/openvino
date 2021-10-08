@@ -41,7 +41,7 @@ std::string MatMulWithOptimizedConstantFakeQuantizeTransformation::getTestCaseNa
 
 void MatMulWithOptimizedConstantFakeQuantizeTransformation::SetUp() {
     threshold = 0.01f;
-    absThreshold = -1; //Disable absolute threshold
+    abs_threshold = -1; //Disable absolute threshold
 
     ngraph::element::Type precision;
     std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;

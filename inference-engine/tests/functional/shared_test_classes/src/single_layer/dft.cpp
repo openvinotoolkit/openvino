@@ -27,7 +27,7 @@ std::string DFTLayerTest::getTestCaseName(const testing::TestParamInfo<DFTParams
 
 void DFTLayerTest::SetUp() {
     threshold = -1; //Disable relative threshold temporarily
-    absThreshold = 0.01f; //Use absolute threshold temporarily
+    abs_threshold = 0.01f; //Use absolute threshold temporarily
     InferenceEngine::SizeVector inputShapes;
     InferenceEngine::Precision inputPrecision;
     std::vector<int64_t> axes;

@@ -32,7 +32,7 @@ std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<ac
 
 void ActivationLayerTest::SetUp() {
     threshold = -1; //Disable relative threshold temporarily
-    absThreshold = 0.01f; //Use absolute threshold temporarily
+    abs_threshold = 0.01f; //Use absolute threshold temporarily
     InferenceEngine::Precision netPrecision;
     std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
     std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;

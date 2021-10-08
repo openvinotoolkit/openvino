@@ -54,7 +54,7 @@ std::string InterpolateLayerTest::getTestCaseName(const testing::TestParamInfo<I
 
 void InterpolateLayerTest::SetUp() {
     threshold = -1; //Disable relative threshold temporarily
-    absThreshold = 0.01f; //Use absolute threshold temporarily
+    abs_threshold = 0.01f; //Use absolute threshold temporarily
     InterpolateSpecificParams interpolateParams;
     std::vector<size_t> inputShape, targetShape;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;

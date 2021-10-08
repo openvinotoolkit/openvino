@@ -62,7 +62,7 @@ public:
 protected:
     void SetUp() override {
         threshold = -1; //Disable relative threshold temporarily
-        absThreshold = 0.015f; //Use absolute threshold temporarily
+        abs_threshold = 0.015f; //Use absolute threshold temporarily
 
         std::vector<std::vector<size_t>> inputShapes;
         std::vector<InferenceEngine::Precision> inputPrecisions;

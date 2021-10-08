@@ -54,7 +54,7 @@ public:
 protected:
     void SetUp() override {
         threshold = -1; //Disable relative threshold temporarily
-        absThreshold = 0.01f; //Use absolute threshold temporarily
+        abs_threshold = 0.01f; //Use absolute threshold temporarily
         LayerTestsDefinitions::activationParams basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = this->GetParam();

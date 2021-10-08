@@ -32,7 +32,7 @@ std::string ReduceSumTransformation::getTestCaseName(const testing::TestParamInf
 
 void ReduceSumTransformation::SetUp() {
     threshold = 0.01f;
-    absThreshold = -1; //Disable absolute threshold
+    abs_threshold = -1; //Disable absolute threshold
 
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;

@@ -60,7 +60,7 @@ protected:
 
         selectedType = "unknown_" + std::string(inPrc.name());
         threshold = -1; //Disable relative threshold temporarily
-        absThreshold = 0.015f; //Use absolute threshold temporarily
+        abs_threshold = 0.015f; //Use absolute threshold temporarily
     }
 };
 

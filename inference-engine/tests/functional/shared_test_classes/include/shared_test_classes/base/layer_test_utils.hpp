@@ -92,7 +92,7 @@ public:
 #endif
 
     template<class T_IE, class T_NGRAPH>
-    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float abs_Threshold = -1.f) {
+    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float abs_threshold = -1.f) {
         if ((threshold < 0) && (abs_threshold < 0)) {
             IE_THROW() << "Both relative threshold and absolute threshold aren't set properly";
         }

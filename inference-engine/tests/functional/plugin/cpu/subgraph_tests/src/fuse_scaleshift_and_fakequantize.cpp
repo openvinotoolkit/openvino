@@ -47,7 +47,7 @@ public:
 protected:
     void SetUp() override {
         threshold = -1; //Disable relative threshold temporarily
-        absThreshold = 0.1f; //Use absolute threshold temporarily
+        abs_threshold = 0.1f; //Use absolute threshold temporarily
 
         Shape inputShape;
         element::Type inputPrecision;
