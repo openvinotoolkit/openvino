@@ -155,8 +155,7 @@ void InputModelONNX::extract_subgraph(const std::vector<Place::Ptr>& inputs, con
     for (const auto& output : outputs) {
         if (const auto output_port = std::dynamic_pointer_cast<PlaceOutputEdgeONNX>(output)) {
             onnx_outputs.push_back(output_port->get_output_edge());
-        } else if(const auto tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(output))
-        {
+        } else if (const auto tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(output)) {
             const auto output_port = tensor->get_producing_port();
             const auto onnx_output_edge = std::dynamic_pointer_cast<PlaceOutputEdgeONNX>(output_port);
             NGRAPH_CHECK(onnx_output_edge, "Non-onnx output place was passed as extraction subgraph argument");
