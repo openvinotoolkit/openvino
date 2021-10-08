@@ -22,11 +22,11 @@ public:
     /// \param indices Node producing indices by which the operation gathers elements
     /// or slices from data
     /// \param batch_dims Specifies a number of batch dimensions
-    GatherNDBase(const Output<Node>& data, const Output<Node>& indices, const size_t batch_dims = 0);
+    GatherNDBase(const Output<Node>& data,
+                 const Output<Node>& indices,
+                 const size_t batch_dims = 0);
 
     void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     size_t get_batch_dims() const {
         return m_batch_dims;
@@ -34,7 +34,6 @@ public:
 
 private:
     size_t m_batch_dims = 0;
-};
 };
 }  // namespace util
 }  // namespace op

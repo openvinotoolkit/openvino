@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/gather_base.hpp"
+#include "ngraph/op/util/gather_nd_base.hpp"
 
 #include <ngraph/validation_util.hpp>
 
