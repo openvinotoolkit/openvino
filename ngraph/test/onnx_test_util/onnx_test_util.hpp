@@ -28,12 +28,13 @@ struct ComparisonResult {
     }
 };
 
-bool default_name_comparator(std::string lhs, std::string rhs);
+bool default_name_comparator(const std::string& lhs, const std::string& rhs);
 
 // comp is a function to compare inputs and outputs names (as default it is a usual std::string comparison)
+using CompType = std::function<bool(const std::string&, const std::string&)>;
 ComparisonResult compare_onnx_models(const std::string& model,
                                      const std::string& reference_model_path,
-                                     std::function<bool(std::string, std::string)> comp = default_name_comparator);
+                                     CompType comp = default_name_comparator);
 
 }  // namespace test
 }  // namespace ngraph

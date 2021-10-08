@@ -18,7 +18,7 @@ using namespace ngraph::test;
 namespace {
 ComparisonResult compare_nodes(const ONNX_NAMESPACE::GraphProto& graph,
                                const ONNX_NAMESPACE::GraphProto& ref_graph,
-                               std::function<bool(std::string, std::string)> comp) {
+                               CompType comp) {
     if (graph.node_size() != ref_graph.node_size()) {
         return ComparisonResult::fail("The number of nodes in compared models doesn't match");
     } else {
@@ -172,7 +172,7 @@ ComparisonResult compare_initializers(const ONNX_NAMESPACE::GraphProto& graph,
 
 ComparisonResult compare_onnx_graphs(const ONNX_NAMESPACE::GraphProto& graph,
                                      const ONNX_NAMESPACE::GraphProto& ref_graph,
-                                     std::function<bool(std::string, std::string)> comp) {
+                                     CompType comp) {
     ComparisonResult comparison = compare_inputs(graph, ref_graph);
     if (!comparison.is_ok) {
         return comparison;
@@ -194,13 +194,13 @@ ComparisonResult compare_onnx_graphs(const ONNX_NAMESPACE::GraphProto& graph,
 namespace ngraph {
 namespace test {
 
-bool default_name_comparator(std::string lhs, std::string rhs) {
+bool default_name_comparator(const std::string& lhs, const std::string& rhs) {
     return lhs == rhs;
 }
 
 ComparisonResult compare_onnx_models(const std::string& model,
                                      const std::string& reference_model_path,
-                                     std::function<bool(std::string, std::string)> comp) {
+                                     CompType comp) {
     std::stringstream model_stream{model};
     const auto model_proto = onnx_common::parse_from_istream(model_stream);
     const auto ref_model = onnx_common::parse_from_file(reference_model_path);

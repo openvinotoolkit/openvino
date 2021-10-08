@@ -23,11 +23,11 @@ namespace {
 // As a result, the names are different during each tests execution.
 // It requires custom way of name comparison.
 // https://github.com/onnx/onnx/blob/767f752829f83dbc9bd0a364d6138890f667fc38/onnx/defs/function.cc#L23
-bool after_func_expand_name_comp(std::string lhs, std::string rhs) {
+bool after_func_expand_name_comp(const std::string& lhs, const std::string& rhs) {
     std::regex address_pattern("(0x)?[0-9A-Fa-f]{8,}");
 
-    const auto lhs_sanitized = std::regex_replace(lhs, address_pattern, "");
-    const auto rhs_sanitized = std::regex_replace(rhs, address_pattern, "");
+    const std::string lhs_sanitized = std::regex_replace(lhs, address_pattern, "");
+    const std::string rhs_sanitized = std::regex_replace(rhs, address_pattern, "");
 
     return lhs_sanitized == rhs_sanitized;
 }
