@@ -80,6 +80,12 @@ def pytest_addoption(parser):
     )
     omz_args_parser = parser.getgroup("test with omz models")
     omz_args_parser.addoption(
+        "--omz",
+        type=Path,
+        required=False,
+        help="Path to Open Model Zoo (OMZ) repository root.",
+    )
+    omz_args_parser.addoption(
         "--omz_models_out_dir",
         type=Path,
         default=abs_path('../_omz_out/models'),
@@ -181,47 +187,54 @@ def omz_models_conversion(instance, request):
     """
     Fixture for preparing omz models and updating test config with new paths
     """
-    if instance["instance"]["model"]["source"] == "omz":
-        model_name = instance["instance"]["model"]["name"]
-        model_precision = instance["instance"]["model"]["precision"]
+    # Check Open Model Zoo key
+    omz_path = request.config.getoption("omz")
+    if omz_path:
+        downloader_path = omz_path / "tools" / "model_tools" / "downloader.py"
+        converter_path = omz_path / "tools" / "model_tools" / "converter.py"
+        info_dumper_path = omz_path / "tools" / "model_tools" / "info_dumper.py"
 
-        cache_dir = request.config.getoption("omz_cache_dir")
-        omz_models_out_dir = request.config.getoption("omz_models_out_dir")
-        omz_irs_out_dir = request.config.getoption("omz_irs_out_dir")
+        if instance["instance"]["model"]["source"] == "omz":
+            model_name = instance["instance"]["model"]["name"]
+            model_precision = instance["instance"]["model"]["precision"]
 
-        # get full model info
-        cmd = ['omz_info_dumper', '--name', f'{model_name}']
-        return_code, info = cmd_exec(cmd, log=logging)
-        assert return_code == 0, "Getting information about OMZ models has failed!"
+            cache_dir = request.config.getoption("omz_cache_dir")
+            omz_models_out_dir = request.config.getoption("omz_models_out_dir")
+            omz_irs_out_dir = request.config.getoption("omz_irs_out_dir")
 
-        model_info = json.loads(info)[0]
+            # get full model info
+            cmd = [f'{sys.executable}', f'{info_dumper_path}', '--name', f'{model_name}']
+            return_code, info = cmd_exec(cmd, log=logging)
+            assert return_code == 0, "Getting information about OMZ models has failed!"
 
-        if model_precision not in model_info['precisions']:
-            logging.error(f"Please specify precision for the model "
-                          f"{model_name} from the list: {model_info['precisions']}")
+            model_info = json.loads(info)[0]
 
-        model_out_path = Path(omz_models_out_dir / model_info["subdirectory"]) / model_precision / (
-                model_name + ".xml")
-        model_full_path = omz_irs_out_dir / model_info["subdirectory"] / model_precision / (model_name + ".xml")
+            if model_precision not in model_info['precisions']:
+                logging.error(f"Please specify precision for the model "
+                              f"{model_name} from the list: {model_info['precisions']}")
 
-        # prepare models and convert models to IRs
-        cmd = ['omz_downloader', '--name', f'{model_name}',
-               '--precisions', f'{model_precision}', '--num_attempts', f'{OMZ_NUM_ATTEMPTS}',
-               '--output_dir', f'{omz_models_out_dir}', '--cache_dir', f'{cache_dir}']
+            model_out_path = Path(omz_models_out_dir / model_info["subdirectory"]) / model_precision / (
+                    model_name + ".xml")
+            model_full_path = omz_irs_out_dir / model_info["subdirectory"] / model_precision / (model_name + ".xml")
 
-        return_code, _ = cmd_exec(cmd, log=logging)
-        assert return_code == 0, "Downloading OMZ models has failed!"
+            # prepare models and convert models to IRs
+            cmd = [f'{sys.executable}', f'{downloader_path}', '--name', f'{model_name}',
+                   '--precisions', f'{model_precision}', '--num_attempts', f'{OMZ_NUM_ATTEMPTS}',
+                   '--output_dir', f'{omz_models_out_dir}', '--cache_dir', f'{cache_dir}']
 
-        cmd = ['omz_converter', '--name', f'{model_name}', '-p', f'{sys.executable}',
-               '--precisions', f'{model_precision}', '--output_dir', f'{omz_irs_out_dir}',
-               '--download_dir', f'{omz_models_out_dir}']
+            return_code, _ = cmd_exec(cmd, log=logging)
+            assert return_code == 0, "Downloading OMZ models has failed!"
 
-        return_code, _ = cmd_exec(cmd, log=logging)
-        assert return_code == 0, "Converting OMZ models has failed!"
+            cmd = [f'{sys.executable}', f'{converter_path}', '--name', f'{model_name}', '-p', f'{sys.executable}',
+                   '--precisions', f'{model_precision}', '--output_dir', f'{omz_irs_out_dir}',
+                   '--download_dir', f'{omz_models_out_dir}']
 
-        instance["instance"]["model"]["framework"] = model_info["framework"]
-        instance["instance"]["model"]["path"] = model_out_path
-        instance["instance"]["model"]["full_path"] = model_full_path
+            return_code, _ = cmd_exec(cmd, log=logging)
+            assert return_code == 0, "Converting OMZ models has failed!"
+
+            instance["instance"]["model"]["framework"] = model_info["framework"]
+            instance["instance"]["model"]["path"] = model_out_path
+            instance["instance"]["model"]["full_path"] = model_full_path
 
 
 @pytest.fixture(scope="function")

@@ -111,6 +111,8 @@ def main():
                              'which will be downloaded and converted to IRs via OMZ.')
     parser.add_argument('--omz_repo', required=False,
                         help='Path to Open Model Zoo (OMZ) repository. It will be used to skip cloning step.')
+    parser.add_argument('--mo_tool', type=Path,
+                        help='Path to Model Optimizer (MO) runner. Required for OMZ converter.py only.')
     parser.add_argument('--omz_models_out_dir', type=Path,
                         default=abs_path('../_omz_out/models'),
                         help='Directory to put test data into. Required for OMZ downloader.py and converter.py.')
@@ -163,9 +165,9 @@ def main():
         precision = model_rec.attrib["precision"]
 
         info_dumper_path = omz_path / "tools" / "model_tools" / "info_dumper.py"
-        cmd = '"{executable}" {info_dumper_path} --name {model_name}'.format(executable=sys.executable,
-                                                                             info_dumper_path=info_dumper_path,
-                                                                             model_name=model_name)
+        cmd = '"{executable}" "{info_dumper_path}" --name {model_name}'.format(executable=sys.executable,
+                                                                               info_dumper_path=info_dumper_path,
+                                                                               model_name=model_name)
         try:
             out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True, universal_newlines=True)
         except subprocess.CalledProcessError as exc:
@@ -191,7 +193,7 @@ def main():
 
         # prepare models
         downloader_path = omz_path / "tools" / "model_tools" / "downloader.py"
-        cmd = '{executable} {downloader_path} --name {model_name}' \
+        cmd = '"{executable}" "{downloader_path}" --name {model_name}' \
               ' --precisions={precision}' \
               ' --num_attempts {num_attempts}' \
               ' --output_dir {models_dir}' \
@@ -205,8 +207,8 @@ def main():
         # convert models to IRs
         converter_path = omz_path / "tools" / "model_tools" / "converter.py"
         # NOTE: remove --precisions if both precisions (FP32 & FP16) required
-        cmd = '{executable} {converter_path} --name {model_name}' \
-              ' -p {executable}' \
+        cmd = '"{executable}" "{converter_path}" --name {model_name}' \
+              ' -p "{executable}"' \
               ' --precisions={precision}' \
               ' --output_dir {irs_dir}' \
               ' --download_dir {models_dir}'.format(executable=python_executable, converter_path=converter_path,
