@@ -4,16 +4,15 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
+#include "openvino/op/util/gather_base.hpp"
 
 namespace ov {
 namespace op {
 namespace v5 {
 /// \brief GatherND operation
-///
-class OPENVINO_API GatherND : public Op::util::GatherNDBase {
+class OPENVINO_API GatherND : public op::util::GatherNDBase {
 public:
-    OPENVINO_OP("GatherND", "opset5", op::util::GatherBase, 5);
+    OPENVINO_OP("GatherND", "opset5", op::util::GatherNDBase, 5);
     BWDCMP_RTTI_DECLARATION;
     GatherND() = default;
 
@@ -38,12 +37,12 @@ private:
 };
 }  // namespace v5
 
-namespace v5 {
+namespace v8 {
 /// \brief GatherND operation
 ///
-    class OPENVINO_API GatherND : public Op::util::GatherNDBase {
+    class OPENVINO_API GatherND : public op::util::GatherNDBase {
     public:
-    OPENVINO_OP("GatherND", "opset8", op::util::GatherBase, 8);
+    OPENVINO_OP("GatherND", "opset8", op::util::GatherNDBase, 8);
     BWDCMP_RTTI_DECLARATION;
     GatherND() = default;
 
