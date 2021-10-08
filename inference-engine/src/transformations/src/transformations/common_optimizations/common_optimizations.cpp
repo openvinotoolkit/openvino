@@ -142,7 +142,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     common_fusions->add_matcher<ngraph::pass::GeluFusion>();
     common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
     common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
-    common_fusions->add_matcher<ngraph::pass::SplitConcatPairToInterpolateFusion>(false);
+    common_fusions->add_matcher<ngraph::pass::SplitConcatPairToInterpolateFusion, false>();
     common_fusions->add_matcher<ngraph::pass::RandomUniformFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
