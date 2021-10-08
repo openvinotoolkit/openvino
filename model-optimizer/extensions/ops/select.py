@@ -61,7 +61,7 @@ class Select(Op):
                             node_name, condition_shape, a_shape, b_shape)
 
                 assert condition_shape[0] == output_shape[0], msg_tf
-                condition_shape = np.concatenate((condition_shape, np.ones(len(output_shape))))
+                condition_shape = np.concatenate((condition_shape, np.ones(len(output_shape) - 1)))
 
             output_shape = bi_directional_shape_broadcasting(output_shape, condition_shape)
             assert output_shape is not None, msg
