@@ -131,3 +131,10 @@ def test_cannot_set_shape_on_preallocated_memory():
     with pytest.raises(RuntimeError) as e:
         ov_tensor.shape = ng.impl.Shape([1, 3, 48, 48])
     assert "Blob::setShape requires dense blob" in str(e.value)
+
+
+def test_cannot_set_shape_incorrect_dims():
+    ov_tensor = Tensor(np.float32, [1, 3, 48, 48])
+    with pytest.raises(RuntimeError) as e:
+        ov_tensor.shape = [3, 28, 28]
+    assert "Dims and format are inconsistent" in str(e.value)
