@@ -193,7 +193,7 @@ def main():
 
         # prepare models
         downloader_path = omz_path / "tools" / "model_tools" / "downloader.py"
-        cmd = '"{executable}" "{downloader_path}" --name {model_name}' \
+        cmd = '{downloader_path} --name {model_name}' \
               ' --precisions={precision}' \
               ' --num_attempts {num_attempts}' \
               ' --output_dir {models_dir}' \
@@ -207,13 +207,14 @@ def main():
         # convert models to IRs
         converter_path = omz_path / "tools" / "model_tools" / "converter.py"
         # NOTE: remove --precisions if both precisions (FP32 & FP16) required
-        cmd = '"{executable}" "{converter_path}" --name {model_name}' \
+        cmd = '{executable} {converter_path} --name {model_name}' \
               ' -p "{executable}"' \
               ' --precisions={precision}' \
               ' --output_dir {irs_dir}' \
-              ' --download_dir {models_dir}'.format(executable=python_executable, converter_path=converter_path,
-                                                    precision=precision, model_name=model_name,
-                                                    irs_dir=args.omz_irs_out_dir, models_dir=args.omz_models_out_dir)
+              ' --download_dir {models_dir}' \
+              ' --mo {mo_tool}'.format(executable=python_executable, converter_path=converter_path,
+                                       precision=precision, model_name=model_name, irs_dir=args.omz_irs_out_dir,
+                                       models_dir=args.omz_models_out_dir, mo_tool=args.mo_tool)
         run_in_subprocess(cmd, check_call=not args.skip_omz_errors)
 
     # rewrite test config with updated records
