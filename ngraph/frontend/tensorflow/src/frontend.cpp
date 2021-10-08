@@ -272,7 +272,7 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
 }
 
 /// \brief Check if FrontEndTensorflow can recognize model from given parts
-bool FrontEndTF::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
+bool FrontEndTF::supported_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const {
     // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
     if (variants.size() != 1)
         return false;
@@ -288,7 +288,7 @@ bool FrontEndTF::supported_impl(const std::vector<std::shared_ptr<Variant>>& var
     return false;
 }
 
-InputModel::Ptr FrontEndTF::load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
+InputModel::Ptr FrontEndTF::load_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const {
     // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
     if (variants.size() == 1) {
         // a case when binary protobuf format is provided

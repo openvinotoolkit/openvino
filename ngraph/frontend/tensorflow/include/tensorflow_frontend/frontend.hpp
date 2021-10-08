@@ -68,9 +68,9 @@ public:
 
 protected:
     /// \brief Check if FrontEndTensorflow can recognize model from given parts
-    bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override;
+    bool supported_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const override;
 
-    InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override;
+    InputModel::Ptr load_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const override;
 
 private:
     void translate_graph(const std::shared_ptr<InputModelTF>& model,
