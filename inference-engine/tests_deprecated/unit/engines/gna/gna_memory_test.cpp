@@ -22,7 +22,11 @@ TEST_F(GNAMemoryTest, canStoreActualBlob){
     float* pFuture = nullptr;
     size_t len = sizeof(input);
 
+<<<<<<< HEAD
     mem.getQueue(REGION_INPUTS)->push_ptr(&pFuture, input, len);
+=======
+    mem.getQueue(REGION_SCRATCH)->push_ptr(&pFuture, input, len);
+>>>>>>> 0518aed3f... fixed unit tests
     mem.commit();
 
     ASSERT_NE(pFuture, nullptr);
@@ -37,8 +41,13 @@ TEST_F(GNAMemoryTest, canStore2Blobs) {
     float* pFuture = nullptr;
     float* pFuture2 = nullptr;
 
+<<<<<<< HEAD
     mem.getQueue(REGION_INPUTS)->push_ptr(&pFuture, input, 3*4);
     mem.getQueue(REGION_INPUTS)->push_ptr(&pFuture2, input+1, 3*4);
+=======
+    mem.getQueue(REGION_SCRATCH)->push_ptr(&pFuture, input, 3*4);
+    mem.getQueue(REGION_SCRATCH)->push_ptr(&pFuture2, input+1, 3*4);
+>>>>>>> 0518aed3f... fixed unit tests
     mem.commit();
 
     ASSERT_NE(pFuture, input);
@@ -57,7 +66,11 @@ TEST_F(GNAMemoryTest, canStoreBlobsALIGNED) {
     float input [] = {1,2,3,4,5,6,7,8};
     float* pFuture = nullptr;
 
+<<<<<<< HEAD
     mem.getQueue(REGION_INPUTS)->push_ptr(&pFuture, input, 3*4, 8);
+=======
+    mem.getQueue(REGION_SCRATCH)->push_ptr(&pFuture, input, 3*4, 8);
+>>>>>>> 0518aed3f... fixed unit tests
     mem.commit();
 
     ASSERT_EQ(16 , mem.getTotalBytes());
@@ -77,8 +90,13 @@ TEST_F(GNAMemoryTest, canStore2BlobsALIGNED) {
     float* pFuture = nullptr;
     float* pFuture2 = nullptr;
 
+<<<<<<< HEAD
     mem.getQueue(REGION_INPUTS)->push_ptr(&pFuture, input, 3*4, 8);
     mem.getQueue(REGION_INPUTS)->push_ptr(&pFuture2, input, 3*4, 16);
+=======
+    mem.getQueue(REGION_SCRATCH)->push_ptr(&pFuture, input, 3*4, 8);
+    mem.getQueue(REGION_SCRATCH)->push_ptr(&pFuture2, input, 3*4, 16);
+>>>>>>> 0518aed3f... fixed unit tests
     mem.commit();
 
     ASSERT_EQ(32 , mem.getTotalBytes());
@@ -98,14 +116,22 @@ TEST_F(GNAMemoryTest, canStore2BlobsALIGNED) {
 TEST_F(GNAMemoryTest, canReserveData) {
 
     float* pFuture = nullptr;
+<<<<<<< HEAD
     mem.getQueue(REGION_INPUTS)->reserve_ptr(&pFuture, 3*4);
+=======
+    mem.getQueue(REGION_SCRATCH)->reserve_ptr(&pFuture, 3*4);
+>>>>>>> 0518aed3f... fixed unit tests
     mem.commit();
 
     ASSERT_NE(pFuture, nullptr);
 }
 
 TEST_F(GNAMemoryTest, canReserveDataByVoid) {
+<<<<<<< HEAD
     mem.getQueue(REGION_INPUTS)->reserve_ptr(nullptr, 3*4);
+=======
+    mem.getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, 3*4);
+>>>>>>> 0518aed3f... fixed unit tests
     ASSERT_NO_THROW(mem.commit());
 }
 
@@ -117,8 +143,13 @@ TEST_F(GNAMemoryTest, canReserveAndPushData) {
     float* pFuture2 = nullptr;
     size_t len = sizeof(input) ;
 
+<<<<<<< HEAD
     mem.getQueue(REGION_INPUTS)->push_ptr(&pFuture, input, len);
     mem.getQueue(REGION_INPUTS)->reserve_ptr(&pFuture2, 3*4);
+=======
+    mem.getQueue(REGION_SCRATCH)->push_ptr(&pFuture, input, len);
+    mem.getQueue(REGION_SCRATCH)->reserve_ptr(&pFuture2, 3*4);
+>>>>>>> 0518aed3f... fixed unit tests
     mem.commit();
 
     ASSERT_NE(pFuture, nullptr);
@@ -144,7 +175,11 @@ TEST_F(GNAMemoryTest, canBindAndResolve) {
     size_t len = sizeof(input);
 
     mem.getQueue(REGION_AUTO)->bind_ptr(&pFuture3, &pFuture);
+<<<<<<< HEAD
     mem.getQueue(REGION_INPUTS)->push_ptr(&pFuture, input, len);
+=======
+    mem.getQueue(REGION_SCRATCH)->push_ptr(&pFuture, input, len);
+>>>>>>> 0518aed3f... fixed unit tests
     mem.getQueue(REGION_AUTO)->bind_ptr(&pFuture2, &pFuture);
 
     mem.commit();
@@ -169,7 +204,11 @@ TEST_F(GNAMemoryTest, canBindTransitevlyAndResolve) {
 
     mem.getQueue(REGION_AUTO)->bind_ptr(&pFuture4, &pFuture3);
     mem.getQueue(REGION_AUTO)->bind_ptr(&pFuture3, &pFuture);
+<<<<<<< HEAD
     mem.getQueue(REGION_INPUTS)->push_ptr(&pFuture, input, len);
+=======
+    mem.getQueue(REGION_SCRATCH)->push_ptr(&pFuture, input, len);
+>>>>>>> 0518aed3f... fixed unit tests
 
     mem.commit();
 
@@ -194,7 +233,11 @@ TEST_F(GNAMemoryTest, canBindTransitevlyWithOffsetsAndResolve) {
 
     mem.getQueue(REGION_AUTO)->bind_ptr(&pFuture4, &pFuture3, 4);
     mem.getQueue(REGION_AUTO)->bind_ptr(&pFuture3, &pFuture, 4);
+<<<<<<< HEAD
     mem.getQueue(REGION_INPUTS)->push_ptr(&pFuture, input, len);
+=======
+    mem.getQueue(REGION_SCRATCH)->push_ptr(&pFuture, input, len);
+>>>>>>> 0518aed3f... fixed unit tests
 
     mem.commit();
 
@@ -218,7 +261,11 @@ TEST_F(GNAMemoryTest, canBindWithOffsetAndResolve) {
     size_t len = sizeof(input);
 
     mem.getQueue(REGION_AUTO)->bind_ptr(&pFuture3, &pFuture, 4);
+<<<<<<< HEAD
     mem.getQueue(REGION_INPUTS)->push_ptr(&pFuture, input, len);
+=======
+    mem.getQueue(REGION_SCRATCH)->push_ptr(&pFuture, input, len);
+>>>>>>> 0518aed3f... fixed unit tests
     mem.getQueue(REGION_AUTO)->bind_ptr(&pFuture2, &pFuture);
 
     mem.commit();
@@ -242,7 +289,11 @@ TEST_F(GNAMemoryTest, canPushLocal) {
 
     {
         std::vector<float> input = {1.0f, 2.0f, 3.0f, 4.0f};
+<<<<<<< HEAD
         mem.getQueue(REGION_INPUTS)->push_local_ptr(pFuture, &*input.begin(), 4 * 4, 1);
+=======
+        mem.getQueue(REGION_SCRATCH)->push_local_ptr(pFuture, &*input.begin(), 4 * 4, 1);
+>>>>>>> 0518aed3f... fixed unit tests
     }
 
     //poison stack
@@ -260,8 +311,13 @@ TEST_F(GNAMemoryTest, canPushValue) {
     float* pFuture2 = (float*)&pFuture2;
 
     {
+<<<<<<< HEAD
         mem.getQueue(REGION_INPUTS)->push_value(pFuture, 3.f,  2);
         mem.getQueue(REGION_INPUTS)->push_value(pFuture2, 13.f, 2);
+=======
+        mem.getQueue(REGION_SCRATCH)->push_value(pFuture, 3.f,  2);
+        mem.getQueue(REGION_SCRATCH)->push_value(pFuture2, 13.f, 2);
+>>>>>>> 0518aed3f... fixed unit tests
     }
 
     mem.commit();
@@ -278,7 +334,11 @@ TEST_F(GNAMemoryTest, DISABLED_canPushReadOnlyValue) {
     float* pFuture2 = (float*)&pFuture2;
 
     {
+<<<<<<< HEAD
         mem.getQueue(REGION_STATES)->push_value(pFuture, 3.f,  2);
+=======
+        mem.getQueue(REGION_SCRATCH)->push_value(pFuture, 3.f,  2);
+>>>>>>> 0518aed3f... fixed unit tests
         mem.getQueue(REGION_RO)->push_value(pFuture2, 13.f, 2);
     }
 
@@ -286,13 +346,17 @@ TEST_F(GNAMemoryTest, DISABLED_canPushReadOnlyValue) {
 
     ASSERT_FLOAT_EQ(pFuture[0], 3);
     ASSERT_FLOAT_EQ(pFuture[1], 3);
-    ASSERT_FLOAT_EQ(pFuture[2], 13);
-    ASSERT_FLOAT_EQ(pFuture[3], 13);
+    ASSERT_FLOAT_EQ(pFuture2[0], 13);
+    ASSERT_FLOAT_EQ(pFuture2[1], 13);
 }
 
 TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSize) {
 
+<<<<<<< HEAD
     mem.getQueue(REGION_STATES)->push_value(nullptr, 3.f,  2);
+=======
+    mem.getQueue(REGION_SCRATCH)->push_value(nullptr, 3.f,  2);
+>>>>>>> 0518aed3f... fixed unit tests
     mem.getQueue(REGION_RO)->push_value(nullptr, 13.f, 2);
     mem.commit();
 
@@ -304,7 +368,11 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithAlignment) {
 
     GNAMemory<GNAFloatAllocator> memAligned{ GNAFloatAllocator {}, 64 };
 
+<<<<<<< HEAD
     memAligned.getQueue(REGION_STATES)->push_value(nullptr, 3.f,  2);
+=======
+    memAligned.getQueue(REGION_SCRATCH)->push_value(nullptr, 3.f,  2);
+>>>>>>> 0518aed3f... fixed unit tests
     memAligned.getQueue(REGION_RO)->push_value(nullptr, 13.f, 2);
     memAligned.commit();
 
@@ -320,14 +388,18 @@ TEST_F(GNAMemoryTest, DISABLED_canSetUpReadWriteSectionPtr) {
 
 
     mem.getQueue(REGION_RO)->push_value(pFuture1, 3.f,  2);
+<<<<<<< HEAD
     mem.getQueue(REGION_STATES)->push_value(pFuture2, 13.f, 3);
+=======
+    mem.getQueue(REGION_SCRATCH)->push_value(pFuture2, 13.f, 3);
+>>>>>>> 0518aed3f... fixed unit tests
     mem.getQueue(REGION_RO)->push_value(pFuture3, 32.f,  4);
     mem.commit();
 
     ASSERT_EQ(mem.getTotalBytes(), (2+3+4) * sizeof(float));
     ASSERT_EQ(mem.getRWBytes(), 3 * sizeof(float));
 
-    ASSERT_LT(&pFuture2[0], &pFuture1[0]);
+    ASSERT_NE(&pFuture2[0], &pFuture1[0]);
     ASSERT_LT(&pFuture1[0], &pFuture3[0]);
 
     ASSERT_FLOAT_EQ(pFuture1[0], 3.f);
@@ -353,7 +425,11 @@ TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequest) {
 
     size_t len = sizeof(input);
 
+<<<<<<< HEAD
     mem.getQueue(REGION_INPUTS)->push_ptr(&pFuture, input, len);
+=======
+    mem.getQueue(REGION_SCRATCH)->push_ptr(&pFuture, input, len);
+>>>>>>> 0518aed3f... fixed unit tests
     mem.getQueue(REGION_AUTO)->bind_ptr(&pFuture2, &pFuture, len, len);
     mem.getQueue(REGION_AUTO)->bind_ptr(&pFuture3, &pFuture2, 2 * len, len);
 
@@ -385,9 +461,15 @@ TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequestWhenPush
 
     size_t len = sizeof(input);
 
+<<<<<<< HEAD
     mem.getQueue(REGION_INPUTS)->push_ptr(&pFuture, input, len);
     mem.getQueue(REGION_AUTO)->bind_ptr(&pFuture2, &pFuture, len, len);
     mem.getQueue(REGION_INPUTS)->push_ptr(&pFutureInput2, input2, len);
+=======
+    mem.getQueue(REGION_SCRATCH)->push_ptr(&pFuture, input, len);
+    mem.getQueue(REGION_AUTO)->bind_ptr(&pFuture2, &pFuture, len, len);
+    mem.getQueue(REGION_SCRATCH)->push_ptr(&pFutureInput2, input2, len);
+>>>>>>> 0518aed3f... fixed unit tests
 
     mem.commit();
 
@@ -416,9 +498,15 @@ TEST_F(GNAMemoryTest, DISABLED_canUpdateSizeOfPushRequestWithBindRequestWhenAllo
 
     size_t len = sizeof(input);
 
+<<<<<<< HEAD
     mem.getQueue(REGION_INPUTS)->reserve_ptr(&pFuture, len);
     mem.getQueue(REGION_AUTO)->bind_ptr(&pFuture2, &pFuture, len, len);
     mem.getQueue(REGION_INPUTS)->push_ptr(&pFutureInput, input, len);
+=======
+    mem.getQueue(REGION_SCRATCH)->reserve_ptr(&pFuture, len);
+    mem.getQueue(REGION_AUTO)->bind_ptr(&pFuture2, &pFuture, len, len);
+    mem.getQueue(REGION_SCRATCH)->push_ptr(&pFutureInput, input, len);
+>>>>>>> 0518aed3f... fixed unit tests
 
     mem.commit();
 
