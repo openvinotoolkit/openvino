@@ -6,6 +6,34 @@
 
 #include "ngraph/util.hpp"
 
+namespace {
+int compare_types(const ov::DiscreteTypeInfo& v1, const ov::DiscreteTypeInfo& v2) {
+    std::string v1_str;
+    v1_str += std::to_string(v1.version);
+    v1_str += v1.name;
+    if (v1.version_id != nullptr) {
+        v1_str += v1.version_id;
+    } else {
+        v1_str += "nullptr";
+    }
+    std::string v2_str;
+    v2_str += std::to_string(v2.version);
+    v2_str += v2.name;
+    if (v2.version_id != nullptr) {
+        v2_str += v2.version_id;
+    } else {
+        v2_str += "nullptr";
+    }
+    std::cout << v1_str << " vs " << v2_str << std::endl;
+    if (v1_str == v2_str)
+        return 0;
+    else if (v1_str < v2_str)
+        return -1;
+    else
+        return 1;
+}
+}  // namespace
+
 namespace std {
 size_t std::hash<ngraph::DiscreteTypeInfo>::operator()(const ngraph::DiscreteTypeInfo& k) const {
     NGRAPH_SUPPRESS_DEPRECATED_START
@@ -33,22 +61,10 @@ std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info) {
 
 // parent is commented to fix type relaxed operations
 bool DiscreteTypeInfo::operator<(const DiscreteTypeInfo& b) const {
-    if (version_id == nullptr || b.version_id == nullptr)
-        return version < b.version ||
-               (version == b.version && strcmp(name, b.name) < 0);  // ||
-                                                                    // (version == b.version && strcmp(name, b.name) ==
-                                                                    // 0 && parent && b.parent && *parent < *b.parent);
-    else
-        return strcmp(version_id, b.version_id) < 0 ||
-               (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) < 0);  // ||
-    // (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) == 0 && parent && b.parent &&
-    //  *parent < *b.parent);
+    return compare_types(*this, b) < 0;
 }
 bool DiscreteTypeInfo::operator==(const DiscreteTypeInfo& b) const {
-    if (version_id == nullptr || b.version_id == nullptr)
-        return version == b.version && strcmp(name, b.name) == 0;  // && parent == b.parent;
-    else
-        return strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) == 0;  // && parent == b.parent;
+    return compare_types(*this, b) == 0;
 }
 bool DiscreteTypeInfo::operator<=(const DiscreteTypeInfo& b) const {
     return *this == b || *this < b;
