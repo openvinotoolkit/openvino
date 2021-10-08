@@ -23,7 +23,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 | Model Format                     | Network weights file (\*.bin)
 | Validated images                 | single-channel `ubyte` images
 | Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
-| Other language realization       | [Python](../../samples/python/ngraph_function_creation_sample/README.md) |
+| Other language realization       | [Python](../../../samples/python/ngraph_function_creation_sample/README.md) |
 
 ## How It Works
 
