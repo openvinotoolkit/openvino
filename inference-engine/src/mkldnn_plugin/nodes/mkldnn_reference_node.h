@@ -20,12 +20,11 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    std::vector<std::vector<size_t>> shapeInfer() const override;
+    bool needPrepareParams() const override { return false; }
     void executeDynamicImpl(mkldnn::stream strm) override;
 
 private:
     const std::shared_ptr<ngraph::Node> ngraphOp;
-    std::shared_ptr<ngraph::Node> opToShapeInfer;
     const std::string additionalErrorMessage;
 };
 

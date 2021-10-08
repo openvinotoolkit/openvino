@@ -12,8 +12,6 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
-#include "ngraph_ops/convolution_ie.hpp"
-#include "ngraph_ops/deconvolution_ie.hpp"
 
 #include <ie_metric_helpers.hpp>
 #include <ie_performance_hints.hpp>
@@ -37,9 +35,7 @@ namespace {
             if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
                 std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node) ||
                 std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
-                std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node) ||
-                std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node) ||
-                std::dynamic_pointer_cast<ngraph::op::DeconvolutionIE>(node)) {
+                std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node)) {
                 auto layerType = node->input(1).get_element_type().get_type_name();
                 if (layerType == "f32")
                     return METRIC_VALUE(FP32);
@@ -253,11 +249,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         }
         // replace the configure with configure that auto want to pass to device
         // and reset the strDevices to support devices
-        std::vector<std::string> validConfigKey;
+        auto validConfigKey = PerfHintsConfig::SupportedKeys();
         validConfigKey.push_back(PluginConfigParams::KEY_PERF_COUNT);
         validConfigKey.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
-        validConfigKey.push_back(PluginConfigParams::KEY_PERFORMANCE_HINT);
-        validConfigKey.push_back(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
         strDevices = "";
         for (auto iter = supportDevices.begin(); iter != supportDevices.end(); iter++) {
              std::map<std::string, std::string> deviceConfig;
@@ -268,7 +262,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                  }
              }
              iter->config = deviceConfig;
-             strDevices = iter->deviceName;
+             strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
         }
 

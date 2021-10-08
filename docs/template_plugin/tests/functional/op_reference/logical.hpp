@@ -4,14 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <vector>
-
 #include "base_reference_test.hpp"
 #include "ngraph_functions/builders.hpp"
+
+using namespace ov;
 
 namespace reference_tests {
 namespace LogicalOpsRefTestDefinitions {
@@ -52,14 +48,14 @@ public:
     }
 
 private:
-    static std::shared_ptr<ngraph::Function> CreateFunction(ngraph::helpers::LogicalTypes op_type, const std::vector<Tensor>& inputs) {
-        ngraph::ParameterVector params_vec;
+    static std::shared_ptr<ov::Function> CreateFunction(ngraph::helpers::LogicalTypes op_type, const std::vector<Tensor>& inputs) {
+        ov::ParameterVector params_vec;
         for (auto& input : inputs) {
-            params_vec.push_back(std::make_shared<ngraph::op::Parameter>(input.type, input.shape));
+            params_vec.push_back(std::make_shared<op::v0::Parameter>(input.type, input.shape));
         }
 
         const auto logical_op = ngraph::builder::makeLogical(params_vec, op_type);
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector {logical_op}, ngraph::ParameterVector {params_vec});
+        return std::make_shared<ov::Function>(ov::NodeVector {logical_op}, ov::ParameterVector {params_vec});
     }
 };
 }  // namespace LogicalOpsRefTestDefinitions
