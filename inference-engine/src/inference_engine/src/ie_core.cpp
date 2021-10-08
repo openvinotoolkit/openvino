@@ -450,16 +450,12 @@ public:
 
     ie::CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from file");
-        auto cnnNet = InferenceEngine::details::ReadNetwork(modelPath, binPath, extensions, newAPI);
-        OPENVINO_ASSERT(cnnNet.getFunction() || !newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
-        return cnnNet;
+        return InferenceEngine::details::ReadNetwork(modelPath, binPath, extensions, newAPI);
     }
 
     ie::CNNNetwork ReadNetwork(const std::string& model, const ie::Blob::CPtr& weights) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from memory");
-        auto cnnNet = InferenceEngine::details::ReadNetwork(model, weights, extensions, newAPI);
-        OPENVINO_ASSERT(cnnNet.getFunction() || !newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
-        return cnnNet;
+        return InferenceEngine::details::ReadNetwork(model, weights, extensions, newAPI);
     }
 
     // TODO: In future this method can be added to ICore interface

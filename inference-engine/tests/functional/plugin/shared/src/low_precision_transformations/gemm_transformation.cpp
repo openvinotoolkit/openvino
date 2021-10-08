@@ -45,7 +45,6 @@ void GemmTransformation::SetUp() {
         inputShape,
         low,
         high);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(GemmTransformation, CompareWithRefImpl) {
