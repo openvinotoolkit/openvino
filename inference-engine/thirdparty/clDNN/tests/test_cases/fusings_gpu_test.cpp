@@ -771,6 +771,29 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_bias,
                                              bc_test_params{CASE_CONV_FP16_10, 2, 3},
                                              }));
 
+class conv_fp32_double_bias : public ConvFusingTest {};
+TEST_P(conv_fp32_double_bias, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias1", get_mem(get_bias_layout(p))),
+                 data("bias2", get_mem(get_bias_layout(p))),
+                 convolution("conv_prim", "input", {"weights"}, std::vector<primitive_id>{}, p.groups, p.stride, p.pad, p.dilation),
+                 eltwise("add_bias1", {"conv_prim", "bias1"}, eltwise_mode::sum),
+                 eltwise("add_bias2", {"add_bias1", "bias2"}, eltwise_mode::sum),
+                 reorder("reorder_bfyx", "add_bias2", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_double_bias,
+                        ::testing::ValuesIn(std::vector<bc_test_params>{
+                                            bc_test_params{CASE_CONV_U8S8_1, 2, 4},
+                                            bc_test_params{CASE_CONV_S8S8_1, 2, 4},
+                                            }));
+
 class conv_fp32_prelu_eltwise : public ConvFusingTest {};
 TEST_P(conv_fp32_prelu_eltwise, basic_sum) {
     auto p = GetParam();
