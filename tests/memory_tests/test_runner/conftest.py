@@ -118,26 +118,31 @@ def pytest_addoption(parser):
              '`RUN_ID` should be a string uniquely identifying the run '
              '(like Jenkins URL or time)'
     )
+    is_db_used = db_args_parser.parser.parse_known_args(sys.argv).db_submit
     db_args_parser.addoption(
         '--db_url',
         type=str,
+        required=is_db_used,
         help='MongoDB URL in a form "mongodb://server:port"'
     )
     db_args_parser.addoption(
         '--db_name',
         type=str,
+        required=is_db_used,
         help='database name',
         choices=DATABASES
     )
     db_args_parser.addoption(
         '--db_collection',
         type=str,
+        required=is_db_used,
         help='collection name in database',
         choices=DB_COLLECTIONS
     )
     db_args_parser.addoption(
         '--manifest',
         type=Path,
+        required=is_db_used,
         help='path to build manifest to extract commit information'
     )
     db_args_parser.addoption(
