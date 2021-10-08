@@ -24,10 +24,13 @@ import ngraph as ng
     (ng.impl.Type.u1, np.uint8),
 ])
 def test_init_with_ngraph(ov_type, numpy_dtype):
-    ov_tensor = Tensor(type=ov_type, shape=ng.impl.Shape([1, 3, 32, 32]))
-    assert ov_tensor.element_type == ov_type
-    assert ov_tensor.data.dtype == numpy_dtype
-    assert ov_tensor.data.shape == (1, 3, 32, 32)
+    ov_tensors = []
+    ov_tensors.append(Tensor(type=ov_type, shape=ng.impl.Shape([1, 3, 32, 32])))
+    ov_tensors.append(Tensor(type=ov_type, shape = [1, 3, 32, 32]))
+    for ov_tensor in ov_tensors:
+        assert ov_tensor.element_type == ov_type
+        assert ov_tensor.data.dtype == numpy_dtype
+        assert ov_tensor.data.shape == (1, 3, 32, 32)
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
@@ -46,26 +49,24 @@ def test_init_with_ngraph(ov_type, numpy_dtype):
 ])
 def test_init_with_numpy(ov_type, numpy_dtype):
     shape = (1, 3, 127, 127)
-    ov_tensor = Tensor(dtype=numpy_dtype, shape=shape)
-    assert ov_tensor.element_type == ov_type
-    assert ov_tensor.data.dtype == numpy_dtype
-
-    ov_tensor = Tensor(dtype=np.dtype(numpy_dtype), shape=shape)
-    assert ov_tensor.element_type == ov_type
-    assert ov_tensor.data.dtype == numpy_dtype
-
-    ov_tensor = Tensor(np.dtype(numpy_dtype), np.array(shape))
-    assert ov_tensor.element_type == ov_type
-    assert ov_tensor.data.dtype == numpy_dtype
-
+    ov_shape = ng.impl.Shape(shape)
     ones_arr = np.ones(shape, numpy_dtype)
-    ov_tensor = Tensor(array=ones_arr)
-    assert ov_tensor.element_type == ov_type
-    assert isinstance(ov_tensor.data, np.ndarray)
-    assert ov_tensor.data.dtype == numpy_dtype
-    assert ov_tensor.data.shape == shape
-    assert np.shares_memory(ones_arr, ov_tensor.data)
-    assert np.array_equal(ov_tensor.data, ones_arr)
+    ones_ov_tensor = Tensor(array=ones_arr)
+    ov_tensors = []
+    ov_tensors.append(Tensor(dtype=numpy_dtype, shape=shape))
+    ov_tensors.append(Tensor(dtype=np.dtype(numpy_dtype), shape=shape))
+    ov_tensors.append(Tensor(dtype=np.dtype(numpy_dtype), shape=np.array(shape)))
+    ov_tensors.append(ones_ov_tensor)
+    ov_tensors.append(Tensor(dtype=numpy_dtype, shape=ov_shape))
+    ov_tensors.append(Tensor(dtype=np.dtype(numpy_dtype), shape=ov_shape))
+    for ov_tensor in ov_tensors:
+        assert ov_tensor.element_type == ov_type
+        assert isinstance(ov_tensor.data, np.ndarray)
+        assert ov_tensor.data.dtype == numpy_dtype
+        assert ov_tensor.data.shape == shape
+
+    assert np.shares_memory(ones_arr, ones_ov_tensor.data)
+    assert np.array_equal(ones_ov_tensor.data, ones_arr)
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [

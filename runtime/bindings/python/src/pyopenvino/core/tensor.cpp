@@ -19,6 +19,9 @@ void regclass_Tensor(py::module m) {
     cls.def(py::init<const ov::element::Type, const ov::Shape>(),
     py::arg("type"), py::arg("shape"));
 
+    cls.def(py::init<const ov::element::Type, const std::vector<size_t>>(),
+    py::arg("type"), py::arg("shape"));
+
     cls.def(py::init([](py::array& array) {
         std::vector<size_t> shape(array.shape(), array.shape() + array.ndim());
         std::vector<size_t> strides(array.strides(), array.strides() + array.ndim());
@@ -27,12 +30,22 @@ void regclass_Tensor(py::module m) {
     }),
     py::arg("array"));
 
-    cls.def(py::init([](py::dtype np_dtype, std::vector<size_t> shape) {
+    cls.def(py::init([](py::dtype& np_dtype, std::vector<size_t>& shape) {
         return Tensor(Common::dtype_to_ov_type.at(py::str(np_dtype)), shape);
     }),
     py::arg("dtype"), py::arg("shape"));
 
-    cls.def(py::init([](py::object np_literal, std::vector<size_t> shape) {
+    cls.def(py::init([](py::object& np_literal, std::vector<size_t>& shape) {
+        return Tensor(Common::dtype_to_ov_type.at(py::str(py::dtype::from_args(np_literal))), shape);
+    }),
+    py::arg("dtype"), py::arg("shape"));
+
+    cls.def(py::init([](py::dtype& np_dtype, const ov::Shape& shape) {
+        return Tensor(Common::dtype_to_ov_type.at(py::str(np_dtype)), shape);
+    }),
+    py::arg("dtype"), py::arg("shape"));
+
+    cls.def(py::init([](py::object& np_literal, const ov::Shape& shape) {
         return Tensor(Common::dtype_to_ov_type.at(py::str(py::dtype::from_args(np_literal))), shape);
     }),
     py::arg("dtype"), py::arg("shape"));
@@ -42,7 +55,7 @@ void regclass_Tensor(py::module m) {
         return py::array(Common::ov_type_to_dtype.at(self.get_element_type()), self.get_shape(), self.data(), py::cast(self));
     });
     cls.def_property("shape", &Tensor::get_shape, &Tensor::set_shape);
-    cls.def_property("shape", &Tensor::get_shape, [](Tensor& self, std::vector<size_t> shape) {
+    cls.def_property("shape", &Tensor::get_shape, [](Tensor& self, std::vector<size_t>& shape) {
         self.set_shape(shape);
     });
 }
