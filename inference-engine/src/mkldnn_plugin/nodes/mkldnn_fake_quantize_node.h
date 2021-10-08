@@ -78,28 +78,8 @@ public:
 
     bool isBinarization() const { return getAlgorithm() == Algorithm::FQBinarization; }
 
-    void runtimestaff() {
-        int axisRealSize = static_cast<int>(fq->get_input_shape(0)[axis]);
-        size_t axisPaddedSize = static_cast<size_t>(rnd_up(fq->get_input_shape(0)[axis], 16));
-
-        if (axisSize != -1 && axisSize != axisRealSize)
-            IE_THROW() << errorPrefix << "has different quantization axis size on 'data' and 'range' inputs";
-
-        if (binarization) {
-            algorithm = FQBinarization;
-
-            binarizationThresholds.resize(axisPaddedSize);
-            binarizationOutputMask.resize(axisPaddedSize);
-
-            for (int i = 0; i < axisRealSize; i++) {
-                binarizationThresholds[i] = inputLowData[isInputLowBroadcasted ? 0 : i];
-                binarizationOutputMask[i] = outputHighData[isOutputHighBroadcasted ? 0 : i] == 1.f ? 0xffffffff : 0x00000000;
-            }
-        } else {
-
-
-             
-    }
+    bool needPrepareParams() const override;
+    void prepareParams() override;
 
     const float* getBinarizationTresholdsPtr() const { return &binarizationThresholds[0]; }
     const float* getBinarizationOutputMaskPtr() const { return reinterpret_cast<const float*>(&binarizationOutputMask[0]); }
@@ -140,7 +120,9 @@ public:
     InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
     InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
 
+    bool mustReallocInternalBuffers() const override;
     void appendPostOps(mkldnn::post_ops& ops, bool initAsBinary = false, bool initBinaryMemory = false) override;
+    void setCurrentAxis(size_t axis) { currentAxisSize = axis; }
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -152,11 +134,26 @@ public:
     MKLDNNMemoryPtr outputShiftMemory;
 
 private:
+    struct FakeQuantizeExecutor {
+        virtual void exec(const MKLDNNFakeQuantizeNode& node) = 0;
+        virtual const jit_quantize_params& getJqp() const = 0;
+        virtual ~FakeQuantizeExecutor() = default;
+    };
+    using executorPtr = std::shared_ptr<FakeQuantizeExecutor>;
+    executorPtr execPtr = nullptr;
+
+    struct FakeQuantizeJitExecutor : public FakeQuantizeExecutor {
+        FakeQuantizeJitExecutor(const jit_quantize_params &_jqp);
+        void exec(const MKLDNNFakeQuantizeNode& node) override;
+        const jit_quantize_params& getJqp() const override;
+        std::shared_ptr<jit_uni_quantize_kernel> pKernel;
+    };
+
     void init() override;
     std::vector<LayoutType> getDataFormats() const;
     void executeReference();
-    void executeBinarization();
-    void executeQuantization();
+    void executeBinarization(const std::shared_ptr<jit_uni_quantize_kernel> &pKernel) const;
+    void executeQuantization(const std::shared_ptr<jit_uni_quantize_kernel> &pKernel) const;
 
     size_t levels = 0;
 
@@ -193,14 +190,12 @@ private:
     bool isOutputLowBroadcasted = false;
     bool isOutputHighBroadcasted = false;
 
+    VectorDims currentInBlkDims;
+    Dim currentAxisSize = Shape::UNDEFINED_DIM;
     size_t axis = 0;
 
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
-
-    jit_quantize_params jqp = {};
-
-    std::shared_ptr<jit_uni_quantize_kernel> quantize_kernel = nullptr;
 
     std::string errorPrefix;
 };

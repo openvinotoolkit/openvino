@@ -556,6 +556,10 @@ public:
         return outputShapes[port];
     }
 
+    virtual bool mustReallocInternalBuffers() const {
+        return false;
+    }
+
     bool isPerTensorBroadcastScaleShift(const size_t constPort) const;
 
 protected:
