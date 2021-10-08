@@ -124,6 +124,9 @@ testing::AssertionResult test::INTERPRETER_Engine::compare_results_with_toleranc
         case element::Type_t::f32:
             comparison_result = compare_with_fp_tolerance(expected_result_constant, result_tensor, tolerance);
             break;
+        case element::Type_t::i32:
+            comparison_result = compare_values<int32_t>(expected_result_constant, result_tensor, 0);
+            break;
         default:
             comparison_result = testing::AssertionFailure() << "Unsupported data type encountered in "
                                                                "'compare_results_with_tolerance_as_fp' method";

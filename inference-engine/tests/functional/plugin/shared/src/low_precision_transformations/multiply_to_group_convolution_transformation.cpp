@@ -49,7 +49,6 @@ void MultiplyToGroupConvolutionTransformation::SetUp() {
         shape,
         param.fqOnData,
         param.constant);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void MultiplyToGroupConvolutionTransformation::Run() {
