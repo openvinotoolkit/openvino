@@ -103,11 +103,6 @@ def pytest_addoption(parser):
         default=abs_path('../_omz_out/irs'),
         help='Directory to put test data into. Required for omz_converter only.'
     )
-    omz_args_parser.addoption(
-        "--mo",
-        type=Path,
-        help="Path to model-optimizer mo.py. Required for omz_converter only",
-    )
     helpers_args_parser = parser.getgroup("test helpers")
     helpers_args_parser.addoption(
         "--dump_refs",
@@ -195,7 +190,7 @@ def omz_models_conversion(instance, request):
     # Check Open Model Zoo key
     omz_path = request.config.getoption("omz")
     if omz_path:
-        # TODO: After switch to wheel OV installation, omz tools and mo should be accessible through command line
+        # TODO: After switch to wheel OV installation, omz tools should be accessible through command line
         downloader_path = omz_path / "tools" / "model_tools" / "downloader.py"
         converter_path = omz_path / "tools" / "model_tools" / "converter.py"
         info_dumper_path = omz_path / "tools" / "model_tools" / "info_dumper.py"
@@ -203,8 +198,6 @@ def omz_models_conversion(instance, request):
         if instance["instance"]["model"]["source"] == "omz":
             model_name = instance["instance"]["model"]["name"]
             model_precision = instance["instance"]["model"]["precision"]
-
-            mo_path = request.config.getoption("mo")
 
             cache_dir = request.config.getoption("omz_cache_dir")
             omz_models_out_dir = request.config.getoption("omz_models_out_dir")
@@ -235,7 +228,7 @@ def omz_models_conversion(instance, request):
 
             cmd = [f'{sys.executable}', f'{converter_path}', '--name', f'{model_name}', '-p', f'{sys.executable}',
                    '--precisions', f'{model_precision}', '--output_dir', f'{omz_irs_out_dir}',
-                   '--download_dir', f'{omz_models_out_dir}', '--mo', f'{mo_path}']
+                   '--download_dir', f'{omz_models_out_dir}']
 
             return_code, _ = cmd_exec(cmd, log=logging)
             assert return_code == 0, "Converting OMZ models has failed!"
@@ -445,6 +438,8 @@ def prepare_timeline_report(pytestconfig):
             autoescape=False)
         template = env.get_template('timeline_report.html')
         template.stream(records=records, timelines=timelines).dump(report_path)
+
+        logging.info(f"Save html timeline_report to {report_path}")
 
 
 @pytest.fixture(scope="session", autouse=True)
