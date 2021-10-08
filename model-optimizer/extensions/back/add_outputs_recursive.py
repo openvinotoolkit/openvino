@@ -118,7 +118,7 @@ class AddOutputRecursive(BackReplacementPattern):
 
         final_res_name = ""
         for n in nodes_path:
-            final_res_name += n.soft_get('name', n.id) + "_"
+            final_res_name += n.soft_get('name', n.id) + "."
         final_res_name = final_res_name[:-1]
 
         ports_to_add_nodes = []
@@ -287,9 +287,24 @@ class AddOutputRecursive(BackReplacementPattern):
         path = graph.graph['additional_outputs']
         paths_nodes_graphs = self.split_path_to_simple_tracks(graph, path)
 
+        paths_nodes_graphs_old = []
         for i in range(len(paths_nodes_graphs)):
+            paths_nodes_graphs_old.append({'nodes': [], 'graphs': []})
+            paths_nodes_graphs_old[i]['nodes'] = paths_nodes_graphs[i]['nodes'][:]
+            paths_nodes_graphs_old[i]['graphs'] = paths_nodes_graphs[i]['graphs'][:]
             paths_nodes_graphs[i]['nodes'], paths_nodes_graphs[i]['graphs'] = self.add_output_for_path(
                 paths_nodes_graphs[i]['nodes'], paths_nodes_graphs[i]['graphs'])
 
-        for i in range(len(paths_nodes_graphs)):
+        for i in range(len(paths_nodes_graphs_old)):
             self.infer_shapes_of_nodes_in_path(paths_nodes_graphs[i]['nodes'])
+
+        k = 0
+        new_nodes = []
+        for i in range(len(paths_nodes_graphs)):
+            for j in range(len(paths_nodes_graphs[i]['nodes'])):
+                if paths_nodes_graphs_old[i]['nodes'][k] != paths_nodes_graphs[i]['nodes'][j]:
+                    new_nodes.append(paths_nodes_graphs[i]['nodes'][j])
+                else:
+                    k += 1 if k < len(paths_nodes_graphs_old[i]['nodes'])-1 else 0
+
+        return new_nodes
