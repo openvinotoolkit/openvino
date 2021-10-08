@@ -41,7 +41,7 @@ const std::unordered_map<std::string, InferenceEngine::Layout> layout_str_to_enu
     {"BLOCKED", InferenceEngine::Layout::BLOCKED}};
 }  // namespace
 
-std::map<ov::element::Type, py::dtype> ov_type_to_dtype = {
+const std::map<ov::element::Type, py::dtype> ov_type_to_dtype = {
     {ov::element::f16, py::dtype("float16")},
     {ov::element::bf16, py::dtype("float16")},
     {ov::element::f32, py::dtype("float32")},
@@ -58,7 +58,7 @@ std::map<ov::element::Type, py::dtype> ov_type_to_dtype = {
     {ov::element::u1, py::dtype("uint8")},
 };
 
-std::map<py::str, ov::element::Type> dtype_to_ov_type = {
+const std::map<py::str, ov::element::Type> dtype_to_ov_type = {
     {"float16", ov::element::f16},
     {"float32", ov::element::f32},
     {"float64", ov::element::f64},

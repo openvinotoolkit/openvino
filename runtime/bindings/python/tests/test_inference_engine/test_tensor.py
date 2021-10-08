@@ -24,7 +24,7 @@ import ngraph as ng
     (ng.impl.Type.u1, np.uint8),
 ])
 def test_init_with_ngraph(ov_type, numpy_dtype):
-    ov_tensor = Tensor(ov_type, ng.impl.Shape([1, 3, 32, 32]))
+    ov_tensor = Tensor(type=ov_type, shape=ng.impl.Shape([1, 3, 32, 32]))
     assert ov_tensor.element_type == ov_type
     assert ov_tensor.data.dtype == numpy_dtype
     assert ov_tensor.data.shape == (1, 3, 32, 32)
@@ -46,11 +46,11 @@ def test_init_with_ngraph(ov_type, numpy_dtype):
 ])
 def test_init_with_numpy(ov_type, numpy_dtype):
     shape = (1, 3, 127, 127)
-    ov_tensor = Tensor(numpy_dtype, shape)
+    ov_tensor = Tensor(dtype=numpy_dtype, shape=shape)
     assert ov_tensor.element_type == ov_type
     assert ov_tensor.data.dtype == numpy_dtype
 
-    ov_tensor = Tensor(np.dtype(numpy_dtype), shape)
+    ov_tensor = Tensor(dtype=np.dtype(numpy_dtype), shape=shape)
     assert ov_tensor.element_type == ov_type
     assert ov_tensor.data.dtype == numpy_dtype
 
@@ -59,7 +59,7 @@ def test_init_with_numpy(ov_type, numpy_dtype):
     assert ov_tensor.data.dtype == numpy_dtype
 
     ones_arr = np.ones(shape, numpy_dtype)
-    ov_tensor = Tensor(ones_arr)
+    ov_tensor = Tensor(array=ones_arr)
     assert ov_tensor.element_type == ov_type
     assert isinstance(ov_tensor.data, np.ndarray)
     assert ov_tensor.data.dtype == numpy_dtype
