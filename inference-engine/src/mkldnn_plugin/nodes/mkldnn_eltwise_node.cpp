@@ -1634,6 +1634,7 @@ void MKLDNNEltwiseNode::executeReference(const jit_eltwise_params &jep, const ji
 }
 
 void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
+    std::cout << getName() << std::endl;
     if (execPtr) {
         jit_eltwise_call_args_ptrs args_ptrs = {};
         const auto &jep = execPtr->getJep();
