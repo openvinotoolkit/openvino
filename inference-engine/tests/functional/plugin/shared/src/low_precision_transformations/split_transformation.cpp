@@ -58,7 +58,6 @@ void SplitTransformation::SetUp() {
         param.fakeQuantize,
         param.splitedAxis,
         param.numSplit);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(SplitTransformation, CompareWithRefImpl) {
