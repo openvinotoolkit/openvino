@@ -39,6 +39,7 @@
 #include "utils/node_dumper.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/cpu_utils.hpp"
+#include "utils/verbose.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 
 #include <ngraph/node.hpp>
@@ -74,7 +75,7 @@ void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMg
 
     status = Ready;
 
-    ENABLE_CPU_DEBUG_CAP(serialize(*this));
+    CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
 template void MKLDNNGraph::CreateGraph(const std::shared_ptr<const ngraph::Function>&,
@@ -218,8 +219,10 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
             const auto inInfo = inputsInfo.find(node->getName());
             if (inInfo != inputsInfo.end()) {
                 inputNodesMap[node->getName()] = node;
+                IE_SUPPRESS_DEPRECATED_START
                 if (inInfo->second->getInputData()->isDynamic())
                     graphHasDynamicInput = true;
+                IE_SUPPRESS_DEPRECATED_END
             }
         }
 
@@ -317,6 +320,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
 void MKLDNNGraph::InitGraph() {
     MKLDNNGraphOptimizer optimizer;
+    CPU_DEBUG_CAP_ENABLE(initNodeDumper(config.debugCaps));
 
     SortTopologically();
     InitNodes();
@@ -343,7 +347,7 @@ void MKLDNNGraph::InitGraph() {
         graphNode->cleanup();
     }
 #endif
-    ExtractConstantNodes();
+    ExtractConstantAndExecutableNodes();
 
     ExecuteConstantNodesOnly();
 }
@@ -388,29 +392,34 @@ void MKLDNNGraph::InitOptimalPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNGraph::ExtractConstantNodes() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExtractConstantNodes");
-    for (auto& graphNode : graphNodes) {
+void MKLDNNGraph::ExtractConstantAndExecutableNodes() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExtractConstantAndExecutableNodes");
+    for (const auto& graphNode : graphNodes) {
         if (graphNode->isConstant())
             constantGraphNodes.emplace_back(graphNode);
-        else
-            mutableGraphNodes.emplace_back(graphNode);
+        else if (CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable()))
+            /* @todo
+             * Revise implementation.
+             * With current way it is possible that with debug_caps enabled
+             * we execute a node, which is not ready to be executed
+             */
+            executableGraphNodes.emplace_back(graphNode);
     }
 }
 
-void MKLDNNGraph::ExecuteConstantNodesOnly() {
+void MKLDNNGraph::ExecuteConstantNodesOnly() const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExecuteConstantNodesOnly");
     mkldnn::stream stream(eng);
 
     using shared_memory_ptr = MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr;
 
-    auto acquireSharedOutputs = [this](MKLDNNNodePtr & graphNode) {
+    auto acquireSharedOutputs = [this](const MKLDNNNodePtr & node) {
         std::vector<shared_memory_ptr> outputs;
         bool hasLocalAllocatedEdges = false;
         bool hasExternalInvalidEdges = false;
 
-        for (size_t i = 0; i < graphNode->getChildEdges().size(); ++i) {
-            auto edgePtr = graphNode->getChildEdgeAt(i);
+        for (size_t i = 0; i < node->getChildEdges().size(); ++i) {
+            auto edgePtr = node->getChildEdgeAt(i);
             if (edgePtr) {
                 if (edgePtr->isUseExternalMemory()) {
                     auto ptr = weightsCache->get(edgePtr->name());
@@ -426,18 +435,18 @@ void MKLDNNGraph::ExecuteConstantNodesOnly() {
         return std::make_tuple(hasExternalInvalidEdges, hasLocalAllocatedEdges, outputs);
     };
 
-    for (auto &graphNode : constantGraphNodes) {
+    for (const auto &node : constantGraphNodes) {
         if (weightsCache) {
-            auto sharedOutputs = acquireSharedOutputs(graphNode);
+            auto sharedOutputs = acquireSharedOutputs(node);
 
             if (std::get<0>(sharedOutputs) || std::get<1>(sharedOutputs)) {
-                graphNode->execute(stream);
+                ExecuteNode(node, stream);
 
                 for (auto & output : std::get<2>(sharedOutputs))
                     output->valid(true);
             }
         } else {
-            graphNode->execute(stream);
+            ExecuteNode(node, stream);
         }
     }
 }
@@ -809,6 +818,16 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
     }
 }
 
+inline void MKLDNNGraph::ExecuteNode(const MKLDNNNodePtr& node, const mkldnn::stream& stream) const {
+    DUMP(node, infer_count);
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, node->profiling.execute);
+
+    if (node->isDynamicNode())
+        node->executeDynamic(stream);
+    else
+        node->execute(stream);
+}
+
 void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
     if (!IsReady()) {
         IE_THROW() << "Wrong state. Topology is not ready.";
@@ -816,33 +835,14 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
 
     mkldnn::stream stream(eng);
 
-    ENABLE_CPU_DEBUG_CAP(NodeDumper nd(config.debugCaps, infer_count));
+    for (const auto& node : executableGraphNodes) {
+        VERBOSE(node, config.debugCaps.verbose);
+        PERF(node, config.collectPerfCounters);
 
-#ifdef CPU_DEBUG_CAPS
-    for (const auto& node : constantGraphNodes) {
-        if (request != nullptr)
+        if (request)
             request->ThrowIfCanceled();
 
-        ENABLE_CPU_DEBUG_CAP(nd.dumpInputBlobs(node));
-        ENABLE_CPU_DEBUG_CAP(nd.dumpOutputBlobs(node));
-    }
-#endif
-
-    for (const auto& node : mutableGraphNodes) {
-        PERF(config.collectPerfCounters, node);
-        if (request != nullptr)
-            request->ThrowIfCanceled();
-
-        ENABLE_CPU_DEBUG_CAP(nd.dumpInputBlobs(node));
-
-        OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, node->profiling.execute);
-        if (node->isDynamicNode()) {
-            node->executeDynamic(stream);
-        } else {
-            node->execute(stream);
-        }
-
-        ENABLE_CPU_DEBUG_CAP(nd.dumpOutputBlobs(node));
+        ExecuteNode(node, stream);
     }
 
     if (infer_count != -1) infer_count++;

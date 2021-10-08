@@ -13,17 +13,19 @@ set(LINK_LIBRARIES
     lptNgraphFunctions
     inference_engine_transformations
     openvino::itt
+    openvino::util
     openvino::conditional_compilation
     sharedTestClasses
     inference_engine_snippets
     offline_transformations
     inference_engine
+    frontend_manager
     pugixml::static
 )
 
 set(DEPENDENCIES
     mock_engine
-    inference_engine_ir_reader
+    ir_ngraph_frontend
     inference_engine_ir_v7_reader
     HeteroPlugin
     MultiDevicePlugin

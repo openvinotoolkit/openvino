@@ -15,7 +15,7 @@ namespace ov {
 namespace op {
 namespace v5 {
 /// \brief  Iterate a body over tensors, accumulating into tensors.
-class NGRAPH_API Loop : public op::util::SubGraphOp {
+class OPENVINO_API Loop : public op::util::SubGraphOp {
 public:
     /// \brief  Allows to define the purpose of inputs/outputs in the body
     struct SpecialBodyPorts {
@@ -30,7 +30,8 @@ public:
         int64_t body_condition_output_idx = -1;
     };
 
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("Loop", "opset5", op::util::SubGraphOp, 5);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a Loop operation.
     Loop() = default;
@@ -75,16 +76,14 @@ private:
 }  // namespace op
 
 template <>
-class NGRAPH_API AttributeAdapter<op::v5::Loop::SpecialBodyPorts>
+class OPENVINO_API AttributeAdapter<op::v5::Loop::SpecialBodyPorts>
     : public DirectValueAccessor<op::v5::Loop::SpecialBodyPorts> {
 public:
     AttributeAdapter(op::v5::Loop::SpecialBodyPorts& value)
         : DirectValueAccessor<op::v5::Loop::SpecialBodyPorts>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v5::Loop::SpecialBodyPorts>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

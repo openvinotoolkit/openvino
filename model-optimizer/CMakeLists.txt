@@ -4,7 +4,7 @@
 if(NOT ENABLE_PYTHON)
     message(WARNING "Please enable IE & nGraph Python API (ie_api and offline_transformations_api) targets to enable Model Optimizer target")
 else()
-    add_custom_target(model_optimizer DEPENDS ie_api offline_transformations_api inference_engine_ir_reader)
+    add_custom_target(model_optimizer DEPENDS ie_api offline_transformations_api ir_ngraph_frontend)
     if(ENABLE_TESTS)
             add_subdirectory(unit_tests/mock_mo_frontend/mock_mo_ngraph_frontend)
             add_dependencies(model_optimizer mock_mo_ngraph_frontend)
@@ -57,5 +57,10 @@ install(DIRECTORY unit_tests
 
 install(DIRECTORY automation
         DESTINATION tools/model_optimizer
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
+
+install(FILES .coveragerc
+        DESTINATION tests/model_optimizer
         COMPONENT tests
         EXCLUDE_FROM_ALL)

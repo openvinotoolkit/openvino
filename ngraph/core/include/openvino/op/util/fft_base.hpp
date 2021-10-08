@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
-#include "ngraph/op/util/attr_types.hpp"
+#include "openvino/op/op.hpp"
+#include "openvino/op/util/attr_types.hpp"
 
 namespace ov {
 namespace op {
@@ -13,7 +13,8 @@ namespace util {
 /// \brief Base class for operations DFT and DFT.
 class OPENVINO_API FFTBase : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("FFTBase", "util");
+    BWDCMP_RTTI_DECLARATION;
     FFTBase() = default;
 
     void validate_and_infer_types() override;

@@ -14,7 +14,9 @@ add_subdirectory(ittapi EXCLUDE_FROM_ALL)
 add_subdirectory(itt_collector EXCLUDE_FROM_ALL)
 add_subdirectory(zlib EXCLUDE_FROM_ALL)
 add_subdirectory(cnpy EXCLUDE_FROM_ALL)
-add_subdirectory(ocl EXCLUDE_FROM_ALL)
+if(ENABLE_CLDNN)
+    add_subdirectory(ocl EXCLUDE_FROM_ALL)
+endif()
 
 add_subdirectory(xbyak EXCLUDE_FROM_ALL)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
@@ -114,6 +116,57 @@ endif()
 
 if(NGRAPH_ONNX_FRONTEND_ENABLE)
     add_subdirectory(onnx)
+endif()
+
+#
+# oneDNN for GPU plugin
+#
+if (ANDROID OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
+    # oneDNN doesn't support old compilers and android builds for now, so we'll build GPU plugin without oneDNN
+    set(ENABLE_ONEDNN_FOR_GPU OFF CACHE BOOL "")
+else()
+    set(ENABLE_ONEDNN_FOR_GPU ON CACHE BOOL "")
+endif()
+
+if(ENABLE_ONEDNN_FOR_GPU)
+    function(build_onednn_gpu)
+        include(ExternalProject)
+        set(ONEDNN_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_build/")
+        set(ONEDNN_INSTALL_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+        set(ONEDNN_LIBRARY "${ONEDNN_BUILD_DIR}/src/${CMAKE_STATIC_LIBRARY_PREFIX}onednn_gpu${CMAKE_STATIC_LIBRARY_SUFFIX}")
+        set(ONEDNN_OUTPUT_LIBRARY "${ONEDNN_INSTALL_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}onednn_gpu${CMAKE_STATIC_LIBRARY_SUFFIX}")
+        ExternalProject_Add(onednn_gpu_build
+            SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
+            BINARY_DIR "${ONEDNN_BUILD_DIR}"
+            INSTALL_DIR "${ONEDNN_INSTALL_DIR}"
+            PREFIX onednn_gpu_build
+            EXCLUDE_FROM_ALL ON
+            CMAKE_ARGS "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+                       "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
+                       "-DDNNL_CPU_RUNTIME=NONE"
+                       "-DDNNL_GPU_RUNTIME=OCL"
+                       "-DDNNL_GPU_RUNTIME=OCL"
+                       "-DDNNL_LIBRARY_NAME=onednn_gpu"
+                       "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+                       "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+                       "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}"
+                       "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
+                       "-DDNNL_ENABLE_PRIMITIVE_CACHE=ON"
+                       "-DDNNL_BUILD_TESTS=OFF"
+                       "-DDNNL_BUILD_EXAMPLES=OFF"
+                       "-DDNNL_BLAS_VENDOR=NONE"
+                       "-DDNNL_LIBRARY_TYPE=STATIC"
+                       "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}"
+                       "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}"
+                       "-DOPENCL_VERSION_2_2=${OPENCL_VERSION_2_2}"
+            BUILD_COMMAND ${CMAKE_COMMAND} --build . --config ${CMAKE_BUILD_TYPE} --target onednn_gpu --parallel
+            INSTALL_COMMAND ${CMAKE_COMMAND} -E copy ${ONEDNN_LIBRARY} ${ONEDNN_OUTPUT_LIBRARY}
+            COMMAND ${CMAKE_COMMAND} -E echo "OneDNN $<CONFIG> build for GPU complete"
+            BUILD_BYPRODUCTS ${ONEDNN_OUTPUT_LIBRARY}
+        )
+    endfunction()
+
+    build_onednn_gpu()
 endif()
 
 #

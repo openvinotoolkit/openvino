@@ -20,7 +20,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v3::ShapeOf, "ShapeOf", 3);
+BWDCMP_RTTI_DEFINITION(op::v3::ShapeOf);
 
 op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, element::Type output_type) : Op({arg}), m_output_type(output_type) {
     constructor_validate_and_infer_types();
@@ -174,13 +174,13 @@ bool op::v3::ShapeOf::evaluate_upper(const HostTensorVector& output_values) cons
 
 bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "op::v3::ShapeOf::constant_fold");
-    if (get_rt_info().count("DISABLED_CONSTANT_FOLDING"))
+    if (get_rt_info().count("disabled_constant_folding_0"))
         return false;
     return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0]);
 }
 
 // op::v0::ShapeOf
-OPENVINO_RTTI_DEFINITION(op::v0::ShapeOf, "ShapeOf", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::ShapeOf);
 
 op::v0::ShapeOf::ShapeOf(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
@@ -233,7 +233,7 @@ bool op::v0::ShapeOf::has_evaluate() const {
 
 bool op::v0::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "op::v0::ShapeOf::constant_fold");
-    if (get_rt_info().count("DISABLED_CONSTANT_FOLDING"))
+    if (get_rt_info().count("disabled_constant_folding_0"))
         return false;
     return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0]);
 }

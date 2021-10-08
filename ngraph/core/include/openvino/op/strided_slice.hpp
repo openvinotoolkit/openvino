@@ -7,8 +7,8 @@
 #include <memory>
 #include <vector>
 
-#include "ngraph/op/util/attr_types.hpp"
 #include "openvino/op/op.hpp"
+#include "openvino/op/util/attr_types.hpp"
 
 namespace ov {
 namespace op {
@@ -17,7 +17,8 @@ namespace v1 {
 ///        bounding box, optionally with stride.
 class OPENVINO_API StridedSlice : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("StridedSlice", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     StridedSlice() = default;
 

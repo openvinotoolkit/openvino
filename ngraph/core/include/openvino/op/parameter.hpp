@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/layout.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov {
@@ -16,14 +17,15 @@ namespace v0 {
 /// Basic graph operations do not need parameters attached to a function.
 class OPENVINO_API Parameter : public op::Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Parameter", "opset1");
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructions a tensor-typed parameter node.
     Parameter() = default;
     /// \brief Constructions a tensor-typed parameter node.
     ///
     /// \param element_type The element type of the parameter.
     /// \param pshape The partial shape of the parameter.
-    Parameter(const ngraph::element::Type& element_type, const PartialShape& pshape);
+    Parameter(const ov::element::Type& element_type, const PartialShape& pshape);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -50,6 +52,12 @@ public:
         m_element_type = element_type;
     }
 
+    /// \brief Returns current layout, or empty Layout if it is not set
+    Layout get_layout() const;
+
+    /// \brief Sets layout runtime information to tensor
+    void set_layout(const Layout& layout);
+
 protected:
     PartialShape m_partial_shape;
     element::Type m_element_type;
@@ -66,10 +74,8 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<ParameterVector>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ParameterVector>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ParameterVector& m_ref;

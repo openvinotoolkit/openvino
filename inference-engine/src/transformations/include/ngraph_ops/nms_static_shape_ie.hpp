@@ -22,6 +22,8 @@ class NmsStaticShapeIE : public BaseNmsOp {
 public:
     NGRAPH_RTTI_DECLARATION;
 
+    NmsStaticShapeIE() = default;
+
     using Attributes = typename BaseNmsOp::Attributes;
 
     /// \brief Constructs a NmsStaticShapeIE operation
@@ -38,6 +40,16 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
         return std::make_shared<NmsStaticShapeIE>(new_args.at(0), new_args.at(1), this->m_attrs);
     }
+
+private:
+    typedef struct {} init_rt_result;
+
+    init_rt_result init_rt_info() {
+        BaseNmsOp::get_rt_info()["opset"] = std::make_shared<ngraph::VariantWrapper<std::string>>("ie_internal_opset");
+        return {};
+    }
+
+    init_rt_result init_rt = init_rt_info();
 };
 
 template <typename BaseNmsOp>
@@ -105,8 +117,8 @@ template <typename BaseNmsOp>
 const ::ngraph::Node::type_info_t NmsStaticShapeIE<BaseNmsOp>::type_info = NmsStaticShapeIE<BaseNmsOp>::get_type_info_static();
 
 #ifdef __clang__
-extern template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<op::v8::MulticlassNms>;
-extern template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<op::v8::MatrixNms>;
+extern template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<ov::op::v8::MulticlassNms>;
+extern template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>;
 #endif  // __clang__
 
 }  // namespace internal

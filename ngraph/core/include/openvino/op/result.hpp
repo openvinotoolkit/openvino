@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/layout.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov {
@@ -11,32 +12,40 @@ namespace op {
 namespace v0 {
 class OPENVINO_API Result : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Result", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Allows a value to be used as a function result.
     Result() = default;
     /// \brief Allows a value to be used as a function result.
     ///
     /// \param arg Node that produces the input tensor.
-    Result(const Output<Node>& arg, bool needs_default_layout = false);
+    Result(const Output<Node>& arg);
+
+    OPENVINO_DEPRECATED("This constructor is redundant, use Result(const Output<Node>& arg) instead.")
+    Result(const Output<Node>& arg, bool);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    void set_needs_default_layout(bool val) {
-        m_needs_default_layout = val;
-    }
+    OPENVINO_DEPRECATED("This method provides no usage and has no replacement.")
+    void set_needs_default_layout(bool) {}
+    OPENVINO_DEPRECATED("This method provides no usage and has no replacement.")
     bool needs_default_layout() const {
-        return m_needs_default_layout;
+        return false;
     }
+
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     bool has_evaluate() const override;
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
 
-private:
-    bool m_needs_default_layout{false};
+    /// \brief Returns current layout, or empty Layout if it is not set
+    Layout get_layout() const;
+
+    /// \brief Sets layout runtime information to tensor
+    void set_layout(const Layout& layout);
 };
 }  // namespace v0
 }  // namespace op
@@ -49,10 +58,8 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<ResultVector>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ResultVector>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ResultVector& m_ref;

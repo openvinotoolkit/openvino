@@ -5,12 +5,9 @@
 #include "ngraph/variant.hpp"
 
 #include "ngraph/node.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 
 using namespace ngraph;
-
-// Define variant for std::string
-constexpr VariantTypeInfo VariantWrapper<std::string>::type_info;
-constexpr VariantTypeInfo VariantWrapper<int64_t>::type_info;
 
 Variant::~Variant() = default;
 

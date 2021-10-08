@@ -59,8 +59,9 @@ runtime::AlignedBuffer& runtime::AlignedBuffer::operator=(AlignedBuffer&& other)
 }
 
 namespace ov {
-constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<runtime::AlignedBuffer>>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>);
 
-AttributeAdapter<shared_ptr<runtime::AlignedBuffer>>::AttributeAdapter(shared_ptr<runtime::AlignedBuffer>& value)
-    : DirectValueAccessor<shared_ptr<runtime::AlignedBuffer>>(value) {}
+AttributeAdapter<shared_ptr<ngraph::runtime::AlignedBuffer>>::AttributeAdapter(
+    shared_ptr<ngraph::runtime::AlignedBuffer>& value)
+    : DirectValueAccessor<shared_ptr<ngraph::runtime::AlignedBuffer>>(value) {}
 }  // namespace ov

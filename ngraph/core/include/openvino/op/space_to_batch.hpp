@@ -22,7 +22,8 @@ namespace v1 {
 ///         of the same type as `data` input.
 class OPENVINO_API SpaceToBatch : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("SpaceToBatch", "opset2", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     SpaceToBatch() = default;
 
@@ -36,8 +37,8 @@ public:
     /// input.
     SpaceToBatch(const Output<Node>& data,
                  const Output<Node>& block_shape,
-                 const Output<ngraph::Node>& pads_begin,
-                 const Output<ngraph::Node>& pads_end);
+                 const Output<ov::Node>& pads_begin,
+                 const Output<ov::Node>& pads_end);
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

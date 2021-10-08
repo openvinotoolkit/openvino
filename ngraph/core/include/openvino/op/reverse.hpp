@@ -4,14 +4,15 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace op {
 namespace v1 {
 class OPENVINO_API Reverse : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Reverse", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     enum class Mode { INDEX, MASK };
 
@@ -66,10 +67,8 @@ class OPENVINO_API AttributeAdapter<op::v1::Reverse::Mode> : public EnumAttribut
 public:
     AttributeAdapter(op::v1::Reverse::Mode& value) : EnumAttributeAdapterBase<op::v1::Reverse::Mode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v1::Reverse::Mode>", 1};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v1::Reverse::Mode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

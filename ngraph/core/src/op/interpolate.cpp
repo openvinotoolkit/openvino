@@ -17,7 +17,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Interpolate, "Interpolate", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::Interpolate);
 
 op::v0::Interpolate::Interpolate(const Output<Node>& image, const Output<Node>& output_shape, const Attributes& attrs)
     : Op({image, output_shape}),
@@ -84,13 +84,13 @@ EnumNames<ngraph::op::v0::Interpolate::InterpolateMode>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v0::Interpolate::InterpolateMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v0::Interpolate::InterpolateMode>);
 
 }  // namespace ov
 
 // Interpolate v4
 
-OPENVINO_RTTI_DEFINITION(op::v4::Interpolate, "Interpolate", 4);
+BWDCMP_RTTI_DEFINITION(op::v4::Interpolate);
 
 op::v4::Interpolate::Interpolate(const Output<Node>& image,
                                  const Output<Node>& output_shape,
@@ -429,31 +429,31 @@ bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, 
 
     switch (input_et) {
     case element::Type_t::f32:
-        runtime::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
-                                               padded_input_shape,
-                                               scales,
-                                               axes,
-                                               outputs[0]->get_data_ptr<float>(),
-                                               out_shape,
-                                               m_attrs);
+        ngraph::runtime::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
+                                                       padded_input_shape,
+                                                       scales,
+                                                       axes,
+                                                       outputs[0]->get_data_ptr<float>(),
+                                                       out_shape,
+                                                       m_attrs);
         break;
     case element::Type_t::f16:
-        runtime::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
-                                                 padded_input_shape,
-                                                 scales,
-                                                 axes,
-                                                 outputs[0]->get_data_ptr<float16>(),
-                                                 out_shape,
-                                                 m_attrs);
+        ngraph::runtime::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
+                                                         padded_input_shape,
+                                                         scales,
+                                                         axes,
+                                                         outputs[0]->get_data_ptr<float16>(),
+                                                         out_shape,
+                                                         m_attrs);
         break;
     case element::Type_t::i8:
-        runtime::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
-                                                padded_input_shape,
-                                                scales,
-                                                axes,
-                                                outputs[0]->get_data_ptr<int8_t>(),
-                                                out_shape,
-                                                m_attrs);
+        ngraph::runtime::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
+                                                        padded_input_shape,
+                                                        scales,
+                                                        axes,
+                                                        outputs[0]->get_data_ptr<int8_t>(),
+                                                        out_shape,
+                                                        m_attrs);
         break;
     default:;
     }
@@ -492,7 +492,7 @@ EnumNames<ngraph::op::v4::Interpolate::InterpolateMode>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v4::Interpolate::InterpolateMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v4::Interpolate::InterpolateMode>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::v4::Interpolate::ShapeCalcMode>&
@@ -503,8 +503,7 @@ EnumNames<ngraph::op::v4::Interpolate::ShapeCalcMode>::get() {
          {"scales", ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES}});
     return enum_names;
 }
-
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v4::Interpolate::ShapeCalcMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v4::Interpolate::ShapeCalcMode>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::v4::Interpolate::CoordinateTransformMode>&
@@ -519,7 +518,7 @@ EnumNames<ngraph::op::v4::Interpolate::CoordinateTransformMode>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v4::Interpolate::CoordinateTransformMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v4::Interpolate::CoordinateTransformMode>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::v4::Interpolate::NearestMode>&
@@ -534,7 +533,7 @@ EnumNames<ngraph::op::v4::Interpolate::NearestMode>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v4::Interpolate::NearestMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v4::Interpolate::NearestMode>);
 
 std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::InterpolateMode& type) {
     return s << as_string(type);
