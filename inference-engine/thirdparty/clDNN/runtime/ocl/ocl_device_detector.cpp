@@ -44,7 +44,9 @@ return true;
 namespace cldnn {
 namespace ocl {
 static constexpr auto INTEL_PLATFORM_VENDOR = "Intel(R) Corporation";
+#ifdef _WIN32
 static constexpr auto INTEL_D3D11_SHARING_EXT_NAME = "cl_khr_d3d11_sharing";
+#endif // _WIN32
 
 static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
     cl_uint maxSubDevices;
