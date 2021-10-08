@@ -28,9 +28,8 @@ if `indices.shape[-1] == data.rank - batch_dims` else
 * *batch_dims*
 
   * **Description**: *batch_dims* (denoted as `b`) is a leading number of dimensions of `data` tensor and `indices`
-    representing the batches,
-and *GatherND* starts to gather from the `b+1` dimension.
-It requires the first `b` dimensions in `data` and `indices` tensors to be equal.
+    representing the batches, and *GatherND* starts to gather from the `b+1` dimension. It requires the first `b`
+    dimensions in `data` and `indices` tensors to be equal.
   * **Range of values**: integer number and belongs to `[0; min(data.rank, indices.rank))`
   * **Type**: int
   * **Default value**: 0
