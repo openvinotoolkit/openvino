@@ -65,7 +65,6 @@ void ConvolutionBackpropDataTransformation::SetUp() {
         outputShape,
         param.fakeQuantizeOnData,
         weights);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void ConvolutionBackpropDataTransformation::Run() {
