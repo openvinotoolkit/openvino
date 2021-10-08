@@ -109,7 +109,8 @@ public:
     /// Returns the amount of GPU memory specified allocation @p type that currently used by the engine
     uint64_t get_used_device_memory(allocation_type type) const;
 
-    /// Returns statistics of GPU memory allocated by engine in current process for all allocation types
+    /// Returns statistics of GPU memory allocated by engine in current process for all allocation types.
+    /// @note It contains information about both current and peak memory usage
     void get_memory_statistics(std::map<std::string, uint64_t>* statistics) const;
 
     /// Adds @p bytes count to currently used memory size of the specified allocation @p type
@@ -150,9 +151,6 @@ public:
     static std::shared_ptr<cldnn::engine> create(engine_types engine_type,
                                                  runtime_types runtime_type,
                                                  const engine_configuration& configuration = engine_configuration());
-
-    /// Converts the specified allocation @p type to string
-    static std::string alloc_type_to_string(const allocation_type type);
 
 protected:
     /// Create engine for given @p device and @p configuration

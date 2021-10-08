@@ -149,8 +149,15 @@ uint64_t engine::get_used_device_memory(allocation_type type) const {
 }
 
 void engine::get_memory_statistics(std::map<std::string, uint64_t>* statistics) const {
+    for (auto const& m : _memory_usage_map) {
+        std::ostringstream oss;
+        oss << m.first << "_current";
+        (*statistics)[oss.str()] = m.second.load();
+    }
     for (auto const& m : _peak_memory_usage_map) {
-        (*statistics)[alloc_type_to_string(m.first)] = m.second.load();
+        std::ostringstream oss;
+        oss << m.first << "_peak";
+        (*statistics)[oss.str()] = m.second.load();
     }
 }
 
@@ -193,16 +200,6 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
     device::ptr default_device = query.get_available_devices().begin()->second;
 
     return engine::create(engine_type, runtime_type, default_device, configuration);
-}
-
-std::string engine::alloc_type_to_string(const allocation_type type) {
-    switch (type) {
-        case allocation_type::cl_mem:     return "cl_mem";     break;
-        case allocation_type::usm_host:   return "usm_host";   break;
-        case allocation_type::usm_shared: return "usm_shared"; break;
-        case allocation_type::usm_device: return "usm_device"; break;
-        default: return "unknown"; break;
-    }
 }
 
 }  // namespace cldnn
