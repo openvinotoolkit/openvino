@@ -132,33 +132,19 @@ output  = [[[ 2], [ 5], [11]], [[13], [19], [23]]], shape = (2, 3, 1)
 
 ```
 batch_dims = 3
-indices = [[[[1]], <--- this is applied to the first batch
-            [[0]],
-            [[2]]],
-           [[[0]],
-            [[2]],
-            [[2]]], <--- this is applied to the sixth batch
-           [[[1]], <--- this is applied to the seventh batch
-            [[2]],
-            [[3]]],
-           [[[3]],
-            [[2]],
-            [[1]]] <--- this is applied to the twelth batch
-          ], shape = (4, 3, 1, 1)
-data    = [[[ 1,  2,  3,  4], <--- this is the first batch
-            [ 5,  6,  7,  8],
-            [ 9, 10, 11, 12]]
-           [[13, 14, 15, 16],
-            [17, 18, 19, 20],
-            [21, 22, 23, 24]] <--- this is the sixth batch
-           [[25, 26, 27, 28], <--- this is the seventh batch
-            [29, 30, 31, 32],
-            [33, 34, 35, 36]]
-           [[37, 38, 39, 40],
-            [41, 42, 43, 44],
-            [45, 46, 47, 48]] <--- this is the twelth batch
-          ] <--- the second batch, shape = (2, 2, 3, 4)
-output  = [[[ 2], [ 5], [11]], [[13], [19], [23]], [[26], [31], [36]], [[40], [43], [46]]], shape = (4, 3, 1)
+indices = [[[[1],
+             [0]],
+            [[3],
+             [2]]]
+            ], shape = (1, 2, 2, 1)
+data    = [[[[ 1  2  3  4],
+             [ 5  6  7  8]],
+            [[ 9 10 11 12],
+             [13 14 15 16]]]
+          ], shape = (1, 2, 2, 4)
+output  = [[[ 2  5],
+            [12 15]]
+          ], shape = (4, 3, 1)
 ```
 
 ```xml
