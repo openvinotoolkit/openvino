@@ -35,27 +35,6 @@
 #include "transformations/rt_info/old_api_map_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace {
-void fix_tensor_names(const std::shared_ptr<InferenceEngine::ICNNNetwork>& net, bool newAPI) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto& ngFunc = net->getFunction();
-    int64_t version = 11;
-    if (ngFunc->get_rt_info().count("version")) {
-        version = std::dynamic_pointer_cast<ov::VariantWrapper<int64_t>>(ngFunc->get_rt_info().at("version"))->get();
-    }
-    if (newAPI && version == 10) {
-        // Change tensor names for inputs/outputs for cases with old API
-        for (const auto& param : ngFunc->get_parameters()) {
-            param->output(0).get_tensor().set_names({param->get_friendly_name()});
-        }
-        for (const auto& result : ngFunc->get_results()) {
-            auto dataName = ngraph::op::util::create_ie_output_name(result->input_value(0));
-            result->output(0).get_tensor().set_names({dataName});
-        }
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-}  // namespace
 namespace InferenceEngine {
 
 namespace details {
@@ -306,6 +285,14 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                                                   .convert_element_type(ngraph_type)));
             }
 
+            std::vector<std::string> result_names;
+            std::vector<ov::Output<ov::Node>> prevPorts;
+            result_names.reserve(function->get_results().size());
+            prevPorts.reserve(function->get_results().size());
+            for (const auto& result : function->get_results()) {
+                result_names.emplace_back(ngraph::op::util::create_ie_output_name(result->input_value(0)));
+                prevPorts.emplace_back(result->input_value(0));
+            }
             const auto outputs = function->outputs();
             for (size_t i = 0; i < outputs.size(); ++i) {
                 const auto ngraph_type = outputs[i].get_element_type();
@@ -317,6 +304,21 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             }
 
             function = prepost.build(function);
+            // Change tensor names for inputs/outputs for cases with old IR
+            for (const auto& param : function->get_parameters()) {
+                param->output(0).get_tensor().add_names({param->get_friendly_name()});
+            }
+            OPENVINO_ASSERT(function->get_results().size() == result_names.size());
+            for (size_t i = 0; i < function->get_results().size(); i++) {
+                const auto& result = function->get_results()[i];
+                result->output(0).get_tensor().add_names({result_names[i]});
+                // FIXME: WA to fix CNNNetwork output name
+                if (prevPorts[i].get_node() != result->input_value(0).get_node()) {
+                    result->input_value(0).get_node()->set_friendly_name(prevPorts[i].get_node()->get_friendly_name());
+                    prevPorts[i].get_node()->set_friendly_name("op_original_" +
+                                                               prevPorts[i].get_node()->get_friendly_name());
+                }
+            }
         } else if (ir_version == 11 && !newAPI) {
             const std::string& old_api_map_key = ov::OldApiMap::get_type_info_static();
 
@@ -412,11 +414,6 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 result->set_layout({});
             }
         }
-    }
-
-    // need to remove information about IR version since it's needed only on read stage
-    if (is_ir) {
-        rt_info.erase(it);
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START

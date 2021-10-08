@@ -256,13 +256,6 @@ public:
         return NOT_IMPLEMENTED;
     }
 
-    /**
-     * Helper method alows detect the network version
-     */
-    virtual bool newAPI() const {
-        return false;
-    }
-
 protected:
     IE_SUPPRESS_DEPRECATED_START
     /**

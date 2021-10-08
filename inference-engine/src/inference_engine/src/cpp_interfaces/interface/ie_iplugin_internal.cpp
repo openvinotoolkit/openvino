@@ -22,6 +22,8 @@
 #include "ie_input_info.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_parameter.hpp"
+#include "openvino/core/function.hpp"
+#include "openvino/core/variant.hpp"
 
 namespace InferenceEngine {
 
@@ -120,6 +122,13 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     const std::map<std::string, std::string>& config,
     const std::shared_ptr<RemoteContext>& context) {
     std::shared_ptr<IExecutableNetworkInternal> impl;
+    auto function = std::const_pointer_cast<ov::Function>(network.getFunction());
+    if (function) {
+        auto& rt_info = function->get_rt_info();
+        if (!rt_info.count("version") && !GetCore()->isNewAPI()) {
+            rt_info["version"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(10);
+        }
+    }
     if (nullptr == context) {
         impl = LoadExeNetworkImpl(network, config);
     } else {
@@ -127,9 +136,8 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     }
 
     SetExeNetworkInfo(impl, const_map_cast(network.getInputsInfo()), const_map_cast(network.getOutputsInfo()));
-    auto function = network.getFunction();
     if (function) {
-        SetExeNetworkInfo(impl, std::const_pointer_cast<ov::Function>(function));
+        SetExeNetworkInfo(impl, function);
     }
 
     return impl;

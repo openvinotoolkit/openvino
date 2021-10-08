@@ -458,6 +458,10 @@ public:
         return InferenceEngine::details::ReadNetwork(model, weights, extensions, newAPI);
     }
 
+    bool isNewAPI() const override {
+        return newAPI;
+    }
+
     // TODO: In future this method can be added to ICore interface
     ov::runtime::SoPtr<ie::IExecutableNetworkInternal> LoadNetwork(const ie::CNNNetwork& network,
                                                                    const std::shared_ptr<ie::RemoteContext>& context,

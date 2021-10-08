@@ -235,11 +235,6 @@ public:
      */
     std::string getOVNameForTensor(const std::string& orig_name) const;
 
-    /**
-     * Helper method alows detect the network version
-     */
-    bool newAPI() const;
-
 private:
     IE_SUPPRESS_DEPRECATED_START
     /**

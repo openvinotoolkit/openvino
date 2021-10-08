@@ -216,7 +216,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
         IE_SUPPRESS_DEPRECATED_END
         _inputData[name] = info;
     }
-    _new_api = network.newAPI();
 }
 
 void CNNNetworkNGraphImpl::setInputInfo(InputInfo::Ptr data) {
