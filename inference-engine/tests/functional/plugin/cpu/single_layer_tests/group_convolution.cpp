@@ -104,7 +104,6 @@ protected:
                 ngraph::builder::makeGroupConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
                                                       padEnd, dilation, padType, convOutChannels, numGroups));
         function = makeNgraphFunction(ngPrc, params, groupConv, "groupConvolution");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

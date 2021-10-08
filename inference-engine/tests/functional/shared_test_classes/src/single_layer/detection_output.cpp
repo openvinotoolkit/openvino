@@ -151,6 +151,5 @@ void DetectionOutputLayerTest::SetUp() {
     auto detOut = ngraph::builder::makeDetectionOutput(paramOuts, attrs);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
     function = std::make_shared<ngraph::Function>(results, params, "DetectionOutput");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions
