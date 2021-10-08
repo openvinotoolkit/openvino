@@ -990,7 +990,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     // reserving more bytes for intermediate data in parallel case - TODO: this works incorrectly in compact mode at lest
     rwSegmentSize = gnamem->getRWBytes();
     if (gnaFlags->gna_lib_async_threads_num > 1) {
-        gnamem->getQueue(REGION_STATES)->reserve_ptr(&pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->gna_lib_async_threads_num - 1), 64);
+        gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(&pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->gna_lib_async_threads_num - 1), 64);
     }
 
     gnamem->commit();
@@ -1442,7 +1442,10 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
             FILE* f = nullptr;
             static int num_infers = 0;
             {
-                f = fopen("ex_scores.txt", "w");
+                f = std::fopen("ex_scores.txt", "w");
+                if (!f) {
+                    THROW_GNA_EXCEPTION << "ex_scores.txt opening failed";
+                }
             }
             num_infers++;
             if (f) {
@@ -1574,7 +1577,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
 
     graphCompiler.setGNAMemoryPtr(gnamem);
     void *basePtr = nullptr;
-    gnamem->getQueue(REGION_STATES)->reserve_ptr(&basePtr, header.gnaMemSize);
+    gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(&basePtr, header.gnaMemSize);
     gnamem->commit();
 #if GNA_LIB_VER == 2
     gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>(header.layersCount)));

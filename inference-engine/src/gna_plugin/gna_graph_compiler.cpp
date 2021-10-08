@@ -2200,7 +2200,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
                 if (nextMemoryLayer.reserved_size == 0) {
                     auto memorySize = InferenceEngine::details::product(nextMemoryLayer.getDims()) * nextMemoryLayer.elementSizeBytes();
 
-                    gnamem->getQueue(REGION_STATES)->reserve_ptr(&nextMemoryLayer.gna_ptr, ALIGN64(memorySize), 64);
+                    gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(&nextMemoryLayer.gna_ptr, ALIGN64(memorySize), 64);
                     gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer));
 
                     nextMemoryLayer.reserved_size = ALIGN64(memorySize);
