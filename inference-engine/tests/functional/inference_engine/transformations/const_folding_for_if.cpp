@@ -19,8 +19,6 @@ using namespace std;
 using namespace ngraph;
 
 TEST(TransformationTests, if_constant_folding) {
-    auto input = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 3, 64 }, { 1 });
-    auto w = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{ 6, 3, 3/*OIW*/ }, { 1 });
 
     std::shared_ptr<ngraph::Function> fun(nullptr);
     {
@@ -51,7 +49,7 @@ TEST(TransformationTests, if_constant_folding) {
         auto add = make_shared<op::v1::Add>(if_res, param_add);
         auto add_res = make_shared<op::Result>(add);
         fun = make_shared<Function>(OutputVector{ add_res }, ParameterVector{ param_add });
-        fun->validate_nodes_and_infer_types();
+
         ngraph::pass::ConstantFolding().run_on_function(fun);
     }
     std::shared_ptr<ngraph::Function> f_ref(nullptr);

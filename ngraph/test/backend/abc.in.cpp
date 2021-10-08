@@ -4,8 +4,8 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
+#include "test_case.hpp"
+#include "test_engines.hpp"
 #include "util/test_control.hpp"
 
 using namespace std;
