@@ -280,7 +280,7 @@ TEST(TransformationTests, InsertTransposeAfterConvOrPoolTest1dOutput) {
     m.run_passes(func);
     ASSERT_NO_THROW(check_rt_info(func));
 
-    reference_func = CreatePoolConvFunction(ngraph::Shape{1, 3, 1, 8}, ngraph::Strides{1, 8});
+    reference_func = ngraph::clone_function(*func);
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(func, reference_func);

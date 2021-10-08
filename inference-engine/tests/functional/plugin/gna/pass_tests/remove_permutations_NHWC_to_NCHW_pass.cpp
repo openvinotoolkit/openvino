@@ -41,11 +41,6 @@ std::vector<size_t> GetKernelShape(size_t height, size_t width, size_t kernel_si
            (width == 1 ? std::vector<size_t>{kernel_size, 1} : std::vector<size_t>{kernel_size, kernel_size}));
 }
 
-std::vector<size_t> GetKernelShapeFor1dOutput(size_t height, size_t width) {
-    return (height == 1 ? std::vector<size_t>{1, width} :
-           (width == 1 ? std::vector<size_t>{height, 1} : std::vector<size_t>{height, width}));
-}
-
 class RemovePermutationsNHWCToNCHWPassTest : public testing::WithParamInterface<removePermutationsAddParamPassParams>,
                                              public LayerTestsUtils::LayerTestsCommon {
     public:
@@ -94,7 +89,7 @@ class RemovePermutationsNHWCToNCHWPassTest : public testing::WithParamInterface<
                 ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 }));
 
             size_t num_out_channels = 12;
-            auto kernel_shape = output1D ? GetKernelShapeFor1dOutput(inputShape[1], inputShape[2]) :
+            auto kernel_shape = output1D ? ngraph::Shape{inputShape[1], inputShape[2]} :
                 GetKernelShape(inputShape[1], inputShape[2], 8);
             std::vector<float> filter_weights = CommonTestUtils::generate_float_numbers(num_out_channels * inputShape[3] *
                                                                                         kernel_shape[0] * kernel_shape[1],
@@ -483,12 +478,14 @@ class RemovePermutationsWithEltwiseTest : public testing::WithParamInterface<rem
         {1, 1, 168, 4},
         {1, 1, 32, 1},
         {1, 1, 32, 2},
+        {1, 1, 32, 8},
         {1, 1, 32, 9},
         {1, 168, 1, 1},
         {1, 168, 1, 2},
         {1, 168, 1, 4},
         {1, 32, 1, 1},
         {1, 32, 1, 2},
+        {1, 32, 1, 8},
         {1, 32, 1, 9},
         {1, 16, 8, 1}
     };

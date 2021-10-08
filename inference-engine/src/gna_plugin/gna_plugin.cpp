@@ -1076,16 +1076,31 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
             auto nextLayers = CNNNetGetAllNextLayersSkipCertain(inputLayer, -1, doesntHaveGnaMapping);
 
+            std::vector<intel_dnn_orientation_t> orientations;
             for (auto &nextLayer : nextLayers) {
                 auto dnnLayer = graphCompiler.dnnComponents.findComponent(nextLayer);
                 // non functional layer - skipped by gna
                 if (nullptr == dnnLayer) {
                     THROW_GNA_LAYER_EXCEPTION(inputLayer) << " gna mapped layer search connection failed";
                 }
-                // input orientation might be already initialized, thus verify that it matches
-                if (!inputsDesc->orientation_in.count(inputLayer->name)) {
-                    inputsDesc->orientation_in[inputLayer->name] = dnnLayer->orientation_in;
+                // Orientation of an input doesn't make sense for components transposing the data and
+                // components with identity dimensions, so skip them
+                if (dnnLayer->operation != kDnnInterleaveOp && dnnLayer->operation != kDnnDeinterleaveOp &&
+                    dnnLayer->num_rows_in > 1 && dnnLayer->num_columns_in > 1) {
+                    orientations.push_back(dnnLayer->orientation_in);
                 }
+            }
+
+            if (orientations.empty()) {
+                // in this case orientation doesn't make a sense
+                inputsDesc->orientation_in[inputLayer->name] = kDnnNonInterleavedOrientation;
+            } else if (std::adjacent_find(orientations.begin(), orientations.end(),
+                           std::not_equal_to<intel_dnn_orientation_t>()) == orientations.end()) {
+                // all orientations are equal
+                inputsDesc->orientation_in[inputLayer->name] = orientations.front();
+            } else {
+                // unsupported case: orientations are different and they are important for these components
+                THROW_GNA_EXCEPTION << "orientation for input layer: " << inputLayer->name << " cannot be calculated";
             }
         }
     } else {
