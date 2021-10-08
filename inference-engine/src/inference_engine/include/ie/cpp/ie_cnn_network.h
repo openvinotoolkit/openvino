@@ -52,7 +52,6 @@ public:
      * If you want to avoid modification of original Function, please create a copy
      * @param network Pointer to the ngraph::Function object
      * @param exts Vector of pointers to IE extension objects
-     * @param newAPI Flag which allows to change behavior
      */
     explicit CNNNetwork(const std::shared_ptr<ngraph::Function>& network,
                         const std::vector<std::shared_ptr<IExtension>>& exts = {});
