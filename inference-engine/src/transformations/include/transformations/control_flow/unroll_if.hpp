@@ -17,8 +17,9 @@ class TRANSFORMATIONS_API UnrollIf;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief If `If`'s condtion is const,`If` will be replaced on one of the bodies (condition has true value - then body, false- else_body).
- * Parameter nodes are replaced on `If` inputs and Result nodes on `If` outputs.
+ * @brief The transformation replaces 'If' operations with one of the internal functions (bodies) if the provided condition is constant.
+ * The condition is true: 'If' op is replaced with then_body
+ * The condition is false 'If' op is replaced with else_body
  */
 
 class ngraph::pass::UnrollIf : public ngraph::pass::FunctionPass {
