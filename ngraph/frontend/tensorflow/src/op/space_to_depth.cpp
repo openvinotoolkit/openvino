@@ -19,7 +19,7 @@ OutputVector TranslateSpaceToDepthOp(const NodeContext& node) {
     auto block_size = node.get_attribute<int64_t>("block_size");
     auto data_format = node.get_attribute<string>("data_format");
 
-    TF_OP_VALIDATION_CHECK(node, data_format != "NHWC" && data_format != "NCHW", "Unsupported data format.");
+    TF_OP_VALIDATION_CHECK(node, data_format == "NHWC" || data_format == "NCHW", "Unsupported data format.");
 
     bool is_nhwc = (data_format == "NHWC");
     NHWCtoNCHW(node.get_name(), is_nhwc, input);

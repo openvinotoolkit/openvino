@@ -27,7 +27,7 @@ OP_CONVERTER(TranslateArgMinOp);
 OP_CONVERTER(TranslateAvgPoolOp);
 OP_CONVERTER(TranslateBiasAddOp);
 OP_CONVERTER(TranslateCastOp);
-OP_CONVERTER(TranslateConcatV2Op);
+OP_CONVERTER(TranslateConcatOp);
 OP_CONVERTER(TranslateConstOp);
 OP_CONVERTER(TranslateConv2DOp);
 OP_CONVERTER(TranslateConv2DBackpropInputOp);
@@ -73,7 +73,7 @@ OP_CONVERTER(TranslateRsqrtOp);
 OP_CONVERTER(TranslateSelectOp);
 OP_CONVERTER(TranslateShapeOp);
 OP_CONVERTER(TranslateSizeOp);
-// OP_CONVERTER(TranslateSliceOp);
+OP_CONVERTER(TranslateSliceOp);
 OP_CONVERTER(TranslateSoftmaxOp);
 OP_CONVERTER(TranslateSpaceToDepthOp);
 OP_CONVERTER(TranslateSplitOp);
@@ -117,7 +117,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Tan", TranslateUnaryOp<opset8::Tan>},
         {"Tanh", TranslateUnaryOp<opset8::Tanh>},
 
-        // note: BinaryOp translator declaration for each op  must to be added in binary_op.cpp file
+        // note: BinaryOp translator declaration for each op must to be added in binary_op.cpp file
         {"Add", TranslateBinaryOp<opset8::Add>},
         {"AddV2", TranslateBinaryOp<opset8::Add>},
         {"Equal", TranslateBinaryOp<opset8::Equal>},
@@ -154,7 +154,8 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"AvgPool", TranslateAvgPoolOp},
         {"BiasAdd", TranslateBiasAddOp},
         {"Cast", TranslateCastOp},
-        {"ConcatV2", TranslateConcatV2Op},
+        {"Concat", TranslateConcatOp},
+        {"ConcatV2", TranslateConcatOp},
         {"Const", TranslateConstOp},
         {"Conv2D", TranslateConv2DOp},
         {"Conv2DBackpropInput", TranslateConv2DBackpropInputOp},
@@ -172,8 +173,6 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Gather", TranslateGatherOp},
         {"GatherV2", TranslateGatherV2Op},
         {"GatherNd", TranslateGatherNdOp},
-        {"_FusedConv2D", TranslateFusedConv2DOp},
-        {"_FusedMatMul", TranslateFusedMatMulOp},
         {"Identity", TranslateIdentityOp},
         {"IsFinite", TranslateIsFiniteOp},
         {"L2Loss", TranslateL2LossOp},
@@ -183,16 +182,13 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"MatMul", TranslateMatMulOp},
         {"MaxPool", TranslateMaxPoolOp},
         {"MaxPool3D", TranslateMaxPoolOp},
-        //{"NonMaxSuppressionV2", TranslateNonMaxSuppressionV2Op},
         {"MirrorPad", TranslatePadOp},
         {"NoOp", NoOp},  // do nothing
         {"OneHot", TranslateOneHotOp},
         {"Pack", TranslatePackOp},
         {"Pad", TranslatePadOp},
         {"PadV2", TranslatePadOp},
-        //{"_Arg", ArgOp}, // should be registered as an extension in OVTF
         {"Placeholder", PlaceholderOp},
-        // PreventGradient is just Identity in dataflow terms, so reuse that.
         {"PreventGradient", TranslateIdentityOp},
         {"Range", TranslateRangeOp},
         {"Rank", TranslateRankOp},
@@ -210,7 +206,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"SelectV2", TranslateSelectOp},
         {"Shape", TranslateShapeOp},
         {"Size", TranslateSizeOp},
-        //{"Slice", TranslateSliceOp},
+        {"Slice", TranslateSliceOp},
         {"Snapshot", TranslateIdentityOp},
         {"Softmax", TranslateSoftmaxOp},
         {"SpaceToDepth", TranslateSpaceToDepthOp},
@@ -227,6 +223,20 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Where", TranslateWhereOp},
         {"Xdivy", TranslateXdivyOp},
         {"ZerosLike", TranslateZerosLikeOp},
+
+        {"_FusedConv2D", TranslateFusedConv2DOp},
+        {"_FusedMatMul", TranslateFusedMatMulOp},
+        {"_FusedBatchNormEx", TranslateFusedBatchNormOp},
+        // {"_FusedDepthwiseConv2dNative", TranslateFusedDepthwiseConv2dNativeOp},
+        // {"FakeQuantWithMinMaxVars", TranslateFakeQuantWithMinMaxVarsOp},
+        // {"SpaceToBatchND", TranslateBatchNDAndSpaceNDOp},
+        // {"BatchToSpaceND", TranslateBatchNDAndSpaceNDOp},
+        // {"CropAndResize", TranslateCropAndResizeOp},
+        // {"NonMaxSuppressionV2", TranslateNonMaxSuppressionV2Op},
+        // {"NonMaxSuppressionV3", TranslateNonMaxSuppressionV3Op},
+        // {"ResizeBilinear", TranslateResizeBilinearOp},
+        // {"ResizeNearestNeighbor", TranslateResizeNearestNeighborOp},
+        // {"_Arg", ArgOp}, // should be registered as an extension in OVTF
     };
 };
 }  // namespace op

@@ -14,11 +14,11 @@ namespace tf {
 namespace op {
 
 OutputVector TranslateExpandDimsOp(const NodeContext& node) {
-    auto ng_input = node.get_ng_input(0);
-    std::vector<int64_t> dims;
-    GetStaticInputVector(node, 1, &dims);
-    auto ng_dims = ConstructNgNode<Constant>(node.get_name(), element::i64, ngraph::Shape{dims.size()}, dims);
-    return {ConstructNgNode<Unsqueeze>(node.get_name(), ng_input, ng_dims)};
+    auto input = node.get_ng_input(0);
+    auto dims = node.get_ng_input(1);
+    auto unsqueeze = make_shared<Unsqueeze>(input, dims);
+    unsqueeze->set_friendly_name(node.get_name());
+    return unsqueeze->outputs();
 }
 }  // namespace op
 }  // namespace tf

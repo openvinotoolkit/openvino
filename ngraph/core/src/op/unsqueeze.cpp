@@ -88,8 +88,7 @@ bool evaluate_unsqueeze(const HostTensorPtr& arg0, const HostTensorPtr& arg1, co
     auto data_shape = arg0->get_shape();
     int64_t data_rank = static_cast<int64_t>(data_shape.size());
     auto axes_shape = arg1->get_shape();
-    NGRAPH_CHECK(axes_shape.size() == 1, "Axes to add must be a vector.");
-    NGRAPH_CHECK(axes_shape[0] > 0, "Axes cannot be empty.");
+    NGRAPH_CHECK(axes_shape.size() == 1 || axes_shape.size() == 0, "Axes to add must be a vector.");
 
     auto out_shape = data_shape;
     int64_t out_rank = data_rank + static_cast<int64_t>(shape_size(axes_shape));
