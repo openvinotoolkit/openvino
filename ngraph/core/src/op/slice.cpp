@@ -365,7 +365,7 @@ bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVe
     outputs[0]->set_shape(output_shape.to_shape());
     outputs[0]->set_element_type(inputs[0]->get_element_type());
 
-    runtime::reference::slice(inputs[0]->get_data_ptr<char>(),
+    ngraph::runtime::reference::slice(inputs[0]->get_data_ptr<char>(),
                               data_shape.to_shape(),
                               outputs[0]->get_data_ptr<char>(),
                               output_shape.to_shape(),

@@ -36,6 +36,5 @@ void MultiplyAddLayerTest::SetUp() {
     auto add = std::make_shared<ngraph::opset3::Add>(mul, const_add);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(add)};
     function = std::make_shared<ngraph::Function>(results, params, "multiplyAdd");
-    functionRefs = ngraph::clone_function(*function);
 }
 } // namespace SubgraphTestsDefinitions

@@ -51,6 +51,5 @@ void TopKLayerTest::SetUp() {
         results.push_back(std::make_shared<ngraph::opset4::Result>(topk->output(i)));
     }
     function = std::make_shared<ngraph::Function>(results, params, "TopK");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions
