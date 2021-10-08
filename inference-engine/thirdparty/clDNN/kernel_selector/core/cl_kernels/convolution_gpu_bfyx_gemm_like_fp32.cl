@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/fetch_data.cl"
 #include "include/sub_group.cl"
 
 #define TILE_M          2
@@ -20,7 +20,7 @@ KERNEL(convolution_f32)(
 #endif
     uint split_idx)
 {
-#include "include/vec_typedefs.cl"
+#include "include/batch_headers/vec_typedefs.cl"
 
     const unsigned group_x = get_group_id(0);
     const unsigned group_y = get_group_id(1);
