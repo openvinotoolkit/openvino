@@ -77,8 +77,8 @@ OutputVector eyelike_component_dimensions(const Output<ngraph::Node>& shape, std
 
 /// \brief Create a square identity matrix with the specified size and type.
 /// \details The identity matrix consists of ones on the main diagonal and zeros elsewhere.
-/// \param a Size of a side of the identity matrix.
-/// \param dtype Data type of the identity matrix.
+/// \param matrix_size Size of a side of the identity matrix.
+/// \param target_type Data type of the identity matrix.
 Output<ngraph::Node> square_identity_matrix(const Output<ngraph::Node>& matrix_size, element::Type target_type) {
     // Construct a 1D representation of the identity matrix data
     // One and zero are the values of the identity matrix.
