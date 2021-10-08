@@ -67,16 +67,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*BF16NetworkRestore1.*)",
         R"(.*MobileNet_ssd_with_branching.*)",
 
-        // TODO: 55656 AUTO plugin and QueryNetwork
-        R"(.*CoreThreading.*smoke_QueryNetwork.*targetDevice=AUTO_config.*)",
-        // Unsupported config KEY_ENFORCE_BF16 for AUTO plugin
-        R"(.*Behavior_Auto.*InferRequestSetBlobByType.*)",
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
-        // need to implement Export / Import
-        R"(.*IEClassImportExportTestP.*)",
-        // CVS-58963: Not implemented yet
-        R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
         // Not expected behavior
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
@@ -100,8 +92,27 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*type=f16.*)",
         R"(.*smoke_(Auto|Multi)_BehaviorTests/OVExecNetwork.*type=i8.*)",
 
+        // CPU does not support dynamic rank
+        // Issue: CVS-66778
+        R"(.*smoke_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
+        R"(.*smoke_BehaviorTests.*DynamicOutputToDynamicInput.*)",
+        R"(.*smoke_BehaviorTests.*DynamicInputToDynamicOutput.*)",
+
+        // CPU dynamism: empty tensor returns size() == 1. Looks like layout is SCALAR
+        // Issue: CVS-66780
+        R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
+        R"(.*smoke_BehaviorTests.*InferDynamicNetworkWithGetTensor.*)",
+
         // Issue: 62746
         R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
+
+        // TODO: Issue CVS-51680
+        R"(.*BehaviorTests.*canRun3SyncRequestsConsistentlyFromThreads.*CPU_THROUGHPUT.*)",
+
+        // Issue 66685
+        R"(smoke_PrePostProcess.*resize_linear_nhwc.*)",
+        // Issue 67214
+        R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)",
     };
 
 #define FIX_62820 0

@@ -21,6 +21,7 @@
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
 #include "openvino/pp.hpp"
+#include "so_ptr.hpp"
 
 namespace ov {
 class Function;
@@ -323,6 +324,8 @@ protected:
 
 #define IE_CREATE_PLUGIN CreatePluginEngine
 
+constexpr static const auto create_plugin_function = OV_PP_TOSTRING(IE_CREATE_PLUGIN);
+
 namespace details {
 template <>
 class SOCreatorTrait<IInferencePlugin> {
@@ -337,16 +340,17 @@ public:
  * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
  * @ingroup ie_dev_api_plugin_api
  */
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                                \
-    INFERENCE_PLUGIN_API(void) IE_CREATE_PLUGIN(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) { \
-        try {                                                                                                     \
-            plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                                 \
-        } catch (const InferenceEngine::Exception&) {                                                             \
-            throw;                                                                                                \
-        } catch (const std::exception& ex) {                                                                      \
-            IE_THROW() << ex.what();                                                                              \
-        } catch (...) {                                                                                           \
-            IE_THROW(Unexpected);                                                                                 \
-        }                                                                                                         \
-        plugin->SetVersion(version);                                                                              \
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                     \
+    INFERENCE_PLUGIN_API(void)                                                                         \
+    IE_CREATE_PLUGIN(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) noexcept(false) { \
+        try {                                                                                          \
+            plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                      \
+        } catch (const InferenceEngine::Exception&) {                                                  \
+            throw;                                                                                     \
+        } catch (const std::exception& ex) {                                                           \
+            IE_THROW() << ex.what();                                                                   \
+        } catch (...) {                                                                                \
+            IE_THROW(Unexpected);                                                                      \
+        }                                                                                              \
+        plugin->SetVersion(version);                                                                   \
     }

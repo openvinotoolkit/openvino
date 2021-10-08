@@ -96,7 +96,7 @@ const std::vector<std::map<std::string, std::string>> importConfigsUnchanged = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkGNA, ImportMultiInputUnchanged,
+INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkGNA, ImportMultiInputUnchanged,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -105,7 +105,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkGNA, ImportMultiInputUnchanged,
                             ::testing::Values("")),
                         ImportMultiInputUnchanged::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkGNA, ImportMultiInputChanged,
+INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkGNA, ImportMultiInputChanged,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),

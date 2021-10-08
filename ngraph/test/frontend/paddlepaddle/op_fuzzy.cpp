@@ -8,9 +8,9 @@
 
 #include <fstream>
 
+#include "engines_util/test_engines.hpp"
 #include "ngraph/ngraph.hpp"
 #include "paddle_utils.hpp"
-#include "util/engine/test_engines.hpp"
 #include "util/test_control.hpp"
 
 using namespace ngraph;
@@ -98,6 +98,7 @@ static const std::vector<std::string> models{std::string("argmax"),
                                              std::string("expand_v2"),
                                              std::string("expand_v2_tensor"),
                                              std::string("expand_v2_tensor_list"),
+                                             std::string("exp_test_float32"),
                                              std::string("fill_any_like"),
                                              std::string("fill_any_like_f16"),
                                              std::string("fill_any_like_f32"),
@@ -171,6 +172,10 @@ static const std::vector<std::string> models{std::string("argmax"),
                                              std::string("pow_int64"),
                                              // pow_int64_out_of_range(out of range of OV int64),
                                              std::string("pow_y_tensor"),
+                                             std::string("prior_box_attrs_mmar_order_true"),
+                                             std::string("prior_box_default"),
+                                             std::string("prior_box_flip_clip_false"),
+                                             std::string("prior_box_max_sizes_none"),
                                              std::string("range0"),
                                              std::string("range1"),
                                              std::string("range2"),
@@ -210,6 +215,10 @@ static const std::vector<std::string> models{std::string("argmax"),
                                              std::string("split_test_list_tensor"),
                                              std::string("squeeze"),
                                              std::string("squeeze_null_axes"),
+                                             std::string("stack_test_float32"),
+                                             std::string("stack_test_int32"),
+                                             std::string("stack_test_neg_axis"),
+                                             std::string("stack_test_none_axis"),
                                              std::string("tanh"),
                                              std::string("trilinear_downsample_false_0"),
                                              std::string("trilinear_downsample_false_1"),
@@ -220,9 +229,11 @@ static const std::vector<std::string> models{std::string("argmax"),
                                              std::string("trilinear_upsample_scales2"),
                                              std::string("trilinear_upsample_true_0"),
                                              std::string("unsqueeze"),
-                                             std::string("yolo_box_clip_box"),
-                                             std::string("yolo_box_default"),
-                                             std::string("yolo_box_scale_xy"),
+                                             // Temporily disable them until root caused to secure CI stable.
+                                             // CVS-66703 to track this.
+                                             // std::string("yolo_box_clip_box"),
+                                             // std::string("yolo_box_default"),
+                                             // std::string("yolo_box_scale_xy"),
                                              std::string("yolo_box_uneven_wh")};
 
 INSTANTIATE_TEST_SUITE_P(PDPDFuzzyOpTest,
