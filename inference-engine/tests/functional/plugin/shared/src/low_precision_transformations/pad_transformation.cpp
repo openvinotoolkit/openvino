@@ -45,7 +45,6 @@ void PadTransformation::SetUp() {
         param.padsEnd,
         mode,
         param.padValue);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void PadTransformation::Run() {
