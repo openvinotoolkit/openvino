@@ -11,7 +11,7 @@ namespace frontend {
 namespace tf {
 
 std::shared_ptr<ov::Variant> DecoderTFProto::get_attribute(const std::string& name,
-                                                       const VariantTypeInfo& type_info) const {
+                                                           const VariantTypeInfo& type_info) const {
     auto attrs = decode_attribute_helper(name);
     if (attrs.empty()) {
         return nullptr;
