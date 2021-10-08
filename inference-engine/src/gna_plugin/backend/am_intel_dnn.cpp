@@ -261,20 +261,20 @@ bool GNAPluginNS::backend::AMIntelDNN::isOperationCnnLegacySpecific(const Gna2Op
 }
 
 void GNAPluginNS::backend::AMIntelDNN::updateNumberOfOutputsIfPoolingEnabled(Gna2Model& gnaModel, bool useLegacyFormula) {
+    IE_ASSERT(gnaModel.Operations != nullptr || gnaModel.NumberOfOperations == 0);
     for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
-        IE_ASSERT(gnaModel.Operations != nullptr);
         auto& gnaOp = gnaModel.Operations[i];
         IE_ASSERT(gnaOp.Operands != nullptr);
-        IE_ASSERT(gnaOp.Parameters != nullptr);
         IE_ASSERT(gnaOp.Operands[InOpIdx] != nullptr);
         auto& inputShape = gnaOp.Operands[InOpIdx]->Shape;
+        IE_ASSERT(gnaOp.Parameters != nullptr || gnaOp.NumberOfParameters == 0);
         if (gnaOp.Type == Gna2OperationTypeConvolution && inputShape.NumberOfDimensions == 2 &&
-            gnaOp.NumberOfParameters >= PoolStrideParamIdx) {
+            gnaOp.NumberOfParameters >= PoolStrideParamIdx &&
+            gnaOp.Parameters[PoolWinParamIdx]!= nullptr &&
+            gnaOp.Parameters[PoolStrideParamIdx] != nullptr) {
             IE_ASSERT(gnaOp.Operands[OutOpIdx] != nullptr);
             IE_ASSERT(gnaOp.Operands[FilterOpIdx] != nullptr);
             IE_ASSERT(gnaOp.Parameters[ConvStrideParamIdx] != nullptr);
-            IE_ASSERT(gnaOp.Parameters[PoolWinParamIdx] != nullptr);
-            IE_ASSERT(gnaOp.Parameters[PoolStrideParamIdx] != nullptr);
 
             const auto& fltStrideShape = *reinterpret_cast<Gna2Shape*>(gnaOp.Parameters[ConvStrideParamIdx]);
             const auto fltStride = fltStrideShape.Dimensions[0];
