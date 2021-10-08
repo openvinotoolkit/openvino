@@ -3,16 +3,13 @@
 //
 
 #include <memory>
-#include <ostream>
-#include <fstream>
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/variant.hpp>
 #include <transformations/rt_info/disable_constant_folding.hpp>
 
-#include "disable_shapeof_constant_folding.hpp"
+#include <transformations/common_optimizations/disable_shapeof_constant_folding.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::DisableShapeOfConstantFolding, "DisableShapeOfConstantFolding", 0);
 
