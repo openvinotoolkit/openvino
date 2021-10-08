@@ -36,7 +36,7 @@ JitConstants SelectKernelBase::GetJitConstantsCommon(const select_params& params
         std::string const_str = "const";
 
         inputs_decls +=
-            const_str + " __global " + toCLType(params.inputs[i].GetDType()) + "* input" + std::to_string(i) + ", ";
+            const_str + " __global " + toCLType(params.inputs[i].GetDType()) + "* input" + toCodeString(i) + ", ";
     }
 
     jit.AddConstant(MakeJitConstant("INPUTS_DECLS", inputs_decls));
