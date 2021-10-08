@@ -1276,27 +1276,44 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
     size_t newPaddedSize = rnd_up(axisSize, 16);
     const auto currPaddedSize = rnd_up(currentAxisSize, 16);
 
-    if (newPaddedSize != currPaddedSize || (isBinarization() && axisSize != currentAxisSize) && (isInputLowBroadcasted || isOutputHighBroadcasted)) {
+    if (internalBlobMemory.empty() || newPaddedSize != currPaddedSize ||
+            (isBinarization() && axisSize != currentAxisSize && (isInputLowBroadcasted || isOutputHighBroadcasted))) {
         DnnlBlockedMemoryDesc weightsDataDesc(Shape(InferenceEngine::SizeVector{newPaddedSize}), memory::data_type::f32, memory::format_tag::x);
 
         if (isBinarization()) {
-            if (isInputLowBroadcasted) {
+            constexpr size_t numBinFqIntBlob = 2;
+            bool needUpdThr = false, needUpdMask = false;
+            if (isInputLowBroadcasted && binarizationThresholds.size() != newPaddedSize) {
                 binarizationThresholds.resize(newPaddedSize);
                 std::fill(binarizationThresholds.begin() + 1, binarizationThresholds.end(), binarizationThresholds[0]);
+                needUpdThr = true;
             }
 
-            if (isOutputHighBroadcasted) {
+            if (isOutputHighBroadcasted && binarizationOutputMask.size() != newPaddedSize) {
                 binarizationOutputMask.resize(newPaddedSize);
                 std::fill(binarizationOutputMask.begin() + 1, binarizationOutputMask.end(), binarizationOutputMask[0]);
+                needUpdMask = true;
             }
 
-            auto binarizationThresholdsDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-            binarizationThresholdsDataMem->Create(weightsDataDesc, getBinarizationTresholdsPtr());
-            internalBlobMemory.push_back(binarizationThresholdsDataMem);
-
-            auto binarizationMaskDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-            binarizationMaskDataMem->Create(weightsDataDesc, getBinarizationOutputMaskPtr());
-            internalBlobMemory.push_back(binarizationMaskDataMem);
+            if (internalBlobMemory.empty() || needUpdThr) {
+                auto binarizationThresholdsDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+                binarizationThresholdsDataMem->Create(weightsDataDesc, getBinarizationTresholdsPtr());
+                if (internalBlobMemory.empty()) {
+                    internalBlobMemory.push_back(binarizationThresholdsDataMem);
+                } else {
+                    internalBlobMemory[0] = binarizationThresholdsDataMem;
+                }
+            }
+            
+            if (internalBlobMemory.size() == (numBinFqIntBlob - 1) || needUpdMask) {
+                auto binarizationMaskDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+                binarizationMaskDataMem->Create(weightsDataDesc, getBinarizationOutputMaskPtr());
+                if (internalBlobMemory.size() == (numBinFqIntBlob - 1)) {
+                    internalBlobMemory.push_back(binarizationMaskDataMem);
+                } else {
+                    internalBlobMemory[1] = binarizationMaskDataMem;
+                }
+            }
         } else if (levels != 2) {
             constexpr size_t numFqIntBlob = 6;
 
