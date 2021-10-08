@@ -4,6 +4,7 @@
 
 #include "ngraph/op/experimental_detectron_prior_grid_generator.hpp"
 
+#include <experimental_detectron_prior_grid_generator_shape_inference.hpp>
 #include <memory>
 
 #include "itt.hpp"
@@ -93,27 +94,11 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types()
     auto featmap_shape = get_input_partial_shape(featmap_port);
     auto input_et = get_input_element_type(0);
 
-    validate();
-
     set_output_size(1);
-    ov::PartialShape out_shape = {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 4};
-    if (m_attrs.flatten) {
-        out_shape = ov::PartialShape{Dimension::dynamic(), 4};
-    }
-
-    if (priors_shape.rank().is_dynamic() || featmap_shape.rank().is_dynamic()) {
-        set_output_type(0, input_et, out_shape);
-        return;
-    }
-
-    auto num_priors = priors_shape[0];
-    auto featmap_height = featmap_shape[2];
-    auto featmap_width = featmap_shape[3];
-
-    if (m_attrs.flatten) {
-        out_shape = ov::PartialShape{featmap_height * featmap_width * num_priors, 4};
-    } else {
-        out_shape = ov::PartialShape{featmap_height, featmap_width, num_priors, 4};
-    }
-    set_output_type(0, input_et, out_shape);
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(priors_port),
+                                                  get_input_partial_shape(featmap_port),
+                                                  get_input_partial_shape(im_data_port)};
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, input_et, output_shapes[0]);
 }
