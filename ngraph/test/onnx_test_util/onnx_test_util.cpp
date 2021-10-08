@@ -194,13 +194,11 @@ ComparisonResult compare_onnx_graphs(const ONNX_NAMESPACE::GraphProto& graph,
 namespace ngraph {
 namespace test {
 
-bool default_name_comparator(const std::string& lhs, const std::string& rhs) {
+bool default_name_comparator(std::string lhs, std::string rhs) {
     return lhs == rhs;
 }
 
-ComparisonResult compare_onnx_models(const std::string& model,
-                                     const std::string& reference_model_path,
-                                     CompType comp) {
+ComparisonResult compare_onnx_models(const std::string& model, const std::string& reference_model_path, CompType comp) {
     std::stringstream model_stream{model};
     const auto model_proto = onnx_common::parse_from_istream(model_stream);
     const auto ref_model = onnx_common::parse_from_file(reference_model_path);
