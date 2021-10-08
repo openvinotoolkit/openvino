@@ -77,7 +77,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*OVExecutableNetworkBaseTest.*CanSetConfig.*)",
             R"(.*OVExecutableNetworkBaseTest.*CanGetInputsInfoAndCheck.*)",
             R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
-            R"(.*OVExecutableNetworkBaseTest.*(precisionsAsInOriginalFunction|OVExecutableNetworkBaseTest.precisionsAsInOriginalIR).*)",
+            R"(.*OVExecutableNetworkBaseTest.*(precisionsAsInOriginalFunction|precisionsAsInOriginalIR).*)",
             // TODO: Issue 66516
             R"(.*smoke_PrePostProcess_GPU.*convert_element_type_and_mean.*)",
             // TODO: Issue 67408
