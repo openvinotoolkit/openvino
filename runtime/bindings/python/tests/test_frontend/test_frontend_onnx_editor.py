@@ -898,3 +898,33 @@ def test_get_producing_port():
     add_op_out_port = add_op.get_output_port()
 
     assert split_op_in_port_prod_port.is_equal(add_op_out_port)
+
+
+def test_get_place_by_operation_name_and_input_port():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model.onnx")
+    assert model
+
+    place1 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
+    sp_out1_tensor = model.get_place_by_tensor_name("out2")
+    place2 = sp_out1_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
+
+    assert place1.is_equal(place2)
+
+
+def test_get_place_by_operation_name_and_output_port():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model_2.onnx")
+    assert model
+
+    place1 = model.get_place_by_operation_name_and_output_port(operationName="split2", outputPortIndex=0)
+    sp_out1_tensor = model.get_place_by_tensor_name("sp_out1")
+    place2 = sp_out1_tensor.get_producing_operation().get_output_port(outputPortIndex=0)
+
+    assert place1.is_equal(place2)
