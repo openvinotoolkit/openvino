@@ -22,13 +22,12 @@ void regclass_Tensor(py::module m) {
     cls.def(py::init<const ov::element::Type, const std::vector<size_t>>(),
     py::arg("type"), py::arg("shape"));
 
-    cls.def(py::init([](py::array& array) {
+    cls.def(py::init([](py::array& array, const std::vector<size_t>& strides) {
         std::vector<size_t> shape(array.shape(), array.shape() + array.ndim());
-        std::vector<size_t> strides(array.strides(), array.strides() + array.ndim());
         ov::element::Type ov_type = Common::dtype_to_ov_type.at(py::str(array.dtype()));
         return Tensor(ov_type, shape, (void*)array.data(), strides);
     }),
-    py::arg("array"));
+    py::arg("array"), py::arg("strides") = std::vector<size_t>{});
 
     cls.def(py::init([](py::dtype& np_dtype, std::vector<size_t>& shape) {
         return Tensor(Common::dtype_to_ov_type.at(py::str(np_dtype)), shape);
