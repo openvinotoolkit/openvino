@@ -8,41 +8,28 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-#if 0
-
 namespace ngraph {
 namespace frontend {
 namespace tf {
 namespace op {
-// Translate SpaceToDepthOp
-static Status TranslateSpaceToDepthOp(const TFNodeDecoder* op,
-                                      const std::vector<const ngraph::frontend::tf::detail::TensorWrapper*>&,
-                                      Builder::OpMap& ng_op_map) {
-  Output<Node> ng_input;
-  TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_input));
 
-  // Get the attributes
-  int64_t block_size;
-  std::string tf_data_format;
-  TF_RETURN_IF_ERROR(GetNodeAttr(op->attrs(), "block_size", &block_size));
-  TF_RETURN_IF_ERROR(GetNodeAttr(op->attrs(), "data_format", &tf_data_format));
+OutputVector TranslateSpaceToDepthOp(const NodeContext& node) {
+    auto input = node.get_ng_input(0);
 
-  if (tf_data_format != "NHWC" && tf_data_format != "NCHW") {
-    return errors::InvalidArgument(
-        "DepthToSpace data format is neither NHWC nor NCHW");
-  }
+    auto block_size = node.get_attribute<int64_t>("block_size");
+    auto data_format = node.get_attribute<string>("data_format");
 
-  bool is_nhwc = (tf_data_format == "NHWC");
+    TF_OP_VALIDATION_CHECK(node, data_format != "NHWC" && data_format != "NCHW", "Unsupported data format.");
 
-  NHWCtoNCHW(node.get_name(), is_nhwc, ng_input);
-  auto ng_mode = SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
-  auto space_to_depth = ConstructNgNode<SpaceToDepth>(
-      node.get_name(), ng_input, ng_mode, block_size);
-  NCHWtoNHWC(node.get_name(), is_nhwc, space_to_depth);
-  SaveNgOp(ng_op_map, node.get_name(), space_to_depth);
-  return Status::OK();
+    bool is_nhwc = (data_format == "NHWC");
+    NHWCtoNCHW(node.get_name(), is_nhwc, input);
+    auto ng_mode = SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
+    auto space_to_depth = make_shared<SpaceToDepth>(input, ng_mode, block_size)->output(0);
+    NCHWtoNHWC(node.get_name(), is_nhwc, space_to_depth);
+    space_to_depth.get_node_shared_ptr()->set_friendly_name(node.get_name());
+    return {space_to_depth};
 }
-}
-}
-
-#endif
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

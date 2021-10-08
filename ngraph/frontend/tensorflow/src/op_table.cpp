@@ -75,12 +75,12 @@ OP_CONVERTER(TranslateShapeOp);
 OP_CONVERTER(TranslateSizeOp);
 // OP_CONVERTER(TranslateSliceOp);
 OP_CONVERTER(TranslateSoftmaxOp);
-// OP_CONVERTER(TranslateSpaceToDepthOp);
+OP_CONVERTER(TranslateSpaceToDepthOp);
 OP_CONVERTER(TranslateSplitOp);
-// OP_CONVERTER(TranslateSplitVOp);
+OP_CONVERTER(TranslateSplitVOp);
 OP_CONVERTER(TranslateSquareOp);
 OP_CONVERTER(TranslateSqueezeOp);
-// OP_CONVERTER(TranslateStridedSliceOp);
+OP_CONVERTER(TranslateStridedSliceOp);
 OP_CONVERTER(TranslateSqrtOp);
 OP_CONVERTER(TranslateTileOp);
 OP_CONVERTER(TranslateTopKV2Op);
@@ -213,13 +213,13 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         //{"Slice", TranslateSliceOp},
         {"Snapshot", TranslateIdentityOp},
         {"Softmax", TranslateSoftmaxOp},
-        //{"SpaceToDepth", TranslateSpaceToDepthOp},
+        {"SpaceToDepth", TranslateSpaceToDepthOp},
         {"Split", TranslateSplitOp},
-        // {"SplitV", TranslateSplitVOp},
+        {"SplitV", TranslateSplitVOp},
         {"Sqrt", TranslateSqrtOp},
         {"Square", TranslateSquareOp},
         {"Squeeze", TranslateSqueezeOp},
-        //{"StridedSlice", TranslateStridedSliceOp},
+        {"StridedSlice", TranslateStridedSliceOp},
         {"Tile", TranslateTileOp},
         {"TopKV2", TranslateTopKV2Op},
         {"Transpose", TranslateTransposeOp},

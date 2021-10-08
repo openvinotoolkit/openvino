@@ -23,85 +23,16 @@ OutputVector TranslateSplitOp(const NodeContext& node) {
     return ng_split->outputs();
 }
 
-/*
-OutputVector TranslateSplitVOp(
-    const NodeContext& node) {
-  Output<Node> ng_input, ng_split_length, ng_split_dim;
+OutputVector TranslateSplitVOp(const NodeContext& node) {
+    auto input = node.get_ng_input(0);
+    auto split_lengths = node.get_ng_input(1);
+    auto split_dims = node.get_ng_input(2);
 
-  TF_RETURN_IF_ERROR(GetInputNode(ng_op_map, op, 0, ng_input));
-
-  Shape shape = ng_input.get_shape();
-  int rank = shape.size();
-
-  std::vector<int64_t> split_dim_vec;
-  TF_RETURN_IF_ERROR(
-      GetStaticInputVector(ng_op_map, op, 2, static_input_map, &split_dim_vec));
-  // there should be at least one element specified as axis and not more than
-  // one as axis is 0-D
-  if (split_dim_vec.size() != 1) {
-    return errors::InvalidArgument(
-        "split_dim_tensor must have "
-        "exactly one element.");
-  }
-  TF_RETURN_IF_ERROR(CheckAxisDimInRange(split_dim_vec, rank));
-  int split_dim = split_dim_vec[0] + (split_dim_vec[0] < 0 ? (int64_t)rank : 0);
-  ng_split_dim = ConstructNgNode<Constant>(node.get_name(), element::i32,
-                                                  Shape{}, split_dim);
-
-  std::vector<int> split_lengths_vec;
-  TF_RETURN_IF_ERROR(
-      GetStaticInputVector(ng_op_map, op, 1, static_input_map, &split_lengths_vec));
-
-  // length: Length of size_splits
-  int length = 0;
-  int idx = -1;
-
-  // Find out the total length of the splits and locate -1 's index, if any
-  bool has_one_neg = false;
-  for (size_t i = 0; i < split_lengths_vec.size(); ++i) {
-    if (split_lengths_vec[i] != -1) {
-      length += split_lengths_vec[i];
-    } else {
-      if (has_one_neg) {
-        return errors::InvalidArgument("size_splits can only have one -1");
-      } else {
-        idx = i;
-        has_one_neg = true;
-      }
-    }
-  }
-
-  // Size splits must sum to the dimension of value along split_dim
-  if (idx > 0) {
-    split_lengths_vec[idx] = shape[split_dim] - length;
-  }
-
-  if ((!has_one_neg && length != shape[split_dim]) ||
-      (has_one_neg && split_lengths_vec[idx] < 0)) {
-    return errors::InvalidArgument(
-        "The length of size_splits must sum to the value of the dimension "
-        "along split_dim");
-  }
-
-  ng_split_length = ConstructNgNode<Constant>(
-      node.get_name(), element::i32, Shape{split_lengths_vec.size()},
-      split_lengths_vec);
-
-  if (split_lengths_vec.size() != 1) {
-    auto ng_split = make_shared<VariadicSplit>(ng_input, ng_split_dim,
-                                                      ng_split_length);
-    for (size_t i = 0; i < split_lengths_vec.size(); ++i) {
-      auto out = ng_split->output(i);
-      Builder::SetTracingInfo(node.get_name(), out);
-      SaveNgOp(ng_op_map, node.get_name(), out);
-    }
-  } else {
-    SaveNgOp(ng_op_map, node.get_name(), ng_input);
-  }
-
-  return Status::OK();
+    // todo(itikhono): double check split_lengths and split_dims are in supported form here
+    auto split_v = make_shared<VariadicSplit>(input, split_dims, split_lengths);
+    split_v->set_friendly_name(node.get_name());
+    return split_v->outputs();
 }
- */
 }  // namespace op
 }  // namespace tf
 }  // namespace frontend
