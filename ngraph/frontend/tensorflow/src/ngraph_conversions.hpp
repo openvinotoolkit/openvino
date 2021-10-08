@@ -89,9 +89,9 @@ void NCHWtoHW(const std::vector<T>& src, std::vector<size_t>& dst) {
 }
 }  // namespace detail
 
-void NHWCtoNCHW(const std::string& op_name, bool is_nhwc, ngraph::Output<ngraph::Node>& ng_input);
+void NHWCtoNCHW(const std::string& op_name, bool need_convert, ngraph::Output<ngraph::Node>& ng_input);
 
-void NCHWtoNHWC(const std::string& op_name, bool is_nhwc, ngraph::Output<ngraph::Node>& ng_node);
+void NCHWtoNHWC(const std::string& op_name, bool need_convert, ngraph::Output<ngraph::Node>& ng_node);
 
 template <typename T>
 void NHWCtoHW(bool is_nhwc, const std::vector<T>& src, std::vector<size_t>& dst) {

@@ -10,8 +10,8 @@ namespace ngraph {
 namespace frontend {
 namespace tf {
 
-void NHWCtoNCHW(const std::string& op_name, bool is_nhwc, ngraph::Output<ngraph::Node>& node) {
-    if (is_nhwc) {
+void NHWCtoNCHW(const std::string& op_name, bool need_convert, ngraph::Output<ngraph::Node>& node) {
+    if (need_convert) {
         auto rank = node.get_shape().size();
         if (rank == 4) {
             Transpose<0, 3, 1, 2>(node);
@@ -22,8 +22,8 @@ void NHWCtoNCHW(const std::string& op_name, bool is_nhwc, ngraph::Output<ngraph:
     }
 }
 
-void NCHWtoNHWC(const std::string& op_name, bool is_nhwc, ngraph::Output<ngraph::Node>& node) {
-    if (is_nhwc) {
+void NCHWtoNHWC(const std::string& op_name, bool need_convert, ngraph::Output<ngraph::Node>& node) {
+    if (need_convert) {
         auto rank = node.get_shape().size();
         if (rank == 4) {
             Transpose<0, 2, 3, 1>(node);

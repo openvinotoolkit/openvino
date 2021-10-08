@@ -204,14 +204,14 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
             // 1. check if the current node is pruned by its input port
             bool is_input = false;
             std::string input_port_name = std::to_string(input_port_idx) + ":" + current_operation_name;
-            if (m_tensor_places.count(input_port_name)) {
+            if (m_tensor_places.find(input_port_name) != m_tensor_places.end()) {
                 const auto& tensor_place = m_tensor_places[input_port_name];
                 is_input = is_input || (tensor_place->is_input() ? true : false);
             }
 
             // 2. check if the producer node is pruned by its output port
             std::string output_port_name = producer_name + ":" + std::to_string(producer_output_port_idx);
-            if (m_tensor_places.count(output_port_name)) {
+            if (m_tensor_places.find(output_port_name) != m_tensor_places.end()) {
                 const auto& tensor_place = m_tensor_places[output_port_name];
                 is_input = is_input || (tensor_place->is_input() ? true : false);
             }
@@ -220,9 +220,9 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
             FRONT_END_GENERAL_CHECK(m_op_places_map.count(producer_name),
                                     "There is no operation node with name: " + producer_name);
             const auto& producer_operation_place = m_op_places_map.at(producer_name);
-            if (m_tensor_places.count(producer_name)) {
+            if (m_tensor_places.find(producer_name) != m_tensor_places.end()) {
                 const auto& tensor_place = m_tensor_places[producer_name];
-                is_input = is_input || (tensor_place->is_input() ? true : false);
+                is_input |= (tensor_place->is_input() ? true : false);
             }
 
             if (!is_input && !visited.count(producer_name)) {
@@ -253,7 +253,7 @@ std::vector<Place::Ptr> InputModelTF::InputModelTFImpl::getOutputs() const {
 }
 
 Place::Ptr InputModelTF::InputModelTFImpl::getPlaceByTensorName(const std::string& tensorName) const {
-    if (m_tensor_places.count(tensorName))
+    if (m_tensor_places.find(tensorName) != m_tensor_places.end())
         return m_tensor_places.at(tensorName);
 
     // check that operation node exists for which this place is specified
@@ -261,7 +261,7 @@ Place::Ptr InputModelTF::InputModelTFImpl::getPlaceByTensorName(const std::strin
     size_t port_idx;
     std::string port_type;
     tf::extract_operation_name_and_port(tensorName, operation_name, port_idx, port_type);
-    if (m_op_places_map.count(operation_name)) {
+    if (m_op_places_map.find(operation_name) != m_op_places_map.end()) {
         std::vector<std::string> names = {tensorName};
         auto m_var_place =
             std::make_shared<TensorPlaceTF>(m_input_model, ngraph::PartialShape(), ngraph::element::undefined, names);

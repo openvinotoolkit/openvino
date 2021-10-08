@@ -34,25 +34,25 @@ public:
     }
 
     /// Set iterator to the start position
-    virtual void reset() override {
+    void reset() override {
         node_index = 0;
     }
 
-    virtual size_t size() const override {
+    size_t size() const override {
         return m_nodes.size();
     }
 
     /// Moves to the next node in the graph
-    virtual void next() override {
+    void next() override {
         node_index++;
     }
 
-    virtual bool is_end() const override {
+    bool is_end() const override {
         return node_index >= m_nodes.size();
     }
 
     /// Return NodeContext for the current node that iterator points to
-    virtual std::shared_ptr<DecoderBase> get_decoder() const override {
+    std::shared_ptr<DecoderBase> get_decoder() const override {
         return std::make_shared<DecoderTFProto>(m_nodes[node_index]);
     }
 };

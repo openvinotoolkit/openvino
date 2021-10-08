@@ -5,6 +5,7 @@
 #include <tensorflow_frontend/frontend.hpp>
 #include <tensorflow_frontend/model.hpp>
 
+// TODO: switch on TransposeSinking once it is ready
 //#include <ngraph/pass/transpose_sinking.h>
 #include <openvino/util/common_util.hpp>
 
@@ -53,9 +54,8 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
                                  bool fail_fast,
                                  bool no_conversion,
                                  std::shared_ptr<ngraph::Function>& ng_function) const {
-    using OpMap = std::unordered_map<std::string, ngraph::OutputVector>;
     // a map from operation names to generated nGraph Output<TFNodeDecoder>
-    OpMap ng_op_map;
+    tf::OpMap ng_op_map;
 
     ngraph::ParameterVector params;
     ngraph::ResultVector results;
@@ -346,6 +346,7 @@ void FrontEndTF::convert(std::shared_ptr<ngraph::Function> partiallyConverted) c
 
 void FrontEndTF::normalize(std::shared_ptr<ngraph::Function> function) const {
     ngraph::pass::Manager manager;
+    // TODO: switch on TransposeSinking once it is ready
     // manager.register_pass<ngraph::pass::TransposeSinking>();
     manager.run_passes(function);
 }
