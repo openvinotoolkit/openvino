@@ -1,6 +1,6 @@
 ## SoftMax <a name="SoftMax"></a> {#openvino_docs_ops_activation_SoftMax_1}
 
-**Versioned name**: *SoftMax-1*
+**Versioned name**: *SoftMax-8*
 
 **Category**: *Activation function*
 
