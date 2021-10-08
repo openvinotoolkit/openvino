@@ -24,7 +24,7 @@ if(ENABLE_WHEEL)
 endif()
 
 if(ENABLE_TESTS)
-    add_subdirectory(tests/tests_compatibility/test_inference_engine/test_utils)
+    add_subdirectory(src/compatibility/openvino/test_utils)
 endif()
 
 
