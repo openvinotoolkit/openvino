@@ -319,6 +319,9 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                                                                prevPorts[i].get_node()->get_friendly_name());
                 }
             }
+
+            // Set version to 10
+            rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
         } else if (ir_version == 11 && !newAPI) {
             const std::string& old_api_map_key = ov::OldApiMap::get_type_info_static();
 
@@ -361,8 +364,8 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                         .preprocess(std::move(steps))
                         .network(InputNetworkInfo().set_layout(ov::Layout(networkLayout.str()))));
 
-                // remove old api once we applied it
-                rtInfo.erase(it);
+                // Set version to 10
+                rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
             }
 
             auto& resuls = function->get_results();
