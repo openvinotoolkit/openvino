@@ -2297,7 +2297,8 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
                                              return it != concatItem.second.concatInputLayers.end();
                                          });
                     if (included == concat_connection.end()) {
-                        gnamem->getQueue(REGION_STATES)->reserve_ptr(&concatLayerInfoItem.gna_ptr, ALIGN64(concatLayerInfoItem.reserved_size), 64);
+                        auto outputSize = std::max(concatLayerInfoItem.reserved_size, num_data_bytes_out * 2);
+                        gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(&concatLayerInfoItem.gna_ptr, ALIGN64(outputSize), 64);
 
                         std::function<void(GNAConcatLayer, GNAPluginNS::InputDesc&, ConcatConnection&)> allocate_input_recursively =
                             [&allocate_input_recursively](GNAConcatLayer clayer, GNAPluginNS::InputDesc& inputDesc, ConcatConnection& concat_connection) {
