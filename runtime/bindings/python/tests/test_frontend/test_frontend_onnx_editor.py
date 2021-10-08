@@ -950,4 +950,3 @@ def test_get_producing_port():
     add_op_out_port = add_op.get_output_port()
 
     assert split_op_in_port_prod_port.is_equal(add_op_out_port)
->>>>>>> upstream/master
