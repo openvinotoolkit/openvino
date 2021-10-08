@@ -777,11 +777,11 @@ bool MKLDNNConvolutionNode::canFuse(const MKLDNNNodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
-const mkldnn::memory& MKLDNNConvolutionNode::getWeights() const {
+mkldnn::memory MKLDNNConvolutionNode::getWeights() const {
     return getParentEdgeAt(1)->getMemory().GetPrimitive();
 }
 
-const mkldnn::memory& MKLDNNConvolutionNode::getBias() const {
+mkldnn::memory MKLDNNConvolutionNode::getBias() const {
     return getParentEdgeAt(2)->getMemory().GetPrimitive();
 }
 

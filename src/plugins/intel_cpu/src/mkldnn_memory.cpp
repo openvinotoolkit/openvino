@@ -3,23 +3,18 @@
 //
 
 #include <vector>
-#include <algorithm>
 #include <numeric>
 #include <unordered_set>
-
-#include "utils/general_utils.h"
 
 #include <mkldnn_types.h>
 #include <dnnl_types.h>
 #include <common/memory_desc_wrapper.hpp>
 #include "mkldnn_memory.h"
-#include "mkldnn_extension_utils.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
 #include "mkldnn/ie_mkldnn.h"
 #include "cpu_shape.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "utils/cpu_utils.hpp"
 #include "nodes/mkldnn_reorder_node.h"
 #include "memory_desc/cpu_memory_desc.h"
 
@@ -38,7 +33,8 @@ namespace {
     }
 }   // namespace
 
-MKLDNNMemory::MKLDNNMemory(const mkldnn::engine& eng) : eng(eng) {}
+MKLDNNMemory::MKLDNNMemory(const mkldnn::engine& eng) : eng(eng), pMngr(new MemoryMngrWithReuse()) {}
+MKLDNNMemory::MKLDNNMemory(const mkldnn::engine& eng, std::unique_ptr<MKLDNNMemoryMngrInterface> mngr) : eng(eng), pMngr(std::move(mngr)) {}
 
 size_t MKLDNNMemory::GetSize() const {
     auto size = getDesc().getCurrentMemSize();
@@ -59,32 +55,19 @@ void MKLDNNMemory::Create(const memory::dims& dims, memory::data_type data_type,
 }
 
 void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bool pads_zeroing) {
-    if (data == nullptr) {
-        prim.reset(new memory(desc, eng));
+    // MKLDNN accepts not a const data, probably need to remove some level of consteness in a call stack
 
-        size_t real_size = 0;
-        if (desc.data.format_kind == dnnl_format_kind_wino)
-            return;
-        auto desc_loc = prim->get_desc().data;
-        if (desc_loc.ndims > 0) {
-            real_size = static_cast<size_t>(desc_loc.padded_dims[0]);
-            for (int i = 1; i < desc_loc.ndims; i++) {
-                real_size *= desc_loc.padded_dims[i];
-            }
-        }
-    } else {
-        // MKLDNN accepts not a const data, probably need to remove some level of consteness in a call stack
-
-        // ========================
-        // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
-        // but with ability to skipp pads zeroing.
-        prim.reset(new memory(desc, eng, DNNL_MEMORY_NONE));
+    // ========================
+    // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
+    // but with ability to skipp pads zeroing.
+    prim.reset(new memory(desc, eng, DNNL_MEMORY_NONE));
+    //
+    // ========================
+    if (data != nullptr) {
         if (pads_zeroing)
             prim->set_data_handle(const_cast<void*>(data));
         else
             prim->set_data_handle_no_pads_proc(const_cast<void*>(data));
-        //
-        // ========================
     }
 }
 
@@ -93,25 +76,28 @@ void MKLDNNMemory::Create(const MemoryDesc &desc, const void *data, bool pads_ze
 }
 
 void MKLDNNMemory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
-    pMemDesc = std::move(desc);
-    if (nullptr != data) {
-        useExternalStorage = true;
+    pMemDesc = desc;
+
+    size_t memSize = MemoryDesc::UNDEFINED_SIZE;
+    if (pMemDesc->isDefined()) {
+        memSize = pMemDesc->getCurrentMemSize();
     } else {
-        useExternalStorage = false;
+        memSize = pMemDesc->hasDefinedMaxSize() ? pMemDesc->getMaxMemSize() : 0;
+    }
+
+    if (nullptr != data) {
+        pMngr->setExtBuff(const_cast<void*>(data), memSize);
+    } else {
+        pMngr->resize(memSize);
     }
 
     if (pMemDesc->isDefined()) {
-        Create(MemoryDescUtils::convertToDnnlMemoryDesc(pMemDesc)->getDnnlDesc(), data, pads_zeroing);
+        Create(MemoryDescUtils::convertToDnnlMemoryDesc(pMemDesc)->getDnnlDesc(), pMngr->getRawPtr(), pads_zeroing);
     } else {
         //delayed dynamic allocation
-        size_t maxMemSize = pMemDesc->getMaxMemSize();
-        VectorDims dummySize{!pMemDesc->hasDefinedMaxSize() ? 0 : maxMemSize};
+        VectorDims dummySize{ pMemDesc->hasDefinedMaxSize() ? pMemDesc->getMaxMemSize() : 0 };
         DnnlBlockedMemoryDesc dummyDesc(InferenceEngine::Precision::U8, Shape(dummySize));
-        Create(dummyDesc.getDnnlDesc(), data, false);  // no pads zeroing
-    }
-    size_t newUpperBound = MKLDNNExtensionUtils::getMemSizeForDnnlDesc(prim->get_desc());
-    if (newUpperBound > memUpperBound) {
-        memUpperBound = newUpperBound;
+        Create(dummyDesc.getDnnlDesc(), pMngr->getRawPtr(), false);  // no pads zeroing
     }
 }
 
@@ -145,27 +131,12 @@ void *MKLDNNMemory::GetPtr() const  {
     return ptr;
 }
 
-void MKLDNNMemory::redefineDesc(const MemoryDesc& desc, void *data) {
-    redefineDesc(desc.clone(), data);
-}
-
-void MKLDNNMemory::redefineDesc(MemoryDescPtr desc, void *data) {
-    if (data != nullptr) {
-        this->Create(std::move(desc), data, false);
-    } else if (useExternalStorage) {
-        if (!desc->hasDefinedMaxSize()) {
-            IE_THROW() << "Can not reset descriptor, memory upper bound is unknown.";
-        }
-
-        size_t descMaxSize = desc->getMaxMemSize();
-        if (descMaxSize <= memUpperBound) {
-            this->Create(std::move(desc), prim->get_data_handle(), false);
-        } else {
-            this->Create(std::move(desc), nullptr, false);
-        }
-    } else {
-        this->Create(std::move(desc), nullptr, false);
+void MKLDNNMemory::redefineDesc(MemoryDescPtr desc) {
+    if (!desc->hasDefinedMaxSize()) {
+        IE_THROW() << "Can not reset descriptor, memory upper bound is unknown.";
     }
+
+    this->Create(desc, nullptr, false);
 }
 
 template<>
@@ -173,9 +144,46 @@ DnnlMemoryDescPtr MKLDNNMemory::GetDescWithType<DnnlMemoryDesc, 0, 0>() const {
     return MemoryDescUtils::convertToDnnlMemoryDesc(pMemDesc);
 }
 
+void MKLDNNMemory::setDataHandle(void *data) {
+    size_t maxMemSize = pMemDesc->hasDefinedMaxSize() ?  pMemDesc->getMaxMemSize() : 0;
+    pMngr->setExtBuff(data, maxMemSize);
+}
+
 template<>
 BlockedMemoryDescPtr MKLDNNMemory::GetDescWithType<BlockedMemoryDesc, 0, 0>() const {
     return MemoryDescUtils::convertToBlockedMemoryDesc(pMemDesc);
 }
 
+void* MemoryMngrWithReuse::getRawPtr() const noexcept {
+    return data.get();
+}
+
+void MemoryMngrWithReuse::setExtBuff(void *ptr, size_t size) {
+    useExternalStorage = true;
+    memUpperBound = size;
+    data = decltype(data)(ptr, release);
+}
+
+void MemoryMngrWithReuse::resize(size_t size) {
+    constexpr int cacheLineSize = 64;
+    if (size > memUpperBound) {
+        void *ptr = dnnl::impl::malloc(size, cacheLineSize);
+        if (!ptr) {
+            throw std::bad_alloc();
+        }
+        memUpperBound = size;
+        useExternalStorage = false;
+        data = decltype(data)(ptr, destroy);
+    }
+}
+
+bool MemoryMngrWithReuse::hasExtBuffer() const noexcept {
+    return useExternalStorage;
+}
+
+void MemoryMngrWithReuse::release(void *ptr) {}
+
+void MemoryMngrWithReuse::destroy(void *ptr) {
+    dnnl::impl::free(ptr);
+}
 }  // namespace MKLDNNPlugin

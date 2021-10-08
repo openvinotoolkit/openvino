@@ -31,9 +31,36 @@
 
 namespace MKLDNNPlugin {
 
+class MKLDNNMemoryMngrInterface {
+public:
+    virtual ~MKLDNNMemoryMngrInterface() = default;
+    virtual void* getRawPtr() const noexcept = 0;
+    virtual void setExtBuff(void* ptr, size_t size) = 0;
+    virtual void resize(size_t size) = 0;
+    virtual bool hasExtBuffer() const noexcept = 0;
+};
+
+class MemoryMngrWithReuse : public MKLDNNMemoryMngrInterface {
+public:
+    MemoryMngrWithReuse() : data(nullptr, release) {}
+    void* getRawPtr() const noexcept override;
+    void setExtBuff(void* ptr, size_t size) override;
+    void resize(size_t size) override;
+    bool hasExtBuffer() const noexcept override;
+
+private:
+    bool useExternalStorage = false;
+    size_t memUpperBound = 0ul;
+    std::unique_ptr<void, void (*)(void *)> data;
+
+    static void release(void *ptr);
+    static void destroy(void *ptr);
+};
+
 class MKLDNNMemory {
 public:
     explicit MKLDNNMemory(const mkldnn::engine& eng);
+    MKLDNNMemory(const mkldnn::engine& eng, std::unique_ptr<MKLDNNMemoryMngrInterface> mngr);
 
     MKLDNNMemory(const MKLDNNMemory&) = delete;
     MKLDNNMemory& operator= (const MKLDNNMemory&) = delete;
@@ -41,13 +68,19 @@ public:
     MKLDNNMemory(MKLDNNMemory&&) = default;
     MKLDNNMemory& operator= (MKLDNNMemory&&) = default;
 
-    const mkldnn::memory& GetPrimitive() const {
-        return *prim;
+    mkldnn::memory GetPrimitive() const {
+        if (isAllocated()) {
+            return *prim;
+        } else {
+            IE_THROW() << "Can not perform GetPrimitive call to the not allocated memory";
+        }
     }
 
-    const std::shared_ptr<mkldnn::memory>& GetPrimitivePtr() const {
-        return prim;
+    bool isAllocated() const noexcept {
+        return prim != nullptr;
     }
+
+    void setDataHandle(void* data);
 
     const MemoryDesc& getDesc() const {
         return *pMemDesc;
@@ -63,8 +96,10 @@ public:
      * @return
      */
     void* GetData() const {
-        void* data = prim->get_data_handle();
-        if (data == nullptr && pMemDesc->getShape().getElementsCount() != 0)
+        void* data = pMngr->getRawPtr();
+        if (data == nullptr &&
+            pMemDesc->getShape().isStatic() &&
+            pMemDesc->getShape().getElementsCount() != 0)
             IE_THROW() << "Cannot get memory!";
         return data;
     }
@@ -92,15 +127,10 @@ public:
     // Redefines descriptor. The memory descriptor will be replaced with the new one.
     // Memory will not be reallocated if the new tensor size is less or equal the upper bound.
     // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
-    void redefineDesc(const MemoryDesc& desc, void *data = nullptr);
-    void redefineDesc(MemoryDescPtr desc, void *data = nullptr);
+    void redefineDesc(MemoryDescPtr desc);
 
     void SetData(const MKLDNNMemory& memory, size_t size = 0, bool ftz = true) const;
     void FillZero();
-
-    bool hasExternalStorage() const {
-        return useExternalStorage;
-    }
 
     const VectorDims& getStaticDims() const {
         return getDesc().getShape().getStaticDims();
@@ -111,7 +141,7 @@ public:
     }
 
     bool isUsedExternalStorage() const {
-        return useExternalStorage;
+        return pMngr->hasExtBuffer();
     }
 
 private:
@@ -124,8 +154,7 @@ private:
     MemoryDescPtr pMemDesc;
     std::shared_ptr<mkldnn::memory> prim;
     mkldnn::engine eng;
-    bool useExternalStorage = false;
-    size_t memUpperBound = 0ul;
+    std::unique_ptr<MKLDNNMemoryMngrInterface> pMngr;
 };
 
 using MKLDNNMemoryPtr = std::shared_ptr<MKLDNNMemory>;

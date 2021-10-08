@@ -247,7 +247,7 @@ std::vector<VectorDims> MKLDNNSplitNode::shapeInfer() const {
 
 void MKLDNNSplitNode::prepareParams() {
     const auto &srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr()) {
+    if (!srcMemPtr || !srcMemPtr->isAllocated()) {
         THROW_ERROR << "has not allocated input memory";
     }
 
@@ -255,7 +255,7 @@ void MKLDNNSplitNode::prepareParams() {
     std::vector<BlockedMemoryDescCPtr> outDescs;
     for (size_t port = 0; port < outputShapes.size(); ++port) {
         const auto &outMemPtr = this->getChildEdgesAtPort(port)[0]->getMemoryPtr();
-        if (!outMemPtr || !outMemPtr->GetPrimitivePtr()) {
+        if (!outMemPtr || !outMemPtr->isAllocated()) {
             THROW_ERROR << "has not allocated destination memory";
         }
 

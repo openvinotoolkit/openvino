@@ -2077,16 +2077,16 @@ void MKLDNNInterpolateNode::prepareParams() {
     auto& scaleMemPtr = getParentEdgeAt(SCALES_ID)->getMemoryPtr();
     if (getParentEdges().size() > 3) {
         auto &axesMemPtr = getParentEdgeAt(AXES_ID)->getMemoryPtr();
-        if (!axesMemPtr || !axesMemPtr->GetPrimitivePtr())
+        if (!axesMemPtr || !axesMemPtr->isAllocated())
             IE_THROW() << errorPrefix << " did not allocate axes memory";
     }
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate destination memory";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate input memory";
-    if (!tsMemPtr || !tsMemPtr->GetPrimitivePtr())
+    if (!tsMemPtr || !tsMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate target shape memory";
-    if (!scaleMemPtr || !scaleMemPtr->GetPrimitivePtr())
+    if (!scaleMemPtr || !scaleMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate scales memory";
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)

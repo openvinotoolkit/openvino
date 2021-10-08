@@ -560,12 +560,12 @@ void MKLDNNNode::redefineOutputMemory(const std::vector<VectorDims> &newOutputSh
         }
 
         const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShape);
-        edges[sharedEdgeNum]->getMemoryPtr()->redefineDesc(*memDesc);
+        edges[sharedEdgeNum]->getMemoryPtr()->redefineDesc(memDesc);
         void *data = edges[sharedEdgeNum]->getMemoryPtr()->GetData();
         for (size_t j = 0; j < edges.size(); j++) {
             if (j == sharedEdgeNum)
                 continue;
-            edges[j]->getMemoryPtr()->redefineDesc(*memDesc, data);
+            edges[j]->getMemoryPtr()->Create(memDesc, data, false);
         }
     }
 }
@@ -732,13 +732,13 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
 void MKLDNNNode::prepareMemory(mkldnn::primitive_desc_iterator& itpd) {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
-        if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+        if (!dstMemPtr || !dstMemPtr->isAllocated())
             IE_THROW() << "Destination memory didn't allocate for node " << getName()
                                << " to node " << getChildEdgeAt(i)->getChild()->getName() << ".";
     }
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto &srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
-        if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+        if (!srcMemPtr || !srcMemPtr->isAllocated())
             IE_THROW() << "Destination memory didn't allocate for node " << getName()
                                << " from node " << getParentEdgeAt(i)->getParent()->getName() << ".";
     }

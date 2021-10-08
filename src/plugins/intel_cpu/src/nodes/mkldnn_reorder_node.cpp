@@ -140,9 +140,9 @@ void MKLDNNReorderNode::prepareParams() {
     if (!isOptimized) {
         auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
         auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+        if (!dstMemPtr || !dstMemPtr->isAllocated())
             IE_THROW() << "Destination memory didn't allocate.";
-        if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+        if (!srcMemPtr || !srcMemPtr->isAllocated())
             IE_THROW() << "Input memory didn't allocate.";
         if (getSelectedPrimitiveDescriptor() == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set.";
@@ -187,15 +187,15 @@ void MKLDNNReorderNode::prepareParams() {
             }
         }
         if (!canUseNcsp2Nspc && !canUseNspc2Ncsp) {
-            if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+            if (!dstMemPtr || !dstMemPtr->isAllocated())
                 IE_THROW() << "Destination memory didn't allocate.";
-            if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+            if (!srcMemPtr || !srcMemPtr->isAllocated())
                 IE_THROW() << "Input memory didn't allocate.";
             if (getSelectedPrimitiveDescriptor() == nullptr)
                 IE_THROW() << "Preferable primitive descriptor is not set.";
 
-            createReorderPrimitive(srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), srcMemPtr->GetPrimitive().get_data_handle(),
-                                   dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), dstMemPtr->GetPrimitive().get_data_handle());
+            createReorderPrimitive(srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), srcMemPtr->GetData(),
+                                   dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), dstMemPtr->GetData());
         }
     }
 }
@@ -348,8 +348,8 @@ void MKLDNNReorderNode::execute(mkldnn::stream strm) {
     } else if (canUseNcsp2Nspc) {
         optimizedNcsp2Nspc();
     } else {
-        src_blocked->GetPrimitivePtr()->set_data_handle(getParentEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
-        dst_blocked->GetPrimitivePtr()->set_data_handle(getChildEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
+        src_blocked->setDataHandle(getParentEdgeAt(0)->getMemory().GetData());
+        dst_blocked->setDataHandle(getChildEdgeAt(0)->getMemory().GetData());
 
         MKLDNNNode::execute(strm);
     }
@@ -362,8 +362,8 @@ void MKLDNNReorderNode::setDynamicBatchLim(int lim) {
         auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
         memory::desc src_d = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
         memory::desc dst_d = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-        void *src_data_hdl = srcMemPtr->GetPrimitive().get_data_handle();
-        void *dst_data_hdl = dstMemPtr->GetPrimitive().get_data_handle();
+        void *src_data_hdl = srcMemPtr->GetData();
+        void *dst_data_hdl = dstMemPtr->GetData();
 
         src_d.data.dims[0] = batchToProcess();
         src_d.data.padded_dims[0] = batchToProcess();
@@ -408,12 +408,12 @@ void MKLDNNReorderNode::reorderData(const MKLDNNMemory &input, const MKLDNNMemor
         cpu_memcpy(dstPtr, srcPtr, copySize);
     } else {
         std::unique_ptr<mkldnn::reorder> pReorder;
-        std::shared_ptr<mkldnn::memory> srcMemoryPtr;
+        mkldnn::memory srcMemory;
         std::vector<uint8_t> tmpBuff;
 
         try {
             pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(input.GetPrimitive(), output.GetPrimitive()));
-            srcMemoryPtr = input.GetPrimitivePtr();
+            srcMemory = input.GetPrimitive();
         }
         catch (const mkldnn::error& err) {
             if (mkldnn_unimplemented == err.status && output.GetDataType() != input.GetDataType() && MKLDNNConvertNode::isSupportedDesc(input.getDesc()) &&
@@ -432,14 +432,15 @@ void MKLDNNReorderNode::reorderData(const MKLDNNMemory &input, const MKLDNNMemor
                 tmpMem.Create(std::move(tmpDesc), tmpBuff.data());
 
                 pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(tmpMem.GetPrimitive(), output.GetPrimitive()));
-                srcMemoryPtr = tmpMem.GetPrimitivePtr();
+                srcMemory = tmpMem.GetPrimitive();
             } else {
                 throw;
             }
         }
         if (pReorder) {
             mkldnn::stream loc_stream(output.getEngine(), mkldnn::stream::flags::in_order);
-            pReorder->execute(loc_stream, *srcMemoryPtr, *output.GetPrimitivePtr());
+            auto dstMemory = output.GetPrimitive();
+            pReorder->execute(loc_stream, srcMemory, dstMemory);
         } else {
             IE_THROW() << "Could not make mkldnn reorder.";
         }
