@@ -18,8 +18,11 @@ static std::shared_ptr<Function> create_simple_function(element::Type type, cons
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1"});
-    auto res = std::make_shared<op::v0::Result>(data1);
-    res->set_friendly_name("Result");
+    auto op = std::make_shared<op::v0::Relu>(data1);
+    op->set_friendly_name("Relu");
+    auto res = std::make_shared<op::v0::Result>(op);
+    res->set_friendly_name("Result1");
+    res->get_output_tensor(0).set_names({"tensor_output1"});
     return std::make_shared<Function>(ResultVector{res}, ParameterVector{data1});
 }
 
@@ -27,38 +30,26 @@ static std::shared_ptr<Function> create_2inputs(element::Type type, const Partia
     auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1"});
+    auto op1 = std::make_shared<op::v0::Relu>(data1);
+    op1->set_friendly_name("Relu1");
     auto data2 = std::make_shared<op::v0::Parameter>(type, shape);
     data2->set_friendly_name("input2");
-    data1->get_output_tensor(0).set_names({"tensor_input2"});
-    auto res1 = std::make_shared<op::v0::Result>(data1);
+    data2->get_output_tensor(0).set_names({"tensor_input2"});
+    auto op2 = std::make_shared<op::v0::Relu>(data2);
+    op2->set_friendly_name("Relu2");
+    auto res1 = std::make_shared<op::v0::Result>(op1);
     res1->set_friendly_name("Result1");
-    auto res2 = std::make_shared<op::v0::Result>(data2);
+    res1->get_output_tensor(0).set_names({"tensor_output1"});
+    auto res2 = std::make_shared<op::v0::Result>(op2);
     res2->set_friendly_name("Result2");
+    res2->get_output_tensor(0).set_names({"tensor_output2"});
     return std::make_shared<Function>(ResultVector{res1, res2}, ParameterVector{data1, data2});
 }
 
 TEST(pre_post_process, simple_mean_scale) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
     f = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().mean(1.f).scale(2.f))).build(f);
-
-    auto result = std::make_shared<HostTensor>();
-    f->evaluate(
-        {result},
-        {make_host_tensor<element::f32>(Shape{1, 3, 2, 2}, {1., 3., 5., 7., 9., 11., 13., 15., 17., 19., 21., 23.})});
-    auto result_val = read_vector<float>(result);
-    EXPECT_TRUE(all_close_f(std::vector<float>{0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11.}, result_val));
-}
-
-TEST(pre_post_process, scale_then_mean) {
-    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
-    f = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().scale(2.0f).mean(2.0f))).build(f);
-
-    auto result = std::make_shared<HostTensor>();
-    f->evaluate({result},
-                {make_host_tensor<element::f32>(Shape{1, 3, 2, 2},
-                                                {2., 4., 6., 8., 10., 12., 14., 16., 18., 20., 100., 200.})});
-    auto result_val = read_vector<float>(result);
-    EXPECT_TRUE(all_close_f(std::vector<float>{-1., 0, 1., 2., 3., 4., 5., 6., 7., 8., 48., 98.}, result_val));
+    EXPECT_EQ(f->get_output_element_type(0), element::f32);
 }
 
 TEST(pre_post_process, convert_element_type_and_scale) {
@@ -73,12 +64,13 @@ TEST(pre_post_process, convert_element_type_and_scale) {
             .build(f);
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::i16);
     EXPECT_EQ(f->get_output_element_type(0), element::i8);
+}
 
-    auto result = std::make_shared<HostTensor>();
-    f->evaluate({result},
-                {make_host_tensor<element::i16>(Shape{1, 3, 2, 2}, {2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 10000, 200})});
-    auto result_val = read_vector<int8_t>(result);
-    EXPECT_TRUE(all_close(std::vector<int8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, (int8_t)5000, 100}, result_val));
+TEST(pre_post_process, empty_preprocess) {
+    auto f = create_simple_function(element::i8, Shape{1, 3, 2, 2});
+    f = PrePostProcessor().input(InputInfo().tensor(InputTensorInfo().set_element_type(element::i8))).build(f);
+    EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::i8);
+    EXPECT_EQ(f->get_output_element_type(0), element::i8);
 }
 
 TEST(pre_post_process, convert_element_type_from_unknown) {
@@ -129,11 +121,265 @@ TEST(pre_post_process, tensor_element_type_and_scale) {
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::f32);
     EXPECT_EQ(f->get_output_element_type(0), element::i8);
     EXPECT_EQ(f->get_parameters().front()->get_layout(), Layout());
+}
 
-    auto result = std::make_shared<HostTensor>();
-    f->evaluate({result}, {make_host_tensor<element::f32>(Shape{1, 3, 1, 1}, {2., 4., 6.})});
-    auto result_val = read_vector<int8_t>(result);
-    EXPECT_TRUE(all_close(std::vector<int8_t>{1, 2, 3}, result_val));
+TEST(pre_post_process, convert_color_nv12_rgb_single) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 3});
+    auto name = f->get_parameters()[0]->get_friendly_name();
+    auto tensor_names = f->get_parameters().front()->get_output_tensor(0).get_names();
+    f = PrePostProcessor()
+            .input(
+                InputInfo()
+                    .tensor(InputTensorInfo()
+                                .set_element_type(element::u8)
+                                .set_color_format(ColorFormat::NV12_SINGLE_PLANE))
+                    .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB).convert_element_type(element::f32)))
+            .build(f);
+
+    EXPECT_EQ(f->get_parameters().size(), 1);
+    EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_parameters().front()->get_layout(), "NHWC");
+    EXPECT_EQ(f->get_parameters().front()->get_partial_shape(), (PartialShape{Dimension::dynamic(), 3, 2, 1}));
+    EXPECT_EQ(f->get_parameters().front()->get_friendly_name(), name);
+    EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
+}
+
+TEST(pre_post_process, convert_color_nv12_bgr_single) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 3});
+    auto name = f->get_parameters()[0]->get_friendly_name();
+    auto tensor_names = f->get_parameters().front()->get_output_tensor(0).get_names();
+    f = PrePostProcessor()
+            .input(InputInfo()
+                       .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_SINGLE_PLANE))
+                       .preprocess(PreProcessSteps().convert_color(ColorFormat::BGR)))
+            .build(f);
+
+    EXPECT_EQ(f->get_parameters().size(), 1);
+    EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters().front()->get_layout(), "NHWC");
+    EXPECT_EQ(f->get_parameters().front()->get_partial_shape(), (PartialShape{Dimension::dynamic(), 3, 2, 1}));
+    EXPECT_EQ(f->get_parameters().front()->get_friendly_name(), name);
+    EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
+}
+
+TEST(pre_post_process, convert_color_nv12_bgr_2_planes) {
+    auto f = create_simple_function(element::f32, Shape{5, 2, 2, 3});
+    f = PrePostProcessor()
+            .input(InputInfo()
+                       .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES, {"TestY", "TestUV"}))
+                       .preprocess(PreProcessSteps().convert_color(ColorFormat::BGR)))
+            .build(f);
+
+    EXPECT_EQ(f->get_parameters().size(), 2);
+    EXPECT_EQ(f->get_parameters()[0]->get_friendly_name(), "input1/TestY");
+    EXPECT_EQ(*f->get_parameters()[0]->output(0).get_tensor().get_names().begin(), "tensor_input1/TestY");
+    EXPECT_EQ(f->get_parameters()[0]->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters()[0]->get_partial_shape(), (PartialShape{5, 2, 2, 1}));
+
+    EXPECT_EQ(f->get_parameters()[1]->get_friendly_name(), "input1/TestUV");
+    EXPECT_EQ(*f->get_parameters()[1]->output(0).get_tensor().get_names().begin(), "tensor_input1/TestUV");
+    EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters()[1]->get_partial_shape(), (PartialShape{5, 1, 1, 2}));
+}
+
+TEST(pre_post_process, convert_color_nv12_rgb_2_planes) {
+    auto f = create_simple_function(element::f32, Shape{5, 2, 2, 3});
+    f = PrePostProcessor()
+            .input(InputInfo()
+                       .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES))
+                       .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB)))
+            .build(f);
+
+    EXPECT_EQ(f->get_parameters().size(), 2);
+    EXPECT_EQ(f->get_parameters()[0]->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters()[0]->get_partial_shape(), (PartialShape{5, 2, 2, 1}));
+    EXPECT_EQ(f->get_parameters()[1]->get_partial_shape(), (PartialShape{5, 1, 1, 2}));
+
+    EXPECT_EQ(f->get_parameters()[0]->get_friendly_name(), "input1/Y");
+    EXPECT_EQ(*f->get_parameters()[0]->output(0).get_tensor().get_names().begin(), "tensor_input1/Y");
+
+    EXPECT_EQ(f->get_parameters()[1]->get_friendly_name(), "input1/UV");
+    EXPECT_EQ(*f->get_parameters()[1]->output(0).get_tensor().get_names().begin(), "tensor_input1/UV");
+}
+
+TEST(pre_post_process, convert_color_nv12_bgr_2_planes_u8_lvalue) {
+    auto f = create_simple_function(element::u8, Shape{1, 2, 2, 3});
+    auto input_tensor_info = InputTensorInfo();
+    input_tensor_info.set_color_format(ColorFormat::NV12_TWO_PLANES);
+    auto steps = PreProcessSteps();
+    steps.convert_color(ColorFormat::BGR);
+    f = PrePostProcessor()
+            .input(InputInfo().tensor(std::move(input_tensor_info)).preprocess(std::move(steps)))
+            .build(f);
+
+    EXPECT_EQ(f->get_parameters().size(), 2);
+    EXPECT_EQ(f->get_parameters()[0]->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_parameters()[0]->get_partial_shape(), (PartialShape{1, 2, 2, 1}));
+    EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_parameters()[1]->get_partial_shape(), (PartialShape{1, 1, 1, 2}));
+}
+
+TEST(pre_post_process, convert_color_nv12_bgr_2_planes_el_type) {
+    auto f = create_simple_function(element::u8, Shape{1, 2, 2, 3});
+    EXPECT_NO_THROW(
+        f = PrePostProcessor()
+                .input(InputInfo()
+                           .tensor(InputTensorInfo()
+                                       .set_element_type(element::f32)
+                                       .set_color_format(ColorFormat::NV12_TWO_PLANES))
+                           .preprocess(
+                               PreProcessSteps().convert_element_type(element::u8).convert_color(ColorFormat::BGR)))
+                .build(f));
+
+    EXPECT_EQ(f->get_parameters().size(), 2);
+    EXPECT_EQ(f->get_parameters()[0]->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::f32);
+}
+
+TEST(pre_post_process, convert_color_same_type) {
+    auto f = create_simple_function(element::u8, Shape{1, 2, 2, 3});
+    EXPECT_NO_THROW(f = PrePostProcessor()
+                            .input(InputInfo()
+                                       .tensor(InputTensorInfo().set_color_format(ColorFormat::RGB))
+                                       .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB)))
+                            .build(f));
+
+    EXPECT_EQ(f->get_parameters().size(), 1);
+    EXPECT_EQ(f->get_parameters()[0]->get_partial_shape(), (PartialShape{1, 2, 2, 3}));
+}
+
+TEST(pre_post_process, convert_color_unsupported) {
+    // Feel free to update this test when more color conversions are supported in future
+    auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_SINGLE_PLANE))
+                                    .preprocess(PreProcessSteps().convert_color(ColorFormat::UNDEFINED)))
+                         .build(f),
+                 ov::AssertFailure);
+
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES))
+                                    .preprocess(PreProcessSteps().convert_color(ColorFormat::UNDEFINED)))
+                         .build(f),
+                 ov::AssertFailure);
+
+    auto colors = {ColorFormat::NV12_TWO_PLANES, ColorFormat::NV12_SINGLE_PLANE, ColorFormat::RGB, ColorFormat::BGR};
+    for (const auto& color : colors) {
+        EXPECT_THROW(f = PrePostProcessor()
+                             .input(InputInfo()
+                                        .tensor(InputTensorInfo().set_color_format(ColorFormat::UNDEFINED))
+                                        .preprocess(PreProcessSteps().convert_color(color)))
+                             .build(f),
+                     ov::AssertFailure);
+
+        EXPECT_THROW(f = PrePostProcessor()
+                             .input(InputInfo()
+                                        .tensor(InputTensorInfo().set_color_format(color))
+                                        .preprocess(PreProcessSteps().convert_color(ColorFormat::UNDEFINED)))
+                             .build(f),
+                     ov::AssertFailure);
+    }
+}
+
+TEST(pre_post_process, convert_color_incorrect_subnames) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 3});
+    auto name = f->get_parameters()[0]->get_friendly_name();
+    auto tensor_names = f->get_parameters().front()->get_output_tensor(0).get_names();
+    EXPECT_THROW(
+        f = PrePostProcessor()
+                .input(InputInfo()
+                           .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_SINGLE_PLANE, {"Test"}))
+                           .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB)))
+                .build(f),
+        ov::AssertFailure);
+
+    EXPECT_THROW(
+        f = PrePostProcessor()
+                .input(InputInfo().tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES, {"Test"})))
+                .build(f),
+        ov::AssertFailure);
+
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo().tensor(
+                             InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES, {"1", "2", "3"})))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
+TEST(pre_post_process, convert_color_duplicate_subnames) {
+    auto f = create_2inputs(element::f32, PartialShape{1, 2, 2, 3});
+    f->get_parameters()[0]->get_output_tensor(0).set_names({"tensor_input1"});
+    f->get_parameters()[1]->get_output_tensor(0).set_names({"tensor_input1/CustomUV"});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_SINGLE_PLANE,
+                                                                               {"CustomY", "CustomUV"}))
+                                    .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB)))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
+TEST(pre_post_process, convert_color_duplicate_internal_subnames_mean) {
+    auto f = create_simple_function(element::f32, PartialShape{1, 2, 2, 3});
+    for (int i = 0; i < 10; i++) {
+        // Create preprocessing step several times (try to duplicate internal node names this way)
+        EXPECT_NO_THROW(f = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().mean(0.1f))).build(f));
+        EXPECT_NO_THROW(f = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().scale(1.1f))).build(f));
+        EXPECT_NO_THROW(
+            f = PrePostProcessor()
+                    .input(InputInfo().preprocess(
+                        PreProcessSteps().convert_element_type(element::u8).convert_element_type(element::f32)))
+                    .build(f));
+        EXPECT_NO_THROW(f = PrePostProcessor()
+                                .input(InputInfo()
+                                           .tensor(InputTensorInfo().set_layout("NHWC"))
+                                           .preprocess(PreProcessSteps().convert_layout("NCHW")))
+                                .build(f));
+        EXPECT_NO_THROW(
+            f = PrePostProcessor()
+                    .input(InputInfo()
+                               .tensor(InputTensorInfo().set_layout("NHWC").set_spatial_static_shape(480, 640))
+                               .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR)))
+                    .build(f));
+    }
+}
+
+TEST(pre_post_process, unsupported_network_color_format) {
+    auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo().tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_SINGLE_PLANE)))
+                         .build(f),
+                 ov::AssertFailure);
+
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo().tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES)))
+                         .build(f),
+                 ov::AssertFailure);
+
+    EXPECT_THROW(
+        f = PrePostProcessor()
+                .input(InputInfo()
+                           .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES))
+                           .preprocess(PreProcessSteps().convert_layout("NCHW").convert_color(ColorFormat::RGB)))
+                .build(f),
+        ov::AssertFailure);
+
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES))
+                                    .preprocess(PreProcessSteps().mean(0.1f).convert_color(ColorFormat::RGB)))
+                         .build(f),
+                 ov::AssertFailure);
+
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES))
+                                    .preprocess(PreProcessSteps().scale(2.1f).convert_color(ColorFormat::RGB)))
+                         .build(f),
+                 ov::AssertFailure);
 }
 
 TEST(pre_post_process, custom_preprocessing) {
@@ -145,11 +391,7 @@ TEST(pre_post_process, custom_preprocessing) {
                 return abs;
             })))
             .build(f);
-
-    auto result = std::make_shared<HostTensor>();
-    f->evaluate({result}, {make_host_tensor<element::i32>(Shape{1, 3, 1, 1}, {0, 4, -6})});
-    auto result_val = read_vector<int32_t>(result);
-    EXPECT_TRUE(all_close(std::vector<int32_t>{0, 4, 6}, result_val));
+    EXPECT_EQ(f->get_output_element_type(0), element::i32);
 }
 
 TEST(pre_post_process, test_lvalue) {
@@ -193,27 +435,13 @@ TEST(pre_post_process, test_lvalue) {
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "?CHW");
     EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
     EXPECT_EQ(f->get_output_element_type(0), element::i8);
-
-    auto result = std::make_shared<HostTensor>();
-    f->evaluate({result}, {make_host_tensor<element::f32>(Shape{1, 3, 1, 1}, {-9., 17., -1.})});
-    auto result_val = read_vector<int8_t>(result);
-    EXPECT_TRUE(all_close(std::vector<int8_t>{3, 2, 1}, result_val));
 }
 
 TEST(pre_post_process, test_2_inputs_basic) {
     auto f = create_2inputs(element::f32, Shape{1, 3, 1, 1});
     { f = PrePostProcessor().input(InputInfo(1).preprocess(PreProcessSteps().mean(1.f).scale(2.0f))).build(f); }
-    auto result1 = std::make_shared<HostTensor>();
-    auto result2 = std::make_shared<HostTensor>();
-    auto input1 = make_host_tensor<element::f32>(Shape{1, 3, 1, 1}, {3., 5., 7.});
-    auto input2 = make_host_tensor<element::f32>(Shape{1, 3, 1, 1}, {3., 5., 7.});
-    f->evaluate({result1, result2}, {input1, input2});
-
-    auto result1_val = read_vector<float>(result1);
-    EXPECT_TRUE(all_close_f(std::vector<float>{3, 5, 7}, result1_val));
-
-    auto result2_val = read_vector<float>(result2);
-    EXPECT_TRUE(all_close_f(std::vector<float>{1, 2, 3}, result2_val));
+    EXPECT_EQ(f->get_output_element_type(0), element::f32);
+    EXPECT_EQ(f->get_output_element_type(1), element::f32);
 }
 
 TEST(pre_post_process, reuse_network_layout_no_tensor_info) {
@@ -252,11 +480,6 @@ TEST(pre_post_process, mean_scale_vector_tensor_layout) {
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "NC??");
     EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
     EXPECT_EQ(f->get_output_element_type(0), element::f32);
-
-    auto result = std::make_shared<HostTensor>();
-    f->evaluate({result}, {make_host_tensor<ngraph::element::f32>(Shape{1, 3, 2, 1}, {5., 1., 5., 11., 11., -1.})});
-    auto result_val = read_vector<float>(result);
-    EXPECT_TRUE(all_close_f(std::vector<float>{2., 0., 1., 3., 2., -1.}, result_val));
 }
 
 TEST(pre_post_process, mean_scale_dynamic_layout) {
@@ -274,11 +497,6 @@ TEST(pre_post_process, mean_scale_dynamic_layout) {
     EXPECT_EQ(f->get_parameters().front()->get_layout(), "N...C");
     EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
     EXPECT_EQ(f->get_output_element_type(0), element::f32);
-
-    auto result = std::make_shared<HostTensor>();
-    f->evaluate({result}, {make_host_tensor<ngraph::element::f32>(Shape{1, 2, 1, 3}, {5., 2., 7., 7., 8., -1.})});
-    auto result_val = read_vector<float>(result);
-    EXPECT_TRUE(all_close_f(std::vector<float>{2., 0., 1., 3., 2., -1.}, result_val));
 }
 
 TEST(pre_post_process, scale_vector_no_channels_layout) {
@@ -327,14 +545,298 @@ TEST(pre_post_process, mean_vector_dynamic_channels_shape) {
         element::f32,
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()});
     EXPECT_EQ(f->get_output_element_type(0), element::f32);
-    f = PrePostProcessor()
-            .input(InputInfo()
-                       .tensor(InputTensorInfo().set_layout("NCHW"))
-                       .preprocess(PreProcessSteps().mean({0.1f, 0.2f, 0.3f})))
-            .build(f);
+    EXPECT_NO_THROW(f = PrePostProcessor()
+                            .input(InputInfo()
+                                       .tensor(InputTensorInfo().set_layout("NCHW"))
+                                       .preprocess(PreProcessSteps().mean({0.1f, 0.2f, 0.3f})))
+                            .build(f));
     EXPECT_EQ(f->get_output_element_type(0), element::f32);
-    auto result = std::make_shared<HostTensor>();
-    EXPECT_NO_THROW(f->evaluate({result}, {make_host_tensor<ngraph::element::f32>(Shape{1, 3, 1, 1}, {1., 2., 3.})}));
-    EXPECT_ANY_THROW(
-        f->evaluate({result}, {make_host_tensor<ngraph::element::f32>(Shape{1, 4, 1, 1}, {1., 2., 3., 4.})}));
+}
+
+// Error cases for 'resize'
+TEST(pre_post_process, resize_no_network_layout) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_layout("NHWC"))
+                                    .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_CUBIC)))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
+TEST(pre_post_process, tensor_spatial_shape_no_layout_dims) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_layout("NC?W").set_spatial_static_shape(480, 640))
+                                    .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_CUBIC)))
+                         .build(f),
+                 ov::AssertFailure);
+
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_layout("NCH?").set_spatial_static_shape(480, 640))
+                                    .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_CUBIC)))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
+TEST(pre_post_process, resize_no_tensor_height) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_layout("N?WC"))
+                                    .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
+                                    .network(InputNetworkInfo().set_layout("NHWC")))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
+TEST(pre_post_process, resize_no_tensor_width) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_layout("NH?C"))
+                                    .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
+                                    .network(InputNetworkInfo().set_layout("NHWC")))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
+// --- PostProcess - set/convert element type ---
+
+TEST(pre_post_process, postprocess_convert_element_type_explicit) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    f = PrePostProcessor()
+            .output(OutputInfo().postprocess(PostProcessSteps().convert_element_type(element::u8)))
+            .build(f);
+    EXPECT_EQ(f->get_results().size(), 1);
+    EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
+    auto ops = f->get_ordered_ops();
+    auto res_count = std::count_if(ops.begin(), ops.end(), [](std::shared_ptr<ov::Node> n) {
+        return std::dynamic_pointer_cast<ov::op::v0::Result>(n) != nullptr;
+    });
+    EXPECT_EQ(res_count, 1);
+}
+
+TEST(pre_post_process, postprocess_convert_element_type_default) {
+    auto f = create_2inputs(element::f32, Shape{1, 3, 2, 2});
+    f = PrePostProcessor()
+            .output(OutputInfo(1)
+                        .postprocess(PostProcessSteps().convert_element_type())
+                        .tensor(OutputTensorInfo().set_element_type(element::u8)))
+            .build(f);
+    EXPECT_EQ(f->get_results()[0]->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_results()[1]->get_element_type(), element::u8);
+}
+
+TEST(pre_post_process, postprocess_convert_element_type_same) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    auto size_old = f->get_ordered_ops().size();
+    f = PrePostProcessor()
+            .output(OutputInfo("tensor_output1")
+                        .postprocess(PostProcessSteps().convert_element_type(element::f32))
+                        .tensor(OutputTensorInfo().set_element_type(element::f32)))
+            .build(f);
+    EXPECT_EQ(f->get_results()[0]->get_element_type(), element::f32);
+
+    // Verify that redundant ops were not added
+    EXPECT_EQ(size_old, f->get_ordered_ops().size());
+}
+
+TEST(pre_post_process, postprocess_convert_element_type_default_error) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    EXPECT_THROW(
+        f = PrePostProcessor().output(OutputInfo().postprocess(PostProcessSteps().convert_element_type())).build(f),
+        ov::AssertFailure);
+}
+
+TEST(pre_post_process, postprocess_convert_element_type_implicit) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    f = PrePostProcessor().output(OutputInfo().tensor(OutputTensorInfo().set_element_type(element::u8))).build(f);
+    EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
+}
+
+// --- PostProcess - set/convert layout ---
+TEST(pre_post_process, postprocess_set_layout_network) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    f = PrePostProcessor().output(OutputInfo().network(OutputNetworkInfo().set_layout("NCHW"))).build(f);
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "NCHW");
+}
+
+TEST(pre_post_process, postprocess_set_layout_tensor) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    // no layout is specified for network, no way to implicitly convert it to user's layout
+    EXPECT_THROW(f = PrePostProcessor().output(OutputInfo().tensor(OutputTensorInfo().set_layout("NHWC"))).build(f),
+                 ov::AssertFailure);
+}
+
+TEST(pre_post_process, postprocess_convert_layout_implicit) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+
+    f = PrePostProcessor()
+            .output(OutputInfo()
+                        .network(OutputNetworkInfo().set_layout("NCHW"))
+                        .tensor(OutputTensorInfo().set_layout("NHWC")))
+            .build(f);
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "NHWC");
+    EXPECT_EQ(f->get_results()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 2, 2, 3}));
+}
+
+TEST(pre_post_process, postprocess_convert_layout_explicit_no_target) {
+    auto f = create_2inputs(element::f32, Shape{1, 3, 2, 2});
+    f = PrePostProcessor()
+            .output(OutputInfo(1)
+                        .network(OutputNetworkInfo().set_layout("NCHW"))
+                        .postprocess(PostProcessSteps().convert_layout("NHWC")))
+            .build(f);
+    EXPECT_EQ(f->get_results()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 3, 2, 2}));
+    EXPECT_EQ(f->get_results()[1]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 2, 2, 3}));
+}
+
+TEST(pre_post_process, postprocess_convert_layout_default) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+
+    f = PrePostProcessor()
+            .output(OutputInfo()
+                        .network(OutputNetworkInfo().set_layout("NCHW"))
+                        .postprocess(PostProcessSteps().convert_layout())
+                        .tensor(OutputTensorInfo().set_layout("NHWC")))
+            .build(f);
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "NHWC");
+    EXPECT_EQ(f->get_results()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 2, 2, 3}));
+}
+
+TEST(pre_post_process, postprocess_convert_layout_same) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    auto size_old = f->get_ordered_ops().size();
+
+    f = PrePostProcessor()
+            .output(OutputInfo()
+                        .network(OutputNetworkInfo().set_layout("NCHW"))
+                        .postprocess(PostProcessSteps().convert_layout("NCHW"))
+                        .tensor(OutputTensorInfo().set_layout("NCHW")))
+            .build(f);
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "NCHW");
+    EXPECT_EQ(f->get_results()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 3, 2, 2}));
+    // Verify that redundant ops were not added
+    EXPECT_EQ(size_old, f->get_ordered_ops().size());
+}
+
+TEST(pre_post_process, postprocess_convert_layout_default_error) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+
+    EXPECT_THROW(f = PrePostProcessor()
+                         .output(OutputInfo()
+                                     .network(OutputNetworkInfo().set_layout("NCHW"))
+                                     .postprocess(PostProcessSteps().convert_layout()))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
+// Postprocessing - other
+
+TEST(pre_post_process, postprocess_custom_step) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    std::string name;
+    f = PrePostProcessor()
+            .output(OutputInfo().postprocess(
+                PostProcessSteps().custom([&name](const ov::Output<Node>& node) -> ov::Output<Node> {
+                    auto abs = std::make_shared<op::v0::Abs>(node);
+                    abs->set_friendly_name(node.get_node()->get_friendly_name() + "/abs");
+                    name = node.get_node()->get_friendly_name() + "/abs";
+                    return abs;
+                })))
+            .build(f);
+    EXPECT_FALSE(name.empty());
+    EXPECT_EQ(f->get_results()[0]->get_input_source_output(0).get_node()->get_friendly_name(), name);
+}
+
+TEST(pre_post_process, postprocess_implicit_convert_element_type_and_layout) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    f = PrePostProcessor()
+            .output(OutputInfo()
+                        .network(OutputNetworkInfo().set_layout("NCHW"))
+                        .tensor(OutputTensorInfo().set_layout("NHWC").set_element_type(element::u8)))
+            .build(f);
+    EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "NHWC");
+    EXPECT_EQ(f->get_results()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 2, 2, 3}));
+}
+
+TEST(pre_post_process, postprocess_assert_output_without_index) {
+    auto f = create_2inputs(element::f32, Shape{1, 3, 2, 2});
+    auto out = OutputInfo();
+    EXPECT_ANY_THROW(f = PrePostProcessor().output(std::move(out)).build(f));
+    out = OutputInfo("some_non_existing_name");
+    EXPECT_ANY_THROW(f = PrePostProcessor().output(std::move(out)).build(f));
+}
+
+TEST(pre_post_process, postprocess_lvalues_1) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    bool custom_called = false;
+
+    auto netInfo = OutputNetworkInfo();
+    netInfo.set_layout("NCHW");
+
+    auto steps = PostProcessSteps();
+    steps.convert_layout();
+    steps.convert_element_type();
+    steps.custom([&custom_called](const ov::Output<Node>& node) -> ov::Output<Node> {
+        auto abs = std::make_shared<op::v0::Abs>(node);
+        abs->set_friendly_name(node.get_node()->get_friendly_name() + "/abs");
+        custom_called = true;
+        return abs;
+    });
+
+    auto tensorInfo = OutputTensorInfo();
+    tensorInfo.set_layout("NHWC");
+    tensorInfo.set_element_type(element::u8);
+
+    auto outputInfo = OutputInfo("tensor_output1");
+    outputInfo.network(std::move(netInfo));
+    outputInfo.postprocess(std::move(steps));
+    outputInfo.tensor(std::move(tensorInfo));
+
+    auto p = PrePostProcessor();
+    p.output(std::move(outputInfo));
+
+    f = p.build(f);
+    EXPECT_EQ(f->get_results().size(), 1);
+    EXPECT_EQ(f->output().get_tensor().get_names().count("tensor_output1"), 1);
+    EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "NHWC");
+    EXPECT_EQ(f->get_results()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 2, 2, 3}));
+    EXPECT_TRUE(custom_called);
+}
+
+TEST(pre_post_process, exception_safety) {
+    auto f = create_2inputs(element::f32, Shape{1, 3, 224, 224});
+    auto name0 = f->get_parameters()[0]->get_friendly_name();
+    auto tensor_names0 = f->get_parameters()[0]->get_output_tensor(0).get_names();
+    auto name1 = f->get_parameters()[1]->get_friendly_name();
+    auto tensor_names1 = f->get_parameters()[1]->get_output_tensor(0).get_names();
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo(0)  // this one is correct
+                                    .tensor(InputTensorInfo().set_element_type(element::u8))
+                                    .preprocess(PreProcessSteps().convert_element_type(element::f32)))
+                         .input(InputInfo(1)  // This one is not
+                                    .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES))
+                                    .preprocess(PreProcessSteps().custom(
+                                        [](const std::shared_ptr<Node>& node) -> std::shared_ptr<Node> {
+                                            throw ngraph::ngraph_error("test error");
+                                        })))
+                         .build(f),
+                 ov::AssertFailure);
+    EXPECT_EQ(f->get_parameters().size(), 2);
+
+    EXPECT_EQ(f->get_parameters()[0]->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters()[0]->get_partial_shape(), (PartialShape{1, 3, 224, 224}));
+    EXPECT_EQ(f->get_parameters()[0]->get_friendly_name(), name0);
+    EXPECT_EQ(f->get_parameters()[0]->get_output_tensor(0).get_names(), tensor_names0);
+
+    EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters()[1]->get_partial_shape(), (PartialShape{1, 3, 224, 224}));
+    EXPECT_EQ(f->get_parameters()[1]->get_friendly_name(), name1);
+    EXPECT_EQ(f->get_parameters()[1]->get_output_tensor(0).get_names(), tensor_names1);
 }

@@ -4,10 +4,10 @@
 
 set (TARGET_NAME "clDNNPlugin")
 
-if(CMAKE_COMPILER_IS_GNUCC)
+if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wno-all)
     ie_add_compiler_flags(-msse4.1 -msse4.2)
-    if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
         ie_add_compiler_flags(-Wno-error=terminate)
     endif()
 endif()
@@ -25,6 +25,8 @@ ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GPU"
               SOURCES ${MAIN_SRC} ${LIBRARY_HEADERS}
               VERSION_DEFINES_FOR cldnn_engine.cpp)
+
+target_compile_options(${TARGET_NAME} PRIVATE -Os)
 
 target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml::static
                                              inference_engine

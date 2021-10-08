@@ -51,19 +51,23 @@ enum RefMode {
 
 class LayerTestsCommon : public CommonTestUtils::TestsCommon {
 public:
-    virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const;
+    virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &inputInfo) const;
 
     virtual void Run();
 
     virtual void Serialize();
 
+    virtual void QueryNetwork();
+
     static void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
                         const std::vector<InferenceEngine::Blob::Ptr> &actual,
-                        float threshold, float absThreshold = -1.0f);
+                        float threshold,
+                        float abs_threshold = -1.f);
 
     static void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
                         const InferenceEngine::Blob::Ptr &actual,
-                        float threshold, float absThreshold = -1.0f);
+                        float threshold,
+                        float abs_threshold = -1.f);
 
     virtual void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                          const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
@@ -88,13 +92,8 @@ public:
 #endif
 
     template<class T_IE, class T_NGRAPH>
-    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold) {
-        Compare(expected, actual, size, threshold, -1); //Disable absThreshold
-    }
-
-    template<class T_IE, class T_NGRAPH>
-    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float absThreshold) {
-        if ((threshold < 0) && (absThreshold < 0)) {
+    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float abs_Threshold = -1.f) {
+        if ((threshold < 0) && (abs_threshold < 0)) {
             IE_THROW() << "Both relative threshold and absolute threshold aren't set properly";
         }
         std::vector<double> absoluteDifferences;
@@ -110,7 +109,7 @@ public:
 
             absoluteDifferences.push_back(diff);
 
-            if ((absThreshold >= 0) && (diff > absThreshold))
+            if ((abs_threshold >= 0) && (diff > abs_threshold))
                     absoluteErrorCount++;
 
             if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
@@ -149,7 +148,7 @@ public:
                        << ") of threshold: " << threshold << "\n"
                        << "Absolute comparison diff tensor mean: " << absDiffMean << ", \tmax: " << absoluteDifferences[absDiffMaxIndex]
                        << " @ index: " << absDiffMaxIndex << ", \t# failure(" << absoluteErrorCount << "/" << absoluteDifferences.size()
-                       << ") of threshold: " << absThreshold << "\n";
+                       << ") of threshold: " << abs_threshold << "\n";
         }
     }
 
@@ -174,6 +173,7 @@ protected:
 
     TargetDevice targetDevice;
     std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ngraph::Function> functionRefs;
     std::map<std::string, std::string> configuration;
     // Non default values of layouts/precisions will be set to CNNNetwork
     InferenceEngine::Layout inLayout = InferenceEngine::Layout::ANY;
@@ -182,10 +182,16 @@ protected:
     InferenceEngine::Precision outPrc = InferenceEngine::Precision::UNSPECIFIED;
     InferenceEngine::ExecutableNetwork executableNetwork;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
-    float threshold; // relative threshold: when it is negative value, the comparison will be skipped
-    float absThreshold; // absolute threshold: when it is negative value, the comparison will be skipped
+    float threshold;
+    float abs_threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
     std::shared_ptr<InferenceEngine::Core> core;
+    // dynamic input shapes
+    std::vector<ngraph::PartialShape> inputDynamicShapes;
+    // index for targetStaticShape
+    size_t index = 0;
+    // target static input shapes which is used for reshape ngraph function & generate input blobs
+    std::vector<std::vector<ngraph::Shape>> targetStaticShapes;
 
     virtual void Validate();
 
@@ -196,6 +202,7 @@ protected:
     InferenceEngine::InferRequest inferRequest;
 
 private:
+    void ResizeNgraphFunction();
     RefMode refMode = RefMode::INTERPRETER;
 };
 

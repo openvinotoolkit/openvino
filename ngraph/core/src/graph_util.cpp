@@ -389,6 +389,7 @@ std::shared_ptr<ngraph::Function> ov::clone_function(const ngraph::Function& fun
                                                      cloned_params,
                                                      cloned_vars,
                                                      func.get_friendly_name());
+    result->get_rt_info() = func.get_rt_info();
     return result;
 }
 
