@@ -17,7 +17,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: FIX BUG 59041
         ".*Behavior.*CallbackThrowException.*",
         // TODO: FIX BUG 32210
-        R"(.*ActivationLayerTest.CompareWithRefs/(Sigmoid|Tanh|Exp|Log).*)",
         R"(.*ActivationFQSubgraph.*activation=(Exp|Log).*)",
         // TODO: Issue 68586
         R"(.*EltwiseActFqTest.*act=Log.*)",
