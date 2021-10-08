@@ -251,7 +251,7 @@ void PostStepsList::add_convert_impl(const element::Type& type) {
             !t.is_dynamic() && t != element::undefined,
             "Can't convert to dynamic/unknown element type, consider using of InputTensorInfo::set_element_type");
         auto convert = std::make_shared<op::v0::Convert>(node, t);
-        inherit_friendly_names_postprocess(convert, node, "/cvt_el_type");
+        inherit_friendly_names_postprocess(convert, node, "/post_convert_element_type");
         return std::make_tuple(Output<Node>(convert), true);
     });
 }
@@ -269,7 +269,7 @@ void PostStepsList::add_convert_layout_impl(const Layout& layout) {
         }
         auto perm_constant = op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
         auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
-        inherit_friendly_names_postprocess(transpose, node, "/cvt_layout");
+        inherit_friendly_names_postprocess(transpose, node, "/post_convert_layout");
         context.layout() = dst_layout;  // Update context's current layout
         return std::make_tuple(Output<Node>(transpose), true);
     });
