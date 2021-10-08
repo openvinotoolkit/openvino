@@ -80,6 +80,11 @@ def test_init_with_roi_tensor():
     assert ov_tensor2.element_type == ov_tensor2.element_type
     assert np.shares_memory(ov_tensor2.data, ov_tensor1.data)
 
+    ov_tensor3 = Tensor(ov_tensor1, ng.impl.Coordinate([0, 0, 16, 16]), ng.impl.Coordinate([1, 2, 48, 48]))
+    assert list(ov_tensor3.shape) == [1, 2, 32, 32]
+    assert ov_tensor3.element_type == ov_tensor1.element_type
+    assert np.shares_memory(ov_tensor3.data, ov_tensor1.data)
+
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
     (ng.impl.Type.f32, np.float32),
