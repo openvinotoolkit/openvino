@@ -48,14 +48,14 @@ public:
     /// \param type Desired type of input.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
-    PreProcessSteps& convert_element_type(const ov::element::Type& type) &;
+    PreProcessSteps& convert_element_type(const ov::element::Type& type = {}) &;
 
     /// \brief Add convert element type preprocess operation - Rvalue version
     ///
     /// \param type Desired type of input.
     ///
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
-    PreProcessSteps&& convert_element_type(const ov::element::Type& type) &&;
+    PreProcessSteps&& convert_element_type(const ov::element::Type& type = {}) &&;
 
     /// \brief Converts color format for user's input tensor. Requires source color format to be specified by
     /// InputTensorInfo::set_color_format.
@@ -141,10 +141,10 @@ public:
     /// produces one output node. For more advanced cases, client's code can use transformation passes over ov::Function
     /// directly
     ///
-    /// \param node Input node for custom preprocessing operation
+    /// \param node Input node for custom preprocessing operation (output of previous preprocessing operation)
     ///
     /// \return New node after applying custom preprocessing operation
-    using CustomPreprocessOp = std::function<std::shared_ptr<ov::Node>(const std::shared_ptr<ov::Node>& node)>;
+    using CustomPreprocessOp = std::function<Output<Node>(const Output<Node>& node)>;
 
     /// \brief Add custom preprocess operation - Lvalue version
     /// Client application can specify callback function for custom action

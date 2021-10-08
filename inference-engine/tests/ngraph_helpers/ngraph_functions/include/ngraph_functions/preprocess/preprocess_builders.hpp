@@ -130,9 +130,9 @@ inline std::shared_ptr<Function> custom_preprocessing() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::i32, Shape{3, 4, 10, 20});
     function = PrePostProcessor()
-            .input(InputInfo().preprocess(PreProcessSteps().custom([](const std::shared_ptr<Node>& node) {
+            .input(InputInfo().preprocess(PreProcessSteps().custom([](const Output<Node>& node) {
                 auto abs = std::make_shared<op::v0::Abs>(node);
-                abs->set_friendly_name(node->get_friendly_name() + "/abs");
+                abs->set_friendly_name(node.get_node_shared_ptr()->get_friendly_name() + "/abs");
                 return abs;
             })))
             .build(function);
@@ -164,9 +164,9 @@ inline std::shared_ptr<Function> lvalues_multiple_ops() {
         preprocessSteps.scale(2.f);
         preprocessSteps.mean({1.1f, 2.2f, 3.3f});
         preprocessSteps.scale({2.f, 3.f, 4.f});
-        preprocessSteps.custom([](const std::shared_ptr<Node>& node) {
+        preprocessSteps.custom([](const Output<Node>& node) {
             auto abs = std::make_shared<op::v0::Abs>(node);
-            abs->set_friendly_name(node->get_friendly_name() + "/abs");
+            abs->set_friendly_name(node.get_node_shared_ptr()->get_friendly_name() + "/abs");
             return abs;
         });
         auto& same = preprocessSteps.convert_element_type(element::u8);

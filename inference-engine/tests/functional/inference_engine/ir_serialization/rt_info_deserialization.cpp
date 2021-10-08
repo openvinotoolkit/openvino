@@ -152,17 +152,17 @@ TEST_F(RTInfoDeserialization, NodeV10) {
         param->set_friendly_name("in1");
         param->get_output_tensor(0).set_names({"input_tensor"});
 
+        // TODO: avoid relying on internal pre-processing implementation (exact operation and exact names)
         auto convert_param = std::make_shared<opset8::Convert>(param, ngraph::element::f16);
         convert_param->get_output_tensor(0).set_names({"input_tensor/convert_element_type"});
 
         auto round = std::make_shared<opset8::Round>(convert_param,
             ngraph::opset8::Round::RoundMode::HALF_TO_EVEN);
         round->set_friendly_name("Round");
-        // TODO: why it has this name?
-        round->get_output_tensor(0).set_names({"output_tensor"});
+        round->get_output_tensor(0).set_names({"output_tensor/post_convert_element_type"});
 
         auto convert_result = std::make_shared<opset8::Convert>(round, type);
-        convert_result->set_friendly_name("Round/convert_element_type");
+        convert_result->set_friendly_name("Round/post_convert_element_type");
         convert_result->get_output_tensor(0).set_names({"output_tensor"});
 
         auto result = std::make_shared<opset8::Result>(convert_result);
@@ -310,11 +310,11 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
 
         auto sum = std::make_shared<opset8::Add>(param, param);
         sum->set_friendly_name("sum");
-        // TODO: why it has this name?
-        sum->get_output_tensor(0).set_names({"output_tensor"});
+        // TODO: avoid relying on internal post-processing implementation (exact operation and exact names)
+        sum->get_output_tensor(0).set_names({"output_tensor/post_convert_element_type"});
 
         auto convert_result = std::make_shared<opset8::Convert>(sum, ngraph::element::i32);
-        convert_result->set_friendly_name("sum/convert_element_type");
+        convert_result->set_friendly_name("sum/post_convert_element_type");
         convert_result->get_output_tensor(0).set_names({"output_tensor"});
 
         auto result = std::make_shared<opset8::Result>(convert_result);
@@ -471,6 +471,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         param->set_friendly_name("in1");
         param->get_output_tensor(0).set_names({"input_tensor"});
 
+        // TODO: avoid relying on internal pre-processing implementation (exact operations and exact names)
         auto convert_param = std::make_shared<opset8::Convert>(param, ngraph::element::f32);
         convert_param->set_friendly_name("in1/convert_element_type");
         convert_param->get_output_tensor(0).set_names({"input_tensor/convert_element_type"});
@@ -484,18 +485,17 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         auto round = std::make_shared<opset8::Round>(transpose_param,
             ngraph::opset8::Round::RoundMode::HALF_TO_EVEN);
         round->set_friendly_name("Round");
-        // TODO: why it has this name?
-        round->get_output_tensor(0).set_names({"output_tensor"});
+        round->get_output_tensor(0).set_names({"output_tensor/post_convert_layout"});
         round->get_rt_info()[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
             std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("Round1,Round2"));
 
         auto constant_result = std::make_shared<opset8::Constant>(ngraph::element::i64, ngraph::Shape{4},
             std::vector<int64_t>{0, 3, 1, 2});
         auto transpose_result = std::make_shared<opset8::Transpose>(round, constant_result);
-        transpose_result->set_friendly_name("Round/convert_layout");
+        transpose_result->set_friendly_name("Round/post_convert_layout");
 
         auto convert_result = std::make_shared<opset8::Convert>(transpose_result, type);
-        convert_result->set_friendly_name("Round/convert_layout/convert_element_type");
+        convert_result->set_friendly_name("Round/post_convert_layout/post_convert_element_type");
         convert_result->get_output_tensor(0).set_names({"output_tensor"});
 
         auto result = std::make_shared<opset8::Result>(convert_result);

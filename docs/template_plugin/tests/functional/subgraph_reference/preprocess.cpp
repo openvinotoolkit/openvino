@@ -181,9 +181,9 @@ static RefPreprocessParams custom_preprocessing() {
     res.function = []() {
         auto f = create_simple_function(element::i32, Shape{1, 3, 1, 1});
         f = PrePostProcessor()
-            .input(InputInfo().preprocess(PreProcessSteps().custom([](const std::shared_ptr<Node>& node) {
+            .input(InputInfo().preprocess(PreProcessSteps().custom([](const Output<Node>& node) {
                 auto abs = std::make_shared<op::v0::Abs>(node);
-                abs->set_friendly_name(node->get_friendly_name() + "/abs");
+                abs->set_friendly_name(node.get_node_shared_ptr()->get_friendly_name() + "/abs");
                 return abs;
             })))
             .build(f);
@@ -221,9 +221,9 @@ static RefPreprocessParams test_lvalue() {
             preprocessSteps.scale(2.f);
             preprocessSteps.mean({1.f, 2.f, 3.f});
             preprocessSteps.scale({2.f, 3.f, 4.f});
-            preprocessSteps.custom([](const std::shared_ptr<Node> &node) {
+            preprocessSteps.custom([](const Output<Node> &node) {
                 auto abs = std::make_shared<op::v0::Abs>(node);
-                abs->set_friendly_name(node->get_friendly_name() + "/abs");
+                abs->set_friendly_name(node.get_node_shared_ptr()->get_friendly_name() + "/abs");
                 return abs;
             });
             auto &same = preprocessSteps.convert_element_type(element::i8);
@@ -243,13 +243,22 @@ static RefPreprocessParams test_2_inputs_basic() {
     RefPreprocessParams res("test_2_inputs_basic");
     res.function = []() {
         auto f = create_2inputs(element::f32, Shape{1, 3, 1, 1});
-        { f = PrePostProcessor().input(InputInfo(1).preprocess(PreProcessSteps().mean(1.f).scale(2.0f))).build(f); }
+        f = PrePostProcessor().input(InputInfo(0)
+                                             .preprocess(
+                                                     PreProcessSteps()
+                                                             .mean(1.f)))
+                .input(
+                        InputInfo("tensor_input2")
+                                .preprocess(PreProcessSteps()
+                                                    .mean(1.f)
+                                                    .scale(2.0f)))
+                .build(f);
         return f;
     };
 
     res.inputs.emplace_back(Shape{1, 3, 1, 1}, element::f32, std::vector<float>{3., 5., 7.});
     res.inputs.emplace_back(Shape{1, 3, 1, 1}, element::f32, std::vector<float>{3., 5., 7.});
-    res.expected.emplace_back(Shape{1, 3, 1, 1}, element::f32, std::vector<float>{3., 5., 7.});
+    res.expected.emplace_back(Shape{1, 3, 1, 1}, element::f32, std::vector<float>{2., 4., 6.});
     res.expected.emplace_back(Shape{1, 3, 1, 1}, element::f32, std::vector<float>{1., 2., 3.});
     return res;
 }
