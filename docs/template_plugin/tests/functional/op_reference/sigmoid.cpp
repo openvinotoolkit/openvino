@@ -80,10 +80,48 @@ std::vector<SigmoidParams> generateSigmoidFloatParams() {
     return sigmoidParams;
 }
 
+template <element::Type_t IN_ET>
+std::vector<SigmoidParams> generateSigmoidIntParams() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+
+    std::vector<SigmoidParams> sigmoidParams {
+        SigmoidParams(ov::PartialShape {1, 1, 2, 2},
+                    IN_ET,
+                    std::vector<T>{1, 4, -1, -4},
+                    std::vector<T>{1, 1, 0, 0}),
+        SigmoidParams(ov::PartialShape {1, 1, 4},
+                    IN_ET,
+                    std::vector<T>{1, 4, -1, -4},
+                    std::vector<T>{1, 1, 0, 0})
+    };
+    return sigmoidParams;
+}
+
+template <element::Type_t IN_ET>
+std::vector<SigmoidParams> generateSigmoidUintParams() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+
+    std::vector<SigmoidParams> sigmoidParams {
+        SigmoidParams(ov::PartialShape {1, 1, 2, 2},
+                    IN_ET,
+                    std::vector<T>{1, 4, 1, 4},
+                    std::vector<T>{1, 1, 1, 1}),
+        SigmoidParams(ov::PartialShape {1, 1, 4},
+                    IN_ET,
+                    std::vector<T>{1, 4, 1, 4},
+                    std::vector<T>{1, 1, 1, 1})
+    };
+    return sigmoidParams;
+}
+
 std::vector<SigmoidParams> generateSigmoidCombinedParams() {
     const std::vector<std::vector<SigmoidParams>> sigmoidTypeParams {
         generateSigmoidFloatParams<element::Type_t::f32>(),
-        generateSigmoidFloatParams<element::Type_t::f16>()
+        generateSigmoidFloatParams<element::Type_t::f16>(),
+        generateSigmoidIntParams<element::Type_t::i64>(),
+        generateSigmoidIntParams<element::Type_t::i32>(),
+        generateSigmoidUintParams<element::Type_t::u64>(),
+        generateSigmoidUintParams<element::Type_t::u32>()
         };
     std::vector<SigmoidParams> combinedParams;
 
