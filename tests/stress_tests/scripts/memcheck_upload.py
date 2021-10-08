@@ -26,10 +26,10 @@ import yaml
 from pymongo import MongoClient
 
 # Database arguments
-DATABASE = 'memcheck'   # database name for memcheck results
+DATABASE = 'memcheck'  # database name for memcheck results
 DB_COLLECTIONS = ["commit", "nightly", "weekly"]
 
-PRODUCT_NAME = 'dldt'   # product name from build manifest
+PRODUCT_NAME = 'dldt'  # product name from build manifest
 RE_GTEST_MODEL_XML = re.compile(r'<model[^>]*>')
 RE_GTEST_CUR_MEASURE = re.compile(r'\[\s*MEASURE\s*\]')
 RE_GTEST_REF_MEASURE = re.compile(
@@ -58,34 +58,20 @@ def metadata_from_manifest(manifest):
     # parse OS name/version
     product_type_str = manifest['components'][PRODUCT_NAME]['product_type']
     product_type = product_type_str.split('_')
-    if product_type[2] == 'ubuntu':
-        return {
-            'os_name': product_type[2],
-            'os_version': [product_type[3], product_type[4]],
-            'commit_sha': repo_trigger['revision'],
-            'commit_date': repo_trigger['commit_time'],
-            'repo_url': repo_trigger['url'],
-            'branch': repo_trigger['branch'],
-            'target_branch': repo_trigger['target_branch'] if repo_trigger["target_branch"] else repo_trigger["branch"],
-            'event_type': manifest['components'][PRODUCT_NAME]['build_event'].lower(),
-            f'{PRODUCT_NAME}_version': manifest['components'][PRODUCT_NAME]['version'],
-        }
-
-    if product_type[1] == 'windows':
-        return {
-            'os_name': product_type[1],
-            'os_version': [product_type[2]],
-            'commit_sha': repo_trigger['revision'],
-            'commit_date': repo_trigger['commit_time'],
-            'repo_url': repo_trigger['url'],
-            'branch': repo_trigger['branch'],
-            'target_branch': repo_trigger['target_branch'] if repo_trigger["target_branch"] else repo_trigger["branch"],
-            'event_type': manifest['components'][PRODUCT_NAME]['build_event'].lower(),
-            f'{PRODUCT_NAME}_version': manifest['components'][PRODUCT_NAME]['version'],
-        }
-    else:
+    if len(product_type) != 5 or product_type[2] != 'ubuntu':
         logging.error('Product type %s is not supported', product_type_str)
         return {}
+    return {
+        'os_name': product_type[2],
+        'os_version': [product_type[3], product_type[4]],
+        'commit_sha': repo_trigger['revision'],
+        'commit_date': repo_trigger['commit_time'],
+        'repo_url': repo_trigger['url'],
+        'branch': repo_trigger['branch'],
+        'target_branch': repo_trigger['target_branch'] if repo_trigger["target_branch"] else repo_trigger["branch"],
+        'event_type': manifest['components'][PRODUCT_NAME]['build_event'].lower(),
+        f'{PRODUCT_NAME}_version': manifest['components'][PRODUCT_NAME]['version'],
+    }
 
 
 def info_from_test_config(test_conf):
@@ -123,18 +109,18 @@ def parse_memcheck_log(log_path):
     log_lines = log.splitlines()
     for index, line in enumerate(log_lines):
         if RE_GTEST_REF_MEASURE.search(line):
-            heading = [name.lower() for name in log_lines[index+1]
-                       [len(GTEST_INFO):].split()]
-            values = [int(val) for val in log_lines[index+2]
-                      [len(GTEST_INFO):].split()]
+            heading = [name.lower() for name in log_lines[index + 1]
+            [len(GTEST_INFO):].split()]
+            values = [int(val) for val in log_lines[index + 2]
+            [len(GTEST_INFO):].split()]
             ref_metrics = dict(zip(heading, values))
     for index in reversed(range(len(log_lines))):
         if RE_GTEST_CUR_MEASURE.search(log_lines[index]):
             test_name = log_lines[index].split()[-1]
-            heading = [name.lower() for name in log_lines[index+1]
-                       [len(GTEST_INFO):].split()]
-            values = [int(val) for val in log_lines[index+2]
-                      [len(GTEST_INFO):].split()]
+            heading = [name.lower() for name in log_lines[index + 1]
+            [len(GTEST_INFO):].split()]
+            values = [int(val) for val in log_lines[index + 2]
+            [len(GTEST_INFO):].split()]
             entry = SimpleNamespace(
                 metrics=dict(zip(heading, values)),
                 test_name=test_name,
@@ -205,16 +191,17 @@ TIMELINE_SIMILARITY = ('test_name', 'model', 'device', 'target_branch')
 def query_timeline(records, db_url, db_collection, max_items=20, similarity=TIMELINE_SIMILARITY):
     """ Query database for similar memcheck items committed previously
     """
+
     def timeline_key(item):
         """ Defines order for timeline report entries
         """
         if len(item['metrics']['vmhwm']) <= 1:
             return 1
         order = item['metrics']['vmhwm'][-1] - item['metrics']['vmhwm'][-2] + \
-            item['metrics']['vmrss'][-1] - item['metrics']['vmrss'][-2]
+                item['metrics']['vmrss'][-1] - item['metrics']['vmrss'][-2]
         if not item['status']:
             # ensure failed cases are always on top
-            order += sys.maxsize/2
+            order += sys.maxsize / 2
         return order
 
     client = MongoClient(db_url)
