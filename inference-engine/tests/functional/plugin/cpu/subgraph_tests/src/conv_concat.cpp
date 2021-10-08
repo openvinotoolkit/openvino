@@ -109,7 +109,6 @@ void ConvConcatSubgraphTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, inputParams, "convolutionConcat");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(ConvConcatSubgraphTest, CompareWithRefs) {
