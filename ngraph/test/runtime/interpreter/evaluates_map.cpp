@@ -1485,6 +1485,7 @@ template <element::Type_t ET>
 bool evaluate(const std::shared_ptr<op::v8::Slice>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
+    OPENVINO_ASSERT(inputs.size() >= 4, "Slice evaluate needs at least 4 inputs.");
     std::vector<int64_t> starts = host_tensor_2_vector<int64_t>(inputs[1]);
     std::vector<int64_t> stops = host_tensor_2_vector<int64_t>(inputs[2]);
     std::vector<int64_t> steps = host_tensor_2_vector<int64_t>(inputs[3]);

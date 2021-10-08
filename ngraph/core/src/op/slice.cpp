@@ -133,13 +133,13 @@ void op::v8::Slice::validate_and_infer_types() {
     if (data_rank.is_static()) {
         const auto data_rank_length = data_rank.get_length();
         NODE_VALIDATION_CHECK(this,
-                              start_rank.is_dynamic() || start_shape[0].get_max_length() <= data_rank_length,
+                              start_rank.is_dynamic() || start_shape[0].get_min_length() <= data_rank_length,
                               "Slice `start` input dim size can't be bigger than `data` rank.");
         NODE_VALIDATION_CHECK(this,
-                              stop_rank.is_dynamic() || stop_shape[0].get_max_length() <= data_rank_length,
+                              stop_rank.is_dynamic() || stop_shape[0].get_min_length() <= data_rank_length,
                               "Slice `stop` input dim size can't be bigger than `data` rank.");
         NODE_VALIDATION_CHECK(this,
-                              step_rank.is_dynamic() || step_shape[0].get_max_length() <= data_rank_length,
+                              step_rank.is_dynamic() || step_shape[0].get_min_length() <= data_rank_length,
                               "Slice `step` input dim size can't be bigger than `data` rank.");
     }
 
@@ -209,7 +209,7 @@ void op::v8::Slice::validate_and_infer_types() {
                                       data_static_rank - 1,
                                       "]. Got: ",
                                       axis);
-                output_shape[axis] = Dimension(0, data_shape[axis].get_max_length());
+                output_shape[norm_axis] = Dimension(0, data_shape[norm_axis].get_max_length());
             }
         } else {
             // Otherwise `axes` values are also unknown,
@@ -240,7 +240,7 @@ PartialShape op::v8::Slice::calculate_output_shape(const std::vector<int64_t>& s
                                                    const std::vector<int64_t>& stops,
                                                    const std::vector<int64_t>& steps,
                                                    const std::vector<int64_t>& axes,
-                                                   const PartialShape& data_shape) {
+                                                   const PartialShape& data_shape) const {
     NGRAPH_OP_SCOPE(v8_Slice_calculate_output_shape);
     const auto ind_size = starts.size();
     NODE_VALIDATION_CHECK(this,

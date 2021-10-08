@@ -36,7 +36,7 @@ public:
                                         const std::vector<int64_t>& stops,
                                         const std::vector<int64_t>& steps,
                                         const std::vector<int64_t>& axes,
-                                        const PartialShape& data_shape);
+                                        const PartialShape& data_shape) const;
 };
 }  // namespace v8
 }  // namespace op

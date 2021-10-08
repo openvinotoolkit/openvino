@@ -236,6 +236,56 @@ TEST(type_prop, slice_v8_basic_param_inputs_default_axes) {
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
 }
 
+TEST(type_prop, slice_v8_sss_param_inputs_mixed_neg_const_axes) {
+    PartialShape data_shape{Dimension(5, 10), 2, 7, Dimension(0, 4)};
+    PartialShape expected_out_shape{Dimension(0, 10), Dimension(0, 2), 7, Dimension(0, 4)};
+
+    PartialShape start_shape{3};
+    PartialShape stop_shape{3};
+    PartialShape step_shape{3};
+
+    element::Type_t et = element::i32;
+
+    Shape axes_shape{3};
+    std::vector<int32_t> axes_val{0, 3, 1};
+
+    const auto data = std::make_shared<op::v0::Parameter>(et, data_shape);
+    const auto start = std::make_shared<op::v0::Parameter>(et, start_shape);
+    const auto stop = std::make_shared<op::v0::Parameter>(et, stop_shape);
+    const auto step = std::make_shared<op::v0::Parameter>(et, step_shape);
+    const auto axes = std::make_shared<op::v0::Constant>(et, axes_shape, axes_val);
+
+    const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
+TEST(type_prop, slice_v8_sss_param_inputs_mixed_const_axes) {
+    PartialShape data_shape{Dimension(5, 10), 2, 7, Dimension(0, 4)};
+    PartialShape expected_out_shape{Dimension(0, 10), Dimension(0, 2), 7, Dimension(0, 4)};
+
+    PartialShape start_shape{3};
+    PartialShape stop_shape{3};
+    PartialShape step_shape{3};
+
+    element::Type_t et = element::i32;
+
+    Shape axes_shape{3};
+    std::vector<int32_t> axes_val{-4, -1, -3};
+
+    const auto data = std::make_shared<op::v0::Parameter>(et, data_shape);
+    const auto start = std::make_shared<op::v0::Parameter>(et, start_shape);
+    const auto stop = std::make_shared<op::v0::Parameter>(et, stop_shape);
+    const auto step = std::make_shared<op::v0::Parameter>(et, step_shape);
+    const auto axes = std::make_shared<op::v0::Constant>(et, axes_shape, axes_val);
+
+    const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+
+    EXPECT_EQ(op->get_element_type(), et);
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+}
+
 TEST(type_prop, slice_v8_basic_sss_param_inputs_const_axes) {
     PartialShape data_shape{Dimension(0, 10),
                             Dimension(1, 10),
