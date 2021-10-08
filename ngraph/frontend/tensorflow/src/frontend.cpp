@@ -6,7 +6,6 @@
 #include <tensorflow_frontend/model.hpp>
 
 //#include <ngraph/pass/transpose_sinking.h>
-#include <ngraph/pass/constant_folding.hpp>
 #include <openvino/util/common_util.hpp>
 
 #include "op_table.hpp"
@@ -348,6 +347,5 @@ void FrontEndTF::convert(std::shared_ptr<ngraph::Function> partiallyConverted) c
 void FrontEndTF::normalize(std::shared_ptr<ngraph::Function> function) const {
     ngraph::pass::Manager manager;
     // manager.register_pass<ngraph::pass::TransposeSinking>();
-    manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.run_passes(function);
 }

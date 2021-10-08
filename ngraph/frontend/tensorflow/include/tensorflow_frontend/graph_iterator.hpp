@@ -27,6 +27,9 @@ public:
 
     /// \brief Return a pointer to a decoder of the current node
     virtual std::shared_ptr<DecoderBase> get_decoder() const = 0;
+
+    /// \brief Destructor
+    virtual ~GraphIterator() = default;
 };
 }  // namespace frontend
 }  // namespace ngraph

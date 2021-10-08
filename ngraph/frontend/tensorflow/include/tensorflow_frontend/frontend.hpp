@@ -9,6 +9,7 @@
 #include <functional>
 #include <map>
 #include <ngraph/output_vector.hpp>
+#include <ngraph/variant.hpp>
 #include <tensorflow_frontend/model.hpp>
 #include <tensorflow_frontend/utility.hpp>
 
