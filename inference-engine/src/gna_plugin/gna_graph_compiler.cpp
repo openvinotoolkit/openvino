@@ -2436,7 +2436,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
 
             if (it != splitLayerInfoItem.splitOutputLayers.end()) {
                 gnalog()  << "Connecting " << splitName << " input \n";
-                auto res = connectInput(splittingLayer, ptr, splitLayerInfoItem.reserved_size, it->offset + offset, 0);
+                auto res = connectInput(splittingLayer, ptr, std::max(splitLayerInfoItem.reserved_size, num_data_bytes_in), it->offset + offset, 0);
                 gnalog()  << "Connected \n";
                 return res;
             }
