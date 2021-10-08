@@ -58,6 +58,5 @@ void ScatterElementsUpdateLayerTest::SetUp() {
     auto s2d = ngraph::builder::makeScatterElementsUpdate(paramVectorOuts[0], idxPrc, indicesShape, indicesValue, paramVectorOuts[1], axis);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(s2d)};
     function = std::make_shared<ngraph::Function>(results, paramVector, "ScatterElementsUpdate");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

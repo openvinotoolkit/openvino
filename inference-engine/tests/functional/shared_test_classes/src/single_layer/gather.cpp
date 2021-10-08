@@ -22,7 +22,6 @@ void GatherLayerTestBase::SetUp(const gatherParamsTuple& params) {
     auto gather = std::make_shared<ngraph::opset3::Gather>(paramOuts[0], indicesNode, axisNode);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather)};
     function = std::make_shared<ngraph::Function>(results, functionParams, "gather");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 std::string GatherLayerTest::getTestCaseName(const testing::TestParamInfo<gatherParamsTuple> &obj) {
@@ -92,7 +91,6 @@ void Gather7LayerTest::SetUp() {
     auto gather = std::make_shared<ngraph::opset7::Gather>(paramOuts[0], indicesNode, axisNode, batchIdx);
     ngraph::ResultVector results{ std::make_shared<ngraph::opset7::Result>(gather) };
     function = std::make_shared<ngraph::Function>(results, functionParams, "gather");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 std::string Gather8LayerTest::getTestCaseName(const testing::TestParamInfo<gather7ParamsTuple>& obj) {
@@ -136,7 +134,6 @@ void Gather8LayerTest::SetUp() {
     auto gather = std::make_shared<ngraph::opset8::Gather>(paramOuts[0], indicesNode, axisNode, batchIdx);
     ngraph::ResultVector results{ std::make_shared<ngraph::opset8::Result>(gather) };
     function = std::make_shared<ngraph::Function>(results, functionParams, "gather");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace LayerTestsDefinitions

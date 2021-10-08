@@ -54,7 +54,6 @@ void MatMulWithOptimizedConstantFakeQuantizeTransformation::SetUp() {
         shapes.second,
         param.fqOnData,
         param.fqOnWeights);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(MatMulWithOptimizedConstantFakeQuantizeTransformation, CompareWithRefImpl) {

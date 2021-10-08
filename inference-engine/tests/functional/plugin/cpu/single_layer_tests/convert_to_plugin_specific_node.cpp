@@ -63,7 +63,6 @@ protected:
         auto powerStatic = ngraph::builder::makeEltwise(inputs[0], inputs[1], nodeType);
 
         function = std::make_shared<ngraph::Function>(powerStatic, ParameterVector{param}, "ConvertToPluginSpecificNode");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 
