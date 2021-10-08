@@ -21,7 +21,7 @@ public:
     /// \brief Constructs a Relu operation.
     ///
     /// \param arg Node that produces the input tensor.
-    Relu(const Output<ngraph::Node>& arg);
+    Relu(const Output<ov::Node>& arg);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 

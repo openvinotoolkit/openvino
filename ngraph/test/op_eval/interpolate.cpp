@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
