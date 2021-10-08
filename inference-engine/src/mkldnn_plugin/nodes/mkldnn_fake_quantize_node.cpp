@@ -1256,7 +1256,7 @@ bool MKLDNNFakeQuantizeNode::needPrepareParams() const {
     const auto newPaddedSize = rnd_up(axisSize, 16);
     const auto currPaddedSize = rnd_up(currentAxisSize, 16);
 
-    bool ret = false || newPaddedSize != currPaddedSize || (isBinarization() && axisSize != currentAxisSize &&
+    bool ret = false || internalBlobMemory.empty() || newPaddedSize != currPaddedSize || (isBinarization() && axisSize != currentAxisSize &&
                (isInputLowBroadcasted || isOutputHighBroadcasted));
 
     if (selectedPrimitiveDescriptor->getImplementationType() == impl_desc_type::ref) {
@@ -1646,6 +1646,7 @@ void MKLDNNFakeQuantizeNode::executeQuantization(const std::shared_ptr<jit_uni_q
 }
 
 void MKLDNNFakeQuantizeNode::execute(mkldnn::stream strm) {
+    std::cout << "INPUT: " << vec2str(getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()) << std::endl;
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
