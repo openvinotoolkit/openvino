@@ -72,7 +72,6 @@ protected:
         logicalNode->get_rt_info() = getCPUInfo();
 
         function = std::make_shared<ngraph::Function>(logicalNode, inputs, "Logical");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 
