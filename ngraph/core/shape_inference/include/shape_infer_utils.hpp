@@ -6,12 +6,13 @@
 
 namespace ov {
     template<class T>
-    bool dim_check(const T &dim) {
-        return dim != 0;
+    bool dims_are_equal(const T &d1, const T &d2) {
+        return d1 == d2;
     }
 
     template<>
-    bool dim_check(const Dimension &dim) {
-        return !dim.get_interval().empty();
+    bool dims_are_equal(const Dimension &d1, const Dimension &d2) {
+        const auto intersection = d1 & d2;
+        return !intersection.get_interval().empty();
     }
 }

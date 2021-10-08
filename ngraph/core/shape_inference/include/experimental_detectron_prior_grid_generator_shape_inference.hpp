@@ -39,10 +39,10 @@ void shape_infer(ExperimentalDetectronPriorGridGenerator* op, const std::vector<
 
     const auto num_batches_featmap = featmap_shape[0];
     const auto num_batches_im_data = im_data_shape[0];
-    const auto batches_intersection = num_batches_featmap & num_batches_im_data;
+    
 
     NODE_VALIDATION_CHECK(op,
-                          dim_check(batches_intersection),
+                          dims_are_equal(num_batches_featmap, num_batches_im_data),
                           "The first dimension of both 'feature_map' and 'im_data' must match. "
                           "Feature_map: ",
                           num_batches_featmap,
