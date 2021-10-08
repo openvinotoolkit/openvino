@@ -2346,8 +2346,16 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
     }
     // cannot reuse suitable input
     if (unused_input == nullptr) {
+        auto isNonFunctional = [](CNNLayerPtr ptr) {
+            return LayerInfo(ptr).isNonFunctional();
+        };
         // real output should be allocated in separate region.
-        auto mem_region = (LayerInfo(layer).isOutput()) ? REGION_OUTPUTS : REGION_STATES;
+        // need to fix case when layer is not final output
+        auto mem_region = REGION_SCRATCH;
+        auto nextLayer = CNNNetCheckNextLayerSkipCertain(layer, 0, 0, true, isNonFunctional).first;
+        if (LayerInfo(layer).isOutput() || !nextLayer) {
+            mem_region = REGION_OUTPUTS;
+        }
         gnamem->getQueue(mem_region)->reserve_ptr(ptr, ALIGN64(num_data_bytes_out), 64);
     }
 }
