@@ -70,7 +70,7 @@ add_custom_command(TARGET ${TARGET_NAME}
     COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../../requirements.txt
     COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/requirements.txt ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/../../requirements.txt
     COMMAND ${Python_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/utils/merge_init_files.py
-        -i ${PYTHON_BRIDGE_SRC_ROOT}/src/openvino/__init__.py
+        -i ${PYTHON_BRIDGE_SRC_ROOT}/__init__.py
         -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../__init__.py
 )
 
