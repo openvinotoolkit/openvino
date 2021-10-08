@@ -509,7 +509,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
         manager.register_pass<ngraph::pass::Serialize>(xmlPath,
                                                        binPath,
                                                        custom_opsets,
-                                                       ngraph::pass::Serialize::Version::IR_V10);
+                                                       ngraph::pass::Serialize::Version::IR_V11);
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
