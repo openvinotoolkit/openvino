@@ -142,11 +142,16 @@ def test_set_shape(ov_type, numpy_dtype):
     assert np.array_equal(ov_tensor.data, zeros)
 
 
-def test_cannot_set_shape_on_preallocated_memory():
+@pytest.mark.parametrize("ref_shape",[
+    [1, 3, 24, 24],
+    [1, 3, 32, 32],
+    [1, 3, 48, 48],
+])
+def test_cannot_set_shape_on_preallocated_memory(ref_shape):
     ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
     ov_tensor = Tensor(ones_arr)
     with pytest.raises(RuntimeError) as e:
-        ov_tensor.shape = ng.impl.Shape([1, 3, 48, 48])
+        ov_tensor.shape = ref_shape
     assert "Cannot call setShape for Blobs created on top of preallocated memory" in str(e.value)
 
 
