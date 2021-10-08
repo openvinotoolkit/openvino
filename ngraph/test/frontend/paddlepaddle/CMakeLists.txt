@@ -42,9 +42,9 @@ if (paddlepaddle_FOUND)
                     ${GEN_SCRIPT}
                     ${TEST_PADDLE_MODELS}
                     ${OUT_DONE_FILE}
-                DEPENDS ${GEN_WRAPPER} ${GEN_SCRIPT}
-                JOB_POOL four_jobs
-                COMMENT "Running ${FILE_WE}.py to generate PDPD model")
+                DEPENDS ${GEN_WRAPPER} "${GEN_SCRIPT}"
+                COMMENT "Running ${FILE_WE}.py to generate PDPD model"
+                JOB_POOL four_jobs)
     endforeach()
     add_custom_target(paddlepaddle_test_models DEPENDS ${OUT_FILES})
 
