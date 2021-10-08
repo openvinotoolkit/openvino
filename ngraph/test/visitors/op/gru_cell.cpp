@@ -30,15 +30,15 @@ TEST(attributes, gru_cell_op) {
     auto activations_beta = std::vector<float>{2.0, 1.0};
     const float clip = 0.5f;
     const auto gru_cell = make_shared<opset5::GRUCell>(X,
-                                                         initial_hidden_state,
-                                                         W,
-                                                         R,
-                                                         hidden_size,
-                                                         activations,
-                                                         activations_alpha,
-                                                         activations_beta,
-                                                         clip,
-                                                         false);
+                                                       initial_hidden_state,
+                                                       W,
+                                                       R,
+                                                       hidden_size,
+                                                       activations,
+                                                       activations_alpha,
+                                                       activations_beta,
+                                                       clip,
+                                                       false);
     NodeBuilder builder(gru_cell);
     auto g_gru_cell = ov::as_type_ptr<opset5::GRUCell>(builder.create());
 

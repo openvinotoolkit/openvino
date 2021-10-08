@@ -33,7 +33,7 @@ shared_ptr<opset5::GRUSequence> gru_seq_tensor_initialization(const gru_sequence
     const auto sequence_lengths = make_shared<opset5::Parameter>(et, PartialShape{batch_size});
     const auto W = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 3, input_size});
     const auto R = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 3, hidden_size});
-    const auto B = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size* 3});
+    const auto B = make_shared<opset5::Parameter>(et, PartialShape{num_directions, hidden_size * 3});
 
     const auto gru_sequence = make_shared<opset5::GRUSequence>();
 
@@ -102,8 +102,17 @@ TEST(type_prop, gru_sequence_bidirectional) {
     const std::vector<float> activations_beta = {0.0, 5.49, 6.0};
     const std::vector<std::string> activations = {"tanh", "sigmoid"};
 
-    const auto sequence =
-        make_shared<opset5::GRUSequence>(X, initial_hidden_state, sequence_lengths, W, R, B, hidden_size, direction, activations, activations_alpha, activations_beta);
+    const auto sequence = make_shared<opset5::GRUSequence>(X,
+                                                           initial_hidden_state,
+                                                           sequence_lengths,
+                                                           W,
+                                                           R,
+                                                           B,
+                                                           hidden_size,
+                                                           direction,
+                                                           activations,
+                                                           activations_alpha,
+                                                           activations_beta);
 
     EXPECT_EQ(sequence->get_hidden_size(), hidden_size);
     EXPECT_EQ(sequence->get_direction(), op::RecurrentSequenceDirection::BIDIRECTIONAL);
@@ -132,8 +141,10 @@ TEST(type_prop, gru_sequence_dynamic_batch_size) {
     auto gru_sequence = gru_seq_tensor_initialization(param);
     gru_sequence->validate_and_infer_types();
 
-    EXPECT_EQ(gru_sequence->get_output_partial_shape(0), (PartialShape{param.batch_size, param.num_directions, param.seq_length, param.hidden_size}));
-    EXPECT_EQ(gru_sequence->get_output_partial_shape(1), (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
+    EXPECT_EQ(gru_sequence->get_output_partial_shape(0),
+              (PartialShape{param.batch_size, param.num_directions, param.seq_length, param.hidden_size}));
+    EXPECT_EQ(gru_sequence->get_output_partial_shape(1),
+              (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
     EXPECT_EQ(gru_sequence->get_output_element_type(0), param.et);
     EXPECT_EQ(gru_sequence->get_output_element_type(1), param.et);
 }
@@ -150,8 +161,10 @@ TEST(type_prop, gru_sequence_dynamic_num_directions) {
     auto gru_sequence = gru_seq_tensor_initialization(param);
     gru_sequence->validate_and_infer_types();
 
-    EXPECT_EQ(gru_sequence->get_output_partial_shape(0), (PartialShape{param.batch_size, param.num_directions, param.seq_length, param.hidden_size}));
-    EXPECT_EQ(gru_sequence->get_output_partial_shape(1), (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
+    EXPECT_EQ(gru_sequence->get_output_partial_shape(0),
+              (PartialShape{param.batch_size, param.num_directions, param.seq_length, param.hidden_size}));
+    EXPECT_EQ(gru_sequence->get_output_partial_shape(1),
+              (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
     EXPECT_EQ(gru_sequence->get_output_element_type(0), param.et);
     EXPECT_EQ(gru_sequence->get_output_element_type(1), param.et);
 }
@@ -168,8 +181,10 @@ TEST(type_prop, gru_sequence_dynamic_seq_length) {
     auto gru_sequence = gru_seq_tensor_initialization(param);
     gru_sequence->validate_and_infer_types();
 
-    EXPECT_EQ(gru_sequence->get_output_partial_shape(0), (PartialShape{param.batch_size, param.num_directions, param.seq_length, param.hidden_size}));
-    EXPECT_EQ(gru_sequence->get_output_partial_shape(1), (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
+    EXPECT_EQ(gru_sequence->get_output_partial_shape(0),
+              (PartialShape{param.batch_size, param.num_directions, param.seq_length, param.hidden_size}));
+    EXPECT_EQ(gru_sequence->get_output_partial_shape(1),
+              (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
     EXPECT_EQ(gru_sequence->get_output_element_type(0), param.et);
     EXPECT_EQ(gru_sequence->get_output_element_type(1), param.et);
 }
@@ -186,8 +201,10 @@ TEST(type_prop, gru_sequence_dynamic_hidden_size) {
     auto gru_sequence = gru_seq_tensor_initialization(param);
     gru_sequence->validate_and_infer_types();
 
-    EXPECT_EQ(gru_sequence->get_output_partial_shape(0), (PartialShape{param.batch_size, param.num_directions, param.seq_length, param.hidden_size}));
-    EXPECT_EQ(gru_sequence->get_output_partial_shape(1), (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
+    EXPECT_EQ(gru_sequence->get_output_partial_shape(0),
+              (PartialShape{param.batch_size, param.num_directions, param.seq_length, param.hidden_size}));
+    EXPECT_EQ(gru_sequence->get_output_partial_shape(1),
+              (PartialShape{param.batch_size, param.num_directions, param.hidden_size}));
     EXPECT_EQ(gru_sequence->get_output_element_type(0), param.et);
     EXPECT_EQ(gru_sequence->get_output_element_type(1), param.et);
 }

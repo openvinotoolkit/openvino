@@ -42,17 +42,17 @@ TEST(attributes, gru_sequence_op) {
     const float clip_threshold = 0.5f;
 
     const auto gru_sequence = make_shared<opset5::GRUSequence>(X,
-                                                                 initial_hidden_state,
-                                                                 sequence_lengths,
-                                                                 W,
-                                                                 R,
-                                                                 B,
-                                                                 hidden_size,
-                                                                 gru_direction,
-                                                                 activations,
-                                                                 activations_alpha,
-                                                                 activations_beta,
-                                                                 clip_threshold);
+                                                               initial_hidden_state,
+                                                               sequence_lengths,
+                                                               W,
+                                                               R,
+                                                               B,
+                                                               hidden_size,
+                                                               gru_direction,
+                                                               activations,
+                                                               activations_alpha,
+                                                               activations_beta,
+                                                               clip_threshold);
     NodeBuilder builder(gru_sequence);
     auto g_gru_sequence = ov::as_type_ptr<opset5::GRUSequence>(builder.create());
 
