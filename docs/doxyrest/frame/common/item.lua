@@ -18,7 +18,9 @@ function ensureUniqueItemName(item, name, map, sep)
 		mapValue = {}
 		mapValue.itemMap = {}
 		mapValue.itemMap[item.id] = 1
+		mapValue.items = {}
 		mapValue.count = 1
+		mapValue.items[mapValue.count] = item
 		map[name] = mapValue
 	else
 		local index = mapValue.itemMap[item.id]
@@ -26,16 +28,8 @@ function ensureUniqueItemName(item, name, map, sep)
 		if index == nil then
 			index = mapValue.count + 1
 			mapValue.itemMap[item.id] = index
+			mapValue.items[index] = item
 			mapValue.count = mapValue.count + 1
-		end
-
-		if index ~= 1 then
-			name = name .. sep .. index
-
-			if map[name] then
-				-- solution - try some other separator on collision; but when a proper naming convention is followed, this should never happen.
-				error("name collision at: " .. name)
-			end
 		end
 	end
 
@@ -47,10 +41,12 @@ function getItemFileName(item, suffix)
 	
 	if item.compoundKind == 'page' then
 		s = ''
+	elseif item.compoundKind == "interface" then
+		s = 'class'
 	elseif item.compoundKind then
-		s = item.compoundKind .. "_"
+		s = item.compoundKind
 	elseif item.memberKind then
-		s = item.memberKind .. "_"
+		s = item.memberKind
 	else
 		s = "undef_"
 	end
@@ -59,7 +55,7 @@ function getItemFileName(item, suffix)
 		s = s .. item.name
 	else
 		local path = string.gsub(item.path, "/operator[%s%p]+$", "/operator")
-		s = s .. string.gsub(path, "/", "_")
+		s = s .. string.gsub(path, "/", "_1_1")
 	end
 
 	s = ensureUniqueItemName(item, s, g_itemFileNameMap, "-")
@@ -69,6 +65,31 @@ function getItemFileName(item, suffix)
 	end
 
 	return s .. suffix
+end
+
+function getItemFileNameNoSuffix(item)
+	local s
+	
+	if item.compoundKind == 'page' then
+		s = ''
+	elseif item.compoundKind == "interface" then
+		s = 'class'
+	elseif item.compoundKind then
+		s = item.compoundKind
+	elseif item.memberKind then
+		s = item.memberKind
+	else
+		s = "undef_"
+	end
+
+	if item.compoundKind == "group" then
+		s = s .. item.name
+	else
+		local path = string.gsub(item.path, "/operator[%s%p]+$", "/operator")
+		s = s .. string.gsub(path, "/", "_1_1")
+	end
+
+	return s
 end
 
 function getItemRefTargetString(item)

@@ -1,0 +1,177 @@
+import argparse
+from pathlib import Path
+from utils import (
+    create_content,
+    add_content_below,
+    load_secret,
+    process_notebook_name,
+    find_latest_artifact,
+    verify_notebook_name,
+    generate_artifact_link,
+    remove_existing,
+)
+from consts import (
+    binder_template,
+    rst_template,
+    notebooks_path,
+    repo_owner,
+    repo_name,
+    notebooks_docs,
+)
+from notebook import Notebook
+from io import BytesIO
+from jinja2 import Template
+from requests import get
+from zipfile import ZipFile
+import os
+
+
+class NbDownloader:
+    """Class responsible for downloading and extracting notebooks"""
+
+    def __init__(self, secret_path: str) -> None:
+        self.secret = load_secret(secret_path)
+        self.headers = {
+            "Accept": "application/vnd.github.v3+json",
+            "Authorization": f"token {self.secret}",
+        }
+        self.artifact_link = generate_artifact_link(repo_owner, repo_name)
+
+    def default_pipeline(self, path: str = notebooks_path) -> bool:
+        """Default pipeline for fetching, downloading and extracting rst files
+
+        :param path: Path to folder that will contain notebooks. Defaults to notebooks_path.
+        :type path: str
+        :returns: Returns if status is sucessful
+        :rtype: bool
+
+        """
+        artifacts = self.fetch_artifacts()
+        latest_artifact = find_latest_artifact(artifacts)
+        download_link = self.generate_artifact_download_link(latest_artifact)
+        zipfile = self.download_rst_files(download_link)
+        if zipfile.testzip() is None:
+            remove_existing(path)
+        return self.extract_artifacts(zipfile, path=path)
+
+    def fetch_artifacts(self) -> dict:
+        """Fetching artifcats from github actions
+
+        :returns: Artifacts in repo
+        :rtype: dict
+
+        """
+        return get(self.artifact_link, headers=self.headers).json()
+
+    def generate_artifact_download_link(self, artifact_id: int) -> str:
+        """Generate link based on link and latest artifact id containing rst files
+
+        :param artifact_id: Latest artifact id containing rst files
+        :type artifact_id: int
+        :returns: Link to download rst files
+        :rtype: str
+
+        """
+        return f"{self.artifact_link}/{artifact_id}/zip"
+
+    def download_rst_files(self, artifact_download_link: str) -> ZipFile:
+        """Downloading rst files
+
+        :param artifact_download_link: Generated link for downloading rst
+        :type artifact_download_link: str
+        :returns: Zipped archive of rst files
+        :rtype: ZipFile
+
+        """
+        artifact = get(artifact_download_link, headers=self.headers)
+        return ZipFile(BytesIO(artifact.content))
+
+    def extract_artifacts(self, zipfile: ZipFile, path: str) -> bool:
+        """Extracting all artifacts from zipped archive
+
+        :param zipfile: zipped rst files
+        :type zipfile: ZipFile
+        :param path: path to extract files to
+        :type path: str
+        :returns: Returns if status is sucessful
+        :rtype: bool
+
+        """
+        try:
+            zipfile.extractall(path=path)
+            return True
+        except ValueError:
+            return False
+
+
+class NbProcessor:
+    def __init__(self, nb_path: str = notebooks_path):
+        self.nb_path = nb_path
+        self.rst_data = {
+            "notebooks": [
+                Notebook(
+                    name=process_notebook_name(notebook),
+                    path=f"{notebook}",
+                )
+                for notebook in os.listdir(self.nb_path)
+                if verify_notebook_name(notebook)
+            ]
+        }
+        self.binder_data = {
+            "owner": repo_owner,
+            "repo": repo_name,
+            "folder": nb_path,
+        }
+
+    def add_binder(self, template: str = binder_template):
+        """Function working as an example how to add binder button to existing rst files
+
+        :param template: Template of button to be added to rst file. Defaults to binder_template.
+        :type template: str
+        :raises FileNotFoundError: In case of failure of adding content, error will appear
+
+        """
+        for notebook in [
+            nb for nb in os.listdir(self.nb_path) if verify_notebook_name(nb)
+        ]:
+            button_text = create_content(template, self.binder_data, notebook)
+            if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
+                raise FileNotFoundError("Unable to modify file")
+
+    def render_rst(self, path: str = notebooks_docs, template: str = rst_template):
+        """Rendering rst file for all notebooks
+
+        :param path: Path to notebook main rst file. Defaults to notebooks_docs.
+        :type path: str
+        :param template: Template for default rst page. Defaults to rst_template.
+        :type template: str
+
+        """
+        with open(path, "w+") as nb_file:
+            nb_file.writelines(Template(template).render(self.rst_data))
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('secret', type=Path)
+    parser.add_argument('outdir', type=Path)
+    args = parser.parse_args()
+    secret = args.secret
+    outdir = args.outdir
+    outdir.mkdir(parents=True, exist_ok=True)
+    # Step 1. Create secret file
+    # link: https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token
+    # For this notebooks purpose only repo -> public_repo box is required
+    nbd = NbDownloader(secret)
+    # Step 2. Run default pipeline for downloading
+    if not nbd.default_pipeline(outdir):
+        raise FileExistsError("Files not downloaded")
+    # Step 3. Run processing on downloaded file
+    nbp = NbProcessor(outdir)
+
+    nbp.add_binder()
+    nbp.render_rst(outdir.joinpath(notebooks_docs))
+
+
+if __name__ == '__main__':
+    main()

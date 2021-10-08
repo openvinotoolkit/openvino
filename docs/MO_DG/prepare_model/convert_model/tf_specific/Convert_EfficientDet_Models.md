@@ -45,14 +45,29 @@ As a result the frozen model file `savedmodeldir/efficientdet-d4_frozen.pb` will
 
 ### Convert EfficientDet TensorFlow Model to the IR
 
-To generate the IR of the EfficientDet TensorFlow model, run:<br>
-```sh
-python3 $INTEL_OPENVINO_DIR/deployment_tools/model_optimizer/mo.py \
---input_model savedmodeldir/efficientdet-d4_frozen.pb \
---transformations_config $INTEL_OPENVINO_DIR/deployment_tools/model_optimizer/extensions/front/tf/automl_efficientdet.json \
---input_shape [1,$IMAGE_SIZE,$IMAGE_SIZE,3] \
---reverse_input_channels
-```
+To generate the IR of the EfficientDet TensorFlow model, run Model Optimizer:<br>
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      python3 <INSTALL_DIR>/deployment_tools/model_optimizer/mo.py \
+        --input_model savedmodeldir/efficientdet-d4_frozen.pb \
+        --transformations_config <INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf/automl_efficientdet.json \
+        --input_shape [1,$IMAGE_SIZE,$IMAGE_SIZE,3] \
+        --reverse_input_channels
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo \
+        --input_model savedmodeldir/efficientdet-d4_frozen.pb \
+        --transformations_config <INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf/automl_efficientdet.json \
+        --input_shape [1,$IMAGE_SIZE,$IMAGE_SIZE,3] \
+        --reverse_input_channels
+
+@endsphinxdirective
 
 Where `$IMAGE_SIZE` is the size that the input image of the original TensorFlow model will be resized to. Different
 EfficientDet models were trained with different input image sizes. To determine the right one refer to the `efficientdet_model_param_dict`
@@ -65,7 +80,7 @@ to the Model Optimizer on how to convert the model and trigger transformations i
 train the model yourself and modified the `hparams_config` file or the parameters are different from the ones used for EfficientDet-D4.
 The attribute names are self-explanatory or match the name in the `hparams_config` file.
 
-> **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../Converting_Model_General.md).
+> **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](../Converting_Model.md).
 
 OpenVINO&trade; toolkit provides samples that can be used to infer EfficientDet model. For more information, refer to 
 [Object Detection for SSD C++ Sample](@ref openvino_inference_engine_samples_object_detection_sample_ssd_README) and 

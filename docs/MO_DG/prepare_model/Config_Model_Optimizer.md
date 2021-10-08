@@ -19,7 +19,7 @@
 
             .. code-block:: sh
 
-               cd $INSTALL_DIR$/deployment_tools/model_optimizer/install_prerequisites
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
                virtualenv --system-site-packages -p python3 ./venv
                source ./venv/bin/activate  # sh, bash, ksh, or zsh
                ./install_prerequisites.shs
@@ -30,7 +30,7 @@
 
             .. code-block:: sh
 
-               cd $INSTALL_DIR$/deployment_tools/model_optimizer/install_prerequisitess
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisitess
                install_prerequisites_caffe.sh
          
          .. tab:: Install to virtualenv
@@ -485,8 +485,16 @@ pip3 install -r requirements_onnx.txt
 
 
 
-<details>
-    <summary>Click to expand</summary>
+
+@sphinxdirective
+
+.. raw:: html
+
+   <div class="collapsible-section" data-title="Click to expand">
+
+@endsphinxdirective
+
+
 
 These procedures require:
 
@@ -594,7 +602,16 @@ python3 -m easy_install dist/protobuf-3.6.1-py3.6-win-amd64.egg
 ```shell
 set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
 ```
-</details>
+
+@sphinxdirective
+
+.. raw:: html
+
+   </div>
+
+@endsphinxdirective
+
+
 
 ## See Also
 

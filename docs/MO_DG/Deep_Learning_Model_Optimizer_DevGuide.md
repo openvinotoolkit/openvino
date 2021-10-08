@@ -7,15 +7,15 @@
    :hidden:
    
    openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model
+   openvino_docs_MO_DG_Additional_Optimization_Use_Cases
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
    openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
    openvino_docs_MO_DG_Known_Issues_Limitations
    openvino_docs_MO_DG_Default_Model_Optimizer_Optimizations
-   openvino_docs_MO_DG_Additional_Optimization_Use_Cases
 
 @endsphinxdirective
 
-## Introduction
+## Introduction 
 
 Model Optimizer is a cross-platform command-line tool that facilitates the transition between the training and deployment environment, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices.
 
@@ -25,7 +25,7 @@ Model Optimizer process assumes you have a network model trained using supported
 
 The scheme below illustrates the typical workflow for deploying a trained deep learning model: 
 
-![](img/workflow_steps.png)
+![](img/BASIC_FLOW_MO_simplified.svg)
 
 The IR is a pair of files describing the model: 
 
@@ -33,18 +33,371 @@ The IR is a pair of files describing the model:
 
 *  <code>.bin</code> - Contains the weights and biases binary data.
 
-Below is a simple command running Model Optimizer to generate an IR for the input model:
+> **TIP**: You also can work with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Introduction.html) (DL Workbench).
+> [DL Workbench](https://docs.openvinotoolkit.org/latest/workbench_docs_Workbench_DG_Introduction.html) is a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models.
 
-```sh
-python3 mo.py --input_model INPUT_MODEL
-```
-To learn about all Model Optimizer parameters and conversion technics, see the [Converting a Model to IR](prepare_model/convert_model/Converting_Model.md) page.
+## Install Model Optimizer Pre-Requisites
 
-> **TIP**: You can quick start with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](@ref 
-> openvino_docs_get_started_get_started_dl_workbench) (DL Workbench).
-> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is the OpenVINO™ toolkit UI that enables you to
-> import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for 
-> deployment on various Intel® platforms.
+Before running the Model Optimizer, you must install the Model Optimizer pre-requisites for the framework that was used to train the model.
+
+@sphinxdirective
+.. tab:: Using configuration scripts
+
+   .. tab:: Linux
+
+      .. tab:: All frameworks
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               ./install_prerequisites.sh
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               ./install_prerequisites.shs
+
+      .. tab:: Caffe
+      
+         .. tab:: Install globally
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisitess
+               install_prerequisites_caffe.sh
+         
+         .. tab:: Install to virtualenv
+
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_caffe.shs
+
+      .. tab:: Tensorflow 1.x
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Tensorflow 2.x
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: MXNet
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: ONNX
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Kaldi
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+   .. tab:: Windows
+
+      .. tab:: All frameworks
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Caffe
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Tensorflow 1.x
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Tensorflow 2.x
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            tests
+
+      .. tab:: MXNet
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: ONNX
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Kaldi
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+   .. tab:: macOS
+
+      .. tab:: All frameworks
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Caffe
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Tensorflow 1.x
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Tensorflow 2.x
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            tests
+
+      .. tab:: MXNet
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: ONNX
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+      .. tab:: Kaldi
+      
+         .. tab:: Install globally
+
+            test
+         
+         .. tab:: Install to virtualenv
+
+            test
+
+.. tab:: Using manual configuration process
+
+   .. tab:: Linux
+
+      .. tab:: All frameworks
+      
+         test
+
+      .. tab:: Caffe
+      
+         test
+
+      .. tab:: Tensorflow 1.x
+      
+         test
+
+      .. tab:: Tensorflow 2.x
+      
+         test
+
+      .. tab:: MXNet
+      
+         test
+
+      .. tab:: ONNX
+      
+         test
+
+      .. tab:: Kaldi
+      
+         test
+
+
+   .. tab:: Windows
+
+      .. tab:: All frameworks
+      
+         test
+
+      .. tab:: Caffe
+      
+         test
+
+      .. tab:: Tensorflow 1.x
+      
+         test
+
+      .. tab:: Tensorflow 2.x
+      
+         test
+
+      .. tab:: MXNet
+      
+         test
+
+      .. tab:: ONNX
+      
+         test
+
+      .. tab:: Kaldi
+      
+         test
+
+   .. tab:: macOS
+
+      .. tab:: All frameworks
+      
+         test
+
+      .. tab:: Caffe
+      
+         test
+
+      .. tab:: Tensorflow 1.x
+      
+         test
+
+      .. tab:: Tensorflow 2.x
+      
+         test
+
+      .. tab:: MXNet
+      
+         test
+
+      .. tab:: ONNX
+      
+         test
+
+      .. tab:: Kaldi
+      
+         test
+
+@endsphinxdirective
+
+## Run Model Optimizer
+
+To convert the model to the Intermediate Representation (IR), run Model Optimizer using the command for your type of OpenVINO™ installation:
+
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      python3 <INSTALL_DIR>/deployment_tools/model_optimizer/mo.py --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
+
+@endsphinxdirective
+
+You need to have have write permissions for an output directory.
+
+> **NOTE**: Some models require using additional arguments to specify conversion parameters, such as `--input_shape`, `--scale`, `--scale_values`, `--mean_values`, `--mean_file`. To learn about when you need to use these parameters, refer to [Converting a Model to Intermediate Representation (IR)](Converting_Model.md).
+
+To adjust the conversion process, you may use general parameters defined in the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) and 
+framework-specific parameters for:
+* [Caffe](Convert_Model_From_Caffe.md)
+* [TensorFlow](Convert_Model_From_TensorFlow.md)
+* [MXNet](Convert_Model_From_MxNet.md)
+* [ONNX](Convert_Model_From_ONNX.md)
+* [Kaldi](Convert_Model_From_Kaldi.md)
 
 ## Videos
 

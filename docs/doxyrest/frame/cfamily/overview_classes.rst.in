@@ -20,23 +20,17 @@ local sectionName = argArray[3]
 %{
 local isPrevMl = false
 
+local mapping = {}
+
 for i = 1, #itemArray do
 	local item = itemArray[i]
 	local targetFileName = getItemFileName(item)
 
-	if compound.compoundKind ~= "group" and not compound.isBaseCompound then
-		generateFile(targetFileName, "class.rst.in", item)
+	if mapping[getItemFileNameNoSuffix(item)] == nil then
+		mapping[getItemFileNameNoSuffix(item)] = true
+		generateFile(targetFileName, "class.rst.in", g_itemFileNameMap[getItemFileNameNoSuffix(item)].items)
 	end
 
-	local decl = getClassDeclString(item, g_refItemNameTemplate, "\t")
-	local isMl = string.find(decl, "\n")
-	local extraSep = ""
-
-	if i > 1 and isMl or isPrevMl then
-		extraSep = "\n"
-	end
-
-	isPrevMl = isMl
 }
 $extraSep	$decl;
 %{

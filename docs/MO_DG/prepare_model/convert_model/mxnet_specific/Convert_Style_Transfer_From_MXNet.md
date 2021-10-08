@@ -109,7 +109,19 @@ cp models/13_decoder_auxs.nd nst_model
 > **NOTE**: Make sure that all the `.params` and `.json` files are in the same directory as the `.nd` files. Otherwise, the conversion process fails.
 
 3. Run the Model Optimizer for MXNet. Use the `--nd_prefix_name` option to specify the decoder prefix and `--input_shape` to specify input shapes in [N,C,W,H] order. For example:<br>
-```sh
-python3 mo.py --input_symbol <path/to/nst_model>/nst_vgg19-symbol.json --framework mxnet --output_dir <path/to/output_dir> --input_shape [1,3,224,224] --nd_prefix_name 13_decoder --pretrained_model <path/to/nst_model>/vgg19-0000.params
-```
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      python3 mo.py --input_symbol <path/to/nst_model>/nst_vgg19-symbol.json --framework mxnet --output_dir <path/to/output_dir> --input_shape [1,3,224,224] --nd_prefix_name 13_decoder --pretrained_model <path/to/nst_model>/vgg19-0000.params
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --input_symbol <path/to/nst_model>/nst_vgg19-symbol.json --framework mxnet --output_dir <path/to/output_dir> --input_shape [1,3,224,224] --nd_prefix_name 13_decoder --pretrained_model <path/to/nst_model>/vgg19-0000.params
+
+@endsphinxdirective
+
 4. The IR is generated (`.bin`, `.xml` and `.mapping` files) in the specified output directory and ready to be consumed by the Inference Engine. 

@@ -436,19 +436,4 @@ OpenVINO™ Model Server performance benchmark numbers are based on release 2021
 </tr>
 </table>
 
-
-\htmlonly
-<style>
-    .footer {
-        display: none;
-    }
-</style>
-<div class="opt-notice-wrapper">
-<p class="opt-notice">
-\endhtmlonly
 Results may vary. For workloads and configurations visit: [www.intel.com/PerformanceIndex](https://www.intel.com/PerformanceIndex) and [Legal Information](../Legal_Information.md).
-\htmlonly
-</p>
-</div>
-\endhtmlonly
-

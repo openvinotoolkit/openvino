@@ -98,7 +98,7 @@ INTRO_FILE = nil
 --! being sorted by ``title``.
 --!
 
-SORT_GROUPS_BY = "originalIdx"
+SORT_GROUPS_BY = nil
 
 
 --[[!
@@ -191,7 +191,7 @@ EXCLUDE_LOCATION_PATTERN = nil
 --! Exclude variables and functions without any documentation (no doxy-comments).
 --!
 
-EXCLUDE_UNDOCUMENTED_ITEMS = false
+EXCLUDE_UNDOCUMENTED_ITEMS = true
 
 --!
 --! \subgroup

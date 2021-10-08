@@ -13,96 +13,34 @@ Measuring inference performance involves many variables and is extremely use-cas
 - **Efficiency** - System power is a key consideration from the edge to the data center. When selecting deep learning solutions, power efficiency (throughput/watt) is a critical factor to consider. Intel designs provide excellent power efficiency for running deep learning workloads.
 - **Latency** - This measures the synchronous execution of inference requests and is reported in milliseconds. Each inference request (for example: preprocess, infer, postprocess) is allowed to complete before the next is started. This performance metric is relevant in usage scenarios where a single image input needs to be acted upon as soon as possible. An example would be the healthcare sector where medical personnel only request analysis of a single ultra sound scanning image or in real-time or near real-time applications for example an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles. 
 
+@sphinxdirective
+.. raw:: html
 
-\htmlonly
-<!-- these CDN links and scripts are required.  Add them to the <head> of your website -->
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;600;700;900&display=swap" rel="stylesheet" type="text/css">
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" type="text/css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/0.5.7/chartjs-plugin-annotation.min.js"></script> 
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-barchart-background@1.3.0/build/Plugin.Barchart.Background.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-deferred@1"></script>
-<!-- download this file and place on your server (or include the styles inline) -->
-<link rel="stylesheet" href="ovgraphs.css" type="text/css">
-\endhtmlonly
+    <div class="chart-block" data-loadcsv="csv/bert-large-uncased-whole-word-masking-squad-int8-0001-384.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/brain-tumor-segmentation-0001-MXNET-128x128x128.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/brain-tumor-segmentation-0002-CF2-128x128x128.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/deeplabv3-TF-513x513.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/densenet-121-TF-224x224.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/facenet-20180408-102900-TF-160x160.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/faster_rcnn_resnet50_coco-TF-600x1024.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/googlenet-v1-TF-224x224.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/mobilenet-ssd-CF-300x300.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/mobilenet-v1-1.0-224-TF-224x224.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/mobilenet-v2-1.0-224-TF-224x224.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/mobilenet-v2-pytorch-224x224.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/resnet-18-pytorch-224x224.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/resnet-50-PYTORCH-224x224.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/resnet-50-TF.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/se-resnext-50-CF-224x224.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/squeezenet1.1-CF-227x227.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/ssd300-CF-300x300.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/ssdlite_mobilenet_v2-TF-300x300.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/ssd_mobilenet_v1_coco-TF-300x300.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/unet-camvid-onnx-0001-368x480.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/yolo_v3-TF.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/yolo_v4-tf-608x608.csv"></div>
 
-
-\htmlonly
-<script src="bert-large-uncased-whole-word-masking-squad-int8-0001-384-ov-2021-4-569.js" id="bert-large-uncased-whole-word-masking-squad-int8-0001-384-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="deeplabv3-tf-513x513-ov-2021-4-569.js" id="deeplabv3-tf-513x513-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="densenet-121-tf-224x224-ov-2021-4-569.js" id="densenet-121-tf-224x224-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="faster-rcnn-resnet50-coco-tf-600x1024-ov-2021-4-569.js" id="faster-rcnn-resnet50-coco-tf-600x1024-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="inception-v3-tf-299x299-ov-2021-4-569.js" id="inception-v3-tf-299x299-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="inception-v4-tf-299x299-ov-2021-4-569.js" id="inception-v4-tf-299x299-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="mobilenet-ssd-cf-300x300-ov-2021-4-569.js" id="mobilenet-ssd-cf-300x300-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="mobilenet-v2-pytorch-224x224-ov-2021-4-569.js" id="mobilenet-v2-pytorch-224x224-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="resnet-18-pytorch-224x224-ov-2021-4-569.js" id="resnet-18-pytorch-224x224-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="resnet-50-tf-224x224-ov-2021-4-569.js" id="resnet-50-tf-224x224-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="se-resnext-50-cf-224x224-ov-2021-4-569.js" id="se-resnext-50-cf-224x224-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="squeezenet1-1-cf-227x227-ov-2021-4-569.js" id="squeezenet1-1-cf-227x227-ov-2021-4-569"></script>
-\endhtmlonly
-
-
-\htmlonly
-<script src="ssd300-cf-300x300-ov-2021-4-569.js" id="ssd300-cf-300x300-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="yolo-v3-tiny-tf-416x416-ov-2021-4-569.js" id="yolo-v3-tiny-tf-416x416-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="yolo-v4-tf-608x608-ov-2021-4-569.js" id="yolo-v4-tf-608x608-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="unet-camvid-onnx-0001-368x480-ov-2021-4-569.js" id="unet-camvid-onnx-0001-368x480-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="ssd-resnet34-1200-onnx-1200x1200-ov-2021-4-569.js" id="ssd-resnet34-1200-onnx-1200x1200-ov-2021-4-569"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="vgg19-caffe-224x224-ov-2021-4-569.js" id="vgg19-caffe-224x224-ov-2021-4-569"></script>
-\endhtmlonly
-
-
-
+@endsphinxdirective
 
 ## Platform Configurations
 
@@ -122,7 +60,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines**
 
-|                                 | Intel® Xeon® E-2124G               | Intel® Xeon® W1290P                | Intel® Xeon® Silver 4216R               | 
+| Configuration                   | Intel® Xeon® E-2124G               | Intel® Xeon® W1290P                | Intel® Xeon® Silver 4216R               | 
 | ------------------------------- | ----------------------             | ---------------------------        | ----------------------------            |
 | Motherboard                     | ASUS* WS C246 PRO                  | ASUS* WS W480-ACE                  | Intel® Server Board S2600STB            |
 | CPU                             | Intel® Xeon® E-2124G CPU @ 3.40GHz | Intel® Xeon® W-1290P CPU @ 3.70GHz | Intel® Xeon® Silver 4216R CPU @ 2.20GHz |
@@ -144,7 +82,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines (continue)**
 
-|                                 | Intel® Xeon® Gold 5218T                 | Intel® Xeon® Platinum 8270               | Intel® Xeon® Platinum 8380               |
+| Configuration                   | Intel® Xeon® Gold 5218T                 | Intel® Xeon® Platinum 8270               | Intel® Xeon® Platinum 8380               |
 | ------------------------------- | ----------------------------            | ----------------------------             | -----------------------------------------|
 | Motherboard                     | Intel® Server Board S2600STB            | Intel® Server Board S2600STB             | Intel Corporation / WilsonCity           |
 | CPU                             | Intel® Xeon® Gold 5218T CPU @ 2.10GHz   | Intel® Xeon® Platinum 8270 CPU @ 2.70GHz | Intel® Xeon® Platinum 8380 CPU @ 2.30GHz |
@@ -167,7 +105,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines (continue)**
 
-|                      | Intel® Core™ i7-8700T               | Intel® Core™ i9-10920X               |
+| Configuration        | Intel® Core™ i7-8700T               | Intel® Core™ i9-10920X               |
 | -------------------- | ----------------------------------- |--------------------------------------|
 | Motherboard          | GIGABYTE* Z370M DS3H-CF             | ASUS* PRIME X299-A II                |
 | CPU                  | Intel® Core™ i7-8700T CPU @ 2.40GHz | Intel® Core™ i9-10920X CPU @ 3.50GHz |
@@ -188,7 +126,7 @@ Testing by Intel done on: see test date for each HW platform below.
 | CPU Price/socket on June 21, 2021, USD<br>Prices may vary    | [303](https://ark.intel.com/content/www/us/en/ark/products/129948/intel-core-i7-8700t-processor-12m-cache-up-to-4-00-ghz.html)                | [700](https://ark.intel.com/content/www/us/en/ark/products/198012/intel-core-i9-10920x-x-series-processor-19-25m-cache-3-50-ghz.html) |
 
 **CPU Inference Engines (continue)**
-|                      | 11th Gen Intel® Core™ i7-1185G7 | 11th Gen Intel® Core™ i7-11850HE |
+| Configuration        | 11th Gen Intel® Core™ i7-1185G7 | 11th Gen Intel® Core™ i7-11850HE |
 | -------------------- | --------------------------------|----------------------------------|
 | Motherboard          | Intel Corporation<br>internal/Reference<br>Validation Platform | Intel Corporation<br>internal/Reference<br>Validation Platform |
 | CPU                  | 11th Gen Intel® Core™ i7-1185G7 @ 3.00GHz | 11th Gen Intel® Core™ i7-11850HE @ 2.60GHz |
@@ -210,7 +148,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines (continue)**
 
-|                      | Intel® Core™ i3-8100               | Intel® Core™ i5-8500               | Intel® Core™ i5-10500TE               |
+| Configuration        | Intel® Core™ i3-8100               | Intel® Core™ i5-8500               | Intel® Core™ i5-10500TE               |
 | -------------------- |----------------------------------- | ---------------------------------- | -----------------------------------   |
 | Motherboard          | GIGABYTE* Z390 UD                  | ASUS* PRIME Z370-A                 | GIGABYTE* Z490 AORUS PRO AX           |
 | CPU                  | Intel® Core™ i3-8100 CPU @ 3.60GHz | Intel® Core™ i5-8500 CPU @ 3.00GHz | Intel® Core™ i5-10500TE CPU @ 2.30GHz |
@@ -233,7 +171,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **CPU Inference Engines (continue)**
 
-|                      | Intel Atom® x5-E3940                  | Intel Atom® x6425RE                               | Intel® Celeron® 6305E            |
+| Configuration        | Intel Atom® x5-E3940                  | Intel Atom® x6425RE                               | Intel® Celeron® 6305E            |
 | -------------------- | --------------------------------------|-------------------------------                    |----------------------------------|
 | Motherboard          | Intel Corporation<br>internal/Reference<br>Validation Platform | Intel Corporation<br>internal/Reference<br>Validation Platform | Intel Corporation<br>internal/Reference<br>Validation Platform      |
 | CPU                  | Intel Atom® Processor E3940 @ 1.60GHz | Intel Atom® x6425RE<br>Processor @ 1.90GHz        | Intel® Celeron®<br>6305E @ 1.80GHz  |
@@ -257,7 +195,7 @@ Testing by Intel done on: see test date for each HW platform below.
 
 **Accelerator Inference Engines**
 
-|                                         | Intel® Neural Compute Stick 2         | Intel® Vision Accelerator Design<br>with Intel® Movidius™ VPUs (Mustang-V100-MX8) | 
+| Configuration                           | Intel® Neural Compute Stick 2         | Intel® Vision Accelerator Design<br>with Intel® Movidius™ VPUs (Mustang-V100-MX8) | 
 | --------------------------------------- | ------------------------------------- | ------------------------------------- |
 | VPU                                     | 1 X Intel® Movidius™ Myriad™ X MA2485 | 8 X Intel® Movidius™ Myriad™ X MA2485 |
 | Connection                              | USB 2.0/3.0                           | PCIe X4                               |
@@ -281,17 +219,4 @@ Testing by Intel done on: see test date for each HW platform below.
 
 Please follow this link for more detailed configuration descriptions: [Configuration Details](https://docs.openvinotoolkit.org/resources/benchmark_files/system_configurations_2021.4.html)
 
-\htmlonly
-<style>
-    .footer {
-        display: none;
-    }
-</style>
-<div class="opt-notice-wrapper">
-<p class="opt-notice">
-\endhtmlonly
 Results may vary. For workloads and configurations visit: [www.intel.com/PerformanceIndex](https://www.intel.com/PerformanceIndex) and [Legal Information](../Legal_Information.md).
-\htmlonly
-</p>
-</div>
-\endhtmlonly

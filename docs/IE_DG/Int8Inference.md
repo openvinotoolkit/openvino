@@ -24,7 +24,7 @@ A lot of investigation was made in the field of deep learning with the idea of u
 
 Let's explore the quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model. Use the [Model Downloader](@ref omz_tools_downloader) tool to download the `fp16` model from [OpenVINO™ Toolkit - Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo):
 ```sh
-cd $INTEL_OPENVINO_DIR/deployment_tools/tools/model_downloader
+cd <INSTALL_DIR>/deployment_tools/tools/model_downloader
 ./downloader.py --name resnet-50-tf --precisions FP16-INT8 --output_dir <your_model_directory>
 ```
 After that, you should quantize the model by the [Model Quantizer](@ref omz_tools_downloader) tool. For the dataset, you can choose to download the ImageNet dataset from [here](https://www.image-net.org/download.php).

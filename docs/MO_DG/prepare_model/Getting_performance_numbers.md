@@ -5,12 +5,11 @@
 
 When evaluating performance of your model with the Inference Engine, you must measure the proper set of operations. To do so, consider the following tips: 
 
-Avoid including one-time costs like model loading.
+- Avoid including one-time costs like model loading.
 
-Track separately the operations that happen outside the Inference Engine, like video decoding. 
+- Track separately the operations that happen outside the Inference Engine, like video decoding. 
 
-> **NOTE**: Some image pre-processing can be baked into the IR and accelerated. For more information, refer to Model Optimizer Knobs Related to Performance. 
-
+> **NOTE**: Some image pre-processing can be baked into the IR and accelerated. For more information, refer to [Model Optimizer Knobs Related to Performance](Additional_Optimizations.md)
 
 ## Tip 2. Getting Credible Performance Numbers 
 

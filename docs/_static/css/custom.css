@@ -1,40 +1,65 @@
-:root {
-    --switcher-border-active: var(--tabs--label-background--active);
-}
-
 .switcher-set {
-    position: fixed;
-    top: 60px;
-    border-radius: 2px;
-    display: flex;
-    flex-wrap: wrap;
-    margin: 0.75em 0;
+    position:fixed;
     z-index:1000;
+    background: rgba(var(--sst-color-navbar-background), 1);
+    border-top: 2px solid #fff;
 }
 
 .switcher-button {
+    margin-top:2px;
+    margin-left:1px;
+}
+
+.switcher-button, .switcher-button:hover {
+    display: inline-block;
     z-index: 1000;
     width: auto;
-    border-bottom: 2px solid transparent;
     padding: 1em 1.25em 0.5em;
-    color: var(--tabs--label-text);
-    transition: color 250ms;
     cursor: pointer;
-    font-size: 0.875em;
-    font-weight: 700;
-    background: var(--tabs--label-background);
-    margin-right: 10px;
+    color: #fff;
 }
 
-.switcher-button:hover {
-    text-decoration:none;
-}
-
-.switcher-active {
-    border-color: var(--tabs--border--active);
-    border-color: var(--switcher-border-active);
+.switcher-active, .switcher-active:hover {
+    background: #fff;
+    color: rgb(var(--sst-color-primary));
 }
 
 main img {
     cursor: pointer;
+}
+
+.doxyrest-title-code-block {
+    margin-bottom: 0;
+}
+
+/* Performance Benchmark Graphs */
+
+.chart {
+    height: 500px;
+    padding:0;
+}
+
+/* Table Sort Button */
+
+.sort-btn {
+    cursor: pointer;
+}
+
+.sort-btn:after {
+    content: "";
+    background-image:url('media/arrow-small-opposite-v.svg');
+    background-size: 100% 100%;
+    display: inline-block;
+    height: 1.5rem;
+    width:1.5rem;
+    position:relative;
+    top:0.5rem;
+  }
+
+.sort-btn.sort-active.ascending::after {
+    background-image: url('media/union-down.svg');
+}
+
+.sort-btn.sort-active::after {
+    background-image: url('media/union-up.svg');
 }
