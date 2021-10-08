@@ -200,11 +200,15 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         _workerRequests[p.deviceName];
         _inferPipelineTasksDeviceSpecific[p.deviceName] = NULL;
         const auto device = p.deviceName;
-        const auto deviceConfig = p.config;
+        auto deviceConfig = p.config;
+        if (device == "GPU") {
+           deviceConfig[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(YES);
+        }
         // will not wait for loading accelerator network,
         // so some parameters need to be transferred by value.
        _executor->run([&, modelPath, network, device, deviceConfig]() {
-            SoExecutableNetworkInternal executableNetwork;
+           std::cout << "DEVICE in AUTO:" << device << std::endl;
+           SoExecutableNetworkInternal executableNetwork;
             if (!modelPath.empty()) {
                 executableNetwork = _core->LoadNetwork(modelPath, device, deviceConfig);
             } else {
@@ -212,6 +216,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
             }
 
             GenerateWorkers(device, executableNetwork);
+            std::cout << "DEVICE in AUTO:" << device << " ENDED" <<std::endl;
 
             if (device.find("CPU") == std::string::npos) {
                 _alreadyActualNetwork = true;

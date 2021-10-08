@@ -55,6 +55,7 @@ namespace {
     }
     std::vector<std::string> supported_configKeys = []() -> decltype(PerfHintsConfig::SupportedKeys()) {
                     auto res = PerfHintsConfig::SupportedKeys();
+                    res.push_back(PluginConfigParams::KEY_PERF_COUNT);
                     res.push_back(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
                     res.push_back(CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO));
                     return res;
