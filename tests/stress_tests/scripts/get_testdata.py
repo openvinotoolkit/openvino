@@ -197,8 +197,8 @@ def main():
               ' --precisions={precision}' \
               ' --num_attempts {num_attempts}' \
               ' --output_dir {models_dir}' \
-              ' --cache_dir {cache_dir}'.format(executable=python_executable, downloader_path=downloader_path,
-                                                precision=precision, models_dir=args.omz_models_out_dir,
+              ' --cache_dir {cache_dir}'.format(downloader_path=downloader_path, precision=precision,
+                                                models_dir=args.omz_models_out_dir,
                                                 num_attempts=OMZ_NUM_ATTEMPTS, model_name=model_name,
                                                 cache_dir=args.omz_cache_dir)
 
