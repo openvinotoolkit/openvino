@@ -18,7 +18,7 @@ from setuptools import setup, find_namespace_packages
 from setuptools.command.build_py import build_py
 from setuptools.command.install import install
 
-prefix = 'openvino/tools/mo/'
+prefix = 'openvino/tools/mo'
 SETUP_DIR = Path(__file__).resolve().parent / Path(prefix)
 
 
