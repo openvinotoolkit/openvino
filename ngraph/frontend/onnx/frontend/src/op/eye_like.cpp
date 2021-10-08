@@ -18,7 +18,7 @@ namespace {
 
 /// \brief Split a shape returned by a ShapeOf operation into two outputs: width and height.
 OutputVector get_shape_width_and_height(const Output<ngraph::Node>& shape) {
-    auto axis = ngraph::op::Constant::create(ngraph::element::i64, {1}, {0});
+    const auto axis = ngraph::op::Constant::create(ngraph::element::i64, {1}, {0});
     const auto height =
         std::make_shared<default_opset::Gather>(shape,
                                                 ngraph::op::Constant::create(ngraph::element::i64, {1}, {0}),
@@ -109,7 +109,14 @@ namespace set_1 {
 OutputVector eye_like(const Node& node) {
     const auto input = node.get_ng_inputs().at(0);
 
-    const std::int64_t shift = node.get_attribute_value<std::int64_t>("k", 0);
+    const auto& input_rank = input.get_shape().size();
+    CHECK_VALID_NODE(node,
+                     input_rank == 2,
+                     "The provided shape rank: ",
+                     input_rank,
+                     " is unsupported, only 2D shapes are supported");
+
+    const auto shift = node.get_attribute_value<std::int64_t>("k", 0);
 
     std::int64_t dtype;
     element::Type target_type;
