@@ -19,6 +19,7 @@
 #include <transformations/rt_info/disable_constant_folding.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/rt_info/nms_selected_indices.hpp>
+#include <transformations/rt_info/old_api_map_attribute.hpp>
 #include <transformations/rt_info/primitives_priority_attribute.hpp>
 #include <transformations/rt_info/strides_property.hpp>
 
@@ -32,6 +33,7 @@ public:
         register_factory<DisableConstantFolding>();
         register_factory<NmsSelectedIndices>();
         register_factory<StridesPropagation>();
+        register_factory<OldApiMap>();
     }
 
     Variant * create_by_type_info(const ov::DiscreteTypeInfo & type_info) {

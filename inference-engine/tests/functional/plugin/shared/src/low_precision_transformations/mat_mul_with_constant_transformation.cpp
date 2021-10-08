@@ -71,7 +71,6 @@ void MatMulWithConstantTransformation::SetUp() {
         testValues.deqOnWeights);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void MatMulWithConstantTransformation::Run() {
