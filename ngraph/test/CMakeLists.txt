@@ -303,7 +303,6 @@ set(SRC
     visitors/op/grn.cpp
     visitors/op/gru_cell.cpp
     visitors/op/gru_sequence.cpp
-    visitors/op/test.cpp
     visitors/op/group_conv.cpp
     visitors/op/hard_sigmoid.cpp
     visitors/op/hsigmoid.cpp
