@@ -213,7 +213,7 @@ void InputModel::cut_and_add_new_output(Place::Ptr place, const std::string& new
 }
 
 Place::Ptr InputModel::add_output(Place::Ptr place) {
-    //FRONT_END_NOT_IMPLEMENTED(add_output);
+    // FRONT_END_NOT_IMPLEMENTED(add_output);
     return nullptr;
 }
 
