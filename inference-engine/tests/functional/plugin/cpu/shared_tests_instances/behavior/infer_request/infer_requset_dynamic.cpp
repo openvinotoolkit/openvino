@@ -76,5 +76,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_2, InferRequestDynamicTests,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::ValuesIn(configs)),
                         InferRequestDynamicTests::getTestCaseName);
-
 }  // namespace
