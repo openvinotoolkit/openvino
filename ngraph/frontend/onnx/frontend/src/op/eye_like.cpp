@@ -109,7 +109,7 @@ namespace set_1 {
 OutputVector eye_like(const Node& node) {
     const auto input = node.get_ng_inputs().at(0);
 
-    const auto& input_rank = input.get_shape().size();
+    const auto& input_rank = input.get_partial_shape().size();
     CHECK_VALID_NODE(node,
                      input_rank == 2,
                      "The provided shape rank: ",
