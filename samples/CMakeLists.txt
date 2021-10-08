@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+find_package(PythonInterp 3 REQUIRED)
+
 if(PYTHONLIBS_VERSION_STRING MATCHES "^([0-9]+)\.([0-9]+).*")
     set(PYTHON_VERSION_MAJOR ${CMAKE_MATCH_1})
     set(PYTHON_VERSION_MINOR ${CMAKE_MATCH_2})
@@ -20,7 +22,7 @@ endif()
 
 ie_cpack_add_component(python_samples)
 
-install(DIRECTORY samples/
+install(DIRECTORY python/
         DESTINATION samples/python
         USE_SOURCE_PERMISSIONS
         COMPONENT python_samples)
