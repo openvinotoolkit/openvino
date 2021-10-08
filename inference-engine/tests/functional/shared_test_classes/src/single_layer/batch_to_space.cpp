@@ -41,7 +41,6 @@ void BatchToSpaceLayerTest::SetUp() {
     auto b2s = ngraph::builder::makeBatchToSpace(paramOuts[0], ngPrc, blockShape, cropsBegin, cropsEnd);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(b2s)};
     function = std::make_shared<ngraph::Function>(results, params, "BatchToSpace");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace LayerTestsDefinitions
