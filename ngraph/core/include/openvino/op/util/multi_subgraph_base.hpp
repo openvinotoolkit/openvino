@@ -273,6 +273,13 @@ public:
     /// \param      bodies_results  vector of bodies results for one output.
     /// \return     value           Output node for bodies_results.
     virtual Output<Node> set_body_outputs(const ResultVector& bodies_results);
+    ///
+    /// \brief     Get number of internal sub-graphs
+    ///
+    /// \return    Number of sub-graphs.
+    virtual size_t get_num_internal_subgraphs() const {
+        return m_bodies.size();
+    }
 
     MultiSubGraphOp(const MultiSubGraphOp&) = delete;
     MultiSubGraphOp(MultiSubGraphOp&&) = default;
