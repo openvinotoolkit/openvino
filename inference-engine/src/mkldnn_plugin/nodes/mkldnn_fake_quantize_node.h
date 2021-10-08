@@ -78,6 +78,29 @@ public:
 
     bool isBinarization() const { return getAlgorithm() == Algorithm::FQBinarization; }
 
+    void runtimestaff() {
+        int axisRealSize = static_cast<int>(fq->get_input_shape(0)[axis]);
+        size_t axisPaddedSize = static_cast<size_t>(rnd_up(fq->get_input_shape(0)[axis], 16));
+
+        if (axisSize != -1 && axisSize != axisRealSize)
+            IE_THROW() << errorPrefix << "has different quantization axis size on 'data' and 'range' inputs";
+
+        if (binarization) {
+            algorithm = FQBinarization;
+
+            binarizationThresholds.resize(axisPaddedSize);
+            binarizationOutputMask.resize(axisPaddedSize);
+
+            for (int i = 0; i < axisRealSize; i++) {
+                binarizationThresholds[i] = inputLowData[isInputLowBroadcasted ? 0 : i];
+                binarizationOutputMask[i] = outputHighData[isOutputHighBroadcasted ? 0 : i] == 1.f ? 0xffffffff : 0x00000000;
+            }
+        } else {
+
+
+             
+    }
+
     const float* getBinarizationTresholdsPtr() const { return &binarizationThresholds[0]; }
     const float* getBinarizationOutputMaskPtr() const { return reinterpret_cast<const float*>(&binarizationOutputMask[0]); }
     size_t getBinarizationTresholdsSize() const { return binarizationThresholds.size(); }

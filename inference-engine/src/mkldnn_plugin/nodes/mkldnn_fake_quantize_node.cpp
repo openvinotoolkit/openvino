@@ -825,23 +825,19 @@ private:
 
 bool MKLDNNFakeQuantizeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
-
         const auto fq = std::dynamic_pointer_cast<const ngraph::opset1::FakeQuantize>(op);
         if (!fq) {
             errorMessage = "Only opset1 FakeQuantize operation is supported";
             return false;
         }
-        if (fq->get_input_shape(0).size() < 2 || fq->get_input_shape(0).size() > 5) {
-            errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(fq->get_input_shape(0).size());
+        const auto dataRank = fq->get_input_partial_shape(0).rank().get_length();
+        if (dataRank < 2 || dataRank > 5) {
+            errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(dataRank);
             return false;
         }
         for (size_t i = 1; i < fq->get_input_size(); i++) {
-            if (fq->get_input_shape(i).size() > 5) {
-                errorMessage = "Doesn't support 'range' input with rank: " + std::to_string(fq->get_input_shape(i).size());
+            if (fq->get_input_partial_shape(i).rank().get_length() > 5) {
+                errorMessage = "Doesn't support 'range' input with rank: " + std::to_string(fq->get_input_partial_shape(i).rank().get_length());
                 return false;
             }
         }
@@ -853,7 +849,7 @@ bool MKLDNNFakeQuantizeNode::isSupportedOperation(const std::shared_ptr<const ng
         }
         for (size_t i = 1; i < fq->get_input_size(); i++) {
             size_t count_not_unit_axis = 0;
-            auto shape = getNormalizedDimsBySize(fq->get_input_shape(i), fq->get_input_shape(0).size());
+            auto shape = getNormalizedDimsBySize(getInputShapeAtPort(i), getInputShapeAtPort(0).size());
 
             if (ngraph::shape_size(shape) != 1) {
                 size_t not_unit_axis = 0;
@@ -892,12 +888,12 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
         if (levels <= 1)
             IE_THROW() << errorPrefix << "supports 'levels' attribute greater than or equal to 2";
 
-        if (fq->get_input_size() != 5)
-            IE_THROW() << errorPrefix << "has incorrect number of input edges: " << fq->get_input_size();
-        if (fq->get_output_size() != 1)
-            IE_THROW() << errorPrefix << "has incorrect number of output edges: " << fq->get_output_size();
+        if (inputShapes.size() != 5)
+            IE_THROW() << errorPrefix << "has incorrect number of input edges: " << inputShapes.size();
+        if (outputShapes.size() != 1)
+            IE_THROW() << errorPrefix << "has incorrect number of output edges: " << outputShapes.size();
 
-        auto initAxisIdx = [&](const ngraph::Shape& inputDims) {
+        auto initAxisIdx = [&](const VectorDims& inputDims) {
             size_t axisIdx = 0;
             for (int i = 1; i < inputDims.size(); i++) {
                 if (inputDims[i] > 1) {
@@ -908,52 +904,51 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
             return axisIdx;
         };
 
-        const size_t dataNDims = fq->get_input_shape(0).size();
+        const size_t dataNDims = getInputShapeAtPort(0).getRank();
         axis = dataNDims == 1 ? 0 : 1;
         int axisSize = -1;
 
-        const auto ilShape = getNormalizedDimsBySize(fq->get_input_shape(1), dataNDims);
+        const auto ilShape = getNormalizedDimsBySize(getInputShapeAtPort(1).getStaticDims(), dataNDims);
         auto inputLowAxis = initAxisIdx(ilShape);
-        isInputLowBroadcasted = (ngraph::is_scalar(ilShape) || ilShape[inputLowAxis] == 1);
+        isInputLowBroadcasted = ilShape[inputLowAxis] == 1;
         if (!isInputLowBroadcasted) {
             axis = inputLowAxis;
             axisSize = ilShape[inputLowAxis];
         }
 
-        const auto ihShape = getNormalizedDimsBySize(fq->get_input_shape(2), dataNDims);
+        const auto ihShape = getNormalizedDimsBySize(getInputShapeAtPort(2).getStaticDims(), dataNDims);
         auto inputHighAxis = initAxisIdx(ihShape);
-        isInputHighBroadcasted = (ngraph::is_scalar(ihShape) || ihShape[inputHighAxis] == 1);
+        isInputHighBroadcasted = ihShape[inputHighAxis] == 1;
         if (!isInputHighBroadcasted) {
             axis = inputHighAxis;
             axisSize = ihShape[inputHighAxis];
         }
 
-        const auto olShape = getNormalizedDimsBySize(fq->get_input_shape(3), dataNDims);
+        const auto olShape = getNormalizedDimsBySize(getInputShapeAtPort(3).getStaticDims(), dataNDims);
         auto outputLowAxis = initAxisIdx(olShape);
-        isOutputLowBroadcasted = (ngraph::is_scalar(olShape) || olShape[outputLowAxis] == 1);
+        isOutputLowBroadcasted = olShape[outputLowAxis] == 1;
         if (!isOutputLowBroadcasted) {
             axis = outputLowAxis;
             axisSize = olShape[outputLowAxis];
         }
 
-        const auto ohShape = getNormalizedDimsBySize(fq->get_input_shape(4), dataNDims);
+        const auto ohShape = getNormalizedDimsBySize(getInputShapeAtPort(4).getStaticDims(), dataNDims);
         auto outputHighAxis = initAxisIdx(ohShape);
-        isOutputHighBroadcasted = (ngraph::is_scalar(ohShape) || ohShape[outputHighAxis] == 1);
+        isOutputHighBroadcasted = ohShape[outputHighAxis] == 1;
         if (!isOutputHighBroadcasted) {
             axis = outputHighAxis;
             axisSize = ohShape[outputHighAxis];
         }
 
-        auto inputLowAxisSize = ngraph::is_scalar(ilShape) ? 1 : ilShape[inputLowAxis];
-        auto inputHighAxisSize = ngraph::is_scalar(ihShape) ? 1 : ihShape[inputHighAxis];
-        auto outputLowAxisSize = ngraph::is_scalar(olShape) ? 1 : olShape[outputLowAxis];
-        auto outputHighAxisSize = ngraph::is_scalar(ohShape) ? 1 : ohShape[outputHighAxis];
+        auto inputLowAxisSize = ilShape[inputLowAxis];
+        auto inputHighAxisSize = ihShape[inputHighAxis];
+        auto outputLowAxisSize = olShape[outputLowAxis];
+        auto outputHighAxisSize = ohShape[outputHighAxis];
 
-        int axisRealSize = static_cast<int>(fq->get_input_shape(0)[axis]);
-        size_t axisPaddedSize = static_cast<size_t>(rnd_up(fq->get_input_shape(0)[axis], 16));
-
-        if (axisSize != -1 && axisSize != axisRealSize)
-            IE_THROW() << errorPrefix << "has different quantization axis size on 'data' and 'range' inputs";
+        if (getInputShapeAtPort(0).getDims() != Shape::UNDEFINED_DIM) {
+            if (axisSize != -1 && axisSize != static_cast<int>(getInputShapeAtPort(0)[axis]))
+                IE_THROW() << errorPrefix << "has different quantization axis size on 'data' and 'range' inputs";
+        }       
 
         const auto inputLowNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(1));
         auto inputLowData = inputLowNode->cast_vector<float>();
@@ -994,14 +989,6 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
 
         if (binarization) {
             algorithm = FQBinarization;
-
-            binarizationThresholds.resize(axisPaddedSize);
-            binarizationOutputMask.resize(axisPaddedSize);
-
-            for (int i = 0; i < axisRealSize; i++) {
-                binarizationThresholds[i] = inputLowData[isInputLowBroadcasted ? 0 : i];
-                binarizationOutputMask[i] = outputHighData[isOutputHighBroadcasted ? 0 : i] == 1.f ? 0xffffffff : 0x00000000;
-            }
         } else {
             auto allElementsAreEqual = [&](const std::vector<float> &data, size_t size) {
                 if (size == 0)
