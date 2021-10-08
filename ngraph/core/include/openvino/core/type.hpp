@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <cstring>
 #include <functional>
-#include <iostream>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -53,6 +52,17 @@ struct OPENVINO_API DiscreteTypeInfo {
 
     bool is_castable(const DiscreteTypeInfo& target_type) const {
         return *this == target_type || (parent && parent->is_castable(target_type));
+    }
+
+    std::string get_version() const {
+        if (version_id) {
+            return std::string(version_id);
+        }
+        return std::to_string(version);
+    }
+
+    operator std::string() const {
+        return std::string(name) + "_" + get_version();
     }
 
     // For use as a key

@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace op {
 namespace v1 {
 class OPENVINO_API Reverse : public Op {
 public:
-    OPENVINO_OP("Reverse", "opset1");
+    OPENVINO_OP("Reverse", "opset1", op::Op, 1);
     BWDCMP_RTTI_DECLARATION;
 
     enum class Mode { INDEX, MASK };

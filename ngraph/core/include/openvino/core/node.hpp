@@ -71,7 +71,7 @@ class Output;
 class Node;
 
 /// EvaluationContext stores and manages a context (additional parameters, values and
-/// environment) for evaluating ngraph::function.
+/// environment) for evaluating ov::Function.
 using EvaluationContext = std::map<std::string, std::shared_ptr<Variant>>;
 
 using ResultVector = std::vector<std::shared_ptr<ov::op::v0::Result>>;
@@ -132,20 +132,10 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     template <typename NodeType>
     friend class Output;
 
-public:
-    /// \brief Verifies that attributes and inputs are consistent and computes output shapes
-    /// and element types. Must be implemented by concrete child classes so that it
-    /// can be run any number of times.
-    ///
-    /// Throws if the node is invalid.
-    virtual void validate_and_infer_types();
-
-    // Called in constructors during transition
-    void constructor_validate_and_infer_types();
-
-    using type_info_t = DiscreteTypeInfo;
-
 protected:
+    descriptor::Input& get_input_descriptor(size_t position);
+    descriptor::Output& get_output_descriptor(size_t position);
+
     /// \brief Construct an unitialized Node
     Node() = default;
     /// \brief Copying a node
@@ -190,6 +180,18 @@ protected:
     void set_input_is_relevant_to_value(size_t i, bool relevant = true);
 
 public:
+    /// \brief Verifies that attributes and inputs are consistent and computes output shapes
+    /// and element types. Must be implemented by concrete child classes so that it
+    /// can be run any number of times.
+    ///
+    /// Throws if the node is invalid.
+    virtual void validate_and_infer_types();
+
+    // Called in constructors during transition
+    void constructor_validate_and_infer_types();
+
+    using type_info_t = DiscreteTypeInfo;
+
     virtual ~Node();
 
     virtual bool visit_attributes(AttributeVisitor&) {
@@ -220,7 +222,7 @@ public:
     virtual bool evaluate_upper(const ov::HostTensorVector& output_values) const;
 
     virtual bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values);
-    /// \brief Decomposes the FusedOp into a sub-graph consisting of core ngraph ops
+    /// \brief Decomposes the FusedOp into a sub-graph consisting of core openvino ops
     ///
     /// \return A vector of nodes comprising the sub-graph. The order of output
     ///         tensors must match the match output tensors of the FusedOp
@@ -377,7 +379,6 @@ public:
     std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;
     Output<Node> get_input_source_output(size_t i) const;
 
-public:
     virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const = 0;
 
     std::shared_ptr<Node> copy_with_new_inputs(const OutputVector& new_args) const;
@@ -496,15 +497,13 @@ public:
     virtual bool match_node(ov::pass::pattern::Matcher* matcher, const Output<Node>& graph_value);
 
 private:
-    descriptor::Input& get_input_descriptor(size_t position);
-    descriptor::Output& get_output_descriptor(size_t position);
-
     std::vector<Node*> m_control_dependents;
     std::vector<std::shared_ptr<Node>> m_control_dependencies;
     std::string m_node_type;
     size_t m_instance_id{m_next_instance_id.fetch_add(1)};
     std::string m_friendly_name;
-    std::string m_unique_name;
+    mutable std::string m_unique_name;
+    mutable std::atomic_bool m_name_changing{false};
     static std::atomic<size_t> m_next_instance_id;
     std::unordered_set<std::string> m_provenance_tags;
     std::set<std::shared_ptr<Node>> m_provenance_group;
@@ -514,7 +513,6 @@ private:
     std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
     OPENVINO_SUPPRESS_DEPRECATED_END
     std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
-    mutable std::mutex m_mutex;
 };
 
 using NodeTypeInfo = Node::type_info_t;
@@ -560,11 +558,11 @@ using RawNodeOutputMap = std::map<RawNodeOutput, Output<Node>>;
 
 class OPENVINO_API NodeValidationFailure : public ov::AssertFailure {
 public:
-    NodeValidationFailure(const ngraph::CheckLocInfo& check_loc_info, const Node* node, const std::string& explanation)
+    NodeValidationFailure(const ov::CheckLocInfo& check_loc_info, const Node* node, const std::string& explanation)
         : AssertFailure(check_loc_info, node_validation_failure_loc_string(node), explanation) {}
 };
 }  // namespace ov
-#define NODE_VALIDATION_CHECK(node, ...) NGRAPH_CHECK_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)
+#define NODE_VALIDATION_CHECK(node, ...) OPENVINO_ASSERT_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)
 
 namespace ov {
 template <typename T>
