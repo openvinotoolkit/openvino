@@ -39,9 +39,8 @@ void shape_infer(ExperimentalDetectronROIFeatureExtractor* op,
     if (rois_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op, rois_shape.rank().get_length() == 2, "Input rois rank must be equal to 2.");
 
-        auto input_rois_last_dim_intersection_with_4 = rois_shape[1] & DimensionType(4);
         NODE_VALIDATION_CHECK(op,
-                              !input_rois_last_dim_intersection_with_4.get_interval().empty(),
+                              rois_shape[1].compatible(4),
                               "The last dimension of the 'input_rois' input must be equal to 4. "
                               "Got: ",
                               rois_shape[1]);
@@ -53,6 +52,7 @@ void shape_infer(ExperimentalDetectronROIFeatureExtractor* op,
     // infer number_of_channels;
     // by definition, all shapes starting from input 2 must have same number_of_channels
     DimensionType channels_intersection;
+    bool channels_intersection_initialized = false;
     for (size_t i = 1; i < input_shapes.size(); i++) {
         auto& current_shape = input_shapes[i];
         auto current_rank = current_shape.rank();
@@ -63,20 +63,23 @@ void shape_infer(ExperimentalDetectronROIFeatureExtractor* op,
                                   "Rank of each element of the pyramid must be equal to 4. Got: ",
                                   current_rank);
 
-            auto first_dim_intersection_with_1 = current_shape[0] & DimensionType(1);
             NODE_VALIDATION_CHECK(op,
-                                  !first_dim_intersection_with_1.get_interval().empty(),
+                                  current_shape[0].compatible(1),
                                   "The first dimension of each pyramid element must be equal to 1. "
                                   "Got: ",
                                   current_shape[0]);
 
-            channels_intersection &= current_shape[1];
+            if (channels_intersection_initialized) {
+                NODE_VALIDATION_CHECK(
+                    op,
+                    DimensionType::merge(channels_intersection, channels_intersection, current_shape[1]),
+                    "The number of channels must be the same for all layers of the pyramid.");
+            } else {
+                channels_intersection = current_shape[1];
+                channels_intersection_initialized = true;
+            }
         }
     }
-
-    NODE_VALIDATION_CHECK(op,
-                          !channels_intersection.get_interval().empty(),
-                          "The number of channels must be the same for all layers of the pyramid.");
 
     out_shape[1] = channels_intersection;
 }

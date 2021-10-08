@@ -42,7 +42,7 @@ TEST(StaticShapeInferenceTest, ConvolutionTest) {
 }
 
 
-TEST(StaticShapeInferenceTest, ExperimentalDetectronROIFeatureExtractorTestDynamic) {
+TEST(StaticShapeInferenceTest, ExperimentalDetectronROIFeatureExtractorTest) {
     using namespace op::v0;
     using namespace op::v6;
 
@@ -74,42 +74,21 @@ TEST(StaticShapeInferenceTest, ExperimentalDetectronROIFeatureExtractorTestDynam
 
     EXPECT_EQ(output_shapes[0], (Shape{1000, 256, 14, 14}));
     EXPECT_EQ(output_shapes[1], (Shape{1000, 4}));
-}
 
-TEST(StaticShapeInferenceTest, ExperimentalDetectronROIFeatureExtractorTestStatic) {
-    using namespace op::v0;
-    using namespace op::v6;
 
-    ExperimentalDetectronROIFeatureExtractor::Attributes attrs;
-    attrs.aligned = false;
-    attrs.output_size = 14;
-    attrs.sampling_ratio = 2;
-    attrs.pyramid_scales = {4, 8, 16, 32};
-
-    auto input = std::make_shared<Parameter>(element::f32, PartialShape{-1, -1});
-    auto pyramid_layer0 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
-    auto pyramid_layer1 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
-    auto pyramid_layer2 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
-    auto pyramid_layer3 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
-
-    auto roi = std::make_shared<ExperimentalDetectronROIFeatureExtractor>(
-        NodeVector{input, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3},
-        attrs);
-
-    std::vector<StaticShape> input_shapes = {StaticShape{1000, 4},
+    std::vector<StaticShape> input_shapes2 = {StaticShape{1000, 4},
                                               StaticShape{1, 256, 200, 336},
                                               StaticShape{1, 256, 100, 168},
                                               StaticShape{1, 256, 50, 84},
                                               StaticShape{1, 256, 25, 42}};
-    std::vector<StaticShape> output_shapes = {StaticShape{}, StaticShape{}};
-    shape_infer(roi.get(), input_shapes, output_shapes);
+    std::vector<StaticShape> output_shapes2 = {StaticShape{}, StaticShape{}};
+    shape_infer(roi.get(), input_shapes2, output_shapes2);
 
     ASSERT_EQ(roi->get_output_element_type(0), element::f32);
 
-    EXPECT_EQ(output_shapes[0], (Shape{1000, 256, 14, 14}));
-    EXPECT_EQ(output_shapes[1], (Shape{1000, 4}));
+    EXPECT_EQ(output_shapes2[0], (Shape{1000, 256, 14, 14}));
+    EXPECT_EQ(output_shapes2[1], (Shape{1000, 4}));
 }
-
 
 #if 0
 TEST(StaticShapeInferenceTest, ConvolutionTimeTest) {
