@@ -277,7 +277,7 @@ void GNAPropagateMatcher :: match() {
 
 
         StrictMock<GNACppApi> mockApi;
-        std::vector<uint8_t> data;
+        std::vector<std::vector<uint8_t>> data;
 
         if (_env.config[GNA_CONFIG_KEY(DEVICE_MODE)].compare(GNA_CONFIG_VALUE(SW_FP32)) != 0 &&
             !_env.matchThrows) {
@@ -310,9 +310,9 @@ void GNAPropagateMatcher :: match() {
                 uint32_t *sizeGranted,
                 void **memoryAddress
                 ) {
-                data.resize(sizeRequested);
+                data.push_back(std::vector<uint8_t>(sizeRequested));
                 *sizeGranted = sizeRequested;
-                *memoryAddress = &data.front();
+                *memoryAddress = data.back().data();
                 return Gna2StatusSuccess;
             }));
 
@@ -500,7 +500,7 @@ void GNAPluginCreationMatcher :: match() {
 void GNAPluginAOTMatcher :: match() {
     // matching gna_propagate forward call.
     MockICNNNetwork net;
-    
+
     size_t weightsSize = 656384;
     auto weights = make_shared_blob<uint8_t >({ Precision::U8, {weightsSize}, Layout::C });
     weights->allocate();
@@ -732,7 +732,7 @@ void GNAQueryStateMatcher :: match() {
         auto weights = make_shared_blob<uint8_t>({ Precision::U8, {weightsSize}, Layout::C });
         weights->allocate();
         fillWeights(weights);
-        
+
         InferenceEngine::Core core;
         InferenceEngine::CNNNetwork network;
         ASSERT_NO_THROW_IE_EXCEPTION(network = core.ReadNetwork(_env.model, weights));
@@ -762,8 +762,9 @@ void GNAQueryStateMatcher :: match() {
     EXPECT_CALL(mockApi, GNAFree(_)).WillOnce(Return(GNA_NOERROR));
     EXPECT_CALL(mockApi, GNADeviceClose(_)).WillOnce(Return(GNA_NOERROR));
 #else
-    EXPECT_CALL(mockApi, Gna2MemoryAlloc(_, _, _)).
-        WillRepeatedly(DoAll(SetArgPointee<1>(10000), SetArgPointee<2>(&data.front()), Return(Gna2StatusSuccess)));
+    EXPECT_CALL(mockApi, Gna2MemoryAlloc(_, _, _)).Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(10000), SetArgPointee<2>(&data.front()), Return(Gna2StatusSuccess)));
+
     EXPECT_CALL(mockApi, Gna2DeviceGetVersion(_,_)).WillOnce(Invoke([](
         uint32_t deviceIndex,
         enum Gna2DeviceVersion * deviceVersion) {
@@ -777,7 +778,7 @@ void GNAQueryStateMatcher :: match() {
 
     EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).WillOnce(Return(Gna2StatusSuccess));
 
-    EXPECT_CALL(mockApi, Gna2MemoryFree(_)).WillRepeatedly(Return(Gna2StatusSuccess));
+    EXPECT_CALL(mockApi, Gna2MemoryFree(_)).Times(AtLeast(1)).WillRepeatedly(Return(Gna2StatusSuccess));
 
     EXPECT_CALL(mockApi, Gna2DeviceClose(_)).WillOnce(Return(Gna2StatusSuccess));
 
