@@ -27,11 +27,10 @@ def test_init_with_ngraph(ov_type, numpy_dtype):
     ov_tensors = []
     ov_tensors.append(Tensor(type=ov_type, shape=ng.impl.Shape([1, 3, 32, 32])))
     ov_tensors.append(Tensor(type=ov_type, shape=[1, 3, 32, 32]))
-    for ov_tensor in ov_tensors:
-        assert list(ov_tensor.shape) == [1, 3, 32, 32]
-        assert ov_tensor.element_type == ov_type
-        assert ov_tensor.data.dtype == numpy_dtype
-        assert ov_tensor.data.shape == (1, 3, 32, 32)
+    assert np.all([list(ov_tensor.shape) == [1, 3, 32, 32] for ov_tensor in ov_tensors])
+    assert np.all(ov_tensor.element_type == ov_type for ov_tensor in ov_tensors)
+    assert np.all(ov_tensor.data.dtype == numpy_dtype for ov_tensor in ov_tensors)
+    assert np.all(ov_tensor.data.shape == (1, 3, 32, 32) for ov_tensor in ov_tensors)
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
@@ -61,13 +60,11 @@ def test_init_with_numpy(ov_type, numpy_dtype):
     ov_tensors.append(Tensor(ones_arr, ones_arr.strides))
     ov_tensors.append(Tensor(dtype=numpy_dtype, shape=ov_shape))
     ov_tensors.append(Tensor(dtype=np.dtype(numpy_dtype), shape=ov_shape))
-    for ov_tensor in ov_tensors:
-        assert tuple(ov_tensor.shape) == shape
-        assert ov_tensor.element_type == ov_type
-        assert isinstance(ov_tensor.data, np.ndarray)
-        assert ov_tensor.data.dtype == numpy_dtype
-        assert ov_tensor.data.shape == shape
-
+    assert np.all(tuple(ov_tensor.shape) == shape for ov_tensor in ov_tensors)
+    assert np.all(ov_tensor.element_type == ov_type for ov_tensor in ov_tensors)
+    assert np.all(isinstance(ov_tensor.data, np.ndarray) for ov_tensor in ov_tensors)
+    assert np.all(ov_tensor.data.dtype == numpy_dtype for ov_tensor in ov_tensors)
+    assert np.all(ov_tensor.data.shape == shape for ov_tensor in ov_tensors)
     assert np.shares_memory(ones_arr, ones_ov_tensor.data)
     assert np.array_equal(ones_ov_tensor.data, ones_arr)
 
