@@ -269,9 +269,9 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
         using namespace ov::preprocess;
         PrePostProcessor prepost;
 
-        auto iv_version_impl = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second);
-        OPENVINO_ASSERT(iv_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
-        const int64_t ir_version = iv_version_impl->get();
+        auto ir_version_impl = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second);
+        OPENVINO_ASSERT(ir_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
+        const int64_t ir_version = ir_version_impl->get();
 
         if (ir_version == 10 && newAPI) {
             const auto inputs = function->inputs();
@@ -285,14 +285,24 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                                                   .convert_element_type(ngraph_type)));
             }
 
-            std::vector<std::string> result_names;
-            std::vector<ov::Output<ov::Node>> prevPorts;
-            result_names.reserve(function->get_results().size());
-            prevPorts.reserve(function->get_results().size());
-            for (const auto& result : function->get_results()) {
-                result_names.emplace_back(ngraph::op::util::create_ie_output_name(result->input_value(0)));
-                prevPorts.emplace_back(result->input_value(0));
+            // TODO: Do we need to provide an access to ov::Function via operation names?
+            {
+                // Change tensor names for inputs/outputs for cases with old IR
+                std::vector<std::string> result_names;
+                std::vector<ov::Output<ov::Node>> prevPorts;
+                result_names.reserve(function->get_results().size());
+                prevPorts.reserve(function->get_results().size());
+
+                for (const auto& result : function->get_results()) {
+                    result_names.emplace_back(ngraph::op::util::create_ie_output_name(result->input_value(0)));
+                    result->output(0).get_tensor().add_names({result_names.back()});
+                    prevPorts.emplace_back(result->input_value(0));
+                }
+                for (const auto& param : function->get_parameters()) {
+                    param->output(0).get_tensor().add_names({param->get_friendly_name()});
+                }
             }
+
             const auto outputs = function->outputs();
             for (size_t i = 0; i < outputs.size(); ++i) {
                 const auto ngraph_type = outputs[i].get_element_type();
@@ -305,20 +315,19 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
 
             function = prepost.build(function);
             // Change tensor names for inputs/outputs for cases with old IR
-            for (const auto& param : function->get_parameters()) {
-                param->output(0).get_tensor().add_names({param->get_friendly_name()});
-            }
-            OPENVINO_ASSERT(function->get_results().size() == result_names.size());
-            for (size_t i = 0; i < function->get_results().size(); i++) {
-                const auto& result = function->get_results()[i];
-                result->output(0).get_tensor().add_names({result_names[i]});
-                // FIXME: WA to fix CNNNetwork output name
-                if (prevPorts[i].get_node() != result->input_value(0).get_node()) {
-                    result->input_value(0).get_node()->set_friendly_name(prevPorts[i].get_node()->get_friendly_name());
-                    prevPorts[i].get_node()->set_friendly_name("op_original_" +
-                                                               prevPorts[i].get_node()->get_friendly_name());
-                }
-            }
+            // for (const auto& param : function->get_parameters()) {
+            //     param->output(0).get_tensor().add_names({param->get_friendly_name()});
+            // }
+            // for (size_t i = 0; i < function->get_results().size(); i++) {
+            //     const auto& result = function->get_results()[i];
+            //     result->output(0).get_tensor().add_names({result_names[i]});
+            //     // FIXME: WA to fix CNNNetwork output name
+            //     if (prevPorts[i].get_node() != result->input_value(0).get_node()) {
+            //         result->input_value(0).get_node()->set_friendly_name(prevPorts[i].get_node()->get_friendly_name());
+            //         prevPorts[i].get_node()->set_friendly_name("op_original_" +
+            //                                                    prevPorts[i].get_node()->get_friendly_name());
+            //     }
+            // }
 
             // Set version to 10
             rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);

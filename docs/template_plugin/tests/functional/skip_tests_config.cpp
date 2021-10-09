@@ -19,5 +19,13 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-51758
         R"(.*InferRequestPreprocessConversionTest.*oLT=(NHWC|NCHW).*)",
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*)",
+
+        // TODO: execution graph is not supported
+        R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
+
+        // Multi / Auto don't support Import / Export
+        R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*importExportedNetwork.*)",
+        R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*importExportedIENetwork.*)",
+        R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
     };
 }

@@ -14,6 +14,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_set>
 
 #include "blob_factory.hpp"
 #include "exec_graph_info.hpp"
@@ -24,6 +25,7 @@
 #include "ie_parameter.hpp"
 #include "openvino/core/function.hpp"
 #include "openvino/core/variant.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
 
@@ -122,13 +124,18 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     const std::map<std::string, std::string>& config,
     const std::shared_ptr<RemoteContext>& context) {
     std::shared_ptr<IExecutableNetworkInternal> impl;
+
+    // if `version` is not set, suppose it's IR v10 for old API
     auto function = std::const_pointer_cast<ov::Function>(network.getFunction());
+    std::vector<std::unordered_set<std::string>> results_names, params_names;
     if (function) {
+        // TODO: thread unsafe code
         auto& rt_info = function->get_rt_info();
         if (!rt_info.count("version") && !GetCore()->isNewAPI()) {
             rt_info["version"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(10);
         }
     }
+
     if (nullptr == context) {
         impl = LoadExeNetworkImpl(network, config);
     } else {
@@ -234,32 +241,6 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     exeNetwork->setNetworkInputs(copyInfo(constMapCast(inputs)));
     exeNetwork->setNetworkOutputs(copyInfo(constMapCast(outputs)));
 
-    ov::ParameterVector parameters;
-    ov::ResultVector results;
-    std::vector<ngraph::Output<ngraph::Node>> node_outputs;
-
-    for (auto&& input : inputs) {
-        auto tensor_desc = input.second->getTensorDesc();
-        auto dims = tensor_desc.getDims();
-        parameters.push_back(
-            std::make_shared<ov::op::v0::Parameter>(details::convertPrecision(tensor_desc.getPrecision()),
-                                                    std::vector<ov::Dimension>{dims.begin(), dims.end()}));
-        parameters.back()->set_friendly_name(input.first);
-        node_outputs.push_back(parameters.back()->output(0));
-    }
-
-    auto node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(node_outputs, outputs.size());
-
-    int i = 0;
-    for (auto&& output : outputs) {
-        auto tensor_desc = output.second->getTensorDesc();
-        auto dims = tensor_desc.getDims();
-        node->set_output_type(i,
-                              details::convertPrecision(tensor_desc.getPrecision()),
-                              std::vector<ov::Dimension>{dims.begin(), dims.end()});
-        results.push_back(std::make_shared<ngraph::op::v0::Result>(node->output(i)));
-        ++i;
-    }
     exeNetwork->SetPointerToPlugin(shared_from_this());
 }
 
@@ -271,15 +252,33 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     std::vector<std::shared_ptr<const ov::Node>> const_params;
     std::vector<std::shared_ptr<const ov::Node>> const_results;
 
+    // we need to add operation names as tensor names for IRv10 compiled / imported from new API
+    bool add_operation_names = false;
+    auto& rt_info = function->get_rt_info();
+    const auto it = rt_info.find("version");
+    if (it != rt_info.end() && GetCore()->isNewAPI()) {
+        auto ir_version_impl = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second);
+        OPENVINO_ASSERT(ir_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
+        const int64_t ir_version = ir_version_impl->get();
+        add_operation_names = ir_version == 10;
+    }
+
     for (const auto& param : function->get_parameters()) {
         auto new_param = param->copy_with_new_inputs({});
         new_param->set_friendly_name(param->get_friendly_name());
+        if (add_operation_names)
+            new_param->output(0).get_tensor().add_names({new_param->get_friendly_name()});
         const_params.emplace_back(std::const_pointer_cast<const ov::Node>(new_param));
     }
     for (const auto& result : function->get_results()) {
         auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
                                                                   result->get_output_partial_shape(0));
+        const std::string param_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
+        fake_param->set_friendly_name(param_name);
         auto new_result = result->copy_with_new_inputs({fake_param});
+        if (add_operation_names) {
+            new_result->output(0).get_tensor().add_names({fake_param->get_friendly_name()});
+        }
         new_result->set_friendly_name(result->get_friendly_name());
         const_results.emplace_back(std::const_pointer_cast<const ov::Node>(new_result));
     }

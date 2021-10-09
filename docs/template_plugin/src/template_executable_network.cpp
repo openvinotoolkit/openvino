@@ -9,6 +9,7 @@
 #include <threading/ie_executor_manager.hpp>
 
 #include "ie_icore.hpp"
+#include "openvino/core/except.hpp"
 #include "template/template_config.hpp"
 #include "template_itt.hpp"
 #include "template_plugin.hpp"
@@ -66,16 +67,40 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
         model.read(dataBlob->buffer(), dataSize);
     }
 
-    // TODO: implement Import / Export of configuration options and merge with `cfg`
-    // TODO: implement Import / Export of network precisions, layouts, preprocessing info
-    InferenceEngine::InputsDataMap inputInfoMap;
-    InferenceEngine::OutputsDataMap outputInfoMap;
-
     auto cnnnetwork = _plugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
 
-    setNetworkInputs(cnnnetwork.getInputsInfo());
-    setNetworkOutputs(cnnnetwork.getOutputsInfo());
+    // TODO: implement Import / Export of configuration options and merge with `cfg`
+    // TODO: implement Import / Export of network precisions, layouts, preprocessing info
+    InferenceEngine::InputsDataMap inputInfoMap = cnnnetwork.getInputsInfo();
+    InferenceEngine::OutputsDataMap outputInfoMap = cnnnetwork.getOutputsInfo();
+
+    setNetworkInputs(inputInfoMap);
+    setNetworkOutputs(outputInfoMap);
     SetPointerToPlugin(_plugin->shared_from_this());
+
+    {
+        auto function = cnnnetwork.getFunction();
+        OPENVINO_ASSERT(function != nullptr);
+
+        std::vector<std::shared_ptr<const ov::Node>> const_params;
+        std::vector<std::shared_ptr<const ov::Node>> const_results;
+
+        for (const auto& param : function->get_parameters()) {
+            auto new_param = param->copy_with_new_inputs({});
+            new_param->set_friendly_name(param->get_friendly_name());
+            const_params.emplace_back(std::const_pointer_cast<const ov::Node>(new_param));
+        }
+        for (const auto& result : function->get_results()) {
+            auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
+                                                                    result->get_output_partial_shape(0));
+            auto new_result = result->copy_with_new_inputs({fake_param});
+            new_result->set_friendly_name(result->get_friendly_name());
+            const_results.emplace_back(std::const_pointer_cast<const ov::Node>(new_result));
+        }
+
+        setInputs(const_params);
+        setOutputs(const_results);
+    }
 
     try {
         CompileNetwork(cnnnetwork.getFunction(), inputInfoMap, outputInfoMap);
