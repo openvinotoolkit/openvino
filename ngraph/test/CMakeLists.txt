@@ -39,6 +39,7 @@ set(SRC
     eval.cpp
     file_util.cpp
     float16.cpp
+    framework_node.cpp
     function.cpp
     graph_rewrite.cpp
     includes.cpp
@@ -268,6 +269,7 @@ set(SRC
     visitors/op/convert.cpp
     visitors/op/convert_color_nv12.cpp
     visitors/op/convolution_backprop.cpp
+    visitors/op/convolution.cpp
     visitors/op/cos.cpp
     visitors/op/cosh.cpp
     visitors/op/ctc_loss.cpp
@@ -448,7 +450,6 @@ set(MULTI_TEST_SRC
     backend/concat.in.cpp
     backend/constant.in.cpp
     backend/convolution_backprop.in.cpp
-    backend/convolution.in.cpp
     backend/binary_convolution.in.cpp
     backend/clamp.in.cpp
     backend/ctc_greedy_decoder.in.cpp
