@@ -10,6 +10,8 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 
+#include "functional_test_utils/plugin_cache.hpp"
+
 namespace ov {
 namespace test {
 namespace behavior {
@@ -33,15 +35,15 @@ public:
 
     void SetUp() override {
         // Skip test according to plugin specific disabledTestPatterns() (if any)
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::tie(targetDevice, configuration) = this->GetParam();
-        core = ov::test::PluginCache::get().core(targetDevice);
+        core = utils::PluginCache::get().core(targetDevice);
         function = ngraph::builder::subgraph::makeConvPoolRelu();
     }
 
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().reset();
+            utils::PluginCache::get().reset();
         }
         function.reset();
     }
