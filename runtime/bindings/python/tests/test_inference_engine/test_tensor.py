@@ -26,7 +26,7 @@ import ngraph as ng
 def test_init_with_ngraph(ov_type, numpy_dtype):
     ov_tensors = []
     ov_tensors.append(Tensor(type=ov_type, shape=ng.impl.Shape([1, 3, 32, 32])))
-    ov_tensors.append(Tensor(type=ov_type, shape = [1, 3, 32, 32]))
+    ov_tensors.append(Tensor(type=ov_type, shape=[1, 3, 32, 32]))
     for ov_tensor in ov_tensors:
         assert list(ov_tensor.shape) == [1, 3, 32, 32]
         assert ov_tensor.element_type == ov_type
@@ -142,7 +142,7 @@ def test_set_shape(ov_type, numpy_dtype):
     assert np.array_equal(ov_tensor.data, zeros)
 
 
-@pytest.mark.parametrize("ref_shape",[
+@pytest.mark.parametrize("ref_shape", [
     [1, 3, 24, 24],
     [1, 3, 32, 32],
     [1, 3, 48, 48],
