@@ -474,9 +474,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
     _ir_version = GetIntAttr(heteroNode, "ir_version", -1);
     const bool add_operation_names = _ir_version == 10 && heteroPlugin->GetCore()->isNewAPI();
 
-    std::cout << (add_operation_names ? "add add_operation_names" :
-                                        "not add add_operation_names") << std::endl;
-
     std::unordered_set<std::string> networkInputs;
     pugi::xml_node inputsNode = heteroNode.child("inputs");
     FOREACH_CHILD(inputNode, inputsNode, "input")  {
@@ -598,7 +595,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         // add operation names as tensor names
         if (add_operation_names) {
             // TODO: think of collisions
-            std::cout << "add " << operation_name << std::endl;
             tensorNames.insert(operation_name);
         }
 
@@ -610,6 +606,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
 
         return ngraphNode;
     };
+    (void)parseNgraphNode;
 
     pugi::xml_node parametersNode = heteroNode.child("parameters");
     FOREACH_CHILD(parameterNode, parametersNode, "parameter") {

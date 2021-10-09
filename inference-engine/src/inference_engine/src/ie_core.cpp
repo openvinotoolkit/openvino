@@ -1359,7 +1359,7 @@ ExecutableNetwork Core::import_model(std::istream& modelStream,
                 auto param = std::make_shared<ov::op::v0::Parameter>(
                     convertPrecision(input.second->getPrecision()),
                     ov::PartialShape(input.second->getTensorDesc().getDims()));
-                param->set_friendly_name(input.first);
+                param->get_output_tensor(0).add_names({input.first});
                 params.emplace_back(std::move(param));
             }
 
@@ -1377,11 +1377,18 @@ ExecutableNetwork Core::import_model(std::istream& modelStream,
                     convertPrecision(output.second->getPrecision()),
                     ov::PartialShape(output.second->getTensorDesc().getDims()));
                 auto result = std::make_shared<ov::op::v0::Result>(fake_param);
-                result->set_friendly_name(output.first);
+                result->get_output_tensor(0).add_names({output.first});
                 results.emplace_back(std::move(result));
             }
             exec->setOutputs(results);
         }
+
+        // but for true support plugins need:
+        // 0. store ir_version in the compiled_blob
+        // 1. ensure order or paramaters and results as in ov::Function
+        // 2. provide tensor names for inputs and outputs
+        // 3. for cases when import_model is done from new API, need to add operation names
+        //    for ir_version == 10.
 
         return {exec._so, exec._ptr};
     });
