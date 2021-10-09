@@ -314,12 +314,12 @@ TEST_P(OVExecNetwork, readFromV10IR) {
 </net>
 )V0G0N";
     function = ie->read_model(model, InferenceEngine::Blob::Ptr());
-    ov::runtime::ExecutableNetwork execNet;
     EXPECT_EQ(function->inputs().size(), 1);
     EXPECT_EQ(function->outputs().size(), 1);
     EXPECT_NO_THROW(function->input("in1"));
     EXPECT_NO_THROW(function->output("round"));
-    EXPECT_NO_THROW(execNet = ie->compile_model(function, targetDevice, configuration));
+
+    ov::runtime::ExecutableNetwork execNet = ie->compile_model(function, targetDevice, configuration);
     EXPECT_EQ(execNet.inputs().size(), 1);
     EXPECT_EQ(execNet.outputs().size(), 1);
     EXPECT_NO_THROW(execNet.input("in1"));

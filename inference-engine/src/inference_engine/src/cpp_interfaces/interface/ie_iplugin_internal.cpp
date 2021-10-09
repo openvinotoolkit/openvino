@@ -260,7 +260,7 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
         auto ir_version_impl = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second);
         OPENVINO_ASSERT(ir_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
         const int64_t ir_version = ir_version_impl->get();
-        add_operation_names = ir_version == 10;
+        add_operation_names = ir_version == 10 && GetCore()->isNewAPI();
     }
 
     for (const auto& param : function->get_parameters()) {

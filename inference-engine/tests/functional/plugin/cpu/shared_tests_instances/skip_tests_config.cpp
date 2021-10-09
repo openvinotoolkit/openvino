@@ -96,6 +96,12 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*importExportedNetwork.*)",
         R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*importExportedIENetwork.*)",
         R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*type=(i8|u32).*)",
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*type=f16.*)",
+        R"(.*smoke_Hetero_BehaviorTests/OVExecNetwork.*type=i8.*)",
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*importExportedNetwork.*)",
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*importExportedIENetwork.*)",
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
 
         // CPU does not support dynamic rank
         // Issue: CVS-66778
