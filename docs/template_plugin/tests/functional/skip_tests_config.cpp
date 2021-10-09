@@ -21,11 +21,14 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*)",
 
         // TODO: execution graph is not supported
-        R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
+        R"(.*ExecGraph.*)",
 
         // Multi / Auto don't support Import / Export
         R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*importExportedNetwork.*)",
         R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*importExportedIENetwork.*)",
         R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
+
+        // TODO: Round with f16 is not supported
+        // R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
     };
 }

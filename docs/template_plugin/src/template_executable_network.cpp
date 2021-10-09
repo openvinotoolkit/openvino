@@ -92,7 +92,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
         }
         for (const auto& result : function->get_results()) {
             auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
-                                                                    result->get_output_partial_shape(0));
+                                                                      result->get_output_partial_shape(0));
             auto new_result = result->copy_with_new_inputs({fake_param});
             new_result->set_friendly_name(result->get_friendly_name());
             const_results.emplace_back(std::const_pointer_cast<const ov::Node>(new_result));

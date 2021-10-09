@@ -1388,7 +1388,8 @@ ExecutableNetwork Core::import_model(std::istream& modelStream,
         // 1. ensure order or paramaters and results as in ov::Function
         // 2. provide tensor names for inputs and outputs
         // 3. for cases when import_model is done from new API, need to add operation names
-        //    for ir_version == 10.
+        //    to tensor_names for ir_version == 10.
+        // 4. precisions for getInputs and getOutputs should be taken from GetInputsInfo / GetOutputsInfo
 
         return {exec._so, exec._ptr};
     });
