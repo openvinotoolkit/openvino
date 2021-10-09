@@ -3,15 +3,16 @@
 //
 
 #include <openvino/op/experimental_detectron_prior_grid_generator.hpp>
-#include "shape_infer_utils.hpp"
-
 
 namespace ov {
 namespace op {
 namespace v6 {
 
-template<class T>
-void shape_infer(ExperimentalDetectronPriorGridGenerator* op, const std::vector<T> &input_shapes, std::vector<T> &output_shapes) {
+template <class T>
+void shape_infer(ExperimentalDetectronPriorGridGenerator* op,
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 1);
     auto priors_shape = input_shapes[0];
     auto featmap_shape = input_shapes[1];
     auto im_data_shape = input_shapes[2];
@@ -39,10 +40,9 @@ void shape_infer(ExperimentalDetectronPriorGridGenerator* op, const std::vector<
 
     const auto num_batches_featmap = featmap_shape[0];
     const auto num_batches_im_data = im_data_shape[0];
-    
 
     NODE_VALIDATION_CHECK(op,
-                          dims_are_equal(num_batches_featmap, num_batches_im_data),
+                          num_batches_featmap.compatible(num_batches_im_data),
                           "The first dimension of both 'feature_map' and 'im_data' must match. "
                           "Feature_map: ",
                           num_batches_featmap,
@@ -50,10 +50,9 @@ void shape_infer(ExperimentalDetectronPriorGridGenerator* op, const std::vector<
                           num_batches_im_data);
 
     auto& output_shape = output_shapes[0];
-    output_shape.resize(4);
-    if (op->m_attrs.flatten) {
-        output_shape.resize(2);
-    }
+    size_t output_size = op->m_attrs.flatten ? 2 : 4;
+
+    output_shape.resize(output_size);
     output_shape[output_shape.size() - 1] = 4;
 
     if (priors_shape.rank().is_dynamic() || featmap_shape.rank().is_dynamic()) {
@@ -75,6 +74,6 @@ void shape_infer(ExperimentalDetectronPriorGridGenerator* op, const std::vector<
     }
 }
 
-}
-}
-}
+}  // namespace v6
+}  // namespace op
+}  // namespace ov

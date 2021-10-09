@@ -58,13 +58,13 @@ TEST(StaticShapeInferenceTest, PriorGridGenerator) {
 
     std::vector<PartialShape> input_shapes = {PartialShape{3, 4}, PartialShape{1, 256, 200, 336},
                                               PartialShape{1, 3, 800, 1344}},
-                                              output_shapes = {PartialShape{}};
+                              output_shapes = {PartialShape{}};
     shape_infer(grid_gen.get(), input_shapes, output_shapes);
     ASSERT_EQ(output_shapes[0], PartialShape({200, 336, 3, 4}));
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 4}, StaticShape{1, 256, 200, 336},
                                                     StaticShape{1, 3, 800, 1344}},
-                                                    static_output_shapes = {StaticShape{}};
+                             static_output_shapes = {StaticShape{}};
     shape_infer(grid_gen.get(), static_input_shapes, static_output_shapes);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({200, 336, 3, 4}));
