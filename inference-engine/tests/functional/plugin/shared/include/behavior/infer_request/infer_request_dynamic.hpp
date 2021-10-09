@@ -69,17 +69,17 @@ protected:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(function, inOutShapes, targetDevice, configuration) = this->GetParam();
-        ie = ov::test::PluginCache::get().core(targetDevice);
+        ie = ov::test::utils::PluginCache::get().core(targetDevice);
     }
 
     void TearDown() override {
         if (!configuration.empty()) {
-            ov::test::PluginCache::get().reset();
+            ov::test::utils::PluginCache::get().reset();
         }
         function.reset();
     }
 
-    std::shared_ptr<ov::runtime::Core> ie = ov::test::PluginCache::get().core();
+    std::shared_ptr<ov::runtime::Core> ie = ov::test::utils::PluginCache::get().core();
     std::shared_ptr<ov::Function> function;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
