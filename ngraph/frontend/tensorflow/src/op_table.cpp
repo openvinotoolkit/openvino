@@ -26,6 +26,7 @@ OP_CONVERTER(TranslateArgMaxOp);
 OP_CONVERTER(TranslateArgMinOp);
 OP_CONVERTER(TranslateAvgPoolOp);
 OP_CONVERTER(TranslateBiasAddOp);
+OP_CONVERTER(TranslateBatchNDAndSpaceNDOp);
 OP_CONVERTER(TranslateCastOp);
 OP_CONVERTER(TranslateConcatOp);
 OP_CONVERTER(TranslateConstOp);
@@ -46,6 +47,7 @@ OP_CONVERTER(TranslateGatherNdOp);
 OP_CONVERTER(TranslateFusedConv2DOp);
 OP_CONVERTER(TranslateFusedMatMulOp);
 OP_CONVERTER(TranslateIdentityOp);
+OP_CONVERTER(TranslateInterpolateOp);
 OP_CONVERTER(TranslateIsFiniteOp);
 OP_CONVERTER(TranslateL2LossOp);
 OP_CONVERTER(TranslateLogSoftmaxOp);
@@ -53,7 +55,7 @@ OP_CONVERTER(TranslateLog1pOp);
 OP_CONVERTER(TranslateLRNOp);
 OP_CONVERTER(TranslateMatMulOp);
 OP_CONVERTER(TranslateMaxPoolOp);
-OP_CONVERTER(TranslateNonMaxSuppressionV2Op);
+OP_CONVERTER(TranslateNonMaxSuppressionOp);
 OP_CONVERTER(TranslatePadOp);
 OP_CONVERTER(PlaceholderOp);
 OP_CONVERTER(NoOp);
@@ -152,6 +154,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"ArgMax", TranslateArgMaxOp},
         {"ArgMin", TranslateArgMinOp},
         {"AvgPool", TranslateAvgPoolOp},
+        {"BatchToSpaceND", TranslateBatchNDAndSpaceNDOp},
         {"BiasAdd", TranslateBiasAddOp},
         {"Cast", TranslateCastOp},
         {"Concat", TranslateConcatOp},
@@ -183,6 +186,11 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"MaxPool", TranslateMaxPoolOp},
         {"MaxPool3D", TranslateMaxPoolOp},
         {"MirrorPad", TranslatePadOp},
+        {"NonMaxSuppression", TranslateNonMaxSuppressionOp},
+        {"NonMaxSuppressionV2", TranslateNonMaxSuppressionOp},
+        {"NonMaxSuppressionV3", TranslateNonMaxSuppressionOp},
+        {"NonMaxSuppressionV4", TranslateNonMaxSuppressionOp},
+        {"NonMaxSuppressionV5", TranslateNonMaxSuppressionOp},
         {"NoOp", NoOp},  // do nothing
         {"OneHot", TranslateOneHotOp},
         {"Pack", TranslatePackOp},
@@ -199,6 +207,8 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"_Retval", RetvalOp},
         {"Reverse", TranslateReverseOp},
         {"ReverseV2", TranslateReverseOp},
+        {"ResizeBilinear", TranslateInterpolateOp},
+        {"ResizeNearestNeighbor", TranslateInterpolateOp},
         {"Roll", TranslateRollOp},
         {"Round", TranslateRoundOp},
         {"Rsqrt", TranslateRsqrtOp},
@@ -215,6 +225,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Sqrt", TranslateSqrtOp},
         {"Square", TranslateSquareOp},
         {"Squeeze", TranslateSqueezeOp},
+        {"SpaceToBatchND", TranslateBatchNDAndSpaceNDOp},
         {"StridedSlice", TranslateStridedSliceOp},
         {"Tile", TranslateTileOp},
         {"TopKV2", TranslateTopKV2Op},
@@ -229,13 +240,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"_FusedBatchNormEx", TranslateFusedBatchNormOp},
         // {"_FusedDepthwiseConv2dNative", TranslateFusedDepthwiseConv2dNativeOp},
         // {"FakeQuantWithMinMaxVars", TranslateFakeQuantWithMinMaxVarsOp},
-        // {"SpaceToBatchND", TranslateBatchNDAndSpaceNDOp},
-        // {"BatchToSpaceND", TranslateBatchNDAndSpaceNDOp},
         // {"CropAndResize", TranslateCropAndResizeOp},
-        // {"NonMaxSuppressionV2", TranslateNonMaxSuppressionV2Op},
-        // {"NonMaxSuppressionV3", TranslateNonMaxSuppressionV3Op},
-        // {"ResizeBilinear", TranslateResizeBilinearOp},
-        // {"ResizeNearestNeighbor", TranslateResizeNearestNeighborOp},
         // {"_Arg", ArgOp}, // should be registered as an extension in OVTF
     };
 };

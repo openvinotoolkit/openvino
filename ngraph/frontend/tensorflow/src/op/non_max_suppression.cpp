@@ -8,67 +8,75 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-#if 0
 
 namespace ngraph {
 namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateNonMaxSuppressionV2Op(
-    const NodeContext& node) {
-  Output<Node> ng_boxes, ng_scores, ng_unused, ng_iou_threshold;
-  TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, ng_boxes, ng_scores,
-                                   ng_unused, ng_iou_threshold));
+OutputVector TranslateNonMaxSuppressionOp(const NodeContext& node) {
+    auto boxes = node.get_ng_input(0);
+    auto scores = node.get_ng_input(1);
+    auto max_output_size = node.get_ng_input(2);
+    auto iou_threshold = node.get_ng_input(3);
 
-  auto ng_axis_boxes = ConstructNgNode<Constant>(
-      node.get_name(), element::i64, Shape{1}, std::vector<int64_t>({0}));
-  auto ng_boxes_unsqueezed =
-      ConstructNgNode<Unsqueeze>(node.get_name(), ng_boxes, ng_axis_boxes);
+    auto axis = make_shared<Constant>(element::i64, Shape{1}, 0);
+    auto boxes_unsqueezed = make_shared<Unsqueeze>(boxes, axis);
 
-  auto ng_axis_scores = ConstructNgNode<Constant>(
-      node.get_name(), element::i64, Shape{1}, std::vector<int64_t>({0}));
-  auto ng_scores_unsqueezed1 =
-      ConstructNgNode<Unsqueeze>(node.get_name(), ng_scores, ng_axis_scores);
-  auto ng_scores_unsqueezed2 = ConstructNgNode<Unsqueeze>(
-      node.get_name(), ng_scores_unsqueezed1, ng_axis_scores);
+    auto axis_scores = make_shared<Constant>(element::i64, Shape{2}, vector<int64_t>{0, 1});
+    auto scores_unsqueezed = make_shared<Unsqueeze>(scores, axis_scores);
 
-  std::vector<int> max_output_size;
-  TF_RETURN_IF_ERROR(
-      GetStaticInputVector(ng_op_map, op, 2, static_input_map, &max_output_size));
-
-  // max_output_size must be scalar
-  if (max_output_size.size() != 1) {
-    return errors::InvalidArgument(
-        "NonMaxSuppression Op: max_output_size of nms must be scalar " +
-        to_string(max_output_size.size()));
-  }
-
-  auto ng_max_output_size = ConstructNgNode<Constant>(
-      node.get_name(), element::i64, Shape{}, max_output_size[0]);
-  NGRAPH_VLOG(5) << "ng_max_output_size " << max_output_size[0];
-
-  auto ng_nmsv = ConstructNgNode<NonMaxSuppression>(
-      node.get_name(), ng_boxes_unsqueezed, ng_scores_unsqueezed2,
-      ng_max_output_size, ng_iou_threshold,
-      NonMaxSuppression::BoxEncodingType::CORNER, false,
-      ngraph::element::Type_t::i32);
-
-  auto begin = ConstructNgNode<Constant>(
-      node.get_name(), element::i64, Shape{2}, std::vector<int64_t>({0, 2}));
-  auto end = ConstructNgNode<Constant>(
-      node.get_name(), element::i64, Shape{2},
-      std::vector<int64_t>({max_output_size[0], 3}));
-  auto ng_nmsv_slice = ConstructNgNode<StridedSlice>(
-      node.get_name(), ng_nmsv, begin, end, std::vector<int64_t>{0, 0},
-      std::vector<int64_t>{0, 0}, std::vector<int64_t>{0, 0},
-      std::vector<int64_t>{0, 1});
-
-  Builder::SetTracingInfo(node.get_name(), ng_nmsv_slice);
-  SaveNgOp(ng_op_map, node.get_name(), ng_nmsv_slice);
-  return Status::OK();
+    const auto &op_type = node.get_op_type();
+    if (op_type == "NonMaxSuppressionV5") {
+        auto score_threshold = node.get_ng_input(4);
+        auto soft_nms_sigma = node.get_ng_input(5);
+        // todo: pad_to_max_output_size
+        auto nms = make_shared<NonMaxSuppression>(boxes_unsqueezed,
+                                                  scores_unsqueezed,
+                                                  max_output_size,
+                                                  iou_threshold,
+                                                  score_threshold,
+                                                  soft_nms_sigma,
+                                                  NonMaxSuppression::BoxEncodingType::CORNER,
+                                                  false,
+                                                  element::Type_t::i32);
+        return nms->outputs();
+    } else if (op_type == "NonMaxSuppressionV4") {
+        auto score_threshold = node.get_ng_input(4);
+        // todo: pad_to_max_output_size
+        auto nms = make_shared<NonMaxSuppression>(boxes_unsqueezed,
+                                                  scores_unsqueezed,
+                                                  max_output_size,
+                                                  iou_threshold,
+                                                  score_threshold,
+                                                  NonMaxSuppression::BoxEncodingType::CORNER,
+                                                  false,
+                                                  element::Type_t::i32);
+        return nms->outputs();
+    } else if (op_type == "NonMaxSuppressionV3") {
+        auto score_threshold = node.get_ng_input(4);
+        auto nms = make_shared<NonMaxSuppression>(boxes_unsqueezed,
+                                                  scores_unsqueezed,
+                                                  max_output_size,
+                                                  iou_threshold,
+                                                  score_threshold,
+                                                  NonMaxSuppression::BoxEncodingType::CORNER,
+                                                  false,
+                                                  element::Type_t::i32);
+        return {nms->output(0)};
+    } else if (op_type == "NonMaxSuppressionV2" || op_type == "NonMaxSuppression") {
+        auto nms = make_shared<NonMaxSuppression>(boxes_unsqueezed,
+                                                  scores_unsqueezed,
+                                                  max_output_size,
+                                                  iou_threshold,
+                                                  NonMaxSuppression::BoxEncodingType::CORNER,
+                                                  false,
+                                                  element::Type_t::i32);
+        return {nms->output(0)};
+    }
+    TF_OP_VALIDATION_CHECK(node, false, "No translator found.");
 }
 }
 }
-
-#endif
+}
+}

@@ -18,7 +18,7 @@ namespace op {
 
 OutputVector TranslateEluOp(const NodeContext& node) {
     auto input = node.get_ng_input(0);
-    auto alpha = 1.0;  // node.get_attribute<float>("alpha");
+    auto alpha = node.get_attribute<float>("alpha", 1.0);
     return {ConstructNgNode<Elu>(node.get_name(), input, alpha)};
 }
 }  // namespace op
