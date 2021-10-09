@@ -37,20 +37,20 @@ OutputVector TranslateBatchNDAndSpaceNDOp(const NodeContext& node) {
 
     auto N = input_pshape.rank().get_length();
     auto M = block_shape_pshape.rank().get_length();
-    auto padded_crops = make_shared<Pad>(
-            crops,
-            make_shared<Constant>(crops.get_element_type(), Shape{2}, std::vector<int64_t>{1, 0}),
-            make_shared<Constant>(crops.get_element_type(), Shape{2}, std::vector<int64_t>{N - M - 1, 0}),
-            ngraph::op::PadMode::CONSTANT);
+    auto padded_crops =
+        make_shared<Pad>(crops,
+                         make_shared<Constant>(crops.get_element_type(), Shape{2}, std::vector<int64_t>{1, 0}),
+                         make_shared<Constant>(crops.get_element_type(), Shape{2}, std::vector<int64_t>{N - M - 1, 0}),
+                         ngraph::op::PadMode::CONSTANT);
 
     // Padding needs to be done for block_shape as done for crops above but with
     // value=1
     auto padded_block_shape = make_shared<Pad>(
-            block_shape,
-            make_shared<Constant>(block_shape.get_element_type(), Shape{1}, std::vector<int64_t>{1}),
-            make_shared<Constant>(block_shape.get_element_type(), Shape{1}, std::vector<int64_t>{N - M - 1}),
-            make_shared<Constant>(block_shape.get_element_type(), Shape{}, 1),
-            ngraph::op::PadMode::CONSTANT);
+        block_shape,
+        make_shared<Constant>(block_shape.get_element_type(), Shape{1}, std::vector<int64_t>{1}),
+        make_shared<Constant>(block_shape.get_element_type(), Shape{1}, std::vector<int64_t>{N - M - 1}),
+        make_shared<Constant>(block_shape.get_element_type(), Shape{}, 1),
+        ngraph::op::PadMode::CONSTANT);
 
     auto target_axis = make_shared<Constant>(element::i64, Shape{}, 1);
     // split into two 1-D vectors crops_begin and crops_end along axis 1

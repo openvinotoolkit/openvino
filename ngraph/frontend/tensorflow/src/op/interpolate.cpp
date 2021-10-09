@@ -29,8 +29,7 @@ ngraph::OutputVector TranslateInterpolateOp(const NodeContext& node) {
 
     // todo (itikhono): do we need this .get_shape() actually?
     auto input_shape = input.get_shape();
-    std::vector<float> spatial_shape = {static_cast<float>(input_shape[1]),
-                                        static_cast<float>(input_shape[2])};
+    std::vector<float> spatial_shape = {static_cast<float>(input_shape[1]), static_cast<float>(input_shape[2])};
     auto ng_spatial_shape = make_shared<Constant>(element::f32, Shape{2}, spatial_shape);
 
     auto ng_sizes = make_shared<Convert>(input_sizes, element::f32);

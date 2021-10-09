@@ -8,7 +8,6 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-
 namespace ngraph {
 namespace frontend {
 namespace tf {
@@ -26,7 +25,7 @@ OutputVector TranslateNonMaxSuppressionOp(const NodeContext& node) {
     auto axis_scores = make_shared<Constant>(element::i64, Shape{2}, vector<int64_t>{0, 1});
     auto scores_unsqueezed = make_shared<Unsqueeze>(scores, axis_scores);
 
-    const auto &op_type = node.get_op_type();
+    const auto& op_type = node.get_op_type();
     if (op_type == "NonMaxSuppressionV5") {
         auto score_threshold = node.get_ng_input(4);
         auto soft_nms_sigma = node.get_ng_input(5);
@@ -76,7 +75,7 @@ OutputVector TranslateNonMaxSuppressionOp(const NodeContext& node) {
     }
     TF_OP_VALIDATION_CHECK(node, false, "No translator found.");
 }
-}
-}
-}
-}
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

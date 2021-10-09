@@ -18,7 +18,9 @@ OutputVector TranslateTopKV2Op(const NodeContext& node) {
     auto k = node.get_ng_input(1);
 
     TF_OP_VALIDATION_CHECK(node, input.get_partial_shape().rank().is_static(), "Input rank must be static.");
-    TF_OP_VALIDATION_CHECK(node, input.get_partial_shape().rank().get_length() >= 1, "Input rank must be greater than 0.");
+    TF_OP_VALIDATION_CHECK(node,
+                           input.get_partial_shape().rank().get_length() >= 1,
+                           "Input rank must be greater than 0.");
     // axis along which to compute top k indices
     int64_t k_axis = input.get_partial_shape().rank().get_length() - 1;
     bool sorted = node.get_attribute<bool>("sorted", true);
