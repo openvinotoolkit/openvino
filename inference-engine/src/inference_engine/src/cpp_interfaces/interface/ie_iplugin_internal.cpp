@@ -125,11 +125,12 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     const std::shared_ptr<RemoteContext>& context) {
     std::shared_ptr<IExecutableNetworkInternal> impl;
 
-    // if `version` is not set, suppose it's IR v10 for old API
+    // if IR `version` is not set, suppose it's IR v10 for old API
+    // it allows to use operation names in set_ / get_tensor instead of tensor_names
     auto function = std::const_pointer_cast<ov::Function>(network.getFunction());
     if (function && GetCore() && !GetCore()->isNewAPI()) {
-        // TODO: thread unsafe code
         auto& rt_info = function->get_rt_info();
+        // TODO: thread unsafe code
         if (!rt_info.count("version")) {
             rt_info["version"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(10);
         }
@@ -251,9 +252,12 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     std::vector<std::shared_ptr<const ov::Node>> const_params;
     std::vector<std::shared_ptr<const ov::Node>> const_results;
 
-    // we need to add operation names as tensor names for IRv10 compiled / imported from new API
+    // we need to add operation names as tensor names for IR v10 compiled / imported from new API
+    // currently, read_model already adds operations names to tensor names for such cases
+    // but probably we need to remove that place and keep adding of operation names only
+    // in creation of ov::ExecutableNetwork
     bool add_operation_names = false;
-    auto& rt_info = function->get_rt_info();
+    const auto& rt_info = function->get_rt_info();
     const auto it = rt_info.find("version");
     if (it != rt_info.end() && GetCore() && GetCore()->isNewAPI()) {
         auto ir_version_impl = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second);
@@ -267,19 +271,20 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
         new_param->set_friendly_name(param->get_friendly_name());
         if (add_operation_names)
             new_param->output(0).get_tensor().add_names({new_param->get_friendly_name()});
-        const_params.emplace_back(std::const_pointer_cast<const ov::Node>(new_param));
+        const_params.emplace_back(new_param);
     }
     for (const auto& result : function->get_results()) {
         auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
                                                                   result->get_output_partial_shape(0));
         const std::string param_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
         fake_param->set_friendly_name(param_name);
-        auto new_result = result->copy_with_new_inputs({fake_param});
         if (add_operation_names) {
-            new_result->output(0).get_tensor().add_names({fake_param->get_friendly_name()});
+            fake_param->output(0).get_tensor().add_names({fake_param->get_friendly_name()});
         }
+
+        auto new_result = result->copy_with_new_inputs({fake_param});
         new_result->set_friendly_name(result->get_friendly_name());
-        const_results.emplace_back(std::const_pointer_cast<const ov::Node>(new_result));
+        const_results.emplace_back(new_result);
     }
 
     exeNetwork->setInputs(const_params);

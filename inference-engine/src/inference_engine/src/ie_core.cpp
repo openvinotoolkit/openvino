@@ -9,8 +9,6 @@
 #include <map>
 #include <memory>
 #include <mutex>
-#include <openvino/op/parameter.hpp>
-#include <openvino/op/result.hpp>
 #include <string>
 #include <vector>
 
@@ -35,6 +33,8 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/runtime/executable_network.hpp"
 #include "openvino/util/file_util.hpp"
 #include "xml_parse_utils.h"
@@ -1385,7 +1385,7 @@ ExecutableNetwork Core::import_model(std::istream& modelStream,
 
         // but for true support plugins need:
         // 0. store ir_version in the compiled_blob
-        // 1. ensure order or paramaters and results as in ov::Function
+        // 1. ensure order or parameters and results as in ov::Function
         // 2. provide tensor names for inputs and outputs
         // 3. for cases when import_model is done from new API, need to add operation names
         //    to tensor_names for ir_version == 10.

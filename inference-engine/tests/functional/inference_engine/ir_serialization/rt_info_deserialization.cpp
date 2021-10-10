@@ -156,13 +156,10 @@ TEST_F(RTInfoDeserialization, NodeV10) {
         param->set_friendly_name("in1");
         param->get_output_tensor(0).set_names({"input_tensor", param->get_friendly_name()});
 
-        // TODO: avoid relying on internal pre-processing implementation (exact operation and exact names)
         auto convert_param = std::make_shared<opset8::Convert>(param, ngraph::element::f16);
 
         auto round = std::make_shared<opset8::Round>(convert_param,
             ngraph::opset8::Round::RoundMode::HALF_TO_EVEN);
-        // round->set_friendly_name("Round");
-        // round->get_output_tensor(0).set_names({"output_tensor/post_convert_element_type"});
 
         auto convert_result = std::make_shared<opset8::Convert>(round, type);
         convert_result->set_friendly_name("Round");
@@ -313,8 +310,6 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
 
         auto sum = std::make_shared<opset8::Add>(param, param);
         sum->set_friendly_name("sum");
-        // TODO: avoid relying on internal post-processing implementation (exact operation and exact names)
-        // sum->get_output_tensor(0).set_names({"output_tensor/post_convert_element_type"});
 
         auto convert_result = std::make_shared<opset8::Convert>(sum, ngraph::element::i32);
         convert_result->set_friendly_name("sum");
@@ -507,13 +502,6 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         ASSERT_NE(nullptr, f_10_core);
 
         check_version(f_10_core, 10);
-
-        ngraph::pass::Manager manager;
-        std::stringstream streamXml, streamBin;
-        manager.register_pass<::ngraph::pass::Serialize>(streamXml, streamBin,
-                                                       ngraph::pass::Serialize::Version::IR_V10);
-        manager.run_passes(f_10_core);
-        std::cout << streamXml.str() << std::endl;
 
         const auto fc = FunctionsComparator::with_default()
                 .enable(FunctionsComparator::ATTRIBUTES)

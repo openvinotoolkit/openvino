@@ -82,7 +82,7 @@ TEST_F(InferenceEnginePluginInternalTest, failToSetBlobWithInCorrectName) {
     IInferRequestInternal::Ptr inferRequest;
     getInferRequestWithMockImplInside(inferRequest);
     try {
-        // inferRequest->SetBlob(inputName, inBlob);
+        inferRequest->SetBlob(inputName, inBlob);
     } catch(InferenceEngine::NotFound& ex) {
         ASSERT_TRUE(std::string{ex.what()}.find(refError) != std::string::npos)
             << "\tExpected: " << refError
