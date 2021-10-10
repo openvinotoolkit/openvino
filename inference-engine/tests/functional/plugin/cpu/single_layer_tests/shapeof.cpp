@@ -3,7 +3,6 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
@@ -42,7 +41,7 @@ public:
         std::ostringstream result;
         result << "ShapeOfTest_";
         result << std::to_string(obj.index) << "_";
-        result << netPr.name() << "_";
+        result << "PR=" << netPr.name() << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
         result << CommonTestUtils::vec2str(shapes.second[0]) << "_";
         return result.str();
@@ -68,7 +67,7 @@ protected:
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(param));
         auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(paramOuts[0], ngraph::element::i32);
         shapeOf->get_rt_info() = getCPUInfo();
-        selectedType = std::string("unknown_") + inPrc.name();
+        selectedType = std::string("ref_") + inPrc.name();
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(shapeOf)};
         function = std::make_shared<ngraph::Function>(results, param, "ShapeOf");
@@ -79,7 +78,7 @@ protected:
 TEST_P(ShapeOfLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Run();
-//    CheckPluginRelatedResults(executableNetwork, "ShapeOf");
+    CheckPluginRelatedResults(executableNetwork, "ShapeOf");
 }
 
 namespace {

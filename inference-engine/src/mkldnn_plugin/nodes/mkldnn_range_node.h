@@ -18,11 +18,20 @@ public:
     void createPrimitive() override {};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
+    std::vector<VectorDims> shapeInfer() const override;
+    bool needPrepareParams() const override {return false;};
+    bool needShapeInfer() const override {return true;};
+    void prepareParams() override {};
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
     template <typename data_t>
     InferenceEngine::StatusCode rangeKernel() noexcept;
+    template <typename data_t>
+    size_t getWorkAmount(data_t *startPtr = nullptr, data_t *stopPtr = nullptr, data_t *stepPtr = nullptr) const noexcept;
+
 private:
     static const size_t RANGE_START = 0;
     static const size_t RANGE_LIMIT = 1;

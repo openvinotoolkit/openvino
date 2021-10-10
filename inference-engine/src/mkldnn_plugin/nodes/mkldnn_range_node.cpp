@@ -3,7 +3,6 @@
 //
 
 #include <string>
-
 #include <ngraph/opsets/opset1.hpp>
 #include "ie_parallel.hpp"
 #include "mkldnn_range_node.h"
@@ -14,18 +13,8 @@ using namespace InferenceEngine;
 
 bool MKLDNNRangeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         if (!MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v0::Range::type_info, ngraph::op::v4::Range::type_info)) {
             errorMessage = "Only opset1 and opset4 Range operation is supported";
-            return false;
-        }
-        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(RANGE_START)) == nullptr ||
-            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(RANGE_LIMIT)) == nullptr ||
-            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(RANGE_DELTA)) == nullptr) {
-            errorMessage = "Only const inputs for Range operation is supported";
             return false;
         }
     } catch (...) {
@@ -57,10 +46,6 @@ MKLDNNRangeNode::MKLDNNRangeNode(const std::shared_ptr<ngraph::Node>& op, const 
     SizeVector delta_dims = op->get_input_shape(RANGE_DELTA);
     if (ngraph::shape_size(delta_dims) != 1)
         IE_THROW() << errorPrefix << " has delta scalar with more than 1 value";
-
-    SizeVector dst_dims = op->get_output_shape(0);
-    if (dst_dims.size() > 1)
-        IE_THROW() << errorPrefix << " has unsupported rank for output: " << dst_dims.size();
 }
 
 void MKLDNNRangeNode::initSupportedPrimitiveDescriptors() {
@@ -95,6 +80,9 @@ void MKLDNNRangeNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNRangeNode::execute(mkldnn::stream strm) {
+    auto  dst_dims = this->getOutputShapeAtPort(0).getDims();
+    if (dst_dims.size() > 1)
+        IE_THROW() << errorPrefix << " has unsupported rank for output: " << dst_dims.size();
     StatusCode retcode = OK;
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision()) {
         case Precision::FP32:
@@ -111,30 +99,55 @@ void MKLDNNRangeNode::execute(mkldnn::stream strm) {
         IE_THROW() << errorMsg;
     }
 }
-
+template <typename data_t>
+size_t MKLDNNRangeNode::getWorkAmount(data_t *startPtr, data_t *stopPtr, data_t *stepPtr) const noexcept {
+    data_t start = 0, limit = 0, delta = 0;
+    if (startPtr == nullptr)
+        startPtr = &start;
+    if (stopPtr == nullptr)
+        stopPtr = &limit;
+    if (stepPtr == nullptr)
+        stepPtr = &delta;
+    *startPtr = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_START)->getMemoryPtr()->GetPtr())[0];
+    *stopPtr = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_LIMIT)->getMemoryPtr()->GetPtr())[0];
+    *stepPtr = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_DELTA)->getMemoryPtr()->GetPtr())[0];
+    return static_cast<size_t>(std::floor(std::abs((*stopPtr - *startPtr) / *stepPtr)));
+}
 template <typename data_t>
 InferenceEngine::StatusCode MKLDNNRangeNode::rangeKernel() noexcept {
+    data_t start = 0, delta = 0;
+    size_t work_amount_dst = getWorkAmount<data_t>(&start, nullptr, &delta);
     size_t dst_size = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims()[0];
     data_t* dst_data = reinterpret_cast<data_t *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
-    data_t start = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_START)->getMemoryPtr()->GetPtr())[0];
-    data_t limit = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_LIMIT)->getMemoryPtr()->GetPtr())[0];
-    data_t delta = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_DELTA)->getMemoryPtr()->GetPtr())[0];
-    size_t work_amount_dst = static_cast<size_t>(std::floor(std::abs((limit - start) / delta)));
     if (work_amount_dst != dst_size)
         return PARAMETER_MISMATCH;
-
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t iwork = 0, end = 0;
         splitter(work_amount_dst, nthr, ithr, iwork, end);
         data_t dst_value = start + iwork * delta;
-
         for (; iwork < end; ++iwork, dst_value += delta) {
             dst_data[iwork] = dst_value;
         }
     });
     return OK;
 }
+std::vector<VectorDims> MKLDNNRangeNode::shapeInfer() const {
+    std::vector<VectorDims> newOutputShapes(outputShapes.size());
+    size_t work_amount_dst = 0;
+    switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision()) {
+        case Precision::FP32:
+            work_amount_dst = getWorkAmount<float>();
+            break;
+        case Precision::I32:
+            work_amount_dst = getWorkAmount<int>();
+            break;
+        default:
+            IE_THROW() << "Incorrect output precision. Only FP32 and I32 are supported!";
+    }
+    newOutputShapes[0] = VectorDims {work_amount_dst};
 
+    return newOutputShapes;
+}
 bool MKLDNNRangeNode::created() const {
     return getType() == Range;
 }
