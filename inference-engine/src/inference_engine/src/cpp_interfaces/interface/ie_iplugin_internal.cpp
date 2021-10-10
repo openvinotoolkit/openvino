@@ -132,6 +132,8 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     if (function && GetCore() && !GetCore()->isNewAPI()) {
         auto& rt_info = function->get_rt_info();
         // TODO: thread unsafe code
+        // can we re-create only ov::Function and provide new rt_info?
+        // such code would be thread-safe
         if (!rt_info.count("version")) {
             rt_info["version"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(10);
         }
@@ -253,10 +255,6 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     std::vector<std::shared_ptr<const ov::Node>> const_params;
     std::vector<std::shared_ptr<const ov::Node>> const_results;
 
-    // we need to add operation names as tensor names for IR v10 compiled / imported from new API
-    // currently, read_model already adds operations names to tensor names for such cases
-    // but probably we need to remove that place and keep adding of operation names only
-    // in creation of ov::ExecutableNetwork
     bool add_operation_names = false;
     const auto& rt_info = function->get_rt_info();
     const auto it = rt_info.find("version");

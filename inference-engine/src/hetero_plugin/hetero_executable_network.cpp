@@ -606,7 +606,7 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     auto heteroNode = doc.append_child("hetero");
     heteroNode.append_attribute("name").set_value(_name.c_str());
 
-    // CNNNetwork inputs and outputs infor
+    // CNNNetwork inputs and outputs information
 
     auto inputsNode = heteroNode.append_child("inputs");
     for (auto&& networkInput : _networkInputs) {
