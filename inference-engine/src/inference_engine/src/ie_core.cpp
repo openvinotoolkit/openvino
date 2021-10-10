@@ -1384,12 +1384,10 @@ ExecutableNetwork Core::import_model(std::istream& modelStream,
         }
 
         // but for true support plugins need:
-        // 0. store ir_version in the compiled_blob
         // 1. ensure order or parameters and results as in ov::Function
         // 2. provide tensor names for inputs and outputs
-        // 3. for cases when import_model is done from new API, need to add operation names
-        //    to tensor_names for ir_version == 10.
-        // 4. precisions for getInputs and getOutputs should be taken from GetInputsInfo / GetOutputsInfo
+        // 3. precisions for getInputs and getOutputs should be taken from GetInputsInfo / GetOutputsInfo
+        //    not from ngraph. Plugins should use SetExeNetworkInfo
 
         return {exec._so, exec._ptr};
     });
