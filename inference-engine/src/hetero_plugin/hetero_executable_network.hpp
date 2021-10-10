@@ -73,7 +73,6 @@ private:
     std::string                                  _name;
     std::map<std::string, std::string>           _config;
     std::unordered_map<std::string, std::string> _blobNameMap;
-    int                                          _ir_version;
 };
 
 }  // namespace HeteroPlugin

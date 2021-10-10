@@ -62,23 +62,10 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         nullptr, std::make_shared<InferenceEngine::ImmediateExecutor>()),
     _heteroPlugin{plugin},
     _name{network.getName()},
-    _config{config},
-    _ir_version{-1} {
+    _config{config} {
     auto function = network.getFunction();
     IE_ASSERT(function != nullptr);
     auto clonedFunction = ngraph::clone_function(*function);
-
-    // save ir_version if any
-    {
-        auto& rt_info = function->get_rt_info();
-        const auto it = rt_info.find("version");
-        if (it != rt_info.end()) {
-            auto ir_version_impl = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second);
-            if (ir_version_impl)
-                _ir_version = ir_version_impl->get();
-        }
-    }
-
     auto itDumpDotFile = _config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
     bool dumpDotFile = itDumpDotFile != _config.end() ? (itDumpDotFile->second == YES) : false;
 #ifndef NDEBUG
@@ -470,10 +457,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
     pugi::xml_node heteroNode = heteroXmlDoc.document_element();
     _name = GetStrAttr(heteroNode, "name");
 
-    // we need to add operation names as tensor names for IRv10 compiled / imported from new API
-    _ir_version = GetIntAttr(heteroNode, "ir_version", -1);
-    const bool add_operation_names = _ir_version == 10 && heteroPlugin->GetCore()->isNewAPI();
-
     std::unordered_set<std::string> networkInputs;
     pugi::xml_node inputsNode = heteroNode.child("inputs");
     FOREACH_CHILD(inputNode, inputsNode, "input")  {
@@ -574,7 +557,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         });
     }
 
-    const auto parseNgraphNode = [add_operation_names] (const pugi::xml_node & xml_node, bool is_param) ->
+    const auto parseNgraphNode = [] (const pugi::xml_node & xml_node, bool is_param) ->
         std::shared_ptr<const ov::Node> {
         const std::string operation_name = GetStrAttr(xml_node, "operation_name");
         const auto elementType =
@@ -590,12 +573,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         std::unordered_set<std::string> tensorNames;
         FOREACH_CHILD(tensorNameNode, tensorNamesNode, "tensor_name") {
             tensorNames.insert(GetStrAttr(tensorNameNode, "value"));
-        }
-
-        // add operation names as tensor names
-        if (add_operation_names) {
-            // TODO: think of collisions
-            tensorNames.insert(operation_name);
         }
 
         std::shared_ptr<ov::Node> ngraphNode = std::make_shared<ov::op::v0::Parameter>(elementType, partialShape);
@@ -628,7 +605,6 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     pugi::xml_document doc;
     auto heteroNode = doc.append_child("hetero");
     heteroNode.append_attribute("name").set_value(_name.c_str());
-    heteroNode.append_attribute("ir_version").set_value(_ir_version);
 
     // CNNNetwork inputs and outputs infor
 

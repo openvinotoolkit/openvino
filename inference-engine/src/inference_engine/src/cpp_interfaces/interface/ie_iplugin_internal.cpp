@@ -259,10 +259,13 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     bool add_operation_names = false;
     const auto& rt_info = function->get_rt_info();
     const auto it = rt_info.find("version");
-    if (it != rt_info.end() && GetCore() && GetCore()->isNewAPI()) {
+    if (it != rt_info.end()) {
         auto ir_version_impl = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second);
         OPENVINO_ASSERT(ir_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
         const int64_t ir_version = ir_version_impl->get();
+        // here we decide whether we need to add operation_names as tensor names for
+        // getInputs / getOutputs. Since these functions are designed to be used in new API only
+        // always need to add operation names for IR v10
         add_operation_names = ir_version == 10;
     }
 
@@ -278,12 +281,15 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
                                                                   result->get_output_partial_shape(0));
         const std::string param_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
         fake_param->set_friendly_name(param_name);
-        if (add_operation_names) {
-            fake_param->output(0).get_tensor().add_names({fake_param->get_friendly_name()});
-        }
-
+        // WTF?
+        // if (add_operation_names) {
+        //     fake_param->output(0).get_tensor().add_names({fake_param->get_friendly_name()});
+        // }
         auto new_result = result->copy_with_new_inputs({fake_param});
         new_result->set_friendly_name(result->get_friendly_name());
+        if (add_operation_names) {
+            new_result->output(0).get_tensor().add_names({fake_param->get_friendly_name()});
+        }
         const_results.emplace_back(new_result);
     }
 
