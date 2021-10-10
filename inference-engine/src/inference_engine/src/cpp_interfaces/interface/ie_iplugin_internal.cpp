@@ -280,8 +280,9 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
             new_param->output(0).get_tensor().add_names({new_param->get_friendly_name()});
         // WA: use CNNNetwork's precisions since plugins sometimes override their precisions
         // after transformation pipeline is run
-        new_param->set_output_type(0, InferenceEngine::details::convertPrecision(
-            inputsInfo[new_param->get_friendly_name()]->getPrecision()),
+        new_param->set_output_type(
+            0,
+            InferenceEngine::details::convertPrecision(inputsInfo[new_param->get_friendly_name()]->getPrecision()),
             new_param->get_output_partial_shape(0));
         const_params.emplace_back(new_param);
     }
@@ -290,9 +291,9 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
                                                                   result->get_output_partial_shape(0));
         const std::string param_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
         fake_param->set_friendly_name(param_name);
-        fake_param->set_output_type(0, InferenceEngine::details::convertPrecision(
-            outputsInfo[param_name]->getPrecision()),
-            fake_param->get_output_partial_shape(0));
+        fake_param->set_output_type(0,
+                                    InferenceEngine::details::convertPrecision(outputsInfo[param_name]->getPrecision()),
+                                    fake_param->get_output_partial_shape(0));
         // WTF?
         // if (add_operation_names) {
         //     fake_param->output(0).get_tensor().add_names({fake_param->get_friendly_name()});

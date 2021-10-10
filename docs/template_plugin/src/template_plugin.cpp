@@ -122,7 +122,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(
 
     auto fullConfig = Configuration{config, _cfg};
     auto exec = std::make_shared<ExecutableNetwork>(modelStream,
-        fullConfig, std::static_pointer_cast<Plugin>(shared_from_this()));
+                                                    fullConfig,
+                                                    std::static_pointer_cast<Plugin>(shared_from_this()));
     SetExeNetworkInfo(exec, exec->_function);
     return exec;
 }
