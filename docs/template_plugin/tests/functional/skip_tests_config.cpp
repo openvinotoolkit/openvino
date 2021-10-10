@@ -24,7 +24,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ExecGraph.*)",
 
         // Multi / Auto don't support Import / Export
-        R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*importExportedNetwork.*)",
+        R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*importExportedFunction.*)",
         R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*importExportedIENetwork.*)",
         R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
 

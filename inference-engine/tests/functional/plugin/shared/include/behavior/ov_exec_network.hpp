@@ -403,7 +403,7 @@ TEST_P(OVExecNetwork, importExportedIENetwork) {
 }
 
 
-TEST_P(OVExecNetwork, ieImportExportedFunction) {
+TEST_P(OVExecNetwork, DISABLED_ieImportExportedFunction) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
@@ -451,8 +451,8 @@ TEST_P(OVExecNetwork, ieImportExportedFunction) {
 
     EXPECT_EQ(prc, importedExecNet.GetInputsInfo()["param1"]->getPrecision());
     EXPECT_EQ(prc, importedExecNet.GetInputsInfo()["param2"]->getPrecision());
-    EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["concat_op"]);
-    EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["relu_op"]);
+    EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["concat_op"]->getPrecision());
+    EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["relu_op"]->getPrecision());
 }
 
 }  // namespace test
