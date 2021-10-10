@@ -11,7 +11,9 @@
 
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "cpp/ie_cnn_network.h"
 #include "ie_core.hpp"
+#include "ie_ngraph_utils.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -186,7 +188,7 @@ TEST_P(OVExecNetwork, precisionsAsInOriginalIR) {
     EXPECT_EQ(ref_result->get_friendly_name(), actual_result->get_friendly_name());
 }
 
-TEST_P(OVExecNetwork, importExportedNetwork) {
+TEST_P(OVExecNetwork, importExportedFunction) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::ExecutableNetwork execNet;
@@ -398,6 +400,59 @@ TEST_P(OVExecNetwork, importExportedIENetwork) {
     EXPECT_EQ(inputType, importedExecNet.input("param2").get_element_type());
     EXPECT_EQ(outputType, importedExecNet.output("concat_op").get_element_type());
     EXPECT_EQ(outputType, importedExecNet.output("relu_op").get_element_type());
+}
+
+
+TEST_P(OVExecNetwork, ieImportExportedFunction) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    std::shared_ptr<InferenceEngine::Core> core = ::PluginCache::get().ie();
+    ov::runtime::ExecutableNetwork execNet;
+
+    // Create simple function
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto param2 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
+        param2->set_friendly_name("param2");
+        param2->output(0).get_tensor().set_names({"data2"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("relu_op");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result1 = std::make_shared<ov::opset8::Result>(relu);
+        result1->set_friendly_name("result1");
+        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
+        concat->set_friendly_name("concat_op");
+        concat->output(0).get_tensor().set_names({"concat"});
+        auto result2 = std::make_shared<ov::opset8::Result>(concat);
+        result2->set_friendly_name("result2");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
+                                                      ngraph::ParameterVector{param1, param2});
+        function->set_friendly_name("SingleRuLU");
+    }
+    ASSERT_NO_THROW(execNet = ie->compile_model(function, targetDevice, configuration));
+
+    std::stringstream strm;
+    execNet.export_model(strm);
+
+    InferenceEngine::ExecutableNetwork importedExecNet = core->ImportNetwork(strm, targetDevice, configuration);
+    ASSERT_EQ(function->inputs().size(), 2);
+    EXPECT_EQ(function->inputs().size(), importedExecNet.GetInputsInfo().size());
+    EXPECT_NO_THROW(importedExecNet.GetInputsInfo()["param1"]);
+    EXPECT_NO_THROW(importedExecNet.GetInputsInfo()["param2"]);
+    ASSERT_EQ(function->outputs().size(), 2);
+    EXPECT_EQ(function->outputs().size(), importedExecNet.GetOutputsInfo().size());
+    EXPECT_NO_THROW(importedExecNet.GetOutputsInfo()["relu_op"]);
+    EXPECT_NO_THROW(importedExecNet.GetOutputsInfo()["concat_op"]);
+
+    const auto prc = InferenceEngine::details::convertPrecision(elementType);
+
+    EXPECT_EQ(prc, importedExecNet.GetInputsInfo()["param1"]->getPrecision());
+    EXPECT_EQ(prc, importedExecNet.GetInputsInfo()["param2"]->getPrecision());
+    EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["concat_op"]);
+    EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["relu_op"]);
 }
 
 }  // namespace test
