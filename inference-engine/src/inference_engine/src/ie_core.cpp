@@ -1350,15 +1350,15 @@ ExecutableNetwork Core::import_model(std::istream& modelStream,
         using namespace InferenceEngine::details;
 
         if (exec->getInputs().empty()) {
-            const auto & inputsInfo = exec->GetInputsInfo();
+            const auto& inputsInfo = exec->GetInputsInfo();
             OPENVINO_ASSERT(!inputsInfo.empty(), "inputsInfo is empty after network import");
 
             std::vector<std::shared_ptr<const ov::Node>> params;
             params.reserve(inputsInfo.size());
-            for (auto && input : inputsInfo) {
-                auto param = std::make_shared<ov::op::v0::Parameter>(
-                    convertPrecision(input.second->getPrecision()),
-                    ov::PartialShape(input.second->getTensorDesc().getDims()));
+            for (auto&& input : inputsInfo) {
+                auto param =
+                    std::make_shared<ov::op::v0::Parameter>(convertPrecision(input.second->getPrecision()),
+                                                            ov::PartialShape(input.second->getTensorDesc().getDims()));
                 param->get_output_tensor(0).add_names({input.first});
                 params.emplace_back(std::move(param));
             }
@@ -1367,15 +1367,15 @@ ExecutableNetwork Core::import_model(std::istream& modelStream,
         }
 
         if (exec->getOutputs().empty()) {
-            const auto & outputsInfo = exec->GetOutputsInfo();
+            const auto& outputsInfo = exec->GetOutputsInfo();
             OPENVINO_ASSERT(!outputsInfo.empty(), "outputsInfo is empty after network import");
 
             std::vector<std::shared_ptr<const ov::Node>> results;
             results.reserve(outputsInfo.size());
-            for (auto && output : outputsInfo) {
-                auto fake_param = std::make_shared<ov::op::v0::Parameter>(
-                    convertPrecision(output.second->getPrecision()),
-                    ov::PartialShape(output.second->getTensorDesc().getDims()));
+            for (auto&& output : outputsInfo) {
+                auto fake_param =
+                    std::make_shared<ov::op::v0::Parameter>(convertPrecision(output.second->getPrecision()),
+                                                            ov::PartialShape(output.second->getTensorDesc().getDims()));
                 auto result = std::make_shared<ov::op::v0::Result>(fake_param);
                 result->get_output_tensor(0).add_names({output.first});
                 results.emplace_back(std::move(result));

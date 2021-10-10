@@ -127,11 +127,10 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
 
     // if `version` is not set, suppose it's IR v10 for old API
     auto function = std::const_pointer_cast<ov::Function>(network.getFunction());
-    std::vector<std::unordered_set<std::string>> results_names, params_names;
-    if (function) {
+    if (function && GetCore() && !GetCore()->isNewAPI()) {
         // TODO: thread unsafe code
         auto& rt_info = function->get_rt_info();
-        if (!rt_info.count("version") && !GetCore()->isNewAPI()) {
+        if (!rt_info.count("version")) {
             rt_info["version"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(10);
         }
     }
@@ -256,11 +255,11 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     bool add_operation_names = false;
     auto& rt_info = function->get_rt_info();
     const auto it = rt_info.find("version");
-    if (it != rt_info.end() && GetCore()->isNewAPI()) {
+    if (it != rt_info.end() && GetCore() && GetCore()->isNewAPI()) {
         auto ir_version_impl = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second);
         OPENVINO_ASSERT(ir_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
         const int64_t ir_version = ir_version_impl->get();
-        add_operation_names = ir_version == 10 && GetCore()->isNewAPI();
+        add_operation_names = ir_version == 10;
     }
 
     for (const auto& param : function->get_parameters()) {
