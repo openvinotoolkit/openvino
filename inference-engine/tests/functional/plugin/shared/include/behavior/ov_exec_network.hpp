@@ -191,6 +191,11 @@ TEST_P(OVExecNetwork, precisionsAsInOriginalIR) {
 TEST_P(OVExecNetwork, importExportedFunction) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    if (targetDevice == "MULTI" || targetDevice == "AUTO") {
+        GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
+    }
+
     ov::runtime::ExecutableNetwork execNet;
 
     // Create simple function
@@ -327,6 +332,10 @@ TEST_P(OVExecNetwork, readFromV10IR) {
     EXPECT_NO_THROW(execNet.input("in1"));
     EXPECT_NO_THROW(execNet.output("round"));
 
+    if (targetDevice == "MULTI" || targetDevice == "AUTO") {
+        GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
+    }
+
     std::stringstream strm;
     execNet.export_model(strm);
 
@@ -343,6 +352,10 @@ TEST_P(OVExecNetwork, readFromV10IR) {
 TEST_P(OVExecNetwork, importExportedIENetwork) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    if (targetDevice == "MULTI" || targetDevice == "AUTO") {
+        GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
+    }
 
     std::shared_ptr<InferenceEngine::Core> core = ::PluginCache::get().ie();
     InferenceEngine::ExecutableNetwork execNet;
@@ -403,9 +416,13 @@ TEST_P(OVExecNetwork, importExportedIENetwork) {
 }
 
 
-TEST_P(OVExecNetwork, DISABLED_ieImportExportedFunction) {
+TEST_P(OVExecNetwork, ieImportExportedFunction) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    if (targetDevice == "MULTI" || targetDevice == "AUTO") {
+        GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
+    }
 
     std::shared_ptr<InferenceEngine::Core> core = ::PluginCache::get().ie();
     ov::runtime::ExecutableNetwork execNet;

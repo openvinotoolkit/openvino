@@ -23,10 +23,8 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: execution graph is not supported
         R"(.*ExecGraph.*)",
 
-        // Multi / Auto don't support Import / Export
-        R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*importExportedFunction.*)",
-        R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*importExportedIENetwork.*)",
-        R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
+        // TODO: support import / export of precisions in template plugin
+        R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.ieImportExportedFunction.*)",
 
         // TODO: Round with f16 is not supported
         R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
