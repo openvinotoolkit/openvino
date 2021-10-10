@@ -756,10 +756,9 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
 
     auto execNetwork = std::make_shared<MKLDNNExecNetwork>(cnnnetwork, conf, extensionManager, weightsSharing);
 
-    SetExeNetworkInfo(execNetwork, cnnnetwork.getFunction());
     execNetwork->setNetworkInputs(cnnnetwork.getInputsInfo());
     execNetwork->setNetworkOutputs(cnnnetwork.getOutputsInfo());
-    execNetwork->SetPointerToPlugin(shared_from_this());
+    SetExeNetworkInfo(execNetwork, cnnnetwork.getFunction());
 
     return execNetwork;
 }

@@ -13,6 +13,7 @@
 #include <istream>
 #include <map>
 #include <memory>
+#include <openvino/core/except.hpp>
 #include <string>
 #include <unordered_set>
 
@@ -269,11 +270,21 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
         add_operation_names = ir_version == 10;
     }
 
+    auto inputsInfo = exeNetwork->GetInputsInfo();
+    auto outputsInfo = exeNetwork->GetOutputsInfo();
+    OPENVINO_ASSERT(inputsInfo.size() != 0, "exeNetwork->GetInputsInfo() must be filled");
+    OPENVINO_ASSERT(outputsInfo.size() != 0, "exeNetwork->GetOutputsInfo() must be filled");
+
     for (const auto& param : function->get_parameters()) {
         auto new_param = param->copy_with_new_inputs({});
         new_param->set_friendly_name(param->get_friendly_name());
         if (add_operation_names)
             new_param->output(0).get_tensor().add_names({new_param->get_friendly_name()});
+        // WA: use CNNNetwork's precisions since plugins sometimes override their precisions
+        // after transformation pipeline is run
+        new_param->set_output_type(0, InferenceEngine::details::convertPrecision(
+            inputsInfo[new_param->get_friendly_name()]->getPrecision()),
+            new_param->get_output_partial_shape(0));
         const_params.emplace_back(new_param);
     }
     for (const auto& result : function->get_results()) {
@@ -281,6 +292,9 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
                                                                   result->get_output_partial_shape(0));
         const std::string param_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
         fake_param->set_friendly_name(param_name);
+        fake_param->set_output_type(0, InferenceEngine::details::convertPrecision(
+            outputsInfo[param_name]->getPrecision()),
+            fake_param->get_output_partial_shape(0));
         // WTF?
         // if (add_operation_names) {
         //     fake_param->output(0).get_tensor().add_names({fake_param->get_friendly_name()});

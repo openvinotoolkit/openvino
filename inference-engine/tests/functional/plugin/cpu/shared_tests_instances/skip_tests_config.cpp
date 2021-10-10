@@ -92,10 +92,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_(Hetero_|)BehaviorTests.*OVExecNetwork.*type=(f16).*)",
 
         // TODO: CVS-66526 overrides i/o precisions in execution graph
-        R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedFunction.*type=(i16|u16).*)",
-        R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedFunction.*type=(i64|u64).*)",
-        R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedIENetwork.*type=(i16|u16).*)",
-        R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedIENetwork.*type=(i64|u64).*)",
+        // as WA we used GetInputsInfo() precisions instead of ngraph ones
+        // R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedFunction.*type=(i16|u16).*)",
+        // R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedFunction.*type=(i64|u64).*)",
+        // R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedIENetwork.*type=(i16|u16).*)",
+        // R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedIENetwork.*type=(i64|u64).*)",
 
         // CPU does not support dynamic rank
         // Issue: CVS-66778
