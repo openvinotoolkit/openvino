@@ -70,15 +70,15 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ngraph::pass::CommonOptimizations>();
     // G-API supports only FP32 networks for pre-processing
-    bool needF16toF32 = true;
-    // for (const auto& param : function->get_parameters()) {
-    //     if (param->get_element_type() == ngraph::element::f16 &&
-    //         inputInfoMap.at(param->get_friendly_name())->getTensorDesc().getPrecision() !=
-    //             InferenceEngine::Precision::FP16) {
-    //         needF16toF32 = true;
-    //         break;
-    //     }
-    // }
+    bool needF16toF32 = false;
+    for (const auto& param : function->get_parameters()) {
+        if (param->get_element_type() == ngraph::element::f16 &&
+            inputInfoMap.at(param->get_friendly_name())->getTensorDesc().getPrecision() !=
+                InferenceEngine::Precision::FP16) {
+            needF16toF32 = true;
+            break;
+        }
+    }
     if (needF16toF32) {
         passManager.register_pass<ngraph::pass::ConvertPrecision>(
             precisions_array{{ngraph::element::f16, ngraph::element::f32}});

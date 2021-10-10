@@ -9,11 +9,13 @@
 #include <threading/ie_executor_manager.hpp>
 
 #include "ie_icore.hpp"
+#include "ie_ngraph_utils.hpp"
 #include "openvino/core/except.hpp"
 #include "template/template_config.hpp"
 #include "template_itt.hpp"
 #include "template_plugin.hpp"
 #include "transformations/serialize.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace TemplatePlugin;
 
@@ -78,6 +80,10 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
     setNetworkOutputs(outputInfoMap);
     SetPointerToPlugin(_plugin->shared_from_this());
 
+    // fill getInputs and getOutputs to support IR v11 properly
+    // default filling of these fields does not take into account
+    // 1. order of parameters / results
+    // 2. tensor names
     {
         auto function = cnnnetwork.getFunction();
         OPENVINO_ASSERT(function != nullptr);
@@ -88,14 +94,14 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
         for (const auto& param : function->get_parameters()) {
             auto new_param = param->copy_with_new_inputs({});
             new_param->set_friendly_name(param->get_friendly_name());
-            const_params.emplace_back(std::const_pointer_cast<const ov::Node>(new_param));
+            const_params.emplace_back(new_param);
         }
         for (const auto& result : function->get_results()) {
             auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
                                                                       result->get_output_partial_shape(0));
             auto new_result = result->copy_with_new_inputs({fake_param});
             new_result->set_friendly_name(result->get_friendly_name());
-            const_results.emplace_back(std::const_pointer_cast<const ov::Node>(new_result));
+            const_results.emplace_back(new_result);
         }
 
         setInputs(const_params);
@@ -132,11 +138,7 @@ void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<con
     // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
     // as inference request output names but the name of the layer before.
     for (auto&& result : _function->get_results()) {
-        auto previousOutput = result->get_input_source_output(0);
-        auto outputName = previousOutput.get_node()->get_friendly_name();
-        if (previousOutput.get_node()->get_output_size() > 1) {
-            outputName += '.' + std::to_string(previousOutput.get_index());
-        }
+        auto outputName = ngraph::op::util::create_ie_output_name(result->input_value(0));
         _outputIndex.emplace(outputName, _function->get_result_index(result));
     }
     for (auto&& parameter : _function->get_parameters()) {
