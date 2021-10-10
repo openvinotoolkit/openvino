@@ -13,6 +13,7 @@
 #include "template_itt.hpp"
 #include "template_plugin.hpp"
 #include "transformations/serialize.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace TemplatePlugin;
 
@@ -107,12 +108,14 @@ void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<con
     // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
     // as inference request output names but the name of the layer before.
     for (auto&& result : _function->get_results()) {
-        auto previousOutput = result->get_input_source_output(0);
-        auto outputName = previousOutput.get_node()->get_friendly_name();
-        if (previousOutput.get_node()->get_output_size() > 1) {
-            outputName += '.' + std::to_string(previousOutput.get_index());
+        const auto& input = result->input_value(0);
+        NGRAPH_SUPPRESS_DEPRECATED_START
+        auto name = input.get_tensor().get_name();
+        NGRAPH_SUPPRESS_DEPRECATED_END
+        if (name.empty()) {
+            name = ngraph::op::util::create_ie_output_name(input);
         }
-        _outputIndex.emplace(outputName, _function->get_result_index(result));
+        _outputIndex.emplace(name, _function->get_result_index(result));
     }
     for (auto&& parameter : _function->get_parameters()) {
         _inputIndex.emplace(parameter->get_friendly_name(), _function->get_parameter_index(parameter));
