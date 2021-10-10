@@ -16,6 +16,7 @@
 #include "frontend_manager/frontend_manager.hpp"
 #include "graph_comparator.hpp"
 #include "ie_blob.h"
+#include "ie_precision.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/pass/pass.hpp"
@@ -146,6 +147,9 @@ TEST_F(RTInfoDeserialization, NodeV10) {
 
         auto res = compare_functions(f, f_10.getFunction());
         EXPECT_TRUE(res.first) << res.second;
+
+        EXPECT_EQ(InferenceEngine::Precision::FP32, f_10.getInputsInfo()["in1"]->getPrecision());
+        EXPECT_EQ(InferenceEngine::Precision::FP32, f_10.getOutputsInfo()["Round"]->getPrecision());
     }
 
     // read IR v10 with new API and check that CNNNetwork precision conversions are applied
@@ -298,6 +302,9 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
 
         auto res = compare_functions(f, f_10.getFunction());
         EXPECT_TRUE(res.first) << res.second;
+
+        EXPECT_EQ(InferenceEngine::Precision::I64, f_10.getInputsInfo()["in1"]->getPrecision());
+        EXPECT_EQ(InferenceEngine::Precision::I32, f_10.getOutputsInfo()["sum"]->getPrecision());
     }
 
     // read IR v10 with new API and check that CNNNetwork precision conversions are applied
@@ -503,6 +510,9 @@ TEST_F(RTInfoDeserialization, NodeV11) {
 
         check_version(f_10_core, 10);
 
+        EXPECT_EQ(InferenceEngine::Precision::FP32, cnn_core.getInputsInfo()["in1"]->getPrecision());
+        EXPECT_EQ(InferenceEngine::Precision::FP32, cnn_core.getOutputsInfo()["Round"]->getPrecision());
+
         const auto fc = FunctionsComparator::with_default()
                 .enable(FunctionsComparator::ATTRIBUTES)
                 .enable(FunctionsComparator::PRECISIONS)
@@ -665,6 +675,9 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
         auto cnn = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
         auto f_10 = cnn.getFunction();
         ASSERT_NE(nullptr, f_10);
+
+        EXPECT_EQ(InferenceEngine::Precision::FP32, cnn.getInputsInfo()["in1"]->getPrecision());
+        EXPECT_EQ(InferenceEngine::Precision::FP32, cnn.getOutputsInfo()["sum"]->getPrecision());
 
         // check that old api map is removed once applied
         auto check_old_api_rt_info = [](const RTMap & info) {
