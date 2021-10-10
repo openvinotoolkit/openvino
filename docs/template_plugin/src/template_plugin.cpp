@@ -121,9 +121,10 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::ImportNetwork");
 
     auto fullConfig = Configuration{config, _cfg};
-    return std::make_shared<ExecutableNetwork>(modelStream,
-                                               fullConfig,
-                                               std::static_pointer_cast<Plugin>(shared_from_this()));
+    auto exec = std::make_shared<ExecutableNetwork>(modelStream,
+        fullConfig, std::static_pointer_cast<Plugin>(shared_from_this()));
+    SetExeNetworkInfo(exec, exec->_function);
+    return exec;
 }
 // ! [plugin:import_network]
 

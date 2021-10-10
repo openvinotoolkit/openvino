@@ -80,35 +80,8 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
     setNetworkOutputs(outputInfoMap);
     SetPointerToPlugin(_plugin->shared_from_this());
 
-    // fill getInputs and getOutputs to support IR v11 properly
-    // default filling of these fields does not take into account
-    // 1. order of parameters / results
-    // 2. tensor names
-    {
-        auto function = cnnnetwork.getFunction();
-        OPENVINO_ASSERT(function != nullptr);
-
-        std::vector<std::shared_ptr<const ov::Node>> const_params;
-        std::vector<std::shared_ptr<const ov::Node>> const_results;
-
-        for (const auto& param : function->get_parameters()) {
-            auto new_param = param->copy_with_new_inputs({});
-            new_param->set_friendly_name(param->get_friendly_name());
-            const_params.emplace_back(new_param);
-        }
-        for (const auto& result : function->get_results()) {
-            auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
-                                                                      result->get_output_partial_shape(0));
-            auto new_result = result->copy_with_new_inputs({fake_param});
-            new_result->set_friendly_name(result->get_friendly_name());
-            const_results.emplace_back(new_result);
-        }
-
-        setInputs(const_params);
-        setOutputs(const_results);
-    }
-
     try {
+        // TODO: remove compilation, network is already compiled and serialized in compiled form
         CompileNetwork(cnnnetwork.getFunction(), inputInfoMap, outputInfoMap);
         InitExecutor();  // creates thread-based executor using for async requests
     } catch (const InferenceEngine::Exception&) {
