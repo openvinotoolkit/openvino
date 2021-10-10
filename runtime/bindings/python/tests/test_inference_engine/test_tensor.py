@@ -66,6 +66,8 @@ def test_init_with_numpy(ov_type, numpy_dtype):
     assert np.all(ov_tensor.data.shape == shape for ov_tensor in ov_tensors)
     assert np.shares_memory(ones_arr, ones_ov_tensor.data)
     assert np.array_equal(ones_ov_tensor.data, ones_arr)
+    assert ones_ov_tensor.size == ones_arr.size
+    assert ones_ov_tensor.byte_size == ones_arr.nbytes
 
 
 def test_init_with_roi_tensor():

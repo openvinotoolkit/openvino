@@ -15,11 +15,12 @@ namespace py = pybind11;
 void regclass_Tensor(py::module m) {
     py::class_<ov::runtime::Tensor, std::shared_ptr<ov::runtime::Tensor>> cls(m, "Tensor");
 
-    cls.def(py::init([](py::array& array) {
-                std::vector<size_t> shape(array.shape(), array.shape() + array.ndim());
-                return ov::runtime::Tensor(Common::dtype_to_ov_type.at(py::str(array.dtype())), shape, (void*)array.data());
-            }),
-            py::arg("array"));
+    cls.def(
+        py::init([](py::array& array) {
+            std::vector<size_t> shape(array.shape(), array.shape() + array.ndim());
+            return ov::runtime::Tensor(Common::dtype_to_ov_type.at(py::str(array.dtype())), shape, (void*)array.data());
+        }),
+        py::arg("array"));
 
     cls.def(py::init<const ov::element::Type, const ov::Shape>(), py::arg("type"), py::arg("shape"));
 
@@ -32,7 +33,8 @@ void regclass_Tensor(py::module m) {
             py::arg("shape"));
 
     cls.def(py::init([](py::object& np_literal, std::vector<size_t>& shape) {
-                return ov::runtime::Tensor(Common::dtype_to_ov_type.at(py::str(py::dtype::from_args(np_literal))), shape);
+                return ov::runtime::Tensor(Common::dtype_to_ov_type.at(py::str(py::dtype::from_args(np_literal))),
+                                           shape);
             }),
             py::arg("dtype"),
             py::arg("shape"));
@@ -44,12 +46,16 @@ void regclass_Tensor(py::module m) {
             py::arg("shape"));
 
     cls.def(py::init([](py::object& np_literal, const ov::Shape& shape) {
-                return ov::runtime::Tensor(Common::dtype_to_ov_type.at(py::str(py::dtype::from_args(np_literal))), shape);
+                return ov::runtime::Tensor(Common::dtype_to_ov_type.at(py::str(py::dtype::from_args(np_literal))),
+                                           shape);
             }),
             py::arg("dtype"),
             py::arg("shape"));
 
-    cls.def(py::init<ov::runtime::Tensor, ov::Coordinate, ov::Coordinate>(), py::arg("other"), py::arg("begin"), py::arg("end"));
+    cls.def(py::init<ov::runtime::Tensor, ov::Coordinate, ov::Coordinate>(),
+            py::arg("other"),
+            py::arg("begin"),
+            py::arg("end"));
 
     cls.def(py::init<ov::runtime::Tensor, std::vector<size_t>, std::vector<size_t>>(),
             py::arg("other"),
@@ -72,7 +78,9 @@ void regclass_Tensor(py::module m) {
 
     cls.def_property("shape", &ov::runtime::Tensor::get_shape, &ov::runtime::Tensor::set_shape);
 
-    cls.def_property("shape", &ov::runtime::Tensor::get_shape, [](ov::runtime::Tensor& self, std::vector<size_t>& shape) {
-        self.set_shape(shape);
-    });
+    cls.def_property("shape",
+                     &ov::runtime::Tensor::get_shape,
+                     [](ov::runtime::Tensor& self, std::vector<size_t>& shape) {
+                         self.set_shape(shape);
+                     });
 }
