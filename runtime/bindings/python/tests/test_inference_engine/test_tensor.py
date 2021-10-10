@@ -57,7 +57,6 @@ def test_init_with_numpy(ov_type, numpy_dtype):
     ov_tensors.append(Tensor(dtype=np.dtype(numpy_dtype), shape=shape))
     ov_tensors.append(Tensor(dtype=np.dtype(numpy_dtype), shape=np.array(shape)))
     ov_tensors.append(ones_ov_tensor)
-    ov_tensors.append(Tensor(ones_arr, ones_arr.strides))
     ov_tensors.append(Tensor(dtype=numpy_dtype, shape=ov_shape))
     ov_tensors.append(Tensor(dtype=np.dtype(numpy_dtype), shape=ov_shape))
     assert np.all(tuple(ov_tensor.shape) == shape for ov_tensor in ov_tensors)
@@ -72,15 +71,11 @@ def test_init_with_numpy(ov_type, numpy_dtype):
 def test_init_with_roi_tensor():
     array = np.random.normal(size=[1, 3, 48, 48])
     ov_tensor1 = Tensor(array)
-    ov_tensor2 = Tensor(ov_tensor1, [0, 0, 24, 24], [1, 1, 48, 48])
-    assert list(ov_tensor2.shape) == [1, 1, 24, 24]
+    ov_tensor2 = Tensor(ov_tensor1, [0, 0, 24, 24], [1, 3, 48, 48])
+    assert list(ov_tensor2.shape) == [1, 3, 24, 24]
     assert ov_tensor2.element_type == ov_tensor2.element_type
-    assert np.shares_memory(ov_tensor2.data, ov_tensor1.data)
-
-    ov_tensor3 = Tensor(ov_tensor1, ng.impl.Coordinate([0, 0, 16, 16]), ng.impl.Coordinate([1, 2, 48, 48]))
-    assert list(ov_tensor3.shape) == [1, 2, 32, 32]
-    assert ov_tensor3.element_type == ov_tensor1.element_type
-    assert np.shares_memory(ov_tensor3.data, ov_tensor1.data)
+    assert np.shares_memory(ov_tensor1.data, ov_tensor2.data)
+    assert np.array_equal(ov_tensor1.data[0:1, :, 24:, 24:], ov_tensor2.data)
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
