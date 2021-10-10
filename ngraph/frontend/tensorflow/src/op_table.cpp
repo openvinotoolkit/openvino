@@ -34,10 +34,12 @@ OP_CONVERTER(TranslateConv2DOp);
 OP_CONVERTER(TranslateConv2DBackpropInputOp);
 OP_CONVERTER(TranslateConv3DOp);
 OP_CONVERTER(TranslateCumsumOp);
+OP_CONVERTER(TranslateCropAndResizeOp);
 OP_CONVERTER(TranslateDepthToSpaceOp);
 OP_CONVERTER(TranslateDepthwiseConv2dNativeOp);
 OP_CONVERTER(TranslateEluOp);
 OP_CONVERTER(TranslateExpandDimsOp);
+OP_CONVERTER(TranslateFakeQuantWithMinMaxVarsOp);
 OP_CONVERTER(TranslateFillOp);
 OP_CONVERTER(TranslateFloorDivOp);
 OP_CONVERTER(TranslateFusedBatchNormOp);
@@ -238,9 +240,9 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"_FusedConv2D", TranslateFusedConv2DOp},
         {"_FusedMatMul", TranslateFusedMatMulOp},
         {"_FusedBatchNormEx", TranslateFusedBatchNormOp},
-        // {"_FusedDepthwiseConv2dNative", TranslateFusedDepthwiseConv2dNativeOp},
-        // {"FakeQuantWithMinMaxVars", TranslateFakeQuantWithMinMaxVarsOp},
-        // {"CropAndResize", TranslateCropAndResizeOp},
+        {"_FusedDepthwiseConv2dNative", TranslateDepthwiseConv2dNativeOp},
+        {"FakeQuantWithMinMaxVars", TranslateFakeQuantWithMinMaxVarsOp},
+        {"CropAndResize", TranslateCropAndResizeOp},
         // {"_Arg", ArgOp}, // should be registered as an extension in OVTF
     };
 };

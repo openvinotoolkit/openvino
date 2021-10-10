@@ -14,8 +14,10 @@ namespace tf {
 namespace op {
 
 OutputVector TranslateCumsumOp(const NodeContext& node) {
-    auto ng_x = node.get_ng_input(0), ng_axis = node.get_ng_input(1);
-    auto exclusive = node.get_attribute<bool>("exclusive"), reverse = node.get_attribute<bool>("reverse");
+    auto ng_x = node.get_ng_input(0);
+    auto ng_axis = node.get_ng_input(1);
+    auto exclusive = node.get_attribute<bool>("exclusive");
+    auto reverse = node.get_attribute<bool>("reverse");
 
     return {ConstructNgNode<CumSum>(node.get_name(), ng_x, ng_axis, exclusive, reverse)};
 }
