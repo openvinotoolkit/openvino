@@ -85,17 +85,17 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",
 
-        // TODO: CVS-66526 overrides i/o precisions in execution graph
-        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=(i8|i16).*)",
-        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=(i64|u16).*)",
-        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=(u32|u64).*)",
-        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=f16.*)",
-
-        // MULTI / AUTO does not support import network
+        // CPU plugin does not support some precisions
         R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*type=(i8|u32).*)",
         R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*type=(f16).*)",
-        R"(.*smoke_(Hetero)_BehaviorTests.*OVExecNetwork.*type=(i8|u32).*)",
-        R"(.*smoke_(Hetero)_BehaviorTests.*OVExecNetwork.*type=(f16).*)",
+        R"(.*smoke_(Hetero_|)BehaviorTests.*OVExecNetwork.*type=(i8|u32).*)",
+        R"(.*smoke_(Hetero_|)BehaviorTests.*OVExecNetwork.*type=(f16).*)",
+
+        // TODO: CVS-66526 overrides i/o precisions in execution graph
+        R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedFunction.*type=(i16|u16).*)",
+        R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedFunction.*type=(i64|u64).*)",
+        R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedIENetwork.*type=(i16|u16).*)",
+        R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedIENetwork.*type=(i64|u64).*)",
 
         // CPU does not support dynamic rank
         // Issue: CVS-66778
