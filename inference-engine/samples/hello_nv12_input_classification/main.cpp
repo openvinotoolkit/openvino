@@ -7,10 +7,10 @@
 
 #include <fstream>
 #include <inference_engine.hpp>
-#include <openvino/core/preprocess/pre_post_process.hpp>
-#include <openvino/runtime/core.hpp>
 #include <iostream>
 #include <memory>
+#include <openvino/core/preprocess/pre_post_process.hpp>
+#include <openvino/runtime/core.hpp>
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
 #include <sstream>
@@ -28,45 +28,45 @@ using namespace InferenceEngine;
 // TODO: avoid conversion to legacy API
 inline Precision convertPrecision(const ov::element::Type& precision) {
     switch (precision) {
-        case ov::element::undefined:
-            return Precision(Precision::UNSPECIFIED);
-        case ov::element::f16:
-            return Precision(Precision::FP16);
-        case ov::element::f32:
-            return Precision(Precision::FP32);
-        case ov::element::f64:
-            return Precision(Precision::FP64);
-        case ov::element::bf16:
-            return Precision(Precision::BF16);
-        case ov::element::i4:
-            return Precision(Precision::I4);
-        case ov::element::i8:
-            return Precision(Precision::I8);
-        case ov::element::i16:
-            return Precision(Precision::I16);
-        case ov::element::i32:
-            return Precision(Precision::I32);
-        case ov::element::i64:
-            return Precision(Precision::I64);
-        case ov::element::u4:
-            return Precision(Precision::U4);
-        case ov::element::u8:
-            return Precision(Precision::U8);
-        case ov::element::u16:
-            return Precision(Precision::U16);
-        case ov::element::u32:
-            return Precision(Precision::U32);
-        case ov::element::u64:
-            return Precision(Precision::U64);
-        case ov::element::u1:
-            return Precision(Precision::BIN);
-        case ov::element::boolean:
-            return Precision(Precision::BOOL);
-        case ov::element::dynamic:
-            return Precision(Precision::UNSPECIFIED);
-        default:
-            IE_THROW() << "Incorrect precision " << precision.get_type_name() << "!";
-            return {};
+    case ov::element::undefined:
+        return Precision(Precision::UNSPECIFIED);
+    case ov::element::f16:
+        return Precision(Precision::FP16);
+    case ov::element::f32:
+        return Precision(Precision::FP32);
+    case ov::element::f64:
+        return Precision(Precision::FP64);
+    case ov::element::bf16:
+        return Precision(Precision::BF16);
+    case ov::element::i4:
+        return Precision(Precision::I4);
+    case ov::element::i8:
+        return Precision(Precision::I8);
+    case ov::element::i16:
+        return Precision(Precision::I16);
+    case ov::element::i32:
+        return Precision(Precision::I32);
+    case ov::element::i64:
+        return Precision(Precision::I64);
+    case ov::element::u4:
+        return Precision(Precision::U4);
+    case ov::element::u8:
+        return Precision(Precision::U8);
+    case ov::element::u16:
+        return Precision(Precision::U16);
+    case ov::element::u32:
+        return Precision(Precision::U32);
+    case ov::element::u64:
+        return Precision(Precision::U64);
+    case ov::element::u1:
+        return Precision(Precision::BIN);
+    case ov::element::boolean:
+        return Precision(Precision::BOOL);
+    case ov::element::dynamic:
+        return Precision(Precision::UNSPECIFIED);
+    default:
+        IE_THROW() << "Incorrect precision " << precision.get_type_name() << "!";
+        return {};
     }
 }
 
@@ -263,9 +263,9 @@ int main(int argc, char* argv[]) {
         auto netInfo = ov::preprocess::InputNetworkInfo().set_layout("NCHW");
         // 4) Apply preprocessing to a first input of loaded function
         function = p.input(ov::preprocess::InputInfo(0)
-                .tensor(std::move(tensor))
-                .preprocess(std::move(steps))
-                .network(std::move(netInfo)))
+                               .tensor(std::move(tensor))
+                               .preprocess(std::move(steps))
+                               .network(std::move(netInfo)))
                        .build(function);
 
         // -------------- Step 4. Loading a model to the device ---------------
