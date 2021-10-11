@@ -11,6 +11,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/validation_util.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDivide, "ConvertDivide", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDivideWithConstant, "ConvertDivideWithConstant", 0);
@@ -26,7 +27,7 @@ bool convert_divide(std::shared_ptr<ngraph::Node> node) {
     ngraph::Output<ngraph::Node> pow = std::make_shared<ngraph::opset1::Power>(div->input(1).get_source_output(),
                                                        ngraph::op::Constant::create(div->get_input_element_type(1), ngraph::Shape{}, {-1}));
 
-    if (auto const_pow = get_constant_from_source(pow)) {
+    if (auto const_pow = ngraph::get_constant_from_source(pow)) {
         pow = const_pow;
     }
 
