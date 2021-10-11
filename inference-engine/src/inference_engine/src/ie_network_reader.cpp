@@ -285,9 +285,14 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                                                   .convert_element_type(ngraph_type)));
             }
 
-            // TODO: Do we need to provide an access to ov::Function via operation names?
+            // in order to support the following scenarios for IR v10 cases:
+            // ov::Function f = ie.read_model(..);
+            // f.input("input_operation_name");
+            // f.output("output_operation_name");
+            // f.add_output("operation_name[].port_index]");
+            // f.reshape({ { "input_operation_name", ov::PartialShape{} } });
+            // we need to add operation names as tensor names for inputs and outputs
             {
-                // Change tensor names for inputs/outputs for cases with old IR
                 std::vector<std::string> result_names;
                 std::vector<ov::Output<ov::Node>> prevPorts;
                 result_names.reserve(function->get_results().size());
