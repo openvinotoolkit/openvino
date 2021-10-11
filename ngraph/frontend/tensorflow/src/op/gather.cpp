@@ -8,7 +8,6 @@
 using namespace std;
 using namespace ngraph::opset8;
 
-
 namespace ngraph {
 namespace frontend {
 namespace tf {

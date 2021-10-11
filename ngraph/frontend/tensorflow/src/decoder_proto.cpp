@@ -113,7 +113,6 @@ vector<::tensorflow::AttrValue> DecoderTFProto::decode_attribute_helper(const st
     if (attr_map.contains(name))
         return {m_node_def->attr().at(name)};
     return {};
-
 }
 }  // namespace tf
 }  // namespace frontend
