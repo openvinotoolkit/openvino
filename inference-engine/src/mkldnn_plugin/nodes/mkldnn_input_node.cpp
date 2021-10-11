@@ -393,7 +393,7 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> outPortConfs;
 
     if (getType() == Input || getType() == MemoryInput) {
-        precision = getOriginalOutputPrecisionAtPort(0);
+        auto precision = getOriginalOutputPrecisionAtPort(0);
         if (precision == Precision::U16 || isMeanImage) {
             precision = Precision::FP32;
         }
@@ -403,7 +403,7 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
             inPortConfs.push_back({LayoutType::ncsp, precision, true});
         }
     } else if (getType() == Output) {
-        precision = getOriginalInputPrecisionAtPort(0);
+        auto precision = getOriginalInputPrecisionAtPort(0);
         if (precision == Precision::U16) precision = Precision::FP32;
 
         inPortConfs.push_back({LayoutType::ncsp, precision});

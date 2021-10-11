@@ -38,7 +38,6 @@ private:
 
 private:
     std::shared_ptr<ngraph::op::Constant> constOp;
-    InferenceEngine::Precision precision;
     MKLDNNMemoryCPtr memoryPtr;
     bool isMeanImage = false;
 };
