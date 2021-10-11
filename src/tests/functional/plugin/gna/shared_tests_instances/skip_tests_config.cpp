@@ -87,8 +87,13 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVInferenceChaining.*(StaticOutputToStaticInput).*)"
     };
 
-    std::vector<std::string> serializationPatterns = {};
+    // Only these skip patterns will be used in any EXPORT mode
+    std::vector<std::string> serializationPatterns = {
+        R"(.*ConstantResultSubgraphTest.*IS=\(2\.3\.4\.5\).*)",
+        R"(.*ConstantResultSubgraphTest.*inPrc=(U8|I8|I32|U64|I64|BOOL).*)",
+    };
 
+    // These skip patterns are united with standard skip patterns
     std::vector<std::string> loadingPatterns = {
         R"(.*smoke_convert_matmul_to_fc.*)",
         R"(.*MultipleInputTest.*)",
@@ -97,10 +102,9 @@ std::vector<std::string> disabledTestPatterns() {
     auto& e_t = LayerTestsUtils::ExternalNetworkTool::getInstance();
 
     if (e_t.getMode() == LayerTestsUtils::ExternalNetworkMode::EXPORT ||
-        e_t.getMode() == LayerTestsUtils::ExternalNetworkMode::EXPORT_MODELS_ONLY) {
-        standardPatterns.insert(std::end(standardPatterns),
-                                std::begin(serializationPatterns),
-                                std::end(serializationPatterns));
+        e_t.getMode() == LayerTestsUtils::ExternalNetworkMode::EXPORT_MODELS_ONLY ||
+        e_t.getMode() == LayerTestsUtils::ExternalNetworkMode::EXPORT_ARKS_ONLY) {
+        return serializationPatterns;
     }
 
     if (e_t.getMode() == LayerTestsUtils::ExternalNetworkMode::IMPORT) {
