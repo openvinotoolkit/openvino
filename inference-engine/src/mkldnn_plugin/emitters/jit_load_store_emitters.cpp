@@ -537,6 +537,11 @@ size_t jit_store_emitter::aux_vecs_count() const {
 
 size_t jit_store_emitter::get_inputs_num() const { return 1; }
 
+void jit_store_emitter::emit_data() const {
+    if (emu_vcvtneps2bf16)
+        emu_vcvtneps2bf16->emit_data();
+}
+
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                   const emitter_context *emit_context) const {

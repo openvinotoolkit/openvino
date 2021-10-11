@@ -124,6 +124,8 @@ public:
 
     size_t get_inputs_num() const override;
 
+    void emit_data() const override;
+
     std::shared_ptr<jit_emu_vcvtneps2bf16> get_emu_vcvtneps2bf16() const {
         return emu_vcvtneps2bf16;
     }

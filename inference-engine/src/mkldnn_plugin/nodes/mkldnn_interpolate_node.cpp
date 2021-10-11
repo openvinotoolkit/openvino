@@ -588,29 +588,29 @@ private:
             if ((isa == cpu::x64::sse41) && (jcp_.layout == InterpolateLayoutType::block)) {
                 int offset_src = step * jcp_.src_data_size;
                 load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_valTL.getIdx())},
-                    std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, step, offset_src), {}, {load_pool_gpr_idxs});
+                    std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, step, false, "zero", offset_src), {}, {load_pool_gpr_idxs});
                 load_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(vmm_valTR.getIdx())},
-                    std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, step, offset_src), {}, {load_pool_gpr_idxs});
+                    std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, step, false, "zero", offset_src), {}, {load_pool_gpr_idxs});
                 if (jcp_.spatial_dim_size == 1) {
                     linear_onnx_worker_1d();
                 }
                 if (jcp_.spatial_dim_size > 1) {
                     load_emitter->emit_code({static_cast<size_t>(reg_src_aux1.getIdx())}, {static_cast<size_t>(vmm_valBL.getIdx())},
-                        std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, step, offset_src), {}, {load_pool_gpr_idxs});
+                        std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, step, false, "zero", offset_src), {}, {load_pool_gpr_idxs});
                     load_emitter->emit_code({static_cast<size_t>(reg_src_aux2.getIdx())}, {static_cast<size_t>(vmm_valBR.getIdx())},
-                        std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, step, offset_src), {}, {load_pool_gpr_idxs});
+                        std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, step, false, "zero", offset_src), {}, {load_pool_gpr_idxs});
                     linear_onnx_worker_2d();
                 }
                 if (jcp_.spatial_dim_size > 2) {
                     uni_vmovups(vmm_d_bias, vmm_valTR);  // temporally save front result to temp_vmm
                     load_emitter->emit_code({static_cast<size_t>(reg_src_aux4.getIdx())}, {static_cast<size_t>(vmm_valTL.getIdx())},
-                        std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, step, offset_src), {}, {load_pool_gpr_idxs});
+                        std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, step, false, "zero", offset_src), {}, {load_pool_gpr_idxs});
                     load_emitter->emit_code({static_cast<size_t>(reg_src_aux5.getIdx())}, {static_cast<size_t>(vmm_valTR.getIdx())},
-                        std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, step, offset_src), {}, {load_pool_gpr_idxs});
+                        std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, step, false, "zero", offset_src), {}, {load_pool_gpr_idxs});
                     load_emitter->emit_code({static_cast<size_t>(reg_src_aux6.getIdx())}, {static_cast<size_t>(vmm_valBL.getIdx())},
-                        std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, step, offset_src), {}, {load_pool_gpr_idxs});
+                        std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, step, false, "zero", offset_src), {}, {load_pool_gpr_idxs});
                     load_emitter->emit_code({static_cast<size_t>(reg_src_aux7.getIdx())}, {static_cast<size_t>(vmm_valBR.getIdx())},
-                        std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, step, offset_src), {}, {load_pool_gpr_idxs});
+                        std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, step, false, "zero", offset_src), {}, {load_pool_gpr_idxs});
 
                     // 2d for end depth
                     linear_onnx_worker_2d();
@@ -728,7 +728,7 @@ private:
             load_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(vmm_weightL.getIdx())},
                 std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step), {}, {load_pool_gpr_idxs});
             load_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(vmm_weightR.getIdx())},
-                std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, weight_stride), {}, {load_pool_gpr_idxs});
+                std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, false, "zero", weight_stride), {}, {load_pool_gpr_idxs});
 
             // progressive manner
             if (jcp_.spatial_dim_size == 1) {
@@ -744,9 +744,9 @@ private:
                 vgatherdps(vmm_valBR, ptr[reg_src + vmm_index], vmm_mask);
 
                 load_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(vmm_weightT.getIdx())},
-                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, 2 * weight_stride), {}, {load_pool_gpr_idxs});
+                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, false, "zero", 2 * weight_stride), {}, {load_pool_gpr_idxs});
                 load_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(vmm_weightB.getIdx())},
-                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, 3 * weight_stride), {}, {load_pool_gpr_idxs});
+                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, false, "zero", 3 * weight_stride), {}, {load_pool_gpr_idxs});
 
                 linear_onnx_worker_2d();
             }
@@ -773,9 +773,9 @@ private:
                 linear_onnx_worker_2d();
 
                 load_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(vmm_weightE.getIdx())},
-                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, 5 * weight_stride), {}, {load_pool_gpr_idxs});
+                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, false, "zero", 5 * weight_stride), {}, {load_pool_gpr_idxs});
                 load_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(vmm_weightF.getIdx())},
-                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, 4 * weight_stride), {}, {load_pool_gpr_idxs});
+                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, false, "zero", 4 * weight_stride), {}, {load_pool_gpr_idxs});
 
                 uni_vmulps(vmm_valTR, vmm_valTR, vmm_weightE); // end_value * end_weight
                 uni_vfmadd231ps(vmm_valTR, vmm_d_bias, vmm_weightF); // start_value * start_weight + end_value * end_weight
@@ -821,7 +821,7 @@ private:
             load_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(xmm_weightL.getIdx())},
                 std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step), {}, {load_pool_gpr_idxs});
             load_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(xmm_weightR.getIdx())},
-                std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, weight_stride), {}, {load_pool_gpr_idxs});
+                std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, false, "zero", weight_stride), {}, {load_pool_gpr_idxs});
 
             if (jcp_.spatial_dim_size == 1) {
                 linear_onnx_worker_1d();
@@ -840,10 +840,10 @@ private:
                     std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, step), {}, {load_pool_gpr_idxs});
 
                 load_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(xmm_weightT.getIdx())},
-                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, 2 * weight_stride),
+                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, false, "zero", 2 * weight_stride),
                     {}, {load_pool_gpr_idxs});
                 load_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(xmm_weightB.getIdx())},
-                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, 3 * weight_stride),
+                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, false, "zero", 3 * weight_stride),
                     {}, {load_pool_gpr_idxs});
 
                 linear_onnx_worker_2d();
@@ -879,10 +879,10 @@ private:
                 linear_onnx_worker_2d();
 
                 load_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(xmm_weightE.getIdx())},
-                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, 5 * weight_stride),
+                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, false, "zero", 5 * weight_stride),
                     {}, {load_pool_gpr_idxs});
                 load_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(xmm_weightF.getIdx())},
-                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, 4 * weight_stride),
+                    std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, step, false, "zero", 4 * weight_stride),
                     {}, {load_pool_gpr_idxs});
 
                 uni_vmulps(vmm_valTR, vmm_valTR, xmm_weightE); // end_value * end_weight
