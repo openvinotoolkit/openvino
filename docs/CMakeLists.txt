@@ -180,39 +180,29 @@ function(build_docs)
         --output_dir=${DOCS_BUILD_DIR}/gst)
     endif()
 
+    add_custom_target(preprocess_docs
+                     COMMENT "Preprocess documentation"
+                     VERBATIM)
+
+    # Preprocess docs
+    add_custom_command(TARGET preprocess_docs
+                       POST_BUILD
+                       ${commands}
+                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
+                       COMMENT "Preprocess documentation"
+                       VERBATIM)
+
     add_custom_target(doxygen_xml
+                      DEPENDS preprocess_docs
                       COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       COMMENT "Generate doxygen XML output"
                       VERBATIM)
 
-    # Preprocess docs
-    add_custom_command(TARGET doxygen_xml
-                       PRE_BUILD
-                       COMMAND ${CMAKE_COMMAND} -E remove_directory ${XML_OUTPUT}
-                       ${commands}
-                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
-                       COMMENT "Pre-process docs"
-                       VERBATIM)
-
     # Post-process docs
     add_custom_command(TARGET doxygen_xml
                        POST_BUILD
                        COMMAND ${PYTHON_EXECUTABLE} ${PREPARE_XML_SCRIPT} ${XML_OUTPUT}
-                       COMMENT "Prepare xml"
-                       VERBATIM)
-
-    add_custom_target(sphinx_docs
-                      DEPENDS doxygen_xml
-                      COMMAND sphinx-build -b html ${RST_OUTPUT} ${SPHINX_OUTPUT}
-                      WORKING_DIRECTORY ${RST_OUTPUT}
-                      VERBATIM)
-
-    set_target_properties(doxygen_xml sphinx_docs
-                          PROPERTIES FOLDER docs)
-
-    add_custom_command(TARGET sphinx_docs
-                       PRE_BUILD
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}
                        COMMAND ${DOXYREST_EXECUTABLE} -c ${DOXYREST_CONFIG_OUT}
                        COMMAND ${PYTHON_EXECUTABLE} ${COPY_IMAGES_SCRIPT} ${XML_OUTPUT} ${RST_OUTPUT}
@@ -224,15 +214,17 @@ function(build_docs)
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_STATIC_IN} ${SPHINX_STATIC_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_TEMPLATES_IN} ${SPHINX_TEMPLATES_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_THEMES_IN} ${SPHINX_THEMES_OUT}
-                       WORKING_DIRECTORY ${RST_OUTPUT}
+                       COMMENT "Prepare xml"
                        VERBATIM)
 
-    # add_custom_command(TARGET sphinx_docs
-    #                    POST_BUILD
-    #                    COMMAND sphinx-build -b linkcheck ${RST_OUTPUT} ${SPHINX_OUTPUT}
-    #                    COMMENT "Linkchecker"
-    #                    WORKING_DIRECTORY ${RST_OUTPUT}
-    #                    VERBATIM)
+    add_custom_target(sphinx_docs
+                      DEPENDS doxygen_xml
+                      COMMAND sphinx-build -b html ${RST_OUTPUT} ${SPHINX_OUTPUT}
+                      WORKING_DIRECTORY ${RST_OUTPUT}
+                      VERBATIM)
+
+    set_target_properties(doxygen_xml sphinx_docs
+                          PROPERTIES FOLDER docs)
 
 
     find_program(browser NAMES xdg-open)

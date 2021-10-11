@@ -416,26 +416,20 @@ function formatDocBlock_table(b, context)
 		return ''
 	end
 
-	local headfoot = ''
-	for i = 1, #maxwidths do
-		headfoot = headfoot .. string.rep('=', maxwidths[i]) .. '  '
-	end
-	headfoot = headfoot .. '\n'
-
-	local s = headfoot
+	local s = '.. list-table::\n'
+	local s = s .. '    :header-rows: 1\n\n'
 	for r = 1, #tbl do
 		for c = 1, #tbl[r] do
+			if c == 1 then
+				s = s .. '    * - '
+			else
+				s = s .. '      - '
+			end
 			tblrc = trimWhitespace(tbl[r][c])
-			s = s .. tblrc .. string.rep(' ', 2 + maxwidths[c] - utf8.len(tblrc))
-		end
-		s = s .. '\n'
-
-		if r == 1 then
-			s = s .. headfoot
+			s = s .. tblrc .. '\n'
+			-- s = s .. tblrc .. string.rep(' ', 2 + maxwidths[c] - string.len(tblrc))
 		end
 	end
-	s = s .. headfoot
-
 	return '\n\n' .. s .. '\n'
 end
 
