@@ -695,8 +695,22 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         } else if (memPressure.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
             batch = 4;
         }
+        // workaround to emulate the MAX_BATCH
+        auto executableNetworkForDeviceBatch1 = const_cast<clDNNEngine*>(this)->LoadExeNetworkImpl(*network,
+                                                {{PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, "1"}});
+        uint64_t footprint = executableNetworkForDeviceBatch1->GetMetric(GPU_METRIC_KEY(NETWORK_MEM_FOOTPRINT));
         std::cout << "memPressure.max_mem_tolerance: " << memPressure.max_mem_tolerance << std::endl;
         std::cout << "SELECTED BATCH: " << batch << std::endl;
+        std::cout << "!!!!!!!!!!!!!! Original (batch1):" << footprint << std::endl;
+
+        uint64_t total_mem = GetMetric(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE), {{}});
+        total_mem /=2; // WA to accomodate #streams
+        while (total_mem < (footprint * batch)) {
+            batch /= 2;
+        }
+        // TODO: remove this workaround and avoid batching altogether if the network is too big (should happen in IE core)
+        batch = std::max(1u, batch);
+        std::cout << "ACTUAL SELECTED BATCH: " << batch << std::endl;
         IE_SET_METRIC_RETURN(OPTIMAL_BATCH, batch);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
         auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
