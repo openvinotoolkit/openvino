@@ -338,6 +338,11 @@ int main(int argc, char* argv[]) {
                 slog::warn << "Image " + i + " cannot be read!" << slog::endl;
                 continue;
             }
+
+            if (reader->size() != inputInfoItem.second->getTensorDesc().getDims()[2] * inputInfoItem.second->getTensorDesc().getDims()[3]) {
+                throw std::logic_error("Not supported format. Only MNist ubyte images supported.");
+            }
+
             /** Store image data **/
             std::shared_ptr<unsigned char> data(reader->getData(inputInfoItem.second->getTensorDesc().getDims()[3],
                                                                 inputInfoItem.second->getTensorDesc().getDims()[2]));
