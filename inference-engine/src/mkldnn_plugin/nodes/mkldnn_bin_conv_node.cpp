@@ -964,7 +964,9 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    setPostOps(attr);
+    if (!fusedWithNeededReallocNode()) {
+        setPostOps(attr);
+    }
 
     NodeConfig config;
     config.dynBatchSupport = false;
@@ -1019,6 +1021,10 @@ void MKLDNNBinaryConvolutionNode::createPrimitive() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU binary convolution with name '" << getName() << "' doesn't have primitive descriptors.";
+
+    if (fusedWithNeededReallocNode()) {
+        setPostOps(attr);
+    }
 
     auto srcDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
     auto weiDims = getParentEdgesAtPort(1)[0]->getMemory().getStaticDims();
@@ -1136,6 +1142,9 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
 
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
+            if (fakeQuantizeNode->mustReallocInternalBuffers()) {
+                fakeQuantizeNode->setCurrentAxis(getChildEdgesAtPort(0)[0]->getMemory().getStaticDims()[fakeQuantizeNode->getAxis()]);
+            }
             fakeQuantizeNode->appendPostOps(ops);
             continue;
         }
