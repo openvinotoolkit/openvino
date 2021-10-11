@@ -13,5 +13,6 @@
    Release Notes <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
    glossary
    omz_data_datasets
+   groupie_dev_api
 
 @endsphinxdirective
