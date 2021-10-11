@@ -24,7 +24,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ExecGraph.*)",
 
         // TODO: support import / export of precisions in template plugin
-        R"(.*smoke_(Hetero_|)BehaviorTests.*OVExecNetwork.ieImportExportedFunction.*)",
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.ieImportExportedFunction.*)",
+        R"(.*smoke_BehaviorTests.*OVExecNetwork.ieImportExportedFunction.*)",
 
         // TODO: Round with f16 is not supported
         R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
