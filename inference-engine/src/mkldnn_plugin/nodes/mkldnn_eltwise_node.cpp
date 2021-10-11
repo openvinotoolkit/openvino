@@ -1764,7 +1764,7 @@ void MKLDNNEltwiseNode::alignScalesAndShifts(const MKLDNNNode *parentNode, std::
         IE_THROW() << "Can't align scales and shifts, becuase both buffers empty";
     }
 
-    if (!ssAlign.isInit() || !initScalesSize.isInit() || !initShiftsSize.isInit() || !constPort.isInit()) {
+    if (!initScalesSize.isInit() || !initShiftsSize.isInit() || !constPort.isInit()) {
         IE_THROW() << "Can't align scales and shifts, because alignment or init scales/shifts size or const port value is not init";
     }
 
@@ -1791,6 +1791,9 @@ void MKLDNNEltwiseNode::alignScalesAndShifts(const MKLDNNNode *parentNode, std::
         bufferSize = static_cast<size_t>(dims[dims.size() > 1 ? 1 : 0]);
     }
 
+    if (!ssAlign.isInit()) {
+        ssAlign = bufferSize;
+    }
     const size_t bufferSizeAligned = rnd_up(bufferSize, ssAlign.getValue());
 
     if (initScalesSize.getValue() > 0) {

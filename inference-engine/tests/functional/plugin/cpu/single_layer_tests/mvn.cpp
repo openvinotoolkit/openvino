@@ -193,15 +193,15 @@ const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngrap
 };
 
 const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>>> inputShapes_4D = {
-        // { {}, {{1, 16, 5, 8}}},
-        // { {}, {{2, 19, 5, 10}}},
-        // { {}, {{7, 32, 2, 8}}},
-        // { {}, {{5, 8, 3, 5}}},
-        // { {}, {{1, 2, 7, 5}}},
-        // { {}, {{1, 4, 5, 5}}},
-        // { {}, {{1, 7, 3, 5}}},
-        // { {}, {{1, 15, 9, 5}}},
-        // { {}, {{4, 41, 6, 9}}},
+        { {}, {{1, 16, 5, 8}}},
+        { {}, {{2, 19, 5, 10}}},
+        { {}, {{7, 32, 2, 8}}},
+        { {}, {{5, 8, 3, 5}}},
+        { {}, {{1, 2, 7, 5}}},
+        { {}, {{1, 4, 5, 5}}},
+        { {}, {{1, 7, 3, 5}}},
+        { {}, {{1, 15, 9, 5}}},
+        { {}, {{4, 41, 6, 9}}},
         {
             // dynamic
             {{ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)}},
