@@ -89,8 +89,11 @@ Data::Data(const std::string& name, const TensorDesc& desc) : name(name), userOb
 Data::Data(const std::string& name, Precision _precision, const ngraph::PartialShape& shape, Layout layout)
     : name(name),
       userObject({0}),
-      tensorDesc(_precision, shape.is_static() ? shape.to_shape() :
-        shape.rank().is_static() ? SizeVector(shape.rank().get_length(), 0) : SizeVector(1, 0), layout) {
+      tensorDesc(_precision,
+                 shape.is_static()
+                     ? shape.to_shape()
+                     : shape.rank().is_static() ? SizeVector(shape.rank().get_length(), 0) : SizeVector(1, 0),
+                 layout) {
     _impl = std::make_shared<Impl>();
     _impl->pShape = shape;
 }
