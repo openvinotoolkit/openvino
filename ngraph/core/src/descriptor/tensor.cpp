@@ -98,6 +98,10 @@ const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const
     return m_names;
 }
 
+const std::string& ov::descriptor::Tensor::get_any_name() const {
+    return *get_names().begin();
+}
+
 void ov::descriptor::Tensor::set_names(const std::unordered_set<std::string>& names) {
     m_names = names;
 }
