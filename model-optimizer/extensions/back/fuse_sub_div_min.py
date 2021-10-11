@@ -8,7 +8,7 @@ from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Node, Graph
 
 
-class Negate(BackReplacementPattern): # REMOVE
+class Negate(BackReplacementPattern):
     enabled = True
     force_clean_up = True
 
@@ -78,45 +78,3 @@ class EltwisesToSubtract(BackReplacementPattern):
         add.out_port(0).get_connection().set_source(sub.out_port(0))
         minuend_port.connect(sub.in_port(0))
         subtrahned_port.connect(sub.in_port(1))
-
-
-class EltwisesToDiv(BackReplacementPattern):
-    enabled = True
-    force_clean_up = True
-
-    @staticmethod
-    def pattern():
-        return dict(
-            nodes=[
-                ('const', {'type': 'Const'}),
-                ('const_d', {'value': lambda val: val is not None and np.all(val == -1)}),
-                ('inv', {'type': 'Pow'}),
-                ('inv_d', {}),
-                ('mul', {'type': 'Multiply'})
-            ],
-            edges=[
-                ('const', 'const_d'),
-                ('const_d', 'inv', {'in': 1}),
-                ('inv', 'inv_d'),
-                ('inv_d', 'mul'),
-            ],
-        )
-
-    @staticmethod
-    def replace_pattern(graph: Graph, match: [str, Node]):
-        pow = match['inv']
-        mul = match['mul']
-        const = match['const']
-
-        name = mul.soft_get('name', mul.id)
-
-        devidend_port = mul.in_port(0).get_source() if mul.in_port(1).get_source().node.id == pow.id else mul.in_port(
-            1).get_source()
-        divider_port = pow.in_port(0).get_source() if pow.in_port(1).get_source().node.id == const.id else pow.in_port(
-            1).get_source()
-
-        div = Div(graph, {'name': name + '/div'}).create_node()
-
-        mul.out_port(0).get_connection().set_source(div.out_port(0))
-        devidend_port.connect(div.in_port(0))
-        divider_port.connect(div.in_port(1))

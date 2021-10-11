@@ -19,10 +19,10 @@ class TRANSFORMATIONS_API DivideFusion;
 /**
  * @ingroup ie_transformation_common_api
  * @brief DivideFusion transformation replaces a sub-graph
- * Pow(y, -1) * x with Divide(x,y)
+ * Pow(y, -1) * x or x * Pow(y, -1) with Divide(x,y)
  */
-class ngraph::pass::GeluFusionWithErfOne : public ngraph::pass::MatcherPass {
+class ngraph::pass::DivideFusion : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    GeluFusionWithErfOne();
+    DivideFusion();
 };
