@@ -8,7 +8,7 @@ from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Node, Graph
 
 
-class Negate(BackReplacementPattern):
+class Negate(BackReplacementPattern): # REMOVE
     enabled = True
     force_clean_up = True
 
@@ -52,7 +52,7 @@ class EltwisesToSubtract(BackReplacementPattern):
     def pattern():
         return dict(
             nodes=[
-                ('neg', {'type': 'Negative'}),
+                ('neg', {'type': 'Negative'}), # use multiply in addition
                 ('neg_d', {}),
                 ('add', {'type': 'Add'})
             ],
