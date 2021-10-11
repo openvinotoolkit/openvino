@@ -781,13 +781,13 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             passes->registerPass<UnrollLSTMCellPass>();
             passes->registerPass<RemoveSingleInputConcatPass>();
             passes->registerPass<BroadcastConstPass>();
+            passes->registerPass<SubstituteScaleShiftBroadCastPass>();
         }
 
         // fake quantisation aware passes
         passes->registerPass<FuseFQIntoWeightsPass>();
         passes->registerPass<MoveFakeQuantizeLayerIntoQuantParamsPass>();
 
-        passes->registerPass<SubstituteScaleShiftBroadCastPass>();
         passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>();
 
         passes->registerPass<SubstitutePReluPass>();
