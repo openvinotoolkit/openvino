@@ -5,6 +5,7 @@
 #include "itt.hpp"
 #include "transformations/common_optimizations/split_concat_pair_to_interpolate_fusion.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <numeric>
 #include <unordered_set>
@@ -38,7 +39,12 @@ std::vector<std::vector<size_t>> grouped_vector(const std::vector<size_t>& v) {
     return result;
 }
 
-std::shared_ptr<ngraph::opset8::Split> get_split_before_concat(const std::shared_ptr<ngraph::opset8::Concat>& concat) {
+struct SplitAndScale {
+    std::shared_ptr<ngraph::opset8::Split> split;
+    int64_t scale_factor;
+};
+
+SplitAndScale get_split_before_concat(const std::shared_ptr<ngraph::opset8::Concat>& concat) {
     // This function gets producers of the 'concat' node, checks that the following conditions are fulfilled:
     // 1) all producers for 'concat' are Split nodes;
     // 2) 'concat' has only one unique producer ('split');
@@ -49,24 +55,26 @@ std::shared_ptr<ngraph::opset8::Split> get_split_before_concat(const std::shared
     // and, if all these conditions are fulfilled, returns the above mentioned 'Concat' node. Otherwise, if some of these
     // conditions is false, this functions returns nullptr.
 
+    SplitAndScale result{nullptr, 0};
+
     std::vector<size_t> idx;
     std::unordered_set<std::shared_ptr<ngraph::opset8::Split>> splits;
     for (const auto& input : concat->input_values()) {
         // If 'concat' has some non-Split producer, then the transformation is not applicable.
         auto split = std::dynamic_pointer_cast<ngraph::opset8::Split>(input.get_node_shared_ptr());
-        if (!split) return nullptr;
+        if (!split) return result;
         idx.emplace_back(input.get_index());
         splits.insert(split);
     }
     // If 'concat' has more than one Splits as producers, then the transformation is not applicable.
-    if (splits.size() != 1) return nullptr;
+    if (splits.size() != 1) return result;
 
     auto split = *(splits.begin());
 
     // If 'split' node has more than one consumer, then the transformation is not applicable.
     for (const auto& output : split->outputs()) {
         for (const auto& consumer : output.get_target_inputs()) {
-            if (consumer.get_node() != concat.get()) return nullptr;
+            if (consumer.get_node() != concat.get()) return result;
         }
     }
 
@@ -76,42 +84,22 @@ std::shared_ptr<ngraph::opset8::Split> get_split_before_concat(const std::shared
     for (const auto& group : grouped_idx) {
         sizes_of_groups.insert(group.size());
     }
-    if (sizes_of_groups.size() != 1) return nullptr;
-    size_t size_of_group = *(sizes_of_groups.begin());
+    if (sizes_of_groups.size() != 1) return result;
+    int64_t size_of_group = static_cast<int64_t>(*(sizes_of_groups.begin()));
     size_t num_of_groups = grouped_idx.size();
 
     // The transformation is applicable iff output port 0 of 'split' goes to ports [0, ..., m-1] of next node,
     // output port 1 of 'split' goes to ports [m, ..., m + (m-1)] of next node, ..., output port i of 'split'
     // goes to ports [i * m, ..., i * m + (m - 1)], and so on.
-    std::vector<std::vector<size_t>> expected_producing_ports_groups(num_of_groups);
     for (size_t i = 0; i < num_of_groups; ++i) {
-        expected_producing_ports_groups[i] = std::vector<size_t>(size_of_group, i);
+        const auto& current_group = grouped_idx[i];
+        if (std::any_of(current_group.begin(), current_group.end(), [i](size_t j){ return j != i; })) { return result; }
     }
-    if (grouped_idx != expected_producing_ports_groups) return nullptr;
 
-    return split;
-}
+    result.split = split;
+    result.scale_factor = size_of_group;
 
-int64_t get_split_scale(const std::shared_ptr<ngraph::opset8::Concat>& concat) {
-    // The transformation is applicable, only if the number of output ports of 'split' is multiple of
-    // the number of inputs of Concat.
-    // This function returns 0, if the number of output ports of 'split' is not multiple of the number of inputs of Concat,
-    // and number_of_concat_inputs / number_of_output_ports_of_split otherwise
-    const auto concat_inputs = concat->input_values();
-    size_t num_of_concat_inputs = concat_inputs.size();
-
-    std::unordered_set<size_t> split_output_ports;
-    for (auto input : concat_inputs) {
-        split_output_ports.insert(input.get_index());
-    }
-    size_t num_of_output_ports_of_split = split_output_ports.size();
-
-    float float_scale = static_cast<float>(num_of_concat_inputs) / static_cast<float>(num_of_output_ports_of_split);
-    size_t int_scale = num_of_concat_inputs / num_of_output_ports_of_split;
-
-    if (float_scale != static_cast<float>(int_scale)) return 0;
-
-    return static_cast<int64_t>(int_scale);
+    return result;
 }
 } // namespace
 
@@ -125,7 +113,8 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
         auto concat = std::dynamic_pointer_cast<ngraph::opset8::Concat>(m.get_match_root());
         if (!concat) return false;
 
-        auto split = get_split_before_concat(concat);
+        auto split_and_scale = get_split_before_concat(concat);
+        auto split = split_and_scale.split;
         if (!split) return false;
 
         Shape split_input_shape = split->get_input_shape(0);
@@ -137,7 +126,7 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
 
         int64_t axis = split_axis_const->cast_vector<int64_t>()[0];
 
-        int64_t scale_factor = get_split_scale(concat);
+        int64_t scale_factor = split_and_scale.scale_factor;
         if (scale_factor == 0) return false;
 
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;
