@@ -10,6 +10,7 @@
 #include <openvino/op/nv12_to_bgr.hpp>
 
 #include "base_reference_test.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 using namespace ov;
 using namespace InferenceEngine;
@@ -18,6 +19,9 @@ using namespace reference_tests;
 class ReferenceConvertColorNV12LayerTest : public testing::Test, public CommonReferenceTest {
 public:
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        abs_threshold = 2.f; // allow R, G, B absolute deviation to 2 (of max 255)
+        threshold = 1.f; // Ignore relative comparison (100%)
     }
 
 public:
@@ -72,7 +76,6 @@ TEST_F(ReferenceConvertColorNV12LayerTest, CompareWithHardcodedRefs_color_u8_sin
 }
 
 TEST_F(ReferenceConvertColorNV12LayerTest, CompareWithHardcodedRefs_g_fp32_single_rgb) {
-    threshold = 2.f;
     auto input = std::vector<float> {145.f, 145.f, 145.f, 145.f, 34.f, 54.f};
     auto input_shape = Shape{1, 3, 2, 1};
     auto exp_out = std::vector<float> {0, 255.f, 0, 0, 255.f, 0, 0, 255.f, 0, 0, 255.f, 0};
@@ -90,7 +93,6 @@ TEST_F(ReferenceConvertColorNV12LayerTest, CompareWithHardcodedRefs_g_fp32_singl
 }
 
 TEST_F(ReferenceConvertColorNV12LayerTest, CompareWithHardcodedRefs_batch_fp32_two_bgr) {
-    threshold = 2.f;
     auto input_y = std::vector<float> {81.f, 81.f, 81.f, 81.f,
                                        145.f, 145.f, 145.f, 145.f,
                                        41.f, 41.f, 41.f, 41.f};
@@ -119,14 +121,13 @@ TEST_F(ReferenceConvertColorNV12LayerTest, CompareWithHardcodedRefs_batch_fp32_t
 }
 
 TEST_F(ReferenceConvertColorNV12LayerTest, CompareWithHardcodedRefs_color2x2_f32_two_rgb) {
-    threshold = 2.f;
     auto input_y = std::vector<float> {235, 81, 235, 81};
     auto input_shape_y = Shape{1, 2, 2, 1};
 
     auto input_uv = std::vector<float> {184, 109};
     auto input_shape_uv = Shape{1, 1, 1, 2};
 
-    auto exp_out = std::vector<float> {164, 37, 37, 216, 215, 255, 164, 37, 37, 216, 215, 255};
+    auto exp_out = std::vector<float> {164, 37, 37, 255, 216, 215, 164, 37, 37, 255, 216, 215};
     auto out_shape = Shape{1, 2, 2, 3};
 
     Tensor inp_tensor_y(input_shape_y, element::f32, input_y);

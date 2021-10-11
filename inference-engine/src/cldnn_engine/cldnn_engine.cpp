@@ -485,7 +485,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
-        clonedNetwork.serialize(debug_config->dump_graphs + "/transformed_func.xml");
+        clonedNetwork.serialize(debug_config->dump_graphs + "/" + network.getName() + "_" +  "transformed_func.xml");
     }
     return clonedNetwork;
 }
@@ -572,11 +572,12 @@ std::map<std::string, std::string> clDNNEngine::ConvertPerfHintsToConfig(
                 config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(1);
             } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
                 config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
+                //disabling the throttling temporarily to set the validation (that is switching to the hints) perf baseline
                 //checking throttling (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
-                const auto bInConfig = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||
-                    config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end();
-                if (!bInConfig && !throttlingSet)
-                    config[GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE] = std::to_string(1);
+                // const auto bInConfig = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||
+                //    config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end();
+                // if (!bInConfig && !throttlingSet)
+                //    config[GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE] = std::to_string(1);
             }
         }
     }

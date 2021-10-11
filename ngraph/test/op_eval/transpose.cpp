@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/transpose.hpp"
@@ -27,23 +28,22 @@ void test_tranpose_eval(shared_ptr<Function> fun) {
     const std::vector<std::vector<T>> input_data{{1, 2, 3, 4, 5, 6},
                                                  {1, 2, 3, 4, 5, 6},
                                                  {1, 2, 3, 4, 5, 6},
-                                                 {1, 2, 3, 4, 5, 6},
                                                  {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}};
-    std::vector<Shape> data_shapes{{2, 3}, {2, 3}, {2, 3}, {2, 3, 1}, {2, 2, 3}};
-    const std::vector<std::vector<T_AXIS>> axes_order{{0, 1}, {1, 0}, {}, {1, 2, 0}, {2, 1, 0}};
+    std::vector<Shape> data_shapes{{2, 3}, {2, 3}, {2, 3, 1}, {2, 2, 3}};
+    const std::vector<std::vector<T_AXIS>> axes_order{{0, 1}, {1, 0}, {1, 2, 0}, {2, 1, 0}};
 
     std::vector<std::vector<T>> expected_results{{1, 2, 3, 4, 5, 6},
                                                  {1, 4, 2, 5, 3, 6},
                                                  {1, 4, 2, 5, 3, 6},
-                                                 {1, 4, 2, 5, 3, 6},
                                                  {1, 7, 4, 10, 2, 8, 5, 11, 3, 9, 6, 12}};
-    std::vector<Shape> expected_result_shapes{{2, 3}, {3, 2}, {3, 2}, {3, 1, 2}, {3, 2, 2}};
+    std::vector<Shape> expected_result_shapes{{2, 3}, {3, 2}, {3, 1, 2}, {3, 2, 2}};
 
     for (size_t i = 0; i < data_shapes.size(); i++) {
         auto result_tensor = make_shared<HostTensor>(element::dynamic, PartialShape::dynamic());
+        auto axes_shape = axes_order[i].size() ? Shape{axes_order[i].size()} : Shape{};
         ASSERT_TRUE(fun->evaluate({result_tensor},
                                   {make_host_tensor<IN_ET>(data_shapes[i], input_data[i]),
-                                   make_host_tensor<AXIS_ET>(Shape{axes_order[i].size()}, axes_order[i])}));
+                                   make_host_tensor<AXIS_ET>(axes_shape, axes_order[i])}));
 
         auto actual_results = read_vector<T>(result_tensor);
         ASSERT_EQ(actual_results, expected_results[i]);

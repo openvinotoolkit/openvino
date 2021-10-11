@@ -57,7 +57,7 @@ std::shared_ptr<ngraph::Function> getFunction2() {
     return std::make_shared<ngraph::Function>(concat, params, "SplitAddConcat");
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests_1, InferRequestDynamicTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_1, InferRequestDynamicTests,
                         ::testing::Combine(
                                 ::testing::Values(getFunction1()),
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
@@ -67,7 +67,7 @@ INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests_1, InferRequestDynamicTests,
                                 ::testing::ValuesIn(configs)),
                         InferRequestDynamicTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests_2, InferRequestDynamicTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_2, InferRequestDynamicTests,
                         ::testing::Combine(
                                 ::testing::Values(getFunction2()),
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
@@ -76,5 +76,4 @@ INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests_2, InferRequestDynamicTests,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::ValuesIn(configs)),
                         InferRequestDynamicTests::getTestCaseName);
-
 }  // namespace

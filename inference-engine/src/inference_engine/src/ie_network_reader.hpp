@@ -19,11 +19,13 @@ namespace details {
  * @param binPath path to bin file, if path is empty, will try to read bin file with the same name as xml and
  * if bin file with the same name was not found, will load IR without weights.
  * @param exts vector with extensions
+ * @param newAPI Whether this function is called from OpenVINO 2.0 API
  * @return CNNNetwork
  */
 CNNNetwork ReadNetwork(const std::string& modelPath,
                        const std::string& binPath,
-                       const std::vector<IExtensionPtr>& exts);
+                       const std::vector<IExtensionPtr>& exts,
+                       bool newAPI);
 /**
  * @brief Reads IR xml and bin (with the same name) files
  * @param model string with IR
@@ -32,9 +34,13 @@ CNNNetwork ReadNetwork(const std::string& modelPath,
  * @note Reading ONNX models doesn't support loading weights from data blobs.
          If you are using an ONNX model with external data files, please use the
          ReadNetwork function overload which takes a filesystem path to the model.
+ * @param newAPI Whether this function is called from OpenVINO 2.0 API
  * @return CNNNetwork
  */
-CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts);
+CNNNetwork ReadNetwork(const std::string& model,
+                       const Blob::CPtr& weights,
+                       const std::vector<IExtensionPtr>& exts,
+                       bool newAPI);
 
 }  // namespace details
 }  // namespace InferenceEngine
