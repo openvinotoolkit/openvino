@@ -134,7 +134,7 @@ void MKLDNNReorderNode::prepareParams() {
             const auto &inDims = srcMemPtr->getStaticDims();
             // Check that child strides are consistent with parent dims if the child is inplace.
             // The strides must be dense except for the channel one (since the child num channels might differ)
-            const auto childStridesAreDense = [&]() {
+            const auto childSubBlocksAreDense = [&]() {
                 if (!getChildEdgeAt(0)->getChild()->isInplace())
                     return true;
                 const auto& dstStrides = childDesc.as<BlockedMemoryDesc>()->getStrides();
@@ -151,9 +151,9 @@ void MKLDNNReorderNode::prepareParams() {
             if (isNspc2NcspCase) {
                 canUseNspc2Ncsp = inDims[1] <= 64 && inDims[1] >= 16 &&
                                   (parentDesc.as<BlockedMemoryDesc>()->getPaddedElementsCount() / inDims[1]) >= 128 &&
-                                  childStridesAreDense();
+                                  childSubBlocksAreDense();
             } else if (isNcsp2NspcCase) {
-                canUseNcsp2Nspc = childStridesAreDense();
+                canUseNcsp2Nspc = childSubBlocksAreDense();
             }
         }
         if (!canUseNcsp2Nspc && !canUseNspc2Ncsp) {
