@@ -3,7 +3,7 @@
 
 """Factory functions for all ngraph ops."""
 from functools import partial
-from typing import Callable, Iterable, List, Optional, Set, Union
+from typing import Callable, Iterable, List, Optional, Set, Union, Tuple
 
 import numpy as np
 from ngraph.impl import Node, Shape
@@ -367,3 +367,54 @@ def random_uniform(
         "op_seed": op_seed,
     }
     return _get_node_factory_opset8().create("RandomUniform", inputs, attributes)
+    
+@nameable_op
+def if_op(
+    condition: NodeInput,
+    inputs: List[Node],
+    bodies: Tuple(GraphBody, GraphBody)
+    input_desc: Tuple(List[TensorIteratorInvariantInputDesc], List[TensorIteratorInvariantInputDesc]),
+    output_desc: Tuple(List[TensorIteratorInvariantInputDesc], List[TensorIteratorInvariantInputDesc]),
+    name: Optional[str] = None,
+) -> Node:
+    """Perform recurrent execution of the network described in the body, iterating through the data.
+
+    @param trip_count: A scalar or 1D tensor with 1 element specifying
+        maximum number of iterations.
+    @param execution_condition: A scalar or 1D tensor with 1 element
+        specifying whether to execute the first iteration or not.
+    @param      inputs:                The provided to TensorIterator operator.
+    @param      graph_body:            The graph representing the body we execute.
+    @param      slice_input_desc:      The descriptors describing sliced inputs, that is nodes
+                                       representing tensors we iterate through, processing single
+                                       data slice in one iteration.
+    @param      merged_input_desc:     The descriptors describing merged inputs, that is nodes
+                                       representing variables with initial value at first iteration,
+                                       which may be changing through iterations.
+    @param      invariant_input_desc:  The descriptors describing invariant inputs, that is nodes
+                                       representing variable with persistent value through all
+                                       iterations.
+    @param      body_output_desc:      The descriptors describing body outputs from specified
+                                       iteration.
+    @param      concat_output_desc:    The descriptors describing specified output values through
+                                       all the iterations concatenated into one node.
+    @param      body_condition_output_idx:    Determines the purpose of the corresponding result in
+                                              the graph_body. This result will determine the dynamic
+                                              exit condition. If the value of this result is False,
+                                              then iterations stop.
+    @param      current_iteration_input_idx:  Determines the purpose of the corresponding parameter
+                                              in the graph_body. This parameter will be used as
+                                              an iteration counter. Optional.
+    @return: The new node which performs Loop.
+    """
+    attributes = {
+        "then_body": bodies[0].serialize(),
+        "else_body": bodies[1].serialize(),
+        "then_inputs": [desc.serialize() for desc in input_desc[0]],
+        "else_inputs": [desc.serialize() for desc in input_desc[1]],
+        "then_outputs": [desc.serialize() for desc in output_desc[0]],
+        "else_outputs": [desc.serialize() for desc in output_desc[1]]
+    }
+    return _get_node_factory_opset8().create("If", as_nodes(condition, *inputs),
+                                             attributes)
+
