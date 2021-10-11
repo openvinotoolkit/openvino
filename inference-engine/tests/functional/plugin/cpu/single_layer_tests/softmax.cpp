@@ -102,6 +102,7 @@ namespace {
 const auto notOptimizedCPUSpec = CPUSpecificParams{{}, {}, {}, "ref_any"};
 
 const std::vector<SoftMaxConfig> optimizedConfigsFP32 = {
+        //Static shapes
         {ShapesDefenition{{}, {{{1, 100}}}}, 1},
         {ShapesDefenition{{}, {{{10, 10}}}}, 1},
         {ShapesDefenition{{}, {{{100, 1}}}}, 0},
@@ -123,27 +124,32 @@ const std::vector<SoftMaxConfig> optimizedConfigsFP32 = {
         {ShapesDefenition{{}, {{{5, 5, 5, 5, 5}}}}, 3},
         {ShapesDefenition{{}, {{{5, 5, 5, 5, 1}}}}, 4},
         {ShapesDefenition{{}, {{{5, 5, 5, 5, 5}}}}, 4},
+        //Dynamic shapes
         {ShapesDefenition{{{-1, -1}}, {{{10, 10}}, {{15, 15}}, {{10, 5}}}}, 1},
         {ShapesDefenition{{{{1, 100}, {1, 100}}}, {{{10, 10}}, {{15, 15}}, {{10, 5}}}}, 1},
         {ShapesDefenition{{{-1, -1, 1, 1, 1}}, {{{5, 5, 1, 1, 1}}, {{10, 7, 1, 1, 1}}}}, 1},
 };
 
 const std::vector<SoftMaxConfig> notOptimizedConfigsFP32 {
+        //Static shapes
         {ShapesDefenition{{}, {{{1, 100}}}}, 0},
         {ShapesDefenition{{}, {{{10, 10}}}}, 0},
         {ShapesDefenition{{}, {{{10, 10, 10}}}}, 0},
         {ShapesDefenition{{}, {{{10, 10, 10}}}}, 1},
+        //Dynamic shapes
         {ShapesDefenition{{{-1, -1}}, {{{10, 1}}, {{15, 15}}, {{10, 5}}}}, 0},
         {ShapesDefenition{{{{1, 100}, {1, 100}, -1}}, {{{10, 10, 10}}, {{10, 10, 1}}, {{10, 5, 10}}}}, 1},
 };
 
 const std::vector<SoftMaxConfig> unsupportedConfigsFP32 {
+        //Static shapes
         {ShapesDefenition{{}, {{{5, 5, 5, 5, 5, 5}}}}, 0},
         {ShapesDefenition{{}, {{{5, 5, 5, 5, 5, 5}}}}, 1},
         {ShapesDefenition{{}, {{{5, 5, 5, 5, 5, 5}}}}, 2},
         {ShapesDefenition{{}, {{{5, 5, 5, 5, 5, 5}}}}, 3},
         {ShapesDefenition{{}, {{{5, 5, 5, 5, 5, 5}}}}, 4},
         {ShapesDefenition{{}, {{{5, 5, 5, 5, 5, 5}}}}, 5},
+        //Dynamic shapes
         {ShapesDefenition{{{-1, -1, -1, -1, -1, -1}}, {{{5, 5, 5, 5, 5, 5}}, {{7, 7, 7, 7, 7, 7}}}}, 4},
 };
 

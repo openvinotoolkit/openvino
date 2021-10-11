@@ -948,14 +948,14 @@ bool MKLDNNNode::isConfigDefined(const NodeConfig &config) const {
 
 MemoryDescPtr MKLDNNNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (isDynamicNode()) {
-        return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), inputShapes[idx]);
+        return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
     }
     return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
 }
 
 MemoryDescPtr MKLDNNNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (isDynamicNode()) {
-        return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), outputShapes[idx]);
+        return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), getOutputShapeAtPort(idx));
     }
     return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
 }
@@ -1250,7 +1250,7 @@ std::vector<VectorDims> MKLDNNNode::shapeInfer() const {
 std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& shapes) const {
     if (shapes.size() < opToShapeInfer->get_input_size()) {
         IE_THROW(Unexpected) << "MKLDNNNode::shapeInferGeneric input shapes vector size is " << shapes.size() << ", but " << opToShapeInfer->get_input_size() <<
-            " required.";
+            " required for node with name: " << getName();
     }
 
     for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {

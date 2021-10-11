@@ -119,15 +119,12 @@ void MKLDNNSoftMaxNode::prepareParams() {
     const auto& in_candidate = inpDesc->getDnnlDesc();
     MKLDNNDescriptor desc(std::shared_ptr<softmax_forward::desc>(
             new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
-    //descs[0] = desc;
-    //std::shared_ptr<softmax_forward::desc> selected_desc_ptr = desc;
 
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
     softmax_forward::primitive_desc prim_desc;
-    //auto prim_desc = softmax_forward::primitive_desc(*selected_desc_ptr, getEngine());
     primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(getEngine());
 
     while (itpd) {
