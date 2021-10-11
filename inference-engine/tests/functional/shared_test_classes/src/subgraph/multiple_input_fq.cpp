@@ -37,7 +37,6 @@ void MultipleInputTest::SetUp() {
     auto mul4 = ngraph::builder::makeEltwise(fake3, mul3, ngraph::helpers::EltwiseTypes::ADD);
     auto result = std::make_shared<ngraph::opset7::Result>(mul4);
     function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, input, "multiple_input");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace SubgraphTestsDefinitions
