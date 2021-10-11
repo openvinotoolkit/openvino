@@ -65,6 +65,9 @@ void Output<Node>::replace(const Output<Node>& replacement) {
         input.replace_source_output(replacement);
     }
     replacement.get_tensor_ptr()->set_names(get_tensor_ptr()->get_names());
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    replacement.get_tensor_ptr()->set_name(get_tensor_ptr()->get_name());
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 RTMap& Output<Node>::get_rt_info() {

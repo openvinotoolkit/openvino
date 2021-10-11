@@ -795,13 +795,14 @@ bool ov::replace_output_update_name(Output<Node> output, const Output<Node>& rep
             replacement.get_tensor().set_name(output.get_node()->get_friendly_name());
         }
 
-        // Save replacement tensor names before replacement as they will be
-        // overrided by the output tensor names
-        auto output_names = replacement.get_tensor_ptr()->get_names();
+        // Save replacement tensor names before replacement as they will be overriden by the output tensor names
+        const auto output_names = replacement.get_tensor_ptr()->get_names();
+        const auto tensor_name = replacement.get_tensor().get_name();
         output.replace(replacement);
 
         // Restore back original replacement tensor names
         replacement.get_tensor().add_names(output_names);
+        replacement.get_tensor().set_name(tensor_name);
 
         copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},
                           replacement.get_node_shared_ptr());
