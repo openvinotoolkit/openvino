@@ -7,19 +7,18 @@
 namespace LayerTestsDefinitions {
 
 std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<softMaxLayerTestParams>& obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::Precision inPrc, outPrc;
-    InferenceEngine::Layout inLayout, outLayout;
+    ngraph::element::Type_t netPrecision;
+//    InferenceEngine::Precision inPrc, outPrc;
     std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>> shapes;
     size_t axis;
     std::string targetDevice;
     std::map<std::string, std::string> config;
-    std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, axis, targetDevice, config) = obj.param;
+    std::tie(netPrecision, shapes, axis, targetDevice, config) = obj.param;
 
     std::ostringstream result;
-    result << "netPRC=" << netPrecision.name() << "_";
-    result << "inPRC=" << inPrc.name() << "_";
-    result << "outPRC=" << outPrc.name() << "_";
+    result << "netPRC=" << netPrecision << "_";
+//    result << "inPRC=" << inPrc.name() << "_";
+//    result << "outPRC=" << outPrc.name() << "_";
     result << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
     result << "TS=";
     for (const auto& item : shapes.second) {
@@ -32,21 +31,14 @@ std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<softM
 }
 
 void SoftMaxLayerTest::SetUp() {
-    std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>> shapes;
-    InferenceEngine::Precision netPrecision;
+    std::pair<ov::PartialShape, std::vector<ov::Shape>> shapes;
+    ngraph::element::Type_t ngPrc;
     size_t axis;
 
-    std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, axis, targetDevice, configuration) = GetParam();
-    outLayout = inLayout;
+    std::tie(ngPrc, shapes, axis, targetDevice, configuration) = GetParam();
+    init_input_shapes(shapes);
 
-    targetStaticShapes.reserve(shapes.second.size());
-    for (const auto& staticShape : shapes.second) {
-        targetStaticShapes.push_back({staticShape});
-    }
-    inputDynamicShapes = {shapes.first};
-
-    const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    const auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShapes.front().front()});
+    const auto params = ngraph::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
     const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 

@@ -10,26 +10,26 @@
 #include <tuple>
 #include <vector>
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 namespace LayerTestsDefinitions {
 
 using softMaxLayerTestParams = std::tuple<
-        InferenceEngine::Precision,                                    // netPrecision
-        InferenceEngine::Precision,                                    // Input precision
-        InferenceEngine::Precision,                                    // Output precision
-        InferenceEngine::Layout,                                       // Input layout
-        InferenceEngine::Layout,                                       // Output layout
-        std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>,   // Dynamic shape + Target static shapes
+        ngraph::element::Type_t,                                    // netPrecision
+//        ngraph::element::Type,                                    // Input precision
+//        ngraph::element::Type,                                    // Output precision
+//        InferenceEngine::Layout,                                       // Input layout
+//        InferenceEngine::Layout,                                       // Output layout
+        std::pair<ov::PartialShape, std::vector<ov::Shape>>,   // Dynamic shape + Target static shapes
         size_t,                                                        // axis
         std::string,                                                   // targetDevice
         std::map<std::string, std::string>                             // config
 >;
 
 class SoftMaxLayerTest : public testing::WithParamInterface<softMaxLayerTestParams>,
-                         virtual public LayerTestsUtils::LayerTestsCommon {
+                         virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<softMaxLayerTestParams>& obj);
 

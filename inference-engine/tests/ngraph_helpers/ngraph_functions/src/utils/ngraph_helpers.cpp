@@ -241,9 +241,10 @@ std::vector<ov::runtime::Tensor>
 //        outputTensors[resultIndex]->read(output.second.data(), output.second.size());
 //    }
     for (const auto& outTensor : outputTensors) {
-        ov::runtime::Tensor a;
-        outTensor->read(&a, outTensor->get_size_in_bytes());
-        outputs.push_back(a);
+        std::shared_ptr<ov::runtime::Tensor> a = std::dynamic_pointer_cast<ov::runtime::Tensor>(outTensor);
+        ov::runtime::Tensor b = dynamic_cast<ov::runtime::Tensor>(*a);
+        ov::runtime::Tensor c(b);
+        outputs.emplace_back(c);
     }
 
     return outputs;

@@ -11,12 +11,8 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-};
-
-const std::vector<InferenceEngine::Layout> inputLayouts2D = {
-    InferenceEngine::Layout::NC,
+const std::vector<ov::element::Type_t> netPrecisions = {
+    ov::element::Type_t::f32,
 };
 
 const std::vector<std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>> inputStaticShape2D = {
@@ -38,10 +34,8 @@ const std::vector<size_t> axis2D = {
 
 const auto params2D_static = testing::Combine(
     testing::ValuesIn(netPrecisions),
-    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    testing::ValuesIn(inputLayouts2D),
-    testing::Values(InferenceEngine::Layout::ANY),
+//    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     testing::ValuesIn(inputStaticShape2D),
     testing::ValuesIn(axis2D),
     testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -50,10 +44,8 @@ const auto params2D_static = testing::Combine(
 
 const auto params2D_dynamic = testing::Combine(
         testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::ValuesIn(inputLayouts2D),
-        testing::Values(InferenceEngine::Layout::ANY),
+//        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::ValuesIn(inputDynamicShape2D),
         testing::ValuesIn(axis2D),
         testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -90,10 +82,8 @@ const std::vector<size_t> axis4D = {0, 1, 2, 3};
 
 const auto params4Dstatic = testing::Combine(
     testing::ValuesIn(netPrecisions),
-    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    testing::Values(InferenceEngine::Layout::NCHW),
-    testing::Values(InferenceEngine::Layout::ANY),
+//    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     testing::ValuesIn(inputStaticShape4D),
     testing::ValuesIn(axis4D),
     testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -102,10 +92,8 @@ const auto params4Dstatic = testing::Combine(
 
 const auto params4Ddynamic = testing::Combine(
         testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::NCHW),
-        testing::Values(InferenceEngine::Layout::ANY),
+//        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::ValuesIn(inputDynamicShape4D),
         testing::ValuesIn(axis4D),
         testing::Values(CommonTestUtils::DEVICE_CPU),

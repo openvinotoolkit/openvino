@@ -37,7 +37,7 @@ void SubgraphBaseTest::run() {
     summary.updateOPsStats(function, status);
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    OPENVINO_ASSERT(targetStaticShapes.empty(), "Target Static Shape is empty!!!");
+    OPENVINO_ASSERT(!targetStaticShapes.empty(), "Target Static Shape is empty!!!");
     std::string errorMessage;
     try {
         compile_model();
@@ -300,7 +300,30 @@ void SubgraphBaseTest::resize_ngraph_function(const std::vector<ngraph::Shape>& 
         shapes.insert({*params[i]->get_output_tensor(0).get_names().begin(), targetInputStaticShapes[i]});
     }
     function->reshape(shapes);
-    functionRefs->reshape(shapes);
+//    functionRefs->reshape(shapes);
+}
+
+void SubgraphBaseTest::init_input_shapes(const std::pair<std::vector<ov::PartialShape>, std::vector<std::vector<ov::Shape>>>& shapes) {
+    targetStaticShapes = shapes.second;
+    if (!shapes.first.empty()) {
+        inputDynamicShapes = shapes.first;
+    } else {
+        OPENVINO_ASSERT(targetStaticShapes.size() == 1, "Incorrect size of targetStaticShapes for static scenario");
+        for (const auto& targetStaticShape : targetStaticShapes.front()) {
+            inputDynamicShapes.emplace_back(targetStaticShape);
+        }
+    }
+}
+
+void SubgraphBaseTest::init_input_shapes(const std::pair<ov::PartialShape, std::vector<ov::Shape>>& shapes) {
+    std::pair<std::vector<ov::PartialShape>, std::vector<std::vector<ov::Shape>>> tmpShapeObj;
+    if (shapes.first.rank() != 0) {
+        tmpShapeObj.first = {shapes.first};
+    } else {
+        tmpShapeObj.first = {};
+    }
+    tmpShapeObj.second = {shapes.second};
+    init_input_shapes(tmpShapeObj);
 }
 
 }  // namespace test

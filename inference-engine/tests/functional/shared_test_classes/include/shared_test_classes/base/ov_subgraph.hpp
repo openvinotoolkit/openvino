@@ -78,6 +78,9 @@ protected:
     virtual void infer();
 //
     virtual void validate();
+
+    void init_input_shapes(const std::pair<std::vector<ov::PartialShape>, std::vector<std::vector<ov::Shape>>>& shapes);
+    void init_input_shapes(const std::pair<ov::PartialShape, std::vector<ov::Shape>>& shapes);
 //
 
 //

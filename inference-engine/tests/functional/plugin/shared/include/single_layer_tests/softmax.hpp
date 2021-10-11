@@ -9,7 +9,7 @@
 namespace LayerTestsDefinitions {
 
 TEST_P(SoftMaxLayerTest, CompareWithRefs) {
-    Run();
+    run();
 }
 
 }  // namespace LayerTestsDefinitions
