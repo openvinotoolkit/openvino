@@ -339,7 +339,8 @@ int main(int argc, char* argv[]) {
                 continue;
             }
 
-            if (reader->size() != inputInfoItem.second->getTensorDesc().getDims()[2] * inputInfoItem.second->getTensorDesc().getDims()[3]) {
+            if (reader->size() != inputInfoItem.second->getTensorDesc().getDims()[2] *
+                                  inputInfoItem.second->getTensorDesc().getDims()[3]) {
                 throw std::logic_error("Not supported format. Only MNist ubyte images supported.");
             }
 
