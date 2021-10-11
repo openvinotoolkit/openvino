@@ -145,32 +145,32 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     }
     if (function && GetCore() && !GetCore()->isNewAPI()) {
         auto& rt_info = function->get_rt_info();
-        if (!rt_info.count("version")) {
+        if (rt_info.find("version") == rt_info.end()) {
             rt_info["version"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(10);
-        }
 
-        // re-create `network` with new patched `function`
-        using namespace InferenceEngine;
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto& orig_icnn = static_cast<const ICNNNetwork&>(orig_network);
-        auto orig_impl = std::dynamic_pointer_cast<const details::CNNNetworkNGraphImpl>(orig_icnn.shared_from_this());
-        OPENVINO_ASSERT(orig_impl != nullptr, "Internal: orig_impl must be castable to details::CNNNetworkNGraphImpl");
-        auto new_impl = std::make_shared<details::CNNNetworkNGraphImpl>(function,
-                                                                        orig_impl->getExtensions(),
-                                                                        GetCore()->isNewAPI());
-        network = CNNNetwork(new_impl);
-        for (const auto& inputInfo : orig_network.getInputsInfo()) {
-            auto toInfo = network.getInputsInfo().at(inputInfo.first);
-            toInfo->setPrecision(inputInfo.second->getPrecision());
-            toInfo->setLayout(inputInfo.second->getLayout());
-            toInfo->getPreProcess() = inputInfo.second->getPreProcess();
+            // re-create `network` with new patched `function`
+            using namespace InferenceEngine;
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            const auto& orig_icnn = static_cast<const ICNNNetwork&>(orig_network);
+            auto orig_impl = std::dynamic_pointer_cast<const details::CNNNetworkNGraphImpl>(orig_icnn.shared_from_this());
+            OPENVINO_ASSERT(orig_impl != nullptr, "Internal: orig_impl must be castable to details::CNNNetworkNGraphImpl");
+            auto new_impl = std::make_shared<details::CNNNetworkNGraphImpl>(function,
+                                                                            orig_impl->getExtensions(),
+                                                                            GetCore()->isNewAPI());
+            network = CNNNetwork(new_impl);
+            for (const auto& inputInfo : orig_network.getInputsInfo()) {
+                auto toInfo = network.getInputsInfo().at(inputInfo.first);
+                toInfo->setPrecision(inputInfo.second->getPrecision());
+                toInfo->setLayout(inputInfo.second->getLayout());
+                toInfo->getPreProcess() = inputInfo.second->getPreProcess();
+            }
+            for (const auto& outputInfo : orig_network.getOutputsInfo()) {
+                auto toInfo = network.getOutputsInfo().at(outputInfo.first);
+                toInfo->setPrecision(outputInfo.second->getPrecision());
+                toInfo->setLayout(outputInfo.second->getLayout());
+            }
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
-        for (const auto& outputInfo : orig_network.getOutputsInfo()) {
-            auto toInfo = network.getOutputsInfo().at(outputInfo.first);
-            toInfo->setPrecision(outputInfo.second->getPrecision());
-            toInfo->setLayout(outputInfo.second->getLayout());
-        }
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     if (nullptr == context) {
