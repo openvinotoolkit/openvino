@@ -191,7 +191,7 @@ private:
     bool isOutputHighBroadcasted = false;
 
     VectorDims currentInBlkDims;
-    Dim currentAxisSize = Shape::UNDEFINED_DIM;
+    valueWithStatus currentAxisSize;
     size_t axis = 0;
 
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;

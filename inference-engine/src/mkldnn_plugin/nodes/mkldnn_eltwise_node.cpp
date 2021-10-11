@@ -1695,7 +1695,7 @@ bool MKLDNNEltwiseNode::mustReallocInternalBuffers() const {
         if (!constPort.isInit()) {
             IE_THROW() << "Can't check that node must reallocate internal buffers, becuase const port value is not init";
         }
-        const auto &dims = getInputShapeAtPort(constPort.value).getStaticDims();
+        const auto &dims = getInputShapeAtPort(constPort.getValue()).getStaticDims();
         return dims[dims.size() > 1 ? 1 : 0] == 1;
     } else if (getAlgorithm() == EltwiseMulAdd) {
         const auto &scaleDims = getInputShapeAtPort(1).getStaticDims();
@@ -1728,9 +1728,9 @@ void MKLDNNEltwiseNode::fillScalesAndShifts(const MKLDNNNode *parentNode, std::v
     constPort = getParentEdgesAtPort(0)[0]->getParent().get() == parentNode ? 1 : 0;
 
     if (one_of(getAlgorithm(), EltwiseMultiply, EltwiseDivide, EltwisePrelu)) {
-        fillValuesFrom(getParentEdgesAtPort(constPort.value)[0]->getParent(), scales);
+        fillValuesFrom(getParentEdgesAtPort(constPort.getValue())[0]->getParent(), scales);
     } else if (one_of(getAlgorithm(), EltwiseAdd, EltwiseSubtract)) {
-        fillValuesFrom(getParentEdgesAtPort(constPort.value)[0]->getParent(), shifts);
+        fillValuesFrom(getParentEdgesAtPort(constPort.getValue())[0]->getParent(), shifts);
     } else if (one_of(getAlgorithm(), EltwiseMulAdd)) {
         fillValuesFrom(getParentEdgesAtPort(1)[0]->getParent(), scales);
         fillValuesFrom(getParentEdgesAtPort(2)[0]->getParent(), shifts);
@@ -1786,23 +1786,23 @@ void MKLDNNEltwiseNode::alignScalesAndShifts(const MKLDNNNode *parentNode, std::
             }
             bufferSize = static_cast<size_t>(dims[dims.size() > 1 ? 1 : 0]);
         } else {
-            dims = getInputShapeAtPort(constPort.value).getStaticDims();
+            dims = getInputShapeAtPort(constPort.getValue()).getStaticDims();
         }
         bufferSize = static_cast<size_t>(dims[dims.size() > 1 ? 1 : 0]);
     }
 
-    const size_t bufferSizeAligned = rnd_up(bufferSize, ssAlign.value);
+    const size_t bufferSizeAligned = rnd_up(bufferSize, ssAlign.getValue());
 
-    if (initScalesSize.value > 0) {
+    if (initScalesSize.getValue() > 0) {
         scales.resize(bufferSizeAligned, 0);
-        if (initScalesSize.value == 1) {
+        if (initScalesSize.getValue() == 1) {
             std::fill(scales.begin() + 1, scales.begin() + bufferSize, scales[0]);
         }
     }
 
-    if (initShiftsSize.value > 0) {
+    if (initShiftsSize.getValue() > 0) {
         shifts.resize(bufferSizeAligned, 0);
-        if (initShiftsSize.value == 1) {
+        if (initShiftsSize.getValue() == 1) {
             std::fill(shifts.begin() + 1, shifts.begin() + bufferSize, shifts[0]);
         }
     }

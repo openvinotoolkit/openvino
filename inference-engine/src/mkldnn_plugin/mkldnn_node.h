@@ -564,9 +564,17 @@ protected:
     struct valueWithStatus {
         valueWithStatus() : status(false) {}
         valueWithStatus(size_t _value) : value(_value), status(true) {}
-        bool isInit () const { return status; }
-        size_t value;
+
+        bool isInit() const { return status; }
+        size_t getValue() const {
+            if (!status) {
+                IE_THROW() << "Can't get value, because value is not initialized";
+            }
+            return value;
+        }
+
         private:
+            size_t value;
             bool status;     // false - unknown, true - initialized
     };
 
