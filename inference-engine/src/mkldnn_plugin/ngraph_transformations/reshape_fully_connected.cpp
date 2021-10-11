@@ -58,13 +58,13 @@ MKLDNNPlugin::ReshapeFullyConnected::ReshapeFullyConnected() {
         if (fc->get_input_size() == 2) {
             fc_new = std::make_shared<MKLDNNPlugin::FullyConnectedNode>(reshape,
                                                                         fc->input_value(1),
-                                                                        output_shape_new,
+                                                                        output_shape_new.rank(),
                                                                         fc->get_output_type());
         } else if (fc->get_input_size() == 3) {
             fc_new = std::make_shared<MKLDNNPlugin::FullyConnectedNode>(reshape,
                                                                         fc->input_value(1),
                                                                         fc->input_value(2),
-                                                                        output_shape_new,
+                                                                        output_shape_new.rank(),
                                                                         fc->get_output_type());
         } else {
             return false;
@@ -80,11 +80,12 @@ MKLDNNPlugin::ReshapeFullyConnected::ReshapeFullyConnected() {
             auto O_node = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_node(B_input_shape, {0});
             ngraph::OutputVector output_shape_dims{I_node, O_node};
 
-            const size_t& original_rank = fc->get_original_rank();
-            NGRAPH_CHECK(original_rank != 0); // we have set it in the MatMul to FC transformation
-            if (input_rank < original_rank) {
+            const auto original_rank = fc->get_output_rank();
+            NGRAPH_CHECK(original_rank.is_static());
+            if (input_rank < original_rank.get_length()) {
+                const size_t const_shape_value = original_rank.get_length() - input_rank;
                 output_shape_dims.insert(
-                    output_shape_dims.begin(), ngraph::opset1::Constant::create(I_node->get_element_type(), { original_rank - input_rank }, { 1 }));
+                    output_shape_dims.begin(), ngraph::opset1::Constant::create(I_node->get_element_type(), { const_shape_value }, { 1 }));
             }
 
             auto reshape_output_shape = ngraph::op::util::make_try_fold<ngraph::opset1::Concat>(output_shape_dims, 0);

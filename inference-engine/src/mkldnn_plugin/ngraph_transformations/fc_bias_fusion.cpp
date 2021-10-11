@@ -60,9 +60,8 @@ MKLDNNPlugin::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         auto new_fc = std::make_shared<MKLDNNPlugin::FullyConnectedNode>(fc->input_value(0),
                                                                          fc->input_value(1),
                                                                          final_bias,
-                                                                         fc->get_output_partial_shape(0),
+                                                                         fc->get_output_rank(),
                                                                          fc->get_output_type());
-        new_fc->set_original_rank(fc->get_original_rank());
         new_ops.push_back(new_fc);
 
         new_fc->set_friendly_name(add->get_friendly_name());

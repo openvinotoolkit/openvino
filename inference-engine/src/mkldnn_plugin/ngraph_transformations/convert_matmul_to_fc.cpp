@@ -153,10 +153,9 @@ MKLDNNPlugin::ConvertMatMulToFC::ConvertMatMulToFC() {
             new_ops.push_back(fc_input_a.get_node_shared_ptr());
         }
 
-        auto output_shape = matmul->get_output_partial_shape(0);
+        auto output_rank = matmul->get_output_partial_shape(0).rank();
         // Create FullyConnected
-        auto fc = std::make_shared<MKLDNNPlugin::FullyConnectedNode>(fc_input_a, fc_input_b, output_shape, matmul->get_output_element_type(0));
-        fc->set_original_rank(output_shape.rank().get_length());
+        auto fc = std::make_shared<MKLDNNPlugin::FullyConnectedNode>(fc_input_a, fc_input_b, output_rank, matmul->get_output_element_type(0));
         fc->set_friendly_name(matmul->get_friendly_name());
         new_ops.push_back(fc);
         ngraph::copy_runtime_info(matmul, new_ops);
