@@ -10,7 +10,7 @@
 #include <sstream>
 #include <string>
 
-#include "ngraph/variant.hpp" // ngraph::Variant
+#include "openvino/core/variant.hpp" // ov::Variant
 
 namespace py = pybind11;
 
@@ -20,40 +20,40 @@ template <typename VT>
 extern void regclass_graph_VariantWrapper(py::module m, std::string typestring)
 {
     auto pyclass_name = py::detail::c_str((std::string("Variant") + typestring));
-    py::class_<ngraph::VariantWrapper<VT>,
-               std::shared_ptr<ngraph::VariantWrapper<VT>>,
-               ngraph::Variant>
-        variant_wrapper(m, pyclass_name, py::module_local());
+    py::class_<ov::VariantWrapper<VT>,
+               std::shared_ptr<ov::VariantWrapper<VT>>,
+               ov::Variant>
+        variant_wrapper(m, pyclass_name );
     variant_wrapper.doc() =
-        "ngraph.impl.Variant[typestring] wraps ngraph::VariantWrapper<typestring>";
+        "ngraph.impl.Variant[typestring] wraps ov::VariantWrapper<typestring>";
 
     variant_wrapper.def(py::init<const VT&>());
 
     variant_wrapper.def(
         "__eq__",
-        [](const ngraph::VariantWrapper<VT>& a, const ngraph::VariantWrapper<VT>& b) {
+        [](const ov::VariantWrapper<VT>& a, const ov::VariantWrapper<VT>& b) {
             return a.get() == b.get();
         },
         py::is_operator());
     variant_wrapper.def(
         "__eq__",
-        [](const ngraph::VariantWrapper<std::string>& a, const std::string& b) {
+        [](const ov::VariantWrapper<std::string>& a, const std::string& b) {
             return a.get() == b;
         },
         py::is_operator());
     variant_wrapper.def(
         "__eq__",
-        [](const ngraph::VariantWrapper<int64_t>& a, const int64_t& b) { return a.get() == b; },
+        [](const ov::VariantWrapper<int64_t>& a, const int64_t& b) { return a.get() == b; },
         py::is_operator());
 
-    variant_wrapper.def("__repr__", [](const ngraph::VariantWrapper<VT> self) {
+    variant_wrapper.def("__repr__", [](const ov::VariantWrapper<VT> self) {
         std::stringstream ret;
         ret << self.get();
         return ret.str();
     });
 
     variant_wrapper.def("get",
-                        (VT & (ngraph::VariantWrapper<VT>::*)()) & ngraph::VariantWrapper<VT>::get,
+                        (VT & (ov::VariantWrapper<VT>::*)()) & ov::VariantWrapper<VT>::get,
                         R"(
                             Returns
                             ----------
@@ -61,7 +61,7 @@ extern void regclass_graph_VariantWrapper(py::module m, std::string typestring)
                                 Value of Variant.
                         )");
     variant_wrapper.def("set",
-                        &ngraph::VariantWrapper<VT>::set,
+                        &ov::VariantWrapper<VT>::set,
                         R"(
                             Parameters
                             ----------
@@ -70,7 +70,7 @@ extern void regclass_graph_VariantWrapper(py::module m, std::string typestring)
                         )");
 
     variant_wrapper.def_property("value",
-                                 (VT & (ngraph::VariantWrapper<VT>::*)()) &
-                                     ngraph::VariantWrapper<VT>::get,
-                                 &ngraph::VariantWrapper<VT>::set);
+                                 (VT & (ov::VariantWrapper<VT>::*)()) &
+                                     ov::VariantWrapper<VT>::get,
+                                 &ov::VariantWrapper<VT>::set);
 }

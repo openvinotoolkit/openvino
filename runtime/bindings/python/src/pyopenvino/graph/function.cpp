@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/function.hpp"  // ngraph::Function
+#include "ngraph/function.hpp"  // ov::Function
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "ngraph/op/parameter.hpp"  // ngraph::op::Parameter
+#include "ngraph/op/parameter.hpp"  // ov::op::v0::Parameter
 #include "ngraph/op/sink.hpp"
 #include "pyopenvino/graph/function.hpp"
 
@@ -16,20 +16,20 @@ namespace py = pybind11;
 static const char* CAPSULE_NAME = "ngraph_function";
 
 void regclass_graph_Function(py::module m) {
-    py::class_<ngraph::Function, std::shared_ptr<ngraph::Function>> function(m, "Function", py::module_local());
-    function.doc() = "ngraph.impl.Function wraps ngraph::Function";
+    py::class_<ov::Function, std::shared_ptr<ov::Function>> function(m, "Function", py::module_local());
+    function.doc() = "ngraph.impl.Function wraps ov::Function";
 
-    function.def(py::init([](const ngraph::ResultVector& res,
-                             const std::vector<std::shared_ptr<ngraph::Node>>& nodes,
-                             const ngraph::ParameterVector& params,
+    function.def(py::init([](const ov::ResultVector& res,
+                             const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                             const ov::ParameterVector& params,
                              const std::string& name) {
-                     ngraph::SinkVector sinks;
+                     ov::SinkVector sinks;
                      for (const auto& node : nodes) {
-                         auto sink = std::dynamic_pointer_cast<ngraph::op::Sink>(node);
+                         auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node);
                          NGRAPH_CHECK(sink != nullptr, "Node {} is not instance of Sink");
                          sinks.push_back(sink);
                      }
-                     return std::make_shared<ngraph::Function>(res, sinks, params, name);
+                     return std::make_shared<ov::Function>(res, sinks, params, name);
                  }),
                  py::arg("results"),
                  py::arg("sinks"),
@@ -53,8 +53,8 @@ void regclass_graph_Function(py::module m) {
                         String to set as function's friendly name.
                  )");
 
-    function.def(py::init<const std::vector<std::shared_ptr<ngraph::Node>>&,
-                          const std::vector<std::shared_ptr<ngraph::op::Parameter>>&,
+    function.def(py::init<const std::vector<std::shared_ptr<ov::Node>>&,
+                          const std::vector<std::shared_ptr<ov::op::v0::Parameter>>&,
                           const std::string&>(),
                  py::arg("results"),
                  py::arg("parameters"),
@@ -74,7 +74,7 @@ void regclass_graph_Function(py::module m) {
                         String to set as function's friendly name.
                  )");
 
-    function.def(py::init<const std::shared_ptr<ngraph::Node>&,
+    function.def(py::init<const std::shared_ptr<ov::Node>&,
                           const std::vector<std::shared_ptr<ngraph::op::Parameter>>&,
                           const std::string&>(),
                  py::arg("result"),

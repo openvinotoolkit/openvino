@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/axis_set.hpp"  // ngraph::AxisSet
+#include "openvino/core/axis_set.hpp"  // ov::AxisSet
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -16,25 +16,25 @@
 namespace py = pybind11;
 
 void regclass_graph_AxisSet(py::module m) {
-    py::class_<ngraph::AxisSet, std::shared_ptr<ngraph::AxisSet>> axis_set(m, "AxisSet", py::module_local());
-    axis_set.doc() = "ngraph.impl.AxisSet wraps ngraph::AxisSet";
+    py::class_<ov::AxisSet, std::shared_ptr<ov::AxisSet>> axis_set(m, "AxisSet");
+    axis_set.doc() = "ngraph.impl.AxisSet wraps ov::AxisSet";
     axis_set.def(py::init<const std::initializer_list<size_t>&>(), py::arg("axes"));
     axis_set.def(py::init<const std::set<size_t>&>(), py::arg("axes"));
     axis_set.def(py::init<const std::vector<size_t>&>(), py::arg("axes"));
-    axis_set.def(py::init<const ngraph::AxisSet&>(), py::arg("axes"));
+    axis_set.def(py::init<const ov::AxisSet&>(), py::arg("axes"));
 
-    axis_set.def("__len__", [](const ngraph::AxisSet& v) {
+    axis_set.def("__len__", [](const ov::AxisSet& v) {
         return v.size();
     });
 
     axis_set.def(
         "__iter__",
-        [](ngraph::AxisSet& v) {
+        [](ov::AxisSet& v) {
             return py::make_iterator(v.begin(), v.end());
         },
         py::keep_alive<0, 1>()); /* Keep set alive while iterator is used */
 
-    axis_set.def("__repr__", [](const ngraph::AxisSet& self) -> std::string {
+    axis_set.def("__repr__", [](const ov::AxisSet& self) -> std::string {
         std::stringstream data_ss;
         std::copy(self.begin(), self.end(), std::ostream_iterator<int>(data_ss, ", "));
         std::string data_str = data_ss.str();

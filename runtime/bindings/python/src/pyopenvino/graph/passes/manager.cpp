@@ -2,29 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pass/manager.hpp"
+#include "openvino/pass/manager.hpp"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "ngraph/pass/constant_folding.hpp"
-#include "ngraph/pass/pass.hpp"
-#include "ngraph/pass/validate.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/pass.hpp"
+#include "openvino/pass/validate.hpp"
 #include "pyopenvino/graph/passes/manager.hpp"
 
 namespace py = pybind11;
 
 namespace {
-class ManagerWrapper : public ngraph::pass::Manager {
+class ManagerWrapper : public ov::pass::Manager {
 public:
     ManagerWrapper() {}
     ~ManagerWrapper() {}
     void register_pass(std::string pass_name) {
         if (pass_name == "ConstantFolding")
-            push_pass<ngraph::pass::ConstantFolding>();
+            push_pass<ov::pass::ConstantFolding>();
 
         if (m_per_pass_validation) {
-            push_pass<ngraph::pass::Validate>();
+            push_pass<ov::pass::Validate>();
         }
         return;
     }
@@ -32,8 +32,8 @@ public:
 }  // namespace
 
 void regclass_graph_passes_Manager(py::module m) {
-    py::class_<ManagerWrapper> manager(m, "Manager", py::module_local());
-    manager.doc() = "ngraph.impl.passes.Manager wraps ngraph::pass::Manager using ManagerWrapper";
+    py::class_<ManagerWrapper> manager(m, "Manager");
+    manager.doc() = "ngraph.impl.passes.Manager wraps ov::pass::Manager using ManagerWrapper";
 
     manager.def(py::init<>());
 

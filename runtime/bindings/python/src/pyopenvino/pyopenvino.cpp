@@ -21,19 +21,19 @@
 #if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
 #    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
 #endif
-#include "core/containers.hpp"
-#include "core/ie_blob.hpp"
-#include "core/ie_core.hpp"
-#include "core/ie_data.hpp"
-#include "core/ie_executable_network.hpp"
-#include "core/ie_infer_queue.hpp"
-#include "core/ie_infer_request.hpp"
-#include "core/ie_input_info.hpp"
-#include "core/ie_network.hpp"
-#include "core/ie_parameter.hpp"
-#include "core/ie_preprocess_info.hpp"
-#include "core/ie_version.hpp"
-#include "core/tensor_description.hpp"
+#include "pyopenvino/core/containers.hpp"
+#include "pyopenvino/core/ie_blob.hpp"
+#include "pyopenvino/core/ie_core.hpp"
+#include "pyopenvino/core/ie_data.hpp"
+#include "pyopenvino/core/ie_executable_network.hpp"
+#include "pyopenvino/core/ie_infer_queue.hpp"
+#include "pyopenvino/core/ie_infer_request.hpp"
+#include "pyopenvino/core/ie_input_info.hpp"
+#include "pyopenvino/core/ie_network.hpp"
+#include "pyopenvino/core/ie_parameter.hpp"
+#include "pyopenvino/core/ie_preprocess_info.hpp"
+#include "pyopenvino/core/ie_version.hpp"
+#include "pyopenvino/core/tensor_description.hpp"
 #include "pyopenvino/graph/dimension.hpp"
 #include "pyopenvino/graph/frontend/frontend.hpp"
 #include "pyopenvino/graph/frontend/frontend_manager.hpp"
@@ -110,7 +110,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_AxisSet(m);
     regclass_graph_AxisVector(m);
     regclass_graph_Coordinate(m);
-    py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ngraph::op");  // TODO(!)
+    py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ov::op");  // TODO(!)
     regclass_graph_op_Constant(m_op);
     regclass_graph_op_Parameter(m_op);
     regclass_graph_op_Result(m_op);
@@ -146,6 +146,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_TBlob<uint8_t>(m, "Uint8");
 
     // Registering specific types of containers
+    Containers::regclass_PyInputsDataMap(m);
     Containers::regclass_PyConstInputsDataMap(m);
     Containers::regclass_PyOutputsDataMap(m);
     Containers::regclass_PyResults(m);

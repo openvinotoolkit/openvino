@@ -9,24 +9,24 @@
 #include <pybind11/stl_bind.h>
 
 #include "dict_attribute_visitor.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/op/add.hpp"
-#include "ngraph/op/divide.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/op/subtract.hpp"
-#include "ngraph/variant.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/variant.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
 #include "pyopenvino/graph/node.hpp"
 #include "pyopenvino/graph/variant.hpp"
 
 namespace py = pybind11;
 
-using PyRTMap = std::map<std::string, std::shared_ptr<ngraph::Variant>>;
+using PyRTMap = std::map<std::string, std::shared_ptr<ov::Variant>>;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
 template <typename T>
 void _set_with_variant(PyRTMap& m, const std::string& k, const T v) {
-    auto new_v = std::make_shared<ngraph::VariantWrapper<T>>(ngraph::VariantWrapper<T>(v));
+    auto new_v = std::make_shared<ov::VariantWrapper<T>>(ov::VariantWrapper<T>(v));
     auto it = m.find(k);
     if (it != m.end())
         it->second = new_v;
@@ -37,7 +37,7 @@ void _set_with_variant(PyRTMap& m, const std::string& k, const T v) {
 void regclass_graph_PyRTMap(py::module m) {
     auto py_map = py::bind_map<PyRTMap>(m, "PyRTMap");
     py_map.doc() = "ngraph.impl.PyRTMap makes bindings for std::map<std::string, "
-                   "std::shared_ptr<ngraph::Variant>>, which can later be used as ngraph::Node::RTMap";
+                   "std::shared_ptr<ov::Variant>>, which can later be used as ov::Node::RTMap";
 
     py_map.def("__setitem__", [](PyRTMap& m, const std::string& k, const std::string v) {
         _set_with_variant(m, k, v);

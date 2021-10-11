@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/partial_shape.hpp"  // ngraph::PartialShape
+#include "openvino/core/partial_shape.hpp"  // ov::PartialShape
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -11,8 +11,8 @@
 #include <sstream>
 #include <string>
 
-#include "ngraph/dimension.hpp"  // ngraph::Dimension
-#include "ngraph/shape.hpp"      // ngraph::Shape
+#include "openvino/core/dimension.hpp"  // ov::Dimension
+#include "openvino/core/shape.hpp"      // ov::Shape
 #include "pyopenvino/graph/partial_shape.hpp"
 
 namespace py = pybind11;
@@ -20,51 +20,49 @@ namespace py = pybind11;
 static const char* CAPSULE_NAME = "ngraph_partial_shape";
 
 void regclass_graph_PartialShape(py::module m) {
-    py::class_<ngraph::PartialShape, std::shared_ptr<ngraph::PartialShape>> shape(m,
-                                                                                  "PartialShape",
-                                                                                  py::module_local());
-    shape.doc() = "ngraph.impl.PartialShape wraps ngraph::PartialShape";
+    py::class_<ov::PartialShape, std::shared_ptr<ov::PartialShape>> shape(m, "PartialShape");
+    shape.doc() = "ngraph.impl.PartialShape wraps ov::PartialShape";
 
     shape.def(py::init([](const std::vector<int64_t>& dimensions) {
-        return ngraph::PartialShape(std::vector<ngraph::Dimension>(dimensions.begin(), dimensions.end()));
+        return ov::PartialShape(std::vector<ov::Dimension>(dimensions.begin(), dimensions.end()));
     }));
     shape.def(py::init<const std::initializer_list<size_t>&>());
     shape.def(py::init<const std::vector<size_t>&>());
-    shape.def(py::init<const std::initializer_list<ngraph::Dimension>&>());
-    shape.def(py::init<const std::vector<ngraph::Dimension>&>());
-    shape.def(py::init<const ngraph::Shape&>());
-    shape.def(py::init<const ngraph::PartialShape&>());
+    shape.def(py::init<const std::initializer_list<ov::Dimension>&>());
+    shape.def(py::init<const std::vector<ov::Dimension>&>());
+    shape.def(py::init<const ov::Shape&>());
+    shape.def(py::init<const ov::PartialShape&>());
 
-    shape.def_static("dynamic", &ngraph::PartialShape::dynamic, py::arg("r") = ngraph::Dimension());
+    shape.def_static("dynamic", &ov::PartialShape::dynamic, py::arg("r") = ov::Dimension());
 
     shape.def_property_readonly("is_dynamic",
-                                &ngraph::PartialShape::is_dynamic,
+                                &ov::PartialShape::is_dynamic,
                                 R"(
                                     False if this shape is static, else True.
                                     A shape is considered static if it has static rank,
                                     and all dimensions of the shape are static.
                                 )");
     shape.def_property_readonly("is_static",
-                                &ngraph::PartialShape::is_static,
+                                &ov::PartialShape::is_static,
                                 R"(
                                     True if this shape is static, else False.
                                     A shape is considered static if it has static rank, 
                                     and all dimensions of the shape are static.
                                 )");
     shape.def_property_readonly("rank",
-                                &ngraph::PartialShape::rank,
+                                &ov::PartialShape::rank,
                                 R"(
                                     The rank of the shape.
                                 )");
     shape.def_property_readonly("all_non_negative",
-                                &ngraph::PartialShape::all_non_negative,
+                                &ov::PartialShape::all_non_negative,
                                 R"(
                                     True if all static dimensions of the tensor are 
                                     non-negative, else False.
                                 )");
 
     shape.def("compatible",
-              &ngraph::PartialShape::compatible,
+              &ov::PartialShape::compatible,
               py::arg("s"),
               R"(
                 Check whether this shape is compatible with the argument, i.e.,
@@ -82,7 +80,7 @@ void regclass_graph_PartialShape(py::module m) {
                     True if this shape is compatible with s, else False.
               )");
     shape.def("refines",
-              &ngraph::PartialShape::refines,
+              &ov::PartialShape::refines,
               py::arg("s"),
               R"(
                 Check whether this shape is a refinement of the argument.
@@ -98,7 +96,7 @@ void regclass_graph_PartialShape(py::module m) {
                     True if this shape refines s, else False.
               )");
     shape.def("relaxes",
-              &ngraph::PartialShape::relaxes,
+              &ov::PartialShape::relaxes,
               py::arg("s"),
               R"(
                 Check whether this shape is a relaxation of the argument.
@@ -114,7 +112,7 @@ void regclass_graph_PartialShape(py::module m) {
                     True if this shape relaxes s, else False.
               )");
     shape.def("same_scheme",
-              &ngraph::PartialShape::same_scheme,
+              &ov::PartialShape::same_scheme,
               py::arg("s"),
               R"(
                 Check whether this shape represents the same scheme as the argument.
@@ -130,7 +128,7 @@ void regclass_graph_PartialShape(py::module m) {
                     True if shape represents the same scheme as s, else False.
               )");
     shape.def("get_max_shape",
-              &ngraph::PartialShape::get_max_shape,
+              &ov::PartialShape::get_max_shape,
               R"(
                 Returns
                 ----------
@@ -138,7 +136,7 @@ void regclass_graph_PartialShape(py::module m) {
                     Get the max bounding shape.
               )");
     shape.def("get_min_shape",
-              &ngraph::PartialShape::get_min_shape,
+              &ov::PartialShape::get_min_shape,
               R"(
                 Returns
                 ----------
@@ -146,7 +144,7 @@ void regclass_graph_PartialShape(py::module m) {
                     Get the min bounding shape.
               )");
     shape.def("get_shape",
-              &ngraph::PartialShape::get_shape,
+              &ov::PartialShape::get_shape,
               R"(
                 Returns
                 ----------
@@ -154,7 +152,7 @@ void regclass_graph_PartialShape(py::module m) {
                     Get the unique shape.
               )");
     shape.def("to_shape",
-              &ngraph::PartialShape::to_shape,
+              &ov::PartialShape::to_shape,
               R"(
                 Returns
                 ----------
@@ -163,7 +161,7 @@ void regclass_graph_PartialShape(py::module m) {
               )");
     shape.def(
         "get_dimension",
-        [](const ngraph::PartialShape& self, size_t index) -> ngraph::Dimension {
+        [](const ov::PartialShape& self, size_t index) -> ov::Dimension {
             return self[index];
         },
         py::arg("index"),
@@ -183,24 +181,24 @@ void regclass_graph_PartialShape(py::module m) {
 
     shape.def(
         "__eq__",
-        [](const ngraph::PartialShape& a, const ngraph::PartialShape& b) {
+        [](const ov::PartialShape& a, const ov::PartialShape& b) {
             return a == b;
         },
         py::is_operator());
     shape.def(
         "__eq__",
-        [](const ngraph::PartialShape& a, const ngraph::Shape& b) {
+        [](const ov::PartialShape& a, const ov::Shape& b) {
             return a == b;
         },
         py::is_operator());
 
-    shape.def("__str__", [](const ngraph::PartialShape& self) -> std::string {
+    shape.def("__str__", [](const ov::PartialShape& self) -> std::string {
         std::stringstream ss;
         ss << self;
         return ss.str();
     });
 
-    shape.def("__repr__", [](const ngraph::PartialShape& self) -> std::string {
+    shape.def("__repr__", [](const ov::PartialShape& self) -> std::string {
         return "<PartialShape: " + py::cast(self).attr("__str__")().cast<std::string>() + ">";
     });
 
@@ -210,11 +208,11 @@ void regclass_graph_PartialShape(py::module m) {
         // extract the pointer stored in the PyCapsule under the name CAPSULE_NAME
         auto* capsule_ptr = PyCapsule_GetPointer(pybind_capsule_ptr, CAPSULE_NAME);
 
-        auto* ngraph_pShape = static_cast<std::shared_ptr<ngraph::PartialShape>*>(capsule_ptr);
+        auto* ngraph_pShape = static_cast<std::shared_ptr<ov::PartialShape>*>(capsule_ptr);
         if (ngraph_pShape && *ngraph_pShape) {
             return *ngraph_pShape;
         } else {
-            throw std::runtime_error("The provided capsule does not contain an ngraph::PartialShape");
+            throw std::runtime_error("The provided capsule does not contain an ov::PartialShape");
         }
     });
 }

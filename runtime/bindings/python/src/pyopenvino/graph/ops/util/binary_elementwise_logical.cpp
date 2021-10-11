@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/binary_elementwise_logical.hpp"
+#include "openvino/op/util/binary_elementwise_logical.hpp"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -12,6 +12,6 @@
 namespace py = pybind11;
 
 void regclass_graph_op_util_BinaryElementwiseLogical(py::module m) {
-    py::class_<ngraph::op::util::BinaryElementwiseLogical, std::shared_ptr<ngraph::op::util::BinaryElementwiseLogical>>
-        binaryElementwiseLogical(m, "BinaryElementwiseLogical", py::module_local());
+    py::class_<ov::op::util::BinaryElementwiseLogical, std::shared_ptr<ov::op::util::BinaryElementwiseLogical>>
+        binaryElementwiseLogical(m, "BinaryElementwiseLogical");
 }

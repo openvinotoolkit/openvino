@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/coordinate.hpp"  // ngraph::Coordinate
+#include "openvino/core/coordinate.hpp"  // ov::Coordinate
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -12,10 +12,10 @@
 namespace py = pybind11;
 
 void regclass_graph_Coordinate(py::module m) {
-    py::class_<ngraph::Coordinate, std::shared_ptr<ngraph::Coordinate>> coordinate(m, "Coordinate", py::module_local());
-    coordinate.doc() = "ngraph.impl.Coordinate wraps ngraph::Coordinate";
+    py::class_<ov::Coordinate, std::shared_ptr<ov::Coordinate>> coordinate(m, "Coordinate");
+    coordinate.doc() = "ngraph.impl.Coordinate wraps ov::Coordinate";
     coordinate.def(py::init<const std::initializer_list<size_t>&>());
-    coordinate.def(py::init<const ngraph::Shape&>());
+    coordinate.def(py::init<const ov::Shape&>());
     coordinate.def(py::init<const std::vector<size_t>&>());
-    coordinate.def(py::init<const ngraph::Coordinate&>());
+    coordinate.def(py::init<const ov::Coordinate&>());
 }

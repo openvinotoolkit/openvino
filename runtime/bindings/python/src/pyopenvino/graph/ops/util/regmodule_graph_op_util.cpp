@@ -11,7 +11,6 @@ namespace py = pybind11;
 void regmodule_graph_op_util(py::module m) {
     py::module m_util = m.def_submodule("util", "module graph.op.util");
     //    regclass_graph_op_util_RequiresTensorViewArgs(m_util);
-    regclass_graph_op_util_OpAnnotations(m_util);
     regclass_graph_op_util_ArithmeticReduction(m_util);
     //    regclass_graph_op_util_BinaryElementwise(m_util);
     regclass_graph_op_util_BinaryElementwiseArithmetic(m_util);
