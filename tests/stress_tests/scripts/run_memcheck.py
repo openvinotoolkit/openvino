@@ -90,15 +90,21 @@ def main():
         description='Run memcheck tests',
         usage='%(prog)s [options] binary -- [additional args]',
         parents=[init_parser])
-    parser.add_argument('binary', help='test binary to execute')
-    parser.add_argument('--gtest_parallel', help='path to gtest-parallel to use',
+    parser.add_argument('binary',
+                        help='test binary to execute')
+    parser.add_argument('--gtest_parallel',
+                        help='path to gtest-parallel to use',
                         default='gtest_parallel')
-    parser.add_argument('--timeout', help='timeout for tests run within gtest-parallel')
+    parser.add_argument('--timeout',
+                        help='timeout for tests run within gtest-parallel',
+                        default='')
     parser.add_argument('-d', '--output_dir',
                         required=args.timeline_report or args.upload or args.compare,
-                        help='output directory for test logs')
-    parser.add_argument('-w', '--workers', help='number of gtest-parallel workers to spawn')
-
+                        help='output directory for test logs',
+                        default='')
+    parser.add_argument('-w', '--workers',
+                        help='number of gtest-parallel workers to spawn',
+                        default='')
     parser.add_argument('--db_url',
                         required=args.timeline_report or args.upload or
                                  (args.compare and not os.path.isdir(args.compare)),
@@ -118,8 +124,7 @@ def main():
 
     parser.add_argument('--ref_db_collection',
                         required=args.compare and not os.path.isdir(args.compare),
-                        help=f'use collection name in {DATABASE} database to query'
-                             f' reference data',
+                        help=f'use collection name in {DATABASE} database to query reference data',
                         choices=DB_COLLECTIONS)
     parser.add_argument('--comparison_report',
                         required=args.compare,
@@ -141,12 +146,11 @@ def main():
                     args.output_dir)
                 sys.exit(1)
 
-    return_code, _ = run([sys.executable, args.gtest_parallel] +
-                         (['--output_dir', f'{args.output_dir}'] if args.output_dir else []) +
-                         (['--workers', f'{args.workers}'] if args.workers else []) +
-                         (['--timeout', f'{args.timeout}'] if args.timeout else []) +
-                         [args.binary] +
-                         ['--'] + binary_args)
+    return_code, _ = run([sys.executable, args.gtest_parallel,
+                          '--output_dir', f'{args.output_dir}',
+                          '--workers', f'{args.workers}',
+                          '--timeout', f'{args.timeout}',
+                          args.binary, '--'] + binary_args)
 
     if args.upload or args.timeline_report or args.compare:
         # prepare commit information

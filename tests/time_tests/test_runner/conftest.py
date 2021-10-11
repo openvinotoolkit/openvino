@@ -375,9 +375,9 @@ def pytest_runtest_makereport(item, call):
         yield
         return
 
-    data = item._request.test_info["db_info"].copy()  # pylint: disable=protected-access
-    data["results"] = item._request.test_info["results"].copy()  # pylint: disable=protected-access
-    data["raw_results"] = item._request.test_info["raw_results"].copy()  # pylint: disable=protected-access
+    data = item._request.test_info["db_info"].copy()
+    data["results"] = item._request.test_info["results"].copy()
+    data["raw_results"] = item._request.test_info["raw_results"].copy()
     data["cpu_info"] = get_cpu_info()
     data["status"] = "not_finished"
     data["error_msg"] = ""

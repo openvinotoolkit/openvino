@@ -78,7 +78,7 @@ def pytest_addoption(parser):
         help="number of iterations to run executable and aggregate results",
         default=3
     )
-    omz_args_parser = parser.getgroup("test with omz models")
+    omz_args_parser = parser.getgroup("Test with OMZ models")
     omz_args_parser.addoption(
         "--omz",
         type=Path,
@@ -95,13 +95,13 @@ def pytest_addoption(parser):
         '--omz_cache_dir',
         type=Path,
         default=abs_path('../_omz_out/cache'),
-        help='Directory with test data cache. Required for omz_downloader only.'
+        help='Directory with test data cache. Required for OMZ downloader.py only.'
     )
     omz_args_parser.addoption(
         '--omz_irs_out_dir',
         type=Path,
         default=abs_path('../_omz_out/irs'),
-        help='Directory to put test data into. Required for omz_converter only.'
+        help='Directory to put test data into. Required for OMZ converter.py only.'
     )
     helpers_args_parser = parser.getgroup("test helpers")
     helpers_args_parser.addoption(
