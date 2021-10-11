@@ -1880,17 +1880,9 @@ void MKLDNNGraphOptimizer::reshapeRnnSeq(MKLDNNGraph &graph) {
         }
 
         auto childrenEdges = parentNode->getChildEdgesAtPort(0);
-        const auto &origShape = parentNode->getOutputShapeAtPort(0);
-        const auto &origMinDims = origShape.getMinDims();
-        const auto &origMaxDims = origShape.getMaxDims();
-        std::vector<ov::Dimension> newDims;
-        for (size_t i = 0; i < origMinDims.size(); i++) {
-            if (i == 1) {
-                continue;
-            }
-            newDims.emplace_back(origMinDims[i], origMaxDims[i]);
-        }
-        const auto newShape = Shape(ov::PartialShape(newDims));
+        std::vector<Dimension> origShape = parentNode->getOutputShapeAtPort(0).toPartialShape();
+        origShape.erase(origShape.begin() + 1);
+        const auto newShape = Shape(origShape);
         parentNode->outputShapes[0] = newShape;
 
         for (size_t i = 0; i < childrenEdges.size(); i++) {
