@@ -1512,7 +1512,7 @@ TEST_P(CachingTest, LoadMulti_Archs) {
 
 // MULTI-DEVICE test
 // Test loading of devices which don't support caching
-TEST_P(CachingTest, LoadMulti_NoCachingOnDevice) {
+TEST_P(CachingTest, DISABLED_LoadMulti_NoCachingOnDevice) {
     const auto TEST_DEVICE_MAX_COUNT = 100; // Looks enough to catch potential race conditions
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _))
