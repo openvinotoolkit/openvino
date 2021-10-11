@@ -188,6 +188,8 @@ public:
     /// \param input_tensors Tensors for the inputs. One for each inputs.
     /// \param evaluation_context Storage of additional settings and attributes that can be used
     /// when evaluating the function. This additional information can be shared across nodes.
+    OPENVINO_DEPRECATED(
+        "This method is deprecated and will be removed soon. Please use evaluate with ov::runtime::Tensor instead.")
     bool evaluate(const ov::HostTensorVector& output_tensors,
                   const ov::HostTensorVector& input_tensors,
                   ov::EvaluationContext evaluation_context = ov::EvaluationContext()) const;
