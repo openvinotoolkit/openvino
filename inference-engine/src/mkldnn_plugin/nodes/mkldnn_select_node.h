@@ -22,6 +22,7 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
     void prepareParams() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
@@ -35,20 +36,20 @@ private:
     };
 
     SelectBroadcastType broadcastType;
-    std::vector<size_t> resDims;
-    std::vector<size_t> resOffset;
-    std::vector<size_t> condOffset;
-    std::vector<size_t> thenOffset;
-    std::vector<size_t> elseOffset;
+    VectorDims resDims;
+    VectorDims resOffset;
+    VectorDims condOffset;
+    VectorDims thenOffset;
+    VectorDims elseOffset;
 
-    std::vector<size_t> condDims;
-    std::vector<size_t> thenDims;
-    std::vector<size_t> elseDims;
+    VectorDims condDims;
+    VectorDims thenDims;
+    VectorDims elseDims;
 
     std::string errorPrefix;
 
-    void calcOutOffset(std::vector<size_t>& offset, const std::vector<size_t>& dims);
-    void calcInOffset(std::vector<size_t>& offset, const std::vector<size_t>& inDims, const std::vector<size_t>& outDims);
+    void calcOutOffset(VectorDims& offset, const VectorDims& dims);
+    void calcInOffset(VectorDims& offset, const VectorDims& inDims, const VectorDims& outDims);
     template <typename COND_T, typename DATA_T>
     void execute_impl();
 };
