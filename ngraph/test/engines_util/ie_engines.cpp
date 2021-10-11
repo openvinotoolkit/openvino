@@ -189,6 +189,23 @@ inline testing::AssertionResult compare_blobs(InferenceEngine::MemoryBlob::CPtr 
         THROW_IE_EXCEPTION << "Not implemented yet";
     }
 }
+
+inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& output) {
+    std::string out_name;
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    auto tensor_name = output.get_tensor().get_name();
+    NGRAPH_SUPPRESS_DEPRECATED_END
+    if (!tensor_name.empty()) {
+        out_name = std::move(tensor_name);
+    } else {
+        const auto& prev_layer = output.get_node_shared_ptr();
+        out_name = prev_layer->get_friendly_name();
+        if (prev_layer->get_output_size() != 1) {
+            out_name += "." + std::to_string(output.get_index());
+        }
+    }
+    return out_name;
+}
 };  // namespace
 
 namespace {
@@ -303,10 +320,7 @@ std::string test::IE_Engine::get_output_name(const std::shared_ptr<op::v0::Resul
         return m_network_outputs.begin()->first;
     } else {
         const auto& prev_layer = ng_result->input_value(0);
-        auto network_out_name = prev_layer.get_node_shared_ptr()->get_friendly_name();
-        if (prev_layer.get_node_shared_ptr()->get_output_size() != 1) {
-            network_out_name += "." + std::to_string(prev_layer.get_index());
-        }
+        const auto network_out_name = create_ie_output_name(prev_layer);
 
         NGRAPH_CHECK(m_network_outputs.count(network_out_name) == 1,
                      "nGraph function's output number ",

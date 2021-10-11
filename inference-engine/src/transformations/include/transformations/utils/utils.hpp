@@ -53,10 +53,10 @@ bool has_op_with_type(const std::shared_ptr<const ngraph::Function> &function) {
 inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& output) {
     std::string out_name;
     NGRAPH_SUPPRESS_DEPRECATED_START
-    const auto tensor_name = output.get_tensor().get_name();
+    auto tensor_name = output.get_tensor().get_name();
     NGRAPH_SUPPRESS_DEPRECATED_END
     if (!tensor_name.empty()) {
-        out_name = tensor_name;
+        out_name = std::move(tensor_name);
     } else {
         const auto& prev_layer = output.get_node_shared_ptr();
         out_name = prev_layer->get_friendly_name();
