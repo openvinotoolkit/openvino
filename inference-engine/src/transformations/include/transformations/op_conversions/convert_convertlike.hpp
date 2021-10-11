@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
-
 #include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
