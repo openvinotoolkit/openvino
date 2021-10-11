@@ -275,8 +275,8 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
         add_operation_names = ir_version == 10;
     }
 
-    auto inputsInfo = exeNetwork->GetInputsInfo();
-    auto outputsInfo = exeNetwork->GetOutputsInfo();
+    const auto& inputsInfo = exeNetwork->GetInputsInfo();
+    const auto& outputsInfo = exeNetwork->GetOutputsInfo();
     OPENVINO_ASSERT(inputsInfo.size() == function->get_parameters().size());
     OPENVINO_ASSERT(outputsInfo.size() == function->get_output_size());
 
@@ -289,7 +289,7 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
         // after transformation pipeline is run
         new_param->set_output_type(
             0,
-            InferenceEngine::details::convertPrecision(inputsInfo[new_param->get_friendly_name()]->getPrecision()),
+            InferenceEngine::details::convertPrecision(inputsInfo.at(new_param->get_friendly_name())->getPrecision()),
             new_param->get_output_partial_shape(0));
         const_params.emplace_back(new_param);
     }
@@ -299,7 +299,7 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
         const std::string param_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
         fake_param->set_friendly_name(param_name);
         fake_param->set_output_type(0,
-                                    InferenceEngine::details::convertPrecision(outputsInfo[param_name]->getPrecision()),
+                                    InferenceEngine::details::convertPrecision(outputsInfo.at(param_name)->getPrecision()),
                                     fake_param->get_output_partial_shape(0));
         auto new_result = result->copy_with_new_inputs({fake_param});
         new_result->set_friendly_name(result->get_friendly_name());
