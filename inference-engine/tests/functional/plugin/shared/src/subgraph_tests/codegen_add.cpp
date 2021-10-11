@@ -51,7 +51,6 @@ namespace LayerTestsDefinitions {
             ngraph::ResultVector{result},
             ngraph::ParameterVector{input0, input1},
             "CodegenAdd");
-        functionRefs = ngraph::clone_function(*function);
     }
 
 TEST_P(CodegenAdd, CompareWithRefImpl) {
