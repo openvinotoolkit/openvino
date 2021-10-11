@@ -1584,3 +1584,5 @@ IE_CPU.onnx_model_gather_float_2D_neg_indices
 
 # CPU plug-in doesn't support operation with dynamic rank
 onnx_model_skip_layer_normalization_dynamic_shapes
+# Doesn't support op with dynamic shapes
+onnx_model_embed_layer_normalization_dynamic_shapes

@@ -65,7 +65,6 @@ void VariadicSplitTransformation::SetUp() {
         param.fakeQuantize,
         param.splitedAxis,
         param.splitLengths);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(VariadicSplitTransformation, CompareWithRefImpl) {

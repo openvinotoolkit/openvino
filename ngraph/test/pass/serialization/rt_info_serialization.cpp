@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include <common_test_utils/file_utils.hpp>
+
 #include "frontend_manager/frontend_manager.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
@@ -21,9 +23,11 @@ protected:
     std::string m_out_bin_path = test_name + ".bin";
 
     void TearDown() override {
-        std::remove(m_out_xml_path.c_str());
-        std::remove(m_out_bin_path.c_str());
+        CommonTestUtils::removeIRFiles(m_out_xml_path, m_out_bin_path);
     }
+
+private:
+    ngraph::frontend::FrontEndManager manager;
 };
 
 TEST_F(RTInfoSerializationTest, all_attributes_latest) {
@@ -51,6 +55,7 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
     m.run_passes(function);
 
     auto f = ov::test::readIR(m_out_xml_path, m_out_bin_path);
+    ASSERT_NE(nullptr, f);
 
     auto check_info = [](const RTMap& info) {
         const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
@@ -104,6 +109,7 @@ TEST_F(RTInfoSerializationTest, all_attributes_v10) {
     m.run_passes(function);
 
     auto f = ov::test::readIR(m_out_xml_path, m_out_bin_path);
+    ASSERT_NE(nullptr, f);
 
     auto check_info = [](const RTMap& info) {
         const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
@@ -140,6 +146,7 @@ TEST_F(RTInfoSerializationTest, all_attributes_v11) {
     m.run_passes(function);
 
     auto f = ov::test::readIR(m_out_xml_path, m_out_bin_path);
+    ASSERT_NE(nullptr, f);
 
     auto check_info = [](const RTMap& info) {
         const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
@@ -191,6 +198,7 @@ TEST_F(RTInfoSerializationTest, parameter_result_v11) {
     m.run_passes(function);
 
     auto f = ov::test::readIR(m_out_xml_path, m_out_bin_path);
+    ASSERT_NE(nullptr, f);
 
     ASSERT_EQ(function->get_results().size(), f->get_results().size());
     ASSERT_EQ(function->get_parameters().size(), f->get_parameters().size());
