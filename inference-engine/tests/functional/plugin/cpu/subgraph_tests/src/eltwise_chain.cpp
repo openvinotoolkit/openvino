@@ -207,10 +207,10 @@ std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector
     {
         // dynamic
         {
-            {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-            {ngraph::Dimension(-1, -1)},
-            {ngraph::Dimension(-1, -1)},
-            {ngraph::Dimension(-1, -1)}
+            {-1, -1, -1},
+            {-1},
+            {-1},
+            {-1}
         },
         // target
         {
@@ -222,10 +222,10 @@ std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector
     {
         // dynamic
         {
-            {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-            {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-            {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-            {ngraph::Dimension(-1, -1)}
+            {-1, -1, -1, -1},
+            {-1, -1},
+            {-1, -1, -1},
+            {-1}
         },
         // target
         {
@@ -237,10 +237,10 @@ std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector
     {
         // dynamic
         {
-            {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-            {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-            {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-            {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)}
+            {-1, -1, -1, -1},
+            {-1, -1, -1, -1},
+            {-1, -1, -1, -1},
+            {-1, -1, -1, -1}
         },
         // target
         {
@@ -257,10 +257,10 @@ std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector
     {
         // dynamic
         {
-            {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-            {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-            {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-            {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)}
+            {-1, -1, -1, -1, -1},
+            {-1, -1, -1, -1, -1},
+            {-1, -1, -1, -1, -1},
+            {-1, -1, -1, -1, -1}
         },
         // target
         {
@@ -273,14 +273,14 @@ std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector
     {
         // dynamic
         {
-            {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1),
-             ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-            {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1),
-             ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-            {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1),
-             ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-            {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1),
-             ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)}
+            {-1, -1, -1, -1, -1,
+             -1, -1},
+            {-1, -1, -1, -1, -1,
+             -1, -1},
+            {-1, -1, -1, -1, -1,
+             -1, -1},
+            {-1, -1, -1, -1, -1,
+             -1, -1}
         },
         // target
         {
