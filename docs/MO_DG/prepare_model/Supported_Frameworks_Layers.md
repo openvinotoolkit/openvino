@@ -530,7 +530,7 @@ Standard ONNX\* operators:
 | GRU | No |
 | Gather | No |
 | GatherElements | Doesn't work with negative indices |
-| GatherND | No |
+| GatherND | Doesn't work with negative indices  |
 | GatherTree | No |
 | Gemm | No |
 | GlobalAveragePool | No |
