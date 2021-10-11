@@ -1,19 +1,25 @@
+import glob
 import os
 import subprocess
-
 import sys
 
-# print(sys.argv)
-if len(sys.argv) < 4:
-    print("Script, output folder and mark file must be specified as arguments")
-    exit(1)
+print(sys.argv)
+if len(sys.argv) < 3:
+    print("Gen folder and output folder must be specified as arguments")
+    sys.exit(1)
 
-gen_script = sys.argv[1]
+gen_folder = sys.argv[1]
 out_folder = sys.argv[2]
-mark_file = sys.argv[3]
+mark_file = os.path.join(out_folder, "generate_done.txt")
 
-# print("Processing: {} ".format(gen_script))
-subprocess.run([sys.executable, gen_script, out_folder], env=os.environ)
+gen_files = glob.glob(os.path.join(gen_folder, '**/generate_*.py'), recursive=True)
+
+for gen_script in gen_files:
+    print("Processing: {} ".format(gen_script))
+    status = subprocess.run([sys.executable, gen_script, out_folder], env=os.environ)
+    if status.returncode != 0:
+        print("ERROR: PaddlePaddle model gen script FAILED: {}".format(gen_script))
+        sys.exit(1)
 
 # Create mark file indicating that script was executed
 with open(mark_file, "w") as fp:
