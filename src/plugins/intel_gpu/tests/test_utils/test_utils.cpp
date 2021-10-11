@@ -299,6 +299,7 @@ std::shared_ptr<cldnn::engine> create_test_engine(cldnn::queue_types queue_type)
     return cldnn::engine::create(engine_types::ocl, runtime_types::ocl, get_test_engine_config(queue_type));
 #else
 std::shared_ptr<cldnn::engine> create_test_engine() {
+    std::cout << "runtime_types::ze" << std::endl;
     return cldnn::engine::create(engine_types::ze, runtime_types::ze, get_test_engine_config());
 }
 #ifdef

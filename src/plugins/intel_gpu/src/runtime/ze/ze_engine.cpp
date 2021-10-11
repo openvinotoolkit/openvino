@@ -5,7 +5,7 @@
 #include "ze_engine.hpp"
 #include "ze_common.hpp"
 #include "ze_memory.hpp"
-// #include "ze_stream.hpp"
+#include "ze_stream.hpp"
 #include <string>
 #include <vector>
 #include <memory>
@@ -54,33 +54,13 @@ memory::ptr ze_engine::allocate_memory(const layout& layout, allocation_type typ
         throw std::runtime_error("exceeded max size of memory object allocation");
     }
 
-    return nullptr;
-    // try {
-    //     memory::ptr res = nullptr;
-    //     if (layout.format.is_image_2d()) {
-    //         res = std::make_shared<ze::gpu_image2d>(this, layout);
-    //     } else if (type == allocation_type::cl_mem) {
-    //         res = std::make_shared<ze::gpu_buffer>(this, layout);
-    //     } else {
-    //         res = std::make_shared<ze::gpu_usm>(this, layout, type);
-    //     }
+    memory::ptr res = std::make_shared<ze::gpu_usm>(this, layout, type);
 
     //     if (reset || res->is_memory_reset_needed(layout)) {
     //         res->fill(get_program_stream());
     //     }
 
-    //     return res;
-    // } catch (const cl::Error& clErr) {
-    //     switch (clErr.err()) {
-    //         case CL_MEM_OBJECT_ALLOCATION_FAILURE:
-    //         case CL_OUT_OF_RESOURCES:
-    //         case CL_OUT_OF_HOST_MEMORY:
-    //         case CL_INVALID_BUFFER_SIZE:
-    //             throw std::runtime_error("out of GPU resources");
-    //         default:
-    //             throw std::runtime_error("GPU buffer allocation failed");
-    //     }
-    // }
+    return res;
 }
 
 memory::ptr ze_engine::reinterpret_buffer(const memory& memory, const layout& new_layout) {
@@ -169,8 +149,8 @@ void* ze_engine::get_user_context() const {
 }
 
 stream::ptr ze_engine::create_stream() const {
-    return nullptr;
-    // return std::make_shared<ze_stream>(*this);
+    //return nullptr;
+    return std::make_shared<ze_stream>(*this);
 }
 
 stream& ze_engine::get_program_stream() const {

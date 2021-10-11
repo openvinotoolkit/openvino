@@ -6,8 +6,8 @@
 #include "cldnn/runtime/utils.hpp"
 #include "ze_memory.hpp"
 #include "ze_engine.hpp"
-// #include "ze_stream.hpp"
-// #include "ze_event.hpp"
+#include "ze_stream.hpp"
+#include "ze_event.hpp"
 #include <stdexcept>
 #include <vector>
 

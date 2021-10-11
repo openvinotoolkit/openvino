@@ -1,6 +1,6 @@
-// Copyright (C) 2019-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-//
+// // Copyright (C) 2019-2021 Intel Corporation
+// // SPDX-License-Identifier: Apache-2.0
+// //
 
 #pragma once
 
@@ -8,6 +8,7 @@
 #include "cldnn/runtime/stream.hpp"
 #include "ze_common.hpp"
 #include "ze_engine.hpp"
+#include "ze_event.hpp"
 
 #include <memory>
 #include <chrono>
@@ -71,11 +72,11 @@ public:
                               const kernel_arguments_data& args,
                               std::vector<event::ptr> const& deps,
                               bool is_output = false) override;
-    event::ptr enqueue_marker(std::vector<event::ptr> const& deps, bool is_output) override;
+    ze_event::ptr enqueue_marker(std::vector<event::ptr> const& deps, bool is_output) override;
     event::ptr group_events(std::vector<event::ptr> const& deps) override;
     void wait_for_events(const std::vector<event::ptr>& events) override;
     void enqueue_barrier() override;
-    event::ptr create_user_event(bool set) override;
+    ze_event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
 
 private:

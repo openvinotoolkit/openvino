@@ -3,17 +3,23 @@
 //
 
 #include "kernels_factory.hpp"
+#include "ze/ze_kernel.hpp"
 
 namespace cldnn {
 namespace ocl {
 std::shared_ptr<kernel> create_ocl_kernel(engine& engine, cl_context context, cl_kernel kernel, std::string  entry_point);
 }  // namespace ocl
 
+namespace ze {
+std::shared_ptr<kernel> create_ze_kernel(engine& engine, cl_context context, cl_kernel kernel, std::string  entry_point);
+}  // namespace ze
+
 namespace kernels_factory {
 
 std::shared_ptr<kernel> create(engine& engine, cl_context context, cl_kernel kernel, std::string  entry_point) {
     switch (engine.type()) {
         case engine_types::ocl: return ocl::create_ocl_kernel(engine, context, kernel, entry_point);
+        case engine_types::ze: return ze::create_ze_kernel(engine, context, kernel, entry_point);
         default: throw std::runtime_error("Unsupported engine type in kernels_factory::create");
     }
 }
