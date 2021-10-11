@@ -35,6 +35,11 @@ bool HasDynamicShape(Node node) {
     return shape.is_dynamic();
 }
 
+/*
+ * really returns only NUMPY and PDPD
+ * since another types are filtered out in matcher pattern
+ */
+
 ov::op::BroadcastModeSpec GetBroadcastType(Node eltwise_node) {
     auto node = std::dynamic_pointer_cast<ov::op::util::BinaryElementwiseArithmetic>(eltwise_node);
 
@@ -43,8 +48,6 @@ ov::op::BroadcastModeSpec GetBroadcastType(Node eltwise_node) {
         return ov::op::BroadcastType::NUMPY;
 
     switch (node->get_autob().m_type) {
-        case ov::op::AutoBroadcastType::EXPLICIT:
-            return ov::op::BroadcastType::EXPLICIT;
         case ov::op::AutoBroadcastType::NUMPY:
             return ov::op::BroadcastType::NUMPY;
         case ov::op::AutoBroadcastType::PDPD:
@@ -67,8 +70,22 @@ bool DoTransformation(Node const_node, Node eltwise_node) {
     auto new_const_node = ngraph::op::util::make_try_fold<ngraph::opset8::Broadcast>(const_node,
                                                                                      broadcast_const,
                                                                                      GetBroadcastType(eltwise_node));
+
     ngraph::replace_node(const_node, new_const_node);
     return true;
+}
+
+/*
+ * Do not transform graph with NONE/EXPLICIT broadcast modes eltwise layer
+ * since that types are not broadcastable at all
+ */
+bool IsEltwiseAcceptable(const ngraph::Output<ngraph::Node>& output) {
+    auto node = std::dynamic_pointer_cast<ov::op::util::BinaryElementwiseArithmetic>(output.get_node_shared_ptr());
+    if (!node)
+        return true;
+
+    const ov::op::AutoBroadcastType type = node->get_autob().m_type;
+    return (type == ov::op::AutoBroadcastType::NUMPY || type == ov::op::AutoBroadcastType::PDPD);
 }
 
 } // namespace
@@ -87,11 +104,11 @@ BroadcastAddMultiplyConst::BroadcastAddMultiplyConst() {
     auto eltwise_left_const = ngraph::pattern::wrap_type<ngraph::opset8::Add,
                                     ngraph::opset8::Subtract,
                                     ngraph::opset8::Multiply,
-                                    ngraph::op::Eltwise>({eltwise_input, ngraph::pattern::any_input()});
+                                    ngraph::op::Eltwise>({eltwise_input, ngraph::pattern::any_input()}, IsEltwiseAcceptable);
     auto eltwise_right_const = ngraph::pattern::wrap_type<ngraph::opset8::Add,
                                     ngraph::opset8::Subtract,
                                     ngraph::opset8::Multiply,
-                                    ngraph::op::Eltwise>({ngraph::pattern::any_input(), eltwise_input});
+                                    ngraph::op::Eltwise>({ngraph::pattern::any_input(), eltwise_input}, IsEltwiseAcceptable);
     auto eltwise = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{eltwise_left_const, eltwise_right_const});
 
      ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {

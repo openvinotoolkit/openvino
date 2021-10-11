@@ -15,11 +15,15 @@
 
 namespace testing {
 
-
-
 // ------------------------------------------------------------------------------------------------
 
 namespace {
+
+// TODO: use std::make_unique when C++14 will be available
+template <typename T, typename... Args>
+std::unique_ptr<T> createUnique(Args&&... args) {
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
 
 std::shared_ptr<ngraph::opset8::FakeQuantize> createFakeQuantizeNode(std::shared_ptr<ngraph::op::Op> parent_node) {
     auto input_low = ngraph::opset8::Constant::create(ngraph::element::f32, {}, {-0.5});
@@ -35,10 +39,47 @@ using Node = std::shared_ptr<ov::op::Op>;
 
 // ------------------------------------------------------------------------------------------------
 
+struct ShapeInfo {
+    ngraph::Shape data_shape;
+    ngraph::Shape const_shape_dims_in;
+    ngraph::Shape const_shape_values_in;
+    ngraph::Shape const_shape_values_out;
+};
+
+std::unordered_map<ov::op::AutoBroadcastType, ShapeInfo> ShapesRightConst = {
+    { ov::op::AutoBroadcastType::NONE, {.data_shape = {3, 2},
+                                         .const_shape_dims_in = {3, 2},
+                                         .const_shape_values_in = {1, 2, 1, 2, 1, 2},
+                                         .const_shape_values_out = {1, 2, 1, 2, 1, 2} } },
+    { ov::op::AutoBroadcastType::EXPLICIT, {.data_shape = {3, 2},
+                                         .const_shape_dims_in = {3, 2},
+                                         .const_shape_values_in = {1, 2, 1, 2, 1, 2},
+                                         .const_shape_values_out = {1, 2, 1, 2, 1, 2} } },
+    { ov::op::AutoBroadcastType::NUMPY, {.data_shape = {3, 2},
+                                         .const_shape_dims_in = {2},
+                                         .const_shape_values_in = {1, 2},
+                                         .const_shape_values_out = {1, 2, 1, 2, 1, 2} } },
+    { ov::op::AutoBroadcastType::PDPD, {.data_shape = {3, 2},
+                                         .const_shape_dims_in = {3, 1},
+                                         .const_shape_values_in = {1, 2, 3},
+                                         .const_shape_values_out = {1, 1, 2, 2, 3, 3} } }
+};
+
+// ------------------------------------------------------------------------------------------------
+
 class IEltwiseFactory {
 public:
+    IEltwiseFactory() = default;
     virtual ~IEltwiseFactory() = default;
-    virtual Node CreateNode(Node left_input, Node right_input) = 0;
+    virtual Node CreateNode(Node left_input, Node right_input) const = 0;
+
+    void SetBroadcastType(ov::op::AutoBroadcastType type) {
+        m_broadcast_type = type;
+    }
+    ov::op::AutoBroadcastType GetBroadcastType() const { return m_broadcast_type; }
+
+private:
+    ov::op::AutoBroadcastType m_broadcast_type = ov::op::AutoBroadcastType::NUMPY;
 };
 
 using EltwiseFactoryPtr = std::shared_ptr<IEltwiseFactory>;
@@ -46,13 +87,17 @@ using EltwiseFactoryPtr = std::shared_ptr<IEltwiseFactory>;
 template <typename EltwiseT>
 class EltwiseFactory : public IEltwiseFactory {
 public:
-    Node CreateNode(Node left_input, Node right_input) override { return std::make_shared<EltwiseT>(left_input, right_input); }
+    Node CreateNode(Node left_input, Node right_input) const override {
+        return std::make_shared<EltwiseT>(left_input, right_input, GetBroadcastType());
+    }
 };
 
 template <>
 class EltwiseFactory<ngraph::op::Eltwise> : public IEltwiseFactory {
 public:
-    Node CreateNode(Node left_input, Node right_input) override { return std::make_shared<ngraph::op::Eltwise>(left_input, right_input, ELTWISE_TYPE::Sum); }
+    Node CreateNode(Node left_input, Node right_input) const override {
+        return std::make_shared<ngraph::op::Eltwise>(left_input, right_input, ELTWISE_TYPE::Sum);
+    }
 };
 
 template <typename EltwiseT>
@@ -108,7 +153,8 @@ class BroadcastConstTestFixture: public CommonTestUtils::TestsCommon,
                                         public ::testing::WithParamInterface<std::tuple<EltwiseFactoryPtr,
                                                                                         bool /* add_input_fake_quantize */,
                                                                                         bool /* add_const_fake_quantize */,
-                                                                                        bool /* swap_outputs */>> {
+                                                                                        bool /* swap_outputs */,
+                                                                                        ov::op::AutoBroadcastType>> {
 public:
     void SetUp() override;
 public:
@@ -121,18 +167,23 @@ void BroadcastConstTestFixture::SetUp() {
     bool add_input_fake_quantize;
     bool add_const_fake_quantize;
     bool swap_outputs;
-    std::tie(eltwise_factory, add_input_fake_quantize, add_const_fake_quantize, swap_outputs) = this->GetParam();
+    ov::op::AutoBroadcastType broadcast_type;
+    std::tie(eltwise_factory, add_input_fake_quantize, add_const_fake_quantize, swap_outputs, broadcast_type) = this->GetParam();
 
-    function = CreateFunction({3, 2} /* data_shape */,
-                              {2}, /* const_shape_dims */
-                              {1, 2} /* const_shape_values */,
+    eltwise_factory->SetBroadcastType(broadcast_type);
+
+    ShapeInfo shape_info = ShapesRightConst.at(broadcast_type);
+
+    function = CreateFunction(shape_info.data_shape,
+                              shape_info.const_shape_dims_in,
+                              shape_info.const_shape_values_in,
                               add_input_fake_quantize,
                               add_const_fake_quantize,
                               swap_outputs,
                               eltwise_factory);
-    reference_function = CreateFunction({3, 2} /* data_shape */,
-                              {3, 2}, /* const_shape_dims */
-                              {1, 2, 1, 2, 1, 2} /* const_shape_values */,
+    reference_function = CreateFunction(shape_info.data_shape,
+                              shape_info.data_shape,
+                              shape_info.const_shape_values_out,
                               add_input_fake_quantize,
                               add_const_fake_quantize,
                               swap_outputs,
@@ -153,25 +204,108 @@ void execute_test(std::shared_ptr<ngraph::Function> function,
     ASSERT_TRUE(result.valid);
 }
 
+void execute_cloned_test(std::shared_ptr<ngraph::Function> function) {
+    auto reference_function = ngraph::clone_function(*function);
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<GNAPluginNS::BroadcastAddMultiplyConst>();
+    manager.run_passes(function);
+    ASSERT_NO_THROW(check_rt_info(function));
+
+    FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    const FunctionsComparator::Result result = func_comparator(function, reference_function);
+    ASSERT_TRUE(result.valid);
+}
+
 // ------------------------------------------------------------------------------------------------
 
 namespace {
-std::vector<EltwiseFactoryPtr> eltwise_factories = {
+
+std::vector<EltwiseFactoryPtr> opset8_eltwise_factories = {
+    CreateEltwiseFactory<ngraph::opset8::Add>(),
+    CreateEltwiseFactory<ngraph::opset8::Subtract>(),
+    CreateEltwiseFactory<ngraph::opset8::Multiply>()
+};
+
+std::vector<EltwiseFactoryPtr> all_eltwise_factories = {
     CreateEltwiseFactory<ngraph::opset8::Add>(),
     CreateEltwiseFactory<ngraph::opset8::Subtract>(),
     CreateEltwiseFactory<ngraph::opset8::Multiply>(),
     CreateEltwiseFactory<ngraph::op::Eltwise>()
 };
+
+std::vector<ov::op::AutoBroadcastType> broadcast_passed_types = {
+    ov::op::AutoBroadcastType::NONE,
+    ov::op::AutoBroadcastType::EXPLICIT
+};
+
 } // namespace
 
 TEST_P(BroadcastConstTestFixture, CompareFunctions) {
     execute_test(function, reference_function);
 }
 
-INSTANTIATE_TEST_SUITE_P(BroadcastConstTestSuite, BroadcastConstTestFixture,
-                         ::testing::Combine(::testing::ValuesIn(eltwise_factories),
+INSTANTIATE_TEST_SUITE_P(BroadcastConstTestNumpySuite, BroadcastConstTestFixture,
+                         ::testing::Combine(::testing::ValuesIn(all_eltwise_factories),
                                             ::testing::Bool(),
                                             ::testing::Bool(),
-                                            ::testing::Bool()));
+                                            ::testing::Bool(),
+                                            ::testing::Values(ov::op::AutoBroadcastType::NUMPY)));
+
+INSTANTIATE_TEST_SUITE_P(BroadcastConstTestPDPDSuite, BroadcastConstTestFixture,
+                         ::testing::Combine(::testing::ValuesIn(opset8_eltwise_factories),
+                                            ::testing::Bool(),
+                                            ::testing::Bool(),
+                                            ::testing::Values(false),
+                                            ::testing::Values(ov::op::AutoBroadcastType::PDPD)));
+
+// ------------------------------------------------------------------------------------------------
+
+class BroadcastConstTestPassedFixture: public CommonTestUtils::TestsCommon,
+                                        public ::testing::WithParamInterface<std::tuple<EltwiseFactoryPtr,
+                                                                                        bool /* add_input_fake_quantize */,
+                                                                                        bool /* add_const_fake_quantize */,
+                                                                                        bool /* swap_outputs */,
+                                                                                        ov::op::AutoBroadcastType>> {
+public:
+    void SetUp() override;
+public:
+    std::shared_ptr<ngraph::Function> function;
+};
+
+void BroadcastConstTestPassedFixture::SetUp() {
+    // TODO: use auto & [ ... ] = this->GetParam() when C++17
+    EltwiseFactoryPtr eltwise_factory;
+    bool add_input_fake_quantize;
+    bool add_const_fake_quantize;
+    bool swap_outputs;
+    ov::op::AutoBroadcastType broadcast_type;
+    std::tie(eltwise_factory, add_input_fake_quantize, add_const_fake_quantize, swap_outputs, broadcast_type) = this->GetParam();
+
+    eltwise_factory->SetBroadcastType(broadcast_type);
+
+    ShapeInfo shape_info = ShapesRightConst.at(broadcast_type);
+
+    function = CreateFunction(shape_info.data_shape,
+                              shape_info.const_shape_dims_in,
+                              shape_info.const_shape_values_in,
+                              add_input_fake_quantize,
+                              add_const_fake_quantize,
+                              swap_outputs,
+                              eltwise_factory);
+}
+
+TEST_P(BroadcastConstTestPassedFixture, CompareFunctionsPassedTypes) {
+    execute_cloned_test(function);
+}
+
+INSTANTIATE_TEST_SUITE_P(BroadcastConstTestPassedSuite, BroadcastConstTestPassedFixture,
+                         ::testing::Combine(::testing::ValuesIn(opset8_eltwise_factories),
+                                            ::testing::Bool(),
+                                            ::testing::Bool(),
+                                            ::testing::Bool(),
+                                            ::testing::ValuesIn(broadcast_passed_types)));
 
 } // namespace testing
