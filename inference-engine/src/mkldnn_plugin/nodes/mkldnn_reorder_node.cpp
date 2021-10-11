@@ -135,8 +135,6 @@ void MKLDNNReorderNode::prepareParams() {
             // Check that child strides are consistent with parent dims if the child is inplace.
             // The strides must be dense except for the channel one (since the child num channels might differ)
             const auto childSubBlocksAreDense = [&]() {
-                if (!getChildEdgeAt(0)->getChild()->isInplace())
-                    return true;
                 const auto& dstStrides = childDesc.as<BlockedMemoryDesc>()->getStrides();
                 const auto& dstOrder = childDesc.as<BlockedMemoryDesc>()->getOrder();
                 const size_t channelDim = 1;
