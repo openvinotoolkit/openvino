@@ -86,13 +86,13 @@ std::vector<VectorDims> MKLDNNReshapeNode::shapeInfer() const {
     inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Parameter>(opToShapeInfer->get_input_element_type(0),
                                                                               getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape()));
     inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i32, memPtr.getStaticDims(), lastSecondInputValues));
-    opToShapeInfer = opToShapeInfer->clone_with_new_inputs(inputsForShapeInfer);
+    const auto localShapeInferOp = opToShapeInfer->clone_with_new_inputs(inputsForShapeInfer);
 
-    opToShapeInfer->validate_and_infer_types();
+    localShapeInferOp->validate_and_infer_types();
 
     std::vector<VectorDims> newOutputShapes(outputShapes.size());
     for (size_t i = 0; i < newOutputShapes.size(); i++) {
-        const auto &partShape = opToShapeInfer->get_output_partial_shape(i);
+        const auto &partShape = localShapeInferOp->get_output_partial_shape(i);
         if (partShape.is_dynamic())
             IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for nodes with internal dynamism";
         newOutputShapes[i] = partShape.get_shape();
