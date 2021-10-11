@@ -269,6 +269,10 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
                             const std::vector<std::vector<std::uint8_t>> &inputs,
                             const std::vector<ngraph::element::Type> &inputTypes = {});
 
+std::vector<ov::runtime::Tensor>
+interpreterFunction(const std::shared_ptr<Function> &function,
+                    const std::map<std::string, ov::runtime::Tensor>& inputs);
+
 //
 // This function compares two nGraph functions and requires them to have exactly one output
 // Check nodes types

@@ -20,8 +20,6 @@ std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<softM
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";
-    result << "inL=" << inLayout << "_";
-    result << "outL=" << outLayout << "_";
     result << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
     result << "TS=";
     for (const auto& item : shapes.second) {
