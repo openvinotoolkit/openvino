@@ -223,7 +223,7 @@ std::vector<ov::runtime::Tensor>
         inputTensors.push_back(tensor);
     }
 
-    auto outputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
+    std::vector<std::shared_ptr<runtime::Tensor>> outputTensors;
     const auto &results = function->get_results();
     for (size_t i = 0; i < results.size(); ++i) {
         outputTensors.push_back(std::make_shared<HostTensor>());
@@ -232,7 +232,7 @@ std::vector<ov::runtime::Tensor>
     auto handle = backend->compile(function);
     handle->call_with_validate(outputTensors, inputTensors);
 //    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> outputs(results.size());
-    std::vector<ov::runtime::Tensor> outputs(results.size());
+    std::vector<ov::runtime::Tensor> outputs;
 //    for (size_t resultIndex = 0; resultIndex < results.size(); resultIndex++) {
 //        auto& output = outputs[resultIndex];
 //        output.first = results[resultIndex]->get_element_type();
@@ -241,10 +241,13 @@ std::vector<ov::runtime::Tensor>
 //        outputTensors[resultIndex]->read(output.second.data(), output.second.size());
 //    }
     for (const auto& outTensor : outputTensors) {
-        std::shared_ptr<ov::runtime::Tensor> a = std::dynamic_pointer_cast<ov::runtime::Tensor>(outTensor);
-        ov::runtime::Tensor b = dynamic_cast<ov::runtime::Tensor>(*a);
-        ov::runtime::Tensor c(b);
-        outputs.emplace_back(c);
+//        std::shared_ptr<ov::runtime::Tensor> a = std::dynamic_pointer_cast<ov::runtime::Tensor>(outTensor);
+//        ov::runtime::Tensor b = *a;
+//        ov::runtime::Tensor c(b);
+//        Tensor(const element::Type type, const Shape& shape, void* host_ptr, const Strides& strides = {});
+        ov::runtime::Tensor a(outTensor->get_element_type(), outTensor->get_shape());
+        outTensor->read(a.data(), a.get_byte_size());
+        outputs.push_back(a);
     }
 
     return outputs;
