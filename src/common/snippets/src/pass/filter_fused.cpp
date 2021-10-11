@@ -8,6 +8,7 @@
 #include "snippets/register_info.hpp"
 #include <ngraph/opsets/opset1.hpp>
 #include "legacy/ngraph_ops/fully_connected.hpp"
+//#include "mkldnn_itt.h"
 
 namespace ngraph {
 namespace snippets {
@@ -178,6 +179,7 @@ bool isSuitableChildForFusingSumActivation(std::shared_ptr<Node> node) {
 } // namespace
 
 SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node> node) {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::GetSnippetsNodeType")
     auto &rt = node->get_rt_info();
     const auto rinfo = rt.find("MayBeFusedInPlugin");
     if (rinfo == rt.end())
@@ -206,6 +208,7 @@ void PropagateIfHasOnlyChild(std::shared_ptr<Node> node, SnippetsNodeType nodeTy
 
 bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
     RUN_ON_FUNCTION_SCOPE(FulterFused);
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::FilterFused")
     for (auto node : f->get_ordered_ops()) {
         if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node))
             continue;

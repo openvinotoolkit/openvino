@@ -40,6 +40,7 @@ std::shared_ptr<Node> snippets::op::Subgraph::clone_with_new_inputs(const Output
 
 void snippets::op::Subgraph::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(Subgraph);
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::validate_and_infer_types")
     ngraph::ParameterVector old_parameters;
     for (auto op : m_body->get_parameters()) {
         old_parameters.push_back(op);
@@ -67,6 +68,7 @@ bool snippets::op::Subgraph::visit_attributes(AttributeVisitor& visitor) {
 
 auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ngraph::Node>& node) -> std::shared_ptr<op::Subgraph> {
     INTERNAL_OP_SCOPE(Subgraph);
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::wrap_node_as_subgraph")
     ngraph::ParameterVector body_parameters;
     ngraph::OutputVector body_inputs;
 
@@ -138,6 +140,7 @@ std::shared_ptr<snippets::op::Subgraph> snippets::op::Subgraph::make_canonical_f
 // ngraph::AxisVector to code
 void snippets::op::Subgraph::canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes) {
     INTERNAL_OP_SCOPE(Subgraph);
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::canonicalize")
     NODE_VALIDATION_CHECK(this, input_shapes.size() == m_body->get_parameters().size(),
         "Number of parameters for snippet doesn't much passed to generate method: ", input_shapes.size(), " vs ", m_body->get_parameters().size(), ".");
 
@@ -198,6 +201,7 @@ void snippets::op::Subgraph::canonicalize(const BlockedShapeVector& output_shape
 
 void snippets::op::Subgraph::convert_to_snippet_dialect() {
     INTERNAL_OP_SCOPE(Subgraph);
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::convert_to_snippet_dialect")
     ngraph::pass::Manager manager;
     manager.register_pass<snippets::pass::InsertLoad>();
     manager.register_pass<snippets::pass::InsertStore>();
@@ -209,6 +213,7 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
 snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
                                                     ngraph::pass::Manager opt) {
     INTERNAL_OP_SCOPE(Subgraph);
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
 
     canonicalize(output_shapes, input_shapes);

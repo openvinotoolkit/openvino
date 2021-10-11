@@ -20,6 +20,7 @@ ngraph::snippets::pass::LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBro
 
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(fbn),
         [load_pattern, param_pattern](ngraph::pattern::Matcher &m) {
+            OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::LoadMoveBroadcastToBroadcastLoad")
             auto root = m.get_match_root();
 
             const auto &pm = m.get_pattern_value_map();

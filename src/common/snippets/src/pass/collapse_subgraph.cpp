@@ -19,10 +19,11 @@
 #include <queue>
 #include <string>
 #include <numeric>
+#include "mkldnn_itt.h"
 
-NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::StartSubgraph, "CollapseSubgraph", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::AttachToSubgraph, "CollapseSubgraph", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::TokenizeSnippets, "CollapseSubgraph", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::StartSubgraph, "Snippets::StartSubgraph", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::AttachToSubgraph, "Snippets::AttachToSubgraph", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::TokenizeSnippets, "Snippets::TokenizeSnippets", 0);
 
 using namespace ngraph;
 using namespace snippets;
@@ -57,6 +58,7 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<ngraph::Node>& node) ->
 
 auto has_cycles_of_dependencies(const std::vector<std::set<ngraph::Input<ngraph::Node>>>& results,
                                 const std::vector<ngraph::Input<ngraph::Node>>& inputs) -> bool {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::has_cycles_of_dependencies")
     auto BFS_from_to = [](ngraph::Node* from, ngraph::Node* to) -> bool {
         std::unordered_set<ngraph::Node*> visited;
         std::queue<ngraph::Node*> stack;
@@ -115,6 +117,7 @@ auto has_cycles_of_dependencies(const std::vector<std::set<ngraph::Input<ngraph:
 }
 
 auto has_subgraph_as_input(std::shared_ptr<Node> node) -> bool {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::has_subgraph_as_input")
     auto inputs = node->inputs();
     for (auto input : inputs) {
         auto parent = input.get_source_output().get_node_shared_ptr();
@@ -126,6 +129,7 @@ auto has_subgraph_as_input(std::shared_ptr<Node> node) -> bool {
 }
 
 auto is_lo(std::shared_ptr<Node> n) -> bool {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::is_lo")
     auto is_lob = [](std::shared_ptr<Node> n) -> bool {
         using ngraph::as_type_ptr;
         return ov::is_type<opset1::Add>(n)
@@ -284,6 +288,7 @@ ngraph::snippets::pass::StartSubgraph::StartSubgraph() : MatcherPass() {
             return GetSnippetsNodeType(n) == SnippetsNodeType::SubgraphStart;
         })),
         [](ngraph::pattern::Matcher &m) -> bool {
+        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::StartSubgraph_callback")
         auto node = m.get_match_root();
         remark(1) << "Match root (Start): "
                   << node->get_friendly_name()
@@ -314,6 +319,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
     continuation_strategy strategy = continuation_strategy::abort;
 
     ngraph::graph_rewrite_callback continuation_callback = [strategy](ngraph::pattern::Matcher &m) -> bool {
+        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::AttachToSubgraph_callback")
         auto node = m.get_match_root();
 
         remark(1) << "Match root (Attach): " << node->get_friendly_name() << " " << node << std::endl;
@@ -599,6 +605,8 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
     register_matcher(std::make_shared<pattern::Matcher>(
         std::make_shared<pattern::op::Label>(pattern::any_input(),
         [](std::shared_ptr<Node> n) {
+//            todo: Is it faster to check SnippetsNodeType? Need to gather stat
+//            return GetSnippetsNodeType(n) == SnippetsNodeType::SubgraphBody && has_subgraph_as_input(n);
             return AppropriateForSubgraph(n) && has_subgraph_as_input(n);
         })),
         continuation_callback);

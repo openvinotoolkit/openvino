@@ -138,6 +138,7 @@ auto reset_broacast_config(const std::shared_ptr<ngraph::Node>& op) -> void {
 ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
     MATCHER_SCOPE(InsertMoveBroadcast);
     ngraph::graph_rewrite_callback callback = [this](ngraph::pattern::Matcher &m) {
+        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::InsertMoveBroadcast")
         auto root = m.get_match_root();
         const auto& values = root->input_values();
         if (values.empty()) {

@@ -8,10 +8,12 @@
 #include "snippets/pass/insert_load_store.hpp"
 #include "snippets/op/tile.hpp"
 #include "snippets/op/kernel.hpp"
+#include "itt.hpp"
 
 #include <ngraph/pass/manager.hpp>
 
 auto ngraph::snippets::getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph::snippets::RegInfo {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::getRegisters")
     auto rt = n->get_rt_info();
 
     // ToDo: change to reg_t
@@ -37,6 +39,7 @@ auto ngraph::snippets::getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph:
 }
 
 ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ngraph::Function>& f) const {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator::generate")
     if (!target->is_supported())
         throw ngraph_error("unsupported architecture for code genration");
 
@@ -49,12 +52,13 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ngr
     if (nptrs > 7) {
         throw ngraph_error("snippet signature should not exceed 7 arguments. got " + std::to_string(nptrs));
     }
-
+    OV_ITT_TASK_CHAIN(GENERATE, ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::VectorTile")
     // vector tile
     std::vector<std::pair<std::shared_ptr<ngraph::snippets::Emitter>, ngraph::snippets::RegInfo>> lowered;
     for (auto n : f->get_ordered_ops()) {
         lowered.push_back(std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n)));
     }
+    OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile")
 
     // scalar tile
     auto f_scalar = ngraph::clone_function(*f.get());
@@ -62,11 +66,12 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ngr
     m.register_pass<ngraph::snippets::pass::ReplaceLoadsWithScalarLoads>();
     m.register_pass<ngraph::snippets::pass::ReplaceStoresWithScalarStores>();
     m.run_passes(f_scalar);
-
+    OV_ITT_TASK_NEXT(GENERATE, "::ScalarTile_get")
     std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>> scalar_lowered;
     for (auto n : f_scalar->get_ordered_ops()) {
         scalar_lowered.push_back(std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n)));
     }
+    OV_ITT_TASK_NEXT(GENERATE, "::Tiles1D")
 
     // max tile rank - 2
     const size_t tile_rank = 2;
@@ -80,20 +85,23 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ngr
                                              std::make_shared<ngraph::snippets::op::Tile>(scalar_lowered)),
                     std::make_pair(std::vector<size_t>{{1, nptrs, 0}}, std::vector<size_t>{})));
 
+    OV_ITT_TASK_NEXT(GENERATE, "::Tiles2D")
     // wrapping into tiles2D
     std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>> tiles2D;
     tiles2D.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::get_type_info_static())(
                                              std::make_shared<ngraph::snippets::op::Tile>(tiles1D)),
                                      std::make_pair(std::vector<size_t>({1, nptrs, 1}), std::vector<size_t>{})));
+
+    OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
     // emission
     std::shared_ptr<Emitter> kernel = target->get(ngraph::snippets::op::Kernel::get_type_info_static())(
                                               std::make_shared<ngraph::snippets::op::Kernel>(tiles2D));
     kernel->emit_code({tile_rank, nptrs}, {});
-
+    OV_ITT_TASK_NEXT(GENERATE, "::EmitData")
     lowered.insert(lowered.end(), scalar_lowered.begin(), scalar_lowered.end());
     for (auto& op : lowered) {
         op.first->emit_data();
     }
-
+    OV_ITT_TASK_NEXT(GENERATE, "::GetSnippet")
     return target->get_snippet();
 }

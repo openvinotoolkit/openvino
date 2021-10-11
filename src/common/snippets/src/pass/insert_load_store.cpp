@@ -17,6 +17,7 @@ ngraph::snippets::pass::InsertLoad::InsertLoad() {
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<ngraph::opset1::Parameter>()),
             [this](ngraph::pattern::Matcher &m) {
+            OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::InsertLoad")
             auto root = m.get_match_root();
 
             // check if already has Load as an output
@@ -50,6 +51,7 @@ ngraph::snippets::pass::InsertStore::InsertStore() {
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<ngraph::opset1::Result>()),
             [this](ngraph::pattern::Matcher &m) {
+            OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::InsertStore")
             auto root = m.get_match_root();
 
             // check if already has Store as an input
