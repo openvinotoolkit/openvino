@@ -11,6 +11,27 @@ using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
 
+enum class shapeNodeType {
+    Reshape,
+    Squeeze,
+    Unsqueeze
+};
+
+std::ostream& operator<<(std::ostream & os, shapeNodeType type) {
+    switch (type) {
+        case shapeNodeType::Reshape:
+            os << "Reshape";
+            break;
+        case shapeNodeType::Squeeze:
+            os << "Squeeze";
+            break;
+        case shapeNodeType::Unsqueeze:
+            os << "Unsqueeze";
+            break;
+    }
+    return os;
+}
+
 struct inferShapes {
     ngraph::PartialShape dynShape;
     std::vector<ngraph::Shape> inferShape;
@@ -20,16 +41,16 @@ struct inferShapes {
 using shapeOpsParams = std::tuple<
     inferShapes,                       // input shapes
     ngraph::helpers::InputLayerType,   // second input type
-    std::string,                       // node type
+    shapeNodeType,                     // node type
     Precision,                         // precision
     bool>;                             // special zero
 
-class ShapeOpsTest : public testing::WithParamInterface<shapeOpsParams>, public LayerTestsUtils::LayerTestsCommon {
+class ShapeOpsCPUTest : public testing::WithParamInterface<shapeOpsParams>, virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<shapeOpsParams> obj) {
         inferShapes shapes;
         ngraph::helpers::InputLayerType secondType;
-        std::string nodeType;
+        shapeNodeType nodeType;
         Precision prc;
         bool specialZero;
         std::tie(shapes, secondType, nodeType, prc, specialZero) = obj.param;
@@ -83,10 +104,12 @@ protected:
 
         inferShapes shapes;
         ngraph::helpers::InputLayerType secondType;
-        std::string nodeType;
+        shapeNodeType nodeType;
         Precision prc;
         bool specialZero;
         std::tie(shapes, secondType, nodeType, prc, specialZero) = this->GetParam();
+
+        selectedType = std::string("unknown_") + prc.name();
 
         data = shapes.data;
 
@@ -110,18 +133,24 @@ protected:
         } else {
             secondaryInput = ngraph::builder::makeConstant(secondInPrc, {shapes.data[0].size()}, shapes.data[0]);
         }
+
         std::shared_ptr<ngraph::Node> shapeOps;
-        if (nodeType == "Reshape") {
-            shapeOps = std::make_shared<ngraph::opset1::Reshape>(dataInput, secondaryInput, specialZero);
-        } else if (nodeType == "Squeeze") {
-            shapeOps = std::make_shared<ngraph::opset1::Squeeze>(dataInput, secondaryInput);
-        } else if (nodeType == "Unsqueeze") {
-            shapeOps = std::make_shared<ngraph::opset1::Unsqueeze>(dataInput, secondaryInput);
-        } else {
-            IE_THROW() << "Can't create op with type: " << nodeType;
+        switch (nodeType) {
+            case shapeNodeType::Reshape: {
+                shapeOps = std::make_shared<ngraph::opset1::Reshape>(dataInput, secondaryInput, specialZero);
+                break;
+            }
+            case shapeNodeType::Squeeze: {
+                shapeOps = std::make_shared<ngraph::opset1::Squeeze>(dataInput, secondaryInput);
+                break;
+            }
+            case shapeNodeType::Unsqueeze: {
+                shapeOps = std::make_shared<ngraph::opset1::Unsqueeze>(dataInput, secondaryInput);
+                break;
+            }
         }
 
-        function = std::make_shared<ngraph::Function>(shapeOps, inputs, "ShapeOpsTest");
+        function = std::make_shared<ngraph::Function>(shapeOps, inputs, "ShapeOpsCPUTest");
         functionRefs = ngraph::clone_function(*function);
     }
 
@@ -129,95 +158,98 @@ private:
     std::vector<std::vector<int>> data;
 };
 
-TEST_P(ShapeOpsTest, CompareWithRefs) {
+TEST_P(ShapeOpsCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
+    CheckPluginRelatedResults(executableNetwork, "Reshape");
 }
 
 namespace reshapeTest {
 
-inferShapes noBounds{{ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
+inferShapes noBounds{{-1, -1, -1, -1},
                      {ngraph::Shape{2, 5, 7, 3}, ngraph::Shape{10, 6, 10, 5}, ngraph::Shape{10, 6, 10, 5}, ngraph::Shape{1, 2, 5, 5}},
                      {std::vector<int>{1, -1, 0}, std::vector<int>{-1, 60, 2}, std::vector<int>{10, 30, 10}, std::vector<int>{5, 10, -1}}};
 
 const auto params = ::testing::Combine(::testing::Values(noBounds),
                                        ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
-                                       ::testing::Values("Reshape"),
+                                       ::testing::Values(shapeNodeType::Reshape),
                                        ::testing::Values(Precision::FP32),
                                        ::testing::Values(true));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic, ShapeOpsTest, params, ShapeOpsTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic, ShapeOpsCPUTest, params, ShapeOpsCPUTest::getTestCaseName);
 
-inferShapes noBounds_const{{ngraph::Dimension(1, 10), ngraph::Dimension(2, 6), ngraph::Dimension(1, 15), ngraph::Dimension(3, 11)},
+inferShapes noBounds_const{{{1, 10}, {2, 6}, {1, 15}, {3, 11}},
                            {ngraph::Shape{2, 5, 7, 3}, ngraph::Shape{10, 6, 10, 5}, ngraph::Shape{1, 2, 5, 5}},
                            {std::vector<int>{2, -1, 0}}};
 
 const auto params_const = ::testing::Combine(::testing::Values(noBounds_const),
                                              ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
-                                             ::testing::Values("Reshape"),
+                                             ::testing::Values(shapeNodeType::Reshape),
                                              ::testing::Values(Precision::FP32),
                                              ::testing::Values(true));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic_const, ShapeOpsTest, params_const, ShapeOpsTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic_const, ShapeOpsCPUTest, params_const, ShapeOpsCPUTest::getTestCaseName);
 
 } // namespace reshapeTest
 
 namespace squeezeTest {
 
-inferShapes noBounds{{ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1),
-                      ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
+inferShapes noBounds{{-1, -1, -1, -1, -1, -1},
                      {ngraph::Shape{2, 5, 1, 7, 3, 1}, ngraph::Shape{10, 1, 1, 6, 10, 5}, ngraph::Shape{10, 6, 10, 5, 1, 1}, ngraph::Shape{1, 1, 5, 1, 5}},
                      {std::vector<int>{2, 5}, std::vector<int>{1, 2}, std::vector<int>{4, 5}, std::vector<int>{0, 1}}};
 
 const auto params = ::testing::Combine(::testing::Values(noBounds),
                                        ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
-                                       ::testing::Values("Squeeze"),
+                                       ::testing::Values(shapeNodeType::Squeeze),
                                        ::testing::Values(Precision::FP32),
                                        ::testing::Values(true));
 
-// INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic, ShapeOpsTest, params, ShapeOpsTest::getTestCaseName);
+// at this momemnt squeze produce dynamic output rank, if second input is not constant
+// enable after CPU plug-in will be support dynamic rank
+// INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic, ShapeOpsCPUTest, params, ShapeOpsCPUTest::getTestCaseName);
 
-inferShapes noBounds_const{{ngraph::Dimension(1, 10), ngraph::Dimension(1, 15), ngraph::Dimension(2, 6), ngraph::Dimension(1, 15), ngraph::Dimension(3, 11),
-                            ngraph::Dimension(1, 15)},
+inferShapes noBounds_const{{{1, 10}, {1, 15}, {2, 6}, {1, 15}, {3, 11}, {1, 15}},
                            {ngraph::Shape{2, 1, 5, 7, 3, 1}, ngraph::Shape{10, 1, 6, 10, 5, 1}, ngraph::Shape{1, 1, 2, 5, 5, 1}},
                            {std::vector<int>{1, 5}}};
 
 const auto params_const = ::testing::Combine(::testing::Values(noBounds_const),
                                              ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
-                                             ::testing::Values("Squeeze"),
+                                             ::testing::Values(shapeNodeType::Squeeze),
                                              ::testing::Values(Precision::FP32),
                                              ::testing::Values(true));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic_const, ShapeOpsTest, params_const, ShapeOpsTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic_const, ShapeOpsCPUTest, params_const, ShapeOpsCPUTest::getTestCaseName);
 
 } // namespace squeezeTest
 
 namespace unsqueezeTest {
 
-inferShapes noBounds{{ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
+inferShapes noBounds{{-1, -1, -1, -1},
                      {ngraph::Shape{2, 5, 7, 3}, ngraph::Shape{10, 6, 10, 5}, ngraph::Shape{10, 6, 10, 5}, ngraph::Shape{5, 1, 5}},
                      {std::vector<int>{2, 5}, std::vector<int>{1, 2}, std::vector<int>{4, 5}, std::vector<int>{0, 1}}};
 
 const auto params = ::testing::Combine(::testing::Values(noBounds),
                                        ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
-                                       ::testing::Values("Unsqueeze"),
+                                       ::testing::Values(shapeNodeType::Unsqueeze),
                                        ::testing::Values(Precision::FP32),
                                        ::testing::Values(true));
 
-// INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic, ShapeOpsTest, params, ShapeOpsTest::getTestCaseName);
+// at this momemnt unsqueze produce dynamic output rank, if second input is not constant
+// enable after CPU plug-in will be support dynamic rank
+// INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic, ShapeOpsCPUTest, params, ShapeOpsCPUTest::getTestCaseName);
 
-inferShapes noBounds_const{{ngraph::Dimension(1, 10), ngraph::Dimension(1, 15), ngraph::Dimension(2, 20), ngraph::Dimension(3, 7)},
+inferShapes noBounds_const{{{1, 10}, {1, 15}, {2, 20}, {3, 7}},
                            {ngraph::Shape{2, 5, 7, 3}, ngraph::Shape{10, 6, 10, 5}, ngraph::Shape{1, 2, 5, 5}},
                            {std::vector<int>{1, 3}}};
 
 const auto params_const = ::testing::Combine(::testing::Values(noBounds_const),
                                              ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
-                                             ::testing::Values("Unsqueeze"),
+                                             ::testing::Values(shapeNodeType::Unsqueeze),
                                              ::testing::Values(Precision::FP32),
                                              ::testing::Values(true));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic_const, ShapeOpsTest, params_const, ShapeOpsTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic_const, ShapeOpsCPUTest, params_const, ShapeOpsCPUTest::getTestCaseName);
 
 } // namespace unsqueezeTest
 
