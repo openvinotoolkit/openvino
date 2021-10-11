@@ -560,18 +560,18 @@ public:
         return false;
     }
 
-    bool isPerTensorBroadcastScaleShift(const size_t constPort) const;
-
 protected:
+    struct valueWithStatus {
+        valueWithStatus() : status(false) {}
+        valueWithStatus(size_t _value) : value(_value), status(true) {}
+        bool isInit () const { return status; }
+        size_t value;
+        private:
+            bool status;     // false - unknown, true - initialized
+    };
+
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
-    bool isFusedWithPerTensorSS() const;
-    // TODO [mandrono]: place outside of the node API
-    void fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align = -1);
-    void alignScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts);
-    size_t ssAlign = 1;
-    size_t constPort = 1;
-    size_t initScalesSize = 0;
-    size_t initShiftsSize = 0;
+    bool fusedWithNeededReallocNode() const;
 
     void setType(Type type) {
         this->type = type;

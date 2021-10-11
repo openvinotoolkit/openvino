@@ -99,7 +99,18 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
+    bool mustReallocInternalBuffers() const override;
+    // TODO [mandrono]: place outside of the node API    
+    void fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align = -1);
     void alignScalesAndShifts(const MKLDNNNode *parentNode);
+
+protected:
+    void alignScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts);
+
+    valueWithStatus ssAlign;
+    valueWithStatus constPort;
+    valueWithStatus initScalesSize;
+    valueWithStatus initShiftsSize;
 
 private:
     struct EltwiseExecutor {
