@@ -4,6 +4,8 @@ This sample demonstrates how to execute an inference of image classification net
 
 Hello NV12 Input Classification C++ Sample demonstrates how to use the NV12 automatic input pre-processing API of the Inference Engine in your applications:
 
+# TODO: Update documentation according to OV 2.0 API
+
 | Feature    | API  | Description |
 |:---        |:---  |:---
 |Inference Engine Core Operations| `InferenceEngine::Core::GetMetric` | Gets general runtime metric for dedicated hardware
