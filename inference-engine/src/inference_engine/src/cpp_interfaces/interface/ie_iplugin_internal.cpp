@@ -298,9 +298,10 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
                                                                   result->get_output_partial_shape(0));
         const std::string param_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
         fake_param->set_friendly_name(param_name);
-        fake_param->set_output_type(0,
-                                    InferenceEngine::details::convertPrecision(outputsInfo.at(param_name)->getPrecision()),
-                                    fake_param->get_output_partial_shape(0));
+        fake_param->set_output_type(
+            0,
+            InferenceEngine::details::convertPrecision(outputsInfo.at(param_name)->getPrecision()),
+            fake_param->get_output_partial_shape(0));
         auto new_result = result->copy_with_new_inputs({fake_param});
         new_result->set_friendly_name(result->get_friendly_name());
         if (add_operation_names) {
