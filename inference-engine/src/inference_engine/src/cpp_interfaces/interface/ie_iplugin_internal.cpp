@@ -152,8 +152,10 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
             using namespace InferenceEngine;
             OPENVINO_SUPPRESS_DEPRECATED_START
             const auto& orig_icnn = static_cast<const ICNNNetwork&>(orig_network);
-            auto orig_impl = std::dynamic_pointer_cast<const details::CNNNetworkNGraphImpl>(orig_icnn.shared_from_this());
-            OPENVINO_ASSERT(orig_impl != nullptr, "Internal: orig_impl must be castable to details::CNNNetworkNGraphImpl");
+            auto orig_impl =
+                std::dynamic_pointer_cast<const details::CNNNetworkNGraphImpl>(orig_icnn.shared_from_this());
+            OPENVINO_ASSERT(orig_impl != nullptr,
+                            "Internal: orig_impl must be castable to details::CNNNetworkNGraphImpl");
             auto new_impl = std::make_shared<details::CNNNetworkNGraphImpl>(function,
                                                                             orig_impl->getExtensions(),
                                                                             GetCore()->isNewAPI());
