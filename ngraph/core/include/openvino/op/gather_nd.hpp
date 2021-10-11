@@ -33,8 +33,8 @@ public:
 namespace v8 {
 /// \brief GatherND operation
 ///
-    class OPENVINO_API GatherND : public op::util::GatherNDBase {
-    public:
+class OPENVINO_API GatherND : public op::util::GatherNDBase {
+public:
     OPENVINO_OP("GatherND", "opset8", op::util::GatherNDBase, 8);
     BWDCMP_RTTI_DECLARATION;
     GatherND() = default;

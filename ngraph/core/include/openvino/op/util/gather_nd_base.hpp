@@ -22,11 +22,7 @@ public:
     /// \param indices Node producing indices by which the operation gathers elements
     /// or slices from data
     /// \param batch_dims Specifies a number of batch dimensions
-    GatherNDBase(const Output<Node>& data,
-                 const Output<Node>& indices,
-                 const size_t batch_dims = 0);
-
-    void validate_and_infer_types() override;
+    GatherNDBase(const Output<Node>& data, const Output<Node>& indices, const size_t batch_dims = 0);
 
     size_t get_batch_dims() const {
         return m_batch_dims;
