@@ -133,17 +133,25 @@ void MKLDNNSelectNode::prepareParams() {
     const auto &_elseDims = getParentEdgesAtPort(ELSE)[0]->getMemory().getStaticDims();
     const auto &_outputDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
 
+    std::fill(resDims.begin(), resDims.end(), 1);
     std::copy(std::begin(_outputDims), std::end(_outputDims), std::begin(resDims) + (numOfDims - _outputDims.size()));
     if (broadcastType == SelectBroadcastType::NUMPY) {
+        std::fill(resOffset.begin(), resOffset.end(), 1);
         calcOutOffset(resOffset, resDims);
 
+        std::fill(condDims.begin(), condDims.end(), 1);
         std::copy(std::begin(_conditionDims), std::end(_conditionDims), std::begin(condDims) + (numOfDims - _conditionDims.size()));
+        std::fill(condOffset.begin(), condOffset.end(), 1);
         calcInOffset(condOffset, condDims, resDims);
 
+        std::fill(thenDims.begin(), thenDims.end(), 1);
         std::copy(std::begin(_thenDims), std::end(_thenDims), std::begin(thenDims) + (numOfDims - _thenDims.size()));
+        std::fill(thenOffset.begin(), thenOffset.end(), 1);
         calcInOffset(thenOffset, thenDims, resDims);
 
+        std::fill(elseDims.begin(), elseDims.end(), 1);
         std::copy(std::begin(_elseDims), std::end(_elseDims), std::begin(elseDims) + (numOfDims - _elseDims.size()));
+        std::fill(elseOffset.begin(), elseOffset.end(), 1);
         calcInOffset(elseOffset, elseDims, resDims);
     }
 }
@@ -155,7 +163,7 @@ void MKLDNNSelectNode::createPrimitive() {
     }
 }
 
-void MKLDNNSelectNode::calcOutOffset(std::vector<size_t>& offset, const std::vector<size_t>& dims) {
+void MKLDNNSelectNode::calcOutOffset(VectorDims& offset, const VectorDims& dims) {
     int k = 1;
     for (int i = dims.size() - 1; i >= 0; i--) {
         offset[i] = k;
@@ -163,7 +171,7 @@ void MKLDNNSelectNode::calcOutOffset(std::vector<size_t>& offset, const std::vec
     }
 }
 
-void MKLDNNSelectNode::calcInOffset(std::vector<size_t>& offset, const std::vector<size_t>& inDims, const std::vector<size_t>& outDims) {
+void MKLDNNSelectNode::calcInOffset(VectorDims& offset, const VectorDims& inDims, const VectorDims& outDims) {
     int k = 1;
     for (int i = inDims.size() - 1; i >= 0; i--) {
         offset[i] = (inDims[i] == outDims[i]) ? k : 0;

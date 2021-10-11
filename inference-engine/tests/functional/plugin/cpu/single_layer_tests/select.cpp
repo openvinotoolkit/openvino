@@ -15,7 +15,7 @@ using selectParams = std::tuple<
     std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>, // input shapes
     ngraph::op::AutoBroadcastSpec>;                                                        // broadcast
 
-class SelectLayerCPUTest : public testing::WithParamInterface<selectParams>, public LayerTestsUtils::LayerTestsCommon {
+class SelectLayerCPUTest : public testing::WithParamInterface<selectParams>, public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<selectParams> obj) {
         std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> shapes;
@@ -50,6 +50,8 @@ protected:
         }
         inputDynamicShapes = shapes.first;
 
+        selectedType = std::string("ref_any_") + Precision(Precision::I8).name();
+
         ngraph::ParameterVector paramNodesVector;
         auto paramNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::boolean, ngraph::Shape(targetStaticShapes[0][0]));
         paramNodesVector.push_back(paramNode);
@@ -71,15 +73,16 @@ TEST_P(SelectLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
+    CheckPluginRelatedResults(executableNetwork, "Select");
 }
 
 std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesDynamicNumpy = {
         {
             // dynamic
             {
-                {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-                {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-                {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)}
+                {-1, -1, -1, -1},
+                {-1, -1, -1, -1, -1},
+                {-1, -1, -1, -1}
             },
 
             // target
@@ -92,9 +95,9 @@ std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector
         {
             // dynamic
             {
-                {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-                {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-                {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)}
+                {-1, -1},
+                {-1, -1, -1, -1, -1},
+                {-1, -1, -1}
             },
 
             // target
@@ -107,9 +110,9 @@ std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector
         {
             // dynamic
             {
-                {ngraph::Dimension(2, 8), ngraph::Dimension(3, 7), ngraph::Dimension(1, 10), ngraph::Dimension(1, 6), ngraph::Dimension(1, 10)},
-                {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-                {ngraph::Dimension(1, 5), ngraph::Dimension(1, 11), ngraph::Dimension(5, 5), ngraph::Dimension(1, 8)}
+                {{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}},
+                {-1, -1, -1, -1, -1},
+                {{1, 5}, {1, 11}, {5, 5}, {1, 8}}
             },
 
             // target
@@ -122,9 +125,9 @@ std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector
         {
             // dynamic
             {
-                {ngraph::Dimension(1, 10)},
-                {ngraph::Dimension(1, 15), ngraph::Dimension(2, 7), ngraph::Dimension(1, 6), ngraph::Dimension(5, 12), ngraph::Dimension(1, 20)},
-                {ngraph::Dimension(2, 10), ngraph::Dimension(1, 16)}
+                {{1, 10}},
+                {{1, 15}, {2, 7}, {1, 6}, {5, 12}, {1, 20}},
+                {{2, 10}, {1, 16}}
             },
 
             // target
@@ -147,9 +150,9 @@ std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector
         {
             // dynamic
             {
-                {ngraph::Dimension(1, 10), ngraph::Dimension(-1, -1), ngraph::Dimension(10, 20), ngraph::Dimension(1, 5)},
-                {ngraph::Dimension(-1, -1), ngraph::Dimension(16, 16), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)},
-                {ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)}
+                {{1, 10}, -1, {10, 20}, {1, 5}},
+                {-1, {16, 16}, -1, -1},
+                {-1, -1, -1, -1}
             },
 
             // target
