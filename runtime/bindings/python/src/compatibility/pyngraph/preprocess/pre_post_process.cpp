@@ -152,8 +152,7 @@ static void regclass_pyngraph_InputTensorInfo(py::module m) {
         },
         py::arg("type"),
         R"(
-                Set initial client's tensor element type. If type is not the same as network's element type, user must
-                add appropriate type conversion manually.
+                Set initial client's tensor element type. If type is not the same as network's element type the conversion of element type will be done automatically.
                 Parameters
                 ----------
                 type : Type
