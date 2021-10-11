@@ -618,30 +618,28 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
         outputsNode.append_child("output").append_attribute("name").set_value(networkInput.first.c_str());
     }
 
-    const auto serializeNode = [&] (const std::shared_ptr<const ov::Node>& ngraph_node,
-        pugi::xml_node & node) {
-        const bool is_result = ov::is_type<ov::op::v0::Result>(ngraph_node);
+    const auto serializeNode = [&] (const std::shared_ptr<const ov::Node>& node,
+        pugi::xml_node & xml_node) {
+        const bool is_result = ov::is_type<ov::op::v0::Result>(node);
         const std::string name = is_result ?
-            ngraph::op::util::create_ie_output_name(ngraph_node->input_value(0)) :
-            ngraph_node->get_friendly_name();
-        node.append_attribute("operation_name").set_value(name.c_str());
-        const InferenceEngine::Precision prec = is_result ?
-            _networkOutputs[name]->getPrecision() : _networkInputs[name]->getPrecision();
-        const ov::element::Type elemType = InferenceEngine::details::convertPrecision(prec);
-        node.append_attribute("element_type").set_value(elemType.get_type_name().c_str());
+            ngraph::op::util::create_ie_output_name(node->input_value(0)) :
+            node->get_friendly_name();
+        xml_node.append_attribute("operation_name").set_value(name.c_str());
+        xml_node.append_attribute("element_type").set_value(
+            node->get_output_element_type(0).get_type_name().c_str());
 
-        const auto & pShape = ngraph_node->get_output_partial_shape(0);
+        const auto & pShape = node->get_output_partial_shape(0);
         OPENVINO_ASSERT(pShape.rank().is_static(), "Serialization of shapes with dynamic rank is not supported");
-        auto partialShapeNode = node.append_child("partial_shape");
-        for (auto && dim : ngraph_node->get_output_partial_shape(0)) {
+        auto partialShapeNode = xml_node.append_child("partial_shape");
+        for (auto && dim : node->get_output_partial_shape(0)) {
             if (dim.is_dynamic())
                 partialShapeNode.append_child("dim").append_attribute("value").set_value("-1");
             else
                 partialShapeNode.append_child("dim").append_attribute("value").set_value(std::to_string(dim.get_length()).c_str());
         }
 
-        auto tensorNamesNode = node.append_child("tensor_names");
-        for (auto & tensorName : ngraph_node->get_output_tensor(0).get_names()) {
+        auto tensorNamesNode = xml_node.append_child("tensor_names");
+        for (auto & tensorName : node->get_output_tensor(0).get_names()) {
             tensorNamesNode.append_child("tensor_name").append_attribute("value").set_value(tensorName.c_str());
         }
     };
