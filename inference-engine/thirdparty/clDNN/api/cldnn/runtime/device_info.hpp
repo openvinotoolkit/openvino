@@ -30,8 +30,6 @@ struct gfx_version {
 struct device_info {
     uint32_t execution_units_count;             ///< Number of available execution units.
     uint32_t gpu_frequency;                     ///< Clock frequency in MHz.
-    uint32_t max_threads_per_execution_unit;    ///< Number of available HW threads on EU.
-    uint32_t max_threads_per_device;            ///< Maximum number of HW threads on device.
 
     uint64_t max_work_group_size;               ///< Maximum number of work-items in a work-group executing a kernel using the data parallel execution model.
     uint64_t max_local_mem_size;                ///< Maximum size of local memory arena in bytes.
