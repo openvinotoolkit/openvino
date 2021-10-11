@@ -128,12 +128,18 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
 
     // if IR `version` is not set, suppose it's IR v10 for old API
     // it allows to use operation names in set_ / get_tensor instead of tensor_names
-    auto function = std::const_pointer_cast<ov::Function>(network.getFunction());
+    auto orig_function = network.getFunction();
+    std::shared_ptr<ov::Function> function;
+    if (orig_function) {
+        function = std::make_shared<ov::Function>(orig_function->get_results(),
+                                                  orig_function->get_sinks(),
+                                                  orig_function->get_parameters(),
+                                                  orig_function->get_variables(),
+                                                  orig_function->get_friendly_name());
+        function->get_rt_info() = orig_function->get_rt_info();
+    }
     if (function && GetCore() && !GetCore()->isNewAPI()) {
         auto& rt_info = function->get_rt_info();
-        // TODO: thread unsafe code
-        // can we re-create only ov::Function and provide new rt_info?
-        // such code would be thread-safe
         if (!rt_info.count("version")) {
             rt_info["version"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(10);
         }
@@ -294,10 +300,6 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
         fake_param->set_output_type(0,
                                     InferenceEngine::details::convertPrecision(outputsInfo[param_name]->getPrecision()),
                                     fake_param->get_output_partial_shape(0));
-        // WTF?
-        // if (add_operation_names) {
-        //     fake_param->output(0).get_tensor().add_names({fake_param->get_friendly_name()});
-        // }
         auto new_result = result->copy_with_new_inputs({fake_param});
         new_result->set_friendly_name(result->get_friendly_name());
         if (add_operation_names) {

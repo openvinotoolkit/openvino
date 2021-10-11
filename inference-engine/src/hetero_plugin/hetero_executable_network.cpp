@@ -557,7 +557,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         });
     }
 
-    const auto parseNgraphNode = [] (const pugi::xml_node & xml_node, bool is_param) ->
+    const auto parseNode = [] (const pugi::xml_node & xml_node, bool is_param) ->
         std::shared_ptr<const ov::Node> {
         const std::string operation_name = GetStrAttr(xml_node, "operation_name");
         const auto elementType =
@@ -575,24 +575,24 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
             tensorNames.insert(GetStrAttr(tensorNameNode, "value"));
         }
 
-        std::shared_ptr<ov::Node> ngraphNode = std::make_shared<ov::op::v0::Parameter>(elementType, partialShape);
+        std::shared_ptr<ov::Node> node = std::make_shared<ov::op::v0::Parameter>(elementType, partialShape);
         if (!is_param)
-            ngraphNode = std::make_shared<ov::op::v0::Result>(ngraphNode);
-        ngraphNode->set_friendly_name(operation_name);
-        ngraphNode->output(0).get_tensor().add_names(tensorNames);
+            node = std::make_shared<ov::op::v0::Result>(node);
+        node->set_friendly_name(operation_name);
+        node->output(0).get_tensor().add_names(tensorNames);
 
-        return ngraphNode;
+        return node;
     };
-    (void)parseNgraphNode;
+    (void)parseNode;
 
     pugi::xml_node parametersNode = heteroNode.child("parameters");
     FOREACH_CHILD(parameterNode, parametersNode, "parameter") {
-        _parameters.emplace_back(parseNgraphNode(parameterNode, true));
+        _parameters.emplace_back(parseNode(parameterNode, true));
     }
 
     pugi::xml_node resultsNode = heteroNode.child("results");
     FOREACH_CHILD(resultNode, resultsNode, "result") {
-        _results.emplace_back(parseNgraphNode(resultNode, false));
+        _results.emplace_back(parseNode(resultNode, false));
     }
 
     // save state
@@ -618,7 +618,7 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
         outputsNode.append_child("output").append_attribute("name").set_value(networkInput.first.c_str());
     }
 
-    const auto serializeNgraphNode = [&] (const std::shared_ptr<const ov::Node>& ngraph_node,
+    const auto serializeNode = [&] (const std::shared_ptr<const ov::Node>& ngraph_node,
         pugi::xml_node & node) {
         const bool is_result = ov::is_type<ov::op::v0::Result>(ngraph_node);
         const std::string name = is_result ?
@@ -650,14 +650,14 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     auto subnetworkParamsNode = heteroNode.append_child("parameters");
     for (auto&& parameter : getInputs()) {
         auto parameterNode = subnetworkParamsNode.append_child("parameter");
-        serializeNgraphNode(parameter, parameterNode);
+        serializeNode(parameter, parameterNode);
     }
 
     // ngraph results info
     auto subnetworkResultsNode = heteroNode.append_child("results");
     for (auto&& result : getOutputs()) {
         auto parameterNode = subnetworkResultsNode.append_child("result");
-        serializeNgraphNode(result, parameterNode);
+        serializeNode(result, parameterNode);
     }
 
     auto subnetworksNode = heteroNode.append_child("subnetworks");

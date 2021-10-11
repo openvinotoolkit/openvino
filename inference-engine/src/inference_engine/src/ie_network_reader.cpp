@@ -314,20 +314,6 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             }
 
             function = prepost.build(function);
-            // Change tensor names for inputs/outputs for cases with old IR
-            // for (const auto& param : function->get_parameters()) {
-            //     param->output(0).get_tensor().add_names({param->get_friendly_name()});
-            // }
-            // for (size_t i = 0; i < function->get_results().size(); i++) {
-            //     const auto& result = function->get_results()[i];
-            //     result->output(0).get_tensor().add_names({result_names[i]});
-            //     // FIXME: WA to fix CNNNetwork output name
-            //     if (prevPorts[i].get_node() != result->input_value(0).get_node()) {
-            //         result->input_value(0).get_node()->set_friendly_name(prevPorts[i].get_node()->get_friendly_name());
-            //         prevPorts[i].get_node()->set_friendly_name("op_original_" +
-            //                                                    prevPorts[i].get_node()->get_friendly_name());
-            //     }
-            // }
 
             // Set version to 10
             rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
