@@ -73,8 +73,10 @@ TEST(node_input_output, output_create) {
     auto add_out_0 = add->output(0);
     add_out_0.set_names({"a", "b"});
     EXPECT_EQ(add_out_0.get_names(), std::unordered_set<std::string>({"a", "b"}));
+    EXPECT_EQ(add_out_0.get_any_name(), "a");
     add_out_0.add_names({"c", "d"});
     EXPECT_EQ(add_out_0.get_names(), std::unordered_set<std::string>({"a", "b", "c", "d"}));
+    EXPECT_EQ(add_out_0.get_any_name(), "a");
 
     EXPECT_EQ(add_out_0.get_node(), add.get());
     EXPECT_EQ(add_out_0.get_index(), 0);
