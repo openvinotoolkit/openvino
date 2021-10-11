@@ -8,18 +8,16 @@
 #include <iostream>
 #include <memory>
 #include <stdexcept>
-
 #include <map>
 #include <fstream>
-
+#include <common_test_utils/file_utils.hpp>
+#include <ie_core.hpp>
+#include <ie_common.h>
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/graph_util.hpp"
 #include "transformations/serialize.hpp"
 #include "cpp/ie_cnn_network.h"
-#include <common_test_utils/file_utils.hpp>
-#include <ie_core.hpp>
-#include <ie_common.h>
 
 #define path_delimiter "/"
 #ifdef _WIN32
@@ -29,7 +27,10 @@
 namespace LayerTestsUtils {
 
 class ExternalNetworkTool;
+enum class ExternalNetworkMode;
+
 using ENT = ExternalNetworkTool;
+using ENTMode = ExternalNetworkMode;
 
 enum class ExternalNetworkMode {
     DISABLED,
@@ -67,12 +68,13 @@ private:
         } else {
             throw std::runtime_error(std::string("Failed to open %s for writing in saveArkFile()!\n") + fileName);
         }
+        printf("Input data dumped to ark file %s\n", fileName.c_str());
     }
 
 protected:
-    ExternalNetworkTool() = default;
+    ExternalNetworkTool() = delete;
 
-    ~ExternalNetworkTool() = default;
+    ~ExternalNetworkTool() = delete;
 
 public:
     static void dumpNetworkToFile(const std::shared_ptr<ngraph::Function> network,
@@ -81,7 +83,7 @@ public:
     static InferenceEngine::CNNNetwork loadNetworkFromFile(const std::shared_ptr<InferenceEngine::Core> core,
                                                     const std::string &network_name);
 
-    // static std::shared_ptr<ngraph::Function> loadNetworkFromFile(const std::string &network_name);
+    static std::shared_ptr<ngraph::Function> loadNetworkFromFile(const std::string &network_name);
 
     static void updateFunctionNames(std::shared_ptr<ngraph::Function> network);
 

@@ -63,6 +63,11 @@ endfunction()
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/tools/sha256hash.py
      DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/bin/intel64/${CMAKE_BUILD_TYPE}/)
 
+#
+# Set Frontend path
+#
+set(ENV{OV_FRONTEND_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/bin/intel64/${CMAKE_BUILD_TYPE}/lib)
+
 function(register_extra_modules)
     # post export
     openvino_developer_export_targets(COMPONENT core TARGETS inference_engine)

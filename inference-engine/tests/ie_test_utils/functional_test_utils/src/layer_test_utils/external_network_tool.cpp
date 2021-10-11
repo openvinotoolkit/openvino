@@ -8,10 +8,6 @@
 
 using namespace LayerTestsUtils;
 
-#ifdef _WIN32
-#define getpid _getpid
-#endif
-
 ExternalNetworkMode ExternalNetworkTool::mode = ExternalNetworkMode::DISABLED;
 const char *ExternalNetworkTool::modelsPath = "";
 
@@ -137,32 +133,33 @@ static ngraph::frontend::FrontEndManager& get_frontend_manager() {
     return manager;
 }
 
-// std::shared_ptr<ngraph::Function> ExternalNetworkTool::loadNetworkFromFile(const std::string &network_name) {
-//     auto importPathString = std::string(modelsPath);
-//     auto hashed_network_name = "network_" + generateHashName(network_name);
+std::shared_ptr<ngraph::Function> ExternalNetworkTool::loadNetworkFromFile(const std::string &network_name) {
+    auto importPathString = std::string(modelsPath);
+    auto hashed_network_name = "network_" + generateHashName(network_name);
 
-//     std::string out_xml_path = importPathString
-//                                 + (importPathString.empty() ? "" : path_delimiter)
-//                                 + hashed_network_name + ".xml";
-//     std::string out_bin_path = importPathString
-//                                 + (importPathString.empty() ? "" : path_delimiter)
-//                                 + hashed_network_name + ".bin";
+    std::string out_xml_path = importPathString
+                                + (importPathString.empty() ? "" : path_delimiter)
+                                + hashed_network_name + ".xml";
+    std::string out_bin_path = importPathString
+                                + (importPathString.empty() ? "" : path_delimiter)
+                                + hashed_network_name + ".bin";
 
-//     auto& manager = get_frontend_manager();
-//     // ngraph::frontend::FrontEndManager manager;
-//     ngraph::frontend::FrontEnd::Ptr FE;
-//     ngraph::frontend::InputModel::Ptr inputModel;
-//     FE = manager.load_by_model(out_xml_path, out_bin_path);
-//     if (FE)
-//         inputModel = FE->load(out_xml_path, out_xml_path);
-//     if (!inputModel) {
-//         IE_THROW(NetworkNotRead) << "Unable to read the model.";
-//     }
-//     auto network = FE->convert(inputModel);
-//     updateFunctionNames(network);
-//     printf("Network loaded from %s\n", out_xml_path.c_str());
-//     return network;
-// }
+    auto& manager = get_frontend_manager();
+    ngraph::frontend::FrontEnd::Ptr FE;
+    ngraph::frontend::InputModel::Ptr inputModel;
+
+    FE = manager.load_by_model(out_xml_path, out_bin_path);
+    if (FE) {
+        inputModel = FE->load(out_xml_path, out_bin_path);
+    }
+    if (!inputModel) {
+        IE_THROW(NetworkNotRead) << "Unable to read the model " << out_xml_path;
+    }
+    auto function = FE->convert(inputModel);
+    updateFunctionNames(function);
+    printf("Network loaded from %s\n", out_xml_path.c_str());
+    return function;
+}
 
 InferenceEngine::CNNNetwork ExternalNetworkTool::loadNetworkFromFile(const std::shared_ptr<InferenceEngine::Core> core,
                                                                      const std::string &network_name) {
