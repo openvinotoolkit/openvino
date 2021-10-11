@@ -401,7 +401,7 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesBinDyn = {
 std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes_4D_dyn_const = {
         {
             // dynamic
-            {{ngraph::Dimension(-1, -1), ngraph::Dimension(2, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)}},
+            {{-1, {2, -1}, -1, -1}},
             // target
             {
                 {{3, 2, 1, 1}},
@@ -431,8 +431,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder_dyn_const, EltwiseLay
 std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes_4D_dyn_param = {
         {
             // dynamic
-            {{ ngraph::Dimension(-1, -1), ngraph::Dimension(2, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1) },
-             { ngraph::Dimension(-1, -1), ngraph::Dimension(2, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1) }},
+            {{-1, {2, -1}, -1, -1},
+             {-1, {2, -1}, -1, -1}},
             // target
             {
                 {{3, 2, 1, 1}, {1, 2, 5, 1}},
@@ -463,7 +463,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder_dyn_param, EltwiseLay
 std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes_5D_dyn_const = {
         {
             // dynamic
-            {{ ngraph::Dimension(-1, -1), ngraph::Dimension(2, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)}},
+            {{-1, {2, -1}, -1, -1, -1}},
             // target
             {
                 {{3, 2, 1, 1, 1}},
@@ -493,8 +493,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder_dyn_const, EltwiseLay
 std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes_5D_dyn_param = {
         {
             // dynamic
-            {{ ngraph::Dimension(-1, -1), ngraph::Dimension(2, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1) },
-             { ngraph::Dimension(-1, -1), ngraph::Dimension(2, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1) }},
+            {{-1, {2, -1}, -1, -1, -1},
+             {-1, {2, -1}, -1, -1, -1}},
             // target
             {
                 {{3, 2, 1, 1, 1}, {1, 2, 5, 1, 5}},
