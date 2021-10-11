@@ -67,6 +67,10 @@ void MKLDNNReferenceNode::execute(mkldnn::stream strm) {
     }
 }
 
+void MKLDNNReferenceNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
+}
+
 bool MKLDNNReferenceNode::created() const {
     return getType() == Reference;
 }
