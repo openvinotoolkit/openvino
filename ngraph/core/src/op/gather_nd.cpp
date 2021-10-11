@@ -192,18 +192,18 @@ void op::v8::GatherND::validate_and_infer_types() {
         auto output_rank = output_indices_length + slice_length;
         size_t delta_output_rank = 0;
         if (m_batch_dims > 0) {
-            delta_output_rank = 1;
+            delta_output_rank = m_batch_dims;
         }
         std::vector<Dimension> output_shape(output_rank + delta_output_rank);
         if (m_batch_dims > 0) {
-            output_shape[0] = 1;
             for (size_t dim = 0; dim < m_batch_dims; dim++) {
+                output_shape[dim] = 1;
                 if (data_pshape[dim].is_static()) {
-                    output_shape[0] *= data_pshape[dim].get_length();
+                    output_shape[dim] = data_pshape[dim].get_length();
                 } else if (indices_pshape[dim].is_static()) {
-                    output_shape[0] *= indices_pshape[dim].get_length();
+                    output_shape[dim] = indices_pshape[dim].get_length();
                 } else {
-                    output_shape[0] = Dimension::dynamic();
+                    output_shape[dim] = Dimension::dynamic();
                     break;
                 }
             }
