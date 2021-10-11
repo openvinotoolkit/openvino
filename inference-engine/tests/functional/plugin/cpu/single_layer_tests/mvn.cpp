@@ -92,11 +92,6 @@ protected:
         }
         inputDynamicShapes = inputShapes.first;
 
-        // TODO [DS]: remove after FQ dynamism supporting will be completed
-        if (!inputDynamicShapes.empty() && std::find(fusedOps.begin(), fusedOps.end(), std::string("FakeQuantize")) != fusedOps.end()) {
-            GTEST_SKIP();
-        }
-
         auto netPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto param = ngraph::builder::makeParams(netPrc, {targetStaticShapes[0].front()});
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));

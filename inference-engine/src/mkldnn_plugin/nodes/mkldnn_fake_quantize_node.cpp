@@ -1658,7 +1658,8 @@ void MKLDNNFakeQuantizeNode::execute(mkldnn::stream strm) {
 }
 
 bool MKLDNNFakeQuantizeNode::mustReallocInternalBuffers() const {
-    return isBinarization() && (isInputLowBroadcasted || isOutputHighBroadcasted) && getInputShapeAtPort(0).getDims()[getAxis()] == Shape::UNDEFINED_DIM;
+    return isDynamicNode() && isBinarization() && (isInputLowBroadcasted || isOutputHighBroadcasted) &&
+           getInputShapeAtPort(0).getDims()[getAxis()] == Shape::UNDEFINED_DIM;
 }
 
 void MKLDNNFakeQuantizeNode::appendPostOps(mkldnn::post_ops& ops, bool initAsBinary, bool initBinaryMemory) {
