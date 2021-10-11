@@ -65,7 +65,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::string get_variable_id() const override {
-        NGRAPH_CHECK(m_variable, "Variable is not initialized. Variable_id is unavailable");
+        OPENVINO_ASSERT(m_variable, "Variable is not initialized. Variable_id is unavailable");
         return m_variable->get_info().variable_id;
     }
 

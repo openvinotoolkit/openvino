@@ -88,7 +88,6 @@ protected:
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gru_cell->output(0))};
 
         function = makeNgraphFunction(ngPrc, params, gru_cell, "gru_cell");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

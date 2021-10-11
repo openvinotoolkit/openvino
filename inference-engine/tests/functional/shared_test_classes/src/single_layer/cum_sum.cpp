@@ -37,6 +37,5 @@ void CumSumLayerTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::op::Result>(cumSum)};
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{paramData}, "cumsum");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions
