@@ -772,6 +772,7 @@ bool ov::Node::has_evaluate() const {
     return false;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool ov::Node::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     return false;
 }
@@ -781,6 +782,7 @@ bool ov::Node::evaluate(const HostTensorVector& output_values,
                         const EvaluationContext& evaluationContext) const {
     return evaluate(output_values, input_values);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace {
 
@@ -839,6 +841,7 @@ inline void update_output_tensors(ov::runtime::TensorVector& output_values, cons
 }
 }  // namespace
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool ov::Node::evaluate(ov::runtime::TensorVector& output_values, const ov::runtime::TensorVector& input_values) const {
     HostTensorVector output = create_tmp_tensors(output_values);
     HostTensorVector input = create_tmp_tensors(input_values);
@@ -935,6 +938,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
 }
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 namespace ov {
 BWDCMP_RTTI_DEFINITION(AttributeAdapter<shared_ptr<Node>>);
