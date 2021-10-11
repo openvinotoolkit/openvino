@@ -246,6 +246,7 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
                                          const ConstInputsDataMap& inputs,
                                          const ConstOutputsDataMap& outputs) {
     IE_ASSERT(exeNetwork != nullptr);
+
     // Set inputs/outputs and pointer to plugin manually here
     exeNetwork->setNetworkInputs(copyInfo(constMapCast(inputs)));
     exeNetwork->setNetworkOutputs(copyInfo(constMapCast(outputs)));
@@ -276,8 +277,8 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
 
     auto inputsInfo = exeNetwork->GetInputsInfo();
     auto outputsInfo = exeNetwork->GetOutputsInfo();
-    OPENVINO_ASSERT(inputsInfo.size() != 0, "exeNetwork->GetInputsInfo() must be filled");
-    OPENVINO_ASSERT(outputsInfo.size() != 0, "exeNetwork->GetOutputsInfo() must be filled");
+    OPENVINO_ASSERT(inputsInfo.size() == function->get_parameters().size());
+    OPENVINO_ASSERT(outputsInfo.size() == function->get_output_size());
 
     for (const auto& param : function->get_parameters()) {
         auto new_param = param->copy_with_new_inputs({});
