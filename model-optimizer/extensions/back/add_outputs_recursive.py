@@ -105,7 +105,6 @@ class AddOutputRecursive(BackReplacementPattern):
     Path structure: [node_loop_1, loop_2_in_loop_1,.., if_node, [then_list, else_list]]
     After if operation should be sub-list with 2 elements then_list and else_list where each is one node or list of
     nodes in according path
-    Created Result for path [loop1, loop2, node] will be loop1.loop2.node:<port number>
     """
     enabled = False
     run_not_recursively = True
@@ -115,11 +114,6 @@ class AddOutputRecursive(BackReplacementPattern):
         # add output to nodes according to path
         step_node = nodes_path[-1]
         cur_graph = graphs_path[-1]
-
-        final_res_name = ""
-        for n in nodes_path:
-            final_res_name += n.soft_get('name', n.id) + "."
-        final_res_name = final_res_name[:-1]
 
         ports_to_add_nodes = []
         for o_p in step_node.out_ports():
@@ -145,8 +139,8 @@ class AddOutputRecursive(BackReplacementPattern):
                     unsq_node['internal_layer_id'] = cur_max_layer_id + 1
                     res_node['internal_layer_id'] = cur_max_layer_id + 2
                     cur_max_layer_id += 2
-                    nodes_path.insert(i, res_node)
                     nodes_path.insert(i, unsq_node)
+                    nodes_path.insert(i, res_node)
                     graphs_path.insert(i, cur_graph)
                     graphs_path.insert(i, cur_graph)
                     # IR reader fix output port map for Loop, but have not change for TensorIterator
@@ -167,7 +161,7 @@ class AddOutputRecursive(BackReplacementPattern):
                 # add Result nodes for If and update output_id
                 for p_num in ports_to_add_nodes:
                     port = step_node.out_port(p_num)
-                    out_name = step_node.soft_get('name', step_node.id) + ":" + str(p_num)
+                    out_name = step_node.soft_get('name', step_node.id) + "." + str(p_num)
                     res_node = Result(cur_graph, {'name': out_name}).create_node()
                     port.connect(res_node.in_port(0))
                     res_node['internal_layer_id'] = cur_max_layer_id + 1
@@ -189,10 +183,10 @@ class AddOutputRecursive(BackReplacementPattern):
         i = 0
         for p_num in ports_to_add_nodes:
             port = step_node.out_port(p_num)
-            out_name = final_res_name + ":" + str(i)
+            out_name = step_node.soft_get('name', step_node.id) + "." + str(p_num)
             res_node = Result(cur_graph, {'name': out_name}).create_node()
             port.connect(res_node.in_port(0))
-            # add name of Result to fw_tebsor_debug_info to avoid renaming
+            # add name of Result to fw_tensor_debug_info to avoid renaming
             if step_node.out_nodes()[p_num].has_and_set('fw_tensor_debug_info'):
                 step_node.out_nodes()[p_num]['fw_tensor_debug_info'].append(out_name)
             else:
@@ -200,8 +194,8 @@ class AddOutputRecursive(BackReplacementPattern):
             if step_node.op == 'TensorIterator':
                 step_node.out_edges()[len(step_node.out_edges())-1]['external_port_id'] = p_num + \
                                                                                           len(step_node.in_ports())
-            nodes_path.insert(len(nodes_path)-1, res_node)
-            graphs_path.insert(len(nodes_path)-1, cur_graph)
+            nodes_path.insert(0, res_node)
+            graphs_path.insert(0, cur_graph)
             i += 1
         return nodes_path, graphs_path
 
@@ -295,16 +289,13 @@ class AddOutputRecursive(BackReplacementPattern):
             paths_nodes_graphs[i]['nodes'], paths_nodes_graphs[i]['graphs'] = self.add_output_for_path(
                 paths_nodes_graphs[i]['nodes'], paths_nodes_graphs[i]['graphs'])
 
-        for i in range(len(paths_nodes_graphs_old)):
+        for i in range(len(paths_nodes_graphs)):
             self.infer_shapes_of_nodes_in_path(paths_nodes_graphs[i]['nodes'])
 
-        k = 0
         new_nodes = []
         for i in range(len(paths_nodes_graphs)):
-            for j in range(len(paths_nodes_graphs[i]['nodes'])):
-                if paths_nodes_graphs_old[i]['nodes'][k] != paths_nodes_graphs[i]['nodes'][j]:
-                    new_nodes.append(paths_nodes_graphs[i]['nodes'][j])
-                else:
-                    k += 1 if k < len(paths_nodes_graphs_old[i]['nodes'])-1 else 0
+            # new Result added to main graph should be on last place
+            if paths_nodes_graphs_old[i]['nodes'][0] != paths_nodes_graphs[i]['nodes'][0]:
+                new_nodes.append(paths_nodes_graphs[i]['nodes'][0])
 
         return new_nodes
