@@ -145,6 +145,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
 
     // LinOpSequenceFusion must be executed after all decompositions
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
+    manager.register_pass<ngraph::pass::UnrollIf>();
 
     auto conv_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     conv_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();
@@ -177,8 +178,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     // because we cannot insert any MaxPools since they may prevent
     // other optimizations
     manager.register_pass<ngraph::pass::StridesOptimization>();
-
-    manager.register_pass<ngraph::pass::UnrollIf>();
 
     manager.run_passes(f);
 

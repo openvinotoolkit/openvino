@@ -52,7 +52,7 @@ bool ngraph::pass::UnrollIf::run_on_function(std::shared_ptr<ngraph::Function> f
                     input.replace_source_output(result->get_input_source_output(0));
                 }
         }
-        is_applicable |= true;
+        is_applicable = true;
         f->add_sinks(body->get_sinks());
         copy_runtime_info(if_node, body->get_ops());
     }
