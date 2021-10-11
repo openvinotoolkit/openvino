@@ -143,7 +143,7 @@ TEST_P(OVExecNetwork, precisionsAsInOriginalFunction) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::ExecutableNetwork execNet;
-    ASSERT_NO_THROW(execNet = ie->compile_model(function, targetDevice, configuration));
+    execNet = ie->compile_model(function, targetDevice, configuration);
 
     EXPECT_EQ(function->get_parameters().size(), execNet.inputs().size());
     auto ref_parameter = function->get_parameters().back();
@@ -170,7 +170,7 @@ TEST_P(OVExecNetwork, precisionsAsInOriginalIR) {
     ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(function);
 
     ov::runtime::ExecutableNetwork execNet;
-    ASSERT_NO_THROW(execNet = ie->compile_model(m_out_xml_path_1, targetDevice, configuration));
+    execNet = ie->compile_model(m_out_xml_path_1, targetDevice, configuration);
 
     EXPECT_EQ(function->get_parameters().size(), execNet.inputs().size());
     auto ref_parameter = function->get_parameters().back();
@@ -220,7 +220,7 @@ TEST_P(OVExecNetwork, importExportedFunction) {
                                                       ngraph::ParameterVector{param1, param2});
         function->set_friendly_name("SingleRuLU");
     }
-    ASSERT_NO_THROW(execNet = ie->compile_model(function, targetDevice, configuration));
+    execNet = ie->compile_model(function, targetDevice, configuration);
 
     std::stringstream strm;
     execNet.export_model(strm);
@@ -382,7 +382,7 @@ TEST_P(OVExecNetwork, importExportedIENetwork) {
                                                       ngraph::ParameterVector{param1, param2});
         function->set_friendly_name("SingleRuLU");
     }
-    ASSERT_NO_THROW(execNet = core->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, configuration));
+    execNet = core->LoadNetwork(InferenceEngine::CNNNetwork(function), targetDevice, configuration);
 
     std::stringstream strm;
     execNet.Export(strm);
@@ -449,7 +449,7 @@ TEST_P(OVExecNetwork, ieImportExportedFunction) {
                                                       ngraph::ParameterVector{param1, param2});
         function->set_friendly_name("SingleRuLU");
     }
-    ASSERT_NO_THROW(execNet = ie->compile_model(function, targetDevice, configuration));
+    execNet = ie->compile_model(function, targetDevice, configuration);
 
     std::stringstream strm;
     execNet.export_model(strm);

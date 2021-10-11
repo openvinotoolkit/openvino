@@ -441,7 +441,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
             OPENVINO_ASSERT(!newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
             return cnnnetwork;
         }
-        IE_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     // Fix unicode name

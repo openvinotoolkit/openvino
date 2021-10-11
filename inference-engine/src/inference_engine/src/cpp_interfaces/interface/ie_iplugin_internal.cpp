@@ -13,17 +13,21 @@
 #include <istream>
 #include <map>
 #include <memory>
-#include <openvino/core/except.hpp>
 #include <string>
 #include <unordered_set>
 
 #include "blob_factory.hpp"
+#include "cnn_network_ngraph_impl.hpp"
+#include "cpp/ie_cnn_network.h"
 #include "exec_graph_info.hpp"
+#include "ie_api.h"
 #include "ie_icore.hpp"
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_parameter.hpp"
+#include "openvino/core/deprecated.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/function.hpp"
 #include "openvino/core/variant.hpp"
 #include "transformations/utils/utils.hpp"
@@ -121,15 +125,16 @@ std::map<std::string, std::shared_ptr<const T>> const_map_cast(const std::map<st
 }
 
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
-    const CNNNetwork& network,
+    const CNNNetwork& orig_network,
     const std::map<std::string, std::string>& config,
     const std::shared_ptr<RemoteContext>& context) {
     std::shared_ptr<IExecutableNetworkInternal> impl;
 
     // if IR `version` is not set, suppose it's IR v10 for old API
     // it allows to use operation names in set_ / get_tensor instead of tensor_names
-    auto orig_function = network.getFunction();
+    auto orig_function = orig_network.getFunction();
     std::shared_ptr<ov::Function> function;
+    InferenceEngine::CNNNetwork network = orig_network;
     if (orig_function) {
         function = std::make_shared<ov::Function>(orig_function->get_results(),
                                                   orig_function->get_sinks(),
@@ -143,6 +148,29 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
         if (!rt_info.count("version")) {
             rt_info["version"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(10);
         }
+
+        // re-create `network` with new patched `function`
+        using namespace InferenceEngine;
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        const auto& orig_icnn = static_cast<const ICNNNetwork&>(orig_network);
+        auto orig_impl = std::dynamic_pointer_cast<const details::CNNNetworkNGraphImpl>(orig_icnn.shared_from_this());
+        OPENVINO_ASSERT(orig_impl != nullptr, "Internal: orig_impl must be castable to details::CNNNetworkNGraphImpl");
+        auto new_impl = std::make_shared<details::CNNNetworkNGraphImpl>(function,
+                                                                        orig_impl->getExtensions(),
+                                                                        GetCore()->isNewAPI());
+        network = CNNNetwork(new_impl);
+        for (const auto& inputInfo : orig_network.getInputsInfo()) {
+            auto toInfo = network.getInputsInfo().at(inputInfo.first);
+            toInfo->setPrecision(inputInfo.second->getPrecision());
+            toInfo->setLayout(inputInfo.second->getLayout());
+            toInfo->getPreProcess() = inputInfo.second->getPreProcess();
+        }
+        for (const auto& outputInfo : orig_network.getOutputsInfo()) {
+            auto toInfo = network.getOutputsInfo().at(outputInfo.first);
+            toInfo->setPrecision(outputInfo.second->getPrecision());
+            toInfo->setLayout(outputInfo.second->getLayout());
+        }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     if (nullptr == context) {
