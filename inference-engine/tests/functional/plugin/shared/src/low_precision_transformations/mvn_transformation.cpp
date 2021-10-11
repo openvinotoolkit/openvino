@@ -48,7 +48,6 @@ void MVNTransformation::SetUp() {
         shape,
         reductionAxes,
         normalizeVariance);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(MVNTransformation, CompareWithRefImpl) {
