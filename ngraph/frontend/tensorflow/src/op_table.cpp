@@ -66,6 +66,7 @@ OP_CONVERTER(TranslatePackOp);
 OP_CONVERTER(TranslateRangeOp);
 OP_CONVERTER(TranslateRankOp);
 OP_CONVERTER(TranslateRandomUniformOp);
+OP_CONVERTER(TranslateRandomUniformIntOp);
 OP_CONVERTER(TranslateRelu6Op);
 OP_CONVERTER(TranslateReciprocalOp);
 OP_CONVERTER(TranslateReshapeOp);
@@ -203,6 +204,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Range", TranslateRangeOp},
         {"Rank", TranslateRankOp},
         {"RandomUniform", TranslateRandomUniformOp},
+        {"RandomUniformInt", TranslateRandomUniformIntOp},
         {"Reciprocal", TranslateReciprocalOp},
         {"Relu6", TranslateRelu6Op},
         {"Reshape", TranslateReshapeOp},

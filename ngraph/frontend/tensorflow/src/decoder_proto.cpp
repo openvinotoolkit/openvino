@@ -110,14 +110,10 @@ string DecoderTFProto::get_op_name() const {
 
 vector<::tensorflow::AttrValue> DecoderTFProto::decode_attribute_helper(const string& name) const {
     auto attr_map = m_node_def->attr();
-    FRONT_END_GENERAL_CHECK(attr_map.contains(name),
-                            "An error occurred while parsing the ",
-                            name,
-                            " attribute of ",
-                            this->get_op_type(),
-                            "node");
-    auto value = m_node_def->attr().at(name);
-    return {value};
+    if (attr_map.contains(name))
+        return {m_node_def->attr().at(name)};
+    return {};
+
 }
 }  // namespace tf
 }  // namespace frontend
