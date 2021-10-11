@@ -38,7 +38,6 @@ public:
     void SetUp()  override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
-        ie = PluginCache::get().ie(targetDevice);
         function = ngraph::builder::subgraph::makeConvPoolRelu();
     }
 
@@ -49,7 +48,7 @@ public:
         function.reset();
     }
 
-    std::shared_ptr<InferenceEngine::Core> ie;
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
     std::shared_ptr<ngraph::Function> function;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
