@@ -49,14 +49,13 @@ void MKLDNNPlugin::FullyConnectedNode::validate_and_infer_types() {
         output_size,
         ", expected: 1.");
 
-    // weights_shape: [O, I]
+    // Weights shape: [O, I1, ..., Im];
+    // O - output channels dimensions, Ik - input channels dimensions
     const auto weights_pshape = get_input_partial_shape(1);
-    const auto weights_rank = weights_pshape.rank();
     NODE_VALIDATION_CHECK(this,
-        weights_rank.is_static() && weights_rank.get_length() == 2,
-        "Weights have incorrect rank. Current value is: ",
-        weights_rank,
-        ", expected: 2.");
+        weights_pshape.is_static(),
+        "Weights pshape must be static");
+    const auto weights_shape = weights_pshape.to_shape();
 
     const auto o_channels = weights_pshape[0];
     if (input_size == 3) {
@@ -71,32 +70,30 @@ void MKLDNNPlugin::FullyConnectedNode::validate_and_infer_types() {
             ".");
     }
 
-    // activations_shape: [..., I]
+    // Activations shape: [B1, ..., Bn, I1, ..., Im];
+    // Bi - batch dimensions, Ik - input channels dimensions
     const auto activations_pshape = get_input_partial_shape(0);
-    auto output_shape = activations_pshape;
 
-    if (output_shape.rank().is_static()) {
+    // Result shape: [B1, ..., Bn, O]
+    ngraph::PartialShape output_pshape;
+    if (activations_pshape.rank().is_static()) {
+        size_t output_channels_dimensions_count = weights_shape.size() - 1;
+        for (size_t i = 0; i < activations_pshape.size() - output_channels_dimensions_count; ++i) {
+            output_pshape.push_back(activations_pshape[i]);
+        }
+        output_pshape.push_back(o_channels);
+
         if (m_output_rank.is_static()) {
-            while (output_shape.rank().get_length() < m_output_rank.get_length()) {
-                output_shape.insert(output_shape.begin(), 1);
+            while (output_pshape.rank().get_length() < m_output_rank.get_length()) {
+                output_pshape.insert(output_pshape.begin(), 1);
             }
         }
-
-        const auto i_channels = weights_pshape[1];
-        if (activations_pshape[activations_pshape.size() - 1].is_static()) {
-            NODE_VALIDATION_CHECK(this,
-                activations_pshape[activations_pshape.size() - 1] == i_channels,
-                "Activations pshape has incorrect input_channels value. Current value is: ",
-                activations_pshape[activations_pshape.size() - 1],
-                ", expected: ",
-                i_channels,
-                ".");
-        }
-        output_shape[output_shape.size() - 1] = o_channels;
+    } else {
+        output_pshape = ngraph::PartialShape::dynamic();
     }
 
     auto output_type = m_output_type == ngraph::element::undefined ? get_input_element_type(0) : m_output_type;
-    set_output_type(0, output_type, output_shape);
+    set_output_type(0, output_type, output_pshape);
 }
 
 bool MKLDNNPlugin::FullyConnectedNode::visit_attributes(ngraph::AttributeVisitor &visitor) {

@@ -321,6 +321,10 @@ public:
     void reserve(size_t n) {
         m_dimensions.reserve(n);
     }
+    /// \brief push element to the end of partial shape
+    void push_back(const Dimension& val) {
+        m_dimensions.push_back(val);
+    }
 
 private:
     // Private constructor for PartialShape::dynamic().
