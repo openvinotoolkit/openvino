@@ -99,15 +99,13 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*MultipleInputTest.*)",
     };
 
-    auto& e_t = LayerTestsUtils::ExternalNetworkTool::getInstance();
-
-    if (e_t.getMode() == LayerTestsUtils::ExternalNetworkMode::EXPORT ||
-        e_t.getMode() == LayerTestsUtils::ExternalNetworkMode::EXPORT_MODELS_ONLY ||
-        e_t.getMode() == LayerTestsUtils::ExternalNetworkMode::EXPORT_ARKS_ONLY) {
+    if (LayerTestsUtils::ENT::isMode(LayerTestsUtils::ExternalNetworkMode::EXPORT) ||
+        LayerTestsUtils::ENT::isMode(LayerTestsUtils::ExternalNetworkMode::EXPORT_MODELS_ONLY) ||
+        LayerTestsUtils::ENT::isMode(LayerTestsUtils::ExternalNetworkMode::EXPORT_ARKS_ONLY)) {
         return serializationPatterns;
     }
 
-    if (e_t.getMode() == LayerTestsUtils::ExternalNetworkMode::IMPORT) {
+    if (LayerTestsUtils::ENT::isMode(LayerTestsUtils::ExternalNetworkMode::IMPORT)) {
         standardPatterns.insert(std::end(standardPatterns),
                                 std::begin(loadingPatterns),
                                 std::end(loadingPatterns));

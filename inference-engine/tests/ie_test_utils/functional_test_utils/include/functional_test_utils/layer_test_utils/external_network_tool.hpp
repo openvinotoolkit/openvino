@@ -29,15 +29,7 @@
 namespace LayerTestsUtils {
 
 class ExternalNetworkTool;
-
-class ExternalNetworkToolDestroyer {
-private:
-    ExternalNetworkTool *p_instance;
-public:
-    ~ExternalNetworkToolDestroyer();
-
-    void initialize(ExternalNetworkTool *p);
-};
+using ENT = ExternalNetworkTool;
 
 enum class ExternalNetworkMode {
     DISABLED,
@@ -49,13 +41,8 @@ enum class ExternalNetworkMode {
 
 class ExternalNetworkTool {
 private:
-    static ExternalNetworkTool *p_instance;
-    static ExternalNetworkToolDestroyer destroyer;
-
     static ExternalNetworkMode mode;
     static const char *modelsPath;
-
-    friend class ExternalNetworkToolDestroyer;
 
     template <typename T>
     static std::vector<std::shared_ptr<ov::Node>> topological_name_sort(T root_nodes);
@@ -88,28 +75,26 @@ protected:
     ~ExternalNetworkTool() = default;
 
 public:
-    void dumpNetworkToFile(const std::shared_ptr<ngraph::Function> network,
-                           const std::string &network_name) const;
+    static void dumpNetworkToFile(const std::shared_ptr<ngraph::Function> network,
+                           const std::string &network_name);
 
-    InferenceEngine::CNNNetwork loadNetworkFromFile(const std::shared_ptr<InferenceEngine::Core> core,
-                                                    const std::string &network_name) const;
+    static InferenceEngine::CNNNetwork loadNetworkFromFile(const std::shared_ptr<InferenceEngine::Core> core,
+                                                    const std::string &network_name);
 
-    std::shared_ptr<ngraph::Function> loadNetworkFromFile(const std::string &network_name) const;
+    // static std::shared_ptr<ngraph::Function> loadNetworkFromFile(const std::string &network_name);
 
-    void updateFunctionNames(std::shared_ptr<ngraph::Function> network) const;
+    static void updateFunctionNames(std::shared_ptr<ngraph::Function> network);
 
-    // std::shared_ptr<ngraph::Function> renameFunction(std::shared_ptr<ngraph::Function>) const;
-
-    void saveArkFile(const std::string &network_name,
-                     const InferenceEngine::InputInfo::CPtr &input_info,
-                     const InferenceEngine::Blob::Ptr &blob,
-                     uint32_t id) const;
-
-    static ExternalNetworkTool &getInstance();
+    static void saveArkFile(const std::string &network_name,
+                            const InferenceEngine::InputInfo::CPtr &input_info,
+                            const InferenceEngine::Blob::Ptr &blob,
+                            uint32_t id);
 
     static std::string getModelsPath() { return std::string(modelsPath); }
 
     static ExternalNetworkMode getMode() { return mode; }
+
+    static bool isMode(ExternalNetworkMode val) { return mode == val; }
 
     static void setModelsPath(std::string &val) {
         modelsPath = val.c_str();

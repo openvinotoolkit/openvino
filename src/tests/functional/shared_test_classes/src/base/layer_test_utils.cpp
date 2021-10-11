@@ -350,23 +350,20 @@ void LayerTestsCommon::LoadNetwork() {
     for (auto node : function->get_ordered_ops()) {
         node->get_friendly_name();
     }
-    auto& e_t = ExternalNetworkTool::getInstance();
-    if (e_t.getMode() == ExternalNetworkMode::EXPORT || e_t.getMode() == ExternalNetworkMode::EXPORT_MODELS_ONLY) {
-        e_t.dumpNetworkToFile(function, GetTestCaseName() + "_" + GetTestName());
+
+    if (ENT::isMode(ExternalNetworkMode::EXPORT) ||
+        ENT::isMode(ExternalNetworkMode::EXPORT_MODELS_ONLY)) {
+        ENT::dumpNetworkToFile(function, GetTestCaseName() + "_" + GetTestName());
     }
 
-    if (e_t.getMode() == ExternalNetworkMode::IMPORT) {
-        cnnNetwork = e_t.loadNetworkFromFile(getCore(), GetTestCaseName() + "_" + GetTestName());
+    if (ENT::isMode(ExternalNetworkMode::IMPORT)) {
+        cnnNetwork = ENT::loadNetworkFromFile(getCore(), GetTestCaseName() + "_" + GetTestName());
         function = cnnNetwork.getFunction();
-        e_t.updateFunctionNames(function);
+        ENT::updateFunctionNames(function);
         cnnNetwork = InferenceEngine::CNNNetwork{function};
     } else {
         cnnNetwork = InferenceEngine::CNNNetwork{function};
     }
-
-    // if (e_t.getMode() == ExternalNetworkMode::IMPORT) {
-    //     function = e_t.loadNetworkFromFile(GetTestCaseName() + "_" + GetTestName());
-    // }
 
     cnnNetwork = InferenceEngine::CNNNetwork{function};
 
@@ -387,11 +384,11 @@ void LayerTestsCommon::GenerateInputs() {
         InferenceEngine::InputInfo::CPtr info = infoIt->second;
         InferenceEngine::Blob::Ptr blob = GenerateInput(*info);
 
-        auto& e_t = ExternalNetworkTool::getInstance();
-        if (e_t.getMode() == ExternalNetworkMode::EXPORT || e_t.getMode() == ExternalNetworkMode::EXPORT_ARKS_ONLY) {
+        if (ENT::isMode(ExternalNetworkMode::EXPORT) ||
+            ENT::isMode(ExternalNetworkMode::EXPORT_ARKS_ONLY)) {
             std::string network_name = GetTestCaseName() + "_" + GetTestName();
             uint32_t ir_id = functionParams.size() - 1 - i;  // topological sort dependency!
-            e_t.saveArkFile(network_name, info, blob, ir_id);
+            ENT::saveArkFile(network_name, info, blob, ir_id);
         }
 
         inputs.push_back(blob);

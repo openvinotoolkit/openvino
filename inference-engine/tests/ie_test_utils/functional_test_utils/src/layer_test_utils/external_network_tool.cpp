@@ -12,18 +12,8 @@ using namespace LayerTestsUtils;
 #define getpid _getpid
 #endif
 
-ExternalNetworkTool *ExternalNetworkTool::p_instance = nullptr;
 ExternalNetworkMode ExternalNetworkTool::mode = ExternalNetworkMode::DISABLED;
 const char *ExternalNetworkTool::modelsPath = "";
-ExternalNetworkToolDestroyer ExternalNetworkTool::destroyer;
-
-ExternalNetworkToolDestroyer::~ExternalNetworkToolDestroyer() {
-    delete p_instance;
-}
-
-void ExternalNetworkToolDestroyer::initialize(ExternalNetworkTool *p) {
-    p_instance = p;
-}
 
 void ExternalNetworkTool::writeToHashMap(const std::string &network_name,
                                                 const std::string &hash) {
@@ -43,14 +33,6 @@ void ExternalNetworkTool::writeToHashMap(const std::string &network_name,
     hash_map_file.close();
 }
 
-ExternalNetworkTool &ExternalNetworkTool::getInstance() {
-    if (!p_instance) {
-        p_instance = new ExternalNetworkTool();
-        destroyer.initialize(p_instance);
-    }
-    return *p_instance;
-}
-
 template <typename T>
 std::vector<std::shared_ptr<ov::Node>> ExternalNetworkTool::topological_name_sort(T root_nodes) {
     std::vector<std::shared_ptr<ov::Node>> results = ngraph::topological_sort<T>(root_nodes);
@@ -67,7 +49,7 @@ std::vector<std::shared_ptr<ov::Node>> ExternalNetworkTool::topological_name_sor
     return results;
 }
 
-void ExternalNetworkTool::updateFunctionNames(std::shared_ptr<ngraph::Function> network) const {
+void ExternalNetworkTool::updateFunctionNames(std::shared_ptr<ngraph::Function> network) {
     auto rename = [](std::shared_ptr<ov::Node> node) {
         std::string id   {std::to_string(node->get_instance_id())};
         std::string type {node->get_type_name()};
@@ -85,7 +67,7 @@ void ExternalNetworkTool::updateFunctionNames(std::shared_ptr<ngraph::Function> 
 void ExternalNetworkTool::saveArkFile(const std::string &network_name,
                                       const InferenceEngine::InputInfo::CPtr &input_info,
                                       const InferenceEngine::Blob::Ptr &blob,
-                                      uint32_t id) const {
+                                      uint32_t id) {
         const uint32_t utterance = 1;
         const auto models_path = std::string{modelsPath};
         const std::string arks_path = models_path.empty() ? "arks" : models_path + "_arks";
@@ -130,7 +112,7 @@ void ExternalNetworkTool::saveArkFile(const std::string &network_name,
     }
 
 void ExternalNetworkTool::dumpNetworkToFile(const std::shared_ptr<ngraph::Function> network,
-                                            const std::string &network_name) const {
+                                            const std::string &network_name) {
     auto exportPathString = std::string(modelsPath);
     auto hashed_network_name = "network_" + generateHashName(network_name);
 
@@ -155,35 +137,35 @@ static ngraph::frontend::FrontEndManager& get_frontend_manager() {
     return manager;
 }
 
-std::shared_ptr<ngraph::Function> ExternalNetworkTool::loadNetworkFromFile(const std::string &network_name) const {
-    auto importPathString = std::string(modelsPath);
-    auto hashed_network_name = "network_" + generateHashName(network_name);
+// std::shared_ptr<ngraph::Function> ExternalNetworkTool::loadNetworkFromFile(const std::string &network_name) {
+//     auto importPathString = std::string(modelsPath);
+//     auto hashed_network_name = "network_" + generateHashName(network_name);
 
-    std::string out_xml_path = importPathString
-                                + (importPathString.empty() ? "" : path_delimiter)
-                                + hashed_network_name + ".xml";
-    std::string out_bin_path = importPathString
-                                + (importPathString.empty() ? "" : path_delimiter)
-                                + hashed_network_name + ".bin";
+//     std::string out_xml_path = importPathString
+//                                 + (importPathString.empty() ? "" : path_delimiter)
+//                                 + hashed_network_name + ".xml";
+//     std::string out_bin_path = importPathString
+//                                 + (importPathString.empty() ? "" : path_delimiter)
+//                                 + hashed_network_name + ".bin";
 
-    auto& manager = get_frontend_manager();
-    // ngraph::frontend::FrontEndManager manager;
-    ngraph::frontend::FrontEnd::Ptr FE;
-    ngraph::frontend::InputModel::Ptr inputModel;
-    FE = manager.load_by_model(out_xml_path, out_bin_path);
-    if (FE)
-        inputModel = FE->load(out_xml_path, out_xml_path);
-    if (!inputModel) {
-        IE_THROW(NetworkNotRead) << "Unable to read the model.";
-    }
-    auto network = FE->convert(inputModel);
-    updateFunctionNames(network);
-    printf("Network loaded from %s\n", out_xml_path.c_str());
-    return network;
-}
+//     auto& manager = get_frontend_manager();
+//     // ngraph::frontend::FrontEndManager manager;
+//     ngraph::frontend::FrontEnd::Ptr FE;
+//     ngraph::frontend::InputModel::Ptr inputModel;
+//     FE = manager.load_by_model(out_xml_path, out_bin_path);
+//     if (FE)
+//         inputModel = FE->load(out_xml_path, out_xml_path);
+//     if (!inputModel) {
+//         IE_THROW(NetworkNotRead) << "Unable to read the model.";
+//     }
+//     auto network = FE->convert(inputModel);
+//     updateFunctionNames(network);
+//     printf("Network loaded from %s\n", out_xml_path.c_str());
+//     return network;
+// }
 
 InferenceEngine::CNNNetwork ExternalNetworkTool::loadNetworkFromFile(const std::shared_ptr<InferenceEngine::Core> core,
-                                                                     const std::string &network_name) const {
+                                                                     const std::string &network_name) {
     auto importPathString = std::string(modelsPath);
     auto hashed_network_name = "network_" + generateHashName(network_name);
 
