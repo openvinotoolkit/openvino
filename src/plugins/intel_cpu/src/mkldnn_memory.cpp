@@ -147,6 +147,7 @@ DnnlMemoryDescPtr MKLDNNMemory::GetDescWithType<DnnlMemoryDesc, 0, 0>() const {
 void MKLDNNMemory::setDataHandle(void *data) {
     size_t maxMemSize = pMemDesc->hasDefinedMaxSize() ?  pMemDesc->getMaxMemSize() : 0;
     pMngr->setExtBuff(data, maxMemSize);
+    prim->set_data_handle(data);
 }
 
 template<>
