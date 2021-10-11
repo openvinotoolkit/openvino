@@ -12,18 +12,25 @@
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ConvertMatMulToFC, "ConvertMatMulToFC", 0);
 
 MKLDNNPlugin::ConvertMatMulToFC::ConvertMatMulToFC() {
-    auto matmul = ngraph::pattern::wrap_type<ngraph::opset1::MatMul>({ngraph::pattern::any_input(ngraph::pattern::has_static_rank()),
-                                                                      ngraph::pattern::any_input(ngraph::pattern::has_static_shape())},
-                                                                      ngraph::pattern::has_static_rank());
+    auto activations_m = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
+    auto weights_m = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
+    auto matmul_m = ngraph::pattern::wrap_type<ngraph::opset1::MatMul>({ activations_m, weights_m }, ngraph::pattern::has_static_rank());
 
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
-        auto matmul = std::dynamic_pointer_cast<ngraph::opset1::MatMul>(m.get_match_root());
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+
+        auto matmul = std::dynamic_pointer_cast<ngraph::opset1::MatMul>(pattern_map.at(matmul_m).get_node_shared_ptr());
         if (!matmul || transformation_callback(matmul)) {
             return false;
         }
 
-        auto shape_a = matmul->get_input_partial_shape(0);
-        auto shape_b = matmul->get_input_partial_shape(1);
+        // fc_input_a and fc_input_b - are the final inputs that will be set to FullyConnected of GemmIE operations.
+        // So in case of adding new operations that takes matmul inputs we need keep update fc_input_a and fc_input_b.
+        auto fc_input_a = pattern_map.at(activations_m);
+        auto fc_input_b = pattern_map.at(weights_m);
+
+        auto shape_a = fc_input_a.get_partial_shape();
+        auto shape_b = fc_input_b.get_partial_shape();
         NGRAPH_CHECK(shape_b.is_static()); // requested 2nd input with static shape in the matcher
 
         auto rank_a = shape_a.rank().get_length();
@@ -34,15 +41,9 @@ MKLDNNPlugin::ConvertMatMulToFC::ConvertMatMulToFC() {
             return false;
         }
 
-        // fc_input_a and fc_input_b - are the final inputs that will be set to FullyConnected of GemmIE operations.
-        // So in case of adding new operations that takes matmul inputs we need keep update fc_input_a and fc_input_b.
-        auto fc_input_a = matmul->input_value(0);
-        auto fc_input_b = matmul->input_value(1);
-
         // Check that if second inputs is Constant path and it's shape without ones dimensions has length <= 2
         // we replace MatMul with FullyConnected operation.
-        if ((!std::dynamic_pointer_cast<ngraph::opset1::Constant>(fc_input_b.get_node_shared_ptr()) &&
-            !std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(fc_input_b.get_node_shared_ptr())) ||
+        if (!std::dynamic_pointer_cast<ngraph::opset1::Constant>(fc_input_b.get_node_shared_ptr()) ||
             std::count_if(shape_b.begin(), shape_b.end(), [](ngraph::Dimension x) { return x != 1; }) > 2) {
             return false;
         }
@@ -163,6 +164,6 @@ MKLDNNPlugin::ConvertMatMulToFC::ConvertMatMulToFC() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, "ConvertMatMulToFC");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_m, "ConvertMatMulToFC");
     this->register_matcher(m, callback);
 }
