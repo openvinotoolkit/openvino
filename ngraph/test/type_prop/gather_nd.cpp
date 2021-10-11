@@ -317,8 +317,7 @@ TEST(type_prop, gather_nd_fail_indices_element_type) {
     }
 }
 
-
-// ------------------------------ V5 ------------------------------
+// ------------------------------ V8 ------------------------------
 
 TEST(type_prop, gather_nd_8_slices_from_4d_batch_dims0) {
     Shape params_shape{2, 3, 11, 12};
