@@ -95,7 +95,14 @@ TEST_P(TestFQScaleFactorsTest, CompareWithRefImpl) {
     IE_ASSERT(memory);
     const auto lockedMemory = memory->wmap();
     const auto actualBuffer = lockedMemory.as<const float*>();
+
+    /* the absolute threshold is calculated as 1.25 * (1 / last_fq_out_scale_factor) = 1.25 * (2 * maxValue) / (levels - 1),
+    the most of accuracy degradation in this model is introduced by the output scale factor of FakeQuantize,
+    1 / sf is a part of the value which can be represented by one level, so we can't get more accurate resolution than this part,
+    maxValue = inputDataMax * inputDataMax since this model multiplies input values with itself,
+    1.25 is a reserve factor to cover other errors in this model */
     abs_threshold = 2.5 * inputDataMax * inputDataMax / (levels - 1);
+
     for (size_t i = 0; i < size; ++i) {
         const auto &ref = expected[i];
         const auto &res = actualBuffer[i];
