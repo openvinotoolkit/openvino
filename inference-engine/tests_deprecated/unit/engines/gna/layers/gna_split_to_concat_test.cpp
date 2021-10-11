@@ -56,8 +56,7 @@ protected:
     }
 };
 
-// DISABLED due to failures related to splitted memory allocations for embedded GNA BAR-based export
-TEST_P(GNASplitToConcatTest, DISABLED_SplitToConcatWith2Inputs) {
+TEST_P(GNASplitToConcatTest, SplitToConcatWith2Inputs) {
     if (precision == InferenceEngine::Precision::FP32) {
         std::vector<float> input_data(input_dim);
         std::iota(input_data.begin(), input_data.end(), 1.0);
@@ -86,7 +85,7 @@ TEST_P(GNASplitToConcatTest, DISABLED_SplitToConcatWith2Inputs) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-    DISABLED_GNALayerTests,
+    GNALayerTests,
     GNASplitToConcatTest,
     testing::Combine(
         testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::I16),

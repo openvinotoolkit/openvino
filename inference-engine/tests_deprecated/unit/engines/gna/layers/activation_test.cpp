@@ -90,7 +90,7 @@ static const ActivationCaseParam gna_activation_test_params[] = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    DISABLED_GNALayerTests, GNAActivationTest,
+    GNALayerTests, GNAActivationTest,
     ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::I16, InferenceEngine::Precision::I8),
         ::testing::ValuesIn(gna_activation_test_params)),

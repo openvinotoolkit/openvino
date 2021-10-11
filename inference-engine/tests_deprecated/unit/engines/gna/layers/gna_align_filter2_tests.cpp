@@ -56,10 +56,7 @@ class GNAAlignFilterTest : public GNATest<>,
     }
 };
 
-// Sporadic failures in [RUN] GNALayerTests / GNAAlignFilterTest.concatWith_2_Inputs_Small_mem_footprint / fast_concat_of(49_73)_on_I16
-//   unknown file : error: SEH exception with code 0xc0000005 thrown in the test fixture's destructor.
-// see also: https://openvino-ci.intel.com/job/private-ci/job/ie/job/build-windows-vs2019/138653/consoleFull
-TEST_P(GNAAlignFilterTest, DISABLED_concatWith_2_Inputs_Small_mem_footprint) {
+TEST_P(GNAAlignFilterTest, concatWith_2_Inputs_Small_mem_footprint) {
 
     auto ngraf = getNgraphModel();
     if (precision == InferenceEngine::Precision::FP32) {
@@ -132,8 +129,7 @@ TEST_P(GNAAlignFilterTest, DISABLED_concatWith_2_Inputs_Small_mem_footprint) {
         .times(expected_copy_layers);
 }
 
-// DISABLED due to failures related to splitted memory allocations for embedded GNA BAR-based export
-TEST_P(GNAAlignFilterTest, DISABLED_concatWith_2_Inputs_accurate) {
+TEST_P(GNAAlignFilterTest, concatWith_2_Inputs_accurate) {
     auto ngraf = getNgraphModel();
     if (precision == InferenceEngine::Precision::FP32) {
         std::vector<std::vector<float>> input_data;
@@ -175,7 +171,7 @@ TEST_P(GNAAlignFilterTest, DISABLED_concatWith_2_Inputs_accurate) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-    DISABLED_GNALayerTests,
+    GNALayerTests,
     GNAAlignFilterTest,
     testing::Combine(
     testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::I16),

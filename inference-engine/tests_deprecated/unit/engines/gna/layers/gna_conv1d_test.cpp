@@ -101,7 +101,7 @@ TEST_P(GNAConv1DTest, SplitToConcatWith2Inputs) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_GNALayerTests,
+        GNALayerTests,
         GNAConv1DTest,
         testing::Combine(
                 testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::I16),

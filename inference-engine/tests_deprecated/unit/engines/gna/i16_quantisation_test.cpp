@@ -118,7 +118,7 @@ TEST_F(I16QuantisationTest, canQuantizeLstmLikeTopology) {
     ASSERT_NO_THROW(q.quantize(network, 1000));
 }
 
-TEST_F(I16QuantisationTest, DISABLED_outputScaleFactorForAffineIsCorrect){
+TEST_F(I16QuantisationTest, outputScaleFactorForAffineIsCorrect){
     ModelQuantizer<QuantI16> q;
 
     auto weights = make_shared_blob<uint8_t >({ Precision::U8, {440}, C });
@@ -211,9 +211,7 @@ TEST_F(I16QuantisationTest, EltwiseSumm_onlyOneIdentityInsertion) {
         .inNotCompactMode().gna().propagate_forward().called_with().pwl_inserted_into_nnet().once();
 }
 
-// DISABLED due to Segmentation fault (core dumped)
-// In https://openvino-ci.intel.com/job/private-ci/job/ie/job/build-linux-ubuntu18/86242/consoleFull
-TEST_F(I16QuantisationTest, DISABLED_canDetectLeakyRelu) {
+TEST_F(I16QuantisationTest, canDetectLeakyRelu) {
     assert_that().onInferModel(TFLeakyReluModel())
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .gna().propagate_forward().called_with().pwl_inserted_into_nnet();
@@ -225,10 +223,8 @@ TEST_F(I16QuantisationTest, canDetectSoftWSignSubgraph) {
         .gna().propagate_forward().called_with().pwls_inserted_into_nnet({kActSigmoid});
 }
 
-// DISABLED due to Segmentation fault (core dumped)
-// Test failes (finishes unexpectedly with no output) sporadically in Windows Debug
-// In https://openvino-ci.intel.com/job/private-ci/job/ie/job/build-linux-ubuntu20/61231/consoleFull
-TEST_F(I16QuantisationTest, DISABLED_MaxPool_followedAfterActivation) {
+
+TEST_F(I16QuantisationTest, MaxPool_followedAfterActivation) {
     assert_that().onInferModel(maxpoolAfterRelu())
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .gna().propagate_forward().called_with()
@@ -357,7 +353,7 @@ TEST_F(I16QuantisationTest, fp16tofp32_on_fullyConnected_model) {
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {220}, Layout::C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(FCOnlyModelFP16(), weights);
 
@@ -407,7 +403,7 @@ TEST_F(I16QuantisationTest, LSTMCell_unaligned_quantize) {
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {3480}, C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(LSTMCellOnlyModelUnaligned(), weights);
 
@@ -438,7 +434,7 @@ TEST_F(I16QuantisationTest, TI_quantize) {
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {249748}, C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(TIModelWithLSTMCell2(), weights);
 
@@ -452,9 +448,7 @@ TEST_F(I16QuantisationTest, TI_PropagateForward) {
         .called_with().pwls_inserted_into_nnet({kActIdentity});
 }
 
-// DISABLED due: Unhandled exception at 0x00007FF88514F199 (ntdll.dll) in InferenceEngineUnitTests.exe: 0xC0000374:
-//      A heap has been corrupted (parameters: 0x00007FF8851B77F0).
-TEST_F(I16QuantisationTest, DISABLED_SplitToConcatWith2Inputs1360NotAlignedNoFC) {
+TEST_F(I16QuantisationTest, SplitToConcatWith2Inputs1360NotAlignedNoFC) {
     assert_that().onInferModel(SplitToConcatWith2Inputs1360NotAlignedNoFC())
             .inNotCompactMode()
             .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
