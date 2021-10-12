@@ -6,12 +6,14 @@
 
 #include <memory>
 
+#include <transformations_visibility.hpp>
+
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class DisableShapeOfConstantFolding;
+class TRANSFORMATIONS_API DisableShapeOfConstantFolding;
 
 }  // namespace pass
 }  // namespace ngraph
