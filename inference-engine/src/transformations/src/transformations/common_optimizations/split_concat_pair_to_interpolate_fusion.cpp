@@ -20,21 +20,18 @@ namespace {
 std::vector<std::vector<size_t>> grouped_vector(const std::vector<size_t>& v) {
     std::vector<std::vector<size_t>> result;
 
-    if (v.empty()) return std::vector<std::vector<size_t>>{};
+    if (v.empty()) return result;
 
     size_t prev = v[0];
-    std::vector<size_t> group = {prev};
+    std::vector<size_t> group;
 
-    for (size_t i = 1; i < v.size(); ++i) {
-        size_t x{v[i]};
-        if (prev == x) {
-            group.emplace_back(x);
-            prev = x;
-        } else {
+    for (const auto& x : v) {
+        if (prev != x) {
             result.emplace_back(group);
+            group.clear();
             prev = x;
-            group = {prev};
         }
+        group.emplace_back(x);
     }
     result.emplace_back(group);
     return result;
