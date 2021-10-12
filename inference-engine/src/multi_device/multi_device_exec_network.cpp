@@ -208,10 +208,19 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         // so some parameters need to be transferred by value.
         loads.push_back([&, modelPath, network, device, deviceConfig]() {
             SoExecutableNetworkInternal executableNetwork;
-            if (!modelPath.empty()) {
-                executableNetwork = _core->LoadNetwork(modelPath, device, deviceConfig);
-            } else {
-                executableNetwork = _core->LoadNetwork(network, device, deviceConfig);
+            try {
+                if (!modelPath.empty()) {
+                    executableNetwork = _core->LoadNetwork(modelPath, device, deviceConfig);
+                } else {
+                    executableNetwork = _core->LoadNetwork(network, device, deviceConfig);
+                }
+            } catch (...) {
+                if (device.find("CPU") == std::string::npos) {
+                    _acceleratorPromise.set_exception(std::current_exception());
+                } else {
+                    _cpuPromise.set_exception(std::current_exception());
+                }
+                return;
             }
 
             GenerateWorkers(device, executableNetwork);
