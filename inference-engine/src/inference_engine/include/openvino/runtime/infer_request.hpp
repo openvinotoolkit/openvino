@@ -13,11 +13,11 @@
 #include <memory>
 #include <string>
 
+#include "openvino/core/node_output.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/variable_state.hpp"
-#include "openvino/core/node_output.hpp"
 
 namespace InferenceEngine {
 class IInferRequestInternal;
