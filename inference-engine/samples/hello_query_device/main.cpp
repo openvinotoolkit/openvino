@@ -3,8 +3,6 @@
 //
 
 #include <cstdlib>
-#include <ie_plugin_config.hpp>
-#include <inference_engine.hpp>
 #include <iomanip>
 #include <memory>
 #include <samples/common.hpp>
@@ -13,7 +11,8 @@
 #include <tuple>
 #include <vector>
 
-using namespace InferenceEngine;
+#include "ie_plugin_config.hpp" // TODO: move to OpenVINO
+#include "openvino/openvino.hpp"
 
 namespace {
 /**
@@ -33,7 +32,7 @@ std::ostream& operator<<(std::ostream& stream, const std::vector<T>& v) {
  * @param reference on IE Parameter
  * @return void
  */
-void printParameterValue(const Parameter& value) {
+void printParameterValue(const ov::runtime::Parameter& value) {
     if (value.empty()) {
         std::cout << "EMPTY VALUE" << std::endl;
     } else if (value.is<bool>()) {
@@ -65,8 +64,8 @@ void printParameterValue(const Parameter& value) {
         std::cout << std::get<2>(values);
         std::cout << " }";
         std::cout << std::endl;
-    } else if (value.is<Metrics::DeviceType>()) {
-        auto v = value.as<Metrics::DeviceType>();
+    } else if (value.is<InferenceEngine::Metrics::DeviceType>()) {
+        auto v = value.as<InferenceEngine::Metrics::DeviceType>();
         std::cout << v << std::endl;
     } else if (value.is<std::map<InferenceEngine::Precision, float>>()) {
         auto values = value.as<std::map<InferenceEngine::Precision, float>>();
@@ -102,12 +101,12 @@ int main(int argc, char* argv[]) {
         // --------------------------- Step 1. Initialize inference engine core
         // -------------------------------------
         std::cout << "Loading Inference Engine" << std::endl;
-        Core ie;
+        ov::runtime::Core ie;
 
         // --------------------------- Get list of available devices
         // -------------------------------------
 
-        std::vector<std::string> availableDevices = ie.GetAvailableDevices();
+        std::vector<std::string> availableDevices = ie.get_available_devices();
 
         // --------------------------- Query and print supported metrics and config
         // keys--------------------
@@ -117,21 +116,21 @@ int main(int argc, char* argv[]) {
             std::cout << device << std::endl;
 
             std::cout << "\tSUPPORTED_METRICS: " << std::endl;
-            std::vector<std::string> supportedMetrics = ie.GetMetric(device, METRIC_KEY(SUPPORTED_METRICS));
+            std::vector<std::string> supportedMetrics = ie.get_metric(device, METRIC_KEY(SUPPORTED_METRICS));
             for (auto&& metricName : supportedMetrics) {
                 if (metricName != METRIC_KEY(SUPPORTED_METRICS) && metricName != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
                     std::cout << "\t\t" << metricName << " : " << std::flush;
-                    printParameterValue(ie.GetMetric(device, metricName));
+                    printParameterValue(ie.get_metric(device, metricName));
                 }
             }
 
             if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(SUPPORTED_CONFIG_KEYS)) !=
                 supportedMetrics.end()) {
                 std::cout << "\tSUPPORTED_CONFIG_KEYS (default values): " << std::endl;
-                std::vector<std::string> supportedConfigKeys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                std::vector<std::string> supportedConfigKeys = ie.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                 for (auto&& configKey : supportedConfigKeys) {
                     std::cout << "\t\t" << configKey << " : " << std::flush;
-                    printParameterValue(ie.GetConfig(device, configKey));
+                    printParameterValue(ie.get_config(device, configKey));
                 }
             }
 

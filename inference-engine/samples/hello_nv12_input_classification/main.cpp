@@ -9,8 +9,7 @@
 #include <inference_engine.hpp>
 #include <iostream>
 #include <memory>
-#include <openvino/core/preprocess/pre_post_process.hpp>
-#include <openvino/runtime/core.hpp>
+#include <openvino/openvino.hpp>
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
 #include <sstream>

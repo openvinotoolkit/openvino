@@ -11,6 +11,7 @@
 
 #include <opencv2/opencv.hpp>
 #include <samples/common.hpp>
+
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/tensor.hpp"
 

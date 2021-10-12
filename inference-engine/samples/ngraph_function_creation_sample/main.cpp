@@ -13,7 +13,6 @@
 #include "format_reader_ptr.h"
 #include "gflags/gflags.h"
 #include "ngraph_function_creation_sample.hpp"
-#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "ngraph/util.hpp"
@@ -232,17 +231,17 @@ std::shared_ptr<ov::Function> createNgraphFunction() {
     auto softMaxNode = std::make_shared<opset8::Softmax>(add4Node->output(0), 1);
     softMaxNode->get_output_tensor(0).set_names({"output_tensor"});
 
-    // -------ngraph function--
+    // ------- OpenVINO function--
     auto result_full = std::make_shared<opset8::Result>(softMaxNode->output(0));
 
-    std::shared_ptr<ngraph::Function> fnPtr =
-        std::make_shared<ngraph::Function>(result_full, ngraph::ParameterVector{paramNode}, "lenet");
+    std::shared_ptr<ov::Function> fnPtr =
+        std::make_shared<ov::Function>(result_full, ov::ParameterVector{paramNode}, "lenet");
 
     return fnPtr;
 }
 
 /**
- * @brief The entry point for inference engine automatic ngraph function
+ * @brief The entry point for inference engine automatic ov::Function
  * creation sample
  * @file ngraph_function_creation_sample/main.cpp
  * @example ngraph_function_creation_sample/main.cpp
@@ -269,10 +268,10 @@ int main(int argc, char* argv[]) {
         slog::info << "Device info: " << slog::endl;
         std::cout << core.get_versions(FLAGS_d) << std::endl;
 
-        //--------------------------- Step 2. Create network using ngraph function
+        //--------------------------- Step 2. Create network using ov::Function
 
         auto model = createNgraphFunction();
-        const Layout inputLayout = "NHWC";
+        const Layout tensorLayout{"NHWC"};
 
         // apply preprocessing
         {
@@ -281,7 +280,7 @@ int main(int argc, char* argv[]) {
                 .input(InputInfo()
                     .tensor(
                         InputTensorInfo()
-                            .set_layout(inputLayout)
+                            .set_layout(tensorLayout)
                             .set_element_type(element::u8))
                     .network(
                         InputNetworkInfo()
@@ -296,8 +295,8 @@ int main(int argc, char* argv[]) {
 
         const auto input_port = inputs[0];
         auto input_shape = input_port.get_shape();
-        const size_t width = input_shape[layout::width(inputLayout)];
-        const size_t height = input_shape[layout::height(inputLayout)];
+        const size_t width = input_shape[layout::width(tensorLayout)];
+        const size_t height = input_shape[layout::height(tensorLayout)];
 
         std::vector<std::shared_ptr<unsigned char>> imagesData;
         for (auto& i : images) {

@@ -2,20 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <samples/classification_results.h>
+#include "samples/classification_results.h"
+#include "samples/common.hpp"
+#include "samples/ocv_common.hpp"
 
-#include <inference_engine.hpp>
 #include <iterator>
 #include <memory>
-#include <samples/common.hpp>
-#include <samples/ocv_common.hpp>
 #include <string>
 #include <vector>
-#include "openvino/core/except.hpp"
-#include "openvino/core/preprocess/input_tensor_info.hpp"
-#include "openvino/core/preprocess/pre_post_process.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/tensor.hpp"
+#include "openvino/openvino.hpp"
 
 using namespace ov::preprocess;
 

@@ -10,4 +10,5 @@
 
 #pragma once
 
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/runtime/runtime.hpp"
