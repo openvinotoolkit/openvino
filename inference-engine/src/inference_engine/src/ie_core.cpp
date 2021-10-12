@@ -6,12 +6,12 @@
 
 #include <sys/stat.h>
 
+#include <ie_performance_hints.hpp>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
-#include <ie_performance_hints.hpp>
 
 #include "cnn_network_ngraph_impl.hpp"
 #include "compilation_context.hpp"
@@ -501,11 +501,12 @@ public:
         if (batch_mode != config_with_batch.end() && batch_mode->second == CONFIG_VALUE(YES)) {
             std::map<std::string, ie::Parameter> options;
             options["MODEL_ADDRESS"] = &network;
-            auto optimalBatchSize = GetCPPPluginByName(DeviceIDParser(deviceNameOrig).getDeviceName()).
-                    get_metric(METRIC_KEY(OPTIMAL_BATCH), options).as<unsigned int>();
-            const auto &reqs = config.find(KEY_PERFORMANCE_HINT_NUM_REQUESTS);
+            auto optimalBatchSize = GetCPPPluginByName(DeviceIDParser(deviceNameOrig).getDeviceName())
+                                        .get_metric(METRIC_KEY(OPTIMAL_BATCH), options)
+                                        .as<unsigned int>();
+            const auto& reqs = config.find(KEY_PERFORMANCE_HINT_NUM_REQUESTS);
             if (reqs != config.end()) {
-                auto r = (uint)PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second);
+                auto r = (unsigned int)PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second);
                 std::cout << "!!!!!!!!!!!!!!!Detected reqs_limitation: " << r << std::endl;
                 optimalBatchSize = std::min(r, optimalBatchSize);
             }
@@ -521,10 +522,11 @@ public:
                 };
 
                 if (!std::strcmp("DetectionOutput", node->get_type_info().name) ||
-                        (!std::strcmp("Result", node->get_type_info().name) && isDetectionOutputParent(node))) {
-                    node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(deviceNameOrig);
+                    (!std::strcmp("Result", node->get_type_info().name) && isDetectionOutputParent(node))) {
+                    node->get_rt_info()["affinity"] =
+                        std::make_shared<ngraph::VariantWrapper<std::string>>(deviceNameOrig);
                     std::cout << "!!! AFF !!! type: " << node->get_type_info().name
-                        << ", name: " << node->get_friendly_name() << std::endl;
+                              << ", name: " << node->get_friendly_name() << std::endl;
                     bDetectionOutput = true;
                 } else {
                     node->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>("BATCH");
@@ -535,9 +537,10 @@ public:
                     deviceName = "HETERO:BATCH," + deviceNameOrig;
                     std::cout << "HETERO code path!!!!" << std::endl;
                     // config["AUTO_BATCH"] = deviceNameOrig+"("+ std::to_string(optimalBatchSize)+ ")";
-                    SetConfigForPlugins({{"AUTO_BATCH", deviceNameOrig + "(" + std::to_string(optimalBatchSize) + ")"}}, "BATCH");
+                    SetConfigForPlugins({{"AUTO_BATCH", deviceNameOrig + "(" + std::to_string(optimalBatchSize) + ")"}},
+                                        "BATCH");
                 } else {
-                     std::string deviceBatch = "BATCH:" + deviceNameOrig + "(" + std::to_string(optimalBatchSize) + ")";
+                    std::string deviceBatch = "BATCH:" + deviceNameOrig + "(" + std::to_string(optimalBatchSize) + ")";
                     deviceName = deviceBatch;
                 }
             }
@@ -1202,7 +1205,8 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     const std::map<std::string, std::string>& config) {
     std::map<std::string, std::string> config_with_batch = config;
     // const auto& mode = config.find(KEY_PERFORMANCE_HINT);
-    // if (mode != config.end() && mode->second ==CONFIG_VALUE(THROUGHPUT) && deviceName.find("GPU") != std::string::npos)
+    // if (mode != config.end() && mode->second ==CONFIG_VALUE(THROUGHPUT) && deviceName.find("GPU") !=
+    // std::string::npos)
     if (deviceName.find("GPU") != std::string::npos)
         config_with_batch[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(YES);
 
