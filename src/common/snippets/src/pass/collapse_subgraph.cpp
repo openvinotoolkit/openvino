@@ -20,6 +20,7 @@
 #include <string>
 #include <numeric>
 #include "mkldnn_itt.h"
+#include <climits>
 
 NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::StartSubgraph, "Snippets::StartSubgraph", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::AttachToSubgraph, "Snippets::AttachToSubgraph", 0);
@@ -59,61 +60,32 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<ngraph::Node>& node) ->
 auto has_cycles_of_dependencies(const std::vector<std::set<ngraph::Input<ngraph::Node>>>& results,
                                 const std::vector<ngraph::Input<ngraph::Node>>& inputs) -> bool {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::has_cycles_of_dependencies")
-    auto BFS_from_to = [](ngraph::Node* from, ngraph::Node* to) -> bool {
-        std::unordered_set<ngraph::Node*> visited;
-        std::queue<ngraph::Node*> stack;
-        stack.push(from);
-        auto add_if_not_visited = [&visited, &stack](ngraph::Node* next){
-            if (visited.count(next) == 0) {
-                stack.push(next);
-            }
-        };
-        unsigned int from_to_distance = 0;
-        const unsigned int max_allowed_distance = 10000;
-        while (stack.size() > 0) {
-            ngraph::Node* curr = stack.front();
-            visited.insert(curr);
 
-            if (from_to_distance++ == max_allowed_distance) {
-                // Return as if cycle dependence, if can't prove the opposite
-                return true;
-            }
-            stack.pop();
-
-            if (curr != to) {
-                const auto all_users = curr->get_users();
-                if (all_users.size() == 1) {
-                    add_if_not_visited(all_users[0].get());
-                } else if (all_users.size() > 1) {
-                    std::unordered_set<std::shared_ptr<Node>> unique_users(all_users.begin(), all_users.end());
-                    for (const auto &n : unique_users)
-                        add_if_not_visited(n.get());
-                }
-            } else {
-                return true;
-            }
-        }
-        return false;
+    auto GetTopologicalOrder = [](std::shared_ptr<Node> node) -> int64_t {
+        auto &rt = node->get_rt_info();
+        const auto rinfo = rt.find("TopologicalOrder");
+//        assert(rinfo != rt.end());
+        if (rinfo == rt.end())
+            throw ngraph_error("TopologicalOrder is not found in rt_info");
+        return ov::as_type_ptr<ngraph::VariantWrapper<int64_t>>(rinfo->second)->get();
     };
-
-    for (auto& result : results) {
-        for (auto& user : result) {
-            for (auto& input : inputs) {
-                auto source = input.get_source_output().get_node();
-                auto containsLoop = BFS_from_to(user.get_node(), source);
-
-                remark(1) <<  "checking path from "
-                        << user.get_node()->get_friendly_name()
-                        << " to " << source->get_friendly_name()
-                        << " resulted in " << containsLoop << std::endl;
-
-                if (containsLoop) {
-                    return true;
-                }
-            }
+    int64_t minResultOrder{LONG_MAX};
+    for (const auto& result : results) {
+        for (const auto &user : result) {
+            const auto node = user.get_source_output().get_node_shared_ptr();
+            if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node))
+                continue;
+            minResultOrder = std::min(minResultOrder, GetTopologicalOrder(node));
         }
     }
-    return false;
+    int64_t maxInputOrder{-1};
+    for (const auto& input : inputs) {
+            const auto node = input.get_source_output().get_node_shared_ptr();
+            if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node))
+                continue;
+            maxInputOrder = std::max(maxInputOrder, GetTopologicalOrder(node));
+    }
+    return maxInputOrder >= minResultOrder;
 }
 
 auto has_subgraph_as_input(std::shared_ptr<Node> node) -> bool {

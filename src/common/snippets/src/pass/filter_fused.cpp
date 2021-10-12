@@ -212,12 +212,22 @@ void PropagateIfHasOnlyChild(std::shared_ptr<Node> node, SnippetsNodeType nodeTy
     SetSnippetsNodeType(node, has_only_child ? nodeType : SnippetsNodeType::FusedTerminator);
 }
 
+void SetTopologicalOrder(std::shared_ptr<Node> node, int64_t order) {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::SetTopologicalOrder")
+    auto &rt = node->get_rt_info();
+    rt["TopologicalOrder"] = std::make_shared<VariantWrapper<int64_t>>(static_cast<int64_t>(order));
+}
+
 bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
     RUN_ON_FUNCTION_SCOPE(FulterFused);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::FilterFused")
-    for (auto node : f->get_ordered_ops()) {
+    auto ordered_ops = f->get_ordered_ops();
+    for (size_t order = 0; order < ordered_ops.size(); order++) {
+        auto &node = ordered_ops[order];
         if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node))
             continue;
+        // Todo: we don't really have to set order for every node, just for subgraph parents and children would be enough
+        SetTopologicalOrder(node, order);
         if (isSuitableConvolutionParent(node)) {
             // Initiate fusing chain
             SetSnippetsNodeType(node, SnippetsNodeType::FusedWithConvolution);
@@ -255,10 +265,11 @@ bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
                 GetSnippetsNodeType(node) == SnippetsNodeType::FusedWithConvolutionSumActivation ||
                 GetSnippetsNodeType(node) == SnippetsNodeType::FusedTerminator)
                 continue;
-            if (hasParentInStartedSubgraph(node))
+            if (hasParentInStartedSubgraph(node)) {
                 SetSnippetsNodeType(node, SnippetsNodeType::SubgraphBody);
-            else
+            } else {
                 SetSnippetsNodeType(node, SnippetsNodeType::SubgraphStart);
+            }
         }
     }
     return true;
