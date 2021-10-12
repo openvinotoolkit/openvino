@@ -22,7 +22,7 @@ def import_and_compute(op_type, input_data_left, input_data_right, opset=7, **no
     graph = make_graph([onnx_node], "compute_graph", input_tensors, output_tensors)
     model = make_model(graph, producer_name="ngraph ONNX Importer")
     model.opset_import[0].version = opset
-    inputs = [i.astype(np.float32) for i in inputs] # WA for new Python API
+    inputs = [i.astype(np.float32) for i in inputs]  # WA for new Python API
     return run_model(model, inputs)[0]
 
 
