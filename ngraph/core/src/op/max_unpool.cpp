@@ -18,12 +18,10 @@ op::v8::MaxUnpool::MaxUnpool(const ngraph::Output<ngraph::Node>& poolInp,
                              const Shape& pads_end,
                              const Shape& kernel)
     : Op({poolInp, poolOut, inp, shape}), m_kernel(kernel), m_pads_begin(pads_begin), m_pads_end(pads_end), m_strides(strides) {
-    std::cout << "constructor" << std::endl;
     constructor_validate_and_infer_types();
 }
 
 bool op::v8::MaxUnpool::visit_attributes(AttributeVisitor& visitor) {
-    std::cout << "visit_attributes" << std::endl;
     visitor.on_attribute("kernel_shape", m_kernel);
     visitor.on_attribute("pad_begin", m_pads_begin);
     visitor.on_attribute("pad_end", m_pads_end);
@@ -32,7 +30,6 @@ bool op::v8::MaxUnpool::visit_attributes(AttributeVisitor& visitor) {
 }
 
 std::shared_ptr<ngraph::Node> op::v8::MaxUnpool::clone_with_new_inputs(const OutputVector& new_args) const {
-    std::cout << "clone_with_new_inputs" << std::endl;
     if (new_args.size() != 4) {
         throw ngraph::ngraph_error("Incorrect number of new arguments");
     }
@@ -41,24 +38,30 @@ std::shared_ptr<ngraph::Node> op::v8::MaxUnpool::clone_with_new_inputs(const Out
 }
 
 void op::v8::MaxUnpool::validate_and_infer_types() {
-    std::cout << "validate_and_infer_types" << std::endl;
     // std::cout << m_kernel << std::endl;
     // std::cout << m_pads_begin << std::endl;
     // std::cout << m_pads_end << std::endl;
     // std::cout << m_strides << std::endl;
 
     auto kenel_size = m_kernel.size();
-    if(m_kernel[kenel_size-2] != 2 || m_kernel[kenel_size-1] != 2){
+    if (m_kernel[kenel_size-2] != 2 || m_kernel[kenel_size-1] != 2){
         throw std::invalid_argument( "Unsupported kernel shape! Only [2, 2] kernel is supported." );
     }
 
-    auto outShape = get_input_partial_shape(3);
-    auto poolInpShape = get_input_partial_shape(0);
-    if (poolInpShape.is_static()) {  // need to fix it
-        auto inpShape = poolInpShape.to_shape();
-        outShape[0] = inpShape[0];  // Use only spatial dimensions from shape
-        outShape[1] = inpShape[1];  // and restore batch and channels
-        set_output_type(0, get_input_element_type(0), outShape);
+    auto outShapeDim = get_input_partial_shape(3);
+    auto poolInpShapeDim = get_input_partial_shape(0);
+
+    if (poolInpShapeDim.is_static() && outShapeDim.is_static()) {  // need to fix it
+        auto inpShape = poolInpShapeDim.to_shape();
+        auto outShape = outShapeDim.to_shape();
+
+        if (inpShape[0] - outShape[0] > 1 || inpShape[1] - outShape[1]) {
+            throw std::invalid_argument( "Difference between the size of Pooling input height/width and Unpooling output height/width can't exceed 1!" );
+        }
+
+        outShapeDim[0] = inpShape[0];  // Use only spatial dimensions from shape
+        outShapeDim[1] = inpShape[1];  // and restore batch and channels
+        set_output_type(0, get_input_element_type(0), outShapeDim);
     }
 }
 
@@ -96,13 +99,11 @@ void maxunpool(const T* poolInp, const T* poolOut, const T* inp, T* out,
             }
         }
     }
-    std::cout << "maxunpool" << std::endl;
 }
 
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& arg1, const HostTensorPtr& arg2, const HostTensorPtr& out, 
                      const Shape& outDims, const Shape& poolInpDims, const Shape& poolOutDims) {
-    std::cout << "evaluate111" << std::endl;
     using T = typename element_type_traits<ET>::value_type;
     maxunpool<T>(arg0->get_data_ptr<ET>(), arg1->get_data_ptr<ET>(), 
                  arg2->get_data_ptr<ET>(), out->get_data_ptr<ET>(), 
@@ -112,7 +113,6 @@ inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& arg1, const
 
 bool evaluate_maxunpool(const HostTensorPtr& arg0, const HostTensorPtr& arg1, const HostTensorPtr& arg2, const HostTensorPtr& out, 
                         const Shape& outDims, const Shape& poolInpDims, const Shape& poolOutDims) {
-    std::cout << "evaluate_maxunpool" << std::endl;
     bool rc = true;
     switch (arg0->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_maxunpool, f16, arg0, arg1, arg2, out, outDims, poolInpDims, poolOutDims);
@@ -126,7 +126,6 @@ bool evaluate_maxunpool(const HostTensorPtr& arg0, const HostTensorPtr& arg1, co
 }  // namespace maxunpool
 
 bool op::v8::MaxUnpool::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    std::cout << "evaluate" << std::endl;
     const Shape outDims = get_default_output().get_shape();
     const Shape poolInpDims = get_input_partial_shape(0).to_shape();
     const Shape poolOutDims = get_input_partial_shape(1).to_shape();
@@ -135,7 +134,6 @@ bool op::v8::MaxUnpool::evaluate(const HostTensorVector& outputs, const HostTens
 }
 
 bool op::v8::MaxUnpool::has_evaluate() const {
-    std::cout << "has_evaluate" << std::endl;
     switch (get_input_element_type(0)) {
     case ngraph::element::f16:
     case ngraph::element::f32:

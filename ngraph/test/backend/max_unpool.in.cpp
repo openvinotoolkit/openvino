@@ -51,8 +51,8 @@ NGRAPH_TEST(${BACKEND_NAME}, max_unpool_2d) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, max_unpool_2d_output_smaller_then_input) {
-    Shape shape{1, 1, 6, 6};
-    Shape pooling_shape{1, 1, 4, 6};
+    Shape shape{1, 1, 7, 6};
+    Shape unpooling_shape{1, 1, 6, 6};
     const Strides& strides{2, 2};
     const Shape& pads_begin{0, 0};
     const Shape& pads_end{0, 0};
@@ -61,20 +61,21 @@ NGRAPH_TEST(${BACKEND_NAME}, max_unpool_2d_output_smaller_then_input) {
     const op::PadType pad_type = op::PadType::NOTSET;
 
     auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, pooling_shape);
+    auto B = make_shared<op::Parameter>(element::f32, unpooling_shape);
     auto maxPool = make_shared<op::v1::MaxPool>(A, strides, pads_begin, pads_end, kernel, rounding_type, pad_type);
     auto relu = std::make_shared<op::Relu>(maxPool);
     auto maxUnpool = make_shared<op::v8::MaxUnpool>(A, maxPool, relu, B, strides, pads_begin, pads_end, kernel);
     auto f = make_shared<Function>(maxUnpool, ParameterVector{A, B});
 
-    std::vector<float> a(36);
+    std::vector<float> a(42);
     std::iota(a.begin(), a.end(), 1);
-    std::vector<float> b(24, 0);
-    std::vector<float> result{0, 0, 0, 0, 0, 0, 0, 8, 0, 10, 0, 12, 0, 0, 0, 0, 0, 0, 0, 20, 0, 22, 0, 24};
+    std::vector<float> b(36, 0);
+    std::vector<float> result{0, 0, 0, 0, 0, 0, 0, 8, 0, 10, 0, 12, 0, 0, 0, 0, 0, 0, 0, 20, 0, 22, 0, 24, 0, 0,
+                              0, 0, 0, 0, 0, 32, 0, 34, 0, 36};
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(pooling_shape, result);
+    test_case.add_expected_output<float>(unpooling_shape, result);
     test_case.run();
 }
 
@@ -107,27 +108,3 @@ NGRAPH_TEST(${BACKEND_NAME}, max_unpool_2d_reshape_output) {
     test_case.add_expected_output<float>(pooling_shape, result);
     test_case.run();
 }
-
-// NGRAPH_TEST(${BACKEND_NAME}, max_unpool_2d_kernel_3) {
-//     Shape shape{1, 1, 4, 4};
-//     const Strides& strides{2, 2};
-//     const Shape& pads_begin{0, 0};
-//     const Shape& pads_end{0, 0};
-//     const Shape& kernel{3, 3};
-//     const op::RoundingType rounding_type = op::RoundingType::FLOOR;
-//     const op::PadType pad_type = op::PadType::NOTSET;
-
-//     auto A = make_shared<op::Parameter>(element::f32, shape);
-//     auto maxPool = make_shared<op::v1::MaxPool>(A, strides, pads_begin, pads_end, kernel, rounding_type, pad_type);
-//     auto relu = std::make_shared<op::Relu>(maxPool);
-//     auto maxUnpool = make_shared<op::v8::MaxUnpool>(A, maxPool, relu, A, strides, pads_begin, pads_end, kernel);
-//     auto f = make_shared<Function>(maxUnpool, ParameterVector{A});
-
-//     std::vector<float> a;
-//     for (int i = 1; i <= 16; ++i)
-//         a.push_back(i);
-
-//     auto test_case = test::TestCase<TestEngine>(f);
-//     test_case.add_input<float>({a});
-//     test_case.run();
-// }
