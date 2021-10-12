@@ -12,6 +12,7 @@ from utils import (
 )
 from consts import (
     binder_template,
+    no_binder_template,
     rst_template,
     notebooks_path,
     repo_owner,
@@ -20,6 +21,7 @@ from consts import (
 )
 from notebook import Notebook
 from io import BytesIO
+from glob import glob
 from jinja2 import Template
 from requests import get
 from zipfile import ZipFile
@@ -123,20 +125,45 @@ class NbProcessor:
             "folder": nb_path,
         }
 
-    def add_binder(self, template: str = binder_template):
+    def fetch_binder_list(self, file_format: str = 'txt') -> list:
+        """Funtion that fetches list of notebooks with binder buttons
+
+        :param file_format: Format of file containing list of notebooks with button. Defaults to 'txt'
+        :type file_format: str
+        :return: List of notebooks conaining binder buttons
+        :rtype: list
+        """
+        list_of_buttons = glob(f"{self.nb_path}/*.{file_format}")
+        if list_of_buttons:
+            with open(list_of_buttons) as file:
+                list_of_buttons = file.read().splitlines()
+            return list_of_buttons
+        else:
+            return []
+
+    def add_binder(self, buttons_list: list,  template_with_binder: str = binder_template, template_without_binder: str = no_binder_template):
         """Function working as an example how to add binder button to existing rst files
 
-        :param template: Template of button to be added to rst file. Defaults to binder_template.
-        :type template: str
+        :param buttons_list: List of notebooks that work on Binder.
+        :type buttons_list: list
+        :param template_with_binder: Template of button added to rst file if Binder is available. Defaults to binder_template.
+        :type template_with_binder: str
+        :param template_without_binder: Template of button added to rst file if Binder isn't available. Defaults to no_binder_template.
+        :type template_without_binder: str
         :raises FileNotFoundError: In case of failure of adding content, error will appear
 
         """
         for notebook in [
             nb for nb in os.listdir(self.nb_path) if verify_notebook_name(nb)
         ]:
-            button_text = create_content(template, self.binder_data, notebook)
-            if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
-                raise FileNotFoundError("Unable to modify file")
+            if '-'.join(notebook.split('-')[:-2]) in buttons_list:
+                button_text = create_content(template_with_binder, self.binder_data, notebook)
+                if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
+                    raise FileNotFoundError("Unable to modify file")
+            else:
+                button_text = create_content(template_without_binder, self.binder_data, notebook)
+                if not add_content_below(button_text, f"{self.nb_path}/{notebook}"):
+                    raise FileNotFoundError("Unable to modify file")
 
     def render_rst(self, path: str = notebooks_docs, template: str = rst_template):
         """Rendering rst file for all notebooks
@@ -168,8 +195,8 @@ def main():
         raise FileExistsError("Files not downloaded")
     # Step 3. Run processing on downloaded file
     nbp = NbProcessor(outdir)
-
-    nbp.add_binder()
+    buttons_list = nbp.fetch_binder_list('txt')
+    nbp.add_binder(buttons_list)
     nbp.render_rst(outdir.joinpath(notebooks_docs))
 
 
