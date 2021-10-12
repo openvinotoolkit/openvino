@@ -47,7 +47,7 @@ As a result the frozen model file `savedmodeldir/efficientdet-d4_frozen.pb` will
 
 To generate the IR of the EfficientDet TensorFlow model, run:<br>
 ```sh
-python3 $INTEL_OPENVINO_DIR/tools/model_optimizer/mo \
+mo \
 --input_model savedmodeldir/efficientdet-d4_frozen.pb \
 --transformations_config $INTEL_OPENVINO_DIR/tools/model_optimizer/extensions/front/tf/automl_efficientdet.json \
 --input_shape [1,$IMAGE_SIZE,$IMAGE_SIZE,3] \

@@ -266,11 +266,8 @@ The `squeezenet1.1` model is downloaded in the Caffe* format. You must use the M
 
 The following command converts the public SqueezeNet 1.1 Caffe\* model to the FP16 IR and saves to the `C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir` output directory:
 
-```bat
-   cd <INSTALL_DIR>\tools\model_optimizer
-   ```
    ```bat
-   python .\mo --input_model C:\Users\username\Documents\models\public\squeezenet1.1\squeezenet1.1.caffemodel --data_type FP16 --output_dir C:\Users\username\Documents\models\public\squeezenet1.1\ir
+   mo --input_model C:\Users\<username>\Documents\models\public\squeezenet1.1\squeezenet1.1.caffemodel --data_type FP16 --output_dir C:\Users\username\Documents\models\public\squeezenet1.1\ir
    ```
 
 After the Model Optimizer script is completed, the produced IR files (`squeezenet1.1.xml`, `squeezenet1.1.bin`) are in the specified `C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\ir` directory.
