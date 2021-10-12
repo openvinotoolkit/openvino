@@ -35,7 +35,7 @@ const auto SpaceToDepthBS2 = ::testing::Combine(
     ::testing::ValuesIn(modes), ::testing::Values(1, 2),
     ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_SpaceToDepthSerialization, SpaceToDepthLayerTest,
     ::testing::Combine(::testing::ValuesIn(inputShapesBS2),
                        ::testing::ValuesIn(inputPrecisions),

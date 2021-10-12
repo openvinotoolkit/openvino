@@ -7,8 +7,8 @@
 #include <memory>
 #include <vector>
 
-#include "ngraph/op/util/attr_types.hpp"
 #include "openvino/op/op.hpp"
+#include "openvino/op/util/attr_types.hpp"
 
 namespace ov {
 namespace op {

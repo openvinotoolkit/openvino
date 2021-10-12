@@ -39,9 +39,9 @@ public:
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override {
         // Convert the second input constant precision to i64 to run the reference function
         if (ngraph::element::Type_t::i8 == secondConstantType) {
-            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::i8, ngraph::element::Type_t::i64>().run_on_function(function);
+            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::i8, ngraph::element::Type_t::i64>().run_on_function(functionRefs);
         } else if (ngraph::element::Type_t::bf16 == secondConstantType) {
-            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::i64>().run_on_function(function);
+            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::i64>().run_on_function(functionRefs);
         }
         return LayerTestsUtils::LayerTestsCommon::CalculateRefs();
     }

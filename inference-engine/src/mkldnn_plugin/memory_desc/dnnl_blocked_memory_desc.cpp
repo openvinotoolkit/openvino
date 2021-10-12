@@ -9,20 +9,28 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape) : MemoryDesc(shape, DnnlBlocked) {
+DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& strides)
+    : MemoryDesc(shape, DnnlBlocked) {
     const auto ndims = shape.getRank();
     const auto &dims = shape.getDims();
-    mkldnn::memory::dims plain_strides;
-    if (std::any_of(dims.begin(), dims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
-        plain_strides.resize(ndims, DNNL_RUNTIME_DIM_VAL);
-    } else {
-        plain_strides.resize(ndims, 1);
-        for (size_t i = 1; i < ndims; i++) {
-            plain_strides[ndims - i -1] = plain_strides[ndims - i] * dims[ndims - i];
-        }
-    }
 
-    desc = {MKLDNNExtensionUtils::convertToDnnlDims(dims), MKLDNNExtensionUtils::IEPrecisionToDataType(prc), plain_strides};
+    if (!strides.empty()) { // custom strides
+        desc = {MKLDNNExtensionUtils::convertToDnnlDims(dims),
+                MKLDNNExtensionUtils::IEPrecisionToDataType(prc),
+                MKLDNNExtensionUtils::convertToDnnlDims(strides)};
+    } else {
+        mkldnn::memory::dims plain_strides;
+        if (std::any_of(dims.begin(), dims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
+            plain_strides.resize(ndims, DNNL_RUNTIME_DIM_VAL);
+        } else {
+            plain_strides.resize(ndims, 1);
+            for (size_t i = 1; i < ndims; i++) {
+                plain_strides[ndims - i -1] = plain_strides[ndims - i] * dims[ndims - i];
+            }
+        }
+
+        desc = {MKLDNNExtensionUtils::convertToDnnlDims(dims), MKLDNNExtensionUtils::IEPrecisionToDataType(prc), plain_strides};
+    }
 
     order.resize(ndims);
     std::iota(order.begin(), order.end(), 0);
