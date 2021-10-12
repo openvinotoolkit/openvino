@@ -51,26 +51,24 @@ std::pair<std::shared_ptr<ngraph::opset8::Split>, int64_t> get_split_before_conc
     // and, if all these conditions are fulfilled, returns the above mentioned 'Concat' node. Otherwise, if some of these
     // conditions is false, this functions returns nullptr.
 
-    std::pair<std::shared_ptr<ngraph::opset8::Split>, int64_t> result{nullptr, 0};
-
     std::vector<size_t> idx;
     std::unordered_set<std::shared_ptr<ngraph::opset8::Split>> splits;
     for (const auto& input : concat->input_values()) {
         // If 'concat' has some non-Split producer, then the transformation is not applicable.
         auto split = std::dynamic_pointer_cast<ngraph::opset8::Split>(input.get_node_shared_ptr());
-        if (!split) return result;
+        if (!split) return {};
         idx.emplace_back(input.get_index());
         splits.insert(split);
     }
     // If 'concat' has more than one Splits as producers, then the transformation is not applicable.
-    if (splits.size() != 1) return result;
+    if (splits.size() != 1) return {};
 
     auto split = *(splits.begin());
 
     // If 'split' node has more than one consumer, then the transformation is not applicable.
     for (const auto& output : split->outputs()) {
         for (const auto& consumer : output.get_target_inputs()) {
-            if (consumer.get_node() != concat.get()) return result;
+            if (consumer.get_node() != concat.get()) return {};
         }
     }
 
@@ -80,7 +78,7 @@ std::pair<std::shared_ptr<ngraph::opset8::Split>, int64_t> get_split_before_conc
     for (const auto& group : grouped_idx) {
         sizes_of_groups.insert(group.size());
     }
-    if (sizes_of_groups.size() != 1) return result;
+    if (sizes_of_groups.size() != 1) return {};
     int64_t size_of_group = static_cast<int64_t>(*(sizes_of_groups.begin()));
     size_t num_of_groups = grouped_idx.size();
 
@@ -89,7 +87,7 @@ std::pair<std::shared_ptr<ngraph::opset8::Split>, int64_t> get_split_before_conc
     // goes to ports [i * m, ..., i * m + (m - 1)], and so on.
     for (size_t i = 0; i < num_of_groups; ++i) {
         const auto& current_group = grouped_idx[i];
-        if (std::any_of(current_group.begin(), current_group.end(), [i](size_t j){ return j != i; })) { return result; }
+        if (std::any_of(current_group.begin(), current_group.end(), [i](size_t j){ return j != i; })) { return {}; }
     }
 
     return {split, size_of_group};
