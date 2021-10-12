@@ -29,21 +29,19 @@ void scatter_elem_update(const DataType* input_data,
     // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
     // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2
 
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    CoordinateTransform indices_transform{indices_shape};
-    CoordinateTransform data_transform{data_shape};
+    CoordinateTransformBasic indices_transform{indices_shape};
+    CoordinateTransformBasic data_transform{data_shape};
+    const auto indices_strides = row_major_strides(indices_shape);
+    const auto data_strides = row_major_strides(data_shape);
 
     for (const Coordinate& indices_cord : indices_transform) {
-        const size_t indices_idx = indices_transform.index(indices_cord);
+        const size_t indices_idx =
+            std::inner_product(indices_cord.begin(), indices_cord.end(), indices_strides.begin(), 0);
         Coordinate out_cord(indices_cord);
         out_cord.at(axis) = indices[indices_idx];
-        NGRAPH_CHECK(data_transform.has_source_coordinate(out_cord),
-                     "Provided index coordinates are out of input data bounds: ",
-                     out_cord,
-                     ".");
-        out_buf[data_transform.index(out_cord)] = updates[indices_idx];
+        const auto out_idx = std::inner_product(out_cord.begin(), out_cord.end(), data_strides.begin(), 0);
+        out_buf[out_idx] = updates[indices_idx];
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
 }  // namespace runtime
