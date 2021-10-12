@@ -183,6 +183,7 @@ public:
     /// Index for value or result referencing it, or -1
     int64_t get_result_index(const ov::Output<ov::Node>& value) const;
 
+    /// \deprecated Use evaluate with ov::runtime::Tensor instead
     /// \brief Evaluate the function on inputs, putting results in outputs.
     /// \param output_tensors Tensors for the outputs to compute. One for each result
     /// \param input_tensors Tensors for the inputs. One for each inputs.

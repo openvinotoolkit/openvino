@@ -205,7 +205,7 @@ public:
     /// operation
     // \returns true if evaluate is available
     virtual bool has_evaluate() const;
-    /// \deprecated
+    /// \deprecated Use evaluate with ov::runtime::Tensor instead
     /// \brief Evaluates the op on input_values putting results in output_values
     /// \param output_values Tensors for the outputs to compute. One for each result
     /// \param input_values Tensors for the inputs. One for each inputs.
@@ -213,7 +213,7 @@ public:
     OPENVINO_DEPRECATED(
         "This method is deprecated and will be removed soon. Please use evaluate with ov::runtime::Tensor instead.")
     virtual bool evaluate(const ov::HostTensorVector& output_values, const ov::HostTensorVector& input_values) const;
-    /// \deprecated
+    /// \deprecated Use evaluate with ov::runtime::Tensor instead
     /// \brief Evaluates the op on input_values putting results in output_values
     /// \param output_values Tensors for the outputs to compute. One for each result
     /// \param input_values Tensors for the inputs. One for each inputs.
