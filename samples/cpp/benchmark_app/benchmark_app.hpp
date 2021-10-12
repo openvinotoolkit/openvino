@@ -159,9 +159,9 @@ static const char shape_message[] =
     " in case of one input size. This parameter affect model Parameter shape, can be dynamic. For dynamic dimesions"
     " use symbol `?` or '-1'.";
 
-static const char blob_shape_message[] =
-    "Optional if network shapes are all static (original ones or set by -shape."
-    " Required if at least one input shape is dynamic."
+static const char tensor_shape_message[] =
+    "Optional if network shapes are all static (original ones or set by -shape.\n"
+    "                              Required if at least one input shape is dynamic."
     " Set shape for input blobs. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
     " in case of one input size.";
 
@@ -299,7 +299,7 @@ DEFINE_string(dump_config, "", dump_config_message);
 DEFINE_string(shape, "", shape_message);
 
 /// @brief Define flag for input blob shape <br>
-DEFINE_string(blob_shape, "", blob_shape_message);
+DEFINE_string(tensor_shape, "", tensor_shape_message);
 
 /// @brief Define flag for layout shape <br>
 DEFINE_string(layout, "", layout_message);
@@ -355,9 +355,9 @@ static void showUsage() {
     std::cout << "    -t                        " << execution_time_message << std::endl;
     std::cout << "    -progress                 " << progress_message << std::endl;
     std::cout << "    -shape                    " << shape_message << std::endl;
-    std::cout << "    -blob_shape                    " << blob_shape_message << std::endl;
+    std::cout << "    -tensor_shape             " << tensor_shape_message << std::endl;
     std::cout << "    -layout                   " << layout_message << std::endl;
-    std::cout << "    -cache_dir \"<path>\"        " << cache_dir_message << std::endl;
+    std::cout << "    -cache_dir \"<path>\"       " << cache_dir_message << std::endl;
     std::cout << "    -load_from_file           " << load_from_file_message << std::endl;
     std::cout << "    -latency_percentile       " << infer_latency_percentile_message << std::endl;
     std::cout << std::endl << "  device-specific performance options:" << std::endl;

@@ -423,6 +423,7 @@ int main(int argc, char* argv[]) {
             app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape,
                                                              FLAGS_layout,
                                                              FLAGS_b,
+                                                             FLAGS_tensor_shape,
                                                              FLAGS_iscale,
                                                              FLAGS_imean,
                                                              exeNetwork.GetInputsInfo());
@@ -458,7 +459,7 @@ int main(int argc, char* argv[]) {
             app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape,
                                                             FLAGS_layout,
                                                             FLAGS_b,
-                                                            FLAGS_blob_shape,
+                                                            FLAGS_tensor_shape,
                                                             FLAGS_iscale,
                                                             FLAGS_imean,
                                                             inputInfo,
@@ -531,7 +532,7 @@ int main(int argc, char* argv[]) {
             app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape,
                                                              FLAGS_layout,
                                                              FLAGS_b,
-                                                             FLAGS_blob_shape,
+                                                             FLAGS_tensor_shape,
                                                              FLAGS_iscale,
                                                              FLAGS_imean,
                                                              exeNetwork.GetInputsInfo());
@@ -760,7 +761,7 @@ int main(int argc, char* argv[]) {
                                              [](std::string str, size_t x) {
                                                  return str.empty() ? std::to_string(x) : str + "," + std::to_string(x);
                                              })
-                          << "] ( dynamic: [" << output.second->getPartialShape() << "] }" << '\n';
+                          << "] (dynamic: " << output.second->getPartialShape() << ")" << '\n';
             }
         }
 

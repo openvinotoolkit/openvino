@@ -35,7 +35,7 @@ size_t InputInfo::getDimentionByLayout(char character) const {
     size_t pos = layout.find(character);
     if (pos == std::string::npos)
         throw std::runtime_error("Error: Can't get " + std::string(character, 1) + " from layout " + layout);
-    return blobShape.at(pos);
+    return tensorShape.at(pos);
 }
 size_t InputInfo::width() const {
     return getDimentionByLayout('W');
@@ -152,8 +152,8 @@ size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info) {
         std::size_t batch_index = info.second.layout.find("N");
         if (batch_index != std::string::npos) {
             if (batch_size == 0)
-                batch_size = info.second.blobShape[batch_index];
-            else if (batch_size != info.second.blobShape[batch_index])
+                batch_size = info.second.tensorShape[batch_index];
+            else if (batch_size != info.second.tensorShape[batch_index])
                 throw std::logic_error("Can't deterimine batch size: batch is "
                                        "different for different inputs!");
         }

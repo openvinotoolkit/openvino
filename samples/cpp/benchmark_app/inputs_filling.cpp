@@ -235,12 +235,10 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
         }
         slog::info << "Network input '" << item.first << "' precision " << item.second.precision << ", dimensions ("
                    << item.second.layout << "): ";
-        for (const auto& i : item.second.blobShape) {
+        for (const auto& i : item.second.tensorShape) {
             slog::info << i << " ";
         }
-        slog::info << " [ dynamic: " << (item.second.partialShape);
-        slog::info << "]";
-        slog::info << slog::endl;
+        slog::info << "(dynamic: " << item.second.partialShape << ")" << slog::endl;
     }
 
     size_t imageInputCount = input_image_sizes.size();
@@ -308,7 +306,7 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
         size_t binaryInputId = 0;
         for (auto& item : app_inputs_info) {
             if (item.second.partialShape.is_dynamic())
-                requests.at(requestId)->setShape(item.first, item.second.blobShape);
+                requests.at(requestId)->setShape(item.first, item.second.tensorShape);
             Blob::Ptr inputBlob = requests.at(requestId)->getBlob(item.first);
             auto app_info = app_inputs_info.at(item.first);
             auto precision = app_info.precision;

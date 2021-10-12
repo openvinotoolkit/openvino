@@ -14,7 +14,7 @@ namespace benchmark_app {
 struct InputInfo {
     InferenceEngine::Precision precision;
     ngraph::PartialShape partialShape;
-    InferenceEngine::SizeVector blobShape;
+    InferenceEngine::SizeVector tensorShape;
     std::string layout;
     std::vector<float> scale;
     std::vector<float> mean;
@@ -78,13 +78,13 @@ template <typename T>
 benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
                                         const std::string& layout_string,
                                         const size_t batch_size,
-                                        const std::string& blobs_shape_string,
+                                        const std::string& tensors_shape_string,
                                         const std::string& scale_string,
                                         const std::string& mean_string,
                                         const std::map<std::string, T>& input_info,
                                         bool& reshape_required) {
     std::map<std::string, std::string> shape_map = parseInputParameters(shape_string, input_info);
-    std::map<std::string, std::string> blobs_shape_map = parseInputParameters(blobs_shape_string, input_info);
+    std::map<std::string, std::string> tensors_shape_map = parseInputParameters(tensors_shape_string, input_info);
     std::map<std::string, std::string> layout_map = parseInputParameters(layout_string, input_info);
 
     reshape_required = false;
@@ -120,17 +120,17 @@ benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
         } else {
             info.partialShape = item.second->getPartialShape();
         }
-        // Blob Shape
-        if (blobs_shape_map.count(name)) {
+        // Tensor Shape
+        if (tensors_shape_map.count(name)) {
             std::vector<size_t> parsed_shape;
-            for (auto& dim : split(blobs_shape_map.at(name), ',')) {
+            for (auto& dim : split(tensors_shape_map.at(name), ',')) {
                 parsed_shape.push_back(std::stoi(dim));
             }
-            info.blobShape = parsed_shape;
+            info.tensorShape = parsed_shape;
         } else if(info.partialShape.is_static()) {
-            info.blobShape = info.partialShape.get_shape();
+            info.tensorShape = info.partialShape.get_shape();
         } else {
-            throw std::logic_error("blob_shape command line parameter should be set in case of network dynamic shape.");
+            throw std::logic_error("tensor_shape command line parameter should be set in case of network dynamic shape.");
         }
 
         // Layout
@@ -146,8 +146,8 @@ benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
         // Update blob shape only not affecting network shape to trigger dynamic batch size case
         if (batch_size != 0) {
             std::size_t batch_index = info.layout.find("N");
-            if ((batch_index != std::string::npos) && (info.blobShape.at(batch_index) != batch_size)) {
-                info.blobShape[batch_index] = batch_size;
+            if ((batch_index != std::string::npos) && (info.tensorShape.at(batch_index) != batch_size)) {
+                info.tensorShape[batch_index] = batch_size;
                 reshape_required = true;
             }
         }
@@ -179,7 +179,7 @@ template <typename T>
 benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
                                         const std::string& layout_string,
                                         const size_t batch_size,
-                                        const std::string& blobs_shape_string,
+                                        const std::string& tensors_shape_string,
                                         const std::string& scale_string,
                                         const std::string& mean_string,
                                         const std::map<std::string, T>& input_info) {
@@ -187,7 +187,7 @@ benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
     return getInputsInfo<T>(shape_string,
                             layout_string,
                             batch_size,
-                            blobs_shape_string,
+                            tensors_shape_string,
                             scale_string,
                             mean_string,
                             input_info,
