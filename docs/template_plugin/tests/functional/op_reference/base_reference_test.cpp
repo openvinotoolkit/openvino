@@ -98,6 +98,11 @@ void CommonReferenceTest::ValidateBlobs(const ov::runtime::Tensor& refBlob, cons
             refBlob.data<const float>(), outBlob.data<const float>(),
             refBlob.get_size(), threshold, abs_threshold);
         break;
+    case ov::element::f64:
+        LayerTestsUtils::LayerTestsCommon::Compare<double, double>(
+            refBlob.data<const double>(), outBlob.data<const double>(),
+            refBlob.get_size(), threshold, abs_threshold);
+        break;
     case ov::element::i8:
         LayerTestsUtils::LayerTestsCommon::Compare<int8_t, int8_t>(
             refBlob.data<const int8_t>(), outBlob.data<const int8_t>(),

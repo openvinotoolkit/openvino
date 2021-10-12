@@ -172,6 +172,7 @@ std::vector<SoftmaxParams> generateSoftmaxFloatParams() {
 
 std::vector<SoftmaxParams> generateSoftmaxCombinedParams() {
     const std::vector<std::vector<SoftmaxParams>> softmaxTypeParams {
+        generateSoftmaxFloatParams<element::Type_t::f64>(),
         generateSoftmaxFloatParams<element::Type_t::f32>(),
         generateSoftmaxFloatParams<element::Type_t::f16>(),
         generateSoftmaxFloatParams<element::Type_t::bf16>()
