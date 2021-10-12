@@ -9,6 +9,7 @@
 #include <memory>
 #include <numeric>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include <ngraph/opsets/opset8.hpp>
@@ -39,12 +40,7 @@ std::vector<std::vector<size_t>> grouped_vector(const std::vector<size_t>& v) {
     return result;
 }
 
-struct SplitAndScale {
-    std::shared_ptr<ngraph::opset8::Split> split;
-    int64_t scale_factor;
-};
-
-SplitAndScale get_split_before_concat(const std::shared_ptr<ngraph::opset8::Concat>& concat) {
+std::pair<std::shared_ptr<ngraph::opset8::Split>, int64_t> get_split_before_concat(const std::shared_ptr<ngraph::opset8::Concat>& concat) {
     // This function gets producers of the 'concat' node, checks that the following conditions are fulfilled:
     // 1) all producers for 'concat' are Split nodes;
     // 2) 'concat' has only one unique producer ('split');
@@ -55,7 +51,7 @@ SplitAndScale get_split_before_concat(const std::shared_ptr<ngraph::opset8::Conc
     // and, if all these conditions are fulfilled, returns the above mentioned 'Concat' node. Otherwise, if some of these
     // conditions is false, this functions returns nullptr.
 
-    SplitAndScale result{nullptr, 0};
+    std::pair<std::shared_ptr<ngraph::opset8::Split>, int64_t> result{nullptr, 0};
 
     std::vector<size_t> idx;
     std::unordered_set<std::shared_ptr<ngraph::opset8::Split>> splits;
@@ -96,8 +92,8 @@ SplitAndScale get_split_before_concat(const std::shared_ptr<ngraph::opset8::Conc
         if (std::any_of(current_group.begin(), current_group.end(), [i](size_t j){ return j != i; })) { return result; }
     }
 
-    result.split = split;
-    result.scale_factor = size_of_group;
+    result.first = split;
+    result.second = size_of_group;
 
     return result;
 }
@@ -114,7 +110,7 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
         if (!concat) return false;
 
         auto split_and_scale = get_split_before_concat(concat);
-        auto split = split_and_scale.split;
+        auto split = split_and_scale.first;
         if (!split) return false;
 
         Shape split_input_shape = split->get_input_shape(0);
@@ -126,7 +122,7 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
 
         int64_t axis = split_axis_const->cast_vector<int64_t>()[0];
 
-        int64_t scale_factor = split_and_scale.scale_factor;
+        int64_t scale_factor = split_and_scale.second;
         if (scale_factor == 0) return false;
 
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;
