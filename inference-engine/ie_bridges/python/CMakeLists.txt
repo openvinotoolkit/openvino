@@ -95,3 +95,7 @@ install(FILES requirements.txt
 install(PROGRAMS src/openvino/__init__.py
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino
         COMPONENT ${PYTHON_COMPONENT})
+
+# package Python samples
+
+ie_cpack(${PYTHON_COMPONENT} python_samples)
