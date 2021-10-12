@@ -46,6 +46,10 @@ const PartialShape& Output<Node>::get_partial_shape() const {
     return m_node->get_output_partial_shape(m_index);
 }
 
+const std::string& Output<Node>::get_any_name() const {
+    return get_tensor().get_any_name();
+}
+
 std::set<Input<Node>> Output<Node>::get_target_inputs() const {
     std::set<Input<Node>> result;
 
@@ -100,6 +104,10 @@ bool Output<Node>::operator>=(const Output& other) const {
 Output<const Node>::Output(const Node* node, size_t index) : m_node(node->shared_from_this()), m_index(index) {}
 
 Output<const Node>::Output(const std::shared_ptr<const Node>& node, size_t index) : m_node(node), m_index(index) {}
+
+const std::string& Output<const Node>::get_any_name() const {
+    return get_tensor().get_any_name();
+}
 
 void Output<const Node>::reset() {
     m_node.reset();

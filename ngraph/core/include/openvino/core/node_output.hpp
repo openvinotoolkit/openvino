@@ -71,6 +71,7 @@ public:
     const Shape& get_shape() const;
     /// \return The partial shape of the output referred to by this output handle.
     const PartialShape& get_partial_shape() const;
+    const std::string& get_any_name() const;
 
     /// \return The reference to runtime info map
     RTMap& get_rt_info();
@@ -129,6 +130,7 @@ public:
 
     /// This output position for a different node
     Output<const Node> for_node(const std::shared_ptr<const Node>& node);
+    const std::string& get_any_name() const;
 
     /// \return A pointer to the node referred to by this output handle.
     const Node* get_node() const;

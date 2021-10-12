@@ -217,6 +217,10 @@ void InferRequest::set_tensor1(const std::string& name, const Tensor& tensor) {
     OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlob(name, tensor._impl); });
 }
 
+void InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const Tensor& tensor) {
+    OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlob(port.get_any_name(), tensor._impl); });
+}
+
 void InferRequest::set_input_tensor(size_t idx, const Tensor& tensor) {
     IE_THROW() << "Not implemented";
 }
@@ -225,19 +229,38 @@ void InferRequest::set_input_tensor(const Tensor& tensor) {
     IE_THROW() << "Not implemented";
 }
 
-Tensor InferRequest::get_tensor1(const std::string& name){OV_INFER_REQ_CALL_STATEMENT({
-    auto blob = _impl->GetBlob(name);
-    const bool remoteBlobPassed = blob->is<ie::RemoteBlob>();
-    if (blob == nullptr) {
-        IE_THROW(NotAllocated) << "Internal tensor implementation with name `" << name << "` is not allocated!";
-    }
-    if (!remoteBlobPassed && blob->buffer() == nullptr) {
-        IE_THROW(NotAllocated) << "Internal tensor implementation with name `" << name << "` is not allocated!";
-    }
-    auto tensorDesc = blob->getTensorDesc();
-    auto dims = tensorDesc.getDims();
-    return {_so, blob};
-})}
+Tensor InferRequest::get_tensor1(const std::string& name) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        auto blob = _impl->GetBlob(name);
+        const bool remoteBlobPassed = blob->is<ie::RemoteBlob>();
+        if (blob == nullptr) {
+            IE_THROW(NotAllocated) << "Internal tensor implementation with name `" << name << "` is not allocated!";
+        }
+        if (!remoteBlobPassed && blob->buffer() == nullptr) {
+            IE_THROW(NotAllocated) << "Internal tensor implementation with name `" << name << "` is not allocated!";
+        }
+        auto tensorDesc = blob->getTensorDesc();
+        auto dims = tensorDesc.getDims();
+        return {_so, blob};
+    });
+}
+
+Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        const auto& name = port.get_any_name();
+        auto blob = _impl->GetBlob(name);
+        const bool remoteBlobPassed = blob->is<ie::RemoteBlob>();
+        if (blob == nullptr) {
+            IE_THROW(NotAllocated) << "Internal tensor implementation with name `" << name << "` is not allocated!";
+        }
+        if (!remoteBlobPassed && blob->buffer() == nullptr) {
+            IE_THROW(NotAllocated) << "Internal tensor implementation with name `" << name << "` is not allocated!";
+        }
+        auto tensorDesc = blob->getTensorDesc();
+        auto dims = tensorDesc.getDims();
+        return {_so, blob};
+    });
+}
 
 Tensor InferRequest::get_input_tensor(size_t idx) {
     IE_THROW() << "Not implemented";

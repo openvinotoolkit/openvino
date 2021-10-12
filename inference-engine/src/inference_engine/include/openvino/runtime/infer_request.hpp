@@ -17,6 +17,7 @@
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/variable_state.hpp"
+#include "openvino/core/node_output.hpp"
 
 namespace InferenceEngine {
 class IInferRequestInternal;
@@ -55,11 +56,20 @@ public:
      * @brief Sets input/output data to infer
      *
      * @note Memory allocation does not happen
+     * @param name Name of input or output tensor.
      * @param tensor Reference to input or output tensor. The type of a tensor must match the network input/output
      * precision and size.
-     * @param name Name of input or output tensor.
      */
     void set_tensor1(const std::string& name, const Tensor& tensor);
+    /**
+     * @brief Sets input/output data to infer
+     *
+     * @note Memory allocation does not happen
+     * @param port Port of input or output tensor.
+     * @param tensor Reference to input or output tensor. The type of a tensor must match the network input/output
+     * precision and size.
+     */
+    void set_tensor(const ov::Output<const ov::Node>& port, const Tensor& tensor);
     /**
      * @brief Sets input data to infer
      *
@@ -99,6 +109,14 @@ public:
      * @return A Tensor with a name @p name. If a tensor is not found, an exception is thrown.
      */
     Tensor get_tensor1(const std::string& name);
+    /**
+     * @brief Gets input/output data for inference
+     *
+     * @note Memory allocation does not happen
+     * @param port Port of tensor to get
+     * @return A Tensor with a name @p name. If a tensor is not found, an exception is thrown.
+     */
+    Tensor get_tensor(const ov::Output<const ov::Node>& port);
     /**
      * @brief Gets input data for inference
      *
