@@ -12,7 +12,6 @@
 #include <algorithm>
 #include <fstream>
 #include <functional>
-#include "openvino/openvino.hpp"
 #include <inference_engine.hpp>
 #include <iomanip>
 #include <iostream>
@@ -23,6 +22,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "openvino/openvino.hpp"
 
 #ifndef UNUSED
 #    if defined(_MSC_VER) && !defined(__clang__)

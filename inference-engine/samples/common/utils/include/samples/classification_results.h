@@ -50,7 +50,6 @@ private:
         std::cout << std::endl;
     }
 
-
     /**
      * @brief Gets the top n results from a tensor
      *
@@ -95,11 +94,11 @@ private:
      * @param output Vector of indexes for the top n places
      */
     void topResults(unsigned int n, const ov::runtime::Tensor& input, std::vector<unsigned>& output) {
-#define TENSOR_TOP_RESULT(elem_type)                                                      \
-    case ov::element::Type_t::elem_type: {                                                \
-        using tensor_type = ov::fundamental_type_for<ov::element::Type_t::elem_type>;     \
-        topResults<tensor_type>(n, input, output);                                        \
-        break;                                                                            \
+#define TENSOR_TOP_RESULT(elem_type)                                                  \
+    case ov::element::Type_t::elem_type: {                                            \
+        using tensor_type = ov::fundamental_type_for<ov::element::Type_t::elem_type>; \
+        topResults<tensor_type>(n, input, output);                                    \
+        break;                                                                        \
     }
 
         switch (input.get_element_type()) {
@@ -115,15 +114,14 @@ private:
             TENSOR_TOP_RESULT(i64);
             TENSOR_TOP_RESULT(u64);
         default:
-            OPENVINO_ASSERT(false,
-                "cannot locate tensor with element type: ", input.get_element_type());
+            OPENVINO_ASSERT(false, "cannot locate tensor with element type: ", input.get_element_type());
         }
 
 #undef TENSOR_TOP_RESULT
     }
 
 public:
-    explicit ClassificationResultT(const ov::runtime::Tensor & output_tensor,
+    explicit ClassificationResultT(const ov::runtime::Tensor& output_tensor,
                                    const std::vector<strType>& image_names = {},
                                    size_t batch_size = 1,
                                    size_t num_of_top = 10,
@@ -134,8 +132,7 @@ public:
           _imageNames(image_names),
           _batchSize(batch_size),
           _results() {
-        OPENVINO_ASSERT(_imageNames.size() == _batchSize,
-            "Batch size should be equal to the number of images.");
+        OPENVINO_ASSERT(_imageNames.size() == _batchSize, "Batch size should be equal to the number of images.");
 
         topResults(_nTop, _outTensor, _results);
     }

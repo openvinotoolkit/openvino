@@ -12,10 +12,10 @@
 
 #include "format_reader_ptr.h"
 #include "gflags/gflags.h"
+#include "ngraph/util.hpp"
 #include "ngraph_function_creation_sample.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "ngraph/util.hpp"
 #include "samples/args_helper.hpp"
 #include "samples/classification_results.h"
 #include "samples/common.hpp"
@@ -275,6 +275,7 @@ int main(int argc, char* argv[]) {
 
         // apply preprocessing
         {
+            // clang-format off
             using namespace ov::preprocess;
             model = PrePostProcessor()
                 .input(InputInfo()
@@ -286,6 +287,7 @@ int main(int argc, char* argv[]) {
                         InputNetworkInfo()
                             .set_layout("NCHW")))
                 .build(model);
+            // clang-format on
         }
 
         // --------------------------- Step 3. Configure input & output
@@ -347,7 +349,8 @@ int main(int argc, char* argv[]) {
         // /** Iterate over all input images **/
         for (size_t image_id = 0; image_id < imagesData.size(); ++image_id) {
             std::memcpy(input_tensor.data<std::uint8_t>() + image_id * image_size,
-                imagesData[image_id].get(), image_size);
+                        imagesData[image_id].get(),
+                        image_size);
         }
 
         // --------------------------- Step 7. Do inference
@@ -358,8 +361,7 @@ int main(int argc, char* argv[]) {
         slog::info << "Processing output tensor" << slog::endl;
 
         // TODO: replace with get_output_tensor()
-        const std::string outputname =
-            model->get_result()->input_value(0).get_node_shared_ptr()->get_friendly_name();
+        const std::string outputname = model->get_result()->input_value(0).get_node_shared_ptr()->get_friendly_name();
         const runtime::Tensor output_tensor = infer_request.get_tensor(outputname);
 
         /** Validating -nt value **/

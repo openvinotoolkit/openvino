@@ -150,7 +150,7 @@ ov::runtime::TensorVector readInputTensors(std::vector<UString>& data, size_t wi
         auto ptr = &buf[0];
 
         // Create tensor for Y plane from raw data
-        ov::runtime::Tensor yuv {ov::element::u8, {1, height * 3 / 2, width, 1}, ptr};
+        ov::runtime::Tensor yuv{ov::element::u8, {1, height * 3 / 2, width, 1}, ptr};
         tensors.emplace_back(yuv);
     }
 
