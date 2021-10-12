@@ -627,7 +627,15 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
     }
 }
 
-static bool BF16QuantizeNodeFusing(MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
+/**
+ * @todo FQ fusing was disabled for BF16 output since oneDNN primitives lack support
+ *       for bf16 depthwise postops.
+ *       This is not the case anymore, because after migration to oneDNN 2.3 FQ will be fused as
+ *       multiple binary post ops.
+ *       This check can already be removed for FC fusing, but should be kept for Convolution,
+ *       which still uses legacy depthwise postops for performance reasons.
+ */
+static bool BF16QuantizeNodeFusing(const MKLDNNNodePtr& parentNode, const MKLDNNNodePtr& childNode) {
     return childNode->getType() == FakeQuantize &&
         one_of(Precision::BF16,
             parentNode->getOriginalOutputPrecisionAtPort(0),
@@ -638,7 +646,7 @@ void MKLDNNGraphOptimizer::FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &gra
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableParentNode = [](MKLDNNNodePtr node) {
-        return node->getType() == FullyConnected && node->getChildEdges().size() == 1 && node->getInputShapeAtPort(0).getRank() != 3;
+        return node->getType() == FullyConnected && node->getChildEdges().size() == 1;
     };
 
     auto parent = graphNodes.begin();
