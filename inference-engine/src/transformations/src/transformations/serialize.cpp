@@ -1082,6 +1082,19 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     auto serializeFunc = [&] (std::ostream & xml_file, std::ostream & bin_file) {
         auto version = static_cast<int64_t>(m_version);
 
+        auto& rt_info = f->get_rt_info();
+        if (rt_info.count("version")) {
+            auto version_var = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
+            version = version_var->get();
+        }
+
+
+        if (version != static_cast<int64_t>(m_version) && m_version != Serialize::Version::UNSPECIFIED)
+            throw ngraph_error("Cannot serialize function to incompatible IR version");
+
+        if (version == static_cast<int64_t>(Serialize::Version::UNSPECIFIED))
+            version = static_cast<int64_t>(Serialize::Version::IR_V11);
+
         if (version != static_cast<int64_t>(Serialize::Version::IR_V10) &&
             version != static_cast<int64_t>(Serialize::Version::IR_V11)) {
             throw ngraph_error("Unsupported version");
@@ -1168,7 +1181,7 @@ ngraph::pass::StreamSerialize::StreamSerialize(std::ostream & stream,
     , m_custom_opsets(std::move(custom_opsets))
     , m_custom_data_serializer(custom_data_serializer)
     , m_version(version) {
-    if (version != Serialize::Version::IR_V10 &&
+    if (version != Serialize::Version::UNSPECIFIED && version != Serialize::Version::IR_V10 &&
         version != Serialize::Version::IR_V11) {
         throw ngraph_error("Unsupported version");
     }
@@ -1188,6 +1201,18 @@ bool ngraph::pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Func
         m_stream.write((const char*)&hdr, sizeof hdr);
     };
     auto version = static_cast<int64_t>(m_version);
+    auto& rt_info = f->get_rt_info();
+    if (rt_info.count("version")) {
+        auto version_var = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
+        version = version_var->get();
+    }
+
+    if (version != static_cast<int64_t>(m_version) && m_version != Serialize::Version::UNSPECIFIED)
+        throw ngraph_error("Cannot serialize function to incompatible IR version");
+
+    if (version == static_cast<int64_t>(Serialize::Version::UNSPECIFIED)) {
+        version = static_cast<int64_t>(Serialize::Version::IR_V11);
+    }
 
     // Header
     const size_t header_offset = m_stream.tellp();
