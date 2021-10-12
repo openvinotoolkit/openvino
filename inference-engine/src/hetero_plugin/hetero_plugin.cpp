@@ -42,8 +42,8 @@ std::vector<std::string> supported_configKeys {
 
 }  // namespace
 
-InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&    network,
-                                                                           const Configs&                   config) {
+InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
+                                                                            const Configs&                     config) {
     if (GetCore() == nullptr) {
         IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
     }
