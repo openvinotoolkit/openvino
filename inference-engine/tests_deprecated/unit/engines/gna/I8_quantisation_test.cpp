@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#if 0
+
 #include <vector>
 #include <gtest/gtest.h>
 #include <legacy/layer_transform.hpp>
@@ -85,7 +85,7 @@ TEST_F(I8QuantisationTest, FCDimensionIs1){
     auto weights = make_shared_blob<uint8_t >({ Precision::U8, {440}, C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(FCOnlyModel(), weights);
 
@@ -98,7 +98,7 @@ TEST_F(I8QuantisationTest, outputAffinePrecisionIs32Bits){
     auto weights = make_shared_blob<uint8_t >({ Precision::U8, {440}, C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(Fc2DOutputModel(), weights);
 
@@ -115,7 +115,7 @@ TEST_F(I8QuantisationTest, fp16tofp32_on_fullyConnected_model) {
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {220}, Layout::C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(FCOnlyModelFP16(), weights);
 
@@ -128,7 +128,7 @@ TEST_F(I8QuantisationTest, LSTMCell_quantize) {
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {33664}, C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(LSTMCellOnlyModel(), weights);
 
@@ -141,7 +141,7 @@ TEST_F(I8QuantisationTest, LSTMCell_unaligned_quantize) {
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {3480}, C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(LSTMCellOnlyModelUnaligned(), weights);
 
@@ -154,10 +154,10 @@ TEST_F(I8QuantisationTest, TI_quantize) {
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {249748}, C });
     weights->allocate();
     fillWeights(weights);
-        
+
     Core ie;
     auto network = ie.ReadNetwork(TIModelWithLSTMCell2(), weights);
 
     ASSERT_NO_THROW(q.quantize(network, 1000));
 }
-#endif
+
