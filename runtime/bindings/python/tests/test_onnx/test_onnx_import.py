@@ -18,7 +18,7 @@ def test_import_onnx_function():
     ie = Core()
     ie_network = ie.read_network(model=model_path)
 
-    ng_function = ov.function_from_cnn(ie_network)
+    ng_function = ie_network.get_function()
 
     dtype = np.float32
     value_a = np.array([1.0], dtype=dtype)

@@ -27,8 +27,8 @@ def make_onnx_model_for_matmul_op(input_left, input_right):
 
 
 def import_and_compute_matmul(input_left, input_right):
-    input_data_left = np.array(input_left)
-    input_data_right = np.array(input_right)
+    input_data_left = np.array(input_left).astype(np.float32)
+    input_data_right = np.array(input_right).astype(np.float32)
     onnx_model = make_onnx_model_for_matmul_op(input_data_left, input_data_right)
     transformer = get_runtime()
     ng_model_function = import_onnx_model(onnx_model)
@@ -37,7 +37,7 @@ def import_and_compute_matmul(input_left, input_right):
 
 
 def numpy_gemm(input_a, input_b, input_c, alpha=1, beta=1, trans_a=False, trans_b=False, broadcast=False):
-    input_a, input_b, input_c = np.array(input_a), np.array(input_b), np.array(input_c)
+    input_a, input_b, input_c = np.array(input_a).astype(np.float32), np.array(input_b).astype(np.float32), np.array(input_c).astype(np.float32)
     if trans_a:
         input_a = input_a.T
     if trans_b:
@@ -71,7 +71,7 @@ def make_onnx_model_for_gemm_op(input_a, input_b, input_c, **kwargs):
 
 
 def import_and_compute_gemm(input_a, input_b, input_c, **kwargs):
-    input_a, input_b, input_c = np.array(input_a), np.array(input_b), np.array(input_c)
+    input_a, input_b, input_c = np.array(input_a).astype(np.float32), np.array(input_b).astype(np.float32), np.array(input_c).astype(np.float32)
 
     if kwargs.get("trans_a"):
         kwargs["transA"] = kwargs["trans_a"]

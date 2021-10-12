@@ -36,6 +36,7 @@ def _convert_inputs(cnn_network: IENetwork) -> None:
     """WA converts unsupported input images formats."""
     precision_map = {
         "FP64": "FP32",
+        "I64": "I32",
         "U32": "I32",
     }
 
@@ -45,6 +46,18 @@ def _convert_inputs(cnn_network: IENetwork) -> None:
             cnn_network.input_info[cnn_input].precision = _precision
         except KeyError:
             pass
+
+
+def _convert_val(val):
+    """WA converts unsupported input values."""
+    if type(val) is np.ndarray:
+        if val.dtype == np.float64:
+            return np.array(val, dtype=np.float32)
+        elif val.dtype == np.int64:
+            return np.array(val, dtype=np.int32)
+        return np.array(val)
+
+    return np.array(val, dtype=np.float32)
 
 
 def apply_ng_type(output: DataPtr, ng_type: Type):
@@ -147,7 +160,7 @@ class Computation(object):
         # ignore not needed input values
         input_values = input_values[:len(self.parameters)]
 
-        input_values = [np.array(input_value) for input_value in input_values]
+        input_values = [_convert_val(input_value) for input_value in input_values]
         input_shapes = [get_shape(input_value) for input_value in input_values]
 
         param_names = [param.friendly_name for param in self.parameters]

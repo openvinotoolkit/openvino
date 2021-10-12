@@ -128,14 +128,14 @@ def test_transpose():
 
 @xfail_issue_35927
 def test_slice_opset1():
-    data = np.array([[1, 2, 3, 4], [5, 6, 7, 8]])
+    data = np.array([[1, 2, 3, 4], [5, 6, 7, 8]]).astype(np.float32)
 
-    expected_output = np.array([[5, 6, 7]])
+    expected_output = np.array([[5, 6, 7]]).astype(np.float32)
     model = get_node_model("Slice", data, axes=[0, 1], starts=[1, 0], ends=[2, 3])
     ng_results = run_model(model, [data])
     assert np.array_equal(ng_results, [expected_output])
 
-    expected_output = np.array([[2, 3, 4]])
+    expected_output = np.array([[2, 3, 4]]).astype(np.float32)
     model = get_node_model("Slice", data, starts=[0, 1], ends=[-1, 1000])
     ng_results = run_model(model, [data])
     assert np.array_equal(ng_results, [expected_output])

@@ -16,8 +16,6 @@ from openvino.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
-from tests import skip_issue_67415
-
 
 def test_ngraph_function_api():
     shape = [2, 2]
@@ -47,7 +45,7 @@ def test_ngraph_function_api():
     "dtype",
     [
         np.float32,
-        pytest.param(np.float64, marks=skip_issue_67415),
+        np.float64,
         np.int8,
         np.int16,
         np.int32,
