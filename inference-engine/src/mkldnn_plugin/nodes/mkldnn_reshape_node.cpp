@@ -39,8 +39,8 @@ MKLDNNReshapeNode::MKLDNNReshapeNode(const std::shared_ptr<ngraph::Node>& op, co
 
     if (isDynamicNode()) {
         auto checkSecondInput = [](const std::shared_ptr<ngraph::Node>& op, const std::string opType) {
-            if (op->get_input_node_shared_ptr(1)->is_dynamic())
-                IE_THROW() << "CPU plug-in doesn't support " << opType << " node with non static second input";
+            if (op->get_input_partial_shape(1).is_dynamic())
+                IE_THROW() << "CPU plug-in doesn't support " << opType << " node with non static second input: " << op->get_friendly_name();
         };
 
         if (std::dynamic_pointer_cast<const ngraph::opset1::Reshape>(op)) {

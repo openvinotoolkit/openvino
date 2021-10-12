@@ -54,8 +54,8 @@ void MKLDNNShapeOfNode::getSupportedDescriptors() {
         return;
     if (getParentEdges().size() != 1)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
-    if (getChildEdges().size() != 1)
-        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getParentEdges().size();
+    if (getChildEdges().empty())
+        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
 }
 
 void MKLDNNShapeOfNode::initSupportedPrimitiveDescriptors() {
