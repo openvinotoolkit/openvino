@@ -59,8 +59,6 @@ public:
             auto ret = std::dynamic_pointer_cast<VariantWrapper<T>>(res);
             FRONT_END_GENERAL_CHECK(ret, "Attribute with name '", name, "' has invalid type");
             return ret->get();
-        } else {
-            return def;
         }
         return def;
     }

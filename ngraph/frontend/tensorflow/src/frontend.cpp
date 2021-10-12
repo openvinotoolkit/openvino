@@ -182,7 +182,7 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
         }
 
         // register nGraph node outputs in the map for new operation node
-        for (auto output : ng_outputs) {
+        for (const auto& output : ng_outputs) {
             if (auto result = std::dynamic_pointer_cast<ov::opset8::Result>(output.get_node_shared_ptr())) {
                 // do not add RetVal type operation to ng_op_map
                 results.push_back(result);

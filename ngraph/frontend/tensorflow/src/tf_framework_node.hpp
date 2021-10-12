@@ -16,7 +16,7 @@ namespace tf {
 
 class TFFrameworkNode : public ::ov::op::util::FrameworkNode {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("TFFrameworkNode", "util", ::ov::op::util::FrameworkNode);
 
     TFFrameworkNode(const std::shared_ptr<DecoderBase>& decoder, const OutputVector& inputs, size_t num_outputs)
         : FrameworkNode(inputs, std::max(num_outputs, size_t(1))),

@@ -156,7 +156,7 @@ static void ValidateInputCountMin(const ov::frontend::tf::NodeContext& node, siz
 
 // Check to make sure the axis dimension for reduction are in within range.
 // Returns error if axis is out of range. Otherwise returns Status::OK().
-static Status CheckAxisDimInRange(std::vector<int64_t> axes, size_t rank) {
+static Status CheckAxisDimInRange(const std::vector<int64_t>& axes, size_t rank) {
     for (auto i : axes) {
         if (i < -(int)rank || i >= (int)rank) {
             std::ostringstream buf;
@@ -233,7 +233,6 @@ static void GetStaticInputVector(const ov::frontend::tf::NodeContext& node,
     auto constant = std::dynamic_pointer_cast<ov::opset8::Constant>(ng_input.get_node_shared_ptr());
     FRONT_END_GENERAL_CHECK(constant != nullptr, "Node ", node.get_name(), " can't be casted to Constant.");
     *vector = constant->cast_vector<T>();
-    return;
 }
 
 // Taken from: tensorflow/core/grappler/optimizers/arithmetic_optimizer.cc
@@ -302,7 +301,7 @@ static Status ValuesFromConstNode(const ::ov::frontend::DecoderBase* node,
             int64_t val_size = 0;
             auto val_i = (T)0;  // cast
             switch (dt) {
-            // TODO(amprocte/NGRAPH-2502): there are more element types to support
+            // TODO: there are more element types to support
             // here
             case tensorflow::DT_INT32:
                 val_size = tensor_proto.int_val_size();
