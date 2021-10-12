@@ -18,12 +18,12 @@
 
 #include "dict_attribute_visitor.hpp"
 #include "ngraph/check.hpp"
-#include "openvino/core/except.hpp"
 #include "ngraph/log.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/opsets/opset.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable.hpp"
+#include "openvino/opsets/opset.hpp"
 
 namespace py = pybind11;
 
