@@ -68,4 +68,4 @@ OutputVector TranslateMaxPoolOp(const NodeContext& node) {
 }  // namespace op
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

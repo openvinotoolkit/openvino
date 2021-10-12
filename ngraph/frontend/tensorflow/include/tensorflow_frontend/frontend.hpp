@@ -19,7 +19,7 @@ namespace tf {
 class NodeContext;
 }
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
 
 namespace ov {
 namespace frontend {
@@ -70,7 +70,8 @@ protected:
     /// \brief Check if FrontEndTensorflow can recognize model from given parts
     bool supported_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const override;
 
-    ngraph::frontend::InputModel::Ptr load_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const override;
+    ngraph::frontend::InputModel::Ptr load_impl(
+        const std::vector<std::shared_ptr<ov::Variant>>& variants) const override;
 
 private:
     void translate_graph(const std::shared_ptr<InputModelTF>& model,
@@ -80,4 +81,4 @@ private:
                          std::shared_ptr<ov::Function>& ng_function) const;
 };
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

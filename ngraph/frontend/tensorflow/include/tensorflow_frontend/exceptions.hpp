@@ -32,4 +32,4 @@ private:
 /// \throws ::ov::OpValidationFailureTF if `cond` is false.
 #define TF_OP_VALIDATION_CHECK(node_context, ...) \
     NGRAPH_CHECK_HELPER(::ov::frontend::tf::OpValidationFailureTF, (node_context), __VA_ARGS__)
-}  // namespace ngraph
+}  // namespace ov

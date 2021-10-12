@@ -42,4 +42,4 @@ public:
     virtual ~DecoderBase() = default;
 };
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

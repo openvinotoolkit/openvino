@@ -33,4 +33,4 @@ public:
     virtual ~GraphIterator() = default;
 };
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

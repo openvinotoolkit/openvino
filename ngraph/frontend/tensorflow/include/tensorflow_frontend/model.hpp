@@ -32,11 +32,12 @@ public:
     ngraph::frontend::Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override;
     void override_all_outputs(const std::vector<ngraph::frontend::Place::Ptr>& outputs) override;
     void override_all_inputs(const std::vector<ngraph::frontend::Place::Ptr>& inputs) override;
-    void extract_subgraph(const std::vector<ngraph::frontend::Place::Ptr>& inputs, const std::vector<ngraph::frontend::Place::Ptr>& outputs) override;
+    void extract_subgraph(const std::vector<ngraph::frontend::Place::Ptr>& inputs,
+                          const std::vector<ngraph::frontend::Place::Ptr>& outputs) override;
     void set_partial_shape(ngraph::frontend::Place::Ptr place, const ov::PartialShape&) override;
     ov::PartialShape get_partial_shape(ngraph::frontend::Place::Ptr place) const override;
     void set_element_type(ngraph::frontend::Place::Ptr place, const ov::element::Type&) override;
     void set_tensor_value(ngraph::frontend::Place::Ptr place, const void* value) override;
 };
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

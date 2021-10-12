@@ -60,7 +60,8 @@ public:
     ngraph::frontend::Place::Ptr getPlaceByTensorName(const std::string& tensorName) const;
     void overrideAllOutputs(const std::vector<ngraph::frontend::Place::Ptr>& outputs);
     void overrideAllInputs(const std::vector<ngraph::frontend::Place::Ptr>& inputs);
-    void extractSubgraph(const std::vector<ngraph::frontend::Place::Ptr>& inputs, const std::vector<ngraph::frontend::Place::Ptr>& outputs);
+    void extractSubgraph(const std::vector<ngraph::frontend::Place::Ptr>& inputs,
+                         const std::vector<ngraph::frontend::Place::Ptr>& outputs);
     void setPartialShape(ngraph::frontend::Place::Ptr place, const ov::PartialShape&);
     ov::PartialShape getPartialShape(ngraph::frontend::Place::Ptr place) const;
     void setElementType(ngraph::frontend::Place::Ptr place, const ov::element::Type&);
@@ -140,10 +141,8 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
     m_outputs.clear();
     for (auto& output_name : op_names_without_consumers) {
         std::vector<std::string> output_names = {output_name};
-        auto output_place = std::make_shared<TensorPlaceTF>(m_input_model,
-                                                            ov::PartialShape({}),
-                                                            ov::element::undefined,
-                                                            output_names);
+        auto output_place =
+            std::make_shared<TensorPlaceTF>(m_input_model, ov::PartialShape({}), ov::element::undefined, output_names);
         m_tensor_places[output_name] = output_place;
         m_outputs.push_back(output_place);
     }
@@ -305,7 +304,8 @@ void InputModelTF::InputModelTFImpl::extractSubgraph(const std::vector<ngraph::f
     overrideAllOutputs(outputs);
 }
 
-void InputModelTF::InputModelTFImpl::setPartialShape(ngraph::frontend::Place::Ptr place, const ov::PartialShape& p_shape) {
+void InputModelTF::InputModelTFImpl::setPartialShape(ngraph::frontend::Place::Ptr place,
+                                                     const ov::PartialShape& p_shape) {
     castToTensorPlace(place)->set_partial_shape(p_shape);
 }
 
@@ -363,7 +363,8 @@ void InputModelTF::override_all_inputs(const std::vector<ngraph::frontend::Place
     _impl->overrideAllInputs(inputs);
 }
 
-void InputModelTF::extract_subgraph(const std::vector<ngraph::frontend::Place::Ptr>& inputs, const std::vector<ngraph::frontend::Place::Ptr>& outputs) {
+void InputModelTF::extract_subgraph(const std::vector<ngraph::frontend::Place::Ptr>& inputs,
+                                    const std::vector<ngraph::frontend::Place::Ptr>& outputs) {
     _impl->extractSubgraph(inputs, outputs);
 }
 
@@ -383,4 +384,4 @@ void InputModelTF::set_tensor_value(ngraph::frontend::Place::Ptr place, const vo
     _impl->setTensorValue(place, value);
 }
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

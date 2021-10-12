@@ -14,17 +14,16 @@ namespace ov {
 namespace frontend {
 namespace tf {
 
-std::map<::tensorflow::DataType, ov::element::Type> TYPE_MAP{
-    {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
-    {::tensorflow::DataType::DT_INT16, ov::element::i16},
-    {::tensorflow::DataType::DT_INT32, ov::element::i32},
-    {::tensorflow::DataType::DT_INT64, ov::element::i64},
-    {::tensorflow::DataType::DT_HALF, ov::element::f16},
-    {::tensorflow::DataType::DT_FLOAT, ov::element::f32},
-    {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
-    {::tensorflow::DataType::DT_UINT8, ov::element::u8},
-    {::tensorflow::DataType::DT_INT8, ov::element::i8},
-    {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16}};
+std::map<::tensorflow::DataType, ov::element::Type> TYPE_MAP{{::tensorflow::DataType::DT_BOOL, ov::element::boolean},
+                                                             {::tensorflow::DataType::DT_INT16, ov::element::i16},
+                                                             {::tensorflow::DataType::DT_INT32, ov::element::i32},
+                                                             {::tensorflow::DataType::DT_INT64, ov::element::i64},
+                                                             {::tensorflow::DataType::DT_HALF, ov::element::f16},
+                                                             {::tensorflow::DataType::DT_FLOAT, ov::element::f32},
+                                                             {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
+                                                             {::tensorflow::DataType::DT_UINT8, ov::element::u8},
+                                                             {::tensorflow::DataType::DT_INT8, ov::element::i8},
+                                                             {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16}};
 }
 
 bool PlaceTF::is_input() const {
@@ -153,7 +152,8 @@ ngraph::frontend::Place::Ptr OpPlaceTF::get_producing_operation(const std::strin
     return get_input_port(inputName)->get_producing_operation();
 }
 
-ngraph::frontend::Place::Ptr OpPlaceTF::get_producing_operation(const std::string& inputName, int inputPortIndex) const {
+ngraph::frontend::Place::Ptr OpPlaceTF::get_producing_operation(const std::string& inputName,
+                                                                int inputPortIndex) const {
     return get_input_port(inputName, inputPortIndex)->get_producing_operation();
 }
 
@@ -318,4 +318,4 @@ ngraph::frontend::Place::Ptr OutPortPlaceTF::get_producing_operation() const {
     FRONT_END_THROW("Operation has expired.");
 }
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

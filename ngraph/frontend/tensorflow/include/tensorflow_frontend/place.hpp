@@ -19,7 +19,8 @@ public:
         : m_input_model(input_model),
           m_names(names) {}
 
-    explicit PlaceTF(const ngraph::frontend::InputModel& input_model) : PlaceTF(input_model, std::vector<std::string>{}) {}
+    explicit PlaceTF(const ngraph::frontend::InputModel& input_model)
+        : PlaceTF(input_model, std::vector<std::string>{}) {}
 
     ~PlaceTF() override = default;
 
@@ -172,4 +173,4 @@ private:
     std::vector<std::weak_ptr<InPortPlaceTF>> m_consuming_ports;
 };
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

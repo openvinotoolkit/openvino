@@ -31,9 +31,8 @@ void Transpose(ov::Output<ov::Node>& node) {
     auto& s = node.get_shape();
     ov::Shape reshaped_shape{s[a], s[b], s[c], s[d]};
     ov::Shape transpose_order{a, b, c, d};
-    auto input_order = std::make_shared<ov::opset8::Constant>(ov::element::u64,
-                                                                  ov::Shape{transpose_order.size()},
-                                                                  transpose_order);
+    auto input_order =
+        std::make_shared<ov::opset8::Constant>(ov::element::u64, ov::Shape{transpose_order.size()}, transpose_order);
     node = std::make_shared<ov::opset8::Transpose>(node, input_order);
 }
 
@@ -50,9 +49,8 @@ void Transpose3D(ov::Output<ov::Node>& node) {
     auto& s = node.get_shape();
     ov::Shape reshaped_shape{s[a], s[b], s[c], s[d], s[e]};
     ov::Shape transpose_order{a, b, c, d, e};
-    auto input_order = std::make_shared<ov::opset8::Constant>(ov::element::u64,
-                                                                  ov::Shape{transpose_order.size()},
-                                                                  transpose_order);
+    auto input_order =
+        std::make_shared<ov::opset8::Constant>(ov::element::u64, ov::Shape{transpose_order.size()}, transpose_order);
     node = std::make_shared<ov::opset8::Transpose>(node, input_order);
 }
 
@@ -100,4 +98,4 @@ void NHWCtoHW(bool is_nhwc, const std::vector<T>& src, std::vector<size_t>& dst)
 
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

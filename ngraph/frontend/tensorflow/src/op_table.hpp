@@ -23,4 +23,4 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops();
 }  // namespace op
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

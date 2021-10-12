@@ -109,4 +109,4 @@ std::vector<::tensorflow::AttrValue> DecoderTFProto::decode_attribute_helper(con
 }
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

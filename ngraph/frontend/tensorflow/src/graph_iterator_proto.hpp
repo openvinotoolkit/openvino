@@ -58,4 +58,4 @@ public:
 };
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

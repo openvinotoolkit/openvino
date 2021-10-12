@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <openvino/util/common_util.hpp>
 #include <tensorflow_frontend/frontend.hpp>
 #include <tensorflow_frontend/model.hpp>
-
-#include <openvino/util/common_util.hpp>
 
 #include "op_table.hpp"
 #include "tf_framework_node.hpp"
@@ -96,8 +95,7 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
         auto input_type = input_tensor_place->get_element_type();
 
         auto input_ng_output = ConstructNgNode<ov::opset8::Parameter>(input_name, input_type, input_shape);
-        auto input_ng_node =
-            std::dynamic_pointer_cast<ov::opset8::Parameter>(input_ng_output.get_node_shared_ptr());
+        auto input_ng_node = std::dynamic_pointer_cast<ov::opset8::Parameter>(input_ng_output.get_node_shared_ptr());
         params.push_back(input_ng_node);
         ng_op_map[input_name] = {input_ng_output};
     }
@@ -287,7 +285,8 @@ bool FrontEndTF::supported_impl(const std::vector<std::shared_ptr<ov::Variant>>&
     return false;
 }
 
-ngraph::frontend::InputModel::Ptr FrontEndTF::load_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const {
+ngraph::frontend::InputModel::Ptr FrontEndTF::load_impl(
+    const std::vector<std::shared_ptr<ov::Variant>>& variants) const {
     // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
     if (variants.size() == 1) {
         // a case when binary protobuf format is provided

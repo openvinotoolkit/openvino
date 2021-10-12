@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -14,10 +14,9 @@ namespace tf {
 namespace op {
 
 namespace {
-using ConstMap =
-    std::map<ov::element::Type,
-             std::pair<std::function<Status(const NodeContext&, ov::element::Type, ov::Output<ov::Node>&)>,
-                       const ov::element::Type>>;
+using ConstMap = std::map<ov::element::Type,
+                          std::pair<std::function<Status(const NodeContext&, ov::element::Type, ov::Output<ov::Node>&)>,
+                                    const ov::element::Type>>;
 
 const ConstMap& TF_NGRAPH_CONST_MAP() {
     static const ConstMap the_map = {
@@ -66,4 +65,4 @@ OutputVector TranslateConstOp(const NodeContext& node) {
 }  // namespace op
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

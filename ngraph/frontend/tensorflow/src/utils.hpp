@@ -42,7 +42,7 @@ public:
 }  // namespace detail
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
 
 namespace ov {
 namespace frontend {
@@ -110,12 +110,12 @@ static void MakePadding(const std::string& tf_padding_type,
         ov::Shape img_shape = {0, 0};
         img_shape.insert(img_shape.end(), ng_image_shape.begin(), ng_image_shape.end());
         ov::infer_auto_padding(img_shape,
-                                   ng_kernel_shape,
-                                   ng_strides,
-                                   ng_dilations,
-                                   ov::op::PadType::SAME_UPPER,
-                                   ng_padding_above,
-                                   ng_padding_below);
+                               ng_kernel_shape,
+                               ng_strides,
+                               ng_dilations,
+                               ov::op::PadType::SAME_UPPER,
+                               ng_padding_above,
+                               ng_padding_below);
     } else if (tf_padding_type == "VALID") {
         ng_padding_below.assign(ng_image_shape.size(), 0);
         ng_padding_above.assign(ng_image_shape.size(), 0);
@@ -363,4 +363,4 @@ static Status MakeConstOp(const NodeContext& node, ov::element::Type et, ov::Out
 }
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

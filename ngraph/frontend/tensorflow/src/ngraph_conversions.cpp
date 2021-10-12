@@ -88,4 +88,4 @@ void TFDataTypeToNGraphElementType(DataType tf_dt, ov::element::Type* ng_et) {
 
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

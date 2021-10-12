@@ -16,4 +16,4 @@ void TFFrameworkNode::validate_and_infer_types() {
 }
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
