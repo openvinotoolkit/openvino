@@ -183,6 +183,7 @@ extensions/front/mxnet/cumsum.py
 extensions/front/mxnet/cumsum_ext.py
 extensions/front/mxnet/custom.py
 extensions/front/mxnet/custom_rpn_proposal.py
+extensions/front/mxnet/deduce_parameter_shape.py
 extensions/front/mxnet/deformable_conv_ext.py
 extensions/front/mxnet/deformable_psroi_pooling_ext.py
 extensions/front/mxnet/dropout_ext.py
