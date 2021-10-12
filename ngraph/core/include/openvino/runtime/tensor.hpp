@@ -149,5 +149,7 @@ public:
      */
     explicit operator bool() const noexcept;
 };
+
+using TensorVector = std::vector<Tensor>;
 }  // namespace runtime
 }  // namespace ov

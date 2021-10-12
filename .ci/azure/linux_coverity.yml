@@ -1,10 +1,3 @@
-resources:
-  repositories:
-  - repository: openvino_contrib
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/openvino_contrib
-
 jobs:
 - job: Lin
   # About 150% of total time
@@ -19,7 +12,6 @@ jobs:
     VSTS_HTTP_TIMEOUT: 200
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
-    OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
@@ -61,43 +53,25 @@ jobs:
     submodules: recursive
     path: openvino
 
-  - checkout: openvino_contrib
-    clean: true
-    lfs: false
-    submodules: recursive
-    path: openvino_contrib
-
   - script: |
       set -e
       $(REPO_DIR)/install_build_dependencies.sh
-      # Move jdk into contrib
-      sudo apt --assume-yes install openjdk-11-jdk
       # Speed up build
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
-      # Speed up tests
-      git clone https://github.com/google/gtest-parallel.git
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
   - task: CMake@1
     inputs:
-      # CMake must get Python 3.x version by default
       cmakeArgs: >
         -GNinja
         -DVERBOSE_BUILD=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-        -DENABLE_PYTHON=ON
-        -DPYTHON_EXECUTABLE=/usr/bin/python3.8
-        -DENABLE_WHEEL=ON
-      # Skipping tests from static analysis
-      # -DENABLE_TESTS=ON
-        -DNGRAPH_ONNX_FRONTEND_ENABLE=ON
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DENABLE_REQUIREMENTS_INSTALL=OFF
-        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
@@ -105,36 +79,30 @@ jobs:
     displayName: 'List temp SDKs'
 
   - script: |
+        set -e
         wget https://scan.coverity.com/download/linux64 --post-data "token=$(COVERITY_TOKEN)&project=openvino" -O coverity_tool.tgz
-        tar xvf coverity_tool.tgz --directory $(Agent.ToolsDirectory)
+        tar xvf coverity_tool.tgz
         rm coverity_tool.tgz
-    workingDirectory: $(TEMP)
+    workingDirectory: $(WORK_DIR)
+    displayName: 'Install coverity tool'
 
-  - script: $(Agent.ToolsDirectory)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int ninja
+  - script: $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int ninja
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Lin with Coverity'
   
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
 
-  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
+  - script: tar -C $(BUILD_DIR) -czvf openvino.tgz cov-int
     workingDirectory: $(BUILD_DIR)
-    displayName: 'Install'
+    displayName: 'Pack cov-int folder for submission'
 
-  - script: ls -alR $(INSTALL_DIR)
-    displayName: 'List install files'
-
-  # todo add coverity intercept
-  - script: $(Agent.ToolsDirectory)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int $(INSTALL_DIR)/samples/cpp/build_samples.sh
-    workingDirectory: $(BUILD_SAMPLES_DIR)
-    displayName: 'Build cpp samples with Coverity'
-
-  - script: $(Agent.ToolsDirectory)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int $(INSTALL_DIR)/samples/c/build_samples.sh
-    workingDirectory: $(BUILD_SAMPLES_DIR)
-    displayName: 'Build c samples with Coverity'
+  - publish: $(BUILD_DIR)/openvino.tgz
+    artifact: openvino.tgz
+    continueOnError: true
+    displayName: 'Publish submission'
 
   - script: |
-        tar czvf openvino.tgz $(BUILD_DIR)/cov-int
         curl --form token=$(COVERITY_TOKEN) \
           --form email=$(COVERITY_USER) \
           --form file=@openvino.tgz \
@@ -143,7 +111,3 @@ jobs:
           https://scan.coverity.com/builds?project=openvino
     workingDirectory: $(BUILD_DIR)
     displayName: 'Submit for analysis'
-
-  - script: rm -fr $(BUILD_DIR)
-    displayName: 'Clean build dir'
-    continueOnError: false
