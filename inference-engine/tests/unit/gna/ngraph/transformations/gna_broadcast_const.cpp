@@ -40,6 +40,15 @@ using Node = std::shared_ptr<ov::op::Op>;
 // ------------------------------------------------------------------------------------------------
 
 struct ShapeInfo {
+    ShapeInfo(const ngraph::Shape& a_data_shape,
+              const ngraph::Shape& a_const_shape_dims_in,
+              const ngraph::Shape& a_const_shape_values_in,
+              const ngraph::Shape& a_const_shape_values_out) :
+              data_shape(a_data_shape),
+              const_shape_dims_in(a_const_shape_dims_in),
+              const_shape_values_in(a_const_shape_values_in),
+              const_shape_values_out(a_const_shape_values_out) {}
+
     ngraph::Shape data_shape;
     ngraph::Shape const_shape_dims_in;
     ngraph::Shape const_shape_values_in;
@@ -47,22 +56,22 @@ struct ShapeInfo {
 };
 
 std::unordered_map<ov::op::AutoBroadcastType, ShapeInfo> ShapesRightConst = {
-    { ov::op::AutoBroadcastType::NONE, {.data_shape = {3, 2},
-                                         .const_shape_dims_in = {3, 2},
-                                         .const_shape_values_in = {1, 2, 1, 2, 1, 2},
-                                         .const_shape_values_out = {1, 2, 1, 2, 1, 2} } },
-    { ov::op::AutoBroadcastType::EXPLICIT, {.data_shape = {3, 2},
-                                         .const_shape_dims_in = {3, 2},
-                                         .const_shape_values_in = {1, 2, 1, 2, 1, 2},
-                                         .const_shape_values_out = {1, 2, 1, 2, 1, 2} } },
-    { ov::op::AutoBroadcastType::NUMPY, {.data_shape = {3, 2},
-                                         .const_shape_dims_in = {2},
-                                         .const_shape_values_in = {1, 2},
-                                         .const_shape_values_out = {1, 2, 1, 2, 1, 2} } },
-    { ov::op::AutoBroadcastType::PDPD, {.data_shape = {3, 2},
-                                         .const_shape_dims_in = {3, 1},
-                                         .const_shape_values_in = {1, 2, 3},
-                                         .const_shape_values_out = {1, 1, 2, 2, 3, 3} } }
+    { ov::op::AutoBroadcastType::NONE, ShapeInfo(/* data_shape */ {3, 2},
+                                                 /* const_shape_dims_in */ {3, 2},
+                                                 /* const_shape_values_in */ {1, 2, 1, 2, 1, 2},
+                                                 /* const_shape_values_out */ {1, 2, 1, 2, 1, 2}) },
+    { ov::op::AutoBroadcastType::EXPLICIT, ShapeInfo(/* data_shape */ {3, 2},
+                                                     /* const_shape_dims_in */ {3, 2},
+                                                     /* const_shape_values_in */ {1, 2, 1, 2, 1, 2},
+                                                     /* const_shape_values_out */ {1, 2, 1, 2, 1, 2}) },
+    { ov::op::AutoBroadcastType::NUMPY, ShapeInfo(/* data_shape */ {3, 2},
+                                                  /* const_shape_dims_in */ {2},
+                                                  /* const_shape_values_in */ {1, 2},
+                                                  /* const_shape_values_out */ {1, 2, 1, 2, 1, 2}) },
+    { ov::op::AutoBroadcastType::PDPD, ShapeInfo(/* data_shape */ {3, 2},
+                                                 /* const_shape_dims_in */ {3, 1},
+                                                 /* const_shape_values_in */ {1, 2, 3},
+                                                 /* const_shape_values_out */ {1, 1, 2, 2, 3, 3}) }
 };
 
 // ------------------------------------------------------------------------------------------------
