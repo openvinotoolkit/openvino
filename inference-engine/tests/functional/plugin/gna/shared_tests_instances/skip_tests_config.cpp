@@ -65,5 +65,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
         // TODO: Issue: 29577
         R"(.*QueryNetwork.*)",
+        // TODO: GNA plugin does not support ExecGraph
+        R"(.*ExecGraphTests.*)"
     };
 }

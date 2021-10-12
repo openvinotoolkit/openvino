@@ -6,6 +6,14 @@
 #include "hetero_executable_network.hpp"
 #include "hetero_async_infer_request.hpp"
 #include "hetero_itt.hpp"
+#include "ie_precision.hpp"
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/result.hpp"
+#include "transformations/utils/utils.hpp"
+#include "openvino/op/parameter.hpp"
 #include "xml_parse_utils.h"
 #include <caseless.hpp>
 
@@ -63,6 +71,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
 //#ifndef NDEBUG
 //    dumpDotFile  = true;
 //#endif
+
     QueryNetworkResult queryNetworkResult;
     auto orderedOps = clonedFunction->get_ordered_ops();
     bool allEmpty = true;
@@ -548,6 +557,44 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         });
     }
 
+    const auto parseNode = [] (const pugi::xml_node & xml_node, bool is_param) ->
+        std::shared_ptr<const ov::Node> {
+        const std::string operation_name = GetStrAttr(xml_node, "operation_name");
+        const auto elementType =
+            ov::EnumNames<ov::element::Type_t>::as_enum(GetStrAttr(xml_node, "element_type"));
+
+        std::vector<ov::Dimension> partialShape;
+        pugi::xml_node partialShapeNode = xml_node.child("partial_shape");
+        FOREACH_CHILD(dimNode, partialShapeNode, "dim") {
+            partialShape.emplace_back(ov::Dimension(GetInt64Attr(dimNode, "value")));
+        }
+
+        pugi::xml_node tensorNamesNode = xml_node.child("tensor_names");
+        std::unordered_set<std::string> tensorNames;
+        FOREACH_CHILD(tensorNameNode, tensorNamesNode, "tensor_name") {
+            tensorNames.insert(GetStrAttr(tensorNameNode, "value"));
+        }
+
+        std::shared_ptr<ov::Node> node = std::make_shared<ov::op::v0::Parameter>(elementType, partialShape);
+        if (!is_param)
+            node = std::make_shared<ov::op::v0::Result>(node);
+        node->set_friendly_name(operation_name);
+        node->output(0).get_tensor().add_names(tensorNames);
+
+        return node;
+    };
+    (void)parseNode;
+
+    pugi::xml_node parametersNode = heteroNode.child("parameters");
+    FOREACH_CHILD(parameterNode, parametersNode, "parameter") {
+        _parameters.emplace_back(parseNode(parameterNode, true));
+    }
+
+    pugi::xml_node resultsNode = heteroNode.child("results");
+    FOREACH_CHILD(resultNode, resultsNode, "result") {
+        _results.emplace_back(parseNode(resultNode, false));
+    }
+
     // save state
     this->_config = importedConfigs;
     this->_networks = std::move(descs);
@@ -559,6 +606,8 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     auto heteroNode = doc.append_child("hetero");
     heteroNode.append_attribute("name").set_value(_name.c_str());
 
+    // CNNNetwork inputs and outputs information
+
     auto inputsNode = heteroNode.append_child("inputs");
     for (auto&& networkInput : _networkInputs) {
         inputsNode.append_child("input").append_attribute("name").set_value(networkInput.first.c_str());
@@ -567,6 +616,46 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     auto outputsNode = heteroNode.append_child("outputs");
     for (auto&& networkInput : _networkOutputs) {
         outputsNode.append_child("output").append_attribute("name").set_value(networkInput.first.c_str());
+    }
+
+    const auto serializeNode = [&] (const std::shared_ptr<const ov::Node>& node,
+        pugi::xml_node & xml_node) {
+        const bool is_result = ov::is_type<ov::op::v0::Result>(node);
+        const std::string name = is_result ?
+            ngraph::op::util::create_ie_output_name(node->input_value(0)) :
+            node->get_friendly_name();
+        xml_node.append_attribute("operation_name").set_value(name.c_str());
+        xml_node.append_attribute("element_type").set_value(
+            node->get_output_element_type(0).get_type_name().c_str());
+
+        const auto & pShape = node->get_output_partial_shape(0);
+        OPENVINO_ASSERT(pShape.rank().is_static(), "Serialization of shapes with dynamic rank is not supported");
+        auto partialShapeNode = xml_node.append_child("partial_shape");
+        for (auto && dim : node->get_output_partial_shape(0)) {
+            if (dim.is_dynamic())
+                partialShapeNode.append_child("dim").append_attribute("value").set_value("-1");
+            else
+                partialShapeNode.append_child("dim").append_attribute("value").set_value(std::to_string(dim.get_length()).c_str());
+        }
+
+        auto tensorNamesNode = xml_node.append_child("tensor_names");
+        for (auto & tensorName : node->get_output_tensor(0).get_names()) {
+            tensorNamesNode.append_child("tensor_name").append_attribute("value").set_value(tensorName.c_str());
+        }
+    };
+
+    // ngraph parameters info
+    auto subnetworkParamsNode = heteroNode.append_child("parameters");
+    for (auto&& parameter : getInputs()) {
+        auto parameterNode = subnetworkParamsNode.append_child("parameter");
+        serializeNode(parameter, parameterNode);
+    }
+
+    // ngraph results info
+    auto subnetworkResultsNode = heteroNode.append_child("results");
+    for (auto&& result : getOutputs()) {
+        auto parameterNode = subnetworkResultsNode.append_child("result");
+        serializeNode(result, parameterNode);
     }
 
     auto subnetworksNode = heteroNode.append_child("subnetworks");

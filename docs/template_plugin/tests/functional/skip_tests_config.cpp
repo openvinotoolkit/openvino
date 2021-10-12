@@ -25,5 +25,18 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(CanCreateTwoExeNetworksAndCheckFunction).*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
+        R"(.*smoke_BehaviorTests.*OVExecNetwork.ieImportExportedFunction.*)",
+
+        // TODO: Round with f16 is not supported
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
+        // TODO: execution graph is not supported
+        R"(.*ExecGraph.*)",
+
+        // TODO: support import / export of precisions in template plugin
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.ieImportExportedFunction.*)",
+        R"(.*smoke_BehaviorTests.*OVExecNetwork.ieImportExportedFunction.*)",
+
+        // TODO: Round with f16 is not supported
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
     };
 }
