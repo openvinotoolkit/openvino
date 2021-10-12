@@ -62,17 +62,17 @@ std::vector<std::string> disabledTestPatterns() {
 
             // Not allowed dynamic loop tests on GPU
             R"(.*smoke_StaticShapeLoop_dynamic_exit.*)",
-            // CVS-58963: Not implemented yet
-            R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
             // Not expected behavior
             R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
             R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetInBlobWithDifferentLayouts.*layout=NHWC.*)",
             R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=(CN|HW).*)",
-            R"(.*Behavior_Multi.*InferRequestSetBlobByType.*Batched.*)",
+            R"(.*Behavior.*(Multi|Auto).*InferRequestSetBlobByType.*Batched.*)",
             R"(.*(Multi|Auto).*Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
             // TODO: until issue is xxx-59670 is resolved
             R"(.*Gather8LayerTest.*)",
             // TODO: Issue 66516
-            R"(.*smoke_PrePostProcess_GPU.*convert_element_type_and_mean.*)"
+            R"(.*smoke_PrePostProcess_GPU.*convert_element_type_and_mean.*)",
+            // TODO: Issue 67408
+            R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
     };
 }

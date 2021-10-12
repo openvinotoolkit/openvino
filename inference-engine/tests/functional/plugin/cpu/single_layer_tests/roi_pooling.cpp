@@ -144,7 +144,6 @@ protected:
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roi_pooling)};
 
         function = makeNgraphFunction(ngPrc, params, roi_pooling, "roi_pooling");
-
         selectedType += "_";
         selectedType += netPrecision.name();
     }
