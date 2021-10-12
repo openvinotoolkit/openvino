@@ -35,8 +35,6 @@ MKLDNNPlugin::ReshapePRelu::ReshapePRelu() {
             }
         }
 
-        ngraph::NodeVector nodes_to_concatenate;
-
         ngraph::Shape target_shape(prelu_rank.get_length(), 1);
         target_shape[channel_dim_idx] = -1;
         const auto target_shape_const = ngraph::opset1::Constant::create(ngraph::element::i64, { target_shape.size() }, target_shape);
