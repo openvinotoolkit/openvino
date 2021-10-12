@@ -27,7 +27,7 @@ public:
     /// \param input_port_idx              Input port index by which data is consumed
     /// \param producer_name               A producer name
     /// \return producer_output_port_index Output port index from which data is generated
-    virtual void get_input_node(const size_t input_port_idx,
+    virtual void get_input_node(size_t input_port_idx,
                                 std::string& producer_name,
                                 size_t& producer_output_port_index) const = 0;
 

@@ -61,7 +61,6 @@ public:
     void overrideAllOutputs(const std::vector<Place::Ptr>& outputs);
     void overrideAllInputs(const std::vector<Place::Ptr>& inputs);
     void extractSubgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs);
-    void setDefaultShape(Place::Ptr place, const ngraph::Shape&);
     void setPartialShape(Place::Ptr place, const ngraph::PartialShape&);
     ngraph::PartialShape getPartialShape(Place::Ptr place) const;
     void setElementType(Place::Ptr place, const ngraph::element::Type&);
@@ -304,10 +303,6 @@ void InputModelTF::InputModelTFImpl::extractSubgraph(const std::vector<Place::Pt
     m_graph_changed = true;
     overrideAllInputs(inputs);
     overrideAllOutputs(outputs);
-}
-
-void InputModelTF::InputModelTFImpl::setDefaultShape(Place::Ptr place, const ngraph::Shape& shape) {
-    FRONT_END_NOT_IMPLEMENTED("setDefaultShape");
 }
 
 void InputModelTF::InputModelTFImpl::setPartialShape(Place::Ptr place, const ngraph::PartialShape& p_shape) {

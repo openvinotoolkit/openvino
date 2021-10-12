@@ -30,7 +30,7 @@ public:
 
     size_t get_input_size() const override;
 
-    void get_input_node(const size_t input_port_idx,
+    void get_input_node(size_t input_port_idx,
                         std::string& producer_name,
                         size_t& producer_output_port_index) const override;
 
