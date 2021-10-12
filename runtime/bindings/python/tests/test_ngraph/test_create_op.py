@@ -1923,3 +1923,27 @@ def test_matrix_nms():
     assert nms_node.get_output_element_type(0) == Type.f32
     assert nms_node.get_output_element_type(1) == Type.i32
     assert nms_node.get_output_element_type(2) == Type.i32
+
+
+def test_slice():
+    data_shape = [10, 7, 2, 13]
+    data = ng.parameter(data_shape, name="input", dtype=np.float32)
+    start = ng.constant(np.array([2, 0, 0], dtype=np.int32))
+    stop = ng.constant(np.array([9, 7, 2], dtype=np.int32))
+    step = ng.constant(np.array([2, 1, 1], dtype=np.int32))
+
+    node_default_axes = ng.slice(data, start, stop, step)
+
+    assert node_default_axes.get_type_name() == "Slice"
+    assert node_default_axes.get_output_size() == 1
+    assert tuple(node_default_axes.get_output_shape(0)) == np.zeros(data_shape)[2:9:2, ::, 0:2:1].shape
+
+    start = ng.constant(np.array([0, 2], dtype=np.int32))
+    stop = ng.constant(np.array([2, 9], dtype=np.int32))
+    step = ng.constant(np.array([1, 2], dtype=np.int32))
+    axes = ng.constant(np.array([-2, 0], dtype=np.int32))
+    node = ng.slice(data, start, stop, step, axes)
+
+    assert node.get_type_name() == "Slice"
+    assert node.get_output_size() == 1
+    assert tuple(node.get_output_shape(0)) == np.zeros(data_shape)[2:9:2, ::, 0:2:1].shape

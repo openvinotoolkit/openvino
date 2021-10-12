@@ -177,6 +177,7 @@ from ngraph.opset8 import squeeze
 from ngraph.opset8 import strided_slice
 from ngraph.opset8 import subtract
 from ngraph.opset8 import swish
+from ngraph.opset8 import slice
 from ngraph.opset8 import tan
 from ngraph.opset8 import tanh
 from ngraph.opset8 import tensor_iterator
