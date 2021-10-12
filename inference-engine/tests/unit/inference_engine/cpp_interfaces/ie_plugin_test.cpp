@@ -62,9 +62,11 @@ protected:
         EXPECT_CALL(*mock_plugin_impl.get(), LoadExeNetworkImpl(_, _)).WillOnce(Return(mockExeNetworkTS));
         EXPECT_CALL(*mockExeNetworkTS.get(), CreateInferRequestImpl(_, _)).WillOnce(Return(mockInferRequestInternal));
         IE_SUPPRESS_DEPRECATED_START
-        ASSERT_NO_THROW(exeNetwork = plugin->LoadNetwork(InferenceEngine::CNNNetwork(mockNotEmptyNet), {}));
+        exeNetwork = plugin->LoadNetwork(InferenceEngine::CNNNetwork(mockNotEmptyNet), {});
+        ASSERT_NE(nullptr, exeNetwork);
         IE_SUPPRESS_DEPRECATED_END
-        ASSERT_NO_THROW(request = exeNetwork->CreateInferRequest());
+        request = exeNetwork->CreateInferRequest();
+        ASSERT_NE(nullptr, request);
     }
 };
 
