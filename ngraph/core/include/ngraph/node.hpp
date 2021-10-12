@@ -38,6 +38,13 @@
 #include "ngraph/variant.hpp"
 #include "openvino/core/node.hpp"
 
+namespace ov {
+namespace op {
+namespace v0 {
+class Result;
+}
+}  // namespace op
+}  // namespace ov
 namespace ngraph {
 
 using ov::Node;
@@ -52,7 +59,7 @@ using HostTensorVector = std::vector<HostTensorPtr>;
 namespace op {
 
 namespace v0 {
-class Result;
+using ov::op::v0::Result;
 }
 }  // namespace op
 
@@ -85,8 +92,71 @@ using RawNodeOutputMap = std::map<RawNodeOutput, Output<Node>>;
 
 using ov::check_new_args_count;
 
-#define NGRAPH_RTTI_DECLARATION OPENVINO_RTTI_DECLARATION
+/// Helper macro that puts necessary declarations of RTTI block inside a class definition.
+/// Should be used in the scope of class that requires type identification besides one provided by
+/// C++ RTTI.
+/// Recommended to be used for all classes that are inherited from class ov::Node to enable
+/// pattern
+/// matching for them. Accepts necessary type identification details like type of the operation,
+/// version and optional parent class.
+///
+/// Applying this macro within a class definition provides declaration of type_info static
+/// constant for backward compatibility with old RTTI definition for Node,
+/// static function get_type_info_static which returns a reference to an object that is equal to
+/// type_info but not necessary to the same object, and get_type_info virtual function that
+/// overrides Node::get_type_info and returns a reference to the same object that
+/// get_type_info_static gives.
+///
+/// Use this macro as a public part of the class definition:
+///
+///     class MyOp : public Node
+///     {
+///         public:
+///             // Don't use Node as a parent for type_info, it doesn't have any value and
+///             prohibited
+///             NGRAPH_RTTI_DECLARATION;
+///
+///             ...
+///     };
+///
+///     class MyInheritedOp : public MyOp
+///     {
+///         public:
+///             NGRAPH_RTTI_DECLARATION;
+///
+///             ...
+///     };
+///
+/// To complete type identification for a class, use NGRAPH_RTTI_DEFINITION.
+///
+#define NGRAPH_RTTI_DECLARATION                                        \
+    static const ::ngraph::Node::type_info_t type_info;                \
+    const ::ngraph::Node::type_info_t& get_type_info() const override; \
+    static const ::ngraph::Node::type_info_t& get_type_info_static()
 
-#define NGRAPH_RTTI_DEFINITION(...) OPENVINO_RTTI_DEFINITION(__VA_ARGS__)
+#define _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)                         \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info() const { \
+        return get_type_info_static();                                \
+    }                                                                 \
+    const ::ngraph::Node::type_info_t CLASS::type_info = CLASS::get_type_info_static()
+#define _NGRAPH_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)               \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() {                                    \
+        static const ::ngraph::Node::type_info_t type_info_static{TYPE_NAME,                              \
+                                                                  _VERSION_INDEX,                         \
+                                                                  &PARENT_CLASS::get_type_info_static()}; \
+        return type_info_static;                                                                          \
+    }                                                                                                     \
+    _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
+
+#define _NGRAPH_RTTI_DEFINITION_NO_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX)                   \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() {                        \
+        static const ::ngraph::Node::type_info_t type_info_static{TYPE_NAME, _VERSION_INDEX}; \
+        return type_info_static;                                                              \
+    }                                                                                         \
+    _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
+#define NGRAPH_RTTI_DEFINITION(...)                                                               \
+    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                         \
+                                                             _NGRAPH_RTTI_DEFINITION_WITH_PARENT, \
+                                                             _NGRAPH_RTTI_DEFINITION_NO_PARENT)(__VA_ARGS__))
 
 }  // namespace ngraph

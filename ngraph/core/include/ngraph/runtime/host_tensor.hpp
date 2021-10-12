@@ -7,17 +7,23 @@
 #include <memory>
 
 #include "ngraph/descriptor/output.hpp"
+#include "ngraph/partial_shape.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 
 namespace ov {
 class Node;
-}
-namespace ngraph {
 namespace op {
 namespace v0 {
 class Constant;
+}
+}  // namespace op
+}  // namespace ov
+namespace ngraph {
+namespace op {
+namespace v0 {
+using ov::op::v0::Constant;
 }
 }  // namespace op
 namespace runtime {
@@ -93,8 +99,8 @@ public:
                        const HostTensorPtr& arg1,
                        const element::Type& element_type);
 
-private:
-    void allocate_buffer();
+protected:
+    virtual void allocate_buffer();
     HostTensor(const HostTensor&) = delete;
     HostTensor(HostTensor&&) = delete;
     HostTensor& operator=(const HostTensor&) = delete;

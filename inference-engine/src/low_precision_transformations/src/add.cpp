@@ -14,7 +14,6 @@
 #include "ngraph_ops/type_relaxed.hpp"
 
 #include "low_precision/common/ie_lpt_exception.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -54,7 +53,7 @@ std::shared_ptr<opset1::Subtract> replaceToSubtract(const std::shared_ptr<Node>&
     auto constant = fold<opset1::Negative>(add->input_value(constBranchIndex));
     auto constOutput = constant->output(0);
 
-    const auto subtract = std::make_shared<op::TypeRelaxed<DequantizationSubtract>>(
+    const auto subtract = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{ op->get_output_element_type(0) },
         ngraph::op::TemporaryReplaceOutputType(add->input_value(dataBranchIndex), element::f32).get(),
@@ -80,7 +79,7 @@ std::shared_ptr<opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& 
         add->get_input_node_shared_ptr(0)->input_value(1),
         add->input_value(1));
 
-    const auto newSubtract = std::make_shared<op::TypeRelaxed<DequantizationSubtract>>(
+    const auto newSubtract = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{ op->get_output_element_type(0) },
         ngraph::op::TemporaryReplaceOutputType(add->get_input_node_shared_ptr(0)->input_value(0), element::f32).get(),
@@ -177,13 +176,13 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         // after : Y = SC2 * ( SC1' * (X1 - SH1') + X2 ) , where :
         //         SC1' = SC1 / SC2
         //         SH1' = SH1 + SC2 * SH2 / SC1
-        std::shared_ptr<Node> newSubtractFullPathValues = fold<opset1::Add>(
+        auto newSubtractFullPathValues = fold<opset1::Add>(
             subtractFullPathValues,
             fold<opset1::Divide>(
                 fold<opset1::Multiply>(subtractEmptyPathValues, multiplyEmptyPathValues),
                 multiplyFullPathValues));
 
-        std::shared_ptr<Node> newMultiplyFullPathValues = fold<opset1::Divide>(multiplyFullPathValues, multiplyEmptyPathValues);
+        auto newMultiplyFullPathValues = fold<opset1::Divide>(multiplyFullPathValues, multiplyEmptyPathValues);
 
         if (NetworkHelper::isZeroConst(newSubtractFullPathValues)) {
             newSubtractFullPathValues = nullptr;
@@ -201,10 +200,10 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         //     newMultiply
 
         inputs[emptyPathIndex] = dequantizationEmptyPath.data;
-        inputs[fullPathIndex] = std::make_shared<DequantizationMultiply>(
+        inputs[fullPathIndex] = std::make_shared<opset1::Multiply>(
             newSubtractFullPathValues == nullptr ?
                 fullPathInput :
-                std::make_shared<DequantizationSubtract>(
+                std::make_shared<opset1::Subtract>(
                     // precision on branch with dequantization operations can be different with dequantization precision,
                     // for example: FP16 model with FP32 dequantization
                     fullPathInput.get_element_type() != newSubtractFullPathValues->get_element_type() ?
@@ -217,7 +216,7 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
             ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
-        newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
+        newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ add->get_output_element_type(0) },
             ngraph::op::TemporaryReplaceOutputType(newAddOrSubtract, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(multiplyEmptyPathValues, element::f32).get());

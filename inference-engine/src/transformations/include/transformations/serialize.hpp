@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <functional>
 
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/pass.hpp"
@@ -14,6 +15,7 @@ namespace ngraph {
 namespace pass {
 
 class TRANSFORMATIONS_API Serialize;
+class TRANSFORMATIONS_API StreamSerialize;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -29,17 +31,25 @@ class TRANSFORMATIONS_API Serialize;
  */
 class ngraph::pass::Serialize : public ngraph::pass::FunctionPass {
 public:
-    enum class Version { IR_V10 };
+    enum class Version : uint8_t {
+        UNSPECIFIED = 0,        // Use the latest or function version
+        IR_V10 = 10,            // v10 IR
+        IR_V11 = 11             // v11 IR
+    };
     NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
-    Serialize(std::ostream & xmlFile, std::ostream & binFile,
-              Version version = Version::IR_V10,
-              std::map<std::string, ngraph::OpSet> custom_opsets = {});
+    Serialize(std::ostream& xmlFile, std::ostream& binFile,
+              std::map<std::string, ngraph::OpSet> custom_opsets,
+              Version version = Version::UNSPECIFIED);
+    Serialize(std::ostream& xmlFile, std::ostream& binFile,
+              Version version = Version::UNSPECIFIED);
 
     Serialize(const std::string& xmlPath, const std::string& binPath,
-              Version version = Version::IR_V10,
-              std::map<std::string, ngraph::OpSet> custom_opsets = {});
+              std::map<std::string, ngraph::OpSet> custom_opsets,
+              Version version = Version::UNSPECIFIED);
+    Serialize(const std::string& xmlPath, const std::string& binPath,
+              Version version = Version::UNSPECIFIED);
 
 private:
     std::ostream * m_xmlFile;
@@ -48,4 +58,37 @@ private:
     const std::string m_binPath;
     const Version m_version;
     const std::map<std::string, ngraph::OpSet> m_custom_opsets;
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief StreamSerialize transformation converts ngraph::Function into single binary stream
+ * @attention
+ * - dynamic shapes are not supported
+ */
+class ngraph::pass::StreamSerialize : public ngraph::pass::FunctionPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+
+    struct DataHeader {
+        size_t custom_data_offset;
+        size_t custom_data_size;
+        size_t consts_offset;
+        size_t consts_size;
+        size_t model_offset;
+        size_t model_size;
+    };
+
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+
+    StreamSerialize(std::ostream& stream,
+                    std::map<std::string, ngraph::OpSet> && custom_opsets = {},
+                    const std::function<void(std::ostream &)> & custom_data_serializer = {},
+                    Serialize::Version version = Serialize::Version::UNSPECIFIED);
+
+private:
+    std::ostream & m_stream;
+    std::map<std::string, ngraph::OpSet> m_custom_opsets;
+    std::function<void(std::ostream &)> m_custom_data_serializer;
+    const Serialize::Version m_version;
 };

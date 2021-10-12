@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::HardSigmoid, "HardSigmoid", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::HardSigmoid);
 
 op::v0::HardSigmoid::HardSigmoid() : Op() {}
 
@@ -34,7 +34,7 @@ void op::v0::HardSigmoid::validate_and_infer_types() {
     if (alpha_pshape.is_static()) {
         const auto alpha_shape = alpha_pshape.to_shape();
         NODE_VALIDATION_CHECK(this,
-                              is_scalar(alpha_shape),
+                              ngraph::is_scalar(alpha_shape),
                               "A scalar is expected for the 'alpha' input. Got: ",
                               alpha_shape);
     }
@@ -42,7 +42,7 @@ void op::v0::HardSigmoid::validate_and_infer_types() {
     if (beta_pshape.is_static()) {
         const auto beta_shape = beta_pshape.to_shape();
         NODE_VALIDATION_CHECK(this,
-                              is_scalar(beta_shape),
+                              ngraph::is_scalar(beta_shape),
                               "A scalar is expected for the 'beta' input. Got: ",
                               beta_shape);
     }

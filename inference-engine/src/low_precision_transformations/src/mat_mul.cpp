@@ -13,7 +13,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass;
@@ -110,11 +109,11 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         // multiply by weights: [1, ..., 1, Y] x [Y, Z] => [1, ..., 1, Z]
         const auto newSubConst = NetworkHelper::toScalarIfPossible(fold<opset1::MatMul>(
             broadcastedConst,
-            foldConvert(newMatMul->get_input_node_shared_ptr(1), newMatMul->get_element_type()),
+            foldConvert(newMatMul->input_value(1), newMatMul->get_element_type()),
             newMatMul->get_transpose_a(),
             newMatMul->get_transpose_b()));
 
-        const auto newSubtract = std::make_shared<DequantizationSubtract>(newMatMul, newSubConst);
+        const auto newSubtract = std::make_shared<opset1::Subtract>(newMatMul, newSubConst);
         newSubtract->set_friendly_name(newMatMul->get_friendly_name() + "/DequantizationSubtract");
         copy_runtime_info({ newSubtract, matMul }, newSubtract);
 
@@ -160,7 +159,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
             mulConst1,
             foldConvert(mulConst2, element::f32)));
 
-    const auto newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
+    const auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
         std::vector<element::Type>{ deqPrecision, deqPrecision },
         std::vector<element::Type>{ dequantization1.multiply->get_output_element_type(0) },
         ngraph::op::TemporaryReplaceOutputType(parent, deqPrecision).get(),

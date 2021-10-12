@@ -39,7 +39,8 @@
 #include "utils/node_dumper.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/cpu_utils.hpp"
-#include "cpu_memory_desc_utils.h"
+#include "utils/verbose.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 
 #include <ngraph/node.hpp>
 #include <ngraph/function.hpp>
@@ -47,6 +48,7 @@
 #include <ngraph/ops.hpp>
 #include <transformations/utils/utils.hpp>
 #include <low_precision/low_precision.hpp>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -73,7 +75,7 @@ void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMg
 
     status = Ready;
 
-    ENABLE_CPU_DEBUG_CAP(serialize(*this));
+    CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
 template void MKLDNNGraph::CreateGraph(const std::shared_ptr<const ngraph::Function>&,
@@ -214,8 +216,13 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         graphNodes.push_back(node);
 
         if (op->get_type_info() == ngraph::op::v0::Parameter::type_info) {
-            if (inputsInfo.count(node->getName()) != 0) {
+            const auto inInfo = inputsInfo.find(node->getName());
+            if (inInfo != inputsInfo.end()) {
                 inputNodesMap[node->getName()] = node;
+                IE_SUPPRESS_DEPRECATED_START
+                if (inInfo->second->getInputData()->isDynamic())
+                    graphHasDynamicInput = true;
+                IE_SUPPRESS_DEPRECATED_END
             }
         }
 
@@ -313,6 +320,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
 void MKLDNNGraph::InitGraph() {
     MKLDNNGraphOptimizer optimizer;
+    CPU_DEBUG_CAP_ENABLE(initNodeDumper(config.debugCaps));
 
     SortTopologically();
     InitNodes();
@@ -339,7 +347,7 @@ void MKLDNNGraph::InitGraph() {
         graphNode->cleanup();
     }
 #endif
-    ExtractConstantNodes();
+    ExtractConstantAndExecutableNodes();
 
     ExecuteConstantNodesOnly();
 }
@@ -384,29 +392,34 @@ void MKLDNNGraph::InitOptimalPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNGraph::ExtractConstantNodes() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExtractConstantNodes");
-    for (auto& graphNode : graphNodes) {
+void MKLDNNGraph::ExtractConstantAndExecutableNodes() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExtractConstantAndExecutableNodes");
+    for (const auto& graphNode : graphNodes) {
         if (graphNode->isConstant())
             constantGraphNodes.emplace_back(graphNode);
-        else
-            mutableGraphNodes.emplace_back(graphNode);
+        else if (CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable()))
+            /* @todo
+             * Revise implementation.
+             * With current way it is possible that with debug_caps enabled
+             * we execute a node, which is not ready to be executed
+             */
+            executableGraphNodes.emplace_back(graphNode);
     }
 }
 
-void MKLDNNGraph::ExecuteConstantNodesOnly() {
+void MKLDNNGraph::ExecuteConstantNodesOnly() const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExecuteConstantNodesOnly");
     mkldnn::stream stream(eng);
 
     using shared_memory_ptr = MKLDNNWeightsSharing::MKLDNNSharedMemory::Ptr;
 
-    auto acquireSharedOutputs = [this](MKLDNNNodePtr & graphNode) {
+    auto acquireSharedOutputs = [this](const MKLDNNNodePtr & node) {
         std::vector<shared_memory_ptr> outputs;
         bool hasLocalAllocatedEdges = false;
         bool hasExternalInvalidEdges = false;
 
-        for (size_t i = 0; i < graphNode->getChildEdges().size(); ++i) {
-            auto edgePtr = graphNode->getChildEdgeAt(i);
+        for (size_t i = 0; i < node->getChildEdges().size(); ++i) {
+            auto edgePtr = node->getChildEdgeAt(i);
             if (edgePtr) {
                 if (edgePtr->isUseExternalMemory()) {
                     auto ptr = weightsCache->get(edgePtr->name());
@@ -422,25 +435,25 @@ void MKLDNNGraph::ExecuteConstantNodesOnly() {
         return std::make_tuple(hasExternalInvalidEdges, hasLocalAllocatedEdges, outputs);
     };
 
-    for (auto &graphNode : constantGraphNodes) {
+    for (const auto &node : constantGraphNodes) {
         if (weightsCache) {
-            auto sharedOutputs = acquireSharedOutputs(graphNode);
+            auto sharedOutputs = acquireSharedOutputs(node);
 
             if (std::get<0>(sharedOutputs) || std::get<1>(sharedOutputs)) {
-                graphNode->execute(stream);
+                ExecuteNode(node, stream);
 
                 for (auto & output : std::get<2>(sharedOutputs))
                     output->valid(true);
             }
         } else {
-            graphNode->execute(stream);
+            ExecuteNode(node, stream);
         }
     }
 }
 
 static bool isReorderAvailable(const MemoryDesc& parentDesc, const MemoryDesc& childDesc, const mkldnn::engine& eng) {
-    memory::desc dstMemDesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(childDesc);
-    memory::desc srcMemDesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(parentDesc);;
+    memory::desc dstMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(childDesc.clone())->getDnnlDesc();
+    memory::desc srcMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(parentDesc.clone())->getDnnlDesc();
     mkldnn::primitive_attr attr;
 
     dnnl_primitive_desc_t result = nullptr;
@@ -522,6 +535,9 @@ static edge_clusters_t findEdgeClusters(const std::vector<MKLDNNEdgePtr> & graph
     edge_cluster_idx_map_t edge_cluster_indices;
 
     for (auto &edge : graphEdges) {
+        if (!edge->hasDefinedMaxSize())
+            continue;
+
         auto edge_it = edge_cluster_indices.find(edge);
 
         if (edge_it != edge_cluster_indices.end())
@@ -602,11 +618,11 @@ void MKLDNNGraph::AllocateWithReuse() {
             int e_start = edge->getParent()->execIndex;
             int e_finish = edge->getChild()->execIndex;
 
-            int64_t e_size = edge->getDesc().getCurrentSize();  // size in bytes (from the beginning of data to the last element)
-            if (e_size == MemoryDesc::UNDEFINED_SIZE) {
+            if (!edge->hasDefinedMaxSize()) {
                 IE_THROW() << "Can not allocate memory since the size is undefined.";
             }
 
+            int64_t e_size = edge->getDesc().getMaxMemSize();  // size in bytes (from the beginning of data to the last element)
             box.start = std::min(e_start, box.start);
             box.finish = std::max(e_finish, box.finish);
             box.size =  std::max(e_size, box.size);
@@ -639,7 +655,7 @@ void MKLDNNGraph::AllocateWithReuse() {
     size_t total_size = static_cast<size_t>(memSolver.solve()) * alignment;
 
     memWorkspace = std::make_shared<MKLDNNMemory>(eng);
-    memWorkspace->Create(MKLDNNMemoryDesc({total_size}, mkldnn::memory::data_type::s8));
+    memWorkspace->Create(DnnlBlockedMemoryDesc(InferenceEngine::Precision::I8, Shape(InferenceEngine::SizeVector{total_size})));
 
     if (edge_clusters.empty())
         return;
@@ -658,7 +674,7 @@ void MKLDNNGraph::AllocateWithReuse() {
                 // TODO: WA for some test (like strided_slice_test) which use tensors with
                 //       shapes {0}. And it is implisitly converted into {1} tensor.
                 //       Zeroing of input data allow pass tests.
-                if (edge->getParent()->type == Input)
+                if (edge->getParent()->type == Input && edge->hasDefinedMaxSize())
                     edge->getMemoryPtr()->FillZero();
 
                 count++;
@@ -679,8 +695,11 @@ void MKLDNNGraph::Allocate() {
     // Allocate memory space for all edges marked with NeedAllocation
     AllocateWithReuse();
 
-    // Resolve all other edges with status NotAllocated or in-place
-    for (auto& node : graphNodes) node->resolveNotAllocatedEdges();
+    // Resolve all other edges with status NotAllocated and in-place
+    for (auto& node : graphNodes) node->resolveInPlaceEdges();
+
+    // Create dummy memory with undefined desc for edges that are not allocated on the previous stages (memory solver and inPlace resolving)
+    for (auto& edge : graphEdges) edge->allocate();
 
     // Check all getters. Should work.
     for (auto& edge : graphEdges) edge->validate();
@@ -703,7 +722,7 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
         void *inter_data_ptr = input->second->getChildEdgeAt(0)->getMemory().GetData();
 
         if (ext_data_ptr != inter_data_ptr) {
-            auto ext_tdesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(in->getTensorDesc());
+            auto ext_tdesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(in->getTensorDesc());
 
             auto ext_mem = MKLDNNMemory(eng);
             ext_mem.Create(ext_tdesc, ext_data_ptr, false);
@@ -714,7 +733,7 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
         // todo: make sure 'name' exists in this map...
         if (_normalizePreprocMap.find(name) != _normalizePreprocMap.end()) {
             if (in->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32) {
-                _normalizePreprocMap[name].NormalizeImage(input->second->getChildEdgeAt(0)->getShape(),
+                _normalizePreprocMap[name].NormalizeImage(input->second->getOutputShapeAtPort(0),
                                                           reinterpret_cast<float *>(inter_data_ptr),
                                                           in->getTensorDesc().getLayout());
             } else {
@@ -726,7 +745,7 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
     }
 }
 
-void MKLDNNGraph::PullOutputData(const BlobMap &out) {
+void MKLDNNGraph::PullOutputData(BlobMap &out) {
     if (!IsReady())
         IE_THROW() << "Wrong state. Topology not ready.";
 
@@ -735,50 +754,60 @@ void MKLDNNGraph::PullOutputData(const BlobMap &out) {
         auto node = outputMap.second;
         const MKLDNNMemory& intr_blob = node->getParentEdgeAt(0)->getMemory();
 
-        if (!out.count(name)) {
+        const auto ext_blob = out.find(name);
+        if (ext_blob == out.end()) {
             IE_THROW(Unexpected) << "The network outputs do not contain mkldnn graph output node name: \"" << name << "\"";
         }
 
-        const Blob::Ptr &ext_blob = out.at(name);
-
-        auto srcPrec = MKLDNNExtensionUtils::DataTypeToIEPrecision(intr_blob.GetDataType());
-        auto dstPrec = ext_blob->getTensorDesc().getPrecision();
-        if (srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
-                IE_THROW() << "Output blob byte size is not equal network output byte size ("
-                                   << ext_blob->byteSize() << "!=" << intr_blob.GetSize() << ").";
-        if (ext_blob->size() != intr_blob.GetElementsCount())
-            IE_THROW() << "Output blob number of elements is not equal network output number of elements ("
-                               << ext_blob->size() << "!=" << intr_blob.GetElementsCount() << ").";
-
-        void *ext_blob_ptr = ext_blob->buffer();
-        void *intr_blob_ptr = intr_blob.GetData();
-
-        // That is the same memory. No need to copy
-        if (ext_blob_ptr == intr_blob_ptr) continue;
-
-        int MB = intr_blob.GetDims()[0];
-        int MB_to_process = node->batchToProcess();
-        // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???
-        if (config.batchLimit)
-            MB_to_process = std::min<int>(config.batchLimit, MB_to_process);
-        size_t size_to_copy = intr_blob.GetElementsCount() * MB_to_process / MB;
-
-        const auto actualDesc = MemoryDescUtils::convertToTensorDesc(node->getParentEdgeAt(0)->getDesc());
-        const auto expectedDesc = ext_blob->getTensorDesc();
+        const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
+        const auto &expectedDesc = ext_blob->second->getTensorDesc();
 
         // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
         // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar
         bool isScalarOutput = false;
         if (actualDesc.getLayout() == SCALAR) {
             isScalarOutput = expectedDesc.getLayout() == SCALAR ||
-                             std::accumulate(expectedDesc.getDims().begin(), expectedDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1;
+                             (!expectedDesc.getDims().empty() &&
+                             std::accumulate(expectedDesc.getDims().begin(), expectedDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1);
         } else if (expectedDesc.getLayout() == SCALAR) {
             isScalarOutput = actualDesc.getLayout() == SCALAR ||
-                             std::accumulate(actualDesc.getDims().begin(), actualDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1;
+                             (!actualDesc.getDims().empty() &&
+                             std::accumulate(actualDesc.getDims().begin(), actualDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1);
+        }
+
+        if (out[name]->getTensorDesc().getDims() != intr_blob.getStaticDims() && !isScalarOutput) {
+            if (!node->isDynamicNode())
+                IE_THROW() << "Output blob and node dims mismatch for node with name: \"" << name << "\"";
+            out[name]->setShape(intr_blob.getStaticDims());
+        }
+
+        auto srcPrec = actualDesc.getPrecision();
+        auto dstPrec = expectedDesc.getPrecision();
+
+        if (srcPrec == dstPrec && ext_blob->second->byteSize() != intr_blob.GetSize())
+                IE_THROW() << "Output blob byte size is not equal network output byte size ("
+                                   << ext_blob->second->byteSize() << "!=" << intr_blob.GetSize() << ").";
+
+        void *ext_blob_ptr = ext_blob->second->buffer();
+        void *intr_blob_ptr = intr_blob.GetData();
+
+        // That is the same memory. No need to copy
+        if (ext_blob_ptr == intr_blob_ptr) continue;
+
+        const auto &outDims = intr_blob.getStaticDims();
+        size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+        // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???
+        // TODO [DS]: phase 2: should we support this behaviour? Looks obsolete in the dynamic shapes paradigm
+        if (config.batchLimit) {
+            if (node->isDynamicNode()) {
+                IE_THROW(NotImplemented) << "[DS] not implemented dynamic batch for node with dynamic shape";
+            }
+            int MB_to_process = node->batchToProcess();
+            size_to_copy = std::accumulate(outDims.begin() + 1, outDims.end(), (size_t)1, std::multiplies<size_t>()) * MB_to_process;
         }
 
         if (actualDesc.getBlockingDesc() != expectedDesc.getBlockingDesc() && !isScalarOutput) {
-            auto outBlobDesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(expectedDesc);
+            auto outBlobDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
             auto outBloMem = MKLDNNMemory(eng);
             outBloMem.Create(outBlobDesc, ext_blob_ptr, false);
 
@@ -789,6 +818,16 @@ void MKLDNNGraph::PullOutputData(const BlobMap &out) {
     }
 }
 
+inline void MKLDNNGraph::ExecuteNode(const MKLDNNNodePtr& node, const mkldnn::stream& stream) const {
+    DUMP(node, infer_count);
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, node->profiling.execute);
+
+    if (node->isDynamicNode())
+        node->executeDynamic(stream);
+    else
+        node->execute(stream);
+}
+
 void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
     if (!IsReady()) {
         IE_THROW() << "Wrong state. Topology is not ready.";
@@ -796,29 +835,14 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
 
     mkldnn::stream stream(eng);
 
-    ENABLE_CPU_DEBUG_CAP(NodeDumper nd(config.debugCaps, infer_count));
+    for (const auto& node : executableGraphNodes) {
+        VERBOSE(node, config.debugCaps.verbose);
+        PERF(node, config.collectPerfCounters);
 
-#ifdef CPU_DEBUG_CAPS
-    for (const auto& node : constantGraphNodes) {
-        if (request != nullptr)
+        if (request)
             request->ThrowIfCanceled();
 
-        ENABLE_CPU_DEBUG_CAP(nd.dumpInputBlobs(node));
-        ENABLE_CPU_DEBUG_CAP(nd.dumpOutputBlobs(node));
-    }
-#endif
-
-    for (const auto& node : mutableGraphNodes) {
-        PERF(config.collectPerfCounters, node);
-        if (request != nullptr)
-            request->ThrowIfCanceled();
-
-        ENABLE_CPU_DEBUG_CAP(nd.dumpInputBlobs(node));
-
-        OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, node->profiling.execute);
-        node->execute(stream);
-
-        ENABLE_CPU_DEBUG_CAP(nd.dumpOutputBlobs(node));
+        ExecuteNode(node, stream);
     }
 
     if (infer_count != -1) infer_count++;
@@ -886,7 +910,7 @@ void MKLDNNGraph::SortTopologically() {
             for (int i = 0; i < node->parentEdges.size(); i++) {
                 auto edge = node->getParentEdgeAt(i);
                 int port = edge->getOutputNum();
-                if (!res[port])
+                if (port < port_num && !res[port])
                     res[port] = edge;
                 else
                     res.push_back(edge);
@@ -900,7 +924,7 @@ void MKLDNNGraph::SortTopologically() {
             for (int i = 0; i < node->childEdges.size(); i++) {
                 auto edge = node->getChildEdgeAt(i);
                 int port = edge->getInputNum();
-                if (!res[port])
+                if (port < port_num && !res[port])
                     res[port] = edge;
                 else
                     res.push_back(edge);
@@ -1070,6 +1094,7 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
         if (!parent) continue;
 
         MKLDNNEdgePtr &remEdge = p_edge;
+        const auto portCandidate = remEdge->getOutputNum();
         int inNum = 0;
         if (remEdge) {
             inNum = remEdge->getInputNum();
@@ -1081,8 +1106,9 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
         MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, parentConv, inNum, outNum));
         graphEdges.push_back(newEdge);
         parent->addEdge(newEdge);
-        parentConv->inputShapes.push_back(Shape(newEdge->getShape()));
+        parentConv->inputShapes.push_back(node->getInputShapeAtPort(portCandidate));
     }
+    parentConv->outputShapes[0] = node->getOutputShapeAtPort(0);
 }
 
 void MKLDNNGraph::RemoveDroppedNodes() {

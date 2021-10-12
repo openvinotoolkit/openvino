@@ -14,6 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array
 from mo.graph.graph import Node, Graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 
@@ -212,7 +213,12 @@ class IREngine(object):
                 if layer.attrib['type'] == 'Const':
                     assert 'offset' in new_attrs and 'size' in new_attrs, \
                         'Incorrect attributes for Const layer, {} instead of {}!'.format(new_attrs.keys(), ['offset', 'size'])
-                    new_attrs.update(self.__prepare_bin_attrs(layer, 0, 'custom', new_attrs['offset'], new_attrs['size'], layer[1][0].attrib['precision']))
+                    precision = ""
+                    for item in layer:
+                        if item.tag == "output":
+                            precision = item[0].attrib["precision"]
+                            break
+                    new_attrs.update(self.__prepare_bin_attrs(layer, 0, 'custom', new_attrs['offset'], new_attrs['size'], precision))
                 layer_attrs.update(new_attrs)
             elif attr.tag == 'input':
                 inputs_counter = len(attr)
@@ -222,7 +228,10 @@ class IREngine(object):
                     port_id = int(port.attrib['id'])
                     output_shape = []
                     for dim in port:
-                        output_shape.append(int(dim.text))
+                        if dim.tag == "dim":
+                            output_shape.append(int(dim.text))
+
+                    output_shape = shape_array([d if d != -1 else dynamic_dimension_value for d in output_shape])
 
                     out_tensor_names = None
                     if 'names' in port.attrib:

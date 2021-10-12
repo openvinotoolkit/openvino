@@ -11,15 +11,24 @@
 
 #include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
-#include "details/ie_so_pointer.hpp"
 #include "ie_parameter.hpp"
 #include "ie_remote_context.hpp"
+#include "so_ptr.hpp"
 
+namespace ov {
+class Function;
+namespace op {
+namespace v0 {
+class Parameter;
+class Result;
+}  // namespace v0
+}  // namespace op
+}  // namespace ov
 namespace InferenceEngine {
 
 class IInferencePlugin;
 class IInferRequestInternal;
-class IRemoteContext;
+class RemoteContext;
 class IVariableStateInternal;
 
 /**
@@ -46,6 +55,25 @@ public:
      * @param[in]  networkOutputs  The network outputs
      */
     virtual void setNetworkOutputs(const OutputsDataMap& networkOutputs);
+
+    /**
+     * @brief      Sets the network parameters
+     * @param[in]  params  The network parameters
+     */
+    virtual void setInputs(const std::vector<std::shared_ptr<const ov::Node>>& params);
+    /**
+     * @brief      Returns the network parameters
+     */
+    virtual const std::vector<std::shared_ptr<const ov::Node>>& getInputs() const;
+    /**
+     * @brief      Sets the network results
+     * @param[in]  results  The network results
+     */
+    virtual void setOutputs(const std::vector<std::shared_ptr<const ov::Node>>& results);
+    /**
+     * @brief      Returns the network results
+     */
+    virtual const std::vector<std::shared_ptr<const ov::Node>>& getOutputs() const;
 
     /**
      * @brief Gets the Executable network output Data node information. The received info is stored in the given Data
@@ -125,7 +153,7 @@ public:
      * @brief Gets the remote context.
      * @return A reference to a context
      */
-    virtual std::shared_ptr<IRemoteContext> GetContext() const;
+    virtual std::shared_ptr<RemoteContext> GetContext() const;
 
 protected:
     ~IExecutableNetworkInternal() = default;
@@ -143,6 +171,8 @@ protected:
 
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
+    std::vector<std::shared_ptr<const ov::Node>> _parameters;
+    std::vector<std::shared_ptr<const ov::Node>> _results;
 
     /**
      * @brief A pointer to a IInferencePlugin interface.
@@ -152,8 +182,8 @@ protected:
 };
 
 /**
- * @brief SOPointer to IExecutableNetworkInternal.
+ * @brief SoPtr to IExecutableNetworkInternal.
  */
-using SoExecutableNetworkInternal = details::SOPointer<IExecutableNetworkInternal>;
+using SoExecutableNetworkInternal = ov::runtime::SoPtr<IExecutableNetworkInternal>;
 
 }  // namespace InferenceEngine

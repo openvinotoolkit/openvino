@@ -11,11 +11,8 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConstantFolding, "ConstantFolding", 0);
-
-bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ov::pass::ConstantFolding::run_on_function(std::shared_ptr<ov::Function> f) {
     bool rewritten = pre_calculated_values_folding(f);
 
     for (const auto& node : f->get_ordered_ops()) {
@@ -48,7 +45,7 @@ bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Func
             }
         } else {
             // recursively constant fold operators containing subgraphs (ie: TensorIterator, Loop)
-            if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+            if (auto sub_graph_node = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(node)) {
                 if (const auto& sub_graph = sub_graph_node->get_function()) {
                     rewritten |= run_on_function(sub_graph);
                 }
@@ -79,18 +76,18 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::sha
     while (!nodes.empty()) {
         auto curr_node = nodes.front();
         nodes.pop_front();
-        if (visited.count(curr_node) || ov::is_type<op::Constant>(curr_node))
+        if (visited.count(curr_node) || ov::is_type<ngraph::op::Constant>(curr_node))
             continue;
         visited.insert(curr_node);
 
         for (auto& input_value : curr_node->input_values()) {
             // Check that ConstantFolding is not disabled on this path
             std::vector<Node*> order;
-            auto status = could_propagate(input_value, order);
+            auto status = ngraph::could_propagate(input_value, order);
             if (status) {
                 for (const auto& node : order) {
                     const auto& rt_info = node->get_rt_info();
-                    if (rt_info.count("DISABLED_CONSTANT_FOLDING")) {
+                    if (rt_info.count("disabled_constant_folding_0")) {
                         status = false;
                         break;
                     }
@@ -99,8 +96,8 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::sha
 
             if (status && input_value.get_tensor().has_and_set_bound()) {
                 auto input_node = input_value.get_node_shared_ptr();
-                auto replacement = std::make_shared<op::Constant>(input_value.get_tensor().get_lower_value());
-                if (replacement && !ov::is_type<op::Constant>(input_node)) {
+                auto replacement = std::make_shared<ngraph::op::Constant>(input_value.get_tensor().get_lower_value());
+                if (replacement && !ov::is_type<ngraph::op::Constant>(input_node)) {
                     if (input_node->get_output_size() == 1) {
                         replacement->set_friendly_name(input_node->get_friendly_name());
                     } else {

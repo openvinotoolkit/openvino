@@ -23,7 +23,7 @@ NGRAPH_API EnumNames<ngraph::op::PadMode>& EnumNames<ngraph::op::PadMode>::get()
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::PadMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::PadMode>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::PadType>& EnumNames<ngraph::op::PadType>::get() {
@@ -35,7 +35,7 @@ NGRAPH_API EnumNames<ngraph::op::PadType>& EnumNames<ngraph::op::PadType>::get()
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::PadType>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::PadType>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::RoundingType>& EnumNames<ngraph::op::RoundingType>::get() {
@@ -45,7 +45,7 @@ NGRAPH_API EnumNames<ngraph::op::RoundingType>& EnumNames<ngraph::op::RoundingTy
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::RoundingType>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::RoundingType>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::AutoBroadcastType>& EnumNames<ngraph::op::AutoBroadcastType>::get() {
@@ -57,7 +57,7 @@ NGRAPH_API EnumNames<ngraph::op::AutoBroadcastType>& EnumNames<ngraph::op::AutoB
                                                   {"pdpd", ngraph::op::AutoBroadcastType::PDPD}});
     return enum_names;
 }
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::AutoBroadcastType>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::AutoBroadcastType>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::BroadcastType>& EnumNames<ngraph::op::BroadcastType>::get() {
@@ -71,7 +71,7 @@ NGRAPH_API EnumNames<ngraph::op::BroadcastType>& EnumNames<ngraph::op::Broadcast
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::BroadcastType>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::BroadcastType>);
 template <>
 NGRAPH_API EnumNames<ngraph::op::EpsMode>& EnumNames<ngraph::op::EpsMode>::get() {
     static auto enum_names =
@@ -80,7 +80,7 @@ NGRAPH_API EnumNames<ngraph::op::EpsMode>& EnumNames<ngraph::op::EpsMode>::get()
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::EpsMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::EpsMode>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::TopKSortType>& EnumNames<ngraph::op::TopKSortType>::get() {
@@ -98,8 +98,8 @@ NGRAPH_API EnumNames<ngraph::op::TopKMode>& EnumNames<ngraph::op::TopKMode>::get
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::TopKSortType>::type_info;
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::TopKMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::TopKSortType>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::TopKMode>);
 
 bool AttributeAdapter<ngraph::op::AutoBroadcastSpec>::visit_attributes(AttributeVisitor& visitor) {
     // Maintain back-compatibility
@@ -112,7 +112,7 @@ bool AttributeAdapter<ngraph::op::AutoBroadcastSpec>::visit_attributes(Attribute
     return true;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::AutoBroadcastSpec>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::AutoBroadcastSpec>);
 
 bool AttributeAdapter<ngraph::op::BroadcastModeSpec>::visit_attributes(AttributeVisitor& visitor) {
     // Maintain back-compatibility
@@ -127,10 +127,9 @@ bool AttributeAdapter<ngraph::op::BroadcastModeSpec>::visit_attributes(Attribute
     return true;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::BroadcastModeSpec>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::BroadcastModeSpec>);
 
-NGRAPH_API
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::RecurrentSequenceDirection>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::RecurrentSequenceDirection>);
 template <>
 NGRAPH_API EnumNames<ngraph::op::RecurrentSequenceDirection>& EnumNames<ngraph::op::RecurrentSequenceDirection>::get() {
     static auto enum_names = EnumNames<ngraph::op::RecurrentSequenceDirection>(
@@ -140,44 +139,43 @@ NGRAPH_API EnumNames<ngraph::op::RecurrentSequenceDirection>& EnumNames<ngraph::
          {"bidirectional", ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL}});
     return enum_names;
 }
-}  // namespace ov
 
-const ngraph::op::AutoBroadcastSpec ngraph::op::AutoBroadcastSpec::NUMPY(AutoBroadcastType::NUMPY, 0);
-const ngraph::op::AutoBroadcastSpec ngraph::op::AutoBroadcastSpec::NONE{AutoBroadcastType::NONE, 0};
+const op::AutoBroadcastSpec op::AutoBroadcastSpec::NUMPY(AutoBroadcastType::NUMPY, 0);
+const op::AutoBroadcastSpec op::AutoBroadcastSpec::NONE{AutoBroadcastType::NONE, 0};
 
-std::ostream& ngraph::op::operator<<(std::ostream& s, const ngraph::op::PadMode& type) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::PadMode& type) {
     return s << as_string(type);
 }
 
-std::ostream& ngraph::op::operator<<(std::ostream& s, const ngraph::op::PadType& type) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::PadType& type) {
     return s << as_string(type);
 }
 
-std::ostream& ngraph::op::operator<<(std::ostream& s, const ngraph::op::RoundingType& type) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::RoundingType& type) {
     return s << as_string(type);
 }
 
-std::ostream& ngraph::op::operator<<(std::ostream& s, const ngraph::op::BroadcastType& type) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::BroadcastType& type) {
     return s << as_string(type);
 }
 
-std::ostream& ngraph::op::operator<<(std::ostream& s, const ngraph::op::AutoBroadcastType& type) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::AutoBroadcastType& type) {
     return s << as_string(type);
 }
 
-std::ostream& ngraph::op::operator<<(std::ostream& s, const ngraph::op::EpsMode& type) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::EpsMode& type) {
     return s << as_string(type);
 }
 
-std::ostream& ngraph::op::operator<<(std::ostream& s, const ngraph::op::TopKSortType& type) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::TopKSortType& type) {
     return s << as_string(type);
 }
 
-std::ostream& ngraph::op::operator<<(std::ostream& s, const ngraph::op::TopKMode& type) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::TopKMode& type) {
     return s << as_string(type);
 }
 
-ngraph::op::AutoBroadcastType ngraph::op::AutoBroadcastSpec::type_from_string(const std::string& type) const {
+op::AutoBroadcastType op::AutoBroadcastSpec::type_from_string(const std::string& type) const {
     auto lowercase_type = type;
     std::transform(lowercase_type.begin(), lowercase_type.end(), lowercase_type.begin(), [](char c) {
         return std::tolower(c);
@@ -193,6 +191,7 @@ ngraph::op::AutoBroadcastType ngraph::op::AutoBroadcastSpec::type_from_string(co
     return allowed_values.at(lowercase_type);
 }
 
-std::ostream& ngraph::op::operator<<(std::ostream& s, const ngraph::op::RecurrentSequenceDirection& direction) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::RecurrentSequenceDirection& direction) {
     return s << as_string(direction);
 }
+}  // namespace ov

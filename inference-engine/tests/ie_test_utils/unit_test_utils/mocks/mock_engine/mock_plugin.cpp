@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 
+#include "openvino/runtime/common.hpp"
 #include "mock_plugin.hpp"
 #include "description_buffer.hpp"
 
@@ -45,7 +46,7 @@ MockPlugin::LoadNetwork(const CNNNetwork &network,
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
 MockPlugin::LoadNetwork(const CNNNetwork& network,
                         const std::map<std::string, std::string>& config,
-                        const std::shared_ptr<IRemoteContext>& context) {
+                        const std::shared_ptr<RemoteContext>& context) {
     if (_target) {
         return _target->LoadNetwork(network, config, context);
     } else {
@@ -81,7 +82,7 @@ MockPlugin::ImportNetwork(std::istream& networkModel,
 
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
 MockPlugin::ImportNetwork(std::istream& networkModel,
-                         const std::shared_ptr<InferenceEngine::IRemoteContext>& context,
+                         const std::shared_ptr<InferenceEngine::RemoteContext>& context,
                          const std::map<std::string, std::string>& config) {
     if (_target) {
         return _target->ImportNetwork(networkModel, context, config);
@@ -90,7 +91,7 @@ MockPlugin::ImportNetwork(std::istream& networkModel,
     }
 }
 
-std::shared_ptr<InferenceEngine::IRemoteContext> MockPlugin::GetDefaultContext(const InferenceEngine::ParamMap& params) {
+std::shared_ptr<InferenceEngine::RemoteContext> MockPlugin::GetDefaultContext(const InferenceEngine::ParamMap& params) {
     if (_target) {
         return _target->GetDefaultContext(params);
     } else {
@@ -132,17 +133,17 @@ std::string MockPlugin::GetName() const noexcept {
 
 InferenceEngine::IInferencePlugin *__target = nullptr;
 
-INFERENCE_PLUGIN_API(void) CreatePluginEngine(std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) {
+OPENVINO_PLUGIN_API void CreatePluginEngine(std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) {
     IInferencePlugin *p = nullptr;
     std::swap(__target, p);
     plugin = std::make_shared<MockPlugin>(p);
 }
 
-INFERENCE_PLUGIN_API(InferenceEngine::IInferencePlugin*)
+OPENVINO_PLUGIN_API InferenceEngine::IInferencePlugin*
 CreatePluginEngineProxy(InferenceEngine::IInferencePlugin *target) {
     return new MockPlugin(target);
 }
 
-INFERENCE_PLUGIN_API(void) InjectProxyEngine(InferenceEngine::IInferencePlugin *target) {
+OPENVINO_PLUGIN_API void InjectProxyEngine(InferenceEngine::IInferencePlugin *target) {
     __target = target;
 }

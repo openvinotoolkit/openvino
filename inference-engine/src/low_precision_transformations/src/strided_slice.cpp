@@ -16,7 +16,7 @@ namespace low_precision {
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::StridedSliceTransformation, "StridedSliceTransformation", 0);
 
-std::shared_ptr<Node> stridedSliceDeqConstant(
+std::shared_ptr<opset1::Constant> stridedSliceDeqConstant(
     const std::shared_ptr<ngraph::Node> strSlice,
     const std::shared_ptr<ngraph::Node> dequantizaitonConstant) {
     auto constant = ov::as_type_ptr<ngraph::opset1::Constant>(dequantizaitonConstant);
@@ -62,16 +62,16 @@ std::shared_ptr<Node> stridedSliceDeqConstant(
 
     const auto result = fold<ngraph::opset1::StridedSlice>(
         constant,
-        stridedSlice->get_input_node_shared_ptr(1),
-        stridedSlice->get_input_node_shared_ptr(2),
-        stridedSlice->get_input_node_shared_ptr(3),
+        stridedSlice->input_value(1),
+        stridedSlice->input_value(2),
+        stridedSlice->input_value(3),
         beginMask,
         endMask,
         stridedSlice->get_new_axis_mask(),
         stridedSlice->get_shrink_axis_mask(),
         stridedSlice->get_ellipsis_mask());
 
-    return NetworkHelper::toScalarIfPossible(result);
+    return ov::as_type_ptr<opset1::Constant>(NetworkHelper::toScalarIfPossible(result));
 }
 
 StridedSliceTransformation::StridedSliceTransformation(const Params& params) : LayerTransformation(params) {
@@ -95,21 +95,17 @@ bool StridedSliceTransformation::transform(TransformationContext& context, ngrap
     }
 
     const auto stridedSlice = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
-    const auto dequantization = NetworkHelper::getDequantization(stridedSlice);
+    auto dequantization = NetworkHelper::getDequantization(stridedSlice);
 
     if (dequantization.subtract) {
-        const auto subConst = NetworkHelper::getConstantInput(dequantization.subtract);
-        const size_t subConstIdx = NetworkHelper::getChildInputIndex(subConst, dequantization.subtract);
-
-        const auto newSubConst = stridedSliceDeqConstant(stridedSlice, subConst);
-        dequantization.subtract->set_argument(subConstIdx, newSubConst);
+        const auto newSubConst = stridedSliceDeqConstant(stridedSlice, dequantization.subtractConstant);
+        replace_node(dequantization.subtractConstant, newSubConst);
+        dequantization.subtractConstant = newSubConst;
     }
 
-    const auto mulConst = NetworkHelper::getConstantInput(dequantization.multiply);
-    const size_t mulConstIdx = NetworkHelper::getChildInputIndex(mulConst, dequantization.multiply);
-
-    const auto newMulConst = stridedSliceDeqConstant(stridedSlice, mulConst);
-    dequantization.multiply->set_argument(mulConstIdx, newMulConst);
+    const auto newMulConst = stridedSliceDeqConstant(stridedSlice, dequantization.multiplyConstant);
+    replace_node(dequantization.multiplyConstant, newMulConst);
+    dequantization.multiplyConstant = newMulConst;
 
     moveDequantizationAfter(context, stridedSlice, NetworkHelper::getDequantization(stridedSlice), false);
     return true;

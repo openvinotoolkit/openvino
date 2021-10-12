@@ -76,7 +76,7 @@ Running the application with the empty list of options yields the usage message 
 > - The sample accepts models in ONNX format (\*.onnx) that do not require preprocessing.
 
 ### Example
-1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader_README):
+1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
 ```
 python <path_to_omz_tools>/downloader.py --name person-detection-retail-0013
 ```

@@ -22,7 +22,7 @@ class GemmTransformation :
     public testing::WithParamInterface<GemmTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GemmTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<GemmTransformationParams>& obj);
 
 protected:
     void SetUp() override;

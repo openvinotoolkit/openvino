@@ -13,7 +13,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
-#include "low_precision/common/dequantization_op.hpp"
+#include <transformations/rt_info/disable_constant_folding.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -84,9 +84,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     {
         std::shared_ptr<opset1::Subtract> subtract;
         if (dequantization.subtract != nullptr) {
-            NetworkHelper::cleanRunTimeInfo(dequantization.subtract->shared_from_this());
             auto optimizedSubtract = NetworkHelper::optimizeSubtract(dequantization.subtract);
-
             if (optimizedSubtract == nullptr) {
                 optimizedSubtract = dequantization.subtract;
             }
@@ -174,7 +172,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         }
         NetworkHelper::copyInfo(convolution, relaxedNewConvolution);
 
-        std::shared_ptr<ngraph::opset1::Multiply> newMultiplyAfter = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
+        std::shared_ptr<ngraph::opset1::Multiply> newMultiplyAfter = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
             std::vector<element::Type>{ deqPrecision, deqPrecision },
             std::vector<element::Type>{ dequantization.multiply->get_output_element_type(0) },
             ngraph::op::TemporaryReplaceOutputType(relaxedNewConvolution, deqPrecision).get(),
@@ -244,7 +242,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
             });
             NetworkHelper::copyInfo(convolution, newConvolution);
 
-            auto newMultiplyAfter = std::make_shared<DequantizationMultiply>(
+            auto newMultiplyAfter = std::make_shared<opset1::Multiply>(
                 newConvolution,
                 foldConvert(
                     fold_reshape<opset1::Reshape>(
@@ -312,7 +310,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
     std::shared_ptr<ngraph::opset1::Multiply> finalDequantization = NetworkHelper::optimizeMultipliesAfter(
         convolution->output(0).get_target_inputs().begin()->get_node()->shared_from_this());
-    copy_runtime_info({ convolution, finalDequantization }, finalDequantization);
+    ngraph::copy_runtime_info({ convolution, finalDequantization }, finalDequantization);
     updateOutput(context, finalDequantization, convolution);
 
     // [C, 1, 1] -> [1, C, 1, 1]
@@ -324,8 +322,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     }
 
     if (ov::is_type<opset1::Subtract>(onWeights)) {
-        auto& rt = onWeights->get_rt_info();
-        rt["DISABLED_CONSTANT_FOLDING"] = std::make_shared<ngraph::VariantWrapper<std::string>>("");
+        ov::disable_constant_folding(onWeights);
     }
     return true;
 }

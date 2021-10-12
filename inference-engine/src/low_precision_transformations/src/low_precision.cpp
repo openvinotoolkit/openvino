@@ -29,6 +29,7 @@
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/pull_reshape_through_dequantization.hpp"
 #include "low_precision/pull_transpose_through_dequantization.hpp"
+#include "low_precision/rt_info/precisions_attribute.hpp"
 
 // branch specific transformations
 #include "low_precision/concat.hpp"
@@ -66,6 +67,7 @@
 #include "low_precision/transpose.hpp"
 #include "low_precision/unsqueeze.hpp"
 #include "low_precision/variadic_split.hpp"
+#include "low_precision/move_fake_quantize.hpp"
 
 // cleanup transformations
 #include "low_precision/convert.hpp"
@@ -75,7 +77,6 @@
 #include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
-#include "low_precision/subtract_multiply_to_multiply_add.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::LowPrecision, "LowPrecision", 0);
 
@@ -198,6 +199,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     prerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
     prerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
     prerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
+    prerequisites->add_matcher<ngraph::pass::low_precision::MoveFakeQuantize>();
 
     manager.register_pass<TypeRelaxedReplacer>();
 
@@ -245,7 +247,6 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     cleanup->add_matcher<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>(
         params,
         OperationPrecisionRestriction::getPrecisionsByOperationType<opset1::GroupConvolution>(precisionRestrictions));
-    manager.register_pass<ngraph::pass::low_precision::SubtractMultiplyToMultiplyAddTransformation>(params);
     manager.register_pass<ngraph::pass::low_precision::FoldFakeQuantizeTransformation>(params);
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
@@ -282,4 +283,25 @@ bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::s
         }
     }
     return false;
+}
+
+bool ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
+        const std::shared_ptr<const ngraph::Function>& function,
+        const std::set<size_t>& levels) {
+    std::vector<std::shared_ptr<ngraph::Node>> nodes = function->get_ops();
+    for (auto& node : nodes) {
+        for (size_t i = 0; i < node->inputs().size(); ++i) {
+            const auto fakeQuantize = as_type_ptr<ngraph::opset1::FakeQuantize>(node);
+            if (fakeQuantize != nullptr) {
+                if (levels.count(fakeQuantize->get_levels()) == 1) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+void ngraph::pass::low_precision::LowPrecision::setDefaultPrecisions(const std::vector<element::Type>& precisions) {
+    ngraph::PrecisionsAttribute::defaultPrecisions = precisions;
 }

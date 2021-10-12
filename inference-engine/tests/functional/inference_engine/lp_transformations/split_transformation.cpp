@@ -46,18 +46,6 @@ public:
     bool addUnsupportedConcat;
 };
 
-inline std::ostream& operator<<(std::ostream& os,
-    const std::vector<ngraph::builder::subgraph::DequantizationOperations>& values) {
-    os << "{ ";
-    for (size_t i = 0; i < values.size(); ++i) {
-        os << values[i];
-        if (i != (values.size() - 1ul)) {
-            os << ", ";
-        }
-    }
-    os << " }";
-    return os;
-}
 
 typedef std::tuple <
     ngraph::element::Type,
@@ -118,6 +106,8 @@ TEST_P(SplitTransformation, CompareFunctions) {
 
     auto res = compare_functions(referenceFunction, actualFunction, true, false);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 const std::vector<ngraph::element::Type> precisions = {

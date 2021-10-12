@@ -14,8 +14,8 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v1::DeformableConvolution, "DeformableConvolution", 1, op::util::DeformableConvolutionBase);
-NGRAPH_RTTI_DEFINITION(op::v8::DeformableConvolution, "DeformableConvolution", 8, op::util::DeformableConvolutionBase);
+BWDCMP_RTTI_DEFINITION(op::v1::DeformableConvolution);
+BWDCMP_RTTI_DEFINITION(op::v8::DeformableConvolution);
 
 op::v8::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
                                                      const Output<Node>& offsets,
@@ -75,9 +75,9 @@ void op::v8::DeformableConvolution::validate_and_infer_types() {
 
     DeformableConvolutionBase::validate_and_infer_types();
     if (inputs().size() == 4) {
-        const PartialShape& data_pshape = get_input_partial_shape(0);
-        const PartialShape& filters_pshape = get_input_partial_shape(2);
-        const PartialShape& mask_pshape = get_input_partial_shape(3);
+        const ov::PartialShape& data_pshape = get_input_partial_shape(0);
+        const ov::PartialShape& filters_pshape = get_input_partial_shape(2);
+        const ov::PartialShape& mask_pshape = get_input_partial_shape(3);
         element::Type mask_et = get_input_element_type(3);
 
         NODE_VALIDATION_CHECK(this,
@@ -126,7 +126,7 @@ void op::v8::DeformableConvolution::validate_and_infer_types() {
             }
         }
 
-        PartialShape result_pshape = get_output_partial_shape(0);
+        ov::PartialShape result_pshape = get_output_partial_shape(0);
         if (result_pshape.rank().is_static() && mask_pshape.rank().is_static()) {
             NODE_VALIDATION_CHECK(
                 this,

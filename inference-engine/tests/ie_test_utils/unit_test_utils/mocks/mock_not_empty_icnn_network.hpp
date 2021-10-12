@@ -19,21 +19,17 @@ IE_SUPPRESS_DEPRECATED_START
 class MockNotEmptyICNNNetwork final : public ICNNNetwork {
 public:
     static constexpr const char* INPUT_BLOB_NAME = "first_input";
-    const SizeVector INPUT_DIMENTIONS = { 1, 3, 299, 299 };
+    const SizeVector INPUT_DIMENSIONS = { 1, 3, 299, 299 };
     static constexpr const char* OUTPUT_BLOB_NAME = "first_output";
-    const SizeVector OUTPUT_DIMENTIONS = { 1, 3, 299, 299 };
+    const SizeVector OUTPUT_DIMENSIONS = { 1, 3, 299, 299 };
     const std::string name = "test";
     const std::string& getName() const noexcept override {
         return name;
     }
     void getOutputsInfo(OutputsDataMap& out) const noexcept override;
     void getInputsInfo(InputsDataMap &inputs) const noexcept override;
-    std::shared_ptr<ngraph::Function> getFunction() noexcept override {
-        return nullptr;
-    }
-    std::shared_ptr<const ngraph::Function> getFunction() const noexcept override {
-        return nullptr;
-    }
+    std::shared_ptr<ngraph::Function> getFunction() noexcept override;
+    std::shared_ptr<const ngraph::Function> getFunction() const noexcept override;
     MOCK_METHOD(InputInfo::Ptr, getInput, (const std::string &inputName), (const, noexcept));
     MOCK_METHOD(size_t, layerCount, (), (const, noexcept));
     MOCK_METHOD(StatusCode, addOutput, (const std::string &, size_t , ResponseDesc*), (noexcept));

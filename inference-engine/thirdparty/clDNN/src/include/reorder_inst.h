@@ -7,6 +7,8 @@
 
 #include "cldnn/primitives/reorder.hpp"
 #include "primitive_inst.h"
+#include "kernel_selector/core/actual_kernels/reorder/reorder_kernel_base.h"
+#include "kernel_selector/common/tensor_type.h"
 
 #include <string>
 #include <memory>
@@ -33,11 +35,19 @@ public:
     void requires_reinterpret(bool val) { req_reinterpr = (optimized && val); }
 
     void set_input_offset(tensor const& io) { input_offset = io; }
+    void set_input_layout(layout const& lo) { input_layout = lo; }
     tensor get_input_offset() const { return input_offset; }
+
+    std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
+        kernel_selector::DataLayout ks_input_layout = convert_data_tensor(input_layout).GetLayout();
+        kernel_selector::DataLayout ks_output_layout = convert_data_tensor(get_output_layout()).GetLayout();
+        return std::make_shared<kernel_selector::reorder_fuse_params>(ks_input_layout, ks_output_layout);
+    }
 
 private:
     bool req_reinterpr = false;
     tensor input_offset = tensor{0};  // used by reorder to winograd domain
+    layout input_layout = layout(data_types::f32, format::bfyx, { 0, 0, 0, 0 });
 };
 
 using reorder_node = typed_program_node<reorder>;

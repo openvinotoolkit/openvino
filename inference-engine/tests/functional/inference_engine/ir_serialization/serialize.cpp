@@ -50,10 +50,11 @@ TEST_P(SerializationTest, CompareFunctions) {
     expected.serialize(m_out_xml_path, m_out_bin_path);
     auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
 
-    bool success;
-    std::string message;
-    std::tie(success, message) = compare_functions(result.getFunction(), expected.getFunction(), true, false, true, true, true);
-    ASSERT_TRUE(success) << message;
+    const auto fc = FunctionsComparator::with_default()
+            .enable(FunctionsComparator::ATTRIBUTES)
+            .enable(FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(result.getFunction(), expected.getFunction());
+    EXPECT_TRUE(res.valid) << res.message;
 }
 
 INSTANTIATE_TEST_SUITE_P(IRSerialization, SerializationTest,
@@ -76,7 +77,8 @@ INSTANTIATE_TEST_SUITE_P(IRSerialization, SerializationTest,
                         std::make_tuple("pad_with_shape_of.xml", ""),
                         std::make_tuple("conv_with_rt_info.xml", ""),
                         std::make_tuple("loop_2d_add.xml", "loop_2d_add.bin"),
-                        std::make_tuple("nms5_dynamism.xml", "nms5_dynamism.bin")));
+                        std::make_tuple("nms5_dynamism.xml", "nms5_dynamism.bin"),
+                        std::make_tuple("if_diff_case.xml", "if_diff_case.bin")));
 
 #ifdef NGRAPH_ONNX_FRONTEND_ENABLE
 

@@ -9,15 +9,10 @@
 #include "ngraph/pattern/op/true.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-constexpr NodeTypeInfo pattern::op::Label::type_info;
+BWDCMP_RTTI_DEFINITION(ov::pass::pattern::op::Label);
 
-const NodeTypeInfo& pattern::op::Label::get_type_info() const {
-    return type_info;
-}
-
-Output<Node> pattern::op::Label::wrap_values(const OutputVector& wrapped_values) {
+ov::Output<ov::Node> ov::pass::pattern::op::Label::wrap_values(const ov::OutputVector& wrapped_values) {
     switch (wrapped_values.size()) {
     case 0:
         return make_shared<pattern::op::True>()->output(0);
@@ -28,9 +23,9 @@ Output<Node> pattern::op::Label::wrap_values(const OutputVector& wrapped_values)
     }
 }
 
-bool pattern::op::Label::match_value(Matcher* matcher,
-                                     const Output<Node>& pattern_value,
-                                     const Output<Node>& graph_value) {
+bool ov::pass::pattern::op::Label::match_value(ov::pass::pattern::Matcher* matcher,
+                                               const ov::Output<ov::Node>& pattern_value,
+                                               const ov::Output<ov::Node>& graph_value) {
     if (m_predicate(graph_value)) {
         auto& pattern_map = matcher->get_pattern_value_map();
         auto saved = matcher->start_match();
@@ -45,10 +40,10 @@ bool pattern::op::Label::match_value(Matcher* matcher,
     return false;
 }
 
-std::shared_ptr<Node> pattern::any_input() {
+std::shared_ptr<ov::Node> ov::pass::pattern::any_input() {
     return std::make_shared<pattern::op::Label>();
 }
 
-std::shared_ptr<Node> pattern::any_input(const pattern::op::ValuePredicate& pred) {
+std::shared_ptr<ov::Node> ov::pass::pattern::any_input(const ov::pass::pattern::op::ValuePredicate& pred) {
     return std::make_shared<pattern::op::Label>(element::dynamic, PartialShape::dynamic(), pred);
 }

@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v5::Loop, "Loop", 5);
+BWDCMP_RTTI_DEFINITION(op::v5::Loop);
 
 op::v5::Loop::Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition) : SubGraphOp() {
     set_argument(0, trip_count);
@@ -160,7 +160,7 @@ void op::v5::Loop::validate_and_infer_types() {
             auto body_parameter = m_bodies[0]->get_parameters().at(slice_input_description->m_body_parameter_index);
             const auto& input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
             if (input_partial_shape.rank().is_dynamic()) {
-                body_parameter->set_partial_shape(PartialShape::dynamic());
+                body_parameter->set_partial_shape(ov::PartialShape::dynamic());
             } else {
                 auto out_shape = input_partial_shape;
                 const auto axis =
@@ -178,7 +178,7 @@ void op::v5::Loop::validate_and_infer_types() {
 
             body_parameter->set_partial_shape(input_partial_shape);
         } else if (auto invariant_input_description =
-                       ov::as_type_ptr<TensorIterator::InvariantInputDescription>(input_description)) {
+                       ov::as_type_ptr<v0::TensorIterator::InvariantInputDescription>(input_description)) {
             auto body_parameter = m_bodies[0]->get_parameters().at(invariant_input_description->m_body_parameter_index);
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
@@ -198,16 +198,16 @@ void op::v5::Loop::validate_and_infer_types() {
         auto body_value = m_bodies[0]->get_results().at(output_description->m_body_value_index)->input_value(0);
 
         if (auto concat_output_description =
-                ov::as_type_ptr<TensorIterator::ConcatOutputDescription>(output_description)) {
+                ov::as_type_ptr<v0::TensorIterator::ConcatOutputDescription>(output_description)) {
             const auto& body_value_partial_shape = body_value.get_partial_shape();
             auto out_shape = body_value_partial_shape;
             if (zero_number_of_iter) {
-                out_shape = PartialShape{0};
+                out_shape = ov::PartialShape{0};
             } else if (out_shape.rank().is_static()) {
                 const auto axis = ngraph::normalize_axis(this, concat_output_description->m_axis, out_shape.rank());
                 const auto rank = out_shape.rank().get_length();
                 if (rank == 0) {
-                    out_shape = PartialShape{1};
+                    out_shape = ov::PartialShape{1};
                 }
 
                 if (out_shape[axis].is_static() && m_num_iterations != -1) {
@@ -220,8 +220,8 @@ void op::v5::Loop::validate_and_infer_types() {
         }
 
         else if (auto body_output_description =
-                     ov::as_type_ptr<TensorIterator::BodyOutputDescription>(output_description)) {
-            const PartialShape& ps = body_value.get_partial_shape();
+                     ov::as_type_ptr<v0::TensorIterator::BodyOutputDescription>(output_description)) {
+            const ov::PartialShape& ps = body_value.get_partial_shape();
             if (ps.is_dynamic()) {
                 set_output_type(index, body_value.get_element_type(), ps);
             } else {
@@ -263,12 +263,12 @@ Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
 
 bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v5_Loop_evaluate);
-    runtime::reference::loop(m_bodies[0],
-                             m_output_descriptions[0],
-                             m_input_descriptions[0],
-                             m_special_body_ports,
-                             outputs,
-                             inputs);
+    ngraph::runtime::reference::loop(m_bodies[0],
+                                     m_output_descriptions[0],
+                                     m_input_descriptions[0],
+                                     m_special_body_ports,
+                                     outputs,
+                                     inputs);
     return true;
 }
 
@@ -306,6 +306,4 @@ op::v5::Loop::Loop(const op::v5::Loop& other) : SubGraphOp() {
     other.clone_to(*this, other.input_values());
 }
 
-namespace ov {
-constexpr DiscreteTypeInfo AttributeAdapter<op::v5::Loop::SpecialBodyPorts>::type_info;
-}
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>);

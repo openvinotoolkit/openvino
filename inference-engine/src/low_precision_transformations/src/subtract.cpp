@@ -49,21 +49,21 @@ bool SubtractTransformation::transform(TransformationContext& context, ngraph::p
 
     const ngraph::element::Type originalPrecision = subtract->get_output_element_type(0);
 
-    const FakeQuantizeDequantization dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(subtract);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(subtract);
     if (dequantization.multiply != nullptr) {
         // before: Y = X * SC - SH, after:  Y = (X - SH') * SC
         //    X * SC - SH = X * SC - SH' * SC
         //    SH' = SH / SC
         std::shared_ptr<opset1::Subtract> newSubtract = ov::as_type_ptr<opset1::Subtract>(subtract->copy_with_new_inputs({
-            dequantization.multiply->get_input_node_shared_ptr(0),
+            dequantization.multiply->input_value(0),
             ngraph::pass::low_precision::fold<ngraph::opset1::Divide>(
-                subtract->get_input_node_shared_ptr(1),
-                dequantization.multiply->get_input_node_shared_ptr(1))
+                subtract->input_value(1),
+                dequantization.multiply->input_value(1))
         }));
 
         std::shared_ptr<Node> newMultiply = dequantization.multiply->copy_with_new_inputs({
             newSubtract,
-            dequantization.multiply->input_value(1)
+            dequantization.multiplyConstant
         });
 
         replace_node(subtract, newMultiply);
@@ -72,10 +72,8 @@ bool SubtractTransformation::transform(TransformationContext& context, ngraph::p
 
     if (dequantization.subtract != nullptr) {
         std::shared_ptr<opset1::Subtract> newSubtract = ov::as_type_ptr<opset1::Subtract>(subtract->copy_with_new_inputs({
-            dequantization.subtract->get_input_node_shared_ptr(0),
-            ngraph::pass::low_precision::fold<ngraph::opset1::Add>(
-                subtract->get_input_node_shared_ptr(1),
-                dequantization.subtract->get_input_node_shared_ptr(1))
+            dequantization.subtract->input_value(0),
+            fold<ngraph::opset1::Add>(subtract->input_value(1), dequantization.subtractConstant)
         }));
 
         replace_node(subtract, newSubtract);
@@ -88,8 +86,8 @@ bool SubtractTransformation::transform(TransformationContext& context, ngraph::p
         subtract->set_output_type(0, originalPrecision, subtract->get_output_partial_shape(0));
 
         replace_node(subtract, std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
-            subtract->get_input_node_shared_ptr(0),
-            subtract->get_input_node_shared_ptr(1)));
+            subtract->input_value(0),
+            subtract->input_value(1)));
     }
     return true;
 }

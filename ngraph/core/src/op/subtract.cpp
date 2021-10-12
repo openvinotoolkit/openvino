@@ -51,7 +51,7 @@ bool evaluate_subtract(const HostTensorPtr& arg0,
 
 // ------------------------------- v1 ------------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::Subtract, "Subtract", 1, util::BinaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(op::v1::Subtract);
 
 op::v1::Subtract::Subtract(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {

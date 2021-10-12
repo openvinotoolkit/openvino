@@ -108,6 +108,9 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
     if (conf.empty())
         return jit;
 
+    if (params.fused_ops.size() == 1 && params.fused_ops[0].GetType() == KernelType::REORDER)
+        return jit;
+
     try {
         for (auto& c : conf) {
             std::string fused_ops;
@@ -119,6 +122,10 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
             bool can_all_use_preload = true;
 
             for (size_t i = 0; i < params.fused_ops.size(); i++) {
+                // Reorder is not processed by jitter
+                if (params.fused_ops[i].GetType() == FusedOpType::REORDER)
+                    continue;
+
                 auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
                 jit.Merge(fused_dep_codegen.MakeLoadJitConstants(c, params.output));
                 jit.Merge(fused_dep_codegen.MakeOpJitConstants(c, in_name, in_type, out_name));

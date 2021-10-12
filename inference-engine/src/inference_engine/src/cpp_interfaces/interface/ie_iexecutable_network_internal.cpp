@@ -26,6 +26,19 @@ void IExecutableNetworkInternal::setNetworkOutputs(const OutputsDataMap& network
     _networkOutputs = networkOutputs;
 }
 
+void IExecutableNetworkInternal::setInputs(const std::vector<std::shared_ptr<const ov::Node>>& params) {
+    _parameters = params;
+}
+const std::vector<std::shared_ptr<const ov::Node>>& IExecutableNetworkInternal::getInputs() const {
+    return _parameters;
+}
+void IExecutableNetworkInternal::setOutputs(const std::vector<std::shared_ptr<const ov::Node>>& results) {
+    _results = results;
+}
+const std::vector<std::shared_ptr<const ov::Node>>& IExecutableNetworkInternal::getOutputs() const {
+    return _results;
+}
+
 ConstOutputsDataMap IExecutableNetworkInternal::GetOutputsInfo() const {
     ConstOutputsDataMap outputMap;
     for (const auto& output : _networkOutputs) {
@@ -86,7 +99,7 @@ Parameter IExecutableNetworkInternal::GetMetric(const std::string&) const {
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<IRemoteContext> IExecutableNetworkInternal::GetContext() const {
+std::shared_ptr<RemoteContext> IExecutableNetworkInternal::GetContext() const {
     IE_THROW(NotImplemented);
 }
 

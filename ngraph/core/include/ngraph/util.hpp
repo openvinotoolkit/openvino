@@ -25,17 +25,17 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/core/enum_mask.hpp"
 
 namespace ov {
 class Node;
 }
 namespace ngraph {
+using ov::EnumMask;
 using ov::Node;
 class stopwatch;
 
 namespace runtime {
-class Backend;
-class Value;
 class Tensor;
 }  // namespace runtime
 
@@ -60,8 +60,10 @@ std::string vector_to_string(const T& v) {
 }
 
 NGRAPH_API
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 size_t hash_combine(const std::vector<size_t>& list);
 NGRAPH_API
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 void dump(std::ostream& out, const void*, size_t);
 NGRAPH_API
 std::string to_lower(const std::string& s);
@@ -73,6 +75,7 @@ NGRAPH_API
 std::vector<std::string> split(const std::string& s, char delimiter, bool trim = false);
 
 template <typename T>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 std::string locale_string(T x) {
     std::stringstream ss;
     ss.imbue(std::locale(""));
@@ -80,7 +83,7 @@ std::string locale_string(T x) {
     return ss.str();
 }
 
-class NGRAPH_API stopwatch {
+class NGRAPH_API NGRAPH_DEPRECATED("It is obsolete structure and will be removed soon") stopwatch {
 public:
     void start() {
         if (m_active == false) {
@@ -122,6 +125,7 @@ private:
 
 /// Parses a string containing a literal of the underlying type.
 template <typename T>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 T parse_string(const std::string& s) {
     T result;
     std::stringstream ss;
@@ -140,26 +144,33 @@ T parse_string(const std::string& s) {
 /// template specializations for float and double to handle INFINITY, -INFINITY
 /// and NaN values.
 template <>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API float parse_string<float>(const std::string& s);
 template <>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API double parse_string<double>(const std::string& s);
 
 /// template specializations for int8_t and uint8_t to handle the fact that default
 /// implementation ends up treating values as characters so that the number "0" turns into
 /// the parsed value 48, which is it's ASCII value
 template <>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API int8_t parse_string<int8_t>(const std::string& s);
 template <>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API uint8_t parse_string<uint8_t>(const std::string& s);
 
 /// Parses a list of strings containing literals of the underlying type.
 template <typename T>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 std::vector<T> parse_string(const std::vector<std::string>& ss) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     std::vector<T> result(ss.size());
     std::transform(ss.begin(), ss.end(), result.begin(), [](const std::string& s) {
         return parse_string<T>(s);
     });
     return result;
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 template <typename T>
@@ -168,30 +179,42 @@ T ceil_div(const T& x, const T& y) {
 }
 
 template <typename T>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 T subtract_or_zero(T x, T y) {
     return y > x ? 0 : x - y;
 }
 
 NGRAPH_API
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 void* ngraph_malloc(size_t size);
 NGRAPH_API
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 void ngraph_free(void*);
 
 NGRAPH_API
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 size_t round_up(size_t size, size_t alignment);
+
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 bool is_valid_permutation(ngraph::AxisVector permutation, ngraph::Rank rank = Rank::dynamic());
 template <typename T>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 T apply_permutation(T input, ngraph::AxisVector order);
 
-extern template NGRAPH_API AxisVector apply_permutation<AxisVector>(AxisVector input, AxisVector order);
+extern template NGRAPH_API NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
+    AxisVector apply_permutation<AxisVector>(AxisVector input, AxisVector order);
 
-extern template NGRAPH_API Coordinate apply_permutation<Coordinate>(Coordinate input, AxisVector order);
+extern template NGRAPH_API NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
+    Coordinate apply_permutation<Coordinate>(Coordinate input, AxisVector order);
 
-extern template NGRAPH_API Strides apply_permutation<Strides>(Strides input, AxisVector order);
+extern template NGRAPH_API NGRAPH_DEPRECATED("This method is deprecated and will be removed soon") Strides
+    apply_permutation<Strides>(Strides input, AxisVector order);
 
-extern template NGRAPH_API Shape apply_permutation<Shape>(Shape input, AxisVector order);
+extern template NGRAPH_API NGRAPH_DEPRECATED("This method is deprecated and will be removed soon") Shape
+    apply_permutation<Shape>(Shape input, AxisVector order);
 
 template <>
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API PartialShape apply_permutation(PartialShape input, AxisVector order);
 
 NGRAPH_API
@@ -206,105 +229,6 @@ AxisVector get_default_order(const Shape& shape);
 NGRAPH_API
 AxisVector get_default_order(const PartialShape& shape);
 
-//
-// EnumMask is intended to work with a scoped enum type. It's used to store
-// a combination of enum values and provides easy access and manipulation
-// of these enum values as a mask.
-//
-// EnumMask does not provide a set_all() or invert() operator because they
-// could do things unexpected by the user, i.e. for enum with 4 bit values,
-// invert(001000...) != 110100..., due to the extra bits.
-//
-template <typename T>
-class EnumMask {
-public:
-    /// Make sure the template type is an enum.
-    static_assert(std::is_enum<T>::value, "EnumMask template type must be an enum");
-    /// Extract the underlying type of the enum.
-    typedef typename std::underlying_type<T>::type value_type;
-    /// Some bit operations are not safe for signed values, we require enum
-    /// type to use unsigned underlying type.
-    static_assert(std::is_unsigned<value_type>::value, "EnumMask enum must use unsigned type.");
-
-    constexpr EnumMask() : m_value{0} {}
-    constexpr EnumMask(const T& enum_value) : m_value{static_cast<value_type>(enum_value)} {}
-    EnumMask(const EnumMask& other) : m_value{other.m_value} {}
-    EnumMask(std::initializer_list<T> enum_values) : m_value{0} {
-        for (auto& v : enum_values) {
-            m_value |= static_cast<value_type>(v);
-        }
-    }
-    value_type value() const {
-        return m_value;
-    }
-    /// Check if any of the input parameter enum bit mask match
-    bool is_any_set(const EnumMask& p) const {
-        return m_value & p.m_value;
-    }
-    /// Check if all of the input parameter enum bit mask match
-    bool is_set(const EnumMask& p) const {
-        return (m_value & p.m_value) == p.m_value;
-    }
-    /// Check if any of the input parameter enum bit mask does not match
-    bool is_any_clear(const EnumMask& p) const {
-        return !is_set(p);
-    }
-    /// Check if all of the input parameter enum bit mask do not match
-    bool is_clear(const EnumMask& p) const {
-        return !is_any_set(p);
-    }
-    void set(const EnumMask& p) {
-        m_value |= p.m_value;
-    }
-    void clear(const EnumMask& p) {
-        m_value &= ~p.m_value;
-    }
-    void clear_all() {
-        m_value = 0;
-    }
-    bool operator[](const EnumMask& p) const {
-        return is_set(p);
-    }
-    bool operator==(const EnumMask& other) const {
-        return m_value == other.m_value;
-    }
-    bool operator!=(const EnumMask& other) const {
-        return m_value != other.m_value;
-    }
-    EnumMask& operator=(const EnumMask& other) {
-        m_value = other.m_value;
-        return *this;
-    }
-    EnumMask& operator&=(const EnumMask& other) {
-        m_value &= other.m_value;
-        return *this;
-    }
-
-    EnumMask& operator|=(const EnumMask& other) {
-        m_value |= other.m_value;
-        return *this;
-    }
-
-    EnumMask operator&(const EnumMask& other) const {
-        return EnumMask(m_value & other.m_value);
-    }
-
-    EnumMask operator|(const EnumMask& other) const {
-        return EnumMask(m_value | other.m_value);
-    }
-
-    friend std::ostream& operator<<(std::ostream& os, const EnumMask& m) {
-        os << m.m_value;
-        return os;
-    }
-
-private:
-    /// Only used internally
-    explicit EnumMask(const value_type& value) : m_value{value} {}
-
-    value_type m_value;
-};
-
 /// \brief Function to query parsed version information of the version of ngraph which
 /// contains this function. Version information strictly follows Semantic Versioning
 /// http://semver.org
@@ -317,6 +241,7 @@ private:
 ///
 /// \note Throws a runtime_error if there is an error during parsing
 NGRAPH_API
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 void parse_version_string(std::string version, size_t& major, size_t& minor, size_t& patch, std::string& extra);
 
 template <typename T>

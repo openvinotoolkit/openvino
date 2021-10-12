@@ -59,7 +59,7 @@ public:
         return m_rt_info;
     }
     /// \return the shape of the output
-    const ngraph::Shape& get_shape() const;
+    const Shape& get_shape() const;
 
     /// \return the partial shape of the output
     const PartialShape& get_partial_shape() const;

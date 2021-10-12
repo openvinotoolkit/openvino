@@ -67,6 +67,7 @@ Standard MXNet\* symbols:
 | _minus_scalar | No |
 | _mul_scalar | No |
 | _plus_scalar | No |
+| _random_uniform | Operation provides sequence from uniform distribution, but exact values won't match. |
 | _rnn_param_concat | No |
 | _arange | No |
 | _contrib_AdaptiveAvgPooling2D | Converted to the Average Pooling with fixed paddings |
@@ -179,6 +180,7 @@ Standard TensorFlow\* operations:
 | BroadcastTo | No |
 | Cast | No |
 | Ceil | No |
+| ClipByValue | No |
 | Concat | No |
 | ConcatV2 | No |
 | Const | No |
@@ -253,6 +255,7 @@ Standard TensorFlow\* operations:
 | Min | No |
 | Minimum | No |
 | MirrorPad | No |
+| Mod | No |
 | Mul | No |
 | Neg | No |
 | NextIteration | Supported only when it is fused to the TensorIterator layer |
@@ -270,6 +273,8 @@ Standard TensorFlow\* operations:
 | PlaceholderWithDefault | No |
 | Prod | No |
 | QueueDequeueUpToV2 | Supported only when it is part of a sub-graph of the special form |
+| RandomUniform | No |
+| RandomUniformInt | No |
 | Range | No |
 | Rank | No |
 | RealDiv | No |
@@ -436,6 +441,7 @@ Standard Kaldi\* Layers:
 | convolutional1dcomponent | No |
 | convolutionalcomponent | No |
 | copy | No |
+| dropoutmaskcomponent | No |
 | elementwiseproductcomponent | No |
 | fixedaffinecomponent | No |
 | fixedbiascomponent | No |
@@ -566,6 +572,7 @@ Standard ONNX\* operators:
 | RNN | No |
 | ROIAlign | No |
 | Range | No |
+| RandomUniform | Operation provides sequence from uniform distribution, but exact values won't match. |
 | Reciprocal | No |
 | ReduceL1 | No |
 | ReduceL2 | No |

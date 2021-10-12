@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include "common_test_utils/test_common.hpp"
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
 
 
@@ -181,6 +182,27 @@ TEST_F(TypeRelaxedTests, notSupportedTypeOverridePartially) {
     ASSERT_EQ(4, ngraph->get_ops().size());
 }
 
+TEST_F(TypeRelaxedTests, multiOutputTypeOverride) {
+    auto overriden_type = element::f16;
+    auto orig_type = element::f32;
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        auto param1 = make_shared<ngraph::opset1::Parameter>(orig_type, shape);
+        auto op = ngraph::opset1::Split(param1, ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, {1}), 3);
+        auto relaxed_op = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Split>>(
+                op, TypeVector{}, TypeVector{overriden_type, overriden_type, overriden_type});
+        auto result = make_shared<ngraph::opset1::Result>(relaxed_op);
+
+        ngraph = make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1});
+
+        for (size_t i = 0; i < 3; ++i) {
+            ASSERT_EQ(overriden_type, relaxed_op->get_output_element_type(i));
+            ASSERT_EQ(ngraph::Shape({1, 1, 22, 22}), relaxed_op->get_output_shape(i));
+        }
+    }
+}
+
 TEST_F(TypeRelaxedTests, setGetTypes) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
@@ -294,5 +316,76 @@ TEST_F(TypeRelaxedTests, OneOutputMultipleInputPorts) {
         // function we do not corrupt original types
         relaxed_op->validate_and_infer_types();
         ASSERT_EQ(param1->output(0).get_element_type(), element::i64);
+    }
+}
+
+TEST_F(TypeRelaxedTests, ConstantFoldingCheck) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto const1 = ngraph::opset1::Constant::create(element::i32, ngraph::Shape{}, { 2 });
+        auto const2 = ngraph::opset1::Constant::create(element::i32, ngraph::Shape{}, { 2 });
+        auto equal = ngraph::opset1::Equal(const1, const2);
+        auto relaxed_equal = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Equal>>(equal, TypeVector{}, TypeVector{ element::u8 });
+
+        f = make_shared<ngraph::Function>(ngraph::OutputVector{ relaxed_equal }, ngraph::ParameterVector{});
+
+        ASSERT_NO_THROW(ngraph::pass::ConstantFolding().run_on_function(f));
+        auto layer_before_result = f->get_result()->get_input_node_shared_ptr(0);
+        ASSERT_TRUE(ngraph::is_type<ngraph::opset1::Constant>(layer_before_result));
+    }
+}
+
+TEST_F(TypeRelaxedTests, ConstantFoldingCheck1) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto const1 = ngraph::opset1::Constant::create(element::i32, ngraph::Shape{}, { 2 });
+        auto const2 = ngraph::opset1::Constant::create(element::i32, ngraph::Shape{}, { 2 });
+        auto equal = ngraph::opset1::Equal(const1, const2);
+        auto relaxed_equal = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Equal>>(equal, TypeVector{}, TypeVector{ element::boolean });
+
+        f = make_shared<ngraph::Function>(ngraph::OutputVector{ relaxed_equal }, ngraph::ParameterVector{});
+
+        ASSERT_NO_THROW(ngraph::pass::ConstantFolding().run_on_function(f));
+        auto layer_before_result = f->get_result()->get_input_node_shared_ptr(0);
+        ASSERT_TRUE(ngraph::is_type<ngraph::opset1::Constant>(layer_before_result));
+    }
+}
+
+TEST_F(TypeRelaxedTests, ConstantFoldingCheck2) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto const1 = ngraph::opset1::Constant::create(element::u8, ngraph::Shape{}, { 2 });
+        auto const2 = ngraph::opset1::Constant::create(element::i8, ngraph::Shape{}, { 2 });
+
+        auto original_input_types = TypeVector{ element::i32, element::i32 };
+        auto relaxed_equal = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Equal>>(
+            ngraph::element::TypeVector{ element::i32, element::i32 },
+            ngraph::element::TypeVector{ element::u8 },
+            ngraph::op::TemporaryReplaceOutputType(const1, element::i32).get(),
+            ngraph::op::TemporaryReplaceOutputType(const2, element::i32).get());
+
+        f = make_shared<ngraph::Function>(ngraph::OutputVector{ relaxed_equal }, ngraph::ParameterVector{});
+
+        ASSERT_NO_THROW(ngraph::pass::ConstantFolding().run_on_function(f));
+        auto layer_before_result = f->get_result()->get_input_node_shared_ptr(0);
+        ASSERT_TRUE(ngraph::is_type<ngraph::opset1::Constant>(layer_before_result));
+    }
+}
+
+TEST_F(TypeRelaxedTests, ConstantFoldingCheck3) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto const1 = ngraph::opset1::Constant::create(element::i32, ngraph::Shape{}, { 2 });
+        auto const2 = ngraph::opset1::Constant::create(element::i32, ngraph::Shape{}, { 2 });
+        auto equal = ngraph::opset1::Equal(const1, const2);
+
+        auto original_input_types = TypeVector{ element::f32, element::f32 };
+        auto relaxed_equal = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Equal>>(equal, original_input_types, TypeVector{ element::u8 });
+
+        f = make_shared<ngraph::Function>(ngraph::OutputVector{ relaxed_equal }, ngraph::ParameterVector{});
+
+        ASSERT_NO_THROW(ngraph::pass::ConstantFolding().run_on_function(f));
+        auto layer_before_result = f->get_result()->get_input_node_shared_ptr(0);
+        ASSERT_TRUE(ngraph::is_type<ngraph::opset1::Constant>(layer_before_result));
     }
 }
