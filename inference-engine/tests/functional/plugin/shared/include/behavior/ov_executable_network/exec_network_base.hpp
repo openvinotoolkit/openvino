@@ -142,29 +142,37 @@ TEST_P(OVExecutableNetworkBaseTest, CanCreateTwoExeNetworksAndCheckFunction) {
 
 TEST_P(OVExecutableNetworkBaseTest, CanGetInputsInfo) {
     auto execNet = core->compile_model(function, targetDevice, configuration);
-    ASSERT_NO_THROW(auto inInfo = execNet.get_parameters());
+    ASSERT_NO_THROW(auto inInfo = execNet.inputs());
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanGetOutputsInfo) {
     auto execNet = core->compile_model(function, targetDevice, configuration);
-    ASSERT_NO_THROW(auto outInfo = execNet.get_results());
+    ASSERT_NO_THROW(auto outInfo = execNet.outputs());
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanGetInputsInfoAndCheck) {
     auto execNet = core->compile_model(function, targetDevice, configuration);
-    auto inInfo = execNet.get_parameters();
-    auto inCnnInfo = function->get_parameters();
-    for (const auto &itemInInfo : inCnnInfo) {
-        ASSERT_NE(std::find(inInfo.begin(), inInfo.end(), itemInInfo), inInfo.end());
+    auto inputs = execNet.inputs();
+    std::vector<std::string> paramVec;
+    for (const auto& input : inputs) {
+        paramVec.push_back(*input.get_tensor().get_names().begin());
+    }
+    auto params = function->get_parameters();
+    for (const auto &param : params) {
+        ASSERT_NE(std::find(paramVec.begin(), paramVec.end(), *param->get_output_tensor(0).get_names().begin()), paramVec.end());
     }
 }
 
 TEST_P(OVExecutableNetworkBaseTest, CanGetOutputsInfoAndCheck) {
     auto execNet = core->compile_model(function, targetDevice, configuration);
-    auto outInfo = execNet.get_results();
-    auto outCnnInfo = function->get_results();
-    for (const auto &itemOutInfo : outCnnInfo) {
-        ASSERT_NE(std::find(outCnnInfo.begin(), outCnnInfo.end(), itemOutInfo), outCnnInfo.end());
+    auto outputs = execNet.outputs();
+    std::vector<std::string> resVec;
+    for (const auto& out : outputs) {
+        resVec.push_back(*out.get_tensor().get_names().begin());
+    }
+    auto results = function->get_results();
+    for (const auto &param : results) {
+        ASSERT_NE(std::find(resVec.begin(), resVec.end(), *param->get_output_tensor(0).get_names().begin()), resVec.end());
     }
 }
 
@@ -301,22 +309,135 @@ TEST_P(OVExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
     compare_functions(referenceNetwork, function);
 }
 
+TEST_P(OVExecutableNetworkBaseTest, getInputFromFunctionWithSingleInput) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::runtime::ExecutableNetwork execNet;
+
+    execNet = core->compile_model(function, targetDevice, configuration);
+    ASSERT_EQ(function->inputs().size(), 1);
+    EXPECT_EQ(function->inputs().size(), execNet.inputs().size());
+    EXPECT_NO_THROW(execNet.input());
+    EXPECT_EQ(function->input().get_tensor().get_names(), execNet.input().get_tensor().get_names());
+    EXPECT_EQ(function->input().get_tensor().get_partial_shape(), execNet.input().get_tensor().get_partial_shape());
+    EXPECT_EQ(function->input().get_tensor().get_element_type(), execNet.input().get_tensor().get_element_type());
+}
+
+TEST_P(OVExecutableNetworkBaseTest, getOutputFromFunctionWithSingleInput) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::runtime::ExecutableNetwork execNet;
+
+    execNet = core->compile_model(function, targetDevice, configuration);
+    EXPECT_EQ(function->outputs().size(), 1);
+    EXPECT_EQ(function->outputs().size(), execNet.outputs().size());
+    EXPECT_NO_THROW(execNet.output());
+    EXPECT_EQ(function->output().get_tensor().get_names(), execNet.output().get_tensor().get_names());
+    EXPECT_EQ(function->output().get_tensor().get_partial_shape(), execNet.output().get_tensor().get_partial_shape());
+    EXPECT_EQ(function->output().get_tensor().get_element_type(), execNet.output().get_tensor().get_element_type());
+}
+
+TEST_P(OVExecutableNetworkBaseTest, getInputsFromFunctionWithSeveralInputs) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::runtime::ExecutableNetwork execNet;
+
+    // Create simple function
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto param2 = std::make_shared<ov::opset8::Parameter>(element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        param2->set_friendly_name("param2");
+        param2->output(0).get_tensor().set_names({"data2"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("relu_op");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result1 = std::make_shared<ov::opset8::Result>(relu);
+        result1->set_friendly_name("result1");
+        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
+        concat->set_friendly_name("concat_op");
+        concat->output(0).get_tensor().set_names({"concat"});
+        auto result2 = std::make_shared<ov::opset8::Result>(concat);
+        result2->set_friendly_name("result2");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
+                                                      ngraph::ParameterVector{param1, param2});
+        function->set_friendly_name("SingleRuLU");
+    }
+    execNet = core->compile_model(function, targetDevice, configuration);
+    ASSERT_EQ(function->inputs().size(), 2);
+    EXPECT_EQ(function->inputs().size(), execNet.inputs().size());
+    EXPECT_THROW(execNet.input(), ov::Exception);
+    EXPECT_EQ(function->input(0).get_tensor().get_names(), execNet.input(0).get_tensor().get_names());
+    EXPECT_EQ(function->input(0).get_tensor().get_partial_shape(), execNet.input(0).get_tensor().get_partial_shape());
+    EXPECT_EQ(function->input(0).get_tensor().get_element_type(), execNet.input(0).get_tensor().get_element_type());
+    EXPECT_EQ(function->input(1).get_tensor().get_names(), execNet.input(1).get_tensor().get_names());
+    EXPECT_EQ(function->input(1).get_tensor().get_partial_shape(), execNet.input(1).get_tensor().get_partial_shape());
+    EXPECT_EQ(function->input(1).get_tensor().get_element_type(), execNet.input(1).get_tensor().get_element_type());
+    EXPECT_EQ(function->input(0).get_node(), function->input("data1").get_node());
+    EXPECT_NE(function->input(1).get_node(), function->input("data1").get_node());
+    EXPECT_EQ(function->input(1).get_node(), function->input("data2").get_node());
+    EXPECT_NE(function->input(0).get_node(), function->input("data2").get_node());
+}
+
+TEST_P(OVExecutableNetworkBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::runtime::ExecutableNetwork execNet;
+
+    // Create simple function
+    {
+        auto param1 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        param1->set_friendly_name("param1");
+        param1->output(0).get_tensor().set_names({"data1"});
+        auto param2 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ngraph::Shape({1, 3, 24, 24}));
+        param2->set_friendly_name("param2");
+        param2->output(0).get_tensor().set_names({"data2"});
+        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        relu->set_friendly_name("relu_op");
+        relu->output(0).get_tensor().set_names({"relu"});
+        auto result1 = std::make_shared<ov::opset8::Result>(relu);
+        result1->set_friendly_name("result1");
+        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
+        concat->set_friendly_name("concat_op");
+        concat->output(0).get_tensor().set_names({"concat"});
+        auto result2 = std::make_shared<ov::opset8::Result>(concat);
+        result2->set_friendly_name("result2");
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
+                                                      ngraph::ParameterVector{param1, param2});
+        function->set_friendly_name("SingleRuLU");
+    }
+    execNet = core->compile_model(function, targetDevice, configuration);
+    ASSERT_EQ(function->outputs().size(), 2);
+    EXPECT_EQ(function->outputs().size(), execNet.outputs().size());
+    EXPECT_THROW(execNet.output(), ov::Exception);
+    EXPECT_EQ(function->output(0).get_tensor().get_names(), execNet.output(0).get_tensor().get_names());
+    EXPECT_EQ(function->output(0).get_tensor().get_partial_shape(), execNet.output(0).get_tensor().get_partial_shape());
+    EXPECT_EQ(function->output(0).get_tensor().get_element_type(), execNet.output(0).get_tensor().get_element_type());
+    EXPECT_EQ(function->output(1).get_tensor().get_names(), execNet.output(1).get_tensor().get_names());
+    EXPECT_EQ(function->output(1).get_tensor().get_partial_shape(), execNet.output(1).get_tensor().get_partial_shape());
+    EXPECT_EQ(function->output(1).get_tensor().get_element_type(), execNet.output(1).get_tensor().get_element_type());
+    EXPECT_EQ(function->output(0).get_node(), function->output("relu").get_node());
+    EXPECT_NE(function->output(1).get_node(), function->output("relu").get_node());
+    EXPECT_EQ(function->output(1).get_node(), function->output("concat").get_node());
+    EXPECT_NE(function->output(0).get_node(), function->output("concat").get_node());
+}
 
 // Load correct network to Plugin to get executable network
 TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalFunction) {
     ov::runtime::ExecutableNetwork execNet;
     ASSERT_NO_THROW(execNet = core->compile_model(function, targetDevice, configuration));
 
-    EXPECT_EQ(function->get_parameters().size(), execNet.get_parameters().size());
+    EXPECT_EQ(function->get_parameters().size(), execNet.inputs().size());
     auto ref_parameter = function->get_parameters().back();
-    auto actual_parameter = execNet.get_parameters().back();
+    auto actual_parameter = execNet.inputs().back().get_node_shared_ptr();
     EXPECT_EQ(ref_parameter->get_element_type(), actual_parameter->get_element_type());
     EXPECT_EQ(ref_parameter->get_shape(), actual_parameter->get_shape());
     EXPECT_EQ(ref_parameter->get_friendly_name(), actual_parameter->get_friendly_name());
 
-    EXPECT_EQ(function->get_results().size(), execNet.get_results().size());
+    EXPECT_EQ(function->get_results().size(), execNet.outputs().size());
     auto ref_result = function->get_results().back();
-    auto actual_result = execNet.get_results().back();
+    auto actual_result = execNet.outputs().back().get_node_shared_ptr();
     EXPECT_EQ(ref_result->get_element_type(), actual_result->get_element_type());
     EXPECT_EQ(ref_result->get_shape(), actual_result->get_shape());
     EXPECT_EQ(ref_result->get_friendly_name(), actual_result->get_friendly_name());
@@ -331,16 +452,16 @@ TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalIR) {
     ov::runtime::ExecutableNetwork execNet;
     ASSERT_NO_THROW(execNet = core->compile_model(m_out_xml_path_1, targetDevice, configuration));
 
-    EXPECT_EQ(function->get_parameters().size(), execNet.get_parameters().size());
+    EXPECT_EQ(function->get_parameters().size(), execNet.inputs().size());
     auto ref_parameter = function->get_parameters().back();
-    auto actual_parameter = execNet.get_parameters().back();
+    auto actual_parameter = execNet.inputs().back().get_node_shared_ptr();
     EXPECT_EQ(ref_parameter->get_element_type(), actual_parameter->get_element_type());
     EXPECT_EQ(ref_parameter->get_shape(), actual_parameter->get_shape());
     EXPECT_EQ(ref_parameter->get_friendly_name(), actual_parameter->get_friendly_name());
 
-    EXPECT_EQ(function->get_results().size(), execNet.get_results().size());
+    EXPECT_EQ(function->get_results().size(), execNet.outputs().size());
     auto ref_result = function->get_results().back();
-    auto actual_result = execNet.get_results().back();
+    auto actual_result = execNet.outputs().back().get_node_shared_ptr();
     EXPECT_EQ(ref_result->get_element_type(), actual_result->get_element_type());
     EXPECT_EQ(ref_result->get_shape(), actual_result->get_shape());
     EXPECT_EQ(ref_result->get_friendly_name(), actual_result->get_friendly_name());

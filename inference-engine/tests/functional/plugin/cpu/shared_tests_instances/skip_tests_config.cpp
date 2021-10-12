@@ -102,19 +102,15 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue 66685
         R"(smoke_PrePostProcess.*resize_linear_nhwc.*)",
         // CPU plugin does not support some precisions
-        R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*type=(i8|u32).*)",
-        R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*type=(f16).*)",
-        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*type=(i8|u32).*)",
-        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*type=(f16).*)",
-        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=(i8|u32).*)",
-        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=(f16).*)",
+        R"(.*Behavior.*OVExecGraphImportExportTest.*elementType=(i8|u32).*)",
+        R"(.*Behavior.*OVExecGraphImportExportTest.*elementType=(f16).*)",
 
         // TODO: CVS-66526 overrides i/o precisions in execution graph
         // as WA we used GetInputsInfo() precisions instead of ngraph ones
-        // R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedFunction.*type=(i16|u16).*)",
-        // R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedFunction.*type=(i64|u64).*)",
-        // R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedIENetwork.*type=(i16|u16).*)",
-        // R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedIENetwork.*type=(i64|u64).*)",
+        // R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.*importExportedFunction.*type=(i16|u16).*)",
+        // R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.*importExportedFunction.*type=(i64|u64).*)",
+        // R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.*importExportedIENetwork.*type=(i16|u16).*)",
+        // R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.*importExportedIENetwork.*type=(i64|u64).*)",
 
         // CPU does not support dynamic rank
         // Issue: CVS-66778

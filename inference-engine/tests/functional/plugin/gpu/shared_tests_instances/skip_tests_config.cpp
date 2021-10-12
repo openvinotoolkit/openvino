@@ -74,7 +74,9 @@ std::vector<std::string> disabledTestPatterns() {
             // Not implemented yet:
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
-            R"(.*OVExecutableNetworkBaseTest.*)",
+            R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
+            R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
+            R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
             // TODO: Issue 66516
             R"(.*smoke_PrePostProcess_GPU.*convert_element_type_and_mean.*)",
             // TODO: Issue 67408
