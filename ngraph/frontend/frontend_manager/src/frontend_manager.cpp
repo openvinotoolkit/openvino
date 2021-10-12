@@ -218,7 +218,7 @@ Place::Ptr InputModel::add_output(Place::Ptr place) {
 }
 
 void InputModel::remove_output(Place::Ptr place) {
-    FRONT_END_NOT_IMPLEMENTED(remove_output);
+    // FRONT_END_NOT_IMPLEMENTED(remove_output);
 }
 
 void InputModel::override_all_outputs(const std::vector<Place::Ptr>& outputs) {

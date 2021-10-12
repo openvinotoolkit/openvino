@@ -1481,9 +1481,7 @@ NGRAPH_TEST(onnx_editor, get_output_ports) {
 }
 
 NGRAPH_TEST(onnx_editor, add_output) {
-    ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO,
-                                                "/home/sdurawa/projects/openvino/bin/intel64/Debug/test_model_zoo/"
-                                                "ngraph/models/onnx/model_editor/add_abc.onnx")};
+    ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_abc.onnx")};
 
     editor.add_output({{OutputEdge{0, 0}}});
 

@@ -151,28 +151,21 @@ void InputModelONNX::extract_subgraph(const std::vector<Place::Ptr>& inputs, con
 }
 
 Place::Ptr InputModelONNX::add_output(Place::Ptr place) {
-    // std::vector<onnx_editor::OutputEdge> onnx_outputs;
     std::string name = place->get_names().at(0);
-    const auto output_port = place->get_producing_port();
-
-    std::cout << "Place name: " << name << std::endl;
 
     const auto& outputs = m_editor->model_outputs();
     const auto& inputs = m_editor->model_inputs();
 
-    for (const auto& output : outputs) {
-        std::cout << "Out name: " << output << std::endl;
-    }
     auto find_output = std::find(std::begin(outputs), std::end(outputs), name);
     auto find_input = std::find(std::begin(inputs), std::end(inputs), name);
 
-    if (find_input == inputs.end()) {
-        // if (place->is_input()) {
+    if (find_input != inputs.end()) {
         return nullptr;
     }
 
-    if (find_output == outputs.end()) {
-        // if (place->is_output()) {
+    const auto output_port = place->get_producing_port();
+
+    if (find_output != outputs.end()) {
         return place;
     } else if (const auto tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(place)) {
         auto tensor_name = tensor->get_names()[0];
@@ -190,10 +183,19 @@ Place::Ptr InputModelONNX::add_output(Place::Ptr place) {
 
 void InputModelONNX::remove_output(Place::Ptr place) {
     std::string name = place->get_names().at(0);
-    const auto& outputs = m_editor->model_outputs();
+    std::vector<Place::Ptr> outputs = get_outputs();
+    const auto& output_names = m_editor->model_outputs();
 
-    auto find_output = std::find(std::begin(outputs), std::end(outputs), name);
+    auto find_output = std::find(output_names.begin(), output_names.end(), name);
 
-    if (find_output != outputs.end()) {
+    if (find_output != output_names.end()) {
+        outputs.erase(std::remove_if(outputs.begin(),
+                                     outputs.end(),
+                                     [&](Place::Ptr const& output) {
+                                         return output->is_equal(place);
+                                     }),
+                      outputs.end());
+
+        extract_subgraph({}, {outputs});
     }
 }

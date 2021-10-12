@@ -714,12 +714,10 @@ def test_add_output_place_is_not_output():
     assert model
 
     place = model.get_place_by_tensor_name(tensorName="add_out")
-
     model.add_output(place)
-    print("test2")
 
     out_names = [place.get_names()[0] for place in model.get_outputs()]
-    assert out_names == ["out1", "out2", "out3", "out4", "out_add"]
+    assert out_names == ["out1", "out2", "out3", "out4", "add_out"]
 
 
 def test_add_output_place_is_output():
@@ -730,11 +728,15 @@ def test_add_output_place_is_output():
     model = fe.load("input_model.onnx")
     assert model
 
+    orig_func = fe.convert(model)
+
     place = model.get_place_by_tensor_name(tensorName="out1")
+    model.add_output(place)
 
-    new_place = model.add_output(place)
+    result_func = fe.convert(model)
 
-    assert place.is_equal(new_place)
+    res = compare_functions(orig_func, result_func)
+    assert res
 
 
 def test_add_output_place_is_input():
@@ -746,7 +748,6 @@ def test_add_output_place_is_input():
     assert model
 
     place = model.get_place_by_tensor_name(tensorName="in1")
-
     model.add_output(place)
     result_func = fe.convert(model)
 
@@ -950,3 +951,38 @@ def test_get_producing_port():
     add_op_out_port = add_op.get_output_port()
 
     assert split_op_in_port_prod_port.is_equal(add_op_out_port)
+
+def test_remove_output():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model.onnx")
+    assert model
+
+    place = model.get_place_by_tensor_name(tensorName="out4")
+    model.remove_output(place)
+
+    out_names = [place.get_names()[0] for place in model.get_outputs()]
+    assert out_names == ["out1", "out2", "out3"]
+
+    in_names = [place.get_names()[0] for place in model.get_inputs()]
+    assert in_names == ["in1", "in2", "in3"]
+
+
+def test_remove_output_when_place_is_input():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model.onnx")
+    assert model
+
+    place = model.get_place_by_tensor_name(tensorName="in1")
+    model.remove_output(place)
+
+    out_names = [place.get_names()[0] for place in model.get_outputs()]
+    assert out_names == ["out1", "out2", "out3", "out4"]
+
+    in_names = [place.get_names()[0] for place in model.get_inputs()]
+    assert in_names == ["in1", "in2", "in3"]
