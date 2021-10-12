@@ -1296,10 +1296,7 @@ std::shared_ptr<ov::Function> Core::read_model(const std::string& modelPath, con
 std::shared_ptr<ov::Function> Core::read_model(const std::string& model, const ov::runtime::Tensor& weights) const {
     InferenceEngine::Blob::Ptr blob;
     if (weights) {
-        InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(weights.get_element_type()),
-                                         weights.get_shape(),
-                                         InferenceEngine::TensorDesc::getLayoutByDims(weights.get_shape()));
-        blob = make_blob_with_precision(desc, weights.data());
+        blob = weights._impl;
     }
     OV_CORE_CALL_STATEMENT(return _impl->ReadNetwork(model, blob).getFunction(););
 }
