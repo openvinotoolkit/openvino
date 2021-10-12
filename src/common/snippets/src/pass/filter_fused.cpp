@@ -185,18 +185,24 @@ SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node> node) {
     if (rinfo == rt.end())
         return SnippetsNodeType::NotSet;
     const int64_t type_val = ov::as_type_ptr<ngraph::VariantWrapper<int64_t>>(rinfo->second)->get();
+    // Todo: Remove the check from DEBUG also as soon as the PR is merged
+    #ifdef DEBUG
     const int64_t lower_bound = static_cast<int64_t>(SnippetsNodeType::FusedWithConvolution);
     const int64_t upper_bound = static_cast<int64_t>(SnippetsNodeType::SubgraphBody);
     if ((type_val < lower_bound) || (type_val > upper_bound))
         throw ngraph_error("Invalid value of SnippetsNodeType is detected.");
+    #endif
     return static_cast<SnippetsNodeType>(type_val);
 }
 void SetSnippetsNodeType(std::shared_ptr<Node> node, SnippetsNodeType nodeType) {
     auto &rt = node->get_rt_info();
+    // Todo: Remove the check from DEBUG also as soon as the PR is merged
+    #ifdef DEBUG
     if (nodeType == SnippetsNodeType::NotSet) {
         throw ngraph_error("Attempt to set an invalid value of a SnippetsNodeType.");
     }
-    rt["MayBeFusedInPlugin"] = std::make_shared<VariantWrapper<int64_t>>(VariantWrapper<int64_t>(static_cast<int64_t>(nodeType)));
+    #endif
+    rt["MayBeFusedInPlugin"] = std::make_shared<VariantWrapper<int64_t>>(static_cast<int64_t>(nodeType));
 }
 // Continue fusing chain of the passed type if the node has one child
 // Otherwise mark node as FusedTerminator (Fused, but fusing chain is interrupted)
@@ -249,7 +255,7 @@ bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
                 GetSnippetsNodeType(node) == SnippetsNodeType::FusedWithConvolutionSumActivation ||
                 GetSnippetsNodeType(node) == SnippetsNodeType::FusedTerminator)
                 continue;
-            if (hasParentInStartedSubgraph (node))
+            if (hasParentInStartedSubgraph(node))
                 SetSnippetsNodeType(node, SnippetsNodeType::SubgraphBody);
             else
                 SetSnippetsNodeType(node, SnippetsNodeType::SubgraphStart);

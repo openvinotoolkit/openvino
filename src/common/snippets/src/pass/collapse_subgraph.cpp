@@ -605,9 +605,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
     register_matcher(std::make_shared<pattern::Matcher>(
         std::make_shared<pattern::op::Label>(pattern::any_input(),
         [](std::shared_ptr<Node> n) {
-//            todo: Is it faster to check SnippetsNodeType? Need to gather stat
-//            return GetSnippetsNodeType(n) == SnippetsNodeType::SubgraphBody && has_subgraph_as_input(n);
-            return AppropriateForSubgraph(n) && has_subgraph_as_input(n);
+            return GetSnippetsNodeType(n) == SnippetsNodeType::SubgraphBody && has_subgraph_as_input(n);
         })),
         continuation_callback);
 }
