@@ -64,7 +64,6 @@ bool ov::op::v0::Sigmoid::evaluate(const HostTensorVector& outputs, const HostTe
 bool ov::op::v0::Sigmoid::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Sigmoid_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::boolean:
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:
