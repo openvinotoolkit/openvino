@@ -29,6 +29,7 @@ bool ngraph::pass::UnrollIf::run_on_function(std::shared_ptr<ngraph::Function> f
         if (!cond_is_const) {
             continue;
         }
+
         auto cond_value = cond_is_const->cast_vector<bool>();
         auto body = (cond_value[0]) ? if_node->get_then_body() : if_node->get_else_body();
         auto input_descriptions = if_node->get_input_descriptions(static_cast<int>(!cond_value[0]));
