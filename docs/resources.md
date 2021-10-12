@@ -12,6 +12,7 @@
    openvino_docs_IE_DG_supported_plugins_Supported_Devices
    Release Notes <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
    glossary
-   omz_data_datasets
+   groupie_dev_api
+   openvino_docs_Legal_Information
 
 @endsphinxdirective

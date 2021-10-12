@@ -10,6 +10,5 @@
    
    omz_models_group_intel
    omz_models_group_public
-   omz_data_datasets
 
 @endsphinxdirective

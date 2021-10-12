@@ -5,21 +5,6 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Get Started Guides
-   
-   openvino_overview
-   openvino_docs_get_started_get_started_linux
-   openvino_docs_get_started_get_started_windows
-   openvino_docs_install_guides_installing_openvino_windows
-   openvino_docs_install_guides_installing_openvino_windows_fpga
-   openvino_docs_install_guides_installing_openvino_macos
-   openvino_docs_install_guides_installing_openvino_raspbian
-   openvino_docs_get_started_get_started_dl_workbench
-   openvino_docs_Legal_Information
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
    :caption: Installation Guides
    
    openvino_docs_install_guides_installing_openvino_linux
@@ -58,19 +43,23 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
+   :caption: Get Started Guides
+   
+   openvino_overview
+   openvino_docs_get_started_get_started_scripts
+   openvino_docs_get_started_get_started_demos
+   openvino_docs_get_started_get_started_instructions
+   openvino_docs_get_started_get_started_dl_workbench
+   
+.. toctree::
+   :maxdepth: 1
+   :hidden:
    :caption: Security
    
    openvino_docs_security_guide_introduction
    openvino_docs_security_guide_workbench
    openvino_docs_IE_DG_protecting_model_guide
    ovsa_get_started
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Using Cross Check Tool for Per-Layer Comparison Between Plugins
-
-   openvino_inference_engine_tools_cross_check_tool_README
 
 .. toctree::
    :maxdepth: 1
@@ -104,7 +93,7 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Reference Impementations
+   :caption: Reference Implementations
 
    openvino_inference_engine_samples_speech_libs_and_demos_Speech_libs_and_demos
    openvino_inference_engine_samples_speech_libs_and_demos_Speech_library
@@ -115,7 +104,7 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Reference Impementations
+   :caption: Reference Implementations
 
    gst_samples_README
 
