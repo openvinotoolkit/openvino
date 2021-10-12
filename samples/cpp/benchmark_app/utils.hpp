@@ -127,10 +127,11 @@ benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
                 parsed_shape.push_back(std::stoi(dim));
             }
             info.tensorShape = parsed_shape;
-        } else if(info.partialShape.is_static()) {
+        } else if (info.partialShape.is_static()) {
             info.tensorShape = info.partialShape.get_shape();
         } else {
-            throw std::logic_error("tensor_shape command line parameter should be set in case of network dynamic shape.");
+            throw std::logic_error(
+                "tensor_shape command line parameter should be set in case of network dynamic shape.");
         }
 
         // Layout
