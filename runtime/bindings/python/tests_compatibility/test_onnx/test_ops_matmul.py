@@ -6,7 +6,7 @@ import onnx
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 import pytest
 
-from tests_compatibility_compatibility.runtime import get_runtime
+from tests_compatibility.runtime import get_runtime
 from tests_compatibility.test_onnx.utils import import_onnx_model
 
 
