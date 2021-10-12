@@ -15,7 +15,9 @@ inline std::shared_ptr<ov::Function> readIR(const std::string& model_path, const
     ngraph::frontend::FrontEnd::Ptr FE;
     ngraph::frontend::InputModel::Ptr inputModel;
 
-    ov::VariantVector params{ov::make_variant(model_path), ov::make_variant(weights_path)};
+    ov::VariantVector params{ov::make_variant(model_path)};
+    if (!weights_path.empty())
+        params.emplace_back(ov::make_variant(weights_path));
 
     FE = manager.load_by_model(params);
     if (FE)

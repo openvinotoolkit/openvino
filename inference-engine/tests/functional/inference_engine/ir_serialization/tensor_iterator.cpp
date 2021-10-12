@@ -2,33 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-
 #include <fstream>
-#include <pugixml.hpp>
 
-#include "openvino/pass/serialize.hpp"
-#include "openvino/runtime/core.hpp"
-#include "openvino/util/file_util.hpp"
-#include "read_ir.hpp"
-#include "util/graph_comparator.hpp"
-#include "util/test_common.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "gtest/gtest.h"
+#include "ie_core.hpp"
+#include "ie_blob.h"
+#include "common_test_utils/data_utils.hpp"
+#include "pugixml.hpp"
 
-namespace {
-inline void fill_data(float* data, size_t size, size_t duty_ratio = 10) {
-    for (size_t i = 0; i < size; i++) {
-        if ((i / duty_ratio) % 2 == 1) {
-            data[i] = 0.0f;
-        } else {
-            data[i] = sin(static_cast<float>(i));
-        }
-    }
-}
-}  // namespace
+#ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
+# error "IR_SERIALIZATION_MODELS_PATH is not defined"
+#endif
 
-class SerializationTensorIteratorTest : public ov::test::TestsCommon {
+class SerializationTensorIteratorTest : public ::testing::Test {
 protected:
-    std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    std::string test_name =
+        ::testing::UnitTest::GetInstance()->current_test_info()->name();
     std::string m_out_xml_path = test_name + ".xml";
     std::string m_out_bin_path = test_name + ".bin";
 
@@ -39,34 +30,35 @@ protected:
 
     void serialize_and_compare(const std::string& model_path, InferenceEngine::Blob::Ptr weights) {
         std::stringstream buffer;
-        ov::runtime::Core ie;
+        InferenceEngine::Core ie;
 
         std::ifstream model(model_path);
         ASSERT_TRUE(model);
         buffer << model.rdbuf();
 
-        auto expected = ie.read_model(buffer.str(), weights);
-        ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_function(expected);
-        auto result = ie.read_model(m_out_xml_path, m_out_bin_path);
+        auto expected = ie.ReadNetwork(buffer.str(), weights);
+        expected.serialize(m_out_xml_path, m_out_bin_path);
+        auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
 
         bool success;
         std::string message;
-        std::tie(success, message) = compare_functions(result, expected, true, false, false, true, true);
+        std::tie(success, message) = compare_functions(result.getFunction(), expected.getFunction(), true, false, false, true, true);
         ASSERT_TRUE(success) << message;
     }
 };
 
 TEST_F(SerializationTensorIteratorTest, TiResnet) {
-    const std::string model_path = ov::util::path_join({SERIALIZED_ZOO, "ir/ti_resnet.xml"});
+    const std::string model_path = CommonTestUtils::getModelFromTestModelZoo(
+        IR_SERIALIZATION_MODELS_PATH "ti_resnet.xml");
 
     size_t weights_size = 8396840;
 
     auto weights = InferenceEngine::make_shared_blob<uint8_t>(
-        InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {weights_size}, InferenceEngine::Layout::C));
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {weights_size}, InferenceEngine::Layout::C));
     weights->allocate();
-    fill_data(weights->buffer().as<float*>(), weights->size() / sizeof(float));
+    CommonTestUtils::fill_data(weights->buffer().as<float *>(), weights->size() / sizeof(float));
 
-    auto* data = weights->buffer().as<int64_t*>();
+    auto *data = weights->buffer().as<int64_t *>();
     data[0] = 1;
     data[1] = 512;
     data[1049602] = 1;
@@ -77,16 +69,17 @@ TEST_F(SerializationTensorIteratorTest, TiResnet) {
 }
 
 TEST_F(SerializationTensorIteratorTest, TiNegativeStride) {
-    const std::string model_path = ov::util::path_join({SERIALIZED_ZOO, "ir/ti_negative_stride.xml"});
+    const std::string model_path = CommonTestUtils::getModelFromTestModelZoo(
+        IR_SERIALIZATION_MODELS_PATH "ti_negative_stride.xml");
 
     size_t weights_size = 3149864;
 
     auto weights = InferenceEngine::make_shared_blob<uint8_t>(
-        InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {weights_size}, InferenceEngine::Layout::C));
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {weights_size}, InferenceEngine::Layout::C));
     weights->allocate();
-    fill_data(weights->buffer().as<float*>(), weights->size() / sizeof(float));
+    CommonTestUtils::fill_data(weights->buffer().as<float *>(), weights->size() / sizeof(float));
 
-    auto* data = weights->buffer().as<int64_t*>();
+    auto *data = weights->buffer().as<int64_t *>();
     data[0] = 1;
     data[1] = 512;
     data[393730] = 1;
@@ -97,14 +90,18 @@ TEST_F(SerializationTensorIteratorTest, TiNegativeStride) {
 }
 
 TEST_F(SerializationTensorIteratorTest, SerializationExternalPortIdInXmlFile) {
-    const std::string model_path = ov::util::path_join({SERIALIZED_ZOO, "ir/loop_2d_add.xml"});
-    const std::string binary_path = ov::util::path_join({SERIALIZED_ZOO, "ir/loop_2d_add.bin"});
+    const std::string model_path = CommonTestUtils::getModelFromTestModelZoo(
+        IR_SERIALIZATION_MODELS_PATH "loop_2d_add.xml");
+    const std::string binary_path = CommonTestUtils::getModelFromTestModelZoo(
+        IR_SERIALIZATION_MODELS_PATH "loop_2d_add.bin");
 
+    InferenceEngine::Core ie;
+    InferenceEngine::CNNNetwork expected;
     pugi::xml_document loop_orig;
     pugi::xml_document loop_serialized;
 
-    auto expected = ov::test::readIR(model_path, binary_path);
-    ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_function(expected);
+    expected = ie.ReadNetwork(model_path, binary_path);
+    expected.serialize(m_out_xml_path, m_out_bin_path);
 
     pugi::xml_parse_result result = loop_orig.load_file(model_path.c_str());
     ASSERT_FALSE(result.status) << result.description();

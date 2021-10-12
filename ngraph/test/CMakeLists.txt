@@ -85,14 +85,9 @@ set(SRC
     pass_manager.cpp
     pass/serialization/cleanup.cpp
     pass/serialization/const_compression.cpp
-    pass/serialization/custom_ops.cpp
     pass/serialization/deterministicity.cpp
-    pass/serialization/rt_info_deserialization.cpp
     pass/serialization/rt_info_serialization.cpp
     pass/serialization/serialize.cpp
-    pass/serialization/tensor_iterator.cpp
-    pass/serialization/tensor_names.cpp
-    pass/serialization/transformation.cpp
     pattern.cpp
     preprocess.cpp
     provenance.cpp

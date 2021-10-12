@@ -7,8 +7,8 @@
 #include <fstream>
 
 #include "openvino/pass/serialize.hpp"
-#include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
+#include "read_ir.hpp"
 #include "util/graph_comparator.hpp"
 #include "util/test_common.hpp"
 
@@ -52,8 +52,7 @@ protected:
 TEST_F(SerializationDeterministicityTest, BasicModel) {
     const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc.onnx"});
 
-    ov::runtime::Core ie;
-    auto expected = ie.read_model(model);
+    auto expected = ov::test::readIR(model, "");
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(expected);
     ov::pass::Serialize(m_out_xml_path_2, m_out_bin_path_2).run_on_function(expected);
 
@@ -69,8 +68,7 @@ TEST_F(SerializationDeterministicityTest, BasicModel) {
 TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
     const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/addmul_abc.onnx"});
 
-    ov::runtime::Core ie;
-    auto expected = ie.read_model(model);
+    auto expected = ov::test::readIR(model, "");
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(expected);
     ov::pass::Serialize(m_out_xml_path_2, m_out_bin_path_2).run_on_function(expected);
 
@@ -89,8 +87,7 @@ TEST_F(SerializationDeterministicityTest, ModelWithMultipleOutputs) {
     const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.xml"});
     const std::string weights = ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.bin"});
 
-    ov::runtime::Core ie;
-    auto expected = ie.read_model(model, weights);
+    auto expected = ov::test::readIR(model, weights);
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(expected);
     ov::pass::Serialize(m_out_xml_path_2, m_out_bin_path_2).run_on_function(expected);
 
@@ -107,8 +104,7 @@ TEST_F(SerializationDeterministicityTest, ModelWithConstants) {
     const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.xml"});
     const std::string weights = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.bin"});
 
-    ov::runtime::Core ie;
-    auto expected = ie.read_model(model, weights);
+    auto expected = ov::test::readIR(model, weights);
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(expected);
     ov::pass::Serialize(m_out_xml_path_2, m_out_bin_path_2).run_on_function(expected);
 
@@ -119,31 +115,4 @@ TEST_F(SerializationDeterministicityTest, ModelWithConstants) {
 
     ASSERT_TRUE(files_equal(xml_1, xml_2));
     ASSERT_TRUE(files_equal(bin_1, bin_2));
-}
-
-TEST_F(SerializationDeterministicityTest, SerializeToStream) {
-    const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.xml"});
-    const std::string weights = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.bin"});
-
-    std::stringstream m_out_xml_buf, m_out_bin_buf;
-    InferenceEngine::Blob::Ptr binBlob;
-
-    ov::runtime::Core ie;
-    auto expected = ie.read_model(model, weights);
-    ov::pass::Serialize(m_out_xml_buf, m_out_bin_buf).run_on_function(expected);
-
-    std::streambuf* pbuf = m_out_bin_buf.rdbuf();
-    unsigned long bufSize = m_out_bin_buf.tellp();
-
-    InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, {bufSize}, InferenceEngine::Layout::C);
-    binBlob = InferenceEngine::make_shared_blob<uint8_t>(tensorDesc);
-    binBlob->allocate();
-    pbuf->sgetn(binBlob->buffer(), bufSize);
-
-    auto result = ie.read_model(m_out_xml_buf.str(), binBlob);
-
-    const auto fc =
-        FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES).enable(FunctionsComparator::NAMES);
-    const auto res = fc.compare(expected, result);
-    ASSERT_TRUE(res.valid) << res.message;
 }

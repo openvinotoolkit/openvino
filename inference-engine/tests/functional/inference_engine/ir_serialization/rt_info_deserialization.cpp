@@ -5,18 +5,24 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <inference_engine.hpp>
 #include <memory>
+#include <ngraph/opsets/opset8.hpp>
 #include <string>
+#include <transformations/rt_info/fused_names_attribute.hpp>
+#include <transformations/rt_info/old_api_map_attribute.hpp>
 
 #include "frontend_manager/frontend_manager.hpp"
-#include "ie_core.hpp"
-#include "openvino/core/variant.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "graph_comparator.hpp"
+#include "ie_blob.h"
+#include "ngraph/node.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/shape.hpp"
+#include "ngraph/type/element_type.hpp"
+#include "ngraph/variant.hpp"
 #include "openvino/runtime/core.hpp"
-#include "read_ir.hpp"
-#include "transformations/rt_info/fused_names_attribute.hpp"
-#include "transformations/rt_info/old_api_map_attribute.hpp"
-#include "util/graph_comparator.hpp"
+
+using namespace ngraph;
 
 class RTInfoDeserialization : public testing::Test {
 protected:
@@ -101,11 +107,11 @@ TEST_F(RTInfoDeserialization, NodeV10) {
     </edges>
 </net>
 )V0G0N";
-    auto f = ov::test::readIR(model);
+    auto f = getWithIRFrontend(model);
     ASSERT_NE(nullptr, f);
 
-    auto check_rt_info = [](const ov::RTMap& info) {
-        const std::string& key = ov::VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+    auto check_rt_info = [](const RTMap& info) {
+        const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
         EXPECT_FALSE(info.count(key));
 
         const std::string& key_old_api = ov::OldApiMap::get_type_info_static();
@@ -115,7 +121,7 @@ TEST_F(RTInfoDeserialization, NodeV10) {
     auto check_version = [](const std::shared_ptr<ov::Function>& f) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<ov::VariantWrapper<int64_t>>(rt_info.at("version"));
+        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
         ASSERT_NE(version, nullptr);
         ASSERT_EQ(version->get(), 10);
     };
@@ -142,23 +148,23 @@ TEST_F(RTInfoDeserialization, NodeV10) {
     {
         ngraph::Shape shape{1, 3, 22, 22};
         auto type = ngraph::element::f32;
-        auto param = std::make_shared<ov::opset8::Parameter>(type, shape);
+        auto param = std::make_shared<ngraph::opset8::Parameter>(type, shape);
         param->set_friendly_name("in1");
         param->get_output_tensor(0).set_names({"input_tensor"});
 
         // TODO: avoid relying on internal pre-processing implementation (exact operation and exact names)
-        auto convert_param = std::make_shared<ov::opset8::Convert>(param, ngraph::element::f16);
+        auto convert_param = std::make_shared<opset8::Convert>(param, ngraph::element::f16);
         convert_param->get_output_tensor(0).set_names({"input_tensor/convert_element_type"});
 
-        auto round = std::make_shared<ov::opset8::Round>(convert_param, ov::opset8::Round::RoundMode::HALF_TO_EVEN);
+        auto round = std::make_shared<opset8::Round>(convert_param, ngraph::opset8::Round::RoundMode::HALF_TO_EVEN);
         round->set_friendly_name("Round");
         round->get_output_tensor(0).set_names({"output_tensor/post_convert_element_type"});
 
-        auto convert_result = std::make_shared<ov::opset8::Convert>(round, type);
+        auto convert_result = std::make_shared<opset8::Convert>(round, type);
         convert_result->set_friendly_name("Round/post_convert_element_type");
         convert_result->get_output_tensor(0).set_names({"output_tensor"});
 
-        auto result = std::make_shared<ov::opset8::Result>(convert_result);
+        auto result = std::make_shared<opset8::Result>(convert_result);
         result->set_friendly_name("output");
 
         auto f_10_ref =
@@ -255,18 +261,18 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
     </edges>
 </net>
 )V0G0N";
-    auto f = ov::test::readIR(model);
+    auto f = getWithIRFrontend(model);
     ASSERT_NE(nullptr, f);
 
-    auto check_rt_info = [](const ov::RTMap& info) {
-        const std::string& key = ov::VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+    auto check_rt_info = [](const RTMap& info) {
+        const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
         ASSERT_FALSE(info.count(key));
     };
 
     auto check_version = [](const std::shared_ptr<ov::Function>& f) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<ov::VariantWrapper<int64_t>>(rt_info.at("version"));
+        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
         ASSERT_NE(version, nullptr);
         ASSERT_EQ(version->get(), 10);
     };
@@ -297,20 +303,20 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
     {
         const ngraph::Shape shape{1, 3, 22, 22};
         const auto type = ngraph::element::i64;
-        auto param = std::make_shared<ov::opset8::Parameter>(type, shape);
+        auto param = std::make_shared<ngraph::opset8::Parameter>(type, shape);
         param->set_friendly_name("in1");
         param->get_output_tensor(0).set_names({"input_tensor"});
 
-        auto sum = std::make_shared<ov::opset8::Add>(param, param);
+        auto sum = std::make_shared<opset8::Add>(param, param);
         sum->set_friendly_name("sum");
         // TODO: avoid relying on internal post-processing implementation (exact operation and exact names)
         sum->get_output_tensor(0).set_names({"output_tensor/post_convert_element_type"});
 
-        auto convert_result = std::make_shared<ov::opset8::Convert>(sum, ngraph::element::i32);
+        auto convert_result = std::make_shared<opset8::Convert>(sum, ngraph::element::i32);
         convert_result->set_friendly_name("sum/post_convert_element_type");
         convert_result->get_output_tensor(0).set_names({"output_tensor"});
 
-        auto result = std::make_shared<ov::opset8::Result>(convert_result);
+        auto result = std::make_shared<opset8::Result>(convert_result);
         result->set_friendly_name("output");
 
         auto f_10_ref =
@@ -396,19 +402,19 @@ TEST_F(RTInfoDeserialization, NodeV11) {
     </edges>
 </net>
 )V0G0N";
-    auto f = ov::test::readIR(model);
+    auto f = getWithIRFrontend(model);
     ASSERT_NE(nullptr, f);
 
-    auto check_fused_names = [](const ov::RTMap& info, const std::string& names) {
-        const std::string& key = ov::VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+    auto check_fused_names = [](const RTMap& info, const std::string& names) {
+        const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
         ASSERT_TRUE(info.count(key));
-        auto fused_names_attr = std::dynamic_pointer_cast<ov::VariantWrapper<ngraph::FusedNames>>(info.at(key));
+        auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(info.at(key));
         ASSERT_TRUE(fused_names_attr);
         EXPECT_EQ(fused_names_attr->get().getNames(), names);
     };
 
     auto check_old_api_map =
-        [](const ov::RTMap& info, const std::vector<uint64_t>& order, const ngraph::element::Type& type) {
+        [](const RTMap& info, const std::vector<uint64_t>& order, const ngraph::element::Type& type) {
             const std::string& old_api_map_key = ov::OldApiMap::get_type_info_static();
             ASSERT_TRUE(info.count(old_api_map_key));
             auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
@@ -420,7 +426,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
     auto check_version = [](const std::shared_ptr<ov::Function>& f) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<ov::VariantWrapper<int64_t>>(rt_info.at("version"));
+        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
         ASSERT_NE(version, nullptr);
         EXPECT_EQ(version->get(), 11);
     };
@@ -457,39 +463,39 @@ TEST_F(RTInfoDeserialization, NodeV11) {
     {
         const ngraph::PartialShape shape{1, 3, 22, 22};
         auto type = ngraph::element::f16;
-        auto param = std::make_shared<ov::opset8::Parameter>(type, shape);
+        auto param = std::make_shared<ngraph::opset8::Parameter>(type, shape);
         param->set_friendly_name("in1");
         param->get_output_tensor(0).set_names({"input_tensor"});
 
         // TODO: avoid relying on internal pre-processing implementation (exact operations and exact names)
-        auto convert_param = std::make_shared<ov::opset8::Convert>(param, ngraph::element::f32);
+        auto convert_param = std::make_shared<opset8::Convert>(param, ngraph::element::f32);
         convert_param->set_friendly_name("in1/convert_element_type");
         convert_param->get_output_tensor(0).set_names({"input_tensor/convert_element_type"});
 
-        auto constant_param = std::make_shared<ov::opset8::Constant>(ngraph::element::i64,
-                                                                     ngraph::Shape{4},
-                                                                     std::vector<int64_t>{0, 2, 3, 1});
-        auto transpose_param = std::make_shared<ov::opset8::Transpose>(convert_param, constant_param);
+        auto constant_param = std::make_shared<opset8::Constant>(ngraph::element::i64,
+                                                                 ngraph::Shape{4},
+                                                                 std::vector<int64_t>{0, 2, 3, 1});
+        auto transpose_param = std::make_shared<opset8::Transpose>(convert_param, constant_param);
         transpose_param->set_friendly_name("in1/convert_element_type/convert_layout");
         transpose_param->get_output_tensor(0).set_names({"input_tensor/convert_element_type/convert_layout"});
 
-        auto round = std::make_shared<ov::opset8::Round>(transpose_param, ov::opset8::Round::RoundMode::HALF_TO_EVEN);
+        auto round = std::make_shared<opset8::Round>(transpose_param, ngraph::opset8::Round::RoundMode::HALF_TO_EVEN);
         round->set_friendly_name("Round");
         round->get_output_tensor(0).set_names({"output_tensor/post_convert_layout"});
-        round->get_rt_info()[ov::VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
-            std::make_shared<ov::VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("Round1,Round2"));
+        round->get_rt_info()[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
+            std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("Round1,Round2"));
 
-        auto constant_result = std::make_shared<ov::opset8::Constant>(ngraph::element::i64,
-                                                                      ngraph::Shape{4},
-                                                                      std::vector<int64_t>{0, 3, 1, 2});
-        auto transpose_result = std::make_shared<ov::opset8::Transpose>(round, constant_result);
+        auto constant_result = std::make_shared<opset8::Constant>(ngraph::element::i64,
+                                                                  ngraph::Shape{4},
+                                                                  std::vector<int64_t>{0, 3, 1, 2});
+        auto transpose_result = std::make_shared<opset8::Transpose>(round, constant_result);
         transpose_result->set_friendly_name("Round/post_convert_layout");
 
-        auto convert_result = std::make_shared<ov::opset8::Convert>(transpose_result, type);
+        auto convert_result = std::make_shared<opset8::Convert>(transpose_result, type);
         convert_result->set_friendly_name("Round/post_convert_layout/post_convert_element_type");
         convert_result->get_output_tensor(0).set_names({"output_tensor"});
 
-        auto result = std::make_shared<ov::opset8::Result>(convert_result);
+        auto result = std::make_shared<opset8::Result>(convert_result);
         result->set_friendly_name("output");
 
         auto f_10_ref =
@@ -519,7 +525,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         EXPECT_EQ(shape, f_10_core->get_output_partial_shape(0));
 
         // check that old api map is removed once applied
-        auto check_old_api_rt_info = [](const ov::RTMap& info) {
+        auto check_old_api_rt_info = [](const RTMap& info) {
             const std::string& key = ov::OldApiMap::get_type_info_static();
             EXPECT_FALSE(info.count(key));
         };
@@ -613,27 +619,27 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
     </edges>
 </net>
 )V0G0N";
-    auto f = ov::test::readIR(model);
+    auto f = getWithIRFrontend(model);
     ASSERT_NE(nullptr, f);
 
     auto check_version = [](const std::shared_ptr<ov::Function>& f) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<ov::VariantWrapper<int64_t>>(rt_info.at("version"));
+        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
         ASSERT_NE(version, nullptr);
         ASSERT_EQ(version->get(), 11);
     };
     check_version(f);
 
-    auto check_fused_names = [](const ov::RTMap& info, const std::string& names) {
-        const std::string& key = ov::VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+    auto check_fused_names = [](const RTMap& info, const std::string& names) {
+        const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
         ASSERT_TRUE(info.count(key));
-        auto fused_names_attr = std::dynamic_pointer_cast<ov::VariantWrapper<ngraph::FusedNames>>(info.at(key));
+        auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(info.at(key));
         ASSERT_TRUE(fused_names_attr);
         ASSERT_EQ(fused_names_attr->get().getNames(), names);
     };
 
-    auto check_old_api_map = [](const ov::RTMap& info, const std::vector<uint64_t>& order, ngraph::element::Type type) {
+    auto check_old_api_map = [](const RTMap& info, const std::vector<uint64_t>& order, ngraph::element::Type type) {
         const std::string& old_api_map_key = ov::OldApiMap::get_type_info_static();
         ASSERT_TRUE(info.count(old_api_map_key));
         auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
@@ -666,7 +672,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
         EXPECT_EQ(0, f_10->get_rt_info().count("version"));
 
         // check that old api map is removed once applied
-        auto check_old_api_rt_info = [](const ov::RTMap& info) {
+        auto check_old_api_rt_info = [](const RTMap& info) {
             const std::string& key = ov::OldApiMap::get_type_info_static();
             EXPECT_FALSE(info.count(key));
         };
@@ -777,13 +783,13 @@ TEST_F(RTInfoDeserialization, IndexesInputAndOutputV11) {
     </edges>
 </net>
 )V0G0N";
-    auto f = ov::test::readIR(model);
+    auto f = getWithIRFrontend(model);
     ASSERT_NE(nullptr, f);
 
     auto check_version = [](const std::shared_ptr<ov::Function>& f) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
-        auto version = std::dynamic_pointer_cast<ov::VariantWrapper<int64_t>>(rt_info.at("version"));
+        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
         ASSERT_NE(version, nullptr);
         ASSERT_EQ(version->get(), 11);
     };
