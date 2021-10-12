@@ -841,7 +841,6 @@ inline void update_output_tensors(ov::runtime::TensorVector& output_values, cons
 }
 }  // namespace
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 bool ov::Node::evaluate(ov::runtime::TensorVector& output_values, const ov::runtime::TensorVector& input_values) const {
     HostTensorVector output = create_tmp_tensors(output_values);
     HostTensorVector input = create_tmp_tensors(input_values);
@@ -873,6 +872,17 @@ bool ov::Node::evaluate_lower(ov::runtime::TensorVector& output_values) const {
     return sts;
 }
 
+bool ov::Node::evaluate_upper(ov::runtime::TensorVector& output_values) const {
+    HostTensorVector output = create_tmp_tensors(output_values);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    bool sts = evaluate_upper(output);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    update_output_tensors(output_values, output);
+    return sts;
+}
+
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 bool ov::Node::evaluate_lower(const HostTensorVector& output_values) const {
     const auto& inputs = input_values();
     bool dyn_inputs = std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& output) {
@@ -881,15 +891,6 @@ bool ov::Node::evaluate_lower(const HostTensorVector& output_values) const {
     if (dyn_inputs)
         return false;
     return ngraph::default_lower_bound_evaluator(this, output_values);
-}
-
-bool ov::Node::evaluate_upper(ov::runtime::TensorVector& output_values) const {
-    HostTensorVector output = create_tmp_tensors(output_values);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool sts = evaluate_upper(output);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    update_output_tensors(output_values, output);
-    return sts;
 }
 
 bool ov::Node::evaluate_upper(const HostTensorVector& output_values) const {
@@ -901,6 +902,8 @@ bool ov::Node::evaluate_upper(const HostTensorVector& output_values) const {
         return false;
     return ngraph::default_upper_bound_evaluator(this, output_values);
 }
+
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Node::constant_fold");
@@ -938,7 +941,6 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
 }
-OPENVINO_SUPPRESS_DEPRECATED_START
 
 namespace ov {
 BWDCMP_RTTI_DEFINITION(AttributeAdapter<shared_ptr<Node>>);
