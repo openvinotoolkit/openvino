@@ -78,6 +78,10 @@ void regclass_graph_FrontEndManager(py::module m) {
                 load_by_model : FrontEnd
                     Frontend interface for further loading of models. 'None' if no suitable frontend is found
             )");
+
+    fem.def("__repr__", [](const ngraph::frontend::FrontEndManager& self) -> std::string {
+        return "<FrontEndManager>";
+    });
 }
 
 void regclass_graph_GeneralFailureFrontEnd(py::module m) {

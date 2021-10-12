@@ -9,7 +9,7 @@
 #include "frontend_manager.hpp"
 #include "frontend_manager/frontend_exceptions.hpp"
 #include "frontend_manager/frontend_manager.hpp"
-#include "openvino/core/function.hpp"
+#include "pyopenvino/graph/function.hpp"
 
 namespace py = pybind11;
 
@@ -54,7 +54,7 @@ void regclass_graph_FrontEnd(py::module m) {
                 Returns
                 ----------
                 convert : Function
-                    Fully converted OV function.
+                    Fully converted nGraph function.
              )");
 
     fem.def("convert",
@@ -67,12 +67,12 @@ void regclass_graph_FrontEnd(py::module m) {
                 Parameters
                 ----------
                 function : Function
-                    Partially converted OV function.
+                    Partially converted nGraph function.
 
                 Returns
                 ----------
                 convert : Function
-                    Fully converted OV function.
+                    Fully converted nGraph function.
              )");
 
     fem.def("convert_partially",
@@ -136,4 +136,8 @@ void regclass_graph_FrontEnd(py::module m) {
                 get_name : str
                     Current frontend name. Empty string if not implemented.
             )");
+
+    fem.def("__repr__", [](const ngraph::frontend::FrontEnd& self) -> std::string {
+        return "<FrontEnd '" + self.get_name() + "'>";
+    });
 }
