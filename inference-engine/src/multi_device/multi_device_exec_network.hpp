@@ -177,7 +177,7 @@ private:
     mutable std::atomic<bool>                                           _alreadyActualNetwork = {false};
     bool                                                                _workModeIsAUTO = {false};
     DeviceInformation                                                   _cpuDevice;
-    DeviceInformation                                                   _acceleratorDevice;
+    mutable DeviceInformation                                           _acceleratorDevice;
     mutable std::once_flag                                              _oc;
     std::once_flag                                                      _firstReadyOC;
     std::future<void>                                                   _firstReadyFuture;

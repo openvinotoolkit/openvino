@@ -197,50 +197,94 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
             0 /*default threads per stream, workaround for ticket 62376*/,
             IStreamsExecutor::ThreadBindingType::NONE});
     std::vector<Task> loads;
+    std::vector<DeviceInformation> deviceList = metaDevices;
     for (auto& p : needLoadDevices) {
         // initialize these containers firstly to avoid insert operation in threads
         _idleWorkerRequests[p.deviceName];
         _workerRequests[p.deviceName];
         _inferPipelineTasksDeviceSpecific[p.deviceName] = NULL;
-        const auto device = p.deviceName;
-        const auto deviceConfig = p.config;
+        auto device = p.deviceName;
+        auto deviceConfig = p.config;
         // will not wait for loading accelerator network,
         // so some parameters need to be transferred by value.
-        loads.push_back([&, modelPath, network, device, deviceConfig]() {
+        loads.push_back([&, modelPath, network, device, deviceConfig,
+                deviceList, networkPrecision]() mutable {
             SoExecutableNetworkInternal executableNetwork;
-            try {
-                if (!modelPath.empty()) {
-                    executableNetwork = _core->LoadNetwork(modelPath, device, deviceConfig);
-                } else {
-                    executableNetwork = _core->LoadNetwork(network, device, deviceConfig);
+            bool loadSuccess = false;
+            bool noValidDevice = false;
+            bool isCPU = (device.find("CPU") != std::string::npos);
+            bool curDevIsCPU = isCPU;
+            std::exception_ptr eptr;
+            do {
+                try {
+                    if (!modelPath.empty()) {
+                        executableNetwork = _core->LoadNetwork(modelPath, device, deviceConfig);
+                    } else {
+                        executableNetwork = _core->LoadNetwork(network, device, deviceConfig);
+                    }
+                    loadSuccess = true;
+                } catch (const std::exception& e) {
+                    printf("Warning: load network to %s failed: %s\n", device.c_str(), e.what());
+                    loadSuccess = false;
+                    eptr = std::current_exception();
                 }
+                // load failed and device is not cpu, try to select next device
+                if (!loadSuccess && !curDevIsCPU) {
+                    auto eraseDevice = std::find_if(deviceList.begin(), deviceList.end(),
+                            [device](DeviceInformation& d){
+                                return d.deviceName == device;
+                            });
+                    deviceList.erase(eraseDevice);
+                    try {
+                        if (!deviceList.empty()) {
+                            _acceleratorDevice = _multiPlugin->SelectDevice(deviceList, networkPrecision);
+                            device =  _acceleratorDevice.deviceName;
+                            deviceConfig =  _acceleratorDevice.config;
+                            curDevIsCPU = (device.find("CPU") != std::string::npos);
+                            if (curDevIsCPU) {
+                                printf("Info: fall back to CPU\n");
+                            } else {
+                                printf("Info: try to load next device: %s\n", device.c_str());
+                            }
+                        } else {
+                            noValidDevice = true;
+                        }
+                    } catch(const std::exception& e) {
+                        // select failed, there is no valid devices in deviceList
+                        noValidDevice = true;
+                    }
+                }
+            } while (!(loadSuccess || curDevIsCPU || noValidDevice));
+            if (loadSuccess) {
                 GenerateWorkers(device, executableNetwork);
-
-                if (device.find("CPU") == std::string::npos) {
+                if (!isCPU) {
                     _alreadyActualNetwork = true;
                     _acceleratorPromise.set_value(executableNetwork);
                 } else {
                     _cpuPromise.set_value(executableNetwork);
                 }
-            } catch (...) {
-                if (device.find("CPU") == std::string::npos) {
-                    _acceleratorPromise.set_exception(std::current_exception());
+            } else {
+                if (!isCPU) {
+                    _acceleratorPromise.set_exception(eptr);
                 } else {
-                    _cpuPromise.set_exception(std::current_exception());
+                    _cpuPromise.set_exception(eptr);
                 }
             }
-
+            // the first device is already ready
             std::call_once(_firstReadyOC, [this] () {
                     _firstReadyPromise.set_value();
                     });
         });
     }
 
-    for (auto& task : loads) {
-         _executor->run(task);
-    }
     if (loads.size() > 0) {
         _firstReadyFuture = _firstReadyPromise.get_future();
+    } else {
+        IE_THROW() << "No device available";
+    }
+
+    for (auto& task : loads) {
+         _executor->run(task);
     }
 
     WaitFirstNetworkReady();
@@ -253,19 +297,22 @@ void MultiDeviceExecutableNetwork::WaitFirstNetworkReady() {
     if (_alreadyActualNetwork) {
         return;
     }
-    if (_cpuFuture.valid() && _acceleratorFuture.valid()) {
-        try {
-            _networkFirstReady = _cpuFuture.get();
-        } catch (const std::exception& e) {
-            printf("Warning: load network to CPU failed: %s\n", e.what());
+    try {
+        if (_cpuFuture.valid() && _acceleratorFuture.valid()) {
+            try {
+                _networkFirstReady = _cpuFuture.get();
+            } catch (...) {
+                _networkActualNeeded = _acceleratorFuture.get();
+            }
+        } else if (_acceleratorFuture.valid()) {  // only accelerator is valid, like AUTO:GPU
             _networkActualNeeded = _acceleratorFuture.get();
+        } else if (_cpuFuture.valid()) {  // only CPU is valid, like AUTO:CPU
+            _networkActualNeeded = _cpuFuture.get();
+        } else {
+            IE_THROW() << "should not come here";
         }
-    } else if (_acceleratorFuture.valid()) {  // only accelerator is valid, like AUTO:GPU
-        _networkActualNeeded = _acceleratorFuture.get();
-    } else if (_cpuFuture.valid()) {  // only CPU is valid, like AUTO:CPU
-        _networkActualNeeded = _cpuFuture.get();
-    } else {
-        IE_THROW() << "No device task available";
+    } catch (...) {
+        IE_THROW() << "load all devices failed";
     }
 
     // if there is only one device or loading CPU device is failed,
@@ -281,7 +328,14 @@ void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceExecutableNetwork::WaitActualNetworkReady");
     std::call_once(_oc, [&] () {
             if (_acceleratorFuture.valid()) {
-                _networkActualNeeded = _acceleratorFuture.get();
+                try {
+                    _networkActualNeeded = _acceleratorFuture.get();
+                } catch (...) {
+                    // fall back to CPU
+                    _networkActualNeeded = _networkFirstReady;
+                    _acceleratorDevice =  _cpuDevice;
+                    _alreadyActualNetwork = true;
+                }
             }
             });
 }
@@ -292,11 +346,11 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
     if (_workModeIsAUTO) {
         if (!preferred_device.empty()) {
             // the preferred_device should be the selected device in AUTO work mode
+            WaitActualNetworkReady();
             if (preferred_device != _acceleratorDevice.deviceName) {
                 IE_THROW(NotFound) << "The preferred_device should be the selected device";
             }
             // if the device needed by customer is not ready, need to wait for it
-            WaitActualNetworkReady();
             devices.push_back(_acceleratorDevice);
         } else {
             // _acceleratorDevice could be the same as _cpuDevice, such as AUTO:CPU
