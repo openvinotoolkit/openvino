@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph::opset8;
+using namespace ov::opset8;
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
@@ -27,11 +27,6 @@ OutputVector TranslateDepthwiseConv2dNativeOp(const NodeContext& node) {
 
     bool is_nhwc = (tf_data_format == "NHWC");
 
-    NGRAPH_VLOG(3) << join(tf_strides);
-    NGRAPH_VLOG(3) << join(tf_dilations);
-    NGRAPH_VLOG(3) << tf_padding_type;
-    NGRAPH_VLOG(3) << tf_data_format;
-
     Strides ng_strides(2);
     Strides ng_dilations(2);
     Shape ng_image_shape(2);
@@ -42,15 +37,9 @@ OutputVector TranslateDepthwiseConv2dNativeOp(const NodeContext& node) {
     NHWCtoHW(is_nhwc, tf_dilations, ng_dilations);
     NHWCtoNCHW(node.get_name(), is_nhwc, ng_input);
 
-    NGRAPH_VLOG(3) << "ng_strides: " << join(ng_strides);
-    NGRAPH_VLOG(3) << "ng_dilations: " << join(ng_dilations);
-    NGRAPH_VLOG(3) << "ng_image_shape: " << join(ng_image_shape);
-
     auto& ng_filter_shape = ng_filter.get_shape();
     ng_kernel_shape[0] = ng_filter_shape[0];
     ng_kernel_shape[1] = ng_filter_shape[1];
-
-    NGRAPH_VLOG(3) << "ng_kernel_shape: " << join(ng_kernel_shape);
 
     CoordinateDiff ng_padding_below;
     CoordinateDiff ng_padding_above;
@@ -67,12 +56,12 @@ OutputVector TranslateDepthwiseConv2dNativeOp(const NodeContext& node) {
         node.get_name(),
         element::u64,
         Shape{5},
-        ngraph::Shape{ng_filter_shape[0], ng_filter_shape[1], ng_filter_shape[2], 1, ng_filter_shape[3]});
+        ov::Shape{ng_filter_shape[0], ng_filter_shape[1], ng_filter_shape[2], 1, ng_filter_shape[3]});
     auto reshaped_filter = ConstructNgNode<Reshape>(node.get_name(), ng_filter, filter_shape, false);
 
     // H W I 1 M -> I M 1 H W
     auto order = ConstructNgNode<Constant>(node.get_name(), element::i64, Shape{5}, vector<int64_t>{2, 4, 3, 0, 1});
-    auto transposed_filter = ConstructNgNode<ngraph::opset8::Transpose>(node.get_name(), reshaped_filter, order);
+    auto transposed_filter = ConstructNgNode<ov::opset8::Transpose>(node.get_name(), reshaped_filter, order);
 
     auto ng_conv = ConstructNgNode<GroupConvolution>(node.get_name(),
                                                      ng_input,

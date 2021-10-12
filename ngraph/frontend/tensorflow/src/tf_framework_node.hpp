@@ -5,12 +5,12 @@
 #pragma once
 
 #include <algorithm>
-#include <ngraph/op/util/framework_node.hpp>
+#include <openvino/op/util/framework_node.hpp>
 #include <tensorflow_frontend/place.hpp>
 
 #include "graph_iterator_proto.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 
@@ -21,7 +21,7 @@ public:
     TFFrameworkNode(const std::shared_ptr<DecoderBase>& decoder, const OutputVector& inputs, size_t num_outputs)
         : FrameworkNode(inputs, std::max(num_outputs, size_t(1))),
           m_decoder(decoder) {
-        ngraph::op::FrameworkNodeAttrs attrs;
+        ov::op::util::FrameworkNodeAttrs attrs;
         attrs.set_type_name(m_decoder->get_op_type());
         set_attrs(attrs);
 

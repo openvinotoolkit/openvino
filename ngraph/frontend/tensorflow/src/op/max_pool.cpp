@@ -6,10 +6,10 @@
 #include <openvino/opsets/opset7.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::frontend::tf::detail;
+using namespace ov;
+using namespace ov::frontend::tf::detail;
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
@@ -24,11 +24,6 @@ OutputVector TranslateMaxPoolOp(const NodeContext& node) {
 
     bool is_nhwc = (tf_data_format == "NHWC") || (tf_data_format == "NDHWC");
 
-    NGRAPH_VLOG(3) << join(tf_strides);
-    NGRAPH_VLOG(3) << join(tf_ksize);
-    NGRAPH_VLOG(3) << tf_padding_type;
-    NGRAPH_VLOG(3) << tf_data_format;
-
     int N = 2;
     if (node.get_name() == "MaxPool3D") {
         N = 3;
@@ -42,9 +37,6 @@ OutputVector TranslateMaxPoolOp(const NodeContext& node) {
     NHWCtoHW(is_nhwc, ng_input.get_shape(), ng_image_shape);
     NHWCtoHW(is_nhwc, tf_ksize, ng_kernel_shape);
     NHWCtoNCHW(node.get_name(), is_nhwc, ng_input);
-    NGRAPH_VLOG(3) << "ng_strides: " << join(ng_strides);
-    NGRAPH_VLOG(3) << "ng_image_shape: " << join(ng_image_shape);
-    NGRAPH_VLOG(3) << "ng_kernel_shape: " << join(ng_kernel_shape);
 
     CoordinateDiff padding_below;
     CoordinateDiff padding_above;
@@ -67,12 +59,9 @@ OutputVector TranslateMaxPoolOp(const NodeContext& node) {
                                                            ng_padding_below,
                                                            ng_padding_above,
                                                            ng_kernel_shape,
-                                                           ngraph::op::RoundingType::FLOOR);
+                                                           ov::op::RoundingType::FLOOR);
 
     NCHWtoNHWC(node.get_name(), is_nhwc, ng_maxpool);
-
-    NGRAPH_VLOG(3) << "maxpool outshape: {" << join(ng_maxpool.get_shape()) << "}";
-
     return {ng_maxpool};
 }
 

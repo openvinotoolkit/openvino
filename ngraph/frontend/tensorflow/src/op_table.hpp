@@ -6,18 +6,18 @@
 
 #include <functional>
 #include <map>
-#include <ngraph/output_vector.hpp>
+#include <openvino/core/node_vector.hpp>
 #include <string>
 
 #include "ngraph_conversions.hpp"
 #include "node_context.hpp"
 #include "utils.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
-using CreatorFunction = std::function<::ngraph::OutputVector(const ::ngraph::frontend::tf::NodeContext&)>;
+using CreatorFunction = std::function<::ov::OutputVector(const ::ov::frontend::tf::NodeContext&)>;
 
 const std::map<const std::string, const CreatorFunction> get_supported_ops();
 }  // namespace op

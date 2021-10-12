@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include <ngraph/variant.hpp>
+#include <openvino/core/variant.hpp>
 #include <tensorflow_frontend/exceptions.hpp>
 #include <tensorflow_frontend/place.hpp>
 #include <tensorflow_frontend/utility.hpp>
@@ -28,13 +28,13 @@ NGRAPH_VARIANT_DECLARATION(std::vector<float>, "Variant::float_vector");
 NGRAPH_VARIANT_DECLARATION(bool, "Variant::bool");
 NGRAPH_VARIANT_DECLARATION(ov::element::Type, "Variant::ov_element_type");
 NGRAPH_VARIANT_DECLARATION(std::vector<int64_t>, "Variant::int64_vector");
-NGRAPH_VARIANT_DECLARATION(ngraph::PartialShape, "Variant::ngraph_PartialShape");
+NGRAPH_VARIANT_DECLARATION(ov::PartialShape, "Variant::ngraph_PartialShape");
 NGRAPH_VARIANT_DECLARATION(std::vector<std::string>, "Variant::string_vector");
 NGRAPH_VARIANT_DECLARATION(::tensorflow::DataType, "Variant::DataType");
 NGRAPH_VARIANT_DECLARATION(::tensorflow::TensorProto, "Variant::TensorProto");
 }  // namespace ov
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 using InPortName = size_t;

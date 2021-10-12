@@ -4,12 +4,13 @@
 
 #pragma once
 
-#include <ngraph/variant.hpp>
+#include <openvino/core/variant.hpp>
+#include <tensorflow_frontend/utility.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 
-class DecoderBase {
+class TF_API DecoderBase {
 public:
     /// \brief Get attribute value by name and requested type
     ///

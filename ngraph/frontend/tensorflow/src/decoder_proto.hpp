@@ -15,11 +15,11 @@
 #include "node_def.pb.h"
 #include "types.pb.h"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 
-extern std::map<::tensorflow::DataType, ngraph::element::Type> TYPE_MAP;
+extern std::map<::tensorflow::DataType, ov::element::Type> TYPE_MAP;
 
 class DecoderTFProto : public DecoderBase {
 public:

@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 #include "node_context.hpp"
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::opset8;
+using namespace ov;
+using namespace ov::opset8;
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {

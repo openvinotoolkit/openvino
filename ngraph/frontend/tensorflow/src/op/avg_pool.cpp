@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph::opset8;
+using namespace ov::opset8;
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
@@ -26,11 +26,6 @@ OutputVector TranslateAvgPoolOp(const NodeContext& node) {
 
     bool is_nhwc = (tf_data_format == "NHWC");
 
-    NGRAPH_VLOG(3) << join(tf_strides);
-    NGRAPH_VLOG(3) << join(tf_ksize);
-    NGRAPH_VLOG(3) << tf_padding_type;
-    NGRAPH_VLOG(3) << tf_data_format;
-
     Strides ng_strides(2);
     Shape ng_image_shape(2);
     Shape ng_kernel_shape(2);
@@ -38,9 +33,6 @@ OutputVector TranslateAvgPoolOp(const NodeContext& node) {
     NHWCtoHW(is_nhwc, ng_input.get_shape(), ng_image_shape);
     NHWCtoHW(is_nhwc, tf_ksize, ng_kernel_shape);
     NHWCtoNCHW(node.get_name(), is_nhwc, ng_input);
-    NGRAPH_VLOG(3) << "ng_strides: " << join(ng_strides);
-    NGRAPH_VLOG(3) << "ng_image_shape: " << join(ng_image_shape);
-    NGRAPH_VLOG(3) << "ng_kernel_shape: " << join(ng_kernel_shape);
 
     CoordinateDiff padding_below;
     CoordinateDiff padding_above;
@@ -65,10 +57,9 @@ OutputVector TranslateAvgPoolOp(const NodeContext& node) {
                                                        ng_padding_above,
                                                        ng_kernel_shape,
                                                        true,
-                                                       ngraph::op::RoundingType::FLOOR);
+                                                       ov::op::RoundingType::FLOOR);
 
     NCHWtoNHWC(node.get_name(), is_nhwc, ng_avgpool);
-    NGRAPH_VLOG(3) << "avgpool outshape: {" << join(ng_avgpool.get_shape()) << "}";
 
     return {ng_avgpool};
 }

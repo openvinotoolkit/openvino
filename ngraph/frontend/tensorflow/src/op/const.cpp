@@ -2,46 +2,46 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph::opset8;
+using namespace ov::opset8;
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
 
 namespace {
 using ConstMap =
-    std::map<ngraph::element::Type,
-             std::pair<std::function<Status(const NodeContext&, ngraph::element::Type, ngraph::Output<ngraph::Node>&)>,
-                       const ngraph::element::Type>>;
+    std::map<ov::element::Type,
+             std::pair<std::function<Status(const NodeContext&, ov::element::Type, ov::Output<ov::Node>&)>,
+                       const ov::element::Type>>;
 
 const ConstMap& TF_NGRAPH_CONST_MAP() {
     static const ConstMap the_map = {
-        {ngraph::element::f32, make_pair(MakeConstOp<float>, ngraph::element::f32)},
-        {ngraph::element::f64, make_pair(MakeConstOp<double>, ngraph::element::f64)},
-        {ngraph::element::i8, make_pair(MakeConstOp<int8_t>, ngraph::element::i8)},
-        {ngraph::element::i16, make_pair(MakeConstOp<int16_t>, ngraph::element::i16)},
+        {ov::element::f32, make_pair(MakeConstOp<float>, ov::element::f32)},
+        {ov::element::f64, make_pair(MakeConstOp<double>, ov::element::f64)},
+        {ov::element::i8, make_pair(MakeConstOp<int8_t>, ov::element::i8)},
+        {ov::element::i16, make_pair(MakeConstOp<int16_t>, ov::element::i16)},
 #if 0
-      {DataType::DT_QINT8, make_pair(MakeConstOp<qint8>, ngraph::element::i8)},
-      {DataType::DT_QUINT8, make_pair(MakeConstOp<quint8>, ngraph::element::u8)},
-      {DataType::DT_QUINT16, make_pair(MakeConstOp<quint16>, ngraph::element::u16)},
+      {DataType::DT_QINT8, make_pair(MakeConstOp<qint8>, ov::element::i8)},
+      {DataType::DT_QUINT8, make_pair(MakeConstOp<quint8>, ov::element::u8)},
+      {DataType::DT_QUINT16, make_pair(MakeConstOp<quint16>, ov::element::u16)},
 #endif
-        {ngraph::element::i32, make_pair(MakeConstOp<int32_t>, ngraph::element::i32)},
-        {ngraph::element::i64, make_pair(MakeConstOp<int64_t>, ngraph::element::i64)},
-        {ngraph::element::u8, make_pair(MakeConstOp<uint8_t>, ngraph::element::u8)},
-        {ngraph::element::u16, make_pair(MakeConstOp<uint16_t>, ngraph::element::u16)},
-        {ngraph::element::boolean, make_pair(MakeConstOp<bool, char>, ngraph::element::boolean)}
+        {ov::element::i32, make_pair(MakeConstOp<int32_t>, ov::element::i32)},
+        {ov::element::i64, make_pair(MakeConstOp<int64_t>, ov::element::i64)},
+        {ov::element::u8, make_pair(MakeConstOp<uint8_t>, ov::element::u8)},
+        {ov::element::u16, make_pair(MakeConstOp<uint16_t>, ov::element::u16)},
+        {ov::element::boolean, make_pair(MakeConstOp<bool, char>, ov::element::boolean)}
     };
     return the_map;
 }
 }  // namespace
 
 OutputVector TranslateConstOp(const NodeContext& node) {
-    auto dt = node.get_attribute<ngraph::element::Type>("dtype");
+    auto dt = node.get_attribute<ov::element::Type>("dtype");
     Output<Node> ng_node;
 
     // For some reason the following do not work (no specialization of
