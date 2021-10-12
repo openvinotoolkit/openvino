@@ -6,7 +6,7 @@ import re
 from mo.front.extractor import raise_no_node, raise_node_name_collision
 from mo.utils.error import Error
 
-from ngraph.frontend import InputModel  # pylint: disable=no-name-in-module,import-error
+from openvino import InputModel  # pylint: disable=no-name-in-module,import-error
 
 import numpy as np
 

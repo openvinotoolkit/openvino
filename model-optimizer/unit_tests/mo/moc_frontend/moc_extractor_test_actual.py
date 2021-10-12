@@ -18,7 +18,7 @@ try:
         clear_setup, set_equal_data, set_max_port_counts
 
     # pylint: disable=no-name-in-module,import-error
-    from ngraph.frontend import FrontEndManager
+    from openvino import FrontEndManager
 
 except Exception:
     print("No mock frontend API available, "
