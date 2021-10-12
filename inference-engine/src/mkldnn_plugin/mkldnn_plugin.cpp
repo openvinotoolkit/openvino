@@ -28,7 +28,6 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
-#include <transformations/common_optimizations/softmax_fusion.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
@@ -47,6 +46,7 @@
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/op_conversions/convert_subtract.hpp>
+#include <transformations/op_conversions/softmax_decomposition.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/op_conversions/convert_mod.hpp>
 #include <transformations/op_conversions/convert_ti_to_sequences.hpp>
@@ -70,6 +70,7 @@
 #include <transformations/utils/utils.hpp>
 #include <transformations/serialize.hpp>
 
+#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
@@ -97,6 +98,7 @@
 #include "nodes/mkldnn_fake_quantize_node.h"
 #include "nodes/mkldnn_normalize_node.h"
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
+#include "transformations/smart_reshape/smart_reshape.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 # ifdef _WIN32
@@ -289,9 +291,10 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 return MKLDNNNormalizeL2Node::isSupportedOperation(node, errorMsg);
             });
 
-    pass_config->set_callback<ngraph::pass::SoftmaxFusion>(
+    pass_config->enable<ngraph::pass::SoftmaxDecomposition>();
+    pass_config->set_callback<ngraph::pass::SoftmaxDecomposition>(
             [](const_node_ptr &node) -> bool {
-                return node->input_value(0).get_partial_shape().rank().get_length() > 5;
+                return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
 
     pass_config->set_callback<ngraph::pass::ConvertNMSToNMSIEInternal>(
@@ -361,6 +364,10 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             OperationPrecisionRestriction::create<ngraph::opset1::Multiply>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}},
+            }),
+            OperationPrecisionRestriction::create<ngraph::opset1::MatMul>({
+                {0, {ngraph::element::u8, ngraph::element::i8}},
+                {1, {ngraph::element::i8}}
             }),
         });
 

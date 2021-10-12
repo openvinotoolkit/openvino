@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/op/util/variable.hpp"
 #include "ngraph/op/util/variable_context.hpp"

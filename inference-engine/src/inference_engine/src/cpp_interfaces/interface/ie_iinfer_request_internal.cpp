@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <openvino/core/partial_shape.hpp>
 #include <string>
 
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
@@ -258,7 +259,9 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
             if (foundInputPair == std::end(_networkInputs)) {
                 IE_THROW(NotFound) << "Failed to find input with name: \'" << name << "\'";
             }
+            IE_SUPPRESS_DEPRECATED_START
             isDynamic = foundInputPair->second->getInputData()->getPartialShape().is_dynamic();
+            IE_SUPPRESS_DEPRECATED_END
             dims = foundInputPair->second->getTensorDesc().getDims();
             refSize = foundInputPair->second->getTensorDesc().getLayout() != SCALAR ? details::product(dims) : 1;
         } else {
@@ -270,6 +273,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
             if (foundOutputPair == std::end(_networkOutputs)) {
                 IE_THROW(NotFound) << "Failed to find output with name: \'" << name << "\'";
             }
+            IE_SUPPRESS_DEPRECATED_START
             isDynamic = foundOutputPair->second->getPartialShape().is_dynamic();
             ngraph::PartialShape blobPartialShape(blob->getTensorDesc().getDims());
             if (foundOutputPair->second->getPartialShape().compatible(blobPartialShape)) {
@@ -279,6 +283,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
                 // need to immediately throw here
                 dims = foundOutputPair->second->getTensorDesc().getDims();
             }
+            IE_SUPPRESS_DEPRECATED_END
             refSize = foundOutputPair->second->getTensorDesc().getLayout() != SCALAR ? details::product(dims) : 1;
         }
     } else {
@@ -343,7 +348,7 @@ bool IInferRequestInternal::preProcessingRequired(const InputInfo::Ptr& info,
 }
 
 void IInferRequestInternal::addInputPreProcessingFor(const std::string& name,
-                                                     Blob::Ptr const& from,
+                                                     const Blob::Ptr& from,
                                                      const Blob::Ptr& to) {
     auto ppDataIt = _preProcData.find(name);
     if (ppDataIt == _preProcData.end()) {
