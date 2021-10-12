@@ -112,8 +112,6 @@ void EltwiseLayerTest::SetUp() {
 
     auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
     function = std::make_shared<ngraph::Function>(eltwise, input, "Eltwise");
-    functionRefs = ngraph::clone_function(*function);
-
     // w/a: to propagate 1 input shape for other input
     for (auto& staticShape : targetStaticShapes) {
         if (function->get_parameters().size() > staticShape.size()) {

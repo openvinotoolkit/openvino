@@ -14,10 +14,10 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/attribute_adapter.hpp"
-#include "ngraph/deprecated.hpp"
-#include "ngraph/except.hpp"
+#include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -196,7 +196,7 @@ protected:
 };
 
 template <>
-class NGRAPH_API AttributeAdapter<ov::element::TypeVector> : public DirectValueAccessor<ov::element::TypeVector> {
+class OPENVINO_API AttributeAdapter<ov::element::TypeVector> : public DirectValueAccessor<ov::element::TypeVector> {
 public:
     OPENVINO_RTTI("AttributeAdapter<ov::element::TypeVector>");
     BWDCMP_RTTI_DECLARATION;

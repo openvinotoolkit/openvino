@@ -67,7 +67,6 @@ protected:
         transpose->get_rt_info() = getCPUInfo();
         const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(transpose)};
         function = std::make_shared<ngraph::Function>(results, params, "Transpose");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

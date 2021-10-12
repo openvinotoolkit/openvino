@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <string>
+#include "functional_test_utils/skip_tests_config.hpp"
 
 #include <ie_system_conf.h>
-#include "functional_test_utils/skip_tests_config.hpp"
+
+#include <string>
+#include <vector>
+
 #include "ie_parallel.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
@@ -83,14 +85,20 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",
 
-        // TODO: CVS-66526 overrides i/o precisions in execution graph
-        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=(i8|i16).*)",
-        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=(i64|u16).*)",
-        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=(u32|u64).*)",
-        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=f16.*)",
+        // CPU plugin does not support some precisions
         R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*type=(i8|u32).*)",
-        R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*type=f16.*)",
-        R"(.*smoke_(Auto|Multi)_BehaviorTests/OVExecNetwork.*type=i8.*)",
+        R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*type=(f16).*)",
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*type=(i8|u32).*)",
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*type=(f16).*)",
+        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=(i8|u32).*)",
+        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=(f16).*)",
+
+        // TODO: CVS-66526 overrides i/o precisions in execution graph
+        // as WA we used GetInputsInfo() precisions instead of ngraph ones
+        // R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedFunction.*type=(i16|u16).*)",
+        // R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedFunction.*type=(i64|u64).*)",
+        // R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedIENetwork.*type=(i16|u16).*)",
+        // R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedIENetwork.*type=(i64|u64).*)",
 
         // CPU does not support dynamic rank
         // Issue: CVS-66778
@@ -111,6 +119,11 @@ std::vector<std::string> disabledTestPatterns() {
 
         // Issue 66685
         R"(smoke_PrePostProcess.*resize_linear_nhwc.*)",
+        // Issue 67214
+        R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)",
+
+        // TODO:
+        R"(smoke_PrePostProcess.*two_inputs_basic_Device.*)"
     };
 
 #define FIX_62820 0
@@ -119,14 +132,14 @@ std::vector<std::string> disabledTestPatterns() {
 #endif
 
 #ifdef __APPLE__
-        // TODO: Issue 55717
-        //retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");
+    // TODO: Issue 55717
+    // retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");
 #endif
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
         // tests are useless on such platforms
-       retVector.emplace_back(R"(.*BF16.*)");
-       retVector.emplace_back(R"(.*bfloat16.*)");
+        retVector.emplace_back(R"(.*BF16.*)");
+        retVector.emplace_back(R"(.*bfloat16.*)");
     }
 
     return retVector;
