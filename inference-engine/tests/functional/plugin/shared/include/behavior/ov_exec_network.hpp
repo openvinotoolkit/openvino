@@ -223,7 +223,7 @@ TEST_P(OVExecNetwork, importExportedFunction) {
     execNet = ie->compile_model(function, targetDevice, configuration);
 
     std::stringstream strm;
-    execNet.export_model(strm);
+    execNet.export(strm);
 
     ov::runtime::ExecutableNetwork importedExecNet = ie->import_model(strm, targetDevice, configuration);
     ASSERT_EQ(function->inputs().size(), 2);
@@ -337,7 +337,7 @@ TEST_P(OVExecNetwork, readFromV10IR) {
     }
 
     std::stringstream strm;
-    execNet.export_model(strm);
+    execNet.export(strm);
 
     ov::runtime::ExecutableNetwork importedExecNet = ie->import_model(strm, targetDevice, configuration);
     EXPECT_EQ(importedExecNet.inputs().size(), 1);
@@ -452,7 +452,7 @@ TEST_P(OVExecNetwork, ieImportExportedFunction) {
     execNet = ie->compile_model(function, targetDevice, configuration);
 
     std::stringstream strm;
-    execNet.export_model(strm);
+    execNet.export(strm);
 
     InferenceEngine::ExecutableNetwork importedExecNet = core->ImportNetwork(strm, targetDevice, configuration);
     ASSERT_EQ(function->inputs().size(), 2);

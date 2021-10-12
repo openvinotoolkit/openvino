@@ -129,7 +129,7 @@ public:
      *
      * @param networkModel Network model output stream
      */
-    void export_model(std::ostream& networkModel);
+    void export(std::ostream& networkModel);
 
     /**
      * @brief Sets configuration for current executable network

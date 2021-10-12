@@ -11,7 +11,7 @@ using namespace std;
 
 TEST(ExecutableNetworkOVTests, throwsOnUninitializedExportStream) {
     ov::runtime::ExecutableNetwork exec;
-    ASSERT_THROW(exec.export_model(std::cout), ov::Exception);
+    ASSERT_THROW(exec.export(std::cout), ov::Exception);
 }
 
 TEST(ExecutableNetworkOVTests, throwsOnUninitializedGetFunction) {

@@ -204,7 +204,7 @@ InferRequest ExecutableNetwork::create_infer_request() {
     OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->CreateInferRequest()});
 }
 
-void ExecutableNetwork::export_model(std::ostream& networkModel) {
+void ExecutableNetwork::export(std::ostream& networkModel) {
     OV_EXEC_NET_CALL_STATEMENT(_impl->Export(networkModel));
 }
 
