@@ -5,8 +5,8 @@ import os
 import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_tensor_value_info
-from ngraph import PartialShape
-from ngraph.frontend import FrontEndManager
+from openvino import PartialShape
+from openvino.frontend import FrontEndManager
 
 
 # ------Test input model 1------
@@ -770,6 +770,7 @@ def test_get_producing_operation():
 def test_get_producing_operation_2():
     skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    print(fe)
     assert fe
     model = fe.load("input_model_2.onnx")
     assert model
@@ -784,7 +785,7 @@ def test_get_producing_operation_2():
     add_op = add_out_tensor.get_producing_operation()
     assert not add_op.get_producing_operation()
 
-    split_op_producing_op = split_op.get_producing_operation(inputName="add_out")
+    split_op_producing_op = split_op.get_producing_operation(inputPortIndex="add_out")
     assert split_op_producing_op.is_equal(add_op)
 
     out2_tensor = model.get_place_by_tensor_name(tensorName="out2")
