@@ -20,7 +20,7 @@ class DeduceParameterShape(FrontReplacementSubgraph):
         parameter_nodes = graph.get_op_nodes(op='Parameter')
         for parameter in parameter_nodes:
             conv = find_nearest_conv(graph, parameter, convolutions)
-            if conv.in_port(1).disconnected() or not hasattr(conv.in_node(1), 'value'):
+            if conv.in_port(1).disconnected() or not conv.in_node(1).has_valid('value'):
                 continue
 
             conv_shape = conv.in_node(1).value.shape
@@ -35,16 +35,16 @@ class DeduceParameterShape(FrontReplacementSubgraph):
                 extra={'is_warning': True})
 
 
-def find_nearest_conv(graph: Graph, parameter_node: Node, convolution_nodes: List[Node]) -> Node:
-    shortest_path = None
+def find_nearest_conv(graph: Graph, start_node: Node, end_nodes: List[Node]) -> Node:
+    found_shortest_path = None
     shortest_path_len = np.iinfo(np.int64).max
-    for conv_node in convolution_nodes:
-        if nx.has_path(graph, parameter_node.id, conv_node.id):
-            path = nx.shortest_path(graph, parameter_node.id, conv_node.id)
+    for conv_node in end_nodes:
+        if nx.has_path(graph, start_node.id, conv_node.id):
+            path = nx.shortest_path(graph, start_node.id, conv_node.id)
             if len(path) == 2:  # if input goes directly into convolution
-                shortest_path = path
+                found_shortest_path = path
                 break
             if len(path) < shortest_path_len:
-                shortest_path = path
+                found_shortest_path = path
                 shortest_path_len = len(path)
-    return Node(graph, shortest_path[-1])
+    return Node(graph, found_shortest_path[-1])
