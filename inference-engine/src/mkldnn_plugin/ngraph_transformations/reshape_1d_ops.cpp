@@ -16,42 +16,6 @@
 #include "transformations/utils/utils.hpp"
 
 namespace Reshape1DOps {
-std::shared_ptr<ngraph::Node> add_reshape_before(const ngraph::Output<ngraph::Node>& data) {
-    auto shape_of = ngraph::op::util::make_try_fold<ngraph::opset1::ShapeOf>(data);
-    auto rank = data.get_partial_shape().rank().get_length();
-
-    std::vector<std::int32_t> gather_values_first(rank - 1);
-    std::iota(gather_values_first.begin(), gather_values_first.end(), 0);
-    auto gather_indices_first = ngraph::opset1::Constant::create(
-        ngraph::element::i64,
-        ngraph::Shape{ gather_values_first.size() },
-        gather_values_first);
-
-    auto gather_axis = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 0 });
-    auto gather_first = ngraph::op::util::make_try_fold<ngraph::opset1::Gather>(shape_of, gather_indices_first, gather_axis);
-
-    std::int32_t last_dimension_idx = rank - 1;
-    std::vector<std::int32_t> gather_values_last{ last_dimension_idx };
-    auto gather_indices_last = ngraph::opset1::Constant::create(
-        ngraph::element::i64,
-        ngraph::Shape{ gather_values_last.size() },
-        gather_values_last);
-    auto gather_last = ngraph::op::util::make_try_fold<ngraph::opset1::Gather>(shape_of, gather_indices_last, gather_axis);
-
-    auto unsqueezed_dimension = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
-
-    ngraph::NodeVector concatInputs = { gather_first, unsqueezed_dimension, gather_last };
-    auto concat = ngraph::op::util::make_try_fold<ngraph::opset1::Concat>(concatInputs, 0);
-    auto reshape = ngraph::op::util::make_try_fold<ngraph::opset1::Reshape>(data, concat, true);
-    return reshape;
-}
-
-std::shared_ptr<ngraph::Node> add_reshape_after(const ngraph::Output<ngraph::Node>& data) {
-    auto reshape_const = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 3 }, { 0, 0, -1 });
-    auto reshape = std::make_shared<ngraph::opset1::Reshape>(data, reshape_const, true);
-    return reshape;
-}
-
 template <class BaseOp>
 std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data, std::shared_ptr<BaseOp> node, ngraph::NodeVector &new_ops) {
     auto new_strides = node->get_strides();
@@ -64,7 +28,9 @@ std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data,
     new_pads_begin.insert(new_pads_begin.begin(), 0);
     new_pad_end.insert(new_pad_end.begin(), 0);
 
-    auto weights = add_reshape_before(node->input_value(1));
+    const size_t weights_rank = node->get_input_partial_shape(1).size();
+    const auto unsqueeze_const = ngraph::opset1::Constant::create(ngraph::element::i32, { 1 }, { weights_rank - 1 });
+    const auto weights = ngraph::op::util::make_try_fold<ngraph::opset1::Unsqueeze>(node->input_value(1), unsqueeze_const);
     new_ops.push_back(weights);
 
     if (std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(node)) {
@@ -135,7 +101,7 @@ std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data,
 ngraph::matcher_pass_callback get_callback() {
     return [](ngraph::pattern::Matcher& m) {
         auto node = m.get_match_root();
-        auto input_rank = node->get_input_partial_shape(0).rank().get_length();
+        const auto input_rank = node->get_input_partial_shape(0).size();
         if (input_rank != 3) {
             return false;
         }
@@ -143,7 +109,8 @@ ngraph::matcher_pass_callback get_callback() {
         ngraph::NodeVector new_ops;
 
         // Update pshape from [N, C, W] to [N, C, 1, W]
-        ngraph::Output<ngraph::Node> last = add_reshape_before(node->input_value(0));
+        const auto unsqueeze_const = ngraph::opset1::Constant::create(ngraph::element::i32, { 1 }, { input_rank - 1 });
+        ngraph::Output<ngraph::Node> last = std::make_shared<ngraph::opset1::Unsqueeze>(node->input_value(0), unsqueeze_const);
         last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name() + "/reshape_begin");
         new_ops.push_back(last.get_node_shared_ptr());
 
@@ -202,7 +169,8 @@ ngraph::matcher_pass_callback get_callback() {
         }
 
         // Update pshape from [N, C, 1, W] to [N, C, W]
-        last = add_reshape_after(last);
+        const auto squeeze_const = ngraph::opset1::Constant::create(ngraph::element::i32, { 1 }, { input_rank - 1 });
+        last = std::make_shared<ngraph::opset1::Squeeze>(last, squeeze_const);
         last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name());
         ngraph::replace_node(node, last.get_node_shared_ptr());
         ngraph::copy_runtime_info(node, new_ops);
