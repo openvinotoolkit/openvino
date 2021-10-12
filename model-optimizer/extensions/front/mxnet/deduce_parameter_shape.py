@@ -4,8 +4,8 @@ from typing import List
 
 import networkx as nx
 import numpy as np
-
-from mo.front.common.partial_infer.utils import dynamic_dimension, shape_array
+import logging as log
+from mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, unmask_shape
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph
 from mo.graph.graph import Node
@@ -29,6 +29,10 @@ class DeduceParameterShape(FrontReplacementSubgraph):
             num_channels = conv_shape[1]
             parameter_shape = [dynamic_dimension, num_channels, *([dynamic_dimension] * num_space_dimensions)]
             parameter['shape'] = shape_array(parameter_shape)
+            log.error('Deduced input_shape={} for input \'{}\' from Convolution node \'{}\' weights'.format(
+                unmask_shape(shape_array(parameter_shape)), parameter.soft_get('name', parameter.id),
+                conv.soft_get('name', conv.id)),
+                extra={'is_warning': True})
 
 
 def find_nearest_conv(graph: Graph, parameter_node: Node, convolution_nodes: List[Node]) -> Node:
