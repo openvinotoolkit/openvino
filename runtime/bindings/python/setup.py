@@ -39,7 +39,6 @@ packages = [
     "ngraph.impl.op",
     "ngraph.impl.op.util",
     "ngraph.impl.passes",
-    "ngraph.frontend",
     "openvino",
     "openvino.opset1",
     "openvino.opset2",
