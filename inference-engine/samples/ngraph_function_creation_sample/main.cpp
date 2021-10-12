@@ -307,6 +307,11 @@ int main(int argc, char* argv[]) {
                 slog::warn << "Image " + i + " cannot be read!" << slog::endl;
                 continue;
             }
+
+            if (reader->size() != width * height) {
+                throw std::logic_error("Not supported format. Only MNist ubyte images supported.");
+            }
+
             /** Store image data **/
             std::shared_ptr<unsigned char> data(reader->getData(width, height));
             if (data.get() != nullptr) {
