@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
-using namespace ngraph::opset8;
+using namespace ov::opset8;
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
@@ -22,7 +22,7 @@ OutputVector TranslateSelectOp(const NodeContext& node) {
         if (in_1.get_shape().size() == 1 && in_2.get_shape().size() > 1) {
             std::vector<uint64_t> axes(in_2.get_shape().size() - 1);
             std::iota(axes.begin(), axes.end(), 1);
-            auto unsqueeze_axes = make_shared<Constant>(ngraph::element::i64, Shape{in_2.get_shape().size() - 1}, axes);
+            auto unsqueeze_axes = make_shared<Constant>(ov::element::i64, Shape{in_2.get_shape().size() - 1}, axes);
             auto unsqueeze = make_shared<Unsqueeze>(in_1, unsqueeze_axes);
             auto ng_select = make_shared<Select>(unsqueeze, in_2, in_3);
             ng_select->set_friendly_name(node.get_name());
@@ -36,4 +36,4 @@ OutputVector TranslateSelectOp(const NodeContext& node) {
 }  // namespace op
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

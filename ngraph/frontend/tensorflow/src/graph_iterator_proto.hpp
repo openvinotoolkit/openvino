@@ -12,7 +12,7 @@
 #include "graph.pb.h"
 #include "node_def.pb.h"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 class GraphIteratorProto : public GraphIterator {
@@ -58,4 +58,4 @@ public:
 };
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

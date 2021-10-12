@@ -6,7 +6,7 @@
 
 #include "node_context.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 
@@ -46,23 +46,23 @@ std::shared_ptr<ov::Variant> DecoderTFProto::get_attribute(const std::string& na
             floats.push_back(attrs[0].list().f(idx));
         }
         return std::make_shared<VariantWrapper<std::vector<float>>>(floats);
-    } else if (type_info == VariantWrapper<ngraph::element::Type>::get_type_info_static()) {
+    } else if (type_info == VariantWrapper<ov::element::Type>::get_type_info_static()) {
         auto data_type = attrs[0].type();
-        return std::make_shared<VariantWrapper<ngraph::element::Type>>(TYPE_MAP[data_type]);
+        return std::make_shared<VariantWrapper<ov::element::Type>>(TYPE_MAP[data_type]);
     } else if (type_info == VariantWrapper<bool>::get_type_info_static()) {
         return std::make_shared<VariantWrapper<bool>>(attrs[0].b());
     } else if (type_info == VariantWrapper<::tensorflow::DataType>::get_type_info_static()) {
         return std::make_shared<VariantWrapper<::tensorflow::DataType>>(attrs[0].type());
     } else if (type_info == VariantWrapper<::tensorflow::TensorProto>::get_type_info_static()) {
         return std::make_shared<VariantWrapper<::tensorflow::TensorProto>>(attrs[0].tensor());
-    } else if (type_info == VariantWrapper<::ngraph::PartialShape>::get_type_info_static()) {
-        std::vector<ngraph::Dimension> dims;
+    } else if (type_info == VariantWrapper<::ov::PartialShape>::get_type_info_static()) {
+        std::vector<ov::Dimension> dims;
         auto tf_shape = attrs[0].shape();
         for (int i = 0; i < tf_shape.dim_size(); i++) {
             dims.push_back(tf_shape.dim(i).size());
         }
-        auto pshape = ngraph::PartialShape(dims);
-        return std::make_shared<VariantWrapper<::ngraph::PartialShape>>(pshape);
+        auto pshape = ov::PartialShape(dims);
+        return std::make_shared<VariantWrapper<::ov::PartialShape>>(pshape);
     }
 
     // type is not supported by decoder
@@ -73,7 +73,7 @@ size_t DecoderTFProto::get_input_size() const {
     return m_node_def->input_size();
 }
 
-void DecoderTFProto::get_input_node(const size_t input_port_idx,
+void DecoderTFProto::get_input_node(size_t input_port_idx,
                                     std::string& producer_name,
                                     size_t& producer_output_port_index) const {
     // TODO: handle body graph nodes with a couple of columns
@@ -109,4 +109,4 @@ std::vector<::tensorflow::AttrValue> DecoderTFProto::decode_attribute_helper(con
 }
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

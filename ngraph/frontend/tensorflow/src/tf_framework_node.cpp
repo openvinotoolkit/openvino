@@ -4,7 +4,7 @@
 
 #include <tf_framework_node.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 NGRAPH_RTTI_DEFINITION(TFFrameworkNode, "TFFrameworkNode", 1);
@@ -16,4 +16,4 @@ void TFFrameworkNode::validate_and_infer_types() {
 }
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

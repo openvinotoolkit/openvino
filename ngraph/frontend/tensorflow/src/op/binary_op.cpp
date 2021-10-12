@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
-using namespace ngraph::opset8;
+using namespace ov::opset8;
 
 // Helper function to translate a binary op
 // Parameters:
 //
 //    TFNodeDecoder* op               - TF op being translated. Must have only two
 //    inputs.
-//    const std::vector<const ngraph::frontend::tf::detail::TensorWrapper*>& static_input_map - the static input
+//    const std::vector<const ov::frontend::tf::detail::TensorWrapper*>& static_input_map - the static input
 //    map Builder::OpMap& ng_op_map  - The TF-to-nGraph op map. std::function<Output<Node>(Output<Node>,
 //    Output<Node>)>
 //    create_binary_op           - Function to construct the graph implementing
@@ -32,7 +32,7 @@ using namespace ngraph::opset8;
 //    }
 //
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
@@ -96,4 +96,4 @@ template OutputVector TranslateBinaryOp<Subtract>(const NodeContext& node);
 }  // namespace op
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

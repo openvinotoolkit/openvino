@@ -4,12 +4,13 @@
 
 #pragma once
 
-#include <ngraph/variant.hpp>
+#include <openvino/core/variant.hpp>
+#include <tensorflow_frontend/utility.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 
-class DecoderBase {
+class TF_API DecoderBase {
 public:
     /// \brief Get attribute value by name and requested type
     ///
@@ -27,7 +28,7 @@ public:
     /// \param input_port_idx              Input port index by which data is consumed
     /// \param producer_name               A producer name
     /// \return producer_output_port_index Output port index from which data is generated
-    virtual void get_input_node(const size_t input_port_idx,
+    virtual void get_input_node(size_t input_port_idx,
                                 std::string& producer_name,
                                 size_t& producer_output_port_index) const = 0;
 
@@ -41,4 +42,4 @@ public:
     virtual ~DecoderBase() = default;
 };
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

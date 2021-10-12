@@ -15,11 +15,11 @@
 #include "node_def.pb.h"
 #include "types.pb.h"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 
-extern std::map<::tensorflow::DataType, ngraph::element::Type> TYPE_MAP;
+extern std::map<::tensorflow::DataType, ov::element::Type> TYPE_MAP;
 
 class DecoderTFProto : public DecoderBase {
 public:
@@ -30,7 +30,7 @@ public:
 
     size_t get_input_size() const override;
 
-    void get_input_node(const size_t input_port_idx,
+    void get_input_node(size_t input_port_idx,
                         std::string& producer_name,
                         size_t& producer_output_port_index) const override;
 
@@ -44,4 +44,4 @@ private:
 };
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

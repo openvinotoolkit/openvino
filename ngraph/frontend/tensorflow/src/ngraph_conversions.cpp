@@ -6,11 +6,11 @@
 
 #include "utils.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 
-void NHWCtoNCHW(const std::string& op_name, bool need_convert, ngraph::Output<ngraph::Node>& node) {
+void NHWCtoNCHW(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& node) {
     if (need_convert) {
         auto rank = node.get_shape().size();
         if (rank == 4) {
@@ -22,7 +22,7 @@ void NHWCtoNCHW(const std::string& op_name, bool need_convert, ngraph::Output<ng
     }
 }
 
-void NCHWtoNHWC(const std::string& op_name, bool need_convert, ngraph::Output<ngraph::Node>& node) {
+void NCHWtoNHWC(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& node) {
     if (need_convert) {
         auto rank = node.get_shape().size();
         if (rank == 4) {
@@ -34,52 +34,52 @@ void NCHWtoNHWC(const std::string& op_name, bool need_convert, ngraph::Output<ng
     }
 }
 
-void TFDataTypeToNGraphElementType(DataType tf_dt, ngraph::element::Type* ng_et) {
+void TFDataTypeToNGraphElementType(DataType tf_dt, ov::element::Type* ng_et) {
     switch (tf_dt) {
     case DataType::DT_FLOAT:
-        *ng_et = ngraph::element::f32;
+        *ng_et = ov::element::f32;
         break;
     case DataType::DT_DOUBLE:
-        *ng_et = ngraph::element::f64;
+        *ng_et = ov::element::f64;
         break;
     case DataType::DT_INT32:
-        *ng_et = ngraph::element::i32;
+        *ng_et = ov::element::i32;
         break;
     case DataType::DT_UINT8:
-        *ng_et = ngraph::element::u8;
+        *ng_et = ov::element::u8;
         break;
     case DataType::DT_INT8:
-        *ng_et = ngraph::element::i8;
+        *ng_et = ov::element::i8;
         break;
     case DataType::DT_UINT16:
-        *ng_et = ngraph::element::u16;
+        *ng_et = ov::element::u16;
         break;
     case DataType::DT_INT64:
-        *ng_et = ngraph::element::i64;
+        *ng_et = ov::element::i64;
         break;
     case DataType::DT_UINT32:
-        *ng_et = ngraph::element::u32;
+        *ng_et = ov::element::u32;
         break;
     case DataType::DT_UINT64:
-        *ng_et = ngraph::element::u64;
+        *ng_et = ov::element::u64;
         break;
     case DataType::DT_BOOL:
-        *ng_et = ngraph::element::boolean;
+        *ng_et = ov::element::boolean;
         break;
     case DataType::DT_QINT8:
-        *ng_et = ngraph::element::i8;
+        *ng_et = ov::element::i8;
         break;
     case DataType::DT_QUINT8:
-        *ng_et = ngraph::element::u8;
+        *ng_et = ov::element::u8;
         break;
     case DataType::DT_QINT32:
-        *ng_et = ngraph::element::i32;
+        *ng_et = ov::element::i32;
         break;
     case DataType::DT_BFLOAT16:
-        *ng_et = ngraph::element::bf16;
+        *ng_et = ov::element::bf16;
         break;
     case DataType::DT_HALF:
-        *ng_et = ngraph::element::f16;
+        *ng_et = ov::element::f16;
         break;
     default:
         throw errors::Unimplemented("Unsupported TensorFlow data type: " + DataType_Name(tf_dt));
@@ -88,4 +88,4 @@ void TFDataTypeToNGraphElementType(DataType tf_dt, ngraph::element::Type* ng_et)
 
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

@@ -119,7 +119,6 @@ void MemoryFqConcatPrelu::SetUp() {
     assign->add_control_dependency(read);
     result->add_control_dependency(assign);
     function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, input, "memory_fq_concat_prelu");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 } // namespace SubgraphTestsDefinitions

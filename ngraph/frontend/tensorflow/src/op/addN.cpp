@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <numeric>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
-using namespace ngraph::opset8;
+using namespace ov::opset8;
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
@@ -30,4 +30,4 @@ OutputVector TranslateAddNOp(const NodeContext& node) {
 }  // namespace op
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

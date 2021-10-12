@@ -5,11 +5,12 @@
 #pragma once
 
 #include <tensorflow_frontend/decoder.hpp>
+#include <tensorflow_frontend/utility.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
-class GraphIterator {
+class TF_API GraphIterator {
 public:
     using Ptr = std::shared_ptr<GraphIterator>;
 
@@ -32,4 +33,4 @@ public:
     virtual ~GraphIterator() = default;
 };
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
