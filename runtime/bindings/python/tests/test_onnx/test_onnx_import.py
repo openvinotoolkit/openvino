@@ -4,7 +4,6 @@
 import os
 
 import numpy as np
-import openvino.opset8 as ov
 import onnx
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 from openvino import Core
