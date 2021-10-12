@@ -645,25 +645,32 @@ Standard PaddlePaddle(paddlepaddle>=2.1)\* Operators:
 | elementwise_sub | No |
 | equal | No |
 | expand_v2 | No |
+| exp | No |
+| fill_any_like | No |
 | fill_constant_batch_size_like | No |
 | fill_constant | No |
 | flatten_contiguous_range | No |
+| gelu | No |
 | greater_equal | No |
 | hard_sigmoid | No |
 | hard_swish | No |
+| layer_norm | No |
 | leaky_relu | No |
 | log | No |
 | logical_not | No |
+| lookup_table_v2 | No |
 | matmul | No |
+| matmul_v2 | No |
 | matrix_nms | Only supports IE CPU plugin with 'number of selected boxes' static shape(eg: min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)) |
 | max_pool2d_with_index | No |
 | mul | No |
-| multiclass_nms | Only supports IE CPU plugin with 'number of selected boxes' static shape(eg: min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)) |
+| multiclass_nms3 | Only supports IE CPU plugin with 'number of selected boxes' static shape(eg: min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)) |
 | nearest_interp | 'NCW' 'NWC' 'NHWC' 'NCDHW' 'NDHWC' data_layout are not supported |
 | nearest_interp_v2 | 'NCW' 'NWC' 'NHWC' 'NCDHW' 'NDHWC' data_layout are not supported |
 | pad3d | 'Circular' mode is not supported |
 | pow | No |
 | pool2d | 'NHWC' data_layout is not supported |
+| prior_box | No |
 | range | No |
 | relu | No |
 | relu6 | No |
@@ -676,6 +683,8 @@ Standard PaddlePaddle(paddlepaddle>=2.1)\* Operators:
 | sigmoid | No |
 | split | No |
 | squeeze2 | No |
+| stack | No |
+| tanh | No |
 | transpose2 | No |
 | unsqueeze2 | No |
 | yolo_box | No |
