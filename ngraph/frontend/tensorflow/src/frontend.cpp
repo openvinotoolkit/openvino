@@ -171,7 +171,7 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
             auto op_fun = &(translate_map[operation_decoder->get_op_type()]);
             // NodeContext node_context(ng_inputs, operation_decoder, model_inputs);
             // TODO: Check why NodeContextNew doesn't have ngOutputVector ng_inputs input in constructor
-            ::ngraph::frontend::tf::NodeContext node_context(*operation_decoder.get(), named_inputs);
+            ::ngraph::frontend::tf::NodeContext node_context(*operation_decoder, named_inputs);
             // generate nGraph node output vector using translator for given operation type
             ng_outputs = (*op_fun)(node_context);
         } catch (...) {
@@ -225,7 +225,8 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
             // TODO: avoid this traversing by having a map for OpPlace objects, for example
             std::shared_ptr<OpPlaceTF> operation_place = nullptr;
             for (const auto& op_place : operation_places) {
-                if (op_place->get_names()[0].compare(operation_name) == 0) {
+                FRONT_END_GENERAL_CHECK(!op_place->get_names().empty(), "No names for OpPlace found.");
+                if (op_place->get_names()[0] == operation_name) {
                     operation_place = op_place;
                 }
             }
@@ -256,7 +257,7 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
     // find all terminal nodes in ngraph graph to complete list of results
     if (results.empty()) {
         for (const auto& node_output_vector : ng_op_map) {
-            for (auto output : node_output_vector.second) {
+            for (const auto& output : node_output_vector.second) {
                 if (output.get_target_inputs().empty() &&
                     !std::dynamic_pointer_cast<ngraph::opset8::Result>(output.get_node_shared_ptr())) {
                     results.push_back(std::make_shared<ngraph::opset8::Result>(output));
@@ -357,7 +358,7 @@ void FrontEndTF::convert(std::shared_ptr<ngraph::Function> partiallyConverted) c
             TranslateFWNode(std::dynamic_pointer_cast<TFFrameworkNode>(node));
         }
     }
-    for (auto result : partiallyConverted->get_results()) {
+    for (const auto& result : partiallyConverted->get_results()) {
         result->validate_and_infer_types();
     }
 

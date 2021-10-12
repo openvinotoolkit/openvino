@@ -93,7 +93,7 @@ public:
     }
 };
 
-void SetTracingInfo(const std::string& op_name, const ngraph::Output<ngraph::Node> ng_node);
+void SetTracingInfo(const std::string& op_name, const ngraph::Output<ngraph::Node>& ng_node);
 
 template <typename T>
 static void MakePadding(const std::string& tf_padding_type,
@@ -184,8 +184,7 @@ static Status TensorDataToVector(const TensorWrapper& tensor, std::vector<T>* ve
       }
       return Status::OK();
 #endif
-
-    NGRAPH_TF_FE_NOT_IMPLEMENTED
+    FRONT_END_NOT_IMPLEMENTED(TensorDataToVector);
 }
 
 static bool VecStrCmp(const std::vector<std::string>& a, const std::vector<std::string>& b) {
@@ -336,12 +335,11 @@ static void GetStaticInputVector(const ngraph::frontend::tf::NodeContext& node,
                                  int64_t input_index,
                                  std::vector<T>* vector) {
     ngraph::Output<ngraph::Node> ng_input = node.get_ng_input(input_index);
-    if (auto constant = std::dynamic_pointer_cast<ngraph::opset8::Constant>(ng_input.get_node_shared_ptr())) {
-        *vector = constant->cast_vector<T>();
-        return;
-    }
+    auto constant = std::dynamic_pointer_cast<ngraph::opset8::Constant>(ng_input.get_node_shared_ptr());
+    FRONT_END_GENERAL_CHECK(constant != nullptr, "Node ", node.get_name(), " can't be casted to Constant.");
+    *vector = constant->cast_vector<T>();
+    return;
 
-    NGRAPH_TF_FE_NOT_IMPLEMENTED;
     /*
         TFNodeDecoder* input_node;
         TF_RETURN_IF_ERROR(op->input_node(input_index, &input_node));
@@ -456,8 +454,7 @@ static Status ValuesFromConstNode(const DecoderBase* node,
     ngraph::PartialShape pshape;
     TFTensorShapeToNGraphShape(shape, &pshape);
     *const_tensor_shape = pshape.get_shape();
-    if (pshape.is_dynamic())
-        NGRAPH_TF_FE_NOT_IMPLEMENTED;
+    FRONT_END_GENERAL_CHECK(!pshape.is_dynamic(), "Dynamic shapes are not supported in ValuesFromConstNode function");
     auto tensor_content = tensor_proto.tensor_content();
     std::vector<char> tensor_values_plain(tensor_content.begin(), tensor_content.end());
     const T* tensor_values = reinterpret_cast<const T*>(tensor_values_plain.data());

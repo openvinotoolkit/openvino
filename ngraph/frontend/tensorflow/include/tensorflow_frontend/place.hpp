@@ -142,7 +142,7 @@ private:
 class TensorPlaceTF : public PlaceTF {
 public:
     TensorPlaceTF(const InputModel& input_model,
-                  ngraph::PartialShape pshape,
+                  const ngraph::PartialShape& pshape,
                   ngraph::element::Type type,
                   const std::vector<std::string>& names);
 

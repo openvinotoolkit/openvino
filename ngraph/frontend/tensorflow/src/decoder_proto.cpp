@@ -85,7 +85,7 @@ size_t DecoderTFProto::get_input_size() const {
     return m_node_def->input_size();
 }
 
-void DecoderTFProto::get_input_node(const size_t input_port_idx,
+void DecoderTFProto::get_input_node(size_t input_port_idx,
                                     string& producer_name,
                                     size_t& producer_output_port_index) const {
     // TODO: handle body graph nodes with a couple of columns
