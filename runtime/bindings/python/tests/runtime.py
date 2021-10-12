@@ -107,18 +107,8 @@ class Computation(object):
         params_string = ", ".join([param.name for param in self.parameters])
         return "<Computation: {}({})>".format(self.function.get_name(), params_string)
 
-    def _get_ie_output_blob_name(self, outputs: Dict, ng_result: result) -> str:
-        if len(self.results) == 1:
-            return next(iter(outputs.keys()))
-        else:
-            prev_layer = ng_result.input(0).get_source_output()
-            out_name = prev_layer.get_node().get_friendly_name()
-            if prev_layer.get_node().get_output_size() != 1:
-                out_name += "." + str(prev_layer.get_index())
-            return out_name
-
     def _get_ie_output_blob_buffer(self, output_blobs: Dict[str, Blob], ng_result: result) -> np.ndarray:
-        out_name = self._get_ie_output_blob_name(output_blobs, ng_result)
+        out_name = ng_result.get_friendly_name()
         out_blob = output_blobs[out_name]
 
         if out_blob.tensor_desc.layout == "SCALAR":
@@ -163,9 +153,10 @@ class Computation(object):
         else:
             cnn_network = self.network_cache[str(input_shapes)]
 
+        # import pdb; pdb.set_trace()
         # set output blobs precission based on nG results
         for ng_result in self.results:
-            ie_out_name = self._get_ie_output_blob_name(cnn_network.outputs, ng_result)
+            ie_out_name = ng_result.get_friendly_name()
             apply_ng_type(cnn_network.outputs[ie_out_name], ng_result.get_output_element_type(0))
 
         executable_network = self.runtime.backend.load_network(cnn_network, self.runtime.backend_name)
