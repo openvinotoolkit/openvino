@@ -24,7 +24,6 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(streamExecutorNumber, targetDevice, configuration) = this->GetParam();
-        ie = PluginCache::get().ie(targetDevice);
         // Create CNNNetwork from ngrpah::Function
         function = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, 32, 32});
         cnnNet = InferenceEngine::CNNNetwork(function);
@@ -54,7 +53,7 @@ public:
 protected:
     InferenceEngine::CNNNetwork cnnNet;
     InferenceEngine::ExecutableNetwork execNet;
-    std::shared_ptr<InferenceEngine::Core> ie;
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
     std::shared_ptr<ngraph::Function> function;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;

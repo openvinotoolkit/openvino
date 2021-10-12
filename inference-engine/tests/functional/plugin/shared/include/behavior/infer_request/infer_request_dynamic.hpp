@@ -69,7 +69,6 @@ protected:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(function, inOutShapes, targetDevice, configuration) = this->GetParam();
-        ie = ov::test::utils::PluginCache::get().core(targetDevice);
     }
 
     void TearDown() override {
