@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <memory>
 #include <numeric>
+#include <tuple>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -103,9 +104,10 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
         auto concat = std::dynamic_pointer_cast<ngraph::opset8::Concat>(m.get_match_root());
         if (!concat) return false;
 
-        auto split_and_scale = get_split_before_concat(concat);
-        auto split = split_and_scale.first;
-        if (!split) return false;
+        int64_t scale_factor;
+        std::shared_ptr<opset8::Split> split;
+        std::tie(split, scale_factor) = get_split_before_concat(concat);
+        if (!split || !scale_factor) return false;
 
         if (split->get_input_partial_shape(0).rank().is_dynamic()) return false;
         int64_t split_input_rank = split->get_input_partial_shape(0).rank().get_length();
@@ -118,9 +120,6 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
         if (!split_axis_const) return false;
 
         int64_t axis = split_axis_const->cast_vector<int64_t>()[0];
-
-        int64_t scale_factor = split_and_scale.second;
-        if (scale_factor == 0) return false;
 
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;
 
