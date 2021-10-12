@@ -57,7 +57,7 @@ void CommonReferenceTest::Infer() {
 
     for (size_t i = 0; i < functionParams.size(); ++i) {
         const auto& param = functionParams[i];
-        inferRequest.set_tensor(param->get_friendly_name(), inputData[i]);
+        inferRequest.set_tensor(param->output(0), inputData[i]);
     }
     inferRequest.infer();
 }
@@ -66,8 +66,7 @@ void CommonReferenceTest::Validate() {
     ASSERT_EQ(executableNetwork.outputs().size(), refOutData.size());
     std::vector<ov::runtime::Tensor> outputs;
     for (const auto& result : function->get_results()) {
-        auto name = ngraph::op::util::create_ie_output_name(result->input_value(0));
-        outputs.emplace_back(inferRequest.get_tensor(name));
+        outputs.emplace_back(inferRequest.get_tensor(result->output(0)));
     }
 
     ASSERT_EQ(refOutData.size(), outputs.size());

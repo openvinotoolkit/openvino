@@ -71,6 +71,15 @@ public:
      */
     void set_tensor(const ov::Output<const ov::Node>& port, const Tensor& tensor);
     /**
+     * @brief Sets input/output data to infer
+     *
+     * @note Memory allocation does not happen
+     * @param port Port of input or output tensor.
+     * @param tensor Reference to input or output tensor. The type of a tensor must match the network input/output
+     * precision and size.
+     */
+    void set_tensor(const ov::Output<ov::Node>& port, const Tensor& tensor);
+    /**
      * @brief Sets input data to infer
      *
      * @note Memory allocation does not happen
@@ -117,6 +126,14 @@ public:
      * @return A Tensor with a name @p name. If a tensor is not found, an exception is thrown.
      */
     Tensor get_tensor(const ov::Output<const ov::Node>& port);
+    /**
+     * @brief Gets input/output data for inference
+     *
+     * @note Memory allocation does not happen
+     * @param port Port of tensor to get
+     * @return A Tensor with a name @p name. If a tensor is not found, an exception is thrown.
+     */
+    Tensor get_tensor(const ov::Output<ov::Node>& port);
     /**
      * @brief Gets input data for inference
      *

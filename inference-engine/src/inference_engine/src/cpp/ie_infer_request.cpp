@@ -221,6 +221,10 @@ void InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const Tens
     OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlob(port.get_any_name(), tensor._impl); });
 }
 
+void InferRequest::set_tensor(const ov::Output<ov::Node>& port, const Tensor& tensor) {
+    set_tensor(ov::Output<const ov::Node>(port.get_node(), port.get_index()), tensor);
+}
+
 void InferRequest::set_input_tensor(size_t idx, const Tensor& tensor) {
     IE_THROW() << "Not implemented";
 }
@@ -260,6 +264,11 @@ Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
         auto dims = tensorDesc.getDims();
         return {_so, blob};
     });
+}
+
+
+Tensor InferRequest::get_tensor(const ov::Output<ov::Node>& port) {
+    return get_tensor(ov::Output<const ov::Node>(port.get_node(), port.get_index()));
 }
 
 Tensor InferRequest::get_input_tensor(size_t idx) {
