@@ -343,6 +343,8 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         }
         input->m_resolved_param = param;
     }
+    auto results = function->get_results();
+    auto parameters = function->get_parameters();
 
     for (const auto& input : m_impl->in_contexts) {
         auto param = input->m_resolved_param;
@@ -464,11 +466,23 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         for (auto consumer : consumers) {
             consumer.replace_source_output(node);
         }
-        function->add_parameters(new_params);
-        // remove old parameter
-        function->remove_parameter(param);
+        for (size_t i = 0; i < parameters.size(); i++) {
+            if (param == parameters[i]) {
+                parameters[i] = new_params[0];
+                break;
+            }
+        }
+        for (size_t i = 1; i < new_params.size(); i++) {
+            parameters.emplace_back(new_params[i]);
+        }
     }
 
+    // Add parameters with right order
+    {
+        while (!function->get_parameters().empty())
+            function->remove_parameter(*function->get_parameters().begin());
+        function->add_parameters(parameters);
+    }
     // Validate nodes after preprocessing if needed (no need to repeat it after post-processing)
     if (tensor_data_updated) {
         function->validate_nodes_and_infer_types();
@@ -532,9 +546,18 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
             new_result->set_layout(context.layout());
         }
         node.get_tensor().set_names(start_out_node_names);
-
-        function->add_results({new_result});
-        function->remove_result(result);
+        for (size_t i = 0; i < results.size(); i++) {
+            if (result == results[i]) {
+                results[i] = new_result;
+                break;
+            }
+        }
+    }
+    // Add results with right order
+    {
+        while (!function->get_results().empty())
+            function->remove_result(*function->get_results().begin());
+        function->add_results(results);
     }
 
     guard.reset();

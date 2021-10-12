@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/relu.hpp"
 #include "unit_test_utils/mocks/mock_allocator.hpp"
 #include "unit_test_utils/mocks/mock_icnn_network.hpp"
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
@@ -61,4 +62,27 @@ void MockNotEmptyICNNNetwork::getInputsInfo(InputsDataMap &inputs) const noexcep
 
     inputs[MockNotEmptyICNNNetwork::INPUT_BLOB_NAME] = inputInfo;
     IE_SUPPRESS_DEPRECATED_END
+}
+
+std::shared_ptr<ngraph::Function> MockNotEmptyICNNNetwork::getFunction() noexcept {
+    ngraph::ParameterVector parameters;
+    parameters.push_back(std::make_shared<ngraph::op::v0::Parameter>(
+        ov::element::f32, std::vector<ov::Dimension>{INPUT_DIMENSIONS.begin(), INPUT_DIMENSIONS.end()}));
+    parameters.back()->set_friendly_name(INPUT_BLOB_NAME);
+    auto relu = std::make_shared<ov::op::v0::Relu>(parameters.back());
+    relu->set_friendly_name(OUTPUT_BLOB_NAME);
+    ngraph::ResultVector results;
+    results.push_back(std::make_shared<ngraph::op::v0::Result>(relu));
+    return std::make_shared<ov::Function>(results, parameters, "empty_function");
+}
+std::shared_ptr<const ngraph::Function> MockNotEmptyICNNNetwork::getFunction() const noexcept {
+    ngraph::ParameterVector parameters;
+    parameters.push_back(std::make_shared<ngraph::op::v0::Parameter>(
+        ov::element::f32, std::vector<ov::Dimension>{INPUT_DIMENSIONS.begin(), INPUT_DIMENSIONS.end()}));
+    parameters.back()->set_friendly_name(INPUT_BLOB_NAME);
+    auto relu = std::make_shared<ov::op::v0::Relu>(parameters.back());
+    relu->set_friendly_name(OUTPUT_BLOB_NAME);
+    ngraph::ResultVector results;
+    results.push_back(std::make_shared<ngraph::op::v0::Result>(relu));
+    return std::make_shared<const ov::Function>(results, parameters, "empty_function");
 }

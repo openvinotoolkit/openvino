@@ -6,6 +6,7 @@
 
 #include <list>
 
+#include "ngraph/rt_info.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -85,16 +86,19 @@ inline void inherit_friendly_names(const std::shared_ptr<ov::Function>& function
 
 // TODO: add uniqueness check like for preprocessing (or remove from pre-processing)
 inline void inherit_friendly_names_postprocess(const Output<ov::Node>& inserted_output,
-                                               const Output<ov::Node>& previous_output,
-                                               const std::string& suffix) {
+                                               const Output<ov::Node>& previous_output) {
     inserted_output.get_node_shared_ptr()->set_friendly_name(
-        previous_output.get_node_shared_ptr()->get_friendly_name() + suffix);
+        previous_output.get_node_shared_ptr()->get_friendly_name());
     std::unordered_set<std::string> new_names;  // New name for previous node
     for (const auto& tensor_name : previous_output.get_tensor().get_names()) {
-        auto new_tensor_name = tensor_name + suffix;
+        auto new_tensor_name = tensor_name;
         new_names.emplace(new_tensor_name);
     }
     previous_output.get_tensor().set_names(new_names);
+
+    // reset names for original node
+    previous_output.get_node_shared_ptr()->set_friendly_name({});
+    previous_output.get_tensor().set_names({});
 }
 
 /// \brief Context passed to each pre/post-processing operation.

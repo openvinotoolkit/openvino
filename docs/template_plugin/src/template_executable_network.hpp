@@ -43,6 +43,7 @@ public:
 
 private:
     friend class TemplateInferRequest;
+    friend class Plugin;
 
     void CompileNetwork(const std::shared_ptr<const ngraph::Function>& function,
                         const InferenceEngine::InputsDataMap& inputInfoMap,
