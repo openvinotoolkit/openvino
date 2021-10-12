@@ -450,28 +450,12 @@ public:
 
     ie::CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from file");
-        auto cnnNet = InferenceEngine::details::ReadNetwork(modelPath, binPath, extensions);
-        OPENVINO_ASSERT(cnnNet.getFunction() || !newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
-        if (!newAPI)
-            return cnnNet;
-
-        return InferenceEngine::CNNNetwork(std::make_shared<InferenceEngine::details::CNNNetworkNGraphImpl>(
-            cnnNet.getFunction(),
-            std::vector<InferenceEngine::IExtensionPtr>{},
-            newAPI));
+        return InferenceEngine::details::ReadNetwork(modelPath, binPath, extensions, newAPI);
     }
 
     ie::CNNNetwork ReadNetwork(const std::string& model, const ie::Blob::CPtr& weights) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from memory");
-        auto cnnNet = InferenceEngine::details::ReadNetwork(model, weights, extensions);
-        OPENVINO_ASSERT(cnnNet.getFunction() || !newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
-        if (!newAPI)
-            return cnnNet;
-
-        return InferenceEngine::CNNNetwork(std::make_shared<InferenceEngine::details::CNNNetworkNGraphImpl>(
-            cnnNet.getFunction(),
-            std::vector<InferenceEngine::IExtensionPtr>{},
-            newAPI));
+        return InferenceEngine::details::ReadNetwork(model, weights, extensions, newAPI);
     }
 
     // TODO: In future this method can be added to ICore interface
@@ -1044,7 +1028,7 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
     auto exec = _impl->LoadNetwork(network, deviceName, config);
-    return {exec, exec};
+    return {exec._so, exec._ptr};
 }
 
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
@@ -1058,7 +1042,7 @@ ExecutableNetwork Core::LoadNetwork(const std::string& modelPath,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
     auto exec = _impl->LoadNetwork(modelPath, deviceName, config);
-    return {exec, exec};
+    return {exec._so, exec._ptr};
 }
 
 RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const ParamMap& params) {
@@ -1123,7 +1107,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
                                       const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
     auto exec = _impl->ImportNetwork(networkModel, deviceName, config);
-    return {exec, exec};
+    return {exec._so, exec._ptr};
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
@@ -1318,8 +1302,7 @@ ExecutableNetwork Core::compile_model(const std::shared_ptr<const ov::Function>&
                                       const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->LoadNetwork(toCNN(model), deviceName, config);
-        return {exec.operator const InferenceEngine::details::SharedObjectLoader&().get(),
-                exec.operator std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>&()};
+        return {exec._so, exec._ptr};
     });
 }
 
@@ -1328,8 +1311,7 @@ ExecutableNetwork Core::compile_model(const std::string& modelPath,
                                       const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->LoadNetwork(modelPath, deviceName, config);
-        return {exec.operator const InferenceEngine::details::SharedObjectLoader&().get(),
-                exec.operator std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>&()};
+        return {exec._so, exec._ptr};
     });
 }
 
@@ -1352,8 +1334,7 @@ ExecutableNetwork Core::import_model(std::istream& modelStream,
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->ImportNetwork(modelStream, deviceName, config);
-        return {exec.operator const InferenceEngine::details::SharedObjectLoader&().get(),
-                exec.operator std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>&()};
+        return {exec._so, exec._ptr};
     });
 }
 
