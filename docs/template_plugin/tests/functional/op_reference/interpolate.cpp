@@ -84,7 +84,7 @@ private:
                                                     const op::v0::Interpolate::Attributes& attrs) {
         const auto input = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto output_shape_input = op::v0::Constant::create(outShapeInputType, outShapeInput, output_shape);
-        auto interpolate = std::make_shared<op::v0::Interpolate>(input, output_shape_input, attrs);
+       auto interpolate = std::make_shared<op::v0::Interpolate>(input, output_shape_input, attrs);
         return std::make_shared<Function>(NodeVector{interpolate}, ParameterVector{input});
     }
 };
@@ -131,4 +131,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_With_Hardcoded_Refs,
                          ReferenceInterpolateLayerTest,
                          ::testing::ValuesIn(generateCombinedParamsForInterpolate()),
                          ReferenceInterpolateLayerTest::getTestCaseName);
+
 }  // namespace
