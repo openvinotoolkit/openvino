@@ -14,7 +14,6 @@
 #include "layers/gna_concat_layer.hpp"
 #include "layers/gna_split_layer.hpp"
 #include "gna_api_wrapper.hpp"
-#include "memory/polymorph_allocator.hpp"
 #include "memory/gna_memory.hpp"
 
 struct TranspositionInfo {

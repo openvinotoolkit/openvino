@@ -10,7 +10,6 @@
 #include <functional>
 
 #include "gna_device.hpp"
-#include "polymorph_allocator.hpp"
 #include "memory/gna_mem_requests.hpp"
 
 namespace GNAPluginNS {
