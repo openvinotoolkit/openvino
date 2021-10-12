@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/framework_node.hpp"
+#include "ngraph_ops/framework_node.hpp"
 
 #include <vector>
 
 #include "gtest/gtest.h"
 
 TEST(framework_node, attrs) {
-    ov::op::util::FrameworkNodeAttrs attrs;
+    ngraph::op::FrameworkNodeAttrs attrs;
 
     attrs.set_opset_name("opset_name");
     ASSERT_EQ(attrs.get_opset_name(), "opset_name");
@@ -23,7 +23,7 @@ TEST(framework_node, attrs) {
     ASSERT_EQ(attrs.begin()->first, "attr1");
     ASSERT_EQ(attrs.begin()->second, "value1");
 
-    ov::op::util::FrameworkNodeAttrs a1, a2;
+    ngraph::op::FrameworkNodeAttrs a1, a2;
     a1.set_type_name("type_name");
     a2.set_type_name("type_name_");
     ASSERT_FALSE(a1 == a2);
