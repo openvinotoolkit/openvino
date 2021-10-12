@@ -1,4 +1,4 @@
-import openvino as ov
+import openvino.opset8 as ov
 import numpy as np
 import pytest
 

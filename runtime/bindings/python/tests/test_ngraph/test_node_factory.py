@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import openvino as ov
+import openvino.opset8 as ov
 from openvino.exceptions import UserInputError
 from openvino.utils.node_factory import NodeFactory
 from _pyngraph import NodeFactory as _NodeFactory

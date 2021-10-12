@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-import openvino as ov
+import openvino.opset8 as ov
 from openvino.impl import Shape, Type
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node

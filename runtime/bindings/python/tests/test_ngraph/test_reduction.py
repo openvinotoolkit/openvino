@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from _pyngraph import PartialShape, Dimension
 
-import openvino as ov
+import openvino.opset8 as ov
 from openvino.utils.types import make_constant_node
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node

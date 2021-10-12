@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-import openvino as ov
+import openvino.opset8 as ov
 from tests.test_ngraph.util import run_op_node
 
 

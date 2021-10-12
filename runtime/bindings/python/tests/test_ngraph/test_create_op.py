@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from openvino.pyopenvino import PartialShape, Dimension
 
-import openvino as ov
+import openvino.opset8 as ov
 import openvino.opset1 as ov_opset1
 import openvino.opset5 as ov_opset5
 from openvino.impl import Type

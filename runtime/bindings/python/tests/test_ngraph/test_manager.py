@@ -8,7 +8,7 @@ import json
 import numpy as np
 import pytest
 
-import openvino as ov
+import openvino.opset8 as ov
 from openvino.impl import Function, PartialShape, Shape
 from openvino.impl.passes import Manager
 from tests.test_ngraph.util import count_ops_of_type

@@ -5,8 +5,7 @@ import numpy as np
 import onnx
 from onnx.mapping import NP_TYPE_TO_TENSOR_TYPE
 
-import openvino as ov
-from openvino import Core
+from openvino import Core, Blob, TensorDesc
 from openvino.impl import Function
 
 
@@ -24,7 +23,7 @@ def import_onnx_model(model: onnx.ModelProto) -> Function:
     model_byte_string = model.SerializeToString()
 
     ie = Core()
-    ie_network = ie.read_network(bytes(model_byte_string), ov.Blob(ov.TensorDesc("U8", [], "C")))
+    ie_network = ie.read_network(bytes(model_byte_string), Blob(TensorDesc("U8", [], "C")))
 
     ng_function = ie_network.get_function()
     return ng_function
