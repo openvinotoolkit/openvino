@@ -206,7 +206,7 @@ const auto params = ::testing::Combine(::testing::Values(noBounds),
                                        ::testing::Values(true));
 
 // at this momemnt squeze produce dynamic output rank, if second input is not constant
-// enable after CPU plug-in will be support dynamic rank
+// enable after CPU plug-in will support dynamic rank
 // INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic, ShapeOpsCPUTest, params, ShapeOpsCPUTest::getTestCaseName);
 
 inferShapes noBounds_const{{{1, 10}, {1, 15}, {2, 6}, {1, 15}, {3, 11}, {1, 15}},
@@ -236,7 +236,7 @@ const auto params = ::testing::Combine(::testing::Values(noBounds),
                                        ::testing::Values(true));
 
 // at this momemnt unsqueze produce dynamic output rank, if second input is not constant
-// enable after CPU plug-in will be support dynamic rank
+// enable after CPU plug-in will support dynamic rank
 // INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic, ShapeOpsCPUTest, params, ShapeOpsCPUTest::getTestCaseName);
 
 inferShapes noBounds_const{{{1, 10}, {1, 15}, {2, 20}, {3, 7}},
