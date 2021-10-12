@@ -153,6 +153,8 @@ struct TBBStreamsExecutor::Impl {
         int _numaNodeId = 0;
         custom::task_arena _arena;
         std::unique_ptr<Observer> _observer;
+        bool _execute = false;
+        std::queue<Task> _taskQueue;
     };
 
     using Streams = std::list<Stream>;
@@ -240,6 +242,25 @@ struct TBBStreamsExecutor::Impl {
         }
     }
 
+    void Defer(Task task) {
+        auto stream = _localStream.local();
+        if (nullptr == stream) {
+            stream = &(_externStreams.local());
+        }
+        stream->_taskQueue.push(std::move(task));
+        if (!stream->_execute) {
+            stream->_execute = true;
+            try {
+                while (!stream->_taskQueue.empty()) {
+                    stream->_arena.execute(std::move(stream->_taskQueue.front()));
+                    stream->_taskQueue.pop();
+                }
+            } catch (...) {
+            }
+            stream->_execute = false;
+        }
+    }
+
     Config _config;
     std::unique_ptr<tbb::global_control> _maxTbbThreads;
     std::mutex _streamIdMutex;
@@ -278,7 +299,7 @@ int TBBStreamsExecutor::GetNumaNodeId() {
 
 void TBBStreamsExecutor::run(Task task) {
     if (_impl->_config._streams == 0) {
-        Execute(std::move(task));
+        _impl->Defer(std::move(task));
     } else {
         Impl::Schedule(_impl->_shared, std::move(task), _impl->_localStream.local());
     }
@@ -287,10 +308,9 @@ void TBBStreamsExecutor::run(Task task) {
 void TBBStreamsExecutor::Execute(Task task) {
     auto stream = _impl->_localStream.local();
     if (nullptr == stream) {
-        _impl->_externStreams.local()._arena.execute(std::move(task));
-    } else {
-        stream->_arena.execute(std::move(task));
+        stream = &(_impl->_externStreams.local());
     }
+    stream->_arena.execute(std::move(task));
 }
 
 }  // namespace InferenceEngine
