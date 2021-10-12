@@ -60,18 +60,58 @@ public:
     std::shared_ptr<const Function> get_runtime_function() const;
 
     /**
-     * @brief Get parameters of executeble graph function
+     * @brief Get inputs of executable graph function
      *
-     * @return vector of paramter nodes
+     * @return vector of inputs
      */
-    ParameterVector get_parameters() const;
+    std::vector<ov::Output<const ov::Node>> inputs() const;
+    /**
+     * @brief Get input of executable graph function
+     *
+     * @return Function input or throw ov::Exception in case of several outputs
+     */
+    ov::Output<const ov::Node> input() const;
+    /**
+     * @brief Get input of executable graph function
+     *
+     * @param i input index
+     * @return Function input or throw ov::Exception if input wasn't found
+     */
+    ov::Output<const ov::Node> input(size_t i) const;
+    /**
+     * @brief Get input of executable graph function
+     *
+     * @param tensor_name The input tensor name
+     * @return Function output or throw ov::Exception if input wasn't found
+     */
+    ov::Output<const ov::Node> input(const std::string& tensor_name) const;
 
     /**
-     * @brief Get results of executeble graph function
+     * @brief Get outputs of executable graph function
      *
-     * @return vector of result nodes
+     * @return vector of outputs
      */
-    ResultVector get_results() const;
+    std::vector<ov::Output<const ov::Node>> outputs() const;
+    /**
+     * @brief Get output of executable graph function
+     *
+     * @return Function output or throw ov::Exception in case of several outputs
+     */
+    ov::Output<const ov::Node> output() const;
+    /**
+     * @brief Get output of executable graph function
+     *
+     * @param i output index
+     * @return Function output or throw ov::Exception if output wasn't found
+     */
+    ov::Output<const ov::Node> output(size_t i) const;
+    /**
+     * @brief Get output of executable graph function
+     *
+     * @param tensor_name The output tensor name
+     * @return Function output or throw ov::Exception if output wasn't found
+     */
+    ov::Output<const ov::Node> output(const std::string& tensor_name) const;
 
     /**
      * @brief Creates an inference request object used to infer the network.

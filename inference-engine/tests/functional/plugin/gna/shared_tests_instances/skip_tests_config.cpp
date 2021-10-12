@@ -53,5 +53,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_MemoryTest.*LOW_LATENCY.*iteration_count=10.*IS=\(1.2\).*)",
         // TODO: Issue: 29577
         R"(.*QueryNetwork.*)",
+        // TODO: GNA plugin does not support ExecGraph
+        R"(.*ExecGraphTests.*)"
     };
 }
