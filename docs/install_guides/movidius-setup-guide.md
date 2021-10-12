@@ -7,7 +7,6 @@
    :hidden:
 
    openvino_docs_install_guides_installing_openvino_linux_ivad_vpu
-   openvino_docs_install_guides_movidius_setup_guide
    openvino_docs_install_guides_movidius_programming_guide
 
 @endsphinxdirective

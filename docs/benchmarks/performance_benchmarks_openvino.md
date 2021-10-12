@@ -1,5 +1,14 @@
 # Intel® Distribution of OpenVINO™ toolkit Benchmark Results {#openvino_docs_performance_benchmarks_openvino}
 
+.. toctree::
+   :maxdepth: 1
+   
+   openvino_docs_performance_benchmarks_faq
+   openvino_docs_performance_int8_vs_fp32
+
+      
+@endsphinxdirective
+
 This benchmark setup includes a single machine on which both the benchmark application and the OpenVINO™ installation reside.  
 
 The benchmark application loads the Inference Engine (SW) at run time and executes inferences on the specified hardware inference engine, (CPU, GPU or VPU). The benchmark application measures the time spent on actual inferencing (excluding any pre or post processing) and then reports on the inferences per second (or Frames Per Second). For more information on the benchmark application, please also refer to the entry 5 of the [FAQ section](performance_benchmarks_faq.md). 

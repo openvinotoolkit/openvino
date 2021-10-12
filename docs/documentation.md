@@ -17,7 +17,7 @@
    :caption: Intermediate Representation and Operations Sets
    :hidden:
     
-   openvino_docs_MO_DG_IR_and_opsets
+   openvino_docs_ops_opset
    openvino_docs_ops_broadcast_rules
    openvino_docs_operations_specifications
 
@@ -42,6 +42,7 @@
    openvino_docs_optimization_guide_dldt_optimization_guide
    openvino_docs_MO_DG_Getting_Performance_Numbers
    pot_README
+   openvino_docs_performance_benchmarks
 
 .. toctree::
    :maxdepth: 1
