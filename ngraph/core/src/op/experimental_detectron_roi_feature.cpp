@@ -4,9 +4,8 @@
 
 #include "ngraph/op/experimental_detectron_roi_feature.hpp"
 
-#include <experimental_detectron_roi_feature_shape_inference.hpp>
-
 #include <algorithm>
+#include <experimental_detectron_roi_feature_shape_inference.hpp>
 #include <memory>
 #include <utility>
 

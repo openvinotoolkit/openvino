@@ -56,7 +56,9 @@ private:
     Attributes m_attrs;
 
     template <class T>
-    friend void shape_infer(ExperimentalDetectronROIFeatureExtractor* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
+    friend void shape_infer(ExperimentalDetectronROIFeatureExtractor* op,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes);
 };
 }  // namespace v6
 }  // namespace op

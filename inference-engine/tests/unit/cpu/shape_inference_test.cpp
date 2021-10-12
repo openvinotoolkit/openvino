@@ -41,8 +41,7 @@ TEST(StaticShapeInferenceTest, ConvolutionTest) {
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
 
-
-TEST(StaticShapeInferenceTest, ExperimentalDetectronROIFeatureExtractorTest) {
+TEST(StaticShapeInferenceTest, ExperimentalDetectronROIFeatureExtractor) {
     using namespace op::v0;
     using namespace op::v6;
 
@@ -75,7 +74,6 @@ TEST(StaticShapeInferenceTest, ExperimentalDetectronROIFeatureExtractorTest) {
     EXPECT_EQ(output_shapes[0], (Shape{1000, 256, 14, 14}));
     EXPECT_EQ(output_shapes[1], (Shape{1000, 4}));
 
-
     std::vector<StaticShape> input_shapes2 = {StaticShape{1000, 4},
                                               StaticShape{1, 256, 200, 336},
                                               StaticShape{1, 256, 100, 168},
@@ -89,6 +87,121 @@ TEST(StaticShapeInferenceTest, ExperimentalDetectronROIFeatureExtractorTest) {
     EXPECT_EQ(output_shapes2[0], (Shape{1000, 256, 14, 14}));
     EXPECT_EQ(output_shapes2[1], (Shape{1000, 4}));
 }
+
+struct perf_counter {
+    std::chrono::time_point<std::chrono::high_resolution_clock> before;
+    std::chrono::time_point<std::chrono::high_resolution_clock> after;
+    std::vector<std::chrono::nanoseconds::rep> diffs;
+
+    void clear() {
+        diffs.clear();
+    }
+    void start() {
+        before = std::chrono::high_resolution_clock::now();
+    }
+    void stop() {
+        after = std::chrono::high_resolution_clock::now();
+        auto diff = std::chrono::duration_cast<std::chrono::nanoseconds>(after - before).count();
+        diffs.push_back(diff);
+    }
+
+    std::chrono::nanoseconds::rep avg(int drop_percentage) {
+        std::sort(diffs.begin(), diffs.end());
+        auto skip = diffs.size() * drop_percentage / 2 / 100;
+        auto sum = std::accumulate(diffs.begin() + skip, diffs.end() - skip, 0);
+        return sum / (diffs.size() - 2 * skip);
+    }
+};
+
+TEST(StaticShapeInferencePerfTest, ExperimentalDetectronROIFeatureExtractor) {
+    using namespace op::v0;
+    using namespace op::v6;
+
+    ExperimentalDetectronROIFeatureExtractor::Attributes attrs;
+    attrs.aligned = false;
+    attrs.output_size = 14;
+    attrs.sampling_ratio = 2;
+    attrs.pyramid_scales = {4, 8, 16, 32};
+
+    auto input = std::make_shared<Parameter>(element::f32, PartialShape{-1, -1});
+    auto pyramid_layer0 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+    auto pyramid_layer1 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+    auto pyramid_layer2 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+    auto pyramid_layer3 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+
+    auto roi = std::make_shared<ExperimentalDetectronROIFeatureExtractor>(
+        NodeVector{input, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3},
+        attrs);
+
+    std::vector<PartialShape> input_shapes = {PartialShape{1000, 4},
+                                              PartialShape{1, 256, 200, 336},
+                                              PartialShape{1, 256, 100, 168},
+                                              PartialShape{1, 256, 50, 84},
+                                              PartialShape{1, 256, 25, 42}};
+    std::vector<PartialShape> output_shapes = {PartialShape{}, PartialShape{}};
+
+    perf_counter pc;
+    auto N = 500;
+    std::cout << "shape_infer(ExperimentalDetectronROIFeatureExtractor, PartialShape):" << std::endl;
+    pc.clear();
+    for (size_t i = 0; i < N; ++i) {
+        pc.start();
+        shape_infer(roi.get(), input_shapes, output_shapes);
+        pc.stop();
+    }
+    std::cout << " avg:" << pc.avg(10) << std::endl;
+
+    ASSERT_EQ(roi->get_output_element_type(0), element::f32);
+
+    EXPECT_EQ(output_shapes[0], (Shape{1000, 256, 14, 14}));
+    EXPECT_EQ(output_shapes[1], (Shape{1000, 4}));
+}
+
+
+TEST(StaticShapeInferencePerfTest, ExperimentalDetectronROIFeatureExtractor2) {
+    using namespace op::v0;
+    using namespace op::v6;
+
+    ExperimentalDetectronROIFeatureExtractor::Attributes attrs;
+    attrs.aligned = false;
+    attrs.output_size = 14;
+    attrs.sampling_ratio = 2;
+    attrs.pyramid_scales = {4, 8, 16, 32};
+
+    auto input = std::make_shared<Parameter>(element::f32, PartialShape{-1, -1});
+    auto pyramid_layer0 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+    auto pyramid_layer1 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+    auto pyramid_layer2 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+    auto pyramid_layer3 = std::make_shared<Parameter>(element::f32, PartialShape{1, -1, -1, -1});
+
+    auto roi = std::make_shared<ExperimentalDetectronROIFeatureExtractor>(
+        NodeVector{input, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3},
+        attrs);
+
+    std::vector<StaticShape> input_shapes2 = {StaticShape{1000, 4},
+                                              StaticShape{1, 256, 200, 336},
+                                              StaticShape{1, 256, 100, 168},
+                                              StaticShape{1, 256, 50, 84},
+                                              StaticShape{1, 256, 25, 42}};
+    std::vector<StaticShape> output_shapes2 = {StaticShape{}, StaticShape{}};
+
+    perf_counter pc;
+    auto N = 500;
+    std::cout << "shape_infer(ExperimentalDetectronROIFeatureExtractor, StaticShape):" << std::endl;
+    pc.clear();
+    for (size_t i = 0; i < N; ++i) {
+        pc.start();
+        shape_infer(roi.get(), input_shapes2, output_shapes2);
+        pc.stop();
+    }
+    std::cout << " avg:" << pc.avg(10) << std::endl;
+
+    ASSERT_EQ(roi->get_output_element_type(0), element::f32);
+
+    EXPECT_EQ(output_shapes2[0], (Shape{1000, 256, 14, 14}));
+    EXPECT_EQ(output_shapes2[1], (Shape{1000, 4}));
+}
+
 
 #if 0
 TEST(StaticShapeInferenceTest, ConvolutionTimeTest) {

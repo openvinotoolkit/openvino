@@ -36,9 +36,9 @@ void shape_infer(ExperimentalDetectronROIFeatureExtractor* op,
     out_rois_shape[1] = 4;
 
     // infer number_of_ROIs (which may be dynamic/static)
-    if (rois_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(op, rois_shape.rank().get_length() == 2, "Input rois rank must be equal to 2.");
+    NODE_VALIDATION_CHECK(op, rois_shape.rank().compatible(2), "Input rois rank must be equal to 2.");
 
+    if (rois_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op,
                               rois_shape[1].compatible(4),
                               "The last dimension of the 'input_rois' input must be equal to 4. "
@@ -57,12 +57,12 @@ void shape_infer(ExperimentalDetectronROIFeatureExtractor* op,
         auto& current_shape = input_shapes[i];
         auto current_rank = current_shape.rank();
 
-        if (current_rank.is_static()) {
-            NODE_VALIDATION_CHECK(op,
-                                  current_rank.get_length() == 4,
-                                  "Rank of each element of the pyramid must be equal to 4. Got: ",
-                                  current_rank);
+        NODE_VALIDATION_CHECK(op,
+                              current_rank.compatible(4),
+                              "Rank of each element of the pyramid must be equal to 4. Got: ",
+                              current_rank);
 
+        if (current_rank.is_static()) {
             NODE_VALIDATION_CHECK(op,
                                   current_shape[0].compatible(1),
                                   "The first dimension of each pyramid element must be equal to 1. "
