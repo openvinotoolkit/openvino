@@ -53,7 +53,6 @@ protected:
                 inputNode, ngraph::Shape(kernel), ngraph::Strides(strides), ngraph::Shape(rates), pad_type);
         ngraph::ResultVector results{std::make_shared<ngraph::opset6::Result>(extImgPatches)};
         function = std::make_shared<ngraph::Function>(results, params, "ExtractImagePatches");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 
