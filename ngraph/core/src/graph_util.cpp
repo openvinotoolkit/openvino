@@ -792,7 +792,12 @@ bool ov::replace_output_update_name(Output<Node> output, const Output<Node>& rep
         if (has_result_output && !ov::is_type<ngraph::op::Parameter>(replacement.get_node())) {
             replacement.get_node()->set_friendly_name(output.get_node()->get_friendly_name());
             // Update output tensor name
-            replacement.get_tensor().set_name(output.get_node()->get_friendly_name());
+            const auto output_tensor_name = output.get_tensor().get_name();
+            if (!output_tensor_name.empty()) {
+                replacement.get_tensor().set_name(output_tensor_name);
+            } else {
+                replacement.get_tensor().set_name(output.get_node()->get_friendly_name());
+            }
         }
 
         // Save replacement tensor names before replacement as they will be overriden by the output tensor names
