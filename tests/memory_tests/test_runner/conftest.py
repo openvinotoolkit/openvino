@@ -220,9 +220,9 @@ def omz_models_conversion(instance, request):
                 logging.error(f"Please specify precision for the model "
                               f"{model_name} from the list: {model_info['precisions']}")
 
-            model_out_path = Path(omz_models_out_dir / model_info["subdirectory"]) / model_precision / (
-                    model_name + ".xml")
-            model_full_path = omz_irs_out_dir / model_info["subdirectory"] / model_precision / (model_name + ".xml")
+            sub_model_path = str(Path(model_info["subdirectory"]) / model_precision / (model_name + ".xml"))
+            model_out_path = omz_models_out_dir / sub_model_path
+            model_irs_out_path = omz_irs_out_dir / sub_model_path
 
             # prepare models and convert models to IRs
             cmd = [f'{sys.executable}', f'{downloader_path}', '--name', f'{model_name}',
@@ -240,8 +240,10 @@ def omz_models_conversion(instance, request):
             assert return_code == 0, "Converting OMZ models has failed!"
 
             instance["orig_instance"]["model"]["framework"] = model_info["framework"]
-            instance["instance"]["model"]["path"] = model_out_path
-            instance["instance"]["model"]["full_path"] = model_full_path
+            instance["orig_instance"]["model"]["path"] = sub_model_path
+
+            instance["instance"]["model"]["cache_path"] = model_out_path
+            instance["instance"]["model"]["irs_out_path"] = model_irs_out_path
 
 
 @pytest.fixture(scope="function")
