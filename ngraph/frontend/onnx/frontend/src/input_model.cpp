@@ -83,6 +83,22 @@ Place::Ptr InputModelONNX::get_place_by_operation_name_and_output_port(const std
     return nullptr;
 }
 
+void InputModelONNX::set_name_for_tensor(Place::Ptr tensor, const std::string& new_name) {}
+
+void InputModelONNX::add_name_for_tensor(Place::Ptr tensor, const std::string& new_name) {
+    FRONT_END_THROW("Method add_name_for_tensor is not applicable for ONNX model.");
+}
+
+void InputModelONNX::set_name_for_operation(Place::Ptr operation, const std::string& new_name) {}
+
+void InputModelONNX::free_name_for_tensor(const std::string& name) {
+    FRONT_END_THROW("Method free_name_for_tensor is not applicable for ONNX model.");
+}
+
+void InputModelONNX::free_name_for_operation(const std::string& name) {}
+
+void InputModelONNX::set_name_for_dimension(Place::Ptr place, size_t shape_dim_index, const std::string& dim_name) {}
+
 void InputModelONNX::set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape) {
     std::map<std::string, ngraph::PartialShape> m;
     m[place->get_names()[0]] = shape;

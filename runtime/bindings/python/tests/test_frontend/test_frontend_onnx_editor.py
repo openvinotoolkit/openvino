@@ -1033,3 +1033,18 @@ def test_get_place_by_operation_name_and_output_port():
     place2 = sp_out1_tensor.get_producing_operation().get_output_port(outputPortIndex=0)
 
     assert place1.is_equal(place2)
+
+
+def test_not_supported_methods():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+    tensor = model.get_place_by_tensor_name(tensorName="add_out")
+
+    with pytest.raises(Exception) as e:
+        model.add_name_for_tensor(tensor=tensor, newName="new_name")
+    assert "Method add_name_for_tensor is not applicable for ONNX model." in str(e)
+
+    with pytest.raises(Exception) as e:
+        model.free_name_for_tensor("add_out")
+    assert "Method free_name_for_tensor is not applicable for ONNX model." in str(e)
