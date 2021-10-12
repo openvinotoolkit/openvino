@@ -25,6 +25,7 @@
    openvino_docs_optimization_guide_dldt_optimization_guide
    openvino_docs_MO_DG_Getting_Performance_Numbers
    pot_README
+   tuning_utilities
 
 .. toctree::
    :maxdepth: 1
@@ -32,13 +33,6 @@
    :hidden:
 
    workbench_docs_Workbench_DG_Introduction
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Accuracy Checker Tool
-   :hidden:
-
-   omz_tools_accuracy_checker
 
 .. toctree::
    :maxdepth: 1
