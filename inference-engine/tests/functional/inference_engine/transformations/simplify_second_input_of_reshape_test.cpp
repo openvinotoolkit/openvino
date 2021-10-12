@@ -373,3 +373,75 @@ TEST(TransformationTests, SimplifySecondInputOfReshapeTest10) {
     auto res = compare_functions(f, f_ref, true);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+TEST(TransformationTests, SimplifySecondInputOfReshapeTest11) {
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+
+    PartialShape data_shape{ 1, 128, 12, 64 };
+    {
+        auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
+
+        auto shape_of_1 = std::make_shared<opset7::ShapeOf>(data);
+        auto shape_of_2 = std::make_shared<opset7::ShapeOf>(data);
+        auto concat_input_0 = gather(shape_of_1, std::vector<int64_t>{0});
+        auto concat_input_1 = ngraph::opset7::Constant::create(ngraph::element::i64, {1}, { 64 });
+        auto concat_input_2 = gather(shape_of_2, std::vector<int64_t>{2});
+        auto concat_input_3 = ngraph::opset7::Constant::create(ngraph::element::i64, {1}, { 128 });
+        auto concat = std::make_shared<opset7::Concat>(OutputVector{ concat_input_0, concat_input_1, concat_input_2, concat_input_3 }, 0);
+
+        auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
+        f = std::make_shared<Function>(NodeVector{ reshape }, ParameterVector{ data });
+
+        pass::Manager m;
+        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<pass::SimplifySecondInputOfReshape>();
+        m.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+        ASSERT_EQ(reshape->get_output_partial_shape(0), PartialShape({ 1, 64, 12, 128 }));
+    }
+    {
+        auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
+        auto constant = opset7::Constant::create(element::i64, Shape{ 4 }, { 0, 64, 0, 128 });
+        auto reshape = std::make_shared<opset7::Reshape>(data, constant, true);
+        f_ref = std::make_shared<Function>(NodeVector{ reshape }, ParameterVector{ data });
+    }
+
+    auto res = compare_functions(f, f_ref, true);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, SimplifySecondInputOfReshapeTest12) {
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+
+    PartialShape data_shape{ 1, 128, 768 };
+    {
+        auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
+        auto gelu = std::make_shared<opset7::Gelu>(data);
+
+        auto shape_of = std::make_shared<opset7::ShapeOf>(data);
+        auto gather_op = gather(shape_of, std::vector<int64_t>{0, 1});
+        auto constant_1 = opset7::Constant::create(element::i64, Shape{ 1 }, { 12 });
+        auto constant_2 = opset7::Constant::create(element::i64, Shape{ 1 }, { 64 });
+        auto concat = std::make_shared<opset7::Concat>(OutputVector{ gather_op, constant_1, constant_2 }, 0);
+
+        auto reshape = std::make_shared<opset7::Reshape>(gelu, concat, true);
+        f = std::make_shared<Function>(NodeVector{ reshape }, ParameterVector{ data });
+
+        pass::Manager m;
+        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<pass::SimplifySecondInputOfReshape>();
+        m.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+        ASSERT_EQ(reshape->get_output_partial_shape(0), PartialShape({ 1, 128, 12, 64 }));
+    }
+    {
+        auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
+        auto gelu = std::make_shared<opset7::Gelu>(data);
+        auto reshape_pattern = opset7::Constant::create(element::i64, Shape{ 4 }, { 0, 0, 12, 64 });
+        auto reshape = std::make_shared<opset7::Reshape>(gelu, reshape_pattern, true);
+        f_ref = std::make_shared<Function>(NodeVector{ reshape }, ParameterVector{ data });
+    }
+
+    auto res = compare_functions(f, f_ref, true);
+    ASSERT_TRUE(res.first) << res.second;
+}
