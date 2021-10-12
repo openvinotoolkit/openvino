@@ -80,12 +80,11 @@ std::pair<std::shared_ptr<ngraph::opset8::Split>, int64_t> get_split_before_conc
     }
     if (sizes_of_groups.size() != 1) return {};
     int64_t size_of_group = static_cast<int64_t>(*(sizes_of_groups.begin()));
-    size_t num_of_groups = grouped_idx.size();
 
     // The transformation is applicable iff output port 0 of 'split' goes to ports [0, ..., m-1] of next node,
     // output port 1 of 'split' goes to ports [m, ..., m + (m-1)] of next node, ..., output port i of 'split'
     // goes to ports [i * m, ..., i * m + (m - 1)], and so on.
-    for (size_t i = 0; i < num_of_groups; ++i) {
+    for (size_t i = 0; i < grouped_idx.size(); ++i) {
         const auto& current_group = grouped_idx[i];
         if (std::any_of(current_group.begin(), current_group.end(), [i](size_t j){ return j != i; })) { return {}; }
     }
