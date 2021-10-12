@@ -17,6 +17,9 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 namespace {
+// This function creates a partition of its argument into groups consisting of adjacent identical elements.
+// Argument: std::vector<size_t> v
+// Returns: partition of the argument
 std::vector<std::vector<size_t>> grouped_vector(const std::vector<size_t>& v) {
     std::vector<std::vector<size_t>> result;
 
@@ -89,10 +92,7 @@ std::pair<std::shared_ptr<ngraph::opset8::Split>, int64_t> get_split_before_conc
         if (std::any_of(current_group.begin(), current_group.end(), [i](size_t j){ return j != i; })) { return result; }
     }
 
-    result.first = split;
-    result.second = size_of_group;
-
-    return result;
+    return {split, size_of_group};
 }
 } // namespace
 
