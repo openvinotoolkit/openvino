@@ -107,8 +107,11 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
         auto split = split_and_scale.first;
         if (!split) return false;
 
-        Shape split_input_shape = split->get_input_shape(0);
-        size_t split_input_rank = split_input_shape.size();
+        if (split->get_input_partial_shape(0).rank().is_dynamic()) return false;
+        int64_t split_input_rank = split->get_input_partial_shape(0).rank().get_length();
+        // If this transformation is applied in the case of the the rank is less than 4, we have a performance degradation.
+        // And, at this time, we have no models with Split->Concat pattern when this transformation is applicable and
+        // input rank of Split is greater than 5.
         if (split_input_rank != 4 && split_input_rank != 5) return false;
 
         auto split_axis_const = std::dynamic_pointer_cast<ngraph::opset8::Constant>(split->input_value(1).get_node_shared_ptr());
