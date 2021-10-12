@@ -28,9 +28,12 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/type/element_type.hpp"
 
 namespace InferenceEngine {
 namespace details {
+
+ngraph::element::Type toLegacyType(const ngraph::element::Type& ngraph_type, bool input);
 
 IE_SUPPRESS_DEPRECATED_START
 

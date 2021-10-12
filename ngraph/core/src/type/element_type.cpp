@@ -12,8 +12,8 @@
 #include "ngraph/log.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 
-BWDCMP_RTTI_DEFINITION(ngraph::AttributeAdapter<ov::element::Type>);
-BWDCMP_RTTI_DEFINITION(ngraph::AttributeAdapter<ov::element::TypeVector>);
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::element::Type>);
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::element::TypeVector>);
 
 namespace {
 class TypeInfo {
@@ -313,8 +313,8 @@ size_t compiler_byte_size(ov::element::Type_t et) {
         return 0;
     }
 
-    throw ngraph::ngraph_error("compiler_byte_size: Unsupported value of ov::element::Type_t: " +
-                               std::to_string(static_cast<int>(et)));
+    throw ov::Exception("compiler_byte_size: Unsupported value of ov::element::Type_t: " +
+                        std::to_string(static_cast<int>(et)));
 }
 
 namespace ov {
