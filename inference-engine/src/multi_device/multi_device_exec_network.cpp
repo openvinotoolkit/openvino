@@ -214,34 +214,42 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                 } else {
                     executableNetwork = _core->LoadNetwork(network, device, deviceConfig);
                 }
+                GenerateWorkers(device, executableNetwork);
+
+                if (device.find("CPU") == std::string::npos) {
+                    _alreadyActualNetwork = true;
+                    _acceleratorPromise.set_value(executableNetwork);
+                } else {
+                    _cpuPromise.set_value(executableNetwork);
+                }
             } catch (...) {
                 if (device.find("CPU") == std::string::npos) {
                     _acceleratorPromise.set_exception(std::current_exception());
                 } else {
                     _cpuPromise.set_exception(std::current_exception());
                 }
-                return;
             }
 
-            GenerateWorkers(device, executableNetwork);
-
-            if (device.find("CPU") == std::string::npos) {
-                _alreadyActualNetwork = true;
-                _acceleratorPromise.set_value(executableNetwork);
-            } else {
-                _cpuPromise.set_value(executableNetwork);
-            }
+            std::call_once(_firstReadyOC, [this] () {
+                    _firstReadyPromise.set_value();
+                    });
         });
     }
 
     for (auto& task : loads) {
          _executor->run(task);
     }
+    if (loads.size() > 0) {
+        _firstReadyFuture = _firstReadyPromise.get_future();
+    }
 
     WaitFirstNetworkReady();
 }
 
 void MultiDeviceExecutableNetwork::WaitFirstNetworkReady() {
+    if (_firstReadyFuture.valid()) {
+        _firstReadyFuture.wait();
+    }
     if (_alreadyActualNetwork) {
         return;
     }

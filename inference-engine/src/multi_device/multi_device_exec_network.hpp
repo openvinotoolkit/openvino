@@ -179,6 +179,9 @@ private:
     DeviceInformation                                                   _cpuDevice;
     DeviceInformation                                                   _acceleratorDevice;
     mutable std::once_flag                                              _oc;
+    std::once_flag                                                      _firstReadyOC;
+    std::future<void>                                                   _firstReadyFuture;
+    std::promise<void>                                                  _firstReadyPromise;
 };
 
 }  // namespace MultiDevicePlugin
