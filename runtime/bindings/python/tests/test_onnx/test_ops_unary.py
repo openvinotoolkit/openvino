@@ -508,7 +508,7 @@ def test_constant_err():
     ],
 )
 def test_eye_like(shape, shift):
-    input_tensor = np.zeros(shape)
+    input_tensor = np.arange(np.prod(shape)).reshape(shape)
 
     node = onnx.helper.make_node("EyeLike", inputs=["x"], outputs=["y"], k=shift)
     result = run_node(node, [input_tensor])[0]

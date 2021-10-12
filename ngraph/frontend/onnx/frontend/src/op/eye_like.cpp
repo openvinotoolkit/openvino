@@ -109,11 +109,11 @@ namespace set_1 {
 OutputVector eye_like(const Node& node) {
     const auto input = node.get_ng_inputs().at(0);
 
-    const auto& input_rank = input.get_partial_shape().size();
+    const auto& input_rank = input.get_partial_shape().rank();
     CHECK_VALID_NODE(node,
-                     input_rank == 2,
+                     input_rank.compatible(Rank(2)),
                      "The provided shape rank: ",
-                     input_rank,
+                     input_rank.get_length(),
                      " is unsupported, only 2D shapes are supported");
 
     const auto shift = node.get_attribute_value<std::int64_t>("k", 0);
