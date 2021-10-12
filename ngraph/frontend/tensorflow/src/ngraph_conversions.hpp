@@ -17,11 +17,6 @@ namespace tf {
 
 using ::tensorflow::DataType;
 
-// Converts a TensorFlow DataType to an nGraph element::Type. Returns
-// errors::Unimplemented if the element type is not supported by nGraph
-// Core. Otherwise returns Status::OK().
-void TFDataTypeToNGraphElementType(DataType tf_dt, ov::element::Type* ng_et);
-
 void TFTensorShapeToNGraphShape(const ::tensorflow::TensorShapeProto& tf_shape, ov::PartialShape* ng_shape);
 
 template <size_t a, size_t b, size_t c, size_t d>

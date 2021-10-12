@@ -19,8 +19,6 @@ namespace ov {
 namespace frontend {
 namespace tf {
 
-extern std::map<::tensorflow::DataType, ov::element::Type> TYPE_MAP;
-
 class DecoderTFProto : public DecoderBase {
 public:
     explicit DecoderTFProto(const ::tensorflow::NodeDef* node_def) : m_node_def(node_def) {}

@@ -34,58 +34,6 @@ void NCHWtoNHWC(const std::string& op_name, bool need_convert, ov::Output<ov::No
     }
 }
 
-void TFDataTypeToNGraphElementType(DataType tf_dt, ov::element::Type* ng_et) {
-    switch (tf_dt) {
-    case DataType::DT_FLOAT:
-        *ng_et = ov::element::f32;
-        break;
-    case DataType::DT_DOUBLE:
-        *ng_et = ov::element::f64;
-        break;
-    case DataType::DT_INT32:
-        *ng_et = ov::element::i32;
-        break;
-    case DataType::DT_UINT8:
-        *ng_et = ov::element::u8;
-        break;
-    case DataType::DT_INT8:
-        *ng_et = ov::element::i8;
-        break;
-    case DataType::DT_UINT16:
-        *ng_et = ov::element::u16;
-        break;
-    case DataType::DT_INT64:
-        *ng_et = ov::element::i64;
-        break;
-    case DataType::DT_UINT32:
-        *ng_et = ov::element::u32;
-        break;
-    case DataType::DT_UINT64:
-        *ng_et = ov::element::u64;
-        break;
-    case DataType::DT_BOOL:
-        *ng_et = ov::element::boolean;
-        break;
-    case DataType::DT_QINT8:
-        *ng_et = ov::element::i8;
-        break;
-    case DataType::DT_QUINT8:
-        *ng_et = ov::element::u8;
-        break;
-    case DataType::DT_QINT32:
-        *ng_et = ov::element::i32;
-        break;
-    case DataType::DT_BFLOAT16:
-        *ng_et = ov::element::bf16;
-        break;
-    case DataType::DT_HALF:
-        *ng_et = ov::element::f16;
-        break;
-    default:
-        throw errors::Unimplemented("Unsupported TensorFlow data type: " + DataType_Name(tf_dt));
-    }
-}
-
 }  // namespace tf
 }  // namespace frontend
 }  // namespace ov

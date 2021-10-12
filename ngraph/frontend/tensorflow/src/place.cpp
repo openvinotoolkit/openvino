@@ -12,19 +12,6 @@
 
 namespace ov {
 namespace frontend {
-namespace tf {
-
-std::map<::tensorflow::DataType, ov::element::Type> TYPE_MAP{{::tensorflow::DataType::DT_BOOL, ov::element::boolean},
-                                                             {::tensorflow::DataType::DT_INT16, ov::element::i16},
-                                                             {::tensorflow::DataType::DT_INT32, ov::element::i32},
-                                                             {::tensorflow::DataType::DT_INT64, ov::element::i64},
-                                                             {::tensorflow::DataType::DT_HALF, ov::element::f16},
-                                                             {::tensorflow::DataType::DT_FLOAT, ov::element::f32},
-                                                             {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
-                                                             {::tensorflow::DataType::DT_UINT8, ov::element::u8},
-                                                             {::tensorflow::DataType::DT_INT8, ov::element::i8},
-                                                             {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16}};
-}
 
 bool PlaceTF::is_input() const {
     const auto& model_ins = m_input_model.get_inputs();

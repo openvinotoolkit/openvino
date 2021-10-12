@@ -7,7 +7,6 @@
 namespace ov {
 namespace frontend {
 namespace tf {
-NGRAPH_RTTI_DEFINITION(TFFrameworkNode, "TFFrameworkNode", 1);
 
 void TFFrameworkNode::validate_and_infer_types() {
     for (size_t i = 0; i < get_output_size(); ++i) {
