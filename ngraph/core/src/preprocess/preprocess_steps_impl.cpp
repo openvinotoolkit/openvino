@@ -46,10 +46,10 @@ void PreStepsList::add_scale_impl(const std::vector<float>& values) {
             shape = construct_mean_scale_shape(nodes[0].get_node_shared_ptr(), values.size(), context);
         }
         auto constant = op::v0::Constant::create(element::f32, shape, values);
-        inherit_friendly_names(function, nodes[0].get_node_shared_ptr(), constant, "/scale/Divide_Factor");
+        // inherit_friendly_names(function, nodes[0].get_node_shared_ptr(), constant, "/scale/Divide_Factor");
 
         auto new_op = std::make_shared<op::v1::Divide>(nodes[0], constant);
-        inherit_friendly_names(function, nodes[0].get_node_shared_ptr(), new_op, "/scale/Divide");
+        // inherit_friendly_names(function, nodes[0].get_node_shared_ptr(), new_op, "/scale/Divide");
         return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
     });
 }
@@ -69,10 +69,10 @@ void PreStepsList::add_mean_impl(const std::vector<float>& values) {
             shape = construct_mean_scale_shape(nodes[0], values.size(), context);
         }
         auto constant = op::v0::Constant::create(element::f32, shape, values);
-        inherit_friendly_names(function, nodes[0], constant, "/mean/Mean_Const");
+        // inherit_friendly_names(function, nodes[0], constant, "/mean/Mean_Const");
 
         auto new_op = std::make_shared<op::v1::Subtract>(nodes[0], constant);
-        inherit_friendly_names(function, nodes[0], new_op, "/mean/Subtract");
+        // inherit_friendly_names(function, nodes[0], new_op, "/mean/Subtract");
         return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
     });
 }
@@ -93,7 +93,7 @@ void PreStepsList::add_convert_impl(const element::Type& type) {
                             "Can't insert 'convert_element_type' for dynamic source tensor type.");
             if (t != node.get_element_type()) {
                 auto convert = std::make_shared<op::v0::Convert>(node, t);
-                inherit_friendly_names(function, node, convert, "/convert_element_type");
+                // inherit_friendly_names(function, node, convert, "/convert_element_type");
                 res.emplace_back(convert);
                 convert_added = true;
             } else {
@@ -154,7 +154,7 @@ void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_
                                                     {0, 0});
 
         auto interp = std::make_shared<op::v4::Interpolate>(node, target_spatial_shape, scales, axes, attrs);
-        inherit_friendly_names(function, nodes[0], interp, "/resize");
+        // inherit_friendly_names(function, nodes[0], interp, "/resize");
         return std::make_tuple(std::vector<Output<Node>>{interp}, true);
     });
 }
@@ -178,7 +178,7 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
         }
         auto perm_constant = op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
         auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
-        inherit_friendly_names(function, nodes[0], transpose, "/convert_layout");
+        // inherit_friendly_names(function, nodes[0], transpose, "/convert_layout");
         context.layout() = dst_layout;  // Update context's current layout
         return std::make_tuple(std::vector<Output<Node>>{transpose}, true);
     });
@@ -207,7 +207,7 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                                 color_format_name(dst_format),
                                 "' format:");
             }
-            inherit_friendly_names(function, nodes[0], convert, "/convert_color_nv12_single");
+            // inherit_friendly_names(function, nodes[0], convert, "/convert_color_nv12_single");
             context.color_format() = dst_format;
             return std::make_tuple(std::vector<Output<Node>>{convert}, true);
         } else if (context.color_format() == ColorFormat::NV12_TWO_PLANES) {
@@ -226,7 +226,7 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                                 color_format_name(dst_format),
                                 "' format:");
             }
-            inherit_friendly_names(function, nodes[0], convert, "/convert_color_nv12_two_planes");
+            // inherit_friendly_names(function, nodes[0], convert, "/convert_color_nv12_two_planes");
             context.color_format() = dst_format;
             return std::make_tuple(std::vector<Output<Node>>{convert}, true);
         }
@@ -251,7 +251,7 @@ void PostStepsList::add_convert_impl(const element::Type& type) {
             !t.is_dynamic() && t != element::undefined,
             "Can't convert to dynamic/unknown element type, consider using of InputTensorInfo::set_element_type");
         auto convert = std::make_shared<op::v0::Convert>(node, t);
-        inherit_friendly_names_postprocess(convert, node, "/post_convert_element_type");
+        inherit_friendly_names_postprocess(convert, node);
         return std::make_tuple(Output<Node>(convert), true);
     });
 }
@@ -269,7 +269,7 @@ void PostStepsList::add_convert_layout_impl(const Layout& layout) {
         }
         auto perm_constant = op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
         auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
-        inherit_friendly_names_postprocess(transpose, node, "/post_convert_layout");
+        inherit_friendly_names_postprocess(transpose, node);
         context.layout() = dst_layout;  // Update context's current layout
         return std::make_tuple(Output<Node>(transpose), true);
     });
