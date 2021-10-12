@@ -1,5 +1,20 @@
 # Inference Engine Extensibility Mechanism {#openvino_docs_IE_DG_Extensibility_DG_Intro}
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   openvino_docs_IE_DG_Extensibility_DG_Extension
+   openvino_docs_IE_DG_Extensibility_DG_AddingNGraphOps
+   openvino_docs_IE_DG_Extensibility_DG_CPU_Kernel
+   openvino_docs_IE_DG_Extensibility_DG_GPU_Kernel
+   openvino_docs_IE_DG_Extensibility_DG_VPU_Kernel
+   openvino_docs_IE_DG_Extensibility_DG_Building
+   openvino_docs_IE_DG_Extensibility_DG_Custom_ONNX_Ops
+
+
+@endsphinxdirective
+
 Inference Engine Extensibility API enables you to add support of custom operations to the Inference Engine.
 Extension should contain operation sets with custom operations and execution kernels for custom operations.
 Physically, an extension library can be represented as a dynamic library exporting the single `CreateExtension` function

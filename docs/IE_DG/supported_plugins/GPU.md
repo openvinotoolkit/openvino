@@ -1,6 +1,17 @@
 GPU Plugin {#openvino_docs_IE_DG_supported_plugins_GPU}
 =======
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   openvino_docs_IE_DG_supported_plugins_GPU_RemoteBlob_API
+
+      
+@endsphinxdirective
+
 The GPU plugin uses the Intel® Compute Library for Deep Neural Networks (clDNN) to infer deep neural networks.
 clDNN is an open source performance library for Deep Learning (DL) applications intended for acceleration of Deep Learning Inference on Intel® Processor Graphics including Intel® HD Graphics, Intel® Iris® Graphics, Intel® Iris® Xe Graphics, and Intel® Iris® Xe MAX graphics.
 For an in-depth description of clDNN, see [Inference Engine source files](https://github.com/openvinotoolkit/openvino/tree/master/inference-engine/src/cldnn_engine) and [Accelerate Deep Learning Inference with Intel® Processor Graphics](https://software.intel.com/en-us/articles/accelerating-deep-learning-inference-with-intel-processor-graphics).

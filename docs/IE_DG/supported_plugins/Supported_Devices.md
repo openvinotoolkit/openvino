@@ -1,6 +1,25 @@
 Supported Devices {#openvino_docs_IE_DG_supported_plugins_Supported_Devices}
 ==================
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   openvino_docs_IE_DG_supported_plugins_GPU
+   openvino_docs_IE_DG_supported_plugins_CPU
+   openvino_docs_IE_DG_supported_plugins_VPU
+   openvino_docs_IE_DG_supported_plugins_FPGA
+   openvino_docs_IE_DG_supported_plugins_HETERO
+   openvino_docs_IE_DG_supported_plugins_MULTI
+   openvino_docs_IE_DG_supported_plugins_AUTO
+   openvino_docs_IE_DG_supported_plugins_GNA
+
+      
+@endsphinxdirective
+
+
 The Inference Engine can infer models in different formats with various input and output formats. This section provides supported and optimal configurations per device.
 
 > **NOTE**: With OpenVINO™ 2020.4 release, Intel® Movidius™ Neural Compute Stick is no longer supported.

@@ -62,32 +62,6 @@ Whether you are tuning for the first time or doing advanced performance optimiza
 
 Alternatively, you can gather the raw profiling data that samples report, the second chapter provides example of how to interpret these.
 
-### Intel&reg; VTune&trade; Examples <a name="vtune-examples"></a>
-
-All major performance calls of the Inference Engine are instrumented with Instrumentation and Tracing Technology APIs. This allows viewing the Inference Engine calls on the Intel&reg; VTune&trade; timelines and aggregations plus correlating them to the underlying APIs, like OpenCL.  In turn, this enables careful per-layer execution breakdown.
-
-When choosing the Analysis type in Intel&reg; VTune&trade; Amplifier, make sure to select the **Analyze user tasks, events, and counters** option:
-
-![](vtune_option.png)
-
-See the [corresponding section in the Intel® VTune™ Amplifier User's Guide](https://software.intel.com/en-us/vtune-amplifier-help-task-analysis) for details.
-
-Example of Inference Engine calls:
-
--	On the Intel VTune Amplifier timeline.
-	Notice that `Task_runNOThrow` is an Async API wrapper and it is executed in a different thread and triggers the Intel MKL-DNN execution:
-
-	![](vtune_timeline.png)
-	
--	In the Intel VTune Amplifier **Top-down view**, grouped by the **Task Domain**.
-	Notice the `Task_runNoThrow` and `MKLDNN _INFER` that are bracketing the actual Intel MKL-DNN kernels execution:
-	
-	![](vtune_topdown_view.jpg)
-	
-Similarly, you can use any GPU analysis in the Intel VTune Amplifier and get general correlation with Inference Engine API as well as the execution breakdown for OpenCL kernels.
-
-Just like with regular native application, further drill down in the counters is possible, however, this is mostly useful for <a href="#optimizing-custom-kernels">optimizing custom kernels</a>. Finally, with the Intel VTune Amplifier, the profiling is not limited to your user-level code (see the [corresponding section in the Intel&reg; VTune&trade; Amplifier User's Guide](https://software.intel.com/en-us/vtune-amplifier-help-analyze-performance)).
-
 ### Internal Inference Performance Counters <a name="performance-counters"></a>
 
 Almost every sample (inspect command-line options for a specific sample with `-h`) supports a `-pc` command that outputs internal execution breakdown. Refer to the [samples code](../IE_DG/Samples_Overview.md) for the actual Inference Engine API behind that.
@@ -131,3 +105,29 @@ Total time: 4212     microseconds
 ```
 
 The `softmax/copy` is a glue layer that connects the FPGA subgraph to the CPU subgraph (and copies the data).
+
+### Intel&reg; VTune&trade; Examples <a name="vtune-examples"></a>
+
+All major performance calls of the Inference Engine are instrumented with Instrumentation and Tracing Technology APIs. This allows viewing the Inference Engine calls on the Intel&reg; VTune&trade; timelines and aggregations plus correlating them to the underlying APIs, like OpenCL.  In turn, this enables careful per-layer execution breakdown.
+
+When choosing the Analysis type in Intel&reg; VTune&trade; Amplifier, make sure to select the **Analyze user tasks, events, and counters** option:
+
+![](vtune_option.png)
+
+See the [corresponding section in the Intel® VTune™ Amplifier User's Guide](https://software.intel.com/en-us/vtune-amplifier-help-task-analysis) for details.
+
+Example of Inference Engine calls:
+
+-	On the Intel VTune Amplifier timeline.
+	Notice that `Task_runNOThrow` is an Async API wrapper and it is executed in a different thread and triggers the Intel MKL-DNN execution:
+
+	![](vtune_timeline.png)
+	
+-	In the Intel VTune Amplifier **Top-down view**, grouped by the **Task Domain**.
+	Notice the `Task_runNoThrow` and `MKLDNN _INFER` that are bracketing the actual Intel MKL-DNN kernels execution:
+	
+	![](vtune_topdown_view.jpg)
+	
+Similarly, you can use any GPU analysis in the Intel VTune Amplifier and get general correlation with Inference Engine API as well as the execution breakdown for OpenCL kernels.
+
+Just like with regular native application, further drill down in the counters is possible, however, this is mostly useful for <a href="#optimizing-custom-kernels">optimizing custom kernels</a>. Finally, with the Intel VTune Amplifier, the profiling is not limited to your user-level code (see the [corresponding section in the Intel&reg; VTune&trade; Amplifier User's Guide](https://software.intel.com/en-us/vtune-amplifier-help-analyze-performance)).

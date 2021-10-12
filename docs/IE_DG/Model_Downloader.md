@@ -1,4 +1,4 @@
-# Model Downloader {#openvino_docs_IE_DG_Tools_Overview}
+# Model Downloader {#openvino_docs_IE_DG_Tools_Model_Downloader}
 
 
 This directory contains scripts that automate certain model-related tasks
@@ -36,25 +36,27 @@ toolkit and the prerequisite libraries for Model Optimizer. See the
 To convert models from certain frameworks, you will also need to install
 additional dependencies.
 
+@sphinxdirective
+   
+.. tab:: Caffe2
+   
+  .. code-block:: python
+   
+      python3 -mpip install --user -r ./requirements-caffe2.in
 
-Caffe2
+.. tab:: Pytorch
+      
+  .. code-block:: python
 
-```sh
-python3 -mpip install --user -r ./requirements-caffe2.in
-```
+      python3 -mpip install --user -r ./requirements-pytorch.in  
+   
+.. tab:: TensorFlow
+      
+  .. code-block:: python
+         
+     python3 -mpip install --user -r ./requirements-tensorflow.in
 
-Pytorch
-
-```sh
-python3 -mpip install --user -r ./requirements-pytorch.in
-```
-
-TensorFlow
-
-```sh
-
-python3 -mpip install --user -r ./requirements-tensorflow.in
-```
+@endsphinxdirective
 
 
 ## Model Downloader 

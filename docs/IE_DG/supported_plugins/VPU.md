@@ -1,5 +1,16 @@
 # VPU Plugins {#openvino_docs_IE_DG_supported_plugins_VPU}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   openvino_docs_IE_DG_supported_plugins_MYRIAD
+   openvino_docs_IE_DG_supported_plugins_HDDL
+    
+@endsphinxdirective
+
 This chapter provides information on the Inference Engine plugins that enable inference of deep learning models on the supported VPU devices:
 
 * Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X — Supported by the [MYRIAD Plugin](MYRIAD.md)

@@ -4,10 +4,27 @@
 
 .. toctree::
    :maxdepth: 1
-   :hidden:
    
    openvino_docs_IE_DG_Integrate_with_customer_application_new_API
    openvino_docs_deployment_optimization_guide_dldt_optimization_guide
+   openvino_docs_deployment_optimization_guide_dldt_optimization_guide_additional
+   openvino_docs_IE_DG_API_Changes
+   openvino_docs_IE_DG_Memory_primitives
+   openvino_docs_IE_DG_InferenceEngine_QueryAPI
+   openvino_docs_IE_DG_Model_caching_overview
+   openvino_docs_IE_DG_Extensibility_DG_Intro
+   openvino_docs_IE_DG_Migration_CoreAPI
+   openvino_inference_engine_ie_bridges_python_docs_api_overview
+   openvino_docs_IE_DG_ONNX_Support
+   openvino_docs_IE_DG_OnnxImporterTutorial
+   openvino_docs_IE_DG_DynamicBatching
+   openvino_docs_IE_DG_ShapeInference
+   openvino_docs_IE_DG_Bfloat16Inference
+   openvino_docs_IE_DG_Int8Inference
+   openvino_docs_IE_DG_network_state_intro
+   openvino_docs_IE_DG_Known_Issues_Limitations
+   openvino_docs_IE_DG_Glossary
+
       
 @endsphinxdirective
 

@@ -1,6 +1,5 @@
 # Integrate Inference Engine {#openvino_docs_IE_DG_Integrate_with_customer_application_new_API}
 
-
 ## Integrate Inference Engine with Your C++ Application
 
 @sphinxdirective
@@ -402,17 +401,23 @@ Optionally, configure input and output of the model using the steps below:
    ``` 
    Information for this input layer is stored in input_info. The next cell prints the input layout, precision and shape. 
    ```py
-   print(f"input layout: {net.input_info[input_layer].layout}") 
-   print(f"input precision: {net.input_info[input_layer].precision}") 
-   print(f"input shape: {net.input_info[input_layer].tensor_desc.dims}") 
+   print("Inputs:")
+   for name, info in net.input_info.items():
+       print("\tname: {}".format(name))
+       print("\tshape: {}".format(info.tensor_desc.dims))
+       print("\tlayout: {}".format(info.layout))
+       print("\tprecision: {}\n".format(info.precision))
    ```
    This cell output tells us that the model expects inputs with a shape of [1,3,224,224], and that this is in NCHW layout. This means that the model expects input data with a batch size (N) of 1, 3 channels (C), and images of a height (H) and width (W) of 224. The input data is expected to be of FP32 (floating point) precision. 
     
    Getting the output layout, precision and shape is similar to getting the input layout, precision and shape. 
    ```py
-   print(f"output layout: {net.outputs[output_layer].layout}") 
-   print(f"output precision: {net.outputs[output_layer].precision}") 
-   print(f"output shape: {net.outputs[output_layer].shape}") 
+   print("Outputs:")
+   for name, info in net.outputs.items():
+       print("\tname: {}".format(name))
+       print("\tshape: {}".format(info.shape))
+       print("\tlayout: {}".format(info.layout))
+       print("\tprecision: {}\n".format(info.precision))
    ```
    This cell output shows that the model returns outputs with a shape of [1, 1001], where 1 is the batch size (N) and 1001 the number of classes (C). The output is returned as 32-bit floating point. 
 
@@ -453,6 +458,8 @@ Load the model to the device using `load_network()`:
 
 @endsphinxdirective
 
+This example is designed for CPU device, refer to the [Supported Devices](../IE_DG/supported_plugins/Supported_Devices.md) page to read about more devices. 
+
 #### Step 4. Prepare input 
 ```py
 import cv2 
@@ -461,7 +468,8 @@ import numpy as np
 image = cv2.imread("image.png") 
 
 # Resize with OpenCV your image if needed to match with net input shape 
-# res_image = cv2.resize(src=image, dsize=(W, H)) 
+# N, C, H, W = net.input_info[input_name].tensor_desc.dims
+# image = cv2.resize(src=image, dsize=(W, H)) 
 
 # Converting image to NCHW format with FP32 type 
 input_data = np.expand_dims(np.transpose(image, (2, 0, 1)), 0).astype(np.float32) 
@@ -479,7 +487,7 @@ output = result[output_name]
 
 ### Run Your Application
 
-Congratulations, you've made your first Python application with OpenVINO™ toolkit, now you may run it.
+Congratulations, you have made your first Python application with OpenVINO™ toolkit, now you may run it.
 
 [ie_api_flow_cpp]: img/BASIC_IE_API_workflow_Cpp.svg
 [ie_api_use_cpp]: img/IMPLEMENT_PIPELINE_with_API_C.svg

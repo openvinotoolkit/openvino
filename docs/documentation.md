@@ -8,14 +8,31 @@
    :hidden:
 
    openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
+   openvino_docs_HOWTO_Custom_Layers_Guide
+   openvino_docs_IE_DG_Tools_Model_Downloader
 
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Intermediate Representation and Operations Sets
+   :hidden:
+    
+   openvino_docs_MO_DG_IR_and_opsets
+   openvino_docs_ops_broadcast_rules
+   openvino_docs_operations_specifications
+
+
+ 
 .. toctree::
    :maxdepth: 1
    :caption: Deploying Inference
    :hidden:
 
    openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide
+   openvino_docs_nGraph_DG_DevGuide
+   openvino_docs_install_guides_deployment_manager_tool
+   openvino_inference_engine_tools_compile_tool_README
+
 
 .. toctree::
    :maxdepth: 1
@@ -28,7 +45,7 @@
 
 .. toctree::
    :maxdepth: 1
-   :caption: OpenVINO™ Deep Learning Workbench Overview
+   :caption: OpenVINO™ Deep Learning Workbench 
    :hidden:
 
    workbench_docs_Workbench_DG_Introduction
@@ -40,12 +57,6 @@
 
    omz_tools_accuracy_checker
 
-.. toctree::
-   :maxdepth: 1
-   :caption: Model Downloader
-   :hidden:
-
-   omz_tools_downloader
 
 @endsphinxdirective
 

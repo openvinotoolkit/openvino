@@ -14,10 +14,6 @@ To optimize your performance results during runtime step it is possible to exper
 
 * combination of devices 
 
-* threading 
-
-* Basic Interoperability with Other APIs 
-
 ## Preprocess
 
 ### Letting the Inference Engine Accelerate Image Pre-processing/Conversion <a name="image-preprocessing"></a>
@@ -30,9 +26,11 @@ In many cases, a network expects a pre-processed image, so make sure you do not 
 
 Note that in many cases, you can directly share the (input) data with the Inference Engine.
 
-**Throughput Mode** 
+## Throughput Mode
 
-One way to increase computational efficiency is batching, which combines many (potentially tens) of input images to achieve optimal throughput. Internally, the execution resources are split/pinned into execution "streams". Using this feature gains much better performance for the networks that originally are not scaled well with a number of threads (for example, lightweight topologies). This is especially pronounced for the many-core server machines. 
+One way to increase computational efficiency is batching, which combines many (potentially tens) of input images to achieve optimal throughput. Internally, the execution resources are split/pinned into execution *streams*. Using this feature gains much better performance for the networks that originally are not scaled well with a number of threads (for example, lightweight topologies). This is especially pronounced for the many-core server machines. 
+
+![](../img/THROUGHPUT.svg)
 
 Run the Benchmark App and play with number of infer requests running in parallel, next section. Try different values of the -nstreams argument from 1 to a number of CPU cores and find one that provides the best performance. 
 
@@ -72,7 +70,10 @@ Infer Request based API offers two types of request: Sync and Async. The Sync is
 
 More importantly, an infer request encapsulates the reference to the “executable” network and actual inputs/outputs. Now, when you load the network to the plugin, you get a reference to the executable network (you may consider that as a queue). Actual infer requests are created by the executable network:
 
+```sh
+
 @snippet snippets/dldt_optimization_guide6.cpp part6
+```
 
 `GetBlob` is a recommend way to communicate with the network, as it internally allocates the data with right padding/alignment for the device. For example, the GPU inputs/outputs blobs are mapped to the host (which is fast) if the `GetBlob` is used. But if you called the `SetBlob`, the copy (from/to the blob you have set) into the internal GPU plugin structures will happen.
 
@@ -166,25 +167,6 @@ If your application is hard or impossible to change in accordance with the multi
 -   For multi-socket execution, it is recommended to set   [`KEY_CPU_THREADS_NUM`](../IE_DG/supported_plugins/CPU.md) to the number of cores per socket, and run as many instances of the application as you have sockets.
 -   Similarly, for extremely lightweight networks (running faster than 1ms) and/or many-core machines (16+ cores), try limiting the number of CPU inference  threads to just `#&zwj;phys` cores and further, while trying to saturate the machine with running multiple instances of the application.
 
-## Best Latency on the Multi-Socket CPUs
-Note that when latency is of concern, there are additional tips for multi-socket systems.
-When input is limited to the single image, the only way to achieve the best latency is to limit execution to the single socket.
-The reason is that single image is simply not enough
-to saturate more than one socket. Also NUMA overheads might dominate the execution time.
-Below is the example command line that limits the execution to the single socket using numactl for the best *latency* value
-(assuming the machine with 28 phys cores per socket):
-```
-limited to the single socket).
-$ numactl -m 0 --physcpubind 0-27  benchmark_app -m <model.xml> -api sync -nthreads 28
- ```
-Note that if you have more than one input, running as many inference requests as you have NUMA nodes (or sockets)
-usually gives the same best latency as a single request on the single socket, but much higher throughput. Assuming two NUMA nodes machine:
-```
-$ benchmark_app -m <model.xml> -nstreams 2
- ```
-Number of NUMA nodes on the machine can be queried via 'lscpu'.
-Please see more on the NUMA support in the [Optimization Guide](supported_plugins/MULTI.md).
-
 ### GPU Checklist <a name="gpu-checklist"></a>
 
 Inference Engine relies on the [Compute Library for Deep Neural Networks (clDNN)](https://01.org/cldnn) for Convolutional Neural Networks acceleration on Intel&reg; GPUs. Internally, clDNN uses OpenCL&trade; to implement the kernels. Thus, many general tips apply:
@@ -204,17 +186,6 @@ Notice that while disabling the polling, this option might reduce the GPU perfor
 Since Intel&reg; Movidius&trade; Myriad&trade; X Visual Processing Unit (Intel&reg; Movidius&trade; Myriad&trade; 2 VPU) communicates with the host over USB, minimum four infer requests in flight are recommended to hide the data transfer costs. See <a href="#new-request-based-api">Request-Based API and “GetBlob” Idiom</a> and [Benchmark App Sample](../../inference-engine/samples/benchmark_app/README.md) for more information.
 
 Intel&reg; Vision Accelerator Design with Intel&reg; Movidius&trade; VPUs requires to keep at least 32 inference requests in flight to fully saturate the device.  
-
-### FPGA <a name="fpga"></a>
-
-Below are listed the most important tips for the efficient usage of the FPGA:
-
--	Just like for the Intel&reg; Movidius&trade; Myriad&trade; VPU flavors, for the FPGA, it is important to hide the communication overheads by running multiple inference requests in parallel. For examples, refer to the [Benchmark App Sample](../../inference-engine/samples/benchmark_app/README.md).
--	Since the first inference iteration with FPGA is always significantly slower than the subsequent ones, make sure you run multiple iterations (all samples, except GUI-based demos, have the `-ni` or 'niter' option  to do that).
--	FPGA performance heavily depends on the bitstream.
--	Number of the infer request per executable network is limited to five, so “channel” parallelism (keeping individual infer request per camera/video input) would not work beyond five inputs. Instead, you need to mux the inputs into some queue that will internally use a pool of (5) requests.
--	In most scenarios, the FPGA acceleration is leveraged through <a href="heterogeneity">heterogeneous execution</a> with further specific tips.
--	For multi-device FPGA execution please refer to the [FPGA plugin documentation](../IE_DG/supported_plugins/FPGA.md)
 
 ## Heterogeneity <a name="heterogeneity"></a>
 
@@ -269,14 +240,6 @@ where:
 
 You can point more than two devices: `-d HETERO:FPGA,GPU,CPU`.
 
-### Heterogeneous Scenarios with FPGA <a name="heterogeneous-scenarios-fpga"></a>
-
-As FPGA is considered as an inference accelerator, most performance issues are related to the fact that due to the fallback, the CPU can be still used quite heavily.
--	Yet in most cases, the CPU does only small/lightweight layers, for example, post-processing (`SoftMax` in most classification models or `DetectionOutput` in the SSD*-based topologies). In that case, limiting the number of CPU threads with [`KEY_CPU_THREADS_NUM`](../IE_DG/supported_plugins/CPU.md) config would further reduce the CPU utilization without significantly degrading the overall performance.
--	Also, if you are still using OpenVINO version earlier than R1 2019, or if you have recompiled the Inference Engine with OpemMP (say for backward compatibility), setting the `KMP_BLOCKTIME` environment variable to something less than default 200ms (we suggest 1ms) is particularly helpful. Use `KMP_BLOCKTIME=0` if the CPU subgraph is small.
-
-> **NOTE**: General threading tips (see <a href="#note-on-app-level-threading">Note on the App-Level Threading</a>) apply well, even when the entire topology fits the FPGA, because there is still a host-side code for data pre- and post-processing.
-
 ### General Tips on GPU/CPU Execution <a name="tips-on-gpu-cpu-execution"></a>
 
 The following tips are provided to give general guidance on optimizing execution on GPU/CPU devices.
@@ -329,40 +292,4 @@ Please refer to the code of the [Benchmark App](../../inference-engine/samples/b
     To facilitate the copy savings, it is recommended to start the requests in the order that they were created 
     (with ExecutableNetwork's CreateInferRequest).
   
- ##  Threading 
-
- - As explained in the <a href="#cpu-checklist">CPU Checklist</a> section, by default the Inference Engine uses Intel TBB as a parallel engine. Thus, any OpenVINO-internal threading (including CPU inference) uses the same threads pool, provided by the TBB. But there are also other threads in your application, so oversubscription is possible at the application level:
-- The rule of thumb is that you should try to have the overall number of active threads in your application equal to the number of cores in your machine. Keep in mind the spare core(s) that the OpenCL driver under the GPU plugin might also need.
-- One specific workaround to limit the number of threads for the Inference Engine is using the [CPU configuration options](../IE_DG/supported_plugins/CPU.md).
-- To avoid further oversubscription, use the same threading model in all modules/libraries that your application uses. Notice that third party components might bring their own threading. For example, using Inference Engine which is now compiled with the TBB by default might lead to [performance troubles](https://www.threadingbuildingblocks.org/docs/help/reference/appendices/known_issues/interoperability.html) when mixed in the same app with another computationally-intensive library, but compiled with OpenMP. You can try to compile the [open source version](https://github.com/opencv/dldt) of the Inference Engine to use the OpenMP as well. But notice that in general, the TBB offers much better composability, than other threading solutions.
-- If your code (or third party libraries) uses GNU OpenMP, the Intel&reg; OpenMP (if you have recompiled Inference Engine with that) must be initialized first. This can be achieved by linking your application with the Intel OpenMP instead of GNU OpenMP, or using `LD_PRELOAD` on Linux* OS.
-
-## Basic Interoperability with Other APIs <a name="basic-interoperability-with-other-apis"></a>
-
-The general approach for sharing data between Inference Engine and media/graphics APIs like Intel&reg; Media Server Studio (Intel&reg; MSS) is based on sharing the *system* memory.  That is, in your code, you should map or copy the data from the API to the CPU address space first.
-
-For Intel MSS, it is recommended to perform a viable pre-processing, for example, crop/resize, and then convert to RGB again with the [Video Processing Procedures (VPP)](https://software.intel.com/en-us/node/696108). Then lock the result and create an Inference Engine blob on top of that. The resulting pointer can be used for the `SetBlob`:
-
-@snippet snippets/dldt_optimization_guide2.cpp part2
-
-**WARNING**: The `InferenceEngine::NHWC` layout is not supported natively by most InferenceEngine plugins so internal conversion might happen.
-
-@snippet snippets/dldt_optimization_guide3.cpp part3
-
-Alternatively, you can use RGBP (planar RGB) output from Intel MSS. This allows to wrap the (locked) result as regular NCHW which is generally friendly for most plugins (unlike NHWC). Then you can use it with `SetBlob` just like in previous example:
-
-@snippet snippets/dldt_optimization_guide4.cpp part4
-
-The only downside of this approach is that VPP conversion to RGBP is not hardware accelerated (and performed on the GPU EUs). Also, it is available only on LInux.
-
-## OpenCV* Interoperability Example <a name="opencv-interoperability"></a>
-
-Unlike APIs that use dedicated address space and/or special data layouts (for instance, compressed OpenGL* textures), regular OpenCV data objects like `cv::Mat` reside in the conventional system memory. That is, the memory can be actually shared with the Inference Engine and only data ownership to be transferred.
-
-Again, if the OpenCV and Inference Engine layouts match, the data can be wrapped as Inference Engine (input/output) blob. Notice that by default, Inference Engine accepts the **planar** and **not interleaved** inputs in NCHW, so the NHWC (which is exactly the interleaved layout) should be specified explicitly:
-
-**WARNING**: The `InferenceEngine::NHWC` layout is not supported natively by most InferenceEngine plugins so internal conversion might happen.
-
-@snippet snippets/dldt_optimization_guide5.cpp part5
-
-Notice that original `cv::Mat`/blobs cannot be used simultaneously by the application and the Inference Engine. Alternatively, the data that the pointer references to can be copied to unlock the original data and return ownership to the original API.
+Refer to [Deployment Optimization Guide Additional Configurations](dldt_deployment_optimization_guide_additional.md) to read more about performance during deployment step and learn about threading, working with multi-socket CPUs and Basic Interoperability with Other APIs.
