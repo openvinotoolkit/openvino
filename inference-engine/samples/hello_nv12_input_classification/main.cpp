@@ -25,51 +25,6 @@
 
 using namespace InferenceEngine;
 
-// TODO: avoid conversion to legacy API
-inline Precision convertPrecision(const ov::element::Type& precision) {
-    switch (precision) {
-    case ov::element::undefined:
-        return Precision(Precision::UNSPECIFIED);
-    case ov::element::f16:
-        return Precision(Precision::FP16);
-    case ov::element::f32:
-        return Precision(Precision::FP32);
-    case ov::element::f64:
-        return Precision(Precision::FP64);
-    case ov::element::bf16:
-        return Precision(Precision::BF16);
-    case ov::element::i4:
-        return Precision(Precision::I4);
-    case ov::element::i8:
-        return Precision(Precision::I8);
-    case ov::element::i16:
-        return Precision(Precision::I16);
-    case ov::element::i32:
-        return Precision(Precision::I32);
-    case ov::element::i64:
-        return Precision(Precision::I64);
-    case ov::element::u4:
-        return Precision(Precision::U4);
-    case ov::element::u8:
-        return Precision(Precision::U8);
-    case ov::element::u16:
-        return Precision(Precision::U16);
-    case ov::element::u32:
-        return Precision(Precision::U32);
-    case ov::element::u64:
-        return Precision(Precision::U64);
-    case ov::element::u1:
-        return Precision(Precision::BIN);
-    case ov::element::boolean:
-        return Precision(Precision::BOOL);
-    case ov::element::dynamic:
-        return Precision(Precision::UNSPECIFIED);
-    default:
-        IE_THROW() << "Incorrect precision " << precision.get_type_name() << "!";
-        return {};
-    }
-}
-
 /**
  * \brief Parse image size provided as string in format WIDTHxHEIGHT
  * @param string of image size in WIDTHxHEIGHT format
@@ -196,7 +151,7 @@ ov::runtime::TensorVector readInputTensors(std::vector<UString>& data, size_t wi
         auto ptr = &buf[0];
 
         // Create tensor for Y plane from raw data
-        ov::runtime::Tensor yuv = ov::runtime::Tensor(ov::element::u8, {1, height * 3 / 2, width, 1}, ptr);
+        ov::runtime::Tensor yuv {ov::element::u8, {1, height * 3 / 2, width, 1}, ptr};
         tensors.emplace_back(yuv);
     }
 
@@ -313,11 +268,7 @@ int main(int argc, char* argv[]) {
             const auto names_offset = image_names.begin() + netInputSize * i;
             std::vector<std::string> names(names_offset, names_offset + netInputSize);
 
-            // TODO: avoid conversion to legacy types (Blob, etc)
-            InferenceEngine::TensorDesc desc(convertPrecision(output.get_element_type()), InferenceEngine::Layout::ANY);
-            desc.setDims(output.get_shape());
-            InferenceEngine::Blob::Ptr out_blob = make_shared_blob(desc, output.data<float>());
-            ClassificationResult classificationResult(out_blob, names, netInputSize, 10, labels);
+            ClassificationResult classificationResult(output, names, netInputSize, 10, labels);
             classificationResult.print();
             // -------------------------------------------------------
         }

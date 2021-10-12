@@ -25,8 +25,13 @@
 #include <vector>
 
 #include "classification_sample_async.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/layout.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/runtime/tensor.hpp"
 
-using namespace InferenceEngine;
+using namespace ov::preprocess;
 
 /**
  * @brief Checks input args
@@ -64,7 +69,7 @@ int main(int argc, char* argv[]) {
     try {
         // ------------------------------ Get Inference Engine version
         // ------------------------------------------------------
-        slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
+        slog::info << "InferenceEngine: " << ov::get_openvino_version() << slog::endl;
 
         // ------------------------------ Parsing and validation of input arguments
         // ---------------------------------
@@ -82,24 +87,24 @@ int main(int argc, char* argv[]) {
 
         // --------------------------- Step 1. Initialize inference engine core
         // -------------------------------------
-        slog::info << "Loading Inference Engine" << slog::endl;
-        Core ie;
+        slog::info << "Loading OpenVINO runtime" << slog::endl;
+        ov::runtime::Core ie;
         // ------------------------------ Get Available Devices
         // ------------------------------------------------------
         slog::info << "Device info: " << slog::endl;
-        std::cout << ie.GetVersions(FLAGS_d) << std::endl;
+        std::cout << ie.get_versions(FLAGS_d) << std::endl;
 
         if (!FLAGS_l.empty()) {
             // Custom CPU extension is loaded as a shared library and passed as a
             // pointer to base extension
-            IExtensionPtr extension_ptr = std::make_shared<Extension>(FLAGS_l);
-            ie.AddExtension(extension_ptr);
+            auto extension_ptr = std::make_shared<InferenceEngine::Extension>(FLAGS_l);
+            ie.add_extension(extension_ptr);
             slog::info << "CPU Extension loaded: " << FLAGS_l << slog::endl;
         }
         if (!FLAGS_c.empty() && (FLAGS_d == "GPU" || FLAGS_d == "MYRIAD" || FLAGS_d == "HDDL")) {
             // Config for device plugin custom extension is loaded from an .xml
             // description
-            ie.SetConfig({{PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c}}, FLAGS_d);
+            ie.set_config({{InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c}}, FLAGS_d);
             slog::info << "Config for " << FLAGS_d << " device plugin custom extension loaded: " << FLAGS_c
                        << slog::endl;
         }
@@ -107,32 +112,35 @@ int main(int argc, char* argv[]) {
 
         // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and
         // .bin files) or ONNX (.onnx file) format
-        slog::info << "Loading network files:" << slog::endl << FLAGS_m << slog::endl;
+        slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
 
-        /** Read network model **/
-        CNNNetwork network = ie.ReadNetwork(FLAGS_m);
+        /** Read model model **/
+        std::shared_ptr<ov::Function> model = ie.read_model(FLAGS_m);
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Step 3. Configure input & output
         // ---------------------------------------------
-        if (network.getOutputsInfo().size() != 1)
-            throw std::logic_error("Sample supports topologies with 1 output only");
 
-        // --------------------------- Prepare input blobs
+        ov::Layout tensorLayout{"NCHW"};
+        model = PrePostProcessor().
+            input(InputInfo().
+                tensor(InputTensorInfo().
+                    set_element_type(ov::element::u8).
+                    set_layout(tensorLayout)).
+                network(InputNetworkInfo().
+                    set_layout("NCHW"))). // model is supposed in NCHW format
+            output(OutputInfo().
+                tensor(OutputTensorInfo().
+                    set_element_type(ov::element::f32))).
+        build(model);
+
+        // --------------------------- Prepare input tensor
         // -----------------------------------------------------
-        slog::info << "Preparing input blobs" << slog::endl;
+        slog::info << "Preparing input tensor" << slog::endl;
 
-        /** Taking information about all topology inputs **/
-        InputsDataMap inputInfo(network.getInputsInfo());
-        if (inputInfo.size() != 1)
-            throw std::logic_error("Sample supports topologies with 1 input only");
-
-        auto inputInfoItem = *inputInfo.begin();
-
-        /** Specifying the precision and layout of input data provided by the user.
-         * This should be called before load of the network to the device **/
-        inputInfoItem.second->setPrecision(Precision::U8);
-        inputInfoItem.second->setLayout(Layout::NCHW);
+        ov::Shape input_shape = model->input().get_shape();
+        const size_t width = input_shape[ov::layout::width(tensorLayout)];
+        const size_t height = input_shape[ov::layout::height(tensorLayout)];
 
         std::vector<std::shared_ptr<unsigned char>> imagesData = {};
         std::vector<std::string> validImageNames = {};
@@ -143,8 +151,7 @@ int main(int argc, char* argv[]) {
                 continue;
             }
             /** Store image data **/
-            std::shared_ptr<unsigned char> data(reader->getData(inputInfoItem.second->getTensorDesc().getDims()[3],
-                                                                inputInfoItem.second->getTensorDesc().getDims()[2]));
+            std::shared_ptr<unsigned char> data(reader->getData(width, height));
             if (data != nullptr) {
                 imagesData.push_back(data);
                 validImageNames.push_back(i);
@@ -154,8 +161,10 @@ int main(int argc, char* argv[]) {
             throw std::logic_error("Valid input images were not found!");
 
         /** Setting batch size using image count **/
-        network.setBatchSize(imagesData.size());
-        size_t batchSize = network.getBatchSize();
+        const size_t batchSize = imagesData.size();
+        input_shape[ov::layout::batch(tensorLayout)] = batchSize;
+        // TODO: model->input().get_any_name()
+        model->reshape({ { *model->input().get_tensor().get_names().begin(), input_shape } });
         slog::info << "Batch size is " << std::to_string(batchSize) << slog::endl;
 
         // -----------------------------------------------------------------------------------------------------
@@ -163,52 +172,27 @@ int main(int argc, char* argv[]) {
         // --------------------------- Step 4. Loading model to the device
         // ------------------------------------------
         slog::info << "Loading model to the device" << slog::endl;
-        ExecutableNetwork executable_network = ie.LoadNetwork(network, FLAGS_d);
+        ov::runtime::ExecutableNetwork executable_network = ie.compile_model(model, FLAGS_d);
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Step 5. Create infer request
         // -------------------------------------------------
         slog::info << "Create infer request" << slog::endl;
-        InferRequest inferRequest = executable_network.CreateInferRequest();
+        ov::runtime::InferRequest infer_request = executable_network.create_infer_request();
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Step 6. Prepare input
         // --------------------------------------------------------
-        for (auto& item : inputInfo) {
-            Blob::Ptr inputBlob = inferRequest.GetBlob(item.first);
-            SizeVector dims = inputBlob->getTensorDesc().getDims();
-            /** Fill input tensor with images. First b channel, then g and r channels
-             * **/
-            size_t num_channels = dims[1];
-            size_t image_size = dims[3] * dims[2];
+        /** Filling input tensor with images with BGR **/
+        const size_t image_size = shape_size(input_shape) / batchSize;
 
-            MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
-            if (!minput) {
-                slog::err << "We expect MemoryBlob from inferRequest, but by fact we "
-                             "were not able to cast inputBlob to MemoryBlob"
-                          << slog::endl;
-                return 1;
-            }
-            // locked memory holder should be alive all time while access to its
-            // buffer happens
-            auto minputHolder = minput->wmap();
+        const std::string inputName = model->get_parameters()[0]->get_friendly_name();
+        ov::runtime::Tensor input_tensor = infer_request.get_tensor(inputName);
 
-            auto data = minputHolder.as<PrecisionTrait<Precision::U8>::value_type*>();
-            if (data == nullptr)
-                throw std::runtime_error("Input blob has not allocated buffer");
-            /** Iterate over all input images **/
-            for (size_t image_id = 0; image_id < imagesData.size(); ++image_id) {
-                /** Iterate over all pixel in image (b,g,r) **/
-                for (size_t pid = 0; pid < image_size; pid++) {
-                    /** Iterate over all channels **/
-                    for (size_t ch = 0; ch < num_channels; ++ch) {
-                        /**          [images stride + channels stride + pixel id ] all in
-                         * bytes            **/
-                        data[image_id * image_size * num_channels + ch * image_size + pid] =
-                            imagesData.at(image_id).get()[pid * num_channels + ch];
-                    }
-                }
-            }
+        // /** Iterate over all input images **/
+        for (size_t image_id = 0; image_id < imagesData.size(); ++image_id) {
+            std::memcpy(input_tensor.data<std::uint8_t>() + image_id * image_size,
+                imagesData[image_id].get(), image_size);
         }
 
         // -----------------------------------------------------------------------------------------------------
@@ -219,13 +203,16 @@ int main(int argc, char* argv[]) {
         size_t curIteration = 0;
         std::condition_variable condVar;
 
-        inferRequest.SetCompletionCallback([&] {
+        infer_request.set_callback([&] (std::exception_ptr ex) {
+            if (ex)
+                throw ex;
+
             curIteration++;
             slog::info << "Completed " << curIteration << " async request execution" << slog::endl;
             if (curIteration < numIterations) {
                 /* here a user can read output containing inference results and put new
                    input to repeat async request again */
-                inferRequest.StartAsync();
+                infer_request.start_async();
             } else {
                 /* continue sample execution after last Asynchronous inference request
                  * execution */
@@ -235,7 +222,7 @@ int main(int argc, char* argv[]) {
 
         /* Start async request for the first time */
         slog::info << "Start inference (" << numIterations << " asynchronous executions)" << slog::endl;
-        inferRequest.StartAsync();
+        infer_request.start_async();
 
         /* Wait all repetitions of the async request */
         std::mutex mutex;
@@ -247,17 +234,14 @@ int main(int argc, char* argv[]) {
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Step 8. Process output
-        // -------------------------------------------------------
-        slog::info << "Processing output blobs" << slog::endl;
-        OutputsDataMap outputInfo(network.getOutputsInfo());
-        if (outputInfo.empty())
-            throw std::runtime_error("Can't get output blobs");
-        Blob::Ptr outputBlob = inferRequest.GetBlob(outputInfo.begin()->first);
+        // TODO: get_output_tensor
+        ov::runtime::Tensor output = infer_request.get_tensor(
+            model->get_result()->input_value(0).get_node_shared_ptr()->get_friendly_name());
 
         /** Validating -nt value **/
-        const size_t resultsCnt = outputBlob->size() / batchSize;
+        const size_t resultsCnt = output.get_size() / batchSize;
         if (FLAGS_nt > resultsCnt || FLAGS_nt < 1) {
-            slog::warn << "-nt " << FLAGS_nt << " is not available for this network (-nt should be less than "
+            slog::warn << "-nt " << FLAGS_nt << " is not available for this model (-nt should be less than "
                        << resultsCnt + 1 << " and more than 0)\n            Maximal value " << resultsCnt
                        << " will be used." << slog::endl;
             FLAGS_nt = resultsCnt;
@@ -277,7 +261,7 @@ int main(int argc, char* argv[]) {
             }
         }
         // Prints formatted classification results
-        ClassificationResult classificationResult(outputBlob, validImageNames, batchSize, FLAGS_nt, labels);
+        ClassificationResult classificationResult(output, validImageNames, batchSize, FLAGS_nt, labels);
         classificationResult.print();
         // -----------------------------------------------------------------------------------------------------
     } catch (const std::exception& error) {

@@ -13,17 +13,9 @@
 #include "format_reader_ptr.h"
 #include "gflags/gflags.h"
 #include "ngraph_function_creation_sample.hpp"
-#include "openvino/core/except.hpp"
-#include "openvino/core/function.hpp"
-#include "openvino/core/layout.hpp"
-#include "openvino/core/preprocess/input_info.hpp"
-#include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
-#include "openvino/core/strides.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "openvino/runtime/tensor.hpp"
 #include "ngraph/util.hpp"
 #include "samples/args_helper.hpp"
 #include "samples/classification_results.h"
@@ -291,10 +283,6 @@ int main(int argc, char* argv[]) {
                         InputTensorInfo()
                             .set_layout(inputLayout)
                             .set_element_type(element::u8))
-                    .preprocess(
-                        PreProcessSteps()
-                            .convert_layout()
-                            .convert_element_type(element::f32) /* TODO: remove argument */)
                     .network(
                         InputNetworkInfo()
                             .set_layout("NCHW")))
@@ -308,6 +296,8 @@ int main(int argc, char* argv[]) {
 
         const auto input_port = inputs[0];
         auto input_shape = input_port.get_shape();
+        const size_t width = input_shape[layout::width(inputLayout)];
+        const size_t height = input_shape[layout::height(inputLayout)];
 
         std::vector<std::shared_ptr<unsigned char>> imagesData;
         for (auto& i : images) {
@@ -317,8 +307,7 @@ int main(int argc, char* argv[]) {
                 continue;
             }
             /** Store image data **/
-            std::shared_ptr<unsigned char> data(reader->getData(
-                input_shape[layout::width(inputLayout)], input_shape[layout::height(inputLayout)]));
+            std::shared_ptr<unsigned char> data(reader->getData(width, height));
             if (data.get() != nullptr) {
                 imagesData.push_back(data);
             }
@@ -356,26 +345,11 @@ int main(int argc, char* argv[]) {
         /** Filling input tensor with images with BGR **/
         const size_t image_size = shape_size(input_shape) / batchSize;
 
-        // std::cout << input_shape << std::endl;
-
         // /** Iterate over all input images **/
         for (size_t image_id = 0; image_id < imagesData.size(); ++image_id) {
             std::memcpy(input_tensor.data<std::uint8_t>() + image_id * image_size,
                 imagesData[image_id].get(), image_size);
         }
-        /** Iterate over all input images **/
-        // for (size_t image_id = 0; image_id < imagesData.size(); ++image_id) {
-        //     /** Iterate over all pixels in image (b,g,r) **/
-        //     for (size_t pid = 0; pid < image_size; pid++) {
-        //         /** Iterate over all channels **/
-        //         for (size_t ch = 0; ch < num_channels; ++ch) {
-        //             /**          [images stride + channels stride + pixel id ] all in
-        //                 * bytes            **/
-        //             data[image_id * image_size * num_channels + ch * image_size + pid] =
-        //                 imagesData.at(image_id).get()[pid * num_channels + ch];
-        //         }
-        //     }
-        // }
 
         // --------------------------- Step 7. Do inference
         slog::info << "Start sync inference" << slog::endl;

@@ -11,8 +11,13 @@
 #include <samples/ocv_common.hpp>
 #include <string>
 #include <vector>
+#include "openvino/core/except.hpp"
+#include "openvino/core/preprocess/input_tensor_info.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/tensor.hpp"
 
-using namespace InferenceEngine;
+using namespace ov::preprocess;
 
 /**
  * @brief Define names based depends on Unicode path support
@@ -96,53 +101,42 @@ int main(int argc, char* argv[]) {
 
         // --------------------------- Step 1. Initialize inference engine core
         // -------------------------------------
-        Core ie;
+        ov::runtime::Core ie;
         // -----------------------------------------------------------------------------------------------------
 
         // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and
         // .bin files) or ONNX (.onnx file) format
-        CNNNetwork network = ie.ReadNetwork(input_model);
-        if (network.getOutputsInfo().size() != 1)
-            throw std::logic_error("Sample supports topologies with 1 output only");
-        if (network.getInputsInfo().size() != 1)
-            throw std::logic_error("Sample supports topologies with 1 input only");
+        auto model = ie.read_model(input_model);
+
+        OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports topologies with 1 input only");
+        OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports topologies with 1 output only");
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- Step 3. Configure input & output
-        // ---------------------------------------------
-        // --------------------------- Prepare input blobs
-        // -----------------------------------------------------
-        InputInfo::Ptr input_info = network.getInputsInfo().begin()->second;
-        std::string input_name = network.getInputsInfo().begin()->first;
+        // --------------------------- Step 3. Apply preprocessing
 
-        /* Mark input as resizable by setting of a resize algorithm.
-         * In this case we will be able to set an input blob of any shape to an
-         * infer request. Resize and layout conversions are executed automatically
-         * during inference */
-        input_info->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
-        input_info->setLayout(Layout::NHWC);
-        input_info->setPrecision(Precision::U8);
-
-        // --------------------------- Prepare output blobs
-        // ----------------------------------------------------
-        if (network.getOutputsInfo().empty()) {
-            std::cerr << "Network outputs info is empty" << std::endl;
-            return EXIT_FAILURE;
-        }
-        DataPtr output_info = network.getOutputsInfo().begin()->second;
-        std::string output_name = network.getOutputsInfo().begin()->first;
-
-        output_info->setPrecision(Precision::FP32);
-        // -----------------------------------------------------------------------------------------------------
+        model = PrePostProcessor().
+            input(InputInfo().
+                tensor(InputTensorInfo().
+                    set_element_type(ov::element::u8).
+                    set_layout("NHWC")).
+                preprocess(PreProcessSteps().
+                    convert_layout("NCHW"). // WA for CPU plugin
+                    resize(ResizeAlgorithm::RESIZE_LINEAR)).
+                network(InputNetworkInfo().
+                    set_layout("NCHW"))).
+            output(OutputInfo().
+                tensor(OutputTensorInfo().
+                    set_element_type(ov::element::f32))).
+        build(model);
 
         // --------------------------- Step 4. Loading a model to the device
         // ------------------------------------------
-        ExecutableNetwork executable_network = ie.LoadNetwork(network, device_name);
+        ov::runtime::ExecutableNetwork executable_network = ie.compile_model(model, device_name);
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Step 5. Create an infer request
         // -------------------------------------------------
-        InferRequest infer_request = executable_network.CreateInferRequest();
+        ov::runtime::InferRequest infer_request = executable_network.create_infer_request();
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Step 6. Prepare input
@@ -150,20 +144,23 @@ int main(int argc, char* argv[]) {
         /* Read input image to a blob and set it to an infer request without resize
          * and layout conversions. */
         cv::Mat image = imread_t(input_image_path);
-        Blob::Ptr imgBlob = wrapMat2Blob(image);     // just wrap Mat data by Blob::Ptr
+        ov::runtime::Tensor input = wrapMat2Tensor(image);     // just wrap Mat data by Blob::Ptr
                                                      // without allocating of new memory
-        infer_request.SetBlob(input_name, imgBlob);  // infer_request accepts input blob of any size
+        // TODO: use set_input_tensor
+        infer_request.set_tensor(model->get_parameters().front()->get_friendly_name(), input);  // infer_request accepts input blob of any size
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Step 7. Do inference
         // --------------------------------------------------------
         /* Running the request synchronously */
-        infer_request.Infer();
+        infer_request.infer();
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Step 8. Process output
         // ------------------------------------------------------
-        Blob::Ptr output = infer_request.GetBlob(output_name);
+        // TODO: use get_output_tensor
+        ov::runtime::Tensor output = infer_request.get_tensor(model->get_result()->
+            input_value(0).get_node_shared_ptr()->get_friendly_name());
         // Print classification results
         ClassificationResult_t classificationResult(output, {input_image_path});
         classificationResult.print();

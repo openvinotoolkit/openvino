@@ -11,6 +11,8 @@
 
 #include <opencv2/opencv.hpp>
 #include <samples/common.hpp>
+#include "openvino/core/except.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 /**
  * @brief Sets image data stored in cv::Mat object to a given Blob object.
@@ -75,4 +77,20 @@ static UNUSED InferenceEngine::Blob::Ptr wrapMat2Blob(const cv::Mat& mat) {
                                       InferenceEngine::Layout::NHWC);
 
     return InferenceEngine::make_shared_blob<uint8_t>(tDesc, mat.data);
+}
+
+static UNUSED ov::runtime::Tensor wrapMat2Tensor(const cv::Mat& mat) {
+    const size_t channels = mat.channels();
+    const size_t height = mat.size().height;
+    const size_t width = mat.size().width;
+
+    const size_t strideH = mat.step.buf[0];
+    const size_t strideW = mat.step.buf[1];
+
+    const bool is_dense = strideW == channels && strideH == channels * width;
+
+    // TODO: remove this limitation
+    OPENVINO_ASSERT(is_dense, "Doesn't support conversion from not dense cv::Mat");
+
+    return ov::runtime::Tensor(ov::element::u8, ov::Shape{1, channels, height, width}, mat.data);
 }
