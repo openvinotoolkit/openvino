@@ -107,7 +107,6 @@ protected:
             selectedType += "BF16";
         else
             selectedType += netPrecision.name();
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

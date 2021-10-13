@@ -69,6 +69,10 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*Behavior.*(Multi|Auto).*InferRequestSetBlobByType.*Batched.*)",
             R"(.*(Multi|Auto).*Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
             // TODO: until issue is xxx-59670 is resolved
-            R"(.*Gather8LayerTest.*)"
+            R"(.*Gather8LayerTest.*)",
+            // TODO: Issue 66516
+            R"(.*smoke_PrePostProcess_GPU.*convert_element_type_and_mean.*)",
+            // TODO: Issue 67408
+            R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
     };
 }

@@ -54,6 +54,7 @@ void DetectNetworkBatch::SetUp() {
 void DetectNetworkBatch::LoadNetwork() {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
     cnnNetwork.setBatchSize(m_batchSize);
+    functionRefs = ngraph::clone_function(*cnnNetwork.getFunction());
     ConfigureNetwork();
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
 }
@@ -61,21 +62,18 @@ void DetectNetworkBatch::LoadNetwork() {
 TEST_P(DetectNetworkBatch, InferWithOneInput) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     function = ngraph::builder::subgraph::makeSplitConvConcat();
-    functionRefs = ngraph::clone_function(*function);
     Run();
 };
 
 TEST_P(DetectNetworkBatch, InferWithMultipleInputs_DiffDims) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     function = makeNNWithMultipleInputsDiffDims();
-    functionRefs = ngraph::clone_function(*function);
     Run();
 };
 
 TEST_P(DetectNetworkBatch, InferWithMultipleInputs_SameDims) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     function = makeNNWithMultipleInputsSameDims();
-    functionRefs = ngraph::clone_function(*function);
     Run();
 };
 
