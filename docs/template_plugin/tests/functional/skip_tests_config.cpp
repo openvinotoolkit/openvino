@@ -8,7 +8,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
-    return {
+    std::vector<std::string> retVector{
         // CVS-66280
         R"(.*canLoadCorrectNetworkAndCheckConfig.*)",
         R"(.*canSetCorrectConfigLoadNetworkAndCheckConfig.*)",
@@ -35,4 +35,10 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-64080
         R"(.*ReferenceMishLayerTest.*dimensionDynamic.*)",
     };
+
+#ifdef _WIN32
+    // CVS-63989
+     retVector.emplace_back(R"(.*ReferenceSigmoidLayerTest.*u64.*)");
+#endif
+    return retVector;
 }
