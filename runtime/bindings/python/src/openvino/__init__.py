@@ -20,6 +20,7 @@ from openvino.ie_api import infer
 from openvino.ie_api import async_infer
 from openvino.ie_api import get_result
 from openvino.ie_api import blob_from_file
+from openvino.ie_api import function_to_cnn
 
 from openvino.impl import Dimension
 from openvino.impl import Function
