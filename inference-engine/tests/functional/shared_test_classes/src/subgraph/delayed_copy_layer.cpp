@@ -58,6 +58,7 @@ namespace SubgraphTestsDefinitions {
         auto relu2 = std::make_shared<ngraph::opset1::Sigmoid>(VariadicSplit->output(1));
 
         function = std::make_shared<ngraph::Function>(relu2, input, "delayed_copy_layer_nonmemory");
+        functionRefs = ngraph::clone_function(*function);
     }
 
         void DelayedCopyTest::Run() {

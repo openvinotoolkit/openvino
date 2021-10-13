@@ -265,6 +265,9 @@ class LayerInfo {
     bool isNonFunctional() const noexcept {
         return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute();
     }
+    bool isReshape() const noexcept {
+        return isOfType("reshape");
+    }
     bool isPermute() const noexcept {
         return isOfType("permute");
     }

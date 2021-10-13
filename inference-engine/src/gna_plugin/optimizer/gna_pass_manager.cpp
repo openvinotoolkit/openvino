@@ -1265,7 +1265,7 @@ void InsertSplitAligningFilterPass::run() {
         size_t currentOffset = 0;
         int splitOutIndex = 0;
         for (auto &&splitOutput  : l->outData) {
-            auto outputSize = product(++begin(splitOutput->getDims()), end(splitOutput->getDims()));
+            auto outputSize = product(begin(splitOutput->getDims()), end(splitOutput->getDims()));
 
             if ((currentOffset != ALIGN64(currentOffset)) || (padding != 0)) {
                 // check that this split output actually connected to further layers
