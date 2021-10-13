@@ -72,6 +72,9 @@ bool InsertTransposeAfterConvOrPool::run_on_function(std::shared_ptr<ngraph::Fun
                 transpose_ids.push_back(ix);
             }
         }
+        if (transpose_ids.size() == 1) {
+            continue;
+        }
         if (transpose_ids.size() != 2) {
             THROW_GNA_EXCEPTION << "Unable to insert transpose after: " << node->get_friendly_name()
                                 << " number of dimensions to transpose: " << transpose_ids.size();
