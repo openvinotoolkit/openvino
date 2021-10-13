@@ -92,32 +92,63 @@ public:
 #endif
 
     template<class T_IE, class T_NGRAPH>
-    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float abs_threshold = -1.f) {
+    static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float abs_Threshold = -1.f) {
+        if ((threshold < 0) && (abs_threshold < 0)) {
+            IE_THROW() << "Both relative threshold and absolute threshold aren't set properly";
+        }
+        std::vector<double> absoluteDifferences;
+        std::vector<double> relativeDifferences;
+        int absoluteErrorCount = 0;
+        int relativeErrorCount = 0;
         for (std::size_t i = 0; i < size; ++i) {
             const T_NGRAPH &ref = expected[i];
             const auto &res = actual[i];
-            const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
-            if (abs_threshold > 0.f && absoluteDifference > abs_threshold) {
-                IE_THROW() << "Absolute comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
-                           << " at index " << i << " with absolute threshold " << abs_threshold
-                           << " failed";
-            }
-            if (absoluteDifference <= threshold) {
-                continue;
-            }
+            const float diff = static_cast<float>(CommonTestUtils::ie_abs(res - ref));
             double max;
+            double relDiff;
+
+            absoluteDifferences.push_back(diff);
+
+            if ((abs_threshold >= 0) && (diff > abs_threshold))
+                    absoluteErrorCount++;
+
             if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
                 max = std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref));
             } else {
                 max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(T_IE(ref)));
             }
-            double diff = static_cast<float>(absoluteDifference) / max;
-            if (max == 0 || (diff > static_cast<float>(threshold)) ||
-                (std::isnan(static_cast<float>(res)) ^ std::isnan(static_cast<float>(ref)))) {
-                IE_THROW() << "Relative comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
-                           << " at index " << i << " with threshold " << threshold
-                           << " failed";
+
+            if (max == 0) {
+                relDiff = 0; // only both res and ref are 0
+            } else {
+                relDiff = (diff / max);
             }
+
+            if ((threshold >= 0) && (relDiff > static_cast<float>(threshold)))
+                relativeErrorCount++;
+
+            relativeDifferences.push_back(relDiff);
+
+            if (std::isnan(static_cast<float>(res)) ^ std::isnan(static_cast<float>(ref))) {
+                IE_THROW() << "One of return values is NaN.  Expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
+                        << " at index " << i << " failed";
+            }
+        }
+
+        if ((absoluteErrorCount > 0) || (relativeErrorCount > 0)) {
+            double relDiffMean = std::accumulate(relativeDifferences.begin(), relativeDifferences.end(), 0.0)/relativeDifferences.size();
+            auto relDiffMaxItr = std::max_element(relativeDifferences.begin(), relativeDifferences.end());
+            auto relDiffMaxIndex = std::distance(relativeDifferences.begin(), relDiffMaxItr);
+            double absDiffMean = std::accumulate(absoluteDifferences.begin(), absoluteDifferences.end(), 0.0)/absoluteDifferences.size();
+            auto absDiffMaxItr = std::max_element(absoluteDifferences.begin(), absoluteDifferences.end());
+            auto absDiffMaxIndex = std::distance(absoluteDifferences.begin(), absDiffMaxItr);
+
+            IE_THROW() << "\nRelative comparison diff tensor mean: " << relDiffMean << ", \tmax: " << relativeDifferences[relDiffMaxIndex]
+                       << " @ index: " << relDiffMaxIndex << ", \t# failure(" << relativeErrorCount << "/" << relativeDifferences.size()
+                       << ") of threshold: " << threshold << "\n"
+                       << "Absolute comparison diff tensor mean: " << absDiffMean << ", \tmax: " << absoluteDifferences[absDiffMaxIndex]
+                       << " @ index: " << absDiffMaxIndex << ", \t# failure(" << absoluteErrorCount << "/" << absoluteDifferences.size()
+                       << ") of threshold: " << abs_threshold << "\n";
         }
     }
 

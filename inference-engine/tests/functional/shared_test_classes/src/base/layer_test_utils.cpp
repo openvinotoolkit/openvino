@@ -294,7 +294,7 @@ void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vecto
 
 void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
                                const InferenceEngine::Blob::Ptr &actual) {
-    Compare(expected, actual, threshold);
+    Compare(expected, actual, threshold, absThreshold);
 }
 
 void LayerTestsCommon::Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual) {
@@ -312,19 +312,19 @@ void LayerTestsCommon::Compare(const InferenceEngine::Blob::Ptr &expected, const
     switch (precision) {
         case InferenceEngine::Precision::FP32:
             Compare(reinterpret_cast<const float *>(expectedBuffer), reinterpret_cast<const float *>(actualBuffer),
-                    size, threshold);
+                    size, threshold, absThreshold);
             break;
         case InferenceEngine::Precision::I32:
             Compare(reinterpret_cast<const std::int32_t *>(expectedBuffer),
-                    reinterpret_cast<const std::int32_t *>(actualBuffer), size, 0);
+                    reinterpret_cast<const std::int32_t *>(actualBuffer), size, 0, 0);
             break;
         case InferenceEngine::Precision::I16:
             Compare(reinterpret_cast<const std::int16_t *>(expectedBuffer),
-                    reinterpret_cast<const std::int16_t *>(actualBuffer), size, 0);
+                    reinterpret_cast<const std::int16_t *>(actualBuffer), size, 0, 0);
             break;
         case InferenceEngine::Precision::U8:
             Compare(reinterpret_cast<const std::uint8_t *>(expectedBuffer),
-                    reinterpret_cast<const std::uint8_t *>(actualBuffer), size, 0);
+                    reinterpret_cast<const std::uint8_t *>(actualBuffer), size, 0, 0);
             break;
         default:
             FAIL() << "Comparator for " << precision << " precision isn't supported";
@@ -503,7 +503,7 @@ std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {
 
 void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                                const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
-    Compare(expectedOutputs, actualOutputs, threshold);
+    Compare(expectedOutputs, actualOutputs, threshold, absThreshold);
 }
 
 void LayerTestsCommon::Validate() {

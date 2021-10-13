@@ -30,6 +30,8 @@ std::string LogSoftmaxLayerTest::getTestCaseName(const testing::TestParamInfo<lo
 }
 
 void LogSoftmaxLayerTest::SetUp() {
+    threshold = -1; //Disable relative threshold temporarily
+    absThreshold = 0.01f; //Use absolute threshold temporarily
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     int64_t axis;

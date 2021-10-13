@@ -37,6 +37,7 @@ std::string ConvolutionTransformation::getTestCaseName(const testing::TestParamI
 
 void ConvolutionTransformation::SetUp() {
     threshold = 0.1f;
+    absThreshold = -1; //Disable absolute threshold
 
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
