@@ -155,12 +155,6 @@ protected:
     float abs_threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
     std::shared_ptr<InferenceEngine::Core> core;
-    // dynamic input shapes
-    std::vector<ngraph::PartialShape> inputDynamicShapes;
-    // index for targetStaticShape
-    size_t index = 0;
-    // target static input shapes which is used for reshape ngraph function & generate input blobs
-    std::vector<std::vector<ngraph::Shape>> targetStaticShapes;
 
     virtual void Validate();
 
@@ -171,7 +165,6 @@ protected:
     InferenceEngine::InferRequest inferRequest;
 
 private:
-    void ResizeNgraphFunction();
     RefMode refMode = RefMode::INTERPRETER;
 };
 
