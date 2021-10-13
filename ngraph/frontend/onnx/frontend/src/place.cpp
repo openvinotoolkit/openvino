@@ -181,6 +181,13 @@ std::vector<Place::Ptr> PlaceTensorONNX::get_consuming_operations() const {
     return consuming_ops;
 }
 
+void PlaceTensorONNX::set_name(const std::string& new_name) {
+    if (m_name == new_name)
+        return;
+    m_editor->set_tensor_name(m_name, new_name);
+    m_name = new_name;
+}
+
 PlaceOpONNX::PlaceOpONNX(const onnx_editor::EditorNode& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_node{node},
       m_editor{std::move(editor)} {}

@@ -1043,8 +1043,39 @@ def test_not_supported_methods():
 
     with pytest.raises(Exception) as e:
         model.add_name_for_tensor(tensor=tensor, newName="new_name")
-    assert "Method add_name_for_tensor is not applicable for ONNX model." in str(e)
+    assert "not applicable for ONNX model" in str(e)
 
     with pytest.raises(Exception) as e:
         model.free_name_for_tensor("add_out")
-    assert "Method free_name_for_tensor is not applicable for ONNX model." in str(e)
+    assert "not applicable for ONNX model" in str(e)
+
+
+def test_set_name_for_tensor():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model_2.onnx")
+    old_name = "add_out"
+    new_name = "add_out_new"
+
+    tensor = model.get_place_by_tensor_name(tensorName=old_name)
+
+    # ignore rename to own name (expect no exception)
+    model.set_name_for_tensor(tensor=tensor, newName=old_name)
+
+    with pytest.raises(Exception) as e:
+        model.set_name_for_tensor(tensor=tensor, newName="")
+    assert "New name must not be empty" in str(e)
+
+    with pytest.raises(Exception) as e:
+        model.set_name_for_tensor(tensor=tensor, newName="sp_out1")
+    assert "already used by another tensor" in str(e)
+
+    # actual rename
+    model.set_name_for_tensor(tensor=tensor, newName=new_name)
+
+    new_tensor = model.get_place_by_tensor_name(tensorName=new_name)
+    assert new_tensor
+    assert new_tensor.is_equal(tensor) # previous Place object holds the handle
+
+    old_tensor = model.get_place_by_tensor_name(tensorName=old_name)
+    assert old_tensor is None

@@ -57,6 +57,16 @@ TensorProto* find_graph_initializer(GraphProto& graph, const std::string& name) 
     return nullptr;
 }
 
+ValueInfoProto* find_graph_value_info(GraphProto& graph, const std::string& name) {
+    for (int i = 0; i < graph.value_info_size(); ++i) {
+        auto value_info = graph.mutable_value_info(i);
+        if (value_info->name() == name) {
+            return value_info;
+        }
+    }
+    return nullptr;
+}
+
 void modify_input_type(ValueInfoProto& onnx_input, const element::Type_t elem_type) {
     if (!onnx_input.has_type()) {
         throw ngraph_error("The input is malformed - it doesn't contain the 'type' field. Cannot change the "
@@ -409,6 +419,43 @@ void onnx_editor::ONNXModelEditor::set_input_values(
         }
 
         modify_initializer(*onnx_initializer, name, values, onnx_input);
+    }
+}
+
+void onnx_editor::ONNXModelEditor::set_tensor_name(const std::string& current_name, const std::string& new_name) {
+    OPENVINO_ASSERT(!new_name.empty(), "New name must not be empty.");
+
+    auto graph = m_pimpl->m_model_proto->mutable_graph();
+
+    OPENVINO_ASSERT(!(find_graph_input(*graph, new_name) || find_graph_output(*graph, new_name) ||
+                      find_graph_initializer(*graph, new_name) || find_graph_value_info(*graph, new_name) ||
+                      m_pimpl->m_edge_mapper.is_correct_tensor_name(new_name)),
+                    "The name '",
+                    new_name,
+                    "' is already used by another tensor.");
+
+    m_pimpl->m_is_mapper_updated = false;
+
+    if (auto input = find_graph_input(*graph, current_name))
+        *input->mutable_name() = new_name;
+    if (auto output = find_graph_output(*graph, current_name))
+        *output->mutable_name() = new_name;
+    if (auto initializer = find_graph_initializer(*graph, current_name))
+        *initializer->mutable_name() = new_name;
+    if (auto value_info = find_graph_value_info(*graph, current_name))
+        *value_info->mutable_name() = new_name;
+
+    for (size_t i = 0; i < graph->node().size(); ++i) {
+        auto node = graph->mutable_node(i);
+        for (size_t j = 0; j < node->input().size(); ++j)
+            if (node->input(j) == current_name)
+                *node->mutable_input(j) = new_name;
+
+        for (size_t j = 0; j < node->output().size(); ++j)
+            if (node->output(j) == current_name) {
+                *node->mutable_output(j) = new_name;
+                break;
+            }
     }
 }
 

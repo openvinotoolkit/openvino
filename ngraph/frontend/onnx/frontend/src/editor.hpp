@@ -92,6 +92,8 @@ public:
     ///                     overwritten.
     void set_input_values(const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values);
 
+    void set_tensor_name(const std::string& current_name, const std::string& new_name);
+
     /// \brief Returns a serialized ONNX model, possibly modified by the editor.
     std::string model_string() const;
 
@@ -126,7 +128,7 @@ public:
     ///
     std::string get_target_tensor_name(const OutputEdge& edge) const;
 
-    /// \brief     Returns true if output edge is input of the model. Otherwise false.
+    /// \brief     Returns true if output edge is output of the model. Otherwise false.
     bool is_output(const OutputEdge& edge) const;
 
     /// \brief Returns the path to the original model file

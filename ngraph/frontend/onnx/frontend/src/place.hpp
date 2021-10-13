@@ -73,6 +73,8 @@ public:
     bool is_equal_data(Place::Ptr another) const override;
     std::vector<Place::Ptr> get_consuming_operations() const override;
 
+    void set_name(const std::string& new_name);
+
 private:
     std::string m_name;
     std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
