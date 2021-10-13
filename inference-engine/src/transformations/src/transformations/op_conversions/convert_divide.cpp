@@ -24,11 +24,13 @@ bool convert_divide(std::shared_ptr<ngraph::Node> node) {
         return false;
     }
 
-    ngraph::Output<ngraph::Node> pow = std::make_shared<ngraph::opset1::Power>(div->input(1).get_source_output(),
+    ngraph::Output<ngraph::Node> pow = std::make_shared<ngraph::opset1::Power>(div->input_value(1),
                                                        ngraph::op::Constant::create(div->get_input_element_type(1), ngraph::Shape{}, {-1}));
 
-    if (auto const_pow = ngraph::get_constant_from_source(pow)) {
-        pow = const_pow;
+    if (auto const_input = std::dynamic_pointer_cast<ngraph::op::Constant>(div->get_input_node_shared_ptr(1))) {
+        if (auto const_pow = ngraph::get_constant_from_source(pow)) {
+            pow = const_pow;
+        }
     }
 
     auto mul = std::make_shared<ngraph::opset1::Multiply>(div->input(0).get_source_output(), pow);
