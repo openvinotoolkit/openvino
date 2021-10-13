@@ -9,6 +9,7 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/low_latency.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <openvino/pass/make_stateful.hpp>
 #include <pot_transformations.hpp>
 #include <pruning.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
@@ -30,6 +31,13 @@ void InferenceEnginePython::ApplyLowLatencyTransformation(InferenceEnginePython:
                                                           bool use_const_initializer) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::LowLatency2>(use_const_initializer);
+    manager.run_passes(network.actual->getFunction());
+}
+
+void InferenceEnginePython::ApplyMakeStatefulTransformation(InferenceEnginePython::IENetwork network,
+                                                            std::map<std::string, std::string>& param_res_names) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<ov::pass::MakeStateful>(param_res_names);
     manager.run_passes(network.actual->getFunction());
 }
 

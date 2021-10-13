@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <map>
 #include <string>
 
 #include "Python.h"
@@ -16,6 +17,9 @@ void ApplyMOCTransformations(InferenceEnginePython::IENetwork network, bool cf);
 void ApplyPOTTransformations(InferenceEnginePython::IENetwork network, std::string device);
 
 void ApplyLowLatencyTransformation(InferenceEnginePython::IENetwork network, bool use_const_initializer = true);
+
+void ApplyMakeStatefulTransformation(InferenceEnginePython::IENetwork network,
+                                     std::map<std::string, std::string>& param_res_names);
 
 void ApplyPruningTransformation(InferenceEnginePython::IENetwork network);
 
