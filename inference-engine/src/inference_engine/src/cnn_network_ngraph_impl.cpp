@@ -23,7 +23,7 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "openvino/core/except.hpp"
-#include "transformations/serialize.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "transformations/smart_reshape/set_batch_size.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 #include "transformations/utils/utils.hpp"
@@ -506,10 +506,10 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
             custom_opsets.insert(begin(opset), end(opset));
         }
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::Serialize>(xmlPath,
-                                                       binPath,
-                                                       custom_opsets,
-                                                       ngraph::pass::Serialize::Version::IR_V10);
+        manager.register_pass<ov::pass::Serialize>(xmlPath,
+                                                   binPath,
+                                                   custom_opsets,
+                                                   ov::pass::Serialize::Version::IR_V10);
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -530,10 +530,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
             custom_opsets.insert(begin(opset), end(opset));
         }
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::Serialize>(xmlBuf,
-                                                       binBuf,
-                                                       custom_opsets,
-                                                       ngraph::pass::Serialize::Version::IR_V10);
+        manager.register_pass<ov::pass::Serialize>(xmlBuf, binBuf, custom_opsets, ov::pass::Serialize::Version::IR_V10);
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -556,10 +553,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binB
 
         std::stringstream binBuf;
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::Serialize>(xmlBuf,
-                                                       binBuf,
-                                                       custom_opsets,
-                                                       ngraph::pass::Serialize::Version::IR_V10);
+        manager.register_pass<ov::pass::Serialize>(xmlBuf, binBuf, custom_opsets, ov::pass::Serialize::Version::IR_V10);
         manager.run_passes(_ngraph_function);
 
         std::streambuf* pbuf = binBuf.rdbuf();

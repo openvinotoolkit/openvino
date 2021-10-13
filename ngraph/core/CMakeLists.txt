@@ -61,7 +61,7 @@ endif()
 
 addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
 
-target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference openvino::util ov_shape_inference)
+target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference openvino::util pugixml::static ov_shape_inference)
 
 ie_mark_target_as_cc(ngraph)
 

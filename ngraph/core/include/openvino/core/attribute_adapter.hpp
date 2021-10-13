@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <set>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -421,5 +422,12 @@ public:
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<std::string>");
     BWDCMP_RTTI_DECLARATION;
+};
+
+template <>
+class OPENVINO_API AttributeAdapter<std::set<std::string>> : public DirectValueAccessor<std::set<std::string>> {
+public:
+    OPENVINO_RTTI("AttributeAdapter<set<string>>");
+    AttributeAdapter(std::set<std::string>& value) : DirectValueAccessor<std::set<std::string>>(value) {}
 };
 }  // namespace ov

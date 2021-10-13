@@ -119,3 +119,18 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::sha
     }
     return rewritten;
 }
+
+void ov::pass::disable_constant_folding(const std::shared_ptr<Node>& node) {
+    auto& rt_info = node->get_rt_info();
+    rt_info[DisableConstantFolding::get_type_info_static()] = std::make_shared<DisableConstantFolding>(true);
+}
+
+void ov::pass::enable_constant_folding(const std::shared_ptr<Node>& node) {
+    auto& rt_info = node->get_rt_info();
+    rt_info.erase(DisableConstantFolding::get_type_info_static());
+}
+
+bool ov::pass::constant_folding_is_disabled(const std::shared_ptr<Node>& node) {
+    const auto& rt_info = node->get_rt_info();
+    return rt_info.count(DisableConstantFolding::get_type_info_static());
+}
