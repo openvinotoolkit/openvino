@@ -76,8 +76,8 @@ void SubgraphBaseTest::serialize() {
     std::string out_xml_path = output_name + ".xml";
     std::string out_bin_path = output_name + ".bin";
 
-    ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path);
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::serialize>(out_xml_path, out_bin_path);
     manager.run_passes(function);
     function->validate_nodes_and_infer_types();
 
@@ -140,26 +140,30 @@ void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor> &expected,
 //    ASSERT_EQ(expected.get_shape(), actual.get_shape());
 //}
 
-//void SubgraphBaseTest::configure_model() {
-//    // configure input precision
-//    {
-//        auto params = function->get_parameters();
-//        for (auto& param : params) {
-//            param->get_output_tensor(0).set_element_type(inPrc);
-//        }
-//    }
-//
-//    // configure output precision
-//    {
-//        auto results = function->get_results();
-//        for (auto& result : results) {
-//            result->get_output_tensor(0).set_element_type(outPrc);
-//        }
-//    }
-//}
+void SubgraphBaseTest::configure_model() {
+    // configure input precision
+    {
+        auto params = function->get_parameters();
+        for (auto& param : params) {
+            if (inType != ov::element::Type_t::undefined) {
+                param->get_output_tensor(0).set_element_type(inType);
+            }
+        }
+    }
+
+    // configure output precision
+    {
+        auto results = function->get_results();
+        for (auto& result : results) {
+            if (outType != ov::element::Type_t::undefined) {
+                result->get_output_tensor(0).set_element_type(outType);
+            }
+        }
+    }
+}
 
 void SubgraphBaseTest::compile_model() {
-//    configure_model();
+    configure_model();
     executableNetwork = core->compile_model(function, targetDevice, configuration);
 }
 
@@ -180,7 +184,7 @@ void SubgraphBaseTest::infer() {
     }
     inferRequest.infer();
 }
-//
+
 std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
     // nGraph interpreter does not support f16/bf16
     ngraph::pass::ConvertPrecision<element::Type_t::f16, element::Type_t::f32>().run_on_function(function);
@@ -193,7 +197,7 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
     auto expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs);
     return expectedOutputs;
 }
-//
+
 std::vector<ov::runtime::Tensor> SubgraphBaseTest::get_outputs() {
     auto outputs = std::vector<ov::runtime::Tensor>{};
     for (const auto& output : executableNetwork.get_results()) {

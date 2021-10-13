@@ -68,7 +68,7 @@ protected:
 //
 //#endif
 
-//    virtual void configure_model();
+    virtual void configure_model();
 
     virtual void compile_model();
     virtual void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes);
@@ -86,8 +86,8 @@ protected:
 
     std::shared_ptr<ngraph::Function> function;
     std::shared_ptr<ngraph::Function> functionRefs;
-    ov::element::Type inPrc;
-    ov::element::Type outPrc;
+    ov::element::Type_t inType;
+    ov::element::Type_t outType;
     std::map<std::string, ov::runtime::Tensor> inputs;
     std::vector<ngraph::PartialShape> inputDynamicShapes;
     std::vector<std::vector<ngraph::Shape>> targetStaticShapes;

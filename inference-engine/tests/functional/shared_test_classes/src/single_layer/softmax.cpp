@@ -7,18 +7,17 @@
 namespace LayerTestsDefinitions {
 
 std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<softMaxLayerTestParams>& obj) {
-    ngraph::element::Type_t netPrecision;
-//    InferenceEngine::Precision inPrc, outPrc;
+    ov::element::Type_t netType, inType, outType;
     std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>> shapes;
     size_t axis;
     std::string targetDevice;
     std::map<std::string, std::string> config;
-    std::tie(netPrecision, shapes, axis, targetDevice, config) = obj.param;
+    std::tie(netType, inType, outType, shapes, axis, targetDevice, config) = obj.param;
 
     std::ostringstream result;
-    result << "netPRC=" << netPrecision << "_";
-//    result << "inPRC=" << inPrc.name() << "_";
-//    result << "outPRC=" << outPrc.name() << "_";
+    result << "NetType=" << netType << "_";
+    result << "InType=" << inType << "_";
+    result << "OutType=" << outType << "_";
     result << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
     result << "TS=";
     for (const auto& item : shapes.second) {
@@ -35,7 +34,7 @@ void SoftMaxLayerTest::SetUp() {
     ngraph::element::Type_t ngPrc;
     size_t axis;
 
-    std::tie(ngPrc, shapes, axis, targetDevice, configuration) = GetParam();
+    std::tie(ngPrc, inType, outType, shapes, axis, targetDevice, configuration) = GetParam();
     init_input_shapes(shapes);
 
     const auto params = ngraph::builder::makeDynamicParams(ngPrc, inputDynamicShapes);

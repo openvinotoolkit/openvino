@@ -18,8 +18,8 @@ namespace LayerTestsDefinitions {
 
 using softMaxLayerTestParams = std::tuple<
         ngraph::element::Type_t,                                    // netPrecision
-//        ngraph::element::Type,                                    // Input precision
-//        ngraph::element::Type,                                    // Output precision
+        ngraph::element::Type_t,                                    // Input precision
+        ngraph::element::Type_t,                                    // Output precision
 //        InferenceEngine::Layout,                                       // Input layout
 //        InferenceEngine::Layout,                                       // Output layout
         std::pair<ov::PartialShape, std::vector<ov::Shape>>,   // Dynamic shape + Target static shapes
