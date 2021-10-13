@@ -270,16 +270,18 @@ class XmlSerializer : public ngraph::AttributeVisitor {
     }
 
     std::vector<std::string> map_type_from_body(const pugi::xml_node& xml_node,
-        const std::string& map_type, const std::string& body_name = "body") {
+        const std::string& map_type, int64_t ir_version, const std::string& body_name = "body") {
         std::vector<std::string> output;
         for (pugi::xml_node node : xml_node.child(body_name.c_str()).child("layers")) {
-            if (!map_type.compare(node.attribute("type").value())) {
+            if (map_type == node.attribute("type").value()) {
                 output.emplace_back(node.attribute("id").value());
             }
         }
 
-        // ops for serialized body function are provided in reversed order
-        std::reverse(output.begin(), output.end());
+        if (ir_version < 11) {
+            // ops for serialized body function are provided in reversed order
+            std::reverse(output.begin(), output.end());
+        }
 
         return output;
     }
@@ -401,8 +403,8 @@ public:
         if (is_body_target) {
             auto body_name = std::get<0>(bnames);
             auto portmap_name = std::get<1>(bnames);
-            std::vector<std::string> result_mapping = map_type_from_body(m_xml_node.parent(), "Result", body_name);
-            std::vector<std::string> parameter_mapping = map_type_from_body(m_xml_node.parent(), "Parameter", body_name);
+            std::vector<std::string> result_mapping = map_type_from_body(m_xml_node.parent(), "Result", m_version, body_name);
+            std::vector<std::string> parameter_mapping = map_type_from_body(m_xml_node.parent(), "Parameter", m_version, body_name);
 
             pugi::xml_node port_map = m_xml_node.parent().child(portmap_name.c_str());
 
@@ -518,9 +520,7 @@ public:
             // to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (m_xml_node) with empty attributes
             // is removed.
             pugi::xml_node xml_body = m_xml_node.parent().append_child(name.c_str());
-            // FIXME: the issue with TensorIteratorTest.Serialize doesn't allow to use v11 order of operations
-            // Need to use m_version instead of 10
-            ngfunction_2_ir(xml_body, *adapter.get(), m_custom_opsets, m_constant_write_handler, 10);
+            ngfunction_2_ir(xml_body, *adapter.get(), m_custom_opsets, m_constant_write_handler, m_version);
             xml_body.remove_attribute("name");
             xml_body.remove_attribute("version");
         } else if (name == "net") {
@@ -864,9 +864,6 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 
     const bool exec_graph = is_exec_graph(f);
 
-    // change the order for parameters/results/sinks
-    // It should be a part of get_ordered_ops method
-    // FIXME: TensorIteratorTest.Serialize tests
     auto sorted_ops = f.get_ordered_ops();
     if (version >= 11) {
         std::vector<std::shared_ptr<ov::Node>> result;
