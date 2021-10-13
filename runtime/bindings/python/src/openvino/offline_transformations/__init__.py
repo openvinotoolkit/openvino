@@ -1,2 +1,5 @@
-from openvino.pyopenvino.offline_transformations import ApplyMOCTransformations, ApplyPOTTransformations, \
-    ApplyLowLatencyTransformation, ApplyPruningTransformation, GenerateMappingFile
+from openvino.pyopenvino.offline_transformations import ApplyMOCTransformations
+from openvino.pyopenvino.offline_transformations import ApplyPOTTransformations
+from openvino.pyopenvino.offline_transformations import ApplyLowLatencyTransformation
+from openvino.pyopenvino.offline_transformations import ApplyPruningTransformation
+from openvino.pyopenvino.offline_transformations import GenerateMappingFile
