@@ -12,8 +12,6 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
-#include "ngraph_ops/convolution_ie.hpp"
-#include "ngraph_ops/deconvolution_ie.hpp"
 
 #include <ie_metric_helpers.hpp>
 #include <ie_performance_hints.hpp>
@@ -37,9 +35,7 @@ namespace {
             if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
                 std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node) ||
                 std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
-                std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node) ||
-                std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node) ||
-                std::dynamic_pointer_cast<ngraph::op::DeconvolutionIE>(node)) {
+                std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node)) {
                 auto layerType = node->input(1).get_element_type().get_type_name();
                 if (layerType == "f32")
                     return METRIC_VALUE(FP32);
@@ -334,7 +330,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         SetExeNetworkInfo(impl,
                           executableNetworkPerDevice.begin()->second->GetInputsInfo(),
                           executableNetworkPerDevice.begin()->second->GetOutputsInfo());
-        SetExeNetworkInfo(impl, executableNetworkPerDevice.begin()->second->GetExecGraphInfo());
+        impl->setInputs(executableNetworkPerDevice.begin()->second->getInputs());
+        impl->setOutputs(executableNetworkPerDevice.begin()->second->getOutputs());
     }
     return impl;
 }

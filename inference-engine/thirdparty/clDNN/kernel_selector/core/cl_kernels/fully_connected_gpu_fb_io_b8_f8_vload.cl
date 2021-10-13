@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/fetch_data.cl"
 #include "include/sub_group.cl"
 
 #if FP16_UNIT_USED
@@ -224,7 +224,6 @@ KERNEL (fully_connected_gpu_xb_xb_b8_x8_vload)(
 
 #undef SUB_GROUP_SIZE
 #undef ALIGNED_BLOCK_READ8
-#undef MAKE_VECTOR_TYPE
 #undef CONCAT_TOKEN
 #undef CONCAT_TOKEN_HANDLER1
 #undef MULTIPLY_BLOCKS_8x8

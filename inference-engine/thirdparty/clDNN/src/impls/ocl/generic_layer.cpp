@@ -91,8 +91,8 @@ struct generic_layer_cpu : typed_primitive_impl<generic_layer> {
             a->wait();
         }
 
-        mem_lock<uint8_t> old_pointer(input_mem, stream);
-        mem_lock<uint8_t> new_pointer(output_mem, stream);
+        mem_lock<uint8_t, mem_lock_type::read> old_pointer(input_mem, stream);
+        mem_lock<uint8_t, mem_lock_type::write> new_pointer(output_mem, stream);
 
         const auto& cpu_kernel = *outer.get_primitive()->generic_params.cpuKernel.get();
 

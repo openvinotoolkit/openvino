@@ -16,7 +16,7 @@
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-    std::vector<std::vector<size_t>>,             // input shapes
+    std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>,             // input shapes
     ngraph::helpers::EltwiseTypes,                // eltwise op type
     ngraph::helpers::InputLayerType,              // secondary input type
     CommonTestUtils::OpType,                      // op type

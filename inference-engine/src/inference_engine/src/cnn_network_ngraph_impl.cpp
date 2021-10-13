@@ -22,6 +22,7 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/manager.hpp"
+#include "openvino/core/except.hpp"
 #include "transformations/serialize.hpp"
 #include "transformations/smart_reshape/set_batch_size.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
@@ -47,8 +48,10 @@ using ngraph::Function;
 void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::Node>& output,
                                                const std::string& outName,
                                                DataPtr& ptr) {
-    const auto isCompatible = [](size_t size, const Layout& l) -> bool {
+    const auto isCompatible = [](int size, const Layout& l) -> bool {
         switch (size) {
+        case -1:
+            return l == Layout::BLOCKED;
         case 0:
             return l == Layout::SCALAR;
         case 1:
@@ -66,21 +69,23 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
         }
     };
     auto shape = output.get_partial_shape();
-    auto rank = shape.rank().is_static() ? shape.rank().get_length() : 0;
+    auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
     for (const auto& dim : shape) {
         if (dim.is_static() && dim.get_length() == 0)
             IE_THROW() << outName << " has zero dimension which is not allowed";
     }
 
+    IE_SUPPRESS_DEPRECATED_START
+    const Layout rankLayout = rank < 0 ? Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
     if (ptr) {
         const auto origLayout = ptr->getTensorDesc().getLayout();
-        const auto layout = isCompatible(rank, origLayout) ? origLayout : TensorDesc::getLayoutByRank(rank);
+        const auto layout = isCompatible(rank, origLayout) ? origLayout : rankLayout;
         ptr->reshape(shape, layout);
     } else {
-        const auto layout = TensorDesc::getLayoutByRank(rank);
         const auto precision = details::convertPrecision(output.get_element_type());
-        ptr.reset(new Data(outName, precision, shape, layout));
+        ptr.reset(new Data(outName, precision, shape, rankLayout));
     }
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 void CNNNetworkNGraphImpl::validateFunctionNames() const {
@@ -105,6 +110,20 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
     }
 }
 
+ngraph::element::Type details::toLegacyType(const ngraph::element::Type& ngraph_type, bool input) {
+    if (input) {
+        return ngraph_type == ngraph::element::f16 ? ngraph::element::f32 : ngraph_type;
+    } else {
+        if (ngraph_type == ngraph::element::i64 || ngraph_type == ngraph::element::i32) {
+            return ngraph::element::i32;
+        } else if (ngraph_type != ngraph::element::f32) {
+            return ngraph::element::f32;
+        }
+    }
+
+    return ngraph_type;
+}
+
 CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph,
                                            const std::vector<IExtensionPtr>& exts,
                                            bool newAPI)
@@ -124,7 +143,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
                       ? Precision::I16
                       : prc == Precision::FP16 ? Precision::FP32 : static_cast<Precision::ePrecision>(prc);
 
-            info->setPrecision(prc);
+            info->setPrecision(details::convertPrecision(toLegacyType(details::convertPrecision(prc), true)));
         }
 
         network.setInputInfo(info);
@@ -151,12 +170,8 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
     if (!_new_api) {
         for (auto& output : _outputData) {
             // Convert precision into native format. Be consistent with possible conversion to CNNNetwork later.
-            if (output.second->getPrecision() == Precision::I64) {
-                output.second->setPrecision(Precision::I32);
-            } else if (output.second->getPrecision() != Precision::FP32 &&
-                       output.second->getPrecision() != Precision::I32) {
-                output.second->setPrecision(Precision::FP32);
-            }
+            output.second->setPrecision(details::convertPrecision(
+                toLegacyType(details::convertPrecision(output.second->getPrecision()), false)));
         }
     }
 }
@@ -187,14 +202,18 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
         InputInfo::Ptr info = std::make_shared<InputInfo>();
         const auto& name = inputInfo.second->getInputData()->getName();
         const auto& inData = inputInfo.second->getInputData();
+        IE_SUPPRESS_DEPRECATED_START
         DataPtr input =
             std::make_shared<Data>(name, inData->getPrecision(), inData->getPartialShape(), inData->getLayout());
+        IE_SUPPRESS_DEPRECATED_END
         _data[name] = input;
         info->setInputData(input);
         info->getPreProcess() = inputInfo.second->getPreProcess();
         info->setPrecision(inputInfo.second->getPrecision());
+        IE_SUPPRESS_DEPRECATED_START
         if (!inData->isDynamic())
             info->setLayout(inputInfo.second->getLayout());
+        IE_SUPPRESS_DEPRECATED_END
         _inputData[name] = info;
     }
 }
@@ -355,11 +374,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
         ssr_manager.register_pass<ngraph::pass::SmartReshape>();
         ssr_manager.run_passes(_ngraph_function);
 
-        std::map<std::string, ngraph::PartialShape> reshapeShapes;
-        for (const auto& item : inputShapes) {
-            reshapeShapes[item.first] = ngraph::PartialShape(item.second);
-        }
-        reshape(reshapeShapes);
+        reshape(inputShapes);
     } catch (std::exception& ex) {
         reshape(originalInputShapes);
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
@@ -368,7 +383,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
     return OK;
 }
 
-StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
+StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, SizeVector>& inputShapes,
                                          ResponseDesc* responseDesc) noexcept {
     std::map<std::string, ngraph::PartialShape> shapes;
     for (const auto& shape : inputShapes)
@@ -493,8 +508,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::Serialize>(xmlPath,
                                                        binPath,
-                                                       ngraph::pass::Serialize::Version::IR_V10,
-                                                       custom_opsets);
+                                                       custom_opsets,
+                                                       ngraph::pass::Serialize::Version::IR_V10);
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -517,8 +532,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::Serialize>(xmlBuf,
                                                        binBuf,
-                                                       ngraph::pass::Serialize::Version::IR_V10,
-                                                       custom_opsets);
+                                                       custom_opsets,
+                                                       ngraph::pass::Serialize::Version::IR_V10);
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -543,8 +558,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binB
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::Serialize>(xmlBuf,
                                                        binBuf,
-                                                       ngraph::pass::Serialize::Version::IR_V10,
-                                                       custom_opsets);
+                                                       custom_opsets,
+                                                       ngraph::pass::Serialize::Version::IR_V10);
         manager.run_passes(_ngraph_function);
 
         std::streambuf* pbuf = binBuf.rdbuf();

@@ -28,9 +28,12 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/type/element_type.hpp"
 
 namespace InferenceEngine {
 namespace details {
+
+ngraph::element::Type toLegacyType(const ngraph::element::Type& ngraph_type, bool input);
 
 IE_SUPPRESS_DEPRECATED_START
 
@@ -73,8 +76,7 @@ public:
 
     virtual void validate(int = 10);
 
-    StatusCode reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
-                       ResponseDesc* resp) noexcept override;
+    StatusCode reshape(const std::map<std::string, SizeVector>& inputShapes, ResponseDesc* resp) noexcept override;
     StatusCode reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes,
                        ResponseDesc* resp) noexcept override;
 
@@ -87,6 +89,10 @@ public:
 
     StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const
         noexcept override;
+
+    const std::vector<IExtensionPtr> getExtensions() const {
+        return _ie_extensions;
+    }
 
     // used by convertFunctionToICNNNetwork from legacy library
     std::map<std::string, DataPtr> _data;
