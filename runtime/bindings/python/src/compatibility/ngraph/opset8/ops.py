@@ -372,40 +372,23 @@ def random_uniform(
 def if_op(
     condition: NodeInput,
     inputs: List[Node],
-    bodies: Tuple(GraphBody, GraphBody)
-    input_desc: Tuple(List[TensorIteratorInvariantInputDesc], List[TensorIteratorInvariantInputDesc]),
-    output_desc: Tuple(List[TensorIteratorInvariantInputDesc], List[TensorIteratorInvariantInputDesc]),
+    bodies: Tuple[GraphBody, GraphBody],
+    input_desc: Tuple[List[TensorIteratorInvariantInputDesc], List[TensorIteratorInvariantInputDesc]],
+    output_desc: Tuple[List[TensorIteratorInvariantInputDesc], List[TensorIteratorInvariantInputDesc]],
     name: Optional[str] = None,
 ) -> Node:
-    """Perform recurrent execution of the network described in the body, iterating through the data.
+    """Execute one of the body depending on condtion value.
 
-    @param trip_count: A scalar or 1D tensor with 1 element specifying
-        maximum number of iterations.
-    @param execution_condition: A scalar or 1D tensor with 1 element
-        specifying whether to execute the first iteration or not.
-    @param      inputs:                The provided to TensorIterator operator.
-    @param      graph_body:            The graph representing the body we execute.
-    @param      slice_input_desc:      The descriptors describing sliced inputs, that is nodes
-                                       representing tensors we iterate through, processing single
-                                       data slice in one iteration.
-    @param      merged_input_desc:     The descriptors describing merged inputs, that is nodes
-                                       representing variables with initial value at first iteration,
-                                       which may be changing through iterations.
-    @param      invariant_input_desc:  The descriptors describing invariant inputs, that is nodes
-                                       representing variable with persistent value through all
-                                       iterations.
-    @param      body_output_desc:      The descriptors describing body outputs from specified
-                                       iteration.
-    @param      concat_output_desc:    The descriptors describing specified output values through
-                                       all the iterations concatenated into one node.
-    @param      body_condition_output_idx:    Determines the purpose of the corresponding result in
-                                              the graph_body. This result will determine the dynamic
-                                              exit condition. If the value of this result is False,
-                                              then iterations stop.
-    @param      current_iteration_input_idx:  Determines the purpose of the corresponding parameter
-                                              in the graph_body. This parameter will be used as
-                                              an iteration counter. Optional.
-    @return: The new node which performs Loop.
+    @param      condition:             A scalar or 1D tensor with 1 element specifying body will be executed. If condition is True, 
+                                       then body will be executed, False - else_body.
+    @param      inputs:                The provided to If operator.
+    @param      bodies:                Two graphs (then_body, else_body) which will be executed depending on condition value.
+    @param      input_desc             Two lists (for then_body and else_body) which contain rules how If inputs are connected with 
+                                       body parameters.
+    @param      output_desc:           Two lists (for then_body and else_body) which contain rules how If outputs are connected with 
+                                       body results.
+                
+    @return: The new node which performs If operation.
     """
     attributes = {
         "then_body": bodies[0].serialize(),
