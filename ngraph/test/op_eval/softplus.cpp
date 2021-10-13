@@ -17,6 +17,8 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 TEST(op_eval, softplus_4D) {
     auto p = make_shared<op::Parameter>(element::f32, Shape{4});
     auto softplus = make_shared<op::v4::SoftPlus>(p);

@@ -25,6 +25,8 @@ using Nearest_mode = op::v4::Interpolate::NearestMode;
 using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
 using ShapeCalcMode = op::v4::Interpolate::ShapeCalcMode;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 // All examples are from ONNX Resize-11 documentation
 // (see https://github.com/onnx/onnx/blob/master/docs/Operators.md).
 TEST(op_eval, interpolate_v4_cubic) {

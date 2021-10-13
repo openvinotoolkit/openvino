@@ -18,6 +18,8 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 TEST(op_eval, non_zero_0D) {
     auto p = make_shared<op::Parameter>(element::i32, Shape{});
     auto non_zero = make_shared<op::v3::NonZero>(p, element::i64);

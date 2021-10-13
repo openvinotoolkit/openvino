@@ -18,6 +18,8 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 TEST(op_eval, strided_slice1) {
     auto A_shape = Shape{3, 2, 3};
     auto A = make_shared<op::Parameter>(element::i64, A_shape);

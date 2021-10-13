@@ -18,6 +18,8 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 TEST(op_eval, split) {
     const auto data_shape = Shape{3, 8, 3};
     const auto data = make_shared<op::Parameter>(element::i64, data_shape);

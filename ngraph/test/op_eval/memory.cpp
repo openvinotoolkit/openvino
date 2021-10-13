@@ -19,6 +19,8 @@ using namespace std;
 using namespace ngraph;
 using namespace ngraph::opset7;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 shared_ptr<ngraph::Function> AssignReadGraph() {
     auto p = make_shared<op::Parameter>(element::f32, Shape{3});
     auto variable = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "var_1"});

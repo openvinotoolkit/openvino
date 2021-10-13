@@ -65,7 +65,9 @@ public:
 
     /// \return true and the AxisSet if broadcast axes can be fully determined.
     std::pair<bool, AxisSet> get_broadcast_axes() const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 private:
@@ -124,7 +126,9 @@ public:
     }
 
     void validate_and_infer_types() override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 protected:

@@ -10,6 +10,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
 #include "ngraph/runtime/tensor.hpp"
+#include "openvino/core/deprecated.hpp"
 
 namespace ngraph {
 namespace runtime {
@@ -64,9 +65,11 @@ static bool call(const HostTensorVector& func_outputs,
             op_outputs.push_back(host_tensor);
         }
         op->validate_and_infer_types();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (!op->evaluate(op_outputs, op_inputs)) {
             throw ngraph_error("Evaluate function is not implemented.");
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     return true;
 }

@@ -46,7 +46,9 @@ public:
     /// \return true and the AxisSet if broadcast axes can be fully determined.
     virtual std::pair<bool, AxisSet> get_broadcast_axes() const;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
     BroadcastModeSpec m_mode;
@@ -58,8 +60,10 @@ protected:
 
     bool evaluate_broadcast(const HostTensorPtr& arg0, const HostTensorPtr& out, const AxisSet& broadcast_axes) const;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate_lower(const HostTensorVector& outputs) const override;
     bool evaluate_upper(const HostTensorVector& outputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     PartialShape get_result_shape_pdpd(const PartialShape& arg0_shape,
                                        const PartialShape& target_shape,

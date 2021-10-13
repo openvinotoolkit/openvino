@@ -29,7 +29,9 @@ public:
     bool getSpecialZero() const { return m_specialZero; }
     void setSpecialZero(bool special_zero) { m_specialZero = special_zero; }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     void set_output_type(const ngraph::element::Type& output_type);
     using Node::set_output_type;
 

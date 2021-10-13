@@ -16,6 +16,7 @@
 
 using namespace std;
 using namespace ngraph;
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 TEST(op_eval, hswish) {
     auto p = make_shared<op::Parameter>(element::f32, Shape{3});
