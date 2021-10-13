@@ -15,6 +15,8 @@ using namespace InferenceEngine;
 
 bool MKLDNNGatherNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        // std::cout << (*op) << std::endl;
+
         if (!one_of(op->get_type_info(),
                 ngraph::op::v7::Gather::type_info)) {
             errorMessage = "Not supported Gather operation version. CPU plug-in supports only 7 version.";

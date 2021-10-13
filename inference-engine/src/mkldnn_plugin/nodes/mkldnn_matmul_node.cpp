@@ -63,6 +63,12 @@ MKLDNNMatMulNode::MKLDNNMatMulNode(const std::shared_ptr<ngraph::Node>& op, cons
 
     transposeIn[0] = matMul->get_transpose_a();
     transposeIn[1] = matMul->get_transpose_b();
+
+    if (getName() == "292") {
+        std::cout << "MATMUL 0: " << getName() << std::endl;
+        std::cout << inputShapes[0].toString() << std::endl;
+        std::cout << inputShapes[1].toString() << std::endl;
+    }
 }
 
 bool MKLDNNMatMulNode::canFuse(const MKLDNNNodePtr& node) const {
@@ -170,6 +176,12 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
         }
     }
 
+    if (getName() == "292") {
+        std::cout << "MATMUL 1: " << getName() << std::endl;
+        std::cout << inputShapes[0].toString() << std::endl;
+        std::cout << inputShapes[1].toString() << std::endl;
+    }
+
     std::vector<Shape> staticInputShapes(2);
     staticInputShapes[0] = inputShapes[0].isStatic() ? inputShapes[0] : MemoryDescUtils::makeDummyShape(inputShapes[0]);
     staticInputShapes[1] = inputShapes[1].isStatic() ? inputShapes[1] : MemoryDescUtils::makeDummyShape(inputShapes[1]);
@@ -188,6 +200,11 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
 
 void MKLDNNMatMulNode::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                                         const std::vector<MemoryDescPtr>& outputDesc) {
+
+    const auto a = inDataDesc[0]->getDnnlDesc();
+    const auto b = inDataDesc[1]->getDnnlDesc();
+    const auto c = outDataDesc->getDnnlDesc();
+
     MKLDNNDescriptor desc{
         std::make_shared<matmul::desc>(inDataDesc[0]->getDnnlDesc(),
                                        inDataDesc[1]->getDnnlDesc(),

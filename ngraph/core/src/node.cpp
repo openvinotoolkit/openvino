@@ -376,6 +376,10 @@ ov::Node* ov::Node::get_input_node_ptr(size_t index) const {
 }
 
 std::shared_ptr<ov::Node> ov::Node::get_input_node_shared_ptr(size_t index) const {
+    if (index >= m_inputs.size()) {
+        int a = 0;
+        a++;
+    }
     NGRAPH_CHECK(index < m_inputs.size(), "index '", index, "' out of range in get_argument(size_t index)");
     return m_inputs[index].get_output().get_node();
 }

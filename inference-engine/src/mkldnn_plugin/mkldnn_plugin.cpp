@@ -543,6 +543,15 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
+// std::cout << "SERIALIZE START" << std::endl;
+//     clonedNetwork.serialize("/home/maximandronov/test_repo/openvino/models/BERT/ng.xml");
+// std::cout << "SERIALIZE END" << std::endl;
+
+    // for (const auto &node : nGraphFunc->get_ordered_ops()) {
+    //     // if (std::string(node->get_type_name()) == "Broadcast") {
+    //         std::cout << (*node) << std::endl;
+    //     // }
+    // }
 
     return std::make_shared<MKLDNNExecNetwork>(clonedNetwork, conf, extensionManager, weightsSharing);
 }

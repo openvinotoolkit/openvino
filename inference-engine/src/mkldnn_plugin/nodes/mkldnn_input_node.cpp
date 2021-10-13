@@ -240,6 +240,11 @@ MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const 
     constant = ConstantType::NoConst;
 
     constOp = ngraph::as_type_ptr<ngraph::op::Constant>(op);
+
+    if (!constOp) {
+        std::cout << (*op) << std::endl;
+    }  
+
     if (constOp) {
         constant = ConstantType::Const;
         cloneBlobIfRequired();

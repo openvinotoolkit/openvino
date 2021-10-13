@@ -112,6 +112,10 @@ void op::v1::Reshape::validate_and_infer_types() {
         calculate_output_shape(reshape_pattern, minus_one_idx, input_pshape, output_shape);
         set_output_type(0, get_input_element_type(0), output_shape);
     }
+
+    // if (get_friendly_name() == "260") {
+    //     std::cout << "RESHAPE: " << (*this) << std::endl;
+    // }
 }
 
 shared_ptr<Node> op::v1::Reshape::clone_with_new_inputs(const OutputVector& new_args) const {

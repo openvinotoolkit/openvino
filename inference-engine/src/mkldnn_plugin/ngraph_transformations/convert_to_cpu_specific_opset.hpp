@@ -30,12 +30,12 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<Reshape1DGroupConvolution>();
     manager.register_pass<Reshape1DAvgPool>();
     manager.register_pass<Reshape1DMaxPool>();
-    manager.register_pass<ConvertMatMulToFC>();
+    // manager.register_pass<ConvertMatMulToFC>(); <=============== FC
     manager.register_pass<AlignMatMulInputRanks>();
     manager.register_pass<ConvertBroadcastToTiles>();
     manager.register_pass<ConvertTileToSeqTiles>();
-    manager.register_pass<FullyConnectedBiasFusion>();
-    manager.register_pass<ReshapeFullyConnected>();
+    // manager.register_pass<FullyConnectedBiasFusion>(); <=============== FC
+    // manager.register_pass<ReshapeFullyConnected>(); <=============== FC
     manager.register_pass<ConvertToPowerStatic>();
     manager.register_pass<ConvertToLeakyRelu>();
     manager.register_pass<ReshapePRelu>();
@@ -43,9 +43,9 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<OptimizeGRUSequenceTransposes>();
     manager.register_pass<OptimizeLSTMSequenceTransposes>();
     manager.register_pass<OptimizeRNNSequenceTransposes>();
-    if (!ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc)) {
-        manager.register_pass<ReshapeFullyConnectedFusion>();
-    }
+    // if (!ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc)) { <=============== FC
+    //     manager.register_pass<ReshapeFullyConnectedFusion>();
+    // }
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
     manager.run_passes(nGraphFunc);

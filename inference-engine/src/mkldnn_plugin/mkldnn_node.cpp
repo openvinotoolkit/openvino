@@ -496,6 +496,7 @@ void MKLDNNNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNNode::executeDynamic(mkldnn::stream strm) {
+    // std::cout << getName() << std::endl;
     if (needShapeInfer()) {
         redefineOutputMemory(shapeInfer());
     }
@@ -1254,13 +1255,26 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
         }
     }
 
+    if (std::string(opToShapeInfer->get_type_name()) == "Broadcast") {
+        // std::cout << "BROADCAST: " << getName() << " " << getParentEdges().size() << std::endl;
+        ngraph::OutputVector inputsForShapeInfer;
+        inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Parameter>(opToShapeInfer->get_input_element_type(0),
+                                                                                  getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape()));
+        inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i32,
+                                                                                 getParentEdgesAtPort(1)[0]->getMemory().getStaticDims(),
+                                                                                 getParentEdgesAtPort(1)[0]->getMemory().GetPtr()));
+        // inputsForShapeInfer.push_back(opToShapeInfer->get_input_node_shared_ptr(2));
+
+        opToShapeInfer = opToShapeInfer->clone_with_new_inputs(inputsForShapeInfer);
+    }
+
     opToShapeInfer->validate_and_infer_types();
 
     std::vector<VectorDims> newOutputShapes(opToShapeInfer->get_output_size());
     for (size_t i = 0; i < newOutputShapes.size(); i++) {
         const auto &partShape = opToShapeInfer->get_output_partial_shape(i);
         if (partShape.is_dynamic())
-            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for nodes with internal dynamism";
+            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for nodes with internal dynamism: " << getName() << " - " << getTypeStr();
         newOutputShapes[i] = partShape.get_shape();
     }
     return newOutputShapes;

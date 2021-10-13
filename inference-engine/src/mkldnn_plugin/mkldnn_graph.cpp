@@ -70,6 +70,8 @@ void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMg
     // disable caching if graph was created only once
     weightsCache = config.streamExecutorConfig._streams != 1 ? w_cache : nullptr;
 
+    std::cout << "weightsCache: " << weightsCache.get() << std::endl;
+
     Replicate(net, extMgr);
     InitGraph();
 
@@ -319,37 +321,46 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 }
 
 void MKLDNNGraph::InitGraph() {
+// std::cout << "0" << std::endl;
     MKLDNNGraphOptimizer optimizer;
     CPU_DEBUG_CAP_ENABLE(initNodeDumper(config.debugCaps));
-
+// std::cout << "1" << std::endl;
     SortTopologically();
     InitNodes();
-
+// std::cout << "2" << std::endl;
     optimizer.ApplyCommonGraphOptimizations(*this);
     SortTopologically();
-
+// std::cout << "3" << std::endl;
     InitDescriptors();
     RemoveDroppedEdges();
-
+// std::cout << "4" << std::endl;
     InitOptimalPrimitiveDescriptors();
-
+// std::cout << "5" << std::endl;
     InitEdges();
-
+// std::cout << "6" << std::endl;
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
     SortTopologically();
 
+    // for (const auto &n : graphNodes) {
+    //     if (!n->isDynamicNode()) {
+    //         std::cout << n->getName() << std::endl;
+    //     }
+    // }
+
+// std::cout << "7" << std::endl;
     Allocate();
-
+// std::cout << "8" << std::endl;
     CreatePrimitives();
-
+// std::cout << "9" << std::endl;
 #ifndef CPU_DEBUG_CAPS
     for (auto &graphNode : graphNodes) {
         graphNode->cleanup();
     }
 #endif
     ExtractConstantAndExecutableNodes();
-
+// std::cout << "10" << std::endl;
     ExecuteConstantNodesOnly();
+// std::cout << "11" << std::endl;
 }
 
 void MKLDNNGraph::InitNodes() {
@@ -368,14 +379,16 @@ void MKLDNNGraph::InitDescriptors() {
             if (inputNode)
                 inputNode->withMeanImage();
         }
+        // std::cout << "A 1: " << node->getName() << std::endl;
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.getSupportedDescriptors);
         node->getSupportedDescriptors();
-
+        // std::cout << "A 2: " << node->getName() << std::endl;
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.initSupportedPrimitiveDescriptors);
         node->initSupportedPrimitiveDescriptors();
-
+        // std::cout << "A 3: " << node->getName() << std::endl;
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.filterSupportedPrimitiveDescriptors);
         node->filterSupportedPrimitiveDescriptors();
+        // std::cout << "A 4: " << node->getName() << std::endl;
     }
 
     for (auto &node : graphNodes) {
@@ -655,8 +668,9 @@ void MKLDNNGraph::AllocateWithReuse() {
     size_t total_size = static_cast<size_t>(memSolver.solve()) * alignment;
 
     memWorkspace = std::make_shared<MKLDNNMemory>(eng);
+    std::cout << "TOTAL: " << total_size << std::endl;
     memWorkspace->Create(DnnlBlockedMemoryDesc(InferenceEngine::Precision::I8, Shape(InferenceEngine::SizeVector{total_size})));
-
+    std::cout << "END TOTAL: " << total_size << std::endl;
     if (edge_clusters.empty())
         return;
 
@@ -700,6 +714,10 @@ void MKLDNNGraph::Allocate() {
 
     // Create dummy memory with undefined desc for edges that are not allocated on the previous stages (memory solver and inPlace resolving)
     for (auto& edge : graphEdges) edge->allocate();
+
+    // for (auto& edge : graphEdges) {
+    //     std::cout << edge->name() << std::endl;
+    // }
 
     // Check all getters. Should work.
     for (auto& edge : graphEdges) edge->validate();
@@ -826,6 +844,10 @@ inline void MKLDNNGraph::ExecuteNode(const MKLDNNNodePtr& node, const mkldnn::st
         node->executeDynamic(stream);
     else
         node->execute(stream);
+
+    if (node->getType() == Input || node->getType() == Reference) {
+        std::cout << node->getTypeStr() << " | " << node->getName() << " " << (node->isDynamicNode() ? "DA " : "NET ") << vec2str(node->getChildEdgesAtPort(0)[0]->getMemory().getStaticDims()) << std::endl;
+    }
 }
 
 void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {

@@ -56,6 +56,7 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Function> func) {
     overall_timer.start();
     bool function_changed = false;
     for (auto& pass : m_pass_list) {
+        // std::cout << "PASS START: " << pass->get_name() << std::endl;
         if (m_pass_config->is_disabled(pass->get_type_info())) {
             NGRAPH_DEBUG << "Pass " << pass->get_name() << " is disabled";
             continue;
@@ -125,6 +126,7 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Function> func) {
         if (profile_enabled) {
             cout << setw(7) << pass_timer.get_milliseconds() << "ms " << pass->get_name() << "\n";
         }
+        // std::cout << "PASS END: " << pass->get_name() << std::endl;
     }
     if (profile_enabled) {
         cout << "passes done in " << overall_timer.get_milliseconds() << "ms\n";
