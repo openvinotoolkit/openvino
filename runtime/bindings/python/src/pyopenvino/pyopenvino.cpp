@@ -30,6 +30,7 @@
 #include "pyopenvino/core/ie_infer_request.hpp"
 #include "pyopenvino/core/ie_input_info.hpp"
 #include "pyopenvino/core/ie_network.hpp"
+#include "pyopenvino/core/ie_offline_transformations.hpp"
 #include "pyopenvino/core/ie_parameter.hpp"
 #include "pyopenvino/core/ie_preprocess_info.hpp"
 #include "pyopenvino/core/ie_version.hpp"
@@ -51,7 +52,6 @@
 #include "pyopenvino/graph/types/regmodule_graph_types.hpp"
 #include "pyopenvino/graph/util.hpp"
 #include "pyopenvino/graph/variant.hpp"
-#include "pyopenvino/core/ie_offline_transformations.hpp"
 
 namespace py = pybind11;
 
