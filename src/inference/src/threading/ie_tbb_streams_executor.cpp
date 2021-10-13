@@ -65,10 +65,7 @@ struct TBBStreamsExecutor::Impl {
             void on_scheduler_entry(bool) override {
                 _localStream->local() = _thisStream;
                 if (nullptr != _mask) {
-                    PinThreadToVacantCore(_offset + tbb::this_task_arena::current_thread_index(),
-                                          _threadBindingStep,
-                                          _ncpus,
-                                          _mask);
+                    PinThreadToVacantCore(_offset + parallel_get_thread_num(), _threadBindingStep, _ncpus, _mask);
                 }
             }
             void on_scheduler_exit(bool) override {
@@ -158,6 +155,8 @@ struct TBBStreamsExecutor::Impl {
         int _numaNodeId = 0;
         custom::task_arena _arena;
         std::unique_ptr<Observer> _observer;
+        bool _execute = false;
+        std::queue<Task> _taskQueue;
     };
 
     using Streams = std::list<Stream>;
@@ -244,6 +243,32 @@ struct TBBStreamsExecutor::Impl {
         }
     }
 
+    void Defer(Task task) {
+        auto& stream = _externStreams.local();
+        if (!stream._execute) {
+            stream._execute = true;
+            stream._arena.execute([&] {
+                do {
+                    try {
+                        Task local_task = std::move(task);
+                        local_task();
+                    } catch (...) {
+                    }
+                } while ([&] {
+                    if (stream._taskQueue.empty()) {
+                        return false;
+                    }
+                    task = std::move(stream._taskQueue.front());
+                    stream._taskQueue.pop();
+                    return true;
+                }());
+            });
+            stream._execute = false;
+        } else {
+            stream._taskQueue.push(std::move(task));
+        }
+    }
+
     Config _config;
     std::unique_ptr<tbb::global_control> _maxTbbThreads;
     std::mutex _streamIdMutex;
@@ -282,7 +307,7 @@ int TBBStreamsExecutor::GetNumaNodeId() {
 
 void TBBStreamsExecutor::run(Task task) {
     if (_impl->_config._streams == 0) {
-        Execute(std::move(task));
+        _impl->Defer(std::move(task));
     } else {
         Impl::Schedule(_impl->_shared, std::move(task));
     }
@@ -291,10 +316,9 @@ void TBBStreamsExecutor::run(Task task) {
 void TBBStreamsExecutor::Execute(Task task) {
     auto stream = _impl->_localStream.local();
     if (nullptr == stream) {
-        _impl->_externStreams.local()._arena.execute(std::move(task));
-    } else {
-        stream->_arena.execute(std::move(task));
+        stream = &(_impl->_externStreams.local());
     }
+    stream->_arena.execute(std::move(task));
 }
 
 }  // namespace InferenceEngine
