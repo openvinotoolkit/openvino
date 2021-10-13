@@ -134,7 +134,9 @@ namespace LayerTestsDefinitions {
         for (auto& outTensor : outputTensors) {
             outTensor = std::make_shared<HostTensor>();
         }
+        OPENVINO_SUPPRESS_DEPRECATED_START
         function->evaluate(outputTensors, inputTensors, eval_context);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> outputs(outInfo.size());
         for (size_t idx = 0; idx < outInfo.size(); ++idx) {
