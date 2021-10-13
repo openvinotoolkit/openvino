@@ -233,6 +233,14 @@ device_info init_device_info(const cl::Device& device) {
 
     info.supports_queue_families = extensions.find("cl_intel_command_queue_families") != std::string::npos;
 
+    bool sub_group_sizes_supported = extensions.find("cl_intel_required_subgroup_size") != std::string::npos;
+    if (sub_group_sizes_supported) {
+        info.supported_simd_sizes = device.getInfo<CL_DEVICE_SUB_GROUP_SIZES_INTEL>();
+    } else {
+        // Set these values as reasonable default for most of the supported platforms
+        info.supported_simd_sizes = {8, 16, 32};
+    }
+
     bool device_attr_supported = extensions.find("cl_intel_device_attribute_query") != std::string::npos;
 
     if (device_attr_supported) {

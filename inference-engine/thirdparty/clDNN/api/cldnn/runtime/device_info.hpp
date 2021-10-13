@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -53,6 +54,8 @@ struct device_info {
     bool supports_immad;                        ///< Does engine support int8 multi mad.
 
     bool supports_usm;                          ///< Does engine support unified shared memory.
+
+    std::vector<size_t> supported_simd_sizes;   ///< List of SIMD sizes supported by current device and compiler
 
     uint32_t vendor_id;                         ///< Vendor ID
     std::string dev_name;                       ///< Device ID string
