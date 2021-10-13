@@ -42,7 +42,6 @@ bool evaluate_log(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_log, boolean, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_log, i32, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_log, i64, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_log, u32, arg0, out, count);
@@ -65,7 +64,6 @@ bool op::Log::evaluate(const HostTensorVector& outputs, const HostTensorVector& 
 bool op::Log::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Log_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::boolean:
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

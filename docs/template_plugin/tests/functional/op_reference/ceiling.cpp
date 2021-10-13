@@ -101,14 +101,31 @@ std::vector<CeilingParams> generateParamsForCeilingInt32() {
     return params;
 }
 
+template <element::Type_t IN_ET>
+std::vector<CeilingParams> generateParamsForCeilingInt() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+
+    std::vector<CeilingParams> params{
+        CeilingParams(ov::PartialShape{4},
+                     IN_ET,
+                     std::vector<T>{2, 64, 0x40, 0x01},
+                     std::vector<T>{2, 64, 0x40, 0x01})
+    };
+    return params;
+}
+
 std::vector<CeilingParams> generateCombinedParamsForCeiling() {
     const std::vector<std::vector<CeilingParams>> allTypeParams{
         generateParamsForCeilingFloat<element::Type_t::f32>(),
         generateParamsForCeilingFloat<element::Type_t::f16>(),
         generateParamsForCeilingInt64<element::Type_t::i64>(),
         generateParamsForCeilingInt32<element::Type_t::i32>(),
+        generateParamsForCeilingInt<element::Type_t::i16>(),
+        generateParamsForCeilingInt<element::Type_t::i8>(),
         generateParamsForCeilingInt64<element::Type_t::u64>(),
-        generateParamsForCeilingInt32<element::Type_t::u32>()
+        generateParamsForCeilingInt32<element::Type_t::u32>(),
+        generateParamsForCeilingInt<element::Type_t::u16>(),
+        generateParamsForCeilingInt<element::Type_t::u8>()
     };
 
     std::vector<CeilingParams> combinedParams;

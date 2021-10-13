@@ -103,6 +103,7 @@ std::vector<AbsParams> generateCombinedParamsForAbs() {
     const std::vector<std::vector<AbsParams>> allTypeParams{
         generateParamsForAbsFloat<element::Type_t::f32>(),
         generateParamsForAbsFloat<element::Type_t::f16>(),
+        generateParamsForAbsFloat<element::Type_t::bf16>(),
         generateParamsForAbsInt<element::Type_t::i64>(),
         generateParamsForAbsInt<element::Type_t::i32>(),
         generateParamsForAbsUInt<element::Type_t::u64>(),

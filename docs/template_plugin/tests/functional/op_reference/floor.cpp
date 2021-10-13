@@ -102,12 +102,32 @@ std::vector<FloorParams> generateParamsForFloorInt32() {
     return params;
 }
 
+template <element::Type_t IN_ET>
+std::vector<FloorParams> generateParamsForFloorInt() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+
+    std::vector<FloorParams> params{
+        FloorParams(ov::PartialShape{4},
+                    IN_ET,
+                    std::vector<T>{2, 64, 0x40, 0x01},
+                    std::vector<T>{2, 64, 0x40, 0x01})
+    };
+    return params;
+}
+
 std::vector<FloorParams> generateCombinedParamsForFloor() {
     const std::vector<std::vector<FloorParams>> allTypeParams{
         generateParamsForFloorFloat<element::Type_t::f32>(),
         generateParamsForFloorFloat<element::Type_t::f16>(),
         generateParamsForFloorInt64<element::Type_t::i64>(),
-        generateParamsForFloorInt32<element::Type_t::i32>()};
+        generateParamsForFloorInt32<element::Type_t::i32>(),
+        generateParamsForFloorInt<element::Type_t::i16>(),
+        generateParamsForFloorInt<element::Type_t::i8>(),
+        generateParamsForFloorInt<element::Type_t::u64>(),
+        generateParamsForFloorInt<element::Type_t::u32>(),
+        generateParamsForFloorInt<element::Type_t::u16>(),
+        generateParamsForFloorInt<element::Type_t::u8>()
+    };
 
     std::vector<FloorParams> combinedParams;
 

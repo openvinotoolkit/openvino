@@ -73,10 +73,28 @@ std::vector<LogParams> generateParamsForLog() {
     return logParams;
 }
 
+
+template <element::Type_t IN_ET>
+std::vector<LogParams> generateParamsForLogInt() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+
+    std::vector<LogParams> logParams{
+        LogParams(ov::PartialShape{4},
+                  IN_ET,
+                  std::vector<T>{10, 100, 1000, 10000},
+                  std::vector<T>{2, 4, 6, 9})
+    };
+    return logParams;
+}
+
 std::vector<LogParams> generateCombinedParamsForLog() {
     const std::vector<std::vector<LogParams>> allTypeParams{
         generateParamsForLog<element::Type_t::f32>(),
-        generateParamsForLog<element::Type_t::f16>()
+        generateParamsForLog<element::Type_t::f16>(),
+        generateParamsForLogInt<element::Type_t::i64>(),
+        generateParamsForLogInt<element::Type_t::i32>(),
+        generateParamsForLogInt<element::Type_t::u64>(),
+        generateParamsForLogInt<element::Type_t::u32>()
     };
 
     std::vector<LogParams> combinedParams;

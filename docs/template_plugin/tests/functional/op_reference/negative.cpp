@@ -90,6 +90,7 @@ std::vector<NegativeParams> generateCombinedParamsForNegative() {
     const std::vector<std::vector<NegativeParams>> allTypeParams{
         generateParamsForNegativeFloat<element::Type_t::f32>(),
         generateParamsForNegativeFloat<element::Type_t::f16>(),
+        generateParamsForNegativeFloat<element::Type_t::bf16>(),
         generateParamsForNegativeInt<element::Type_t::i64>(),
         generateParamsForNegativeInt<element::Type_t::i32>()
     };

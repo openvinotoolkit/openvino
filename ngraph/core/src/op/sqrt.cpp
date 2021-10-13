@@ -48,7 +48,6 @@ bool evaluate_sqrt(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
         NGRAPH_TYPE_CASE(evaluate_sqrt, u64, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_sqrt, f16, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_sqrt, f32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_sqrt, f64, arg0, out, count);
     default:
         rc = false;
         break;

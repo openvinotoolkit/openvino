@@ -41,7 +41,6 @@ bool evaluate_round(const HostTensorPtr& arg0,
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_COPY_TENSOR(evaluate_round, boolean, arg0, out, count);
         NGRAPH_COPY_TENSOR(evaluate_round, i8, arg0, out, count);
         NGRAPH_COPY_TENSOR(evaluate_round, i16, arg0, out, count);
         NGRAPH_COPY_TENSOR(evaluate_round, i32, arg0, out, count);
@@ -94,7 +93,6 @@ bool op::v5::Round::evaluate(const HostTensorVector& outputs, const HostTensorVe
 bool op::v5::Round::has_evaluate() const {
     NGRAPH_OP_SCOPE(v5_Round_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::boolean:
     case ngraph::element::i8:
     case ngraph::element::i16:
     case ngraph::element::i32:
