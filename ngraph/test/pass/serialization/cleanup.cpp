@@ -6,8 +6,9 @@
 
 #include <fstream>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "util/graph_comparator.hpp"
 #include "util/test_common.hpp"
 
 class SerializationCleanupTest : public ov::test::TestsCommon {
@@ -24,11 +25,10 @@ protected:
 
 namespace {
 std::shared_ptr<ngraph::Function> CreateTestFunction(const std::string& name, const ngraph::PartialShape& ps) {
-    using namespace ngraph;
-    const auto param = std::make_shared<op::Parameter>(element::f16, ps);
-    const auto convert = std::make_shared<op::Convert>(param, element::f32);
-    const auto result = std::make_shared<op::Result>(convert);
-    return std::make_shared<Function>(ResultVector{result}, ParameterVector{param}, name);
+    const auto param = std::make_shared<ov::opset8::Parameter>(ov::element::f16, ps);
+    const auto convert = std::make_shared<ov::opset8::Convert>(param, ov::element::f32);
+    const auto result = std::make_shared<ov::opset8::Result>(convert);
+    return std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{param}, name);
 }
 }  // namespace
 

@@ -68,8 +68,8 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Get
         output_feature = output.Y().v;
     }
 
-    tuning_data.sub_group_size = 8;
-    if (input.X().v == 1 && input.Z().v == 1 && input.Batch().v == 1 &&
+    tuning_data.sub_group_size = IsSIMDSizeSupported(params.engineInfo, 8) ? 8 : 16;
+    if (tuning_data.sub_group_size == 8 && input.X().v == 1 && input.Z().v == 1 && input.Batch().v == 1 &&
         ((input.Y().v == 1 && output.GetLayout() != DataLayout::bfyx) || (input.Feature().v == 1 && output.GetLayout() == DataLayout::bfyx)) ) {
         // Known cases for TGL where simd16 works better than simd8
         bool simd16_exception_1 = input.Feature().v == 25088 && output.Feature().v == 512;
