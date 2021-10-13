@@ -31,7 +31,14 @@ file(GLOB_RECURSE SOURCES *.cpp)
 pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../inference_engine")
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime)
+if(TARGET offline_transformations)
+    list(APPEND link_libraries )
+    target_link_libraries(${PROJECT_NAME} PRIVATE offline_transformations)
+else()
+    target_link_libraries(${PROJECT_NAME} PRIVATE IE::offline_transformations)
+endif()
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)
