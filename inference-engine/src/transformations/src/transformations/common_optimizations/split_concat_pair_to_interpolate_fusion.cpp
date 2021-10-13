@@ -53,18 +53,15 @@ std::pair<std::shared_ptr<ngraph::opset8::Split>, int64_t> get_split_before_conc
     // conditions is false, this functions returns nullptr.
 
     std::vector<size_t> idx;
-    std::unordered_set<std::shared_ptr<ngraph::opset8::Split>> splits;
+    std::shared_ptr<ngraph::opset8::Split> split;
     for (const auto& input : concat->input_values()) {
         // If 'concat' has some non-Split producer, then the transformation is not applicable.
-        auto split = std::dynamic_pointer_cast<ngraph::opset8::Split>(input.get_node_shared_ptr());
-        if (!split) return {};
+        auto split_op = std::dynamic_pointer_cast<ngraph::opset8::Split>(input.get_node_shared_ptr());
+        if (!split)
+            split = split_op;
+        if (!split_op || split != split_op) return {};
         idx.emplace_back(input.get_index());
-        splits.insert(split);
     }
-    // If 'concat' has more than one Splits as producers, then the transformation is not applicable.
-    if (splits.size() != 1) return {};
-
-    auto split = *(splits.begin());
 
     // If 'split' node has more than one consumer, then the transformation is not applicable.
     for (const auto& output : split->outputs()) {
