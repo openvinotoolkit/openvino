@@ -74,10 +74,8 @@ bool ov::pass::MakeStateful::run_on_function(std::shared_ptr<ngraph::Function> f
         // Create ReadValue
         auto const_zero = make_shared<Constant>(param->get_element_type(), param->get_shape(), 0);
         auto read_val = make_shared<ReadValue>(const_zero, variable);
-        for (const auto& target_in : target_inputs) {
-            target_in.replace_source_output(read_val->output(0));
-        }
-        copy_runtime_info(param, read_val);
+        replace_node(param, read_val);
+        copy_runtime_info(param, {read_val, const_zero});
 
         // Create Assign
         auto assign = make_shared<Assign>(res->input_value(0), variable);
