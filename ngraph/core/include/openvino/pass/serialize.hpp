@@ -27,9 +27,9 @@ public:
     OPENVINO_RTTI("Serialize");
 
     enum class Version : uint8_t {
-        UNSPECIFIED = 0,        // Use the latest or function version
-        IR_V10 = 10,            // v10 IR
-        IR_V11 = 11             // v11 IR
+        UNSPECIFIED = 0,  // Use the latest or function version
+        IR_V10 = 10,      // v10 IR
+        IR_V11 = 11       // v11 IR
     };
     bool run_on_function(std::shared_ptr<ov::Function> f) override;
 

@@ -1067,7 +1067,6 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
             version = version_var->get();
         }
 
-
         if (version != static_cast<int64_t>(m_version) && m_version != Serialize::Version::UNSPECIFIED)
             throw ngraph_error("Cannot serialize function to incompatible IR version");
 
@@ -1145,14 +1144,14 @@ pass::Serialize::Serialize(const std::string& xmlPath,
 pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPath, pass::Serialize::Version version)
     : pass::Serialize::Serialize(xmlPath, binPath, std::map<std::string, ngraph::OpSet>{}, version) {}
 
-pass::StreamSerialize::StreamSerialize(std::ostream & stream,
-                                               std::map<std::string, ngraph::OpSet> && custom_opsets,
-                                               const std::function<void(std::ostream &)> & custom_data_serializer,
-                                               Serialize::Version version)
-    : m_stream(stream)
-    , m_custom_opsets(std::move(custom_opsets))
-    , m_custom_data_serializer(custom_data_serializer)
-    , m_version(version) {
+pass::StreamSerialize::StreamSerialize(std::ostream& stream,
+                                       std::map<std::string, ngraph::OpSet>&& custom_opsets,
+                                       const std::function<void(std::ostream&)>& custom_data_serializer,
+                                       Serialize::Version version)
+    : m_stream(stream),
+      m_custom_opsets(std::move(custom_opsets)),
+      m_custom_data_serializer(custom_data_serializer),
+      m_version(version) {
     if (version != Serialize::Version::UNSPECIFIED && version != Serialize::Version::IR_V10 &&
         version != Serialize::Version::IR_V11) {
         throw ngraph_error("Unsupported version");
