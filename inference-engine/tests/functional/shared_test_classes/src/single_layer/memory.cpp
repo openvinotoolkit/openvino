@@ -5,7 +5,6 @@
 #include <signal.h>
 #include <ie_transformations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
-#include <transformations/serialize.hpp>
 #include <functional_test_utils/core_config.hpp>
 #include "ngraph/opsets/opset7.hpp"
 #include "ngraph_functions/builders.hpp"
