@@ -4,9 +4,9 @@
 
 #include "pyopenvino/core/ie_offline_transformations.hpp"
 
-#include <pot_transformations.hpp>
 #include <generate_mapping_file.hpp>
-#include <moc_transformations.hpp>
+#include <transformations/common_optimizations/moc_transformations.hpp>
+#include <pot_transformations.hpp>
 #include <pruning.hpp>
 
 #include "openvino/pass/low_latency.hpp"
