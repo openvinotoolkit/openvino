@@ -767,3 +767,157 @@ TEST(function_reshape, TestReshapeWithInvalidShapesForTheSameTensor) {
     // both tensor names are specified, but have different shapes
     ASSERT_ANY_THROW(f->reshape({{"tensor1", ov::Shape({2, 500, 4})}, {"tensor2", ov::Shape({4, 250, 4})}}));
 }
+
+TEST(function, add_output_tensor_name) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input"});
+
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    relu1->set_friendly_name("relu1");
+    relu1->get_output_tensor(0).set_names({"relu_t1"});
+
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    relu2->set_friendly_name("relu2");
+    relu2->get_output_tensor(0).set_names({"relu_t2"});
+    auto f = std::make_shared<ov::Function>(relu2, ov::ParameterVector{arg0});
+    f->validate_nodes_and_infer_types();
+
+    ASSERT_EQ(f->get_results().size(), 1);
+
+    ASSERT_NO_THROW(f->add_output("relu_t1"));
+    ASSERT_EQ(f->get_results().size(), 2);
+    ASSERT_NO_THROW(f->add_output("relu_t1"));
+    ASSERT_EQ(f->get_results().size(), 2);
+}
+
+TEST(function, add_output_op_name) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input"});
+
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    relu1->set_friendly_name("relu1");
+    relu1->get_output_tensor(0).set_names({"relu_t1"});
+
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    relu2->set_friendly_name("relu2");
+    relu2->get_output_tensor(0).set_names({"relu_t2"});
+    auto f = std::make_shared<ov::Function>(relu2, ov::ParameterVector{arg0});
+    f->validate_nodes_and_infer_types();
+
+    ASSERT_EQ(f->get_results().size(), 1);
+
+    ASSERT_NO_THROW(f->add_output("relu1", 0));
+    ASSERT_EQ(f->get_results().size(), 2);
+    ASSERT_NO_THROW(f->add_output("relu_t1"));
+    ASSERT_EQ(f->get_results().size(), 2);
+    ASSERT_NO_THROW(f->add_output("relu2", 0));
+    ASSERT_EQ(f->get_results().size(), 2);
+}
+
+TEST(function, add_output_port) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input"});
+
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    relu1->set_friendly_name("relu1");
+    relu1->get_output_tensor(0).set_names({"relu_t1"});
+
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    relu2->set_friendly_name("relu2");
+    relu2->get_output_tensor(0).set_names({"relu_t2"});
+    auto f = std::make_shared<ov::Function>(relu2, ov::ParameterVector{arg0});
+    f->validate_nodes_and_infer_types();
+
+    ASSERT_EQ(f->get_results().size(), 1);
+
+    ASSERT_NO_THROW(f->add_output(relu1->output(0)));
+    ASSERT_EQ(f->get_results().size(), 2);
+}
+
+TEST(function, add_output_incorrect_tensor_name) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input"});
+
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    relu1->set_friendly_name("relu1");
+    relu1->get_output_tensor(0).set_names({"relu_t1"});
+
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    relu2->set_friendly_name("relu2");
+    relu2->get_output_tensor(0).set_names({"relu_t2"});
+    auto f = std::make_shared<ov::Function>(relu2, ov::ParameterVector{arg0});
+    f->validate_nodes_and_infer_types();
+
+    ASSERT_EQ(f->get_results().size(), 1);
+
+    ASSERT_THROW(f->add_output("relu"), ov::Exception);
+    ASSERT_EQ(f->get_results().size(), 1);
+}
+
+TEST(function, add_output_op_incorrect_name) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input"});
+
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    relu1->set_friendly_name("relu1");
+    relu1->get_output_tensor(0).set_names({"relu_t1"});
+
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    relu2->set_friendly_name("relu2");
+    relu2->get_output_tensor(0).set_names({"relu_t2"});
+    auto f = std::make_shared<ov::Function>(relu2, ov::ParameterVector{arg0});
+    f->validate_nodes_and_infer_types();
+
+    ASSERT_EQ(f->get_results().size(), 1);
+
+    ASSERT_THROW(f->add_output("relu_t1", 0), ov::Exception);
+    ASSERT_EQ(f->get_results().size(), 1);
+}
+
+TEST(function, add_output_op_name_incorrect_idx) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input"});
+
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    relu1->set_friendly_name("relu1");
+    relu1->get_output_tensor(0).set_names({"relu_t1"});
+
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    relu2->set_friendly_name("relu2");
+    relu2->get_output_tensor(0).set_names({"relu_t2"});
+    auto f = std::make_shared<ov::Function>(relu2, ov::ParameterVector{arg0});
+    f->validate_nodes_and_infer_types();
+
+    ASSERT_EQ(f->get_results().size(), 1);
+
+    ASSERT_THROW(f->add_output("relu1", 10), ov::Exception);
+    ASSERT_EQ(f->get_results().size(), 1);
+}
+
+TEST(function, add_output_port_to_result) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input"});
+
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    relu1->set_friendly_name("relu1");
+    relu1->get_output_tensor(0).set_names({"relu_t1"});
+
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    relu2->set_friendly_name("relu2");
+    relu2->get_output_tensor(0).set_names({"relu_t2"});
+    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
+    f->validate_nodes_and_infer_types();
+
+    ASSERT_EQ(f->get_results().size(), 1);
+
+    ASSERT_NO_THROW(f->add_output(result->output(0)));
+    ASSERT_EQ(f->get_results().size(), 1);
+}
