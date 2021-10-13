@@ -90,10 +90,6 @@ public:
     StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const
         noexcept override;
 
-    const std::vector<IExtensionPtr> getExtensions() const {
-        return _ie_extensions;
-    }
-
     // used by convertFunctionToICNNNetwork from legacy library
     std::map<std::string, DataPtr> _data;
 

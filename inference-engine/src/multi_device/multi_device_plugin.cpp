@@ -330,8 +330,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         SetExeNetworkInfo(impl,
                           executableNetworkPerDevice.begin()->second->GetInputsInfo(),
                           executableNetworkPerDevice.begin()->second->GetOutputsInfo());
-        impl->setInputs(executableNetworkPerDevice.begin()->second->getInputs());
-        impl->setOutputs(executableNetworkPerDevice.begin()->second->getOutputs());
+        SetExeNetworkInfo(impl, executableNetworkPerDevice.begin()->second->GetExecGraphInfo());
     }
     return impl;
 }

@@ -59,8 +59,7 @@ protected:
         function = makeNgraphFunction(netPrc, params, normalize, "Normalize");
 
         selectedType = "unknown_" + std::string(inPrc.name());
-        threshold = -1; //Disable relative threshold temporarily
-        absThreshold = 0.015f; //Use absolute threshold temporarily
+        threshold = 0.015f;
     }
 };
 

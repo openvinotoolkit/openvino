@@ -27,8 +27,6 @@ std::string RangeAddSubgraphTest::getTestCaseName(const testing::TestParamInfo<L
 }
 
 void RangeAddSubgraphTest::SetUp() {
-    threshold = -1; //Disable relative threshold temporarily
-    absThreshold = 0.01f; //Use absolute threshold temporarily
     InferenceEngine::Precision netPrecision;
     float start, stop, step;
     std::tie(start, stop, step, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();

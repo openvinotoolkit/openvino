@@ -17,7 +17,6 @@
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/convert_precision.hpp>
 
-#include "openvino/core/except.hpp"
 #include "template/template_config.hpp"
 #include "template_itt.hpp"
 #include "template_plugin.hpp"
@@ -69,7 +68,7 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
     // TODO: add post-processing based on outputsInfoMap
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ngraph::pass::CommonOptimizations>();
-    // G-API supports only FP32 networks for pre-processing
+    // GAPI supports only FP32 networks for pre-processing
     bool needF16toF32 = false;
     for (const auto& param : function->get_parameters()) {
         if (param->get_element_type() == ngraph::element::f16 &&
@@ -79,10 +78,9 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
             break;
         }
     }
-    if (needF16toF32) {
+    if (needF16toF32)
         passManager.register_pass<ngraph::pass::ConvertPrecision>(
             precisions_array{{ngraph::element::f16, ngraph::element::f32}});
-    }
     // Example: register plugin specific transformation
     passManager.register_pass<ngraph::pass::DecomposeDivideMatcher>();
     passManager.register_pass<ngraph::pass::ReluReluFusionMatcher>();
@@ -121,11 +119,9 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::ImportNetwork");
 
     auto fullConfig = Configuration{config, _cfg};
-    auto exec = std::make_shared<ExecutableNetwork>(modelStream,
-                                                    fullConfig,
-                                                    std::static_pointer_cast<Plugin>(shared_from_this()));
-    SetExeNetworkInfo(exec, exec->_function);
-    return exec;
+    return std::make_shared<ExecutableNetwork>(modelStream,
+                                               fullConfig,
+                                               std::static_pointer_cast<Plugin>(shared_from_this()));
 }
 // ! [plugin:import_network]
 

@@ -58,9 +58,9 @@ class FusedBatchNormTraining(MiddleReplacementPattern):
 
         input_rank = len(node.in_port(0).data.get_shape())
         rng = create_op_with_const_inputs(graph, Range,
-                                          {0: int64_array(1), 1: int64_array(input_rank - 1), 2: int64_array(1)},
+                                          {0: int64_array(2), 1: int64_array(input_rank), 2: int64_array(1)},
                                           {'name': node_name + '/Range', 'output_type': np.int64})
-        mvn = MVN(graph, {'name': node_name + '/mvn_', 'eps': node.soft_get('eps', 1e-6), 'eps_mode': 'inside_sqrt',
+        mvn = MVN(graph, {'name': node_name + '/mvn_', 'eps': node.soft_get('eps', 1e-6), 'eps_mode': 'outside_sqrt',
                           'normalize_variance': 1, 'override_output_shape': True}).create_node()
         node.in_port(0).get_connection().insert_node(mvn)
         mvn.in_port(1).connect(rng.out_port(0))

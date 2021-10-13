@@ -69,8 +69,7 @@ protected:
 
         selectedType = getPrimitiveType() + "_" + inPrc.name();
 
-        threshold = -1; //Disable relative threshold temporarily
-        absThreshold = 0.01f; //Use absolute threshold temporarily
+        threshold = 0.015f;
         function = makeNgraphFunction(netPrc, param, mvn, "mvn");
     }
 };

@@ -19,44 +19,14 @@ TEST(ExecutableNetworkOVTests, throwsOnUninitializedGetFunction) {
     ASSERT_THROW(exec.get_runtime_function(), ov::Exception);
 }
 
-TEST(ExecutableNetworkOVTests, throwsOnUninitializedOutputs) {
+TEST(ExecutableNetworkOVTests, throwsOnUninitializedGetParameters) {
     ov::runtime::ExecutableNetwork exec;
-    ASSERT_THROW(exec.outputs(), ov::Exception);
+    ASSERT_THROW(exec.get_parameters(), ov::Exception);
 }
 
-TEST(ExecutableNetworkOVTests, throwsOnUninitializedOutput) {
+TEST(ExecutableNetworkOVTests, throwsOnUninitializedGetResults) {
     ov::runtime::ExecutableNetwork exec;
-    ASSERT_THROW(exec.output(), ov::Exception);
-}
-
-TEST(ExecutableNetworkOVTests, throwsOnUninitializedOutputTensor) {
-    ov::runtime::ExecutableNetwork exec;
-    ASSERT_THROW(exec.output("tensor"), ov::Exception);
-}
-
-TEST(ExecutableNetworkOVTests, throwsOnUninitializedOutputIndex) {
-    ov::runtime::ExecutableNetwork exec;
-    ASSERT_THROW(exec.output(1), ov::Exception);
-}
-
-TEST(ExecutableNetworkOVTests, throwsOnUninitializedInputs) {
-    ov::runtime::ExecutableNetwork exec;
-    ASSERT_THROW(exec.inputs(), ov::Exception);
-}
-
-TEST(ExecutableNetworkOVTests, throwsOnUninitializedInput) {
-    ov::runtime::ExecutableNetwork exec;
-    ASSERT_THROW(exec.input(), ov::Exception);
-}
-
-TEST(ExecutableNetworkOVTests, throwsOnUninitializedInputTensor) {
-    ov::runtime::ExecutableNetwork exec;
-    ASSERT_THROW(exec.input("tensor"), ov::Exception);
-}
-
-TEST(ExecutableNetworkOVTests, throwsOnUninitializedInputIndex) {
-    ov::runtime::ExecutableNetwork exec;
-    ASSERT_THROW(exec.input(1), ov::Exception);
+    ASSERT_THROW(exec.get_results(), ov::Exception);
 }
 
 TEST(ExecutableNetworkOVTests, throwsOnUninitializedSetConfig) {

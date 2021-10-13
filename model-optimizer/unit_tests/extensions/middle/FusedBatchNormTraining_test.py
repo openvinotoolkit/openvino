@@ -52,16 +52,16 @@ nodes_attributes = {
     'reshape_to_orig': {'type': 'Reshape', 'value': None, 'kind': 'op', 'op': 'Reshape'},
     'reshape_to_orig_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-    'start': {'kind': 'op', 'op': 'Const', 'value': int64_array(1)},
-    'start_data': {'value': None, 'shape': None, 'kind': 'data', 'value': int64_array(1)},
-    'stop': {'kind': 'op', 'op': 'Const', 'value': int64_array(3)},
-    'stop_data': {'value': None, 'shape': None, 'kind': 'data', 'value': int64_array(3)},
-    'step': {'kind': 'op', 'op': 'Const', 'value': int64_array(1)},
-    'step_data': {'value': None, 'shape': None, 'kind': 'data', 'value': int64_array(1)},
+    'start': {'kind': 'op', 'op': 'Const'},
+    'start_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'stop': {'kind': 'op', 'op': 'Const'},
+    'stop_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'step': {'kind': 'op', 'op': 'Const'},
+    'step_data': {'value': None, 'shape': None, 'kind': 'data'},
     'mvn_axes': {'kind': 'op', 'op': 'Range'},
     'mvn_axes_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-    'mvn': {'type': 'MVN', 'value': None, 'kind': 'op', 'op': 'MVN', 'eps': 1e-3, 'eps_mode': 'inside_sqrt'},
+    'mvn': {'type': 'MVN', 'value': None, 'kind': 'op', 'op': 'MVN', 'eps': 1e-3},
     'mvn_data': {'value': None, 'shape': None, 'kind': 'data'},
 
     'reshape_1': {'type': 'Reshape', 'value': None, 'kind': 'op', 'op': 'Reshape'},

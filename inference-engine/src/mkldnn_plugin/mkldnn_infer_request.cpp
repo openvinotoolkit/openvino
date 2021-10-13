@@ -351,23 +351,20 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
 
     if (!data)
         IE_THROW(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
-    InferenceEngine::InputInfo::Ptr foundInput;
-    InferenceEngine::DataPtr foundOutput;
-    const bool isInput = findInputAndOutputBlobByName(name, foundInput, foundOutput);
     const bool compoundBlobPassed = data->is<InferenceEngine::CompoundBlob>();
     if (!compoundBlobPassed && data->buffer() == nullptr)
         IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
-    IE_SUPPRESS_DEPRECATED_START
-    if (data->size() == 0 &&
-        !((foundInput && foundInput->getInputData()->isDynamic()) || (foundOutput && foundOutput->isDynamic()))) {
+    if (data->size() == 0) {
         IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
-    IE_SUPPRESS_DEPRECATED_END
 
+    InferenceEngine::InputInfo::Ptr foundInput;
+    InferenceEngine::DataPtr foundOutput;
     size_t dataSize = data->size();
+    findInputAndOutputBlobByName(name, foundInput, foundOutput);
     const auto &blobDesc = data->getTensorDesc();
 
-    if (isInput) {
+    if (foundInput) {
         if (foundInput->getPrecision() != blobDesc.getPrecision()) {
             IE_THROW(ParameterMismatch) << "Failed to set input blob with precision: "
                                << blobDesc.getPrecision() << ", if CNNNetwork input blob precision is: " << foundInput->getPrecision();

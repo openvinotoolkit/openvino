@@ -30,8 +30,7 @@ ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationPara
 }
 
 LayerTransformation::LayerTransformation() {
-    threshold = -1; //Disable relative threshold temporarily
-    absThreshold = 0.05f; // Use absolute threshold temoporarily
+    threshold = 0.05;
     auto& configuration = GetConfiguration();
     configuration[PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE] = PluginConfigParams::YES;
 }

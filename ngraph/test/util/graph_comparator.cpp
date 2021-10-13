@@ -585,9 +585,8 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& 
         if (should_compare(CmpValues::NAMES)) {
             if (name(f1_results[i]->get_input_node_shared_ptr(0)) !=
                 name(f2_results[i]->get_input_node_shared_ptr(0))) {
-                return Result::error(
-                    "Different output node names: " + name(f1_results[i]->get_input_node_shared_ptr(0)) + " and " +
-                    name(f2_results[i]->get_input_node_shared_ptr(0)));
+                return Result::error("Different output names: " + name(f1_results[i]->get_input_node_shared_ptr(0)) +
+                                     " and " + name(f2_results[i]->get_input_node_shared_ptr(0)));
             }
         }
         q.push({f1_results[i].get(), f2_results[i].get()});

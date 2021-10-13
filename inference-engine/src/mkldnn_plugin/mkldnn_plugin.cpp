@@ -90,7 +90,6 @@
 #include <low_precision/low_precision.hpp>
 #include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/network_helper.hpp>
-#include "openvino/runtime/core.hpp"
 
 #include <ie_algorithm.hpp>
 #include "performance_heuristics.hpp"
@@ -758,7 +757,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
 
     execNetwork->setNetworkInputs(cnnnetwork.getInputsInfo());
     execNetwork->setNetworkOutputs(cnnnetwork.getOutputsInfo());
-    SetExeNetworkInfo(execNetwork, cnnnetwork.getFunction());
+    execNetwork->SetPointerToPlugin(shared_from_this());
 
     return execNetwork;
 }

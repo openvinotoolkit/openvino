@@ -26,16 +26,14 @@ namespace {
                                     ::testing::ValuesIn(configs)),
                             ExecGraphTests::getTestCaseName);
 
-    // MULTI device does not support ExecGraph
-    INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Multi_BehaviorTests, ExecGraphTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, ExecGraphTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(multiConfigs)),
                             ExecGraphTests::getTestCaseName);
 
-    // AUTO device does not support ExecGraph
-    INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Auto_BehaviorTests, ExecGraphTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecGraphTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),

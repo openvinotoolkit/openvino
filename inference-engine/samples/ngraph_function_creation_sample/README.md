@@ -2,7 +2,7 @@
 
 This sample demonstrates how to execute an synchronous inference using [nGraph function feature](../../../docs/nGraph_DG/build_function.md) to create a network, which uses weights from LeNet classification network, which is known to work well on digit classification tasks.
 
-The sample supports only single-channel [MNIST database](http://yann.lecun.com/exdb/mnist) images as an input.
+The sample supports only single-channel `ubyte` images as an input.
 
 You do not need an XML file to create a network. The API of ngraph::Function allows to create a network on the fly from the source code.
 
@@ -21,7 +21,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 |:---                              |:---
 | Validated Models                 | LeNet
 | Model Format                     | Network weights file (\*.bin)
-| Validated images                 | single-channel `MNIST ubyte` images
+| Validated images                 | single-channel `ubyte` images
 | Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
 | Other language realization       | [Python](../../ie_bridges/python/sample/ngraph_function_creation_sample/README.md) |
 
@@ -37,7 +37,7 @@ To build the sample, please use instructions available at [Build the Sample Appl
 
 ## Running
 
-To run the sample, you need specify a model wights and MNIST ubyte image:
+To run the sample, you need specify a model wights and ubyte image:
 
 - you can use LeNet model weights in the sample folder: `lenet.bin` with FP32 weights file
 - you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.

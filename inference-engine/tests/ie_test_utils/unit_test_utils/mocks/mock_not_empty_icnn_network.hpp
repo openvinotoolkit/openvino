@@ -28,8 +28,26 @@ public:
     }
     void getOutputsInfo(OutputsDataMap& out) const noexcept override;
     void getInputsInfo(InputsDataMap &inputs) const noexcept override;
-    std::shared_ptr<ngraph::Function> getFunction() noexcept override;
-    std::shared_ptr<const ngraph::Function> getFunction() const noexcept override;
+    std::shared_ptr<ngraph::Function> getFunction() noexcept override {
+        ngraph::ParameterVector parameters;
+        parameters.push_back(std::make_shared<ngraph::op::v0::Parameter>(
+            ov::element::f32, std::vector<ov::Dimension>{INPUT_DIMENSIONS.begin(), INPUT_DIMENSIONS.end()}));
+        parameters.back()->set_friendly_name(INPUT_BLOB_NAME);
+        ngraph::ResultVector results;
+        results.push_back(std::make_shared<ngraph::op::v0::Result>(parameters.back()->output(0)));
+        results.back()->set_friendly_name(OUTPUT_BLOB_NAME);
+        return std::make_shared<ov::Function>(results, parameters, "empty_function");
+    }
+    std::shared_ptr<const ngraph::Function> getFunction() const noexcept override {
+        ngraph::ParameterVector parameters;
+        parameters.push_back(std::make_shared<ngraph::op::v0::Parameter>(
+            ov::element::f32, std::vector<ov::Dimension>{INPUT_DIMENSIONS.begin(), INPUT_DIMENSIONS.end()}));
+        parameters.back()->set_friendly_name(INPUT_BLOB_NAME);
+        ngraph::ResultVector results;
+        results.push_back(std::make_shared<ngraph::op::v0::Result>(parameters.back()->output(0)));
+        results.back()->set_friendly_name(OUTPUT_BLOB_NAME);
+        return std::make_shared<const ov::Function>(results, parameters, "empty_function");
+    }
     MOCK_METHOD(InputInfo::Ptr, getInput, (const std::string &inputName), (const, noexcept));
     MOCK_METHOD(size_t, layerCount, (), (const, noexcept));
     MOCK_METHOD(StatusCode, addOutput, (const std::string &, size_t , ResponseDesc*), (noexcept));

@@ -9,7 +9,6 @@
 #include "blob_factory.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 #include "ie_api.h"
-#include "ie_common.h"
 
 using namespace InferenceEngine;
 
@@ -89,11 +88,10 @@ Data::Data(const std::string& name, const TensorDesc& desc) : name(name), userOb
 Data::Data(const std::string& name, Precision _precision, const ngraph::PartialShape& shape, Layout layout)
     : name(name),
       userObject({0}),
-      tensorDesc(_precision,
-                 shape.is_static()
-                     ? shape.to_shape()
-                     : shape.rank().is_static() ? SizeVector(shape.rank().get_length(), 0) : SizeVector(1, 0),
-                 layout) {
+      tensorDesc(_precision, layout) {
+    if (shape.is_static()) {
+        tensorDesc.reshape(shape.to_shape(), tensorDesc.getLayout());
+    }
     _impl = std::make_shared<Impl>();
     _impl->pShape = shape;
 }
@@ -118,7 +116,7 @@ void Data::setDims(const SizeVector& a_dims) {
 IE_SUPPRESS_DEPRECATED_START
 
 bool Data::isDynamic() const {
-    return isInitialized() && _impl->pShape.is_dynamic();
+    return tensorDesc.getDims().empty() && tensorDesc.getLayout() != SCALAR && _impl->pShape.is_dynamic();
 }
 
 const ngraph::PartialShape& Data::getPartialShape() const {

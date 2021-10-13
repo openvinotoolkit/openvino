@@ -146,8 +146,6 @@ public:
      */
     virtual bool DeviceSupportsImportExport(const std::string& deviceName) const = 0;
 
-    virtual bool isNewAPI() const = 0;
-
     /**
      * @brief Default virtual destructor
      */
