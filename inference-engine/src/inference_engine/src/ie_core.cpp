@@ -1294,8 +1294,12 @@ std::shared_ptr<ov::Function> Core::read_model(const std::string& modelPath, con
     OV_CORE_CALL_STATEMENT(return _impl->ReadNetwork(modelPath, binPath).getFunction(););
 }
 
-std::shared_ptr<ov::Function> Core::read_model(const std::string& model, const ie::Blob::CPtr& weights) const {
-    OV_CORE_CALL_STATEMENT(return _impl->ReadNetwork(model, weights).getFunction(););
+std::shared_ptr<ov::Function> Core::read_model(const std::string& model, const ov::runtime::Tensor& weights) const {
+    InferenceEngine::Blob::Ptr blob;
+    if (weights) {
+        blob = weights._impl;
+    }
+    OV_CORE_CALL_STATEMENT(return _impl->ReadNetwork(model, blob).getFunction(););
 }
 
 namespace {

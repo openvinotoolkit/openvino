@@ -12,7 +12,7 @@
 #include "snippets/pass/assign_registers.hpp"
 
 #include <ngraph/pass/manager.hpp>
-#include <transformations/serialize.hpp>
+#include <openvino/pass/serialize.hpp>
 
 #include <algorithm>
 #include <memory>
@@ -256,7 +256,9 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
 
 bool snippets::op::Subgraph::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     INTERNAL_OP_SCOPE(Subgraph);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return m_body->evaluate(outputs, inputs);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void snippets::op::Subgraph::print() const {
@@ -348,7 +350,7 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
 
 void snippets::op::Subgraph::serialize() const {
     std::stringstream xmlFile, binFile;
-    ngraph::pass::Serialize serializer(xmlFile, xmlFile, ngraph::pass::Serialize::Version::IR_V10);
+    ov::pass::Serialize serializer(xmlFile, xmlFile, ov::pass::Serialize::Version::IR_V10);
     serializer.run_on_function(get_body());
     auto m_constants = binFile.str();
     auto m_model = xmlFile.str();
