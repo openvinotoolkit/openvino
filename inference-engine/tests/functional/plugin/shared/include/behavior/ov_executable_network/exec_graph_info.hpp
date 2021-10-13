@@ -192,7 +192,7 @@ TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
     </edges>
 </net>
 )V0G0N";
-    function = core->read_model(model, InferenceEngine::Blob::Ptr());
+    function = core->read_model(model, ov::runtime::Tensor());
     EXPECT_EQ(function->inputs().size(), 1);
     EXPECT_EQ(function->outputs().size(), 1);
     EXPECT_NO_THROW(function->input("in1")); // remove if read_model does not change function names

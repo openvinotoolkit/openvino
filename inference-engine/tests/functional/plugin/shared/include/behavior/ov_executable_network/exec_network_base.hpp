@@ -447,7 +447,7 @@ TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalFunction) {
 TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalIR) {
     const std::string m_out_xml_path_1 = "precisionsAsInOriginalIR.xml";
     const std::string m_out_bin_path_1 = "precisionsAsInOriginalIR.bin";
-    ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(function);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(function);
 
     ov::runtime::ExecutableNetwork execNet;
     ASSERT_NO_THROW(execNet = core->compile_model(m_out_xml_path_1, targetDevice, configuration));
