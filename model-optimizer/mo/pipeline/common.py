@@ -233,4 +233,4 @@ def get_ir_version(argv: argparse.Namespace):
     :param argv: the parsed command line arguments
     :return: the IR version
     """
-    return 10
+    return 11

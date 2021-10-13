@@ -39,13 +39,26 @@ def apply_offline_transformations(input_model: str, framework: str, transforms: 
     # to produce correct mapping
     extract_names = framework in ['tf', 'mxnet', 'kaldi']
 
-    from openvino.inference_engine import read_network  # pylint: disable=import-error,no-name-in-module
-    from openvino.offline_transformations import GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
+    from openvino.offline_transformations import GenerateMappingFile, Serialize  # pylint: disable=import-error,no-name-in-module
+    from openvino.inference_engine import IENetwork  # pylint: disable=import-error,no-name-in-module
+    from ngraph.frontend import FrontEndManager, FrontEnd  # pylint: disable=no-name-in-module,import-error
+    from ngraph.impl import Function  # from ngraph.impl.Function import to_capsule
 
-    net = read_network(input_model + "_tmp.xml", input_model + "_tmp.bin")
+    fem = FrontEndManager()
+
+    # We have to separate fe object lifetime from fem to
+    # avoid segfault during object destruction. So fe must
+    # be destructed before fem object explicitly.
+    def read_network(path_to_xml):
+        fe = fem.load_by_framework(framework="ir")
+        f = fe.convert(fe.load(path_to_xml))
+        return IENetwork(Function.to_capsule(f))
+
+    net = read_network(input_model + "_tmp.xml")
+
     apply_user_transformations(net, transforms)
     apply_moc_transformations(net)
-    net.serialize(input_model + ".xml", input_model + ".bin")
+    Serialize(net, str(input_model + ".xml").encode('utf-8'), (input_model + ".bin").encode('utf-8'))
     path_to_mapping = input_model + ".mapping"
     GenerateMappingFile(net, path_to_mapping.encode('utf-8'), extract_names)
 
