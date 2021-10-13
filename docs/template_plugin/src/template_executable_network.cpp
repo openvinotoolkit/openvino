@@ -109,12 +109,7 @@ void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<con
     // as inference request output names but the name of the layer before.
     for (auto&& result : _function->get_results()) {
         const auto& input = result->input_value(0);
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        auto name = input.get_tensor().get_name();
-        NGRAPH_SUPPRESS_DEPRECATED_END
-        if (name.empty()) {
-            name = ngraph::op::util::create_ie_output_name(input);
-        }
+        auto name = ngraph::op::util::get_ie_output_name(input);
         _outputIndex.emplace(name, _function->get_result_index(result));
     }
     for (auto&& parameter : _function->get_parameters()) {
