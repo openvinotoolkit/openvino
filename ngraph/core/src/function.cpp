@@ -824,7 +824,8 @@ void ov::Function::add_output(const std::string& tensor_name) {
         if (ov::op::util::is_output(op))
             continue;
         for (const auto& output : op->outputs()) {
-            if (output.get_tensor().get_names().count(tensor_name)) {
+            const auto& names = output.get_tensor().get_names();
+            if (names.find(tensor_name) != names.end()) {
                 add_output(output);
                 return;
             }
