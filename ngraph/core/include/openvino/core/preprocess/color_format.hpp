@@ -11,7 +11,8 @@ namespace preprocess {
 enum class ColorFormat {
     UNDEFINED,
     NV12_SINGLE_PLANE,  // Image in NV12 format as single tensor
-    NV12_TWO_PLANES,    // Image in NV12 format represented as separate tensors for Y and UV planes
+    /// \brief Image in NV12 format represented as separate tensors for Y and UV planes.
+    NV12_TWO_PLANES,
     RGB,
     BGR
 };
