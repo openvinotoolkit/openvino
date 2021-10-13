@@ -50,11 +50,11 @@ void SubgraphBaseTest::run() {
                 generate_inputs(targetStaticShapeVec);
                 infer();
                 validate();
-                status = LayerTestsUtils::PassRate::Statuses::PASSED;
             } catch (const std::exception &ex) {
-//                OPENVINO_ASSERT("Incorrect target static shape: ", CommonTestUtils::vec2str(targetStaticShape), std::endl, ex.what());
+                OPENVINO_ASSERT("Incorrect target static shape: ", ex.what());
             }
         }
+        status = LayerTestsUtils::PassRate::Statuses::PASSED;
     } catch (const std::exception &ex) {
         status = LayerTestsUtils::PassRate::Statuses::FAILED;
         errorMessage = ex.what();
@@ -63,7 +63,9 @@ void SubgraphBaseTest::run() {
         errorMessage = "Unknown failure occurred.";
     }
     summary.updateOPsStats(function, status);
-    GTEST_FATAL_FAILURE_(errorMessage.c_str());
+    if (status != LayerTestsUtils::PassRate::Statuses::PASSED) {
+        GTEST_FATAL_FAILURE_(errorMessage.c_str());
+    }
 }
 
 void SubgraphBaseTest::serialize() {
@@ -186,20 +188,8 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
 
     function->validate_nodes_and_infer_types();
 
-//    auto referenceInputs = std::vector<std::vector<uint8_t>>(inputs.size());
-//    auto refInputsTypes = std::vector<element::Type>(inputs.size());
-//    for (const auto& inputTensor : inputs) {
-//        const auto &input = inputTensor.second;
-//        const auto &inputSize = input.get_byte_size();
-//        auto &referenceInput = referenceInputs[i];
-//        referenceInput.resize(inputSize);
-//        const auto buffer = static_cast<uint8_t*>(input.data());
-//        std::copy(buffer, buffer + inputSize, referenceInput.data());
-//        refInputsTypes[i] = input.get_element_type();
-//    }
     auto referenceInputs = inputs;
 
-//    auto expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs, refInputsTypes);
     auto expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs);
     return expectedOutputs;
 }
@@ -212,7 +202,7 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::get_outputs() {
     }
     return outputs;
 }
-//
+
 void SubgraphBaseTest::validate() {
     auto expectedOutputs = calculate_refs();
     const auto& actualOutputs = get_outputs();

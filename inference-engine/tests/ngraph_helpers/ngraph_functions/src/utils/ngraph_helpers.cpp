@@ -144,12 +144,9 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
     return outputs;
 }
 
-//std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
 std::vector<ov::runtime::Tensor>
         interpreterFunction(const std::shared_ptr<Function> &function,
                             const std::map<std::string, ov::runtime::Tensor>& inputs) {
-//                            const std::vector<std::vector<std::uint8_t>> &inputs,
-//                            const std::vector<ngraph::element::Type> &inputTypes) {
     runtime::Backend::set_backend_shared_library_search_directory("");
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -159,52 +156,20 @@ std::vector<ov::runtime::Tensor>
     NGRAPH_CHECK(parametersNumber == inputsNumber,
                  "Got function (", function->get_friendly_name(), ") with ", parametersNumber, " parameters, but ",
                  inputsNumber, " input blobs");
-//    if (!inputTypes.empty()) {
-//        NGRAPH_CHECK(inputTypes.size() == inputsNumber,
-//                     "Got function (", function->get_friendly_name(), ") with ", inputsNumber, " inputs, but ",
-//                     inputTypes.size(), " types");
-//    }
-
-//    auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
-//    for (size_t i = 0; i < parametersNumber; ++i) {
-//        const auto &parameter = parameters[i];
-//        const auto &parameterIndex = function->get_parameter_index(parameter);
-//        const auto &parameterShape = parameter->get_shape();
-//        const auto &parameterType = parameter->get_element_type();
-//        const auto &parameterSize = shape_size(parameterShape) * parameterType.size();
-//
-//        auto input = inputs[parameterIndex];
-//        const auto inType = inputTypes.empty() ? element::undefined : inputTypes[i];
-//
-//        if (inType != element::undefined && inType != parameterType) {
-//            input = convertOutputPrecision(input, inType, parameterType, shape_size(parameterShape));
-//        }
-//
-//        const auto &inputSize = input.size();
-//        NGRAPH_CHECK(parameterSize == inputSize,
-//                     "Got parameter (", parameter->get_friendly_name(), ") of size ", parameterSize,
-//                     " bytes, but corresponding input with index ", parameterIndex,
-//                     " has ", inputSize, " bytes");
-//
-//        auto tensor = backend->create_tensor(parameterType, parameterShape);
-//        tensor->write(input.data(), parameterSize);
-//        inputTensors.push_back(tensor);
-//    }
 
     auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
     for (size_t i = 0; i < parametersNumber; ++i) {
         const auto &parameter = parameters[i];
-//        const auto &parameterIndex = function->get_parameter_index(parameter);
         const auto &parameterShape = parameter->get_shape();
         const auto &parameterType = parameter->get_element_type();
         const auto &parameterSize = shape_size(parameterShape) * parameterType.size();
 
         auto inputIt = inputs.find(parameter->get_friendly_name());
+        // TODO: iefode
         if (inputIt == inputs.end()) {
             // runtime error
         }
         auto input = inputIt->second;
-//        const auto inType = inputTypes.empty() ? element::undefined : inputTypes[i];
         const auto inType = input.get_element_type();
 
 // TODO: iefode
@@ -231,23 +196,11 @@ std::vector<ov::runtime::Tensor>
 
     auto handle = backend->compile(function);
     handle->call_with_validate(outputTensors, inputTensors);
-//    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> outputs(results.size());
     std::vector<ov::runtime::Tensor> outputs;
-//    for (size_t resultIndex = 0; resultIndex < results.size(); resultIndex++) {
-//        auto& output = outputs[resultIndex];
-//        output.first = results[resultIndex]->get_element_type();
-//        const auto& outputTensor = outputTensors[resultIndex];
-//        output.second.resize(ceil(shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().bitwidth() / 8.f));
-//        outputTensors[resultIndex]->read(output.second.data(), output.second.size());
-//    }
     for (const auto& outTensor : outputTensors) {
-//        std::shared_ptr<ov::runtime::Tensor> a = std::dynamic_pointer_cast<ov::runtime::Tensor>(outTensor);
-//        ov::runtime::Tensor b = *a;
-//        ov::runtime::Tensor c(b);
-//        Tensor(const element::Type type, const Shape& shape, void* host_ptr, const Strides& strides = {});
-        ov::runtime::Tensor a(outTensor->get_element_type(), outTensor->get_shape());
-        outTensor->read(a.data(), a.get_byte_size());
-        outputs.push_back(a);
+        ov::runtime::Tensor tmpBuffer(outTensor->get_element_type(), outTensor->get_shape());
+        outTensor->read(tmpBuffer.data(), tmpBuffer.get_byte_size());
+        outputs.push_back(tmpBuffer);
     }
 
     return outputs;

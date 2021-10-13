@@ -49,11 +49,10 @@ ov::runtime::Tensor create_and_fill_tensor(
 }
 
 template<typename ExpectedT, typename ActualT>
-void compare(
-        const ov::runtime::Tensor& expected,
-        const ov::runtime::Tensor& actual,
-        const double abs_threshold_ = std::numeric_limits<double>::max(),
-        const double rel_threshold_ = std::numeric_limits<double>::max()) {
+void compare(const ov::runtime::Tensor& expected,
+             const ov::runtime::Tensor& actual,
+             const double abs_threshold_ = std::numeric_limits<double>::max(),
+             const double rel_threshold_ = std::numeric_limits<double>::max()) {
     auto expected_shape = expected.get_shape();
     auto actual_shape = actual.get_shape();
     ASSERT_EQ(expected_shape, actual_shape);

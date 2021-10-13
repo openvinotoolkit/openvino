@@ -26,7 +26,6 @@
 
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
-//#include "functional_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/precision_utils.hpp"
 #include "functional_test_utils/layer_test_utils/summary.hpp"
 #include "functional_test_utils/layer_test_utils/environment.hpp"
@@ -72,19 +71,14 @@ protected:
 //    virtual void configure_model();
 
     virtual void compile_model();
-//
     virtual void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes);
-//
     virtual void infer();
-//
     virtual void validate();
 
     void init_input_shapes(const std::pair<std::vector<ov::PartialShape>, std::vector<std::vector<ov::Shape>>>& shapes);
     void init_input_shapes(const std::pair<ov::PartialShape, std::vector<ov::Shape>>& shapes);
-//
 
-//
-//    virtual std::vector<ov::runtime::Tensor> get_outputs();
+    //    virtual std::vector<ov::runtime::Tensor> get_outputs();
 
     std::shared_ptr<ov::runtime::Core> core = ov::test::PluginCache::get().core();
     std::string targetDevice;
@@ -108,10 +102,6 @@ protected:
     LayerTestsUtils::Summary& summary = LayerTestsUtils::Summary::getInstance();;
 
 private:
-//    ov::runtime::Tensor generate_input(const ov::HostTensor &type, const ov::Shape &shape) const;
-
-//    void compare(const std::pair<ov::element::Type, std::vector<std::uint8_t>> &expected,
-//                 const ov::runtime::Tensor &actual);
     void resize_ngraph_function(const std::vector<ngraph::Shape>& targetInputStaticShapes);
     std::vector<ov::runtime::Tensor> calculate_refs();
     std::vector<ov::runtime::Tensor> get_outputs();
