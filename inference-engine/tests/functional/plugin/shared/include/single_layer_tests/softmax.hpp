@@ -6,10 +6,18 @@
 
 #include "shared_test_classes/single_layer/softmax.hpp"
 
-namespace LayerTestsDefinitions {
+namespace ov {
+namespace test {
+namespace subgraph {
 
 TEST_P(SoftMaxLayerTest, CompareWithRefs) {
     run();
 }
 
-}  // namespace LayerTestsDefinitions
+TEST_P(SoftMaxLayerTest, CompareQueryModel) {
+    query_model();
+}
+
+}  // namespace subgraph
+}  // namespace test
+}  // namespace ov

@@ -8,14 +8,16 @@
 #include <process.h>
 #endif
 
-#include <transformations/serialize.hpp>
-#include <ngraph/opsets/opset.hpp>
-#include <pugixml.hpp>
-#include <common_test_utils/file_utils.hpp>
-#include <thread>
-#include <functional_test_utils/ov_tensor_utils.hpp>
+#include "openvino/pass/serialize.hpp"
 
-#include "openvino/core/variant.hpp"
+#include "graph_comparator.hpp"
+
+#include "common_test_utils/file_utils.hpp"
+#include "functional_test_utils/ov_tensor_utils.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
+
+#include "ngraph_functions/pass/convert_prc.hpp"
+
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
@@ -45,7 +47,7 @@ void SubgraphBaseTest::run() {
             try {
                 if (!inputDynamicShapes.empty()) {
                     // resize ngraph function according new target shape
-                    resize_ngraph_function(targetStaticShapeVec);
+                    resize_function(targetStaticShapeVec);
                 }
                 generate_inputs(targetStaticShapeVec);
                 infer();
@@ -77,7 +79,7 @@ void SubgraphBaseTest::serialize() {
     std::string out_bin_path = output_name + ".bin";
 
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::serialize>(out_xml_path, out_bin_path);
+    manager.register_pass<ov::pass::Serialize>(out_xml_path, out_bin_path);
     manager.run_passes(function);
     function->validate_nodes_and_infer_types();
 
@@ -111,34 +113,13 @@ void SubgraphBaseTest::query_model() {
     ASSERT_EQ(expected, actual);
 }
 
-//ov::runtime::Tensor SubgraphBaseTest::generate_input(const element::Type& type, const ov::Shape& shape) const {
-//    return create_and_fill_tensor(type, shape);
-//}
-//
-//void SubgraphBaseTest::compare(const std::vector<std::pair<element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
-//                               const std::vector<ov::runtime::Tensor>& actualOutputs) {
-//    for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
-//        const auto& expected = expectedOutputs[outputIndex];
-//        const auto& actual = actualOutputs[outputIndex];
-//        compare(expected, actual);
-//    }
-//}
-//
-//void SubgraphBaseTest::compare(const std::pair<element::Type, std::vector<std::uint8_t>>& expected,
-//                               const ov::runtime::Tensor& actual) {
 void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor> &expected,
                                const std::vector<ov::runtime::Tensor> &actual) {
     ASSERT_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); i++) {
         ov::test::utils::compare(expected[i], actual[i], abs_threshold, rel_threshold);
     }
-//    return ::ov::test::utils::compare(expected_tensor, actual, abs_threshold, rel_threshold);
 }
-
-//void SubgraphBaseTest::compare_desc(const ov::runtime::Tensor& expected, const ov::runtime::Tensor& actual) {
-//    ASSERT_EQ(expected.get_element_type(), actual.get_element_type());
-//    ASSERT_EQ(expected.get_shape(), actual.get_shape());
-//}
 
 void SubgraphBaseTest::configure_model() {
     // configure input precision
@@ -164,10 +145,13 @@ void SubgraphBaseTest::configure_model() {
 
 void SubgraphBaseTest::compile_model() {
     configure_model();
+    if (functionRefs == nullptr) {
+        functionRefs = ov::clone_function(*function);
+    }
     executableNetwork = core->compile_model(function, targetDevice, configuration);
 }
 
-void SubgraphBaseTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& params = function->get_parameters();
     for (int i = 0; i < params.size(); ++i) {
@@ -187,21 +171,18 @@ void SubgraphBaseTest::infer() {
 
 std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
     // nGraph interpreter does not support f16/bf16
-    ngraph::pass::ConvertPrecision<element::Type_t::f16, element::Type_t::f32>().run_on_function(function);
-    ngraph::pass::ConvertPrecision<element::Type_t::bf16, element::Type_t::f32>().run_on_function(function);
+    ngraph::pass::ConvertPrecision<element::Type_t::f16, element::Type_t::f32>().run_on_function(functionRefs);
+    ngraph::pass::ConvertPrecision<element::Type_t::bf16, element::Type_t::f32>().run_on_function(functionRefs);
 
-    function->validate_nodes_and_infer_types();
+    functionRefs->validate_nodes_and_infer_types();
 
-    auto referenceInputs = inputs;
-
-    auto expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs);
-    return expectedOutputs;
+    return ngraph::helpers::interpreterFunction(functionRefs, inputs);
 }
 
-std::vector<ov::runtime::Tensor> SubgraphBaseTest::get_outputs() {
+std::vector<ov::runtime::Tensor> SubgraphBaseTest::get_plugin_outputs() {
     auto outputs = std::vector<ov::runtime::Tensor>{};
-    for (const auto& output : executableNetwork.get_results()) {
-        const auto& name = output->input_value(0).get_node()->get_friendly_name();
+    for (const auto& output : executableNetwork.outputs()) {
+        const auto& name = *output.get_tensor().get_names().begin();
         outputs.push_back(inferRequest.get_tensor(name));
     }
     return outputs;
@@ -209,7 +190,7 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::get_outputs() {
 
 void SubgraphBaseTest::validate() {
     auto expectedOutputs = calculate_refs();
-    const auto& actualOutputs = get_outputs();
+    const auto& actualOutputs = get_plugin_outputs();
 
     if (expectedOutputs.empty()) {
         return;
@@ -221,83 +202,18 @@ void SubgraphBaseTest::validate() {
     compare(expectedOutputs, actualOutputs);
 }
 
-//std::string SubgraphBaseTest::get_runtime_precision(const std::string& layerName) {
-//    const auto function = executableNetwork.get_runtime_function();
-//    for (const auto& op : function->get_ops()) {
-//        const auto name = op->get_friendly_name();
-//        if (name == layerName) {
-//            const auto& rtInfo = op->get_rt_info();
-//            const auto& it = rtInfo.find("runtimePrecision");
-//
-//            OPENVINO_ASSERT(it != rtInfo.end(), "Runtime precision is not found for node: ", name);
-//
-//            const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
-//            return rtPrecisionPtr->get();
-//        }
-//    }
-//    return {};
-//}
-
-//std::string SubgraphBaseTest::get_runtime_precision_by_type(const std::string& layerType) {
-//    const auto function = executableNetwork.get_runtime_function();
-//
-//    for (const auto& op : function->get_ops()) {
-//        const auto& rtInfo = op->get_rt_info();
-//        const auto& typeIt = rtInfo.find("layerType");
-//
-//        OPENVINO_ASSERT(typeIt != rtInfo.end(), "Layer is not found for type: ", layerType);
-//
-//        const auto type = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(typeIt->second)->get();
-//        if (type == layerType) {
-//            const auto& it = rtInfo.find("runtimePrecision");
-//
-//            OPENVINO_ASSERT(it != rtInfo.end(), "Runtime precision is not found for node: ", type);
-//
-//            const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
-//            return rtPrecisionPtr->get();
-//        }
-//    }
-//
-//    return {};
-//}
-
-//#ifndef NDEBUG
-//void SubgraphBaseTest::show_runtime_precision() {
-//    const auto function = executableNetwork.get_runtime_function();
-//
-//    for (const auto& op : function->get_ops()) {
-//        const auto& rtInfo = op->get_rt_info();
-//        const auto& typeIt = rtInfo.find("layerType");
-//
-//        const auto type = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(typeIt->second)->get();
-//        const auto& it = rtInfo.find("runtimePrecision");
-//
-//        const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
-//        std::cout << type << ": " << rtPrecisionPtr->get() << std::endl;
-//    }
-//}
-//#endif
-
-//std::shared_ptr<ngraph::Function> SubgraphBaseTest::get_function() {
-//    return function;
-//}
-//
-//std::map<std::string, std::string>& SubgraphBaseTest::get_configuration() {
-//    return configuration;
-//}
-
-void SubgraphBaseTest::resize_ngraph_function(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+void SubgraphBaseTest::resize_function(const std::vector<ov::Shape>& targetInputStaticShapes) {
     auto params = function->get_parameters();
-    std::map<std::string, ngraph::PartialShape> shapes;
+    std::map<std::string, ov::PartialShape> shapes;
     ASSERT_LE(params.size(), targetInputStaticShapes.size());
     for (size_t i = 0; i < params.size(); i++) {
         shapes.insert({*params[i]->get_output_tensor(0).get_names().begin(), targetInputStaticShapes[i]});
     }
     function->reshape(shapes);
-//    functionRefs->reshape(shapes);
+    functionRefs->reshape(shapes);
 }
 
-void SubgraphBaseTest::init_input_shapes(const std::pair<std::vector<ov::PartialShape>, std::vector<std::vector<ov::Shape>>>& shapes) {
+void SubgraphBaseTest::init_input_shapes(const InputShapes& shapes) {
     targetStaticShapes = shapes.second;
     if (!shapes.first.empty()) {
         inputDynamicShapes = shapes.first;
@@ -309,7 +225,7 @@ void SubgraphBaseTest::init_input_shapes(const std::pair<std::vector<ov::Partial
     }
 }
 
-void SubgraphBaseTest::init_input_shapes(const std::pair<ov::PartialShape, std::vector<ov::Shape>>& shapes) {
+void SubgraphBaseTest::init_input_shapes(const InputShape& shapes) {
     std::pair<std::vector<ov::PartialShape>, std::vector<std::vector<ov::Shape>>> tmpShapeObj;
     if (shapes.first.rank() != 0) {
         tmpShapeObj.first = {shapes.first};

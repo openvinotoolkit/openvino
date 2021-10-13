@@ -2,16 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph_functions/builders.hpp"
+
+#include "common_test_utils/common_utils.hpp"
+
 #include "shared_test_classes/single_layer/softmax.hpp"
 
-namespace LayerTestsDefinitions {
+namespace ov {
+namespace test {
+namespace subgraph {
 
-std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<softMaxLayerTestParams>& obj) {
-    ov::element::Type_t netType, inType, outType;
-    std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>> shapes;
+std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<SoftMaxTestParams>& obj) {
+    ElementType netType, inType, outType;
+    InputShape shapes;
     size_t axis;
-    std::string targetDevice;
-    std::map<std::string, std::string> config;
+    TargetDevice targetDevice;
+    Config config;
     std::tie(netType, inType, outType, shapes, axis, targetDevice, config) = obj.param;
 
     std::ostringstream result;
@@ -23,20 +29,21 @@ std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<softM
     for (const auto& item : shapes.second) {
         result << CommonTestUtils::vec2str(item) << "_";
     }
-    result << "axis=" << axis << "_";
-    result << "trgDev=" << targetDevice;
+    result << "Axis=" << axis << "_";
+    result << "Device=" << targetDevice;
 
     return result.str();
 }
 
 void SoftMaxLayerTest::SetUp() {
-    std::pair<ov::PartialShape, std::vector<ov::Shape>> shapes;
-    ngraph::element::Type_t ngPrc;
+    InputShape shapes;
+    ElementType ngPrc;
     size_t axis;
 
     std::tie(ngPrc, inType, outType, shapes, axis, targetDevice, configuration) = GetParam();
     init_input_shapes(shapes);
 
+    // TODO: iefode: change namespace names a bit later
     const auto params = ngraph::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
     const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
@@ -46,4 +53,6 @@ void SoftMaxLayerTest::SetUp() {
 
     function = std::make_shared<ngraph::Function>(results, params, "softMax");
 }
-}  // namespace LayerTestsDefinitions
+}  // namespace subgraph
+}  // namespace test
+}  // namespace ov
