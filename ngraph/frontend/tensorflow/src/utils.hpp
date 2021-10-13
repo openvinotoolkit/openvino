@@ -12,7 +12,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modification Copyright (C) 2021 Intel Corporation
+ * We modified "ValuesFromConstNode" function from
+ * tensorflow/core/grappler/optimizers/arithmetic_optimizer.cc file
+ * to integrate it with our infrastructure. The purpose and basic
+ * functionality remains the same.
 ==============================================================================*/
 
 #pragma once

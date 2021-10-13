@@ -94,6 +94,6 @@ set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::tensorflow
 #        DESTINATION ${FRONTEND_INSTALL_INCLUDE}
 #        COMPONENT ngraph_dev
 #        FILES_MATCHING PATTERN "*.hpp")
-
-export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
-       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+#
+#export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
+#       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
