@@ -6,7 +6,6 @@
 
 #include <fstream>
 
-#include "ngraph/variant.hpp"
 #include "openvino/core/variant.hpp"
 #include "utils.hpp"
 
@@ -48,7 +47,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromFilePathWithExplicitVariants) {
     FrontEnd::Ptr fe;
     ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
 
-    std::vector<std::shared_ptr<Variant>> variants;
+    std::vector<std::shared_ptr<ov::Variant>> variants;
     variants.emplace_back(ov::make_variant(model_path));
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_model(variants));
     ASSERT_NE(m_frontEnd, nullptr);
@@ -56,7 +55,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromFilePathWithExplicitVariants) {
     ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(variants));
     ASSERT_NE(m_inputModel, nullptr);
 
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     ASSERT_NE(function, nullptr);
 }
