@@ -3,6 +3,7 @@
 //
 
 #include "behavior/ov_exec_network.hpp"
+#include <common_test_utils/test_constants.hpp>
 
 #include "ie_plugin_config.hpp"
 
@@ -27,6 +28,9 @@ const std::vector<std::map<std::string, std::string>> configs = {
 const std::vector<std::map<std::string, std::string>> multiConfigs = {
     {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_TEMPLATE}}};
 
+const std::vector<std::map<std::string, std::string>> heteroConfigs = {
+    {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_TEMPLATE}}};
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVExecNetwork,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
@@ -47,4 +51,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                                             ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                             ::testing::ValuesIn(multiConfigs)),
                          OVExecNetwork::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
+                         OVExecNetwork,
+                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                            ::testing::ValuesIn(heteroConfigs)),
+                         OVExecNetwork::getTestCaseName);
+
 }  // namespace

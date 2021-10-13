@@ -16,15 +16,11 @@ import subprocess
 import sys
 from glob import glob
 
-from compare_memcheck_2_runs import compare_memcheck_2_runs, \
-    get_memcheck_records, get_db_memcheck_records
+from compare_memcheck_2_runs import compare_memcheck_2_runs, get_memcheck_records, get_db_memcheck_records
 # Database arguments
 from memcheck_upload import DATABASE, DB_COLLECTIONS
-from memcheck_upload import create_memcheck_records, \
-    upload_memcheck_records, \
-    create_memcheck_report, \
-    metadata_from_manifest, \
-    info_from_test_config
+from memcheck_upload import create_memcheck_records, upload_memcheck_records, create_memcheck_report, \
+    metadata_from_manifest, info_from_test_config
 
 
 def run(args, log=None, verbose=True):
@@ -94,7 +90,8 @@ def main():
         description='Run memcheck tests',
         usage='%(prog)s [options] binary -- [additional args]',
         parents=[init_parser])
-    parser.add_argument('binary', help='test binary to execute')
+    parser.add_argument('binary',
+                        help='test binary to execute')
     parser.add_argument('--gtest_parallel',
                         help='path to gtest-parallel to use',
                         default='gtest_parallel')
@@ -127,8 +124,7 @@ def main():
 
     parser.add_argument('--ref_db_collection',
                         required=args.compare and not os.path.isdir(args.compare),
-                        help=f'use collection name in {DATABASE} database to query'
-                             f' reference data',
+                        help=f'use collection name in {DATABASE} database to query reference data',
                         choices=DB_COLLECTIONS)
     parser.add_argument('--comparison_report',
                         required=args.compare,
