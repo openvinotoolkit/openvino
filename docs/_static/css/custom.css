@@ -1,8 +1,7 @@
 .switcher-set {
-    position:fixed;
-    z-index:1000;
     background: rgba(var(--sst-color-navbar-background), 1);
     border-top: 2px solid #fff;
+    margin-bottom:1rem;
 }
 
 .switcher-button {
@@ -41,25 +40,32 @@ main img {
 
 /* Table Sort Button */
 
-.sort-btn {
+.sort-header {
     cursor: pointer;
 }
 
-.sort-btn:after {
+.sort-btn {
     content: "";
     background-image:url('media/arrow-small-opposite-v.svg');
     background-size: 100% 100%;
+    background-position: center;
+    background-repeat: no-repeat;
     display: inline-block;
     height: 1.5rem;
     width:1.5rem;
     position:relative;
     top:0.5rem;
-  }
+}
 
-.sort-btn.sort-active.ascending::after {
+.sort-btn.sort-active.ascending,
+.sort-btn.sort-active {
+    background-size: 100% 70%;
+}
+
+.sort-btn.sort-active.ascending {
     background-image: url('media/union-down.svg');
 }
 
-.sort-btn.sort-active::after {
+.sort-btn.sort-active {
     background-image: url('media/union-up.svg');
 }

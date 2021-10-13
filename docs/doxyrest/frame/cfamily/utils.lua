@@ -538,7 +538,13 @@ function getClassDeclString(class, nameTemplate, indent)
 		s = s .. getParamArrayString(s, class.templateParamArray, false, "<", ">", indent) .. "\n" .. indent
 	end
 
-	s = s .. class.compoundKind .. " "
+	local compoundKind = ''
+	if class.compoundKind == 'interface' then
+		compoundKind = 'template'
+	else
+		compoundKind = class.compoundKind
+	end
+	s = s .. compoundKind .. " "
 	s = s .. fillItemNameTemplate(nameTemplate, getItemName(class), class.id)
 
 	return s

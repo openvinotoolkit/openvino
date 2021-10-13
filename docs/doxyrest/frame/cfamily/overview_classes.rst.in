@@ -14,6 +14,11 @@ local argArray = table.pack(...)
 local compound = argArray[1]
 local itemArray = argArray[2]
 local sectionName = argArray[3]
+
+if sectionName == 'interfaces' then
+	sectionName = 'templates'
+end
+
 }
 	// $sectionName
 
@@ -25,6 +30,7 @@ local mapping = {}
 for i = 1, #itemArray do
 	local item = itemArray[i]
 	local targetFileName = getItemFileName(item)
+	local decl = getClassDeclString(item, g_refItemNameTemplate, '\t')
 
 	if mapping[getItemFileNameNoSuffix(item)] == nil then
 		mapping[getItemFileNameNoSuffix(item)] = true

@@ -28,12 +28,6 @@ author = 'Intel'
 
 language = 'en'
 
-html_context = {
-    'current_version': 'latest',
-    'versions': (('latest', '/en/latest/'), ('2022.1', '/en/2022.1/')),
-    'languages': (('English', '/en/latest/'), ('Chinese', '/cn/latest/'))
-}
-
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
@@ -49,6 +43,7 @@ extensions = [
     'sphinx.ext.autosummary'
 ]
 
+html_favicon = '_static/favicon.ico'
 autodoc_default_flags = ['members']
 autosummary_generate = True
 autosummary_imported_members = True
@@ -77,33 +72,33 @@ html_theme_path = ['_themes']
 html_theme_options = {
     "navigation_depth": 5,
     "use_edit_page_button": True,
-    "github_url": "https://github.com/ntyukaev/openvino",
+    "github_url": "https://github.com/openvinotoolkit/openvino",
 }
 
 html_context = {
     'current_version': 'latest',
     'current_language': 'English',
     'languages': (('English', '/en/latest'), ('Chinese', '/cn/latest')),
-    'versions': (('latest', '/latest'), ('2022.1', '/2022.1'), ('2021.4', '/2021.4'),
+    'versions': (('latest', '/latest'), ('2021.4', '/2021.4'),
                 ('2021.3', '/2021.3'), ('2021.2', '/2021.2'), ('2021.1', '/2021.1'),
                  ('2020.4', '/2020.4'), ('2020.3', '/2020.3'), ('2020.2', '/2020.1'),
                   ('2020.1', '/2020.1'), ('2019_R3.1', '/2019_R3.1'), ('2019_R3', '/2019_R3'),
                    ('2019_R2', '/2019_R2'), ('2019_R1.1', '/2019_R1.1'),  ('2019_R1.01', '/2019_R1.01'),
                     ('2019_R1', '/2019_R1'), ('2018_R5', '/2018_R5'),),
-    'download_docs_url': '/archives/2022.1.zip'
+    'download_docs_url': '/archives/2021.4.zip'
 }
 
 repositories = {
     'openvino': {
-        'github_user': 'ntyukaev',
+        'github_user': 'openvinotoolkit',
         'github_repo': 'openvino',
-        'github_version': 'feature/ntyukaev/to-sphinx',
+        'github_version': 'releases/2021/4',
         'host_url': 'https://github.com'
     },
     'open_model_zoo': {
-        'github_user': 'ntyukaev',
+        'github_user': 'openvinotoolkit',
         'github_repo': 'open_model_zoo',
-        'github_version': 'feature/read-the-docs',
+        'github_version': 'master',
         'host_url': 'https://github.com'
     }
 }

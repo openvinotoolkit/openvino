@@ -1,4 +1,3 @@
-
 # Install and Configure for Linux* {#openvino_docs_install_guides_installing_openvino_linux}
 
 > **Applicable Linux Version**:

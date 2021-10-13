@@ -23,7 +23,9 @@ function addTableSort() {
             var th = $(this);
             var index = th.index();
             var sortBtn = $('<span class="sort-btn"></span>');
-            sortBtn.click(function(){
+            th.addClass('sort-header');
+            th.click(function(){
+                var counter = 0;
                 sortBtn.addClass('sort-active');
                 sortBy = sortBtn.data('sortby');
                 var trs = table.find('tbody tr');
@@ -56,7 +58,17 @@ function addTableSort() {
                         return 0;
                     }
                 }).map(function() {
-                    table.find('tbody').append($(this));
+                    var row = $(this);
+                    if (counter % 2 === 0) {
+                        row.removeClass('row-odd');
+                        row.addClass('row-even');
+                    }
+                    else {
+                        row.removeClass('row-even');
+                        row.addClass('row-odd');
+                    }
+                    counter++;
+                    table.find('tbody').append(row);
                 });
 
                 headings.each(function() {
@@ -116,14 +128,11 @@ function handleSwitcherParam() {
 
 function init_switchers() {
     var switcherAnchors = $('.switcher-anchor');
+    if (switcherAnchors.length === 0) {
+        return
+    }
     var switcherPanel = $('<div></div>');
     switcherPanel.addClass('switcher-set');
-    switcherPanel.css('top', $('#navbar-main').height());
-    switcherPanel.css('left', $('main').offset().left);
-    switcherPanel.width($('main').width() +
-                        parseFloat($('main').css('padding-left')) +
-                        parseFloat($('main').css('padding-right')) +
-                        parseFloat($('.bd-toc').css('padding-left')));
     for (var i = 0; i < switcherAnchors.length; i++) {
         var anchor = $(switcherAnchors[i]);
         var option = $(anchor).text();
