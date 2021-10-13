@@ -98,4 +98,4 @@ install(PROGRAMS src/openvino/__init__.py
 
 # package Python samples
 
-ie_cpack(${PYTHON_COMPONENT} python_samples)
+ie_cpack(${PYTHON_COMPONENT})
