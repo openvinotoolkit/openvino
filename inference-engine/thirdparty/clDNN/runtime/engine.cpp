@@ -120,48 +120,64 @@ memory_ptr engine::share_surface(const layout& layout, shared_surface surf, uint
 #endif  // _WIN32
 
 uint64_t engine::get_max_used_device_memory() const {
+    std::lock_guard<std::mutex> guard(_mutex);
     uint64_t total_peak_memory_usage {0};
-    for (auto const& m : peak_memory_usage_map) {
+    for (auto const& m : _peak_memory_usage_map) {
         total_peak_memory_usage += m.second.load();
     }
     return total_peak_memory_usage;
 }
 
 uint64_t engine::get_max_used_device_memory(allocation_type type) const {
+    std::lock_guard<std::mutex> guard(_mutex);
     uint64_t peak_memory_usage {0};
-    auto iter = peak_memory_usage_map.find(type);
-    if (iter != peak_memory_usage_map.end()) {
+    auto iter = _peak_memory_usage_map.find(type);
+    if (iter != _peak_memory_usage_map.end()) {
         peak_memory_usage = iter->second.load();
     }
     return peak_memory_usage;
 }
 
 uint64_t engine::get_used_device_memory(allocation_type type) const {
+    std::lock_guard<std::mutex> guard(_mutex);
     uint64_t memory_usage {0};
-    auto iter = memory_usage_map.find(type);
-    if (iter != memory_usage_map.end()) {
+    auto iter = _memory_usage_map.find(type);
+    if (iter != _memory_usage_map.end()) {
         memory_usage = iter->second.load();
     }
     return memory_usage;
 }
 
-void engine::add_memory_used(size_t bytes, allocation_type type) {
-    if (!memory_usage_map.count(type) && !peak_memory_usage_map.count(type)) {
-        static std::mutex m;
-        std::lock_guard<std::mutex> guard(m);
-        memory_usage_map[type] = 0;
-        peak_memory_usage_map[type] = 0;
+void engine::get_memory_statistics(std::map<std::string, uint64_t>* statistics) const {
+    for (auto const& m : _memory_usage_map) {
+        std::ostringstream oss;
+        oss << m.first << "_current";
+        (*statistics)[oss.str()] = m.second.load();
     }
-    memory_usage_map[type] += bytes;
-    if (memory_usage_map[type] > peak_memory_usage_map[type]) {
-        peak_memory_usage_map[type] = memory_usage_map[type].load();
+    for (auto const& m : _peak_memory_usage_map) {
+        std::ostringstream oss;
+        oss << m.first << "_peak";
+        (*statistics)[oss.str()] = m.second.load();
+    }
+}
+
+void engine::add_memory_used(size_t bytes, allocation_type type) {
+    std::lock_guard<std::mutex> guard(_mutex);
+    if (!_memory_usage_map.count(type) && !_peak_memory_usage_map.count(type)) {
+        _memory_usage_map[type] = 0;
+        _peak_memory_usage_map[type] = 0;
+    }
+    _memory_usage_map[type] += bytes;
+    if (_memory_usage_map[type] > _peak_memory_usage_map[type]) {
+        _peak_memory_usage_map[type] = _memory_usage_map[type].load();
     }
 }
 
 void engine::subtract_memory_used(size_t bytes, allocation_type type) {
-    auto iter = memory_usage_map.find(type);
-    if (iter != memory_usage_map.end()) {
-        memory_usage_map[type] -= bytes;
+    std::lock_guard<std::mutex> guard(_mutex);
+    auto iter = _memory_usage_map.find(type);
+    if (iter != _memory_usage_map.end()) {
+        _memory_usage_map[type] -= bytes;
     } else {
         throw std::runtime_error("Attempt to free unallocated memory");
     }
