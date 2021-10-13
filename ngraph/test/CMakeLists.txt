@@ -262,6 +262,7 @@ set(SRC
     visitors/op/atanh.cpp
     visitors/op/batch_norm.cpp
     visitors/op/batch_to_space.cpp
+    visitors/op/binary_convolution.cpp
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
     visitors/op/ceiling.cpp
