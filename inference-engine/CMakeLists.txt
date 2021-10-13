@@ -69,7 +69,7 @@ if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
 
-add_subdirectory(tools)
+#add_subdirectory(tools)
 
 function(ie_build_samples)
     # samples should be build with the same flags as from OpenVINO package,
@@ -83,7 +83,7 @@ function(ie_build_samples)
         unset(${var})
     endforeach()
     include(sanitizer)
-    add_subdirectory(samples)
+#    add_subdirectory(samples)
 endfunction()
 
 # gflags and format_reader targets are kept inside of samples directory and
@@ -99,10 +99,10 @@ if (ENABLE_PYTHON)
     add_subdirectory(ie_bridges/python)
 endif()
 
-add_subdirectory(ie_bridges/c)
+#add_subdirectory(ie_bridges/c)
 
 if (ENABLE_JAVA)
-    add_subdirectory(ie_bridges/java)
+#    add_subdirectory(ie_bridges/java)
 endif()
 
 add_cpplint_report_target()
@@ -179,7 +179,7 @@ endif()
 # Developer package
 #
 
-ie_developer_export_targets(format_reader)
+#ie_developer_export_targets(format_reader)
 ie_developer_export_targets(${NGRAPH_LIBRARIES})
 
 # for Template plugin
@@ -265,4 +265,4 @@ function(register_extra_modules)
     endforeach()
 endfunction()
 
-register_extra_modules()
+#register_extra_plugins()

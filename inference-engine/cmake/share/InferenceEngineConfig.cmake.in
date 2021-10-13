@@ -16,7 +16,7 @@
 # and the following imported targets:
 #
 #   IE::inference_engine            - The Inference Engine library
-#   IE::inference_engine_c_api      - The Inference Engine C API library
+#   IE::inference_engine_legacy     - The Inference Engine library with legacy API for IR v7 and older.
 #
 
 macro(ext_message TRACE_LEVEL)
@@ -37,8 +37,7 @@ set(InferenceEngine_FOUND FALSE)
 if(TARGET IE::inference_engine)
     set(InferenceEngine_FOUND TRUE)
     get_target_property(InferenceEngine_INCLUDE_DIRS IE::inference_engine INTERFACE_INCLUDE_DIRECTORIES)
-    set(InferenceEngine_LIBRARIES IE::inference_engine
-                                  IE::inference_engine_c_api)
+    set(InferenceEngine_LIBRARIES IE::inference_engine_legacy IE::inference_engine IE::inference_engine_ir_reader IE::inference_engine_transformations IE::pugixml IE::ngraph IE::itt IE::ngraph_builders IE::ngraph_reference)
 else()
     if (WIN32)
         set(_ARCH intel64)
@@ -76,91 +75,134 @@ else()
 
     find_path(IE_INCLUDE_DIR inference_engine.hpp "${IE_ROOT_DIR}/include" NO_DEFAULT_PATH)
 
-    set(IE_LIB_DIR "${IE_ROOT_DIR}/lib/${_ARCH}")
+    set(IE_LIB_DIR "${IE_ROOT_DIR}/bin/${_ARCH}")
     set(IE_LIB_REL_DIR "${IE_LIB_DIR}/Release")
     set(IE_LIB_DBG_DIR "${IE_LIB_DIR}/Debug")
 
     include(FindPackageHandleStandardArgs)
 
     if(WIN32)
-        find_library(IE_RELEASE_LIBRARY inference_engine@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
-        find_library(IE_C_API_RELEASE_LIBRARY inference_engine_c_api@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(INFERENCE_ENGINE_RELEASE_LIBRARY inference_engine@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(INFERENCE_ENGINE_LEGACY_RELEASE_LIBRARY inference_engine_legacy@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(INFERENCE_ENGINE_IR_READER_RELEASE_LIBRARY inference_engine_ir_reader@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(INFERENCE_ENGINE_TRANSFORMATIONS_RELEASE_LIBRARY inference_engine_transformations@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(PUGIXML_RELEASE_LIBRARY pugixml@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(NGRAPH_RELEASE_LIBRARY ngraph@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(TBB_STATIC_RELEASE_LIBRARY tbb_static@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(MKLDNN_RELEASE_LIBRARY mkldnn@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(MKLDNNPLUGIN_RELEASE_LIBRARY MKLDNNPlugin@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(INFERENCE_ENGINE_LP_TRANSFORMATIONS_RELEASE_LIBRARY inference_engine_lp_transformations@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(ITT_RELEASE_LIBRARY itt@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(NGRAPH_BUILDERS_RELEASE_LIBRARY ngraph_builders@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(NGRAPH_REFERENCE_RELEASE_LIBRARY ngraph_reference@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
     elseif(APPLE)
-        find_library(IE_RELEASE_LIBRARY inference_engine@IE_RELEASE_POSTFIX_MAC@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
-        find_library(IE_C_API_RELEASE_LIBRARY inference_engine_c_api@IE_RELEASE_POSTFIX_MAC@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
+        find_library(INFERENCE_ENGINE_RELEASE_LIBRARY inference_engine@IE_RELEASE_POSTFIX_MAC@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
+        find_library(INFERENCE_ENGINE_LEGACY_RELEASE_LIBRARY inference_engine_legacy@IE_RELEASE_POSTFIX_MAC@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
+
     else()
-        find_library(IE_RELEASE_LIBRARY inference_engine@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
-        find_library(IE_C_API_RELEASE_LIBRARY inference_engine_c_api@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
+        find_library(INFERENCE_ENGINE_RELEASE_LIBRARY inference_engine@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
+        find_library(INFERENCE_ENGINE_LEGACY_RELEASE_LIBRARY inference_engine_legacy@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
+        find_library(INFERENCE_ENGINE_IR_READER_RELEASE_LIBRARY inference_engine_ir_reader@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
+        find_library(INFERENCE_ENGINE_TRANSFORMATIONS_RELEASE_LIBRARY inference_engine_transformations@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
+        find_library(PUGIXML_RELEASE_LIBRARY pugixml@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
+        find_library(NGRAPH_RELEASE_LIBRARY ngraph@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
+        find_library(TBB_STATIC_RELEASE_LIBRARY tbb_static@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
+        find_library(MKLDNN_RELEASE_LIBRARY mkldnn@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(MKLDNNPLUGIN_RELEASE_LIBRARY MKLDNNPlugin@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(INFERENCE_ENGINE_LP_TRANSFORMATIONS_RELEASE_LIBRARY inference_engine_lp_transformations@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(ITT_RELEASE_LIBRARY itt@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(NGRAPH_BUILDERS_RELEASE_LIBRARY ngraph_builders@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(NGRAPH_REFERENCE_RELEASE_LIBRARY ngraph_reference@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
     endif()
 
     find_package_handle_standard_args(  InferenceEngine
                                         FOUND_VAR INFERENCEENGINE_FOUND
-                                        REQUIRED_VARS IE_RELEASE_LIBRARY IE_C_API_RELEASE_LIBRARY IE_INCLUDE_DIR
+                                        REQUIRED_VARS INFERENCE_ENGINE_RELEASE_LIBRARY
+                                        INFERENCE_ENGINE_LEGACY_RELEASE_LIBRARY
+                                        INFERENCE_ENGINE_IR_READER_RELEASE_LIBRARY
+                                        INFERENCE_ENGINE_TRANSFORMATIONS_RELEASE_LIBRARY
+                                        PUGIXML_RELEASE_LIBRARY
+                                        NGRAPH_RELEASE_LIBRARY
+					ITT_RELEASE_LIBRARY
+					NGRAPH_BUILDERS_RELEASE_LIBRARY
+					NGRAPH_REFERENCE_RELEASE_LIBRARY
+                                        IE_INCLUDE_DIR
                                         FAIL_MESSAGE "Some of mandatory Inference Engine components are not found. Please consult InferenceEgnineConfig.cmake module's help page.")
 
     if(INFERENCEENGINE_FOUND)
         # to keep this line for successful execution in CMake 2.8
         set(InferenceEngine_FOUND TRUE)
 
-        foreach(ie_library_suffix "" "_c_api")
-            string(TOUPPER "${ie_library_suffix}" ie_library_usuffix)
-            add_library(IE::inference_engine${ie_library_suffix} SHARED IMPORTED GLOBAL)
+        foreach(ie_library "inference_engine" "inference_engine_legacy" "inference_engine_ir_reader" "inference_engine_transformations" "pugixml" "ngraph" "tbb_static" "mkldnn" "MKLDNNPlugin" "inference_engine_lp_transformations" "itt" "ngraph_builders" "ngraph_reference")
+            string(TOUPPER "${ie_library}" ie_library_u)
+            add_library(IE::${ie_library} SHARED IMPORTED GLOBAL)
 
             if (WIN32)
-                set_target_properties(IE::inference_engine${ie_library_suffix} PROPERTIES
+                set_target_properties(IE::${ie_library} PROPERTIES
                         IMPORTED_CONFIGURATIONS RELEASE
-                        IMPORTED_IMPLIB_RELEASE    "${IE${ie_library_usuffix}_RELEASE_LIBRARY}"
+                        IMPORTED_IMPLIB_RELEASE    "${${ie_library_u}_RELEASE_LIBRARY}"
                         MAP_IMPORTED_CONFIG_RELEASE Release
                         MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release
                         INTERFACE_INCLUDE_DIRECTORIES "${IE_INCLUDE_DIR}")
 
                 # Debug binaries are optional
-                find_library(IE${ie_library_usuffix}_DEBUG_LIBRARY inference_engine${ie_library_suffix}@IE_DEBUG_POSTFIX_WIN@
+                find_library(${ie_library_u}_DEBUG_LIBRARY ${ie_library}@IE_DEBUG_POSTFIX_WIN@
                     "${IE_LIB_DBG_DIR}" NO_DEFAULT_PATH)
-                if (IE${ie_library_usuffix}_DEBUG_LIBRARY)
-                    set_property(TARGET IE::inference_engine${ie_library_suffix} APPEND PROPERTY IMPORTED_CONFIGURATIONS DEBUG)
-                    set_target_properties(IE::inference_engine${ie_library_suffix} PROPERTIES
-                            IMPORTED_IMPLIB_DEBUG "${IE${ie_library_usuffix}_DEBUG_LIBRARY}"
+                if (${ie_library_u}_DEBUG_LIBRARY)
+                    set_property(TARGET IE::${ie_library} APPEND PROPERTY IMPORTED_CONFIGURATIONS DEBUG)
+                    set_target_properties(IE::${ie_library} PROPERTIES
+                            IMPORTED_IMPLIB_DEBUG "${${ie_library_u}_DEBUG_LIBRARY}"
                             MAP_IMPORTED_CONFIG_DEBUG Debug)
                 else()
                     ext_message(WARNING "Inference Engine DEBUG binaries are missed.")
                 endif()
             elseif (APPLE)
-                set_target_properties(IE::inference_engine${ie_library_suffix} PROPERTIES
-                        IMPORTED_LOCATION_RELEASE "${IE${ie_library_usuffix}_RELEASE_LIBRARY}"
+                set_target_properties(IE::${ie_library} PROPERTIES
+                        IMPORTED_LOCATION_RELEASE "${${ie_library_u}_RELEASE_LIBRARY}"
                         INTERFACE_INCLUDE_DIRECTORIES "${IE_INCLUDE_DIR}"
                         INTERFACE_COMPILE_OPTIONS "-Wno-error=deprecated-declarations")
 
                 # Debug binaries are optional
-                find_library(IE${ie_library_usuffix}_DEBUG_LIBRARY inference_engine${ie_library_suffix}@IE_DEBUG_POSTFIX_MAC@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
-                if (IE${ie_library_usuffix}_DEBUG_LIBRARY)
-                    set_target_properties(IE::inference_engine${ie_library_suffix} PROPERTIES
-                            IMPORTED_LOCATION_DEBUG "${IE${ie_library_usuffix}_DEBUG_LIBRARY}")
+                find_library(${ie_library_u}_DEBUG_LIBRARY ${ie_library}@IE_DEBUG_POSTFIX_MAC@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
+                if (${ie_library_u}_DEBUG_LIBRARY)
+                    set_target_properties(IE::${ie_library} PROPERTIES
+                            IMPORTED_LOCATION_DEBUG "${${ie_library_u}_DEBUG_LIBRARY}")
                 else()
                     ext_message(WARNING "Inference Engine DEBUG binaries are missed")
                 endif()
+
+                target_link_libraries(IE::${ie_library} INTERFACE ${CMAKE_DL_LIBS})
             else()
                 # Only Release binaries are distributed for Linux systems
-                set_target_properties(IE::inference_engine${ie_library_suffix} PROPERTIES
-                        IMPORTED_LOCATION "${IE${ie_library_usuffix}_RELEASE_LIBRARY}"
+                set_target_properties(IE::${ie_library} PROPERTIES
+                        IMPORTED_LOCATION "${${ie_library_u}_RELEASE_LIBRARY}"
                         INTERFACE_INCLUDE_DIRECTORIES "${IE_INCLUDE_DIR}")
                 if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-                    set_target_properties(IE::inference_engine${ie_library_suffix} PROPERTIES
+                    set_target_properties(IE::${ie_library} PROPERTIES
                             INTERFACE_COMPILE_OPTIONS "-diag-warning=1786")
                 else()
-                    set_target_properties(IE::inference_engine${ie_library_suffix} PROPERTIES
+                    set_target_properties(IE::${ie_library} PROPERTIES
                             INTERFACE_COMPILE_OPTIONS "-Wno-error=deprecated-declarations")
-                    if(CMAKE_CROSSCOMPILING AND NOT MSVC)
-                        set_property(TARGET IE::inference_engine${ie_library_suffix} PROPERTY
-                                     INTERFACE_LINK_OPTIONS "-Wl,--allow-shlib-undefined")
-                    endif()
                 endif()
+                target_link_libraries(IE::${ie_library} INTERFACE ${CMAKE_DL_LIBS})
             endif()
         endforeach()
 
         set(InferenceEngine_INCLUDE_DIRS ${IE_INCLUDE_DIR})
-        set(InferenceEngine_LIBRARIES IE::inference_engine
-                                      IE::inference_engine_c_api)
+        set(InferenceEngine_LIBRARIES IE::inference_engine_legacy
+            IE::inference_engine
+            IE::inference_engine_ir_reader
+            IE::inference_engine_transformations
+            IE::pugixml
+            IE::ngraph
+            IE::itt
+	    IE::ngraph_builders
+            IE::ngraph_reference
+            IE::tbb_static
+            IE::mkldnn
+            IE::MKLDNNPlugin
+            IE::inference_engine_lp_transformations
+            )
 
         set(IE_EXTERNAL_DIR "${IE_ROOT_DIR}/external")
         include("${IE_ROOT_DIR}/share/ie_parallel.cmake")

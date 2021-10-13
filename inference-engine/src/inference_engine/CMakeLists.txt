@@ -131,7 +131,7 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 # Create shared library file from object library
 
-add_library(${TARGET_NAME} SHARED
+add_library(${TARGET_NAME} STATIC
             ${IE_STATIC_DEPENDENT_FILES}
             ${LEGACY_LIBRARY_SHARED_SRCS}
             ${vs_version_file}
@@ -166,6 +166,16 @@ add_library(${TARGET_NAME}_s STATIC
             $<TARGET_OBJECTS:${TARGET_NAME}_legacy_obj>
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>
             ${IE_STATIC_DEPENDENT_FILES})
+
+set(CompilerFlags
+         CMAKE_CXX_FLAGS
+         CMAKE_CXX_FLAGS_DEBUG
+         CMAKE_CXX_FLAGS_RELEASE
+         CMAKE_CXX_FLAGS_MINSIZEREL
+         CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+foreach(CompilerFlag ${CompilerFlags})
+  string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
+endforeach()
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)
 

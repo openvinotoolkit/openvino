@@ -16,7 +16,7 @@ source_group("src" FILES ${LIBRARY_SRC})
 
 # Create shared library
 
-add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC})
+add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC})
 
 ie_faster_build(${TARGET_NAME}
     UNITY
@@ -30,6 +30,16 @@ target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLU
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/"
                                                   "${IE_MAIN_SOURCE_DIR}/src/inference_engine"
                                                   "${IE_MAIN_SOURCE_DIR}/src/readers/ir_reader")
+
+set(CompilerFlags
+         CMAKE_CXX_FLAGS
+         CMAKE_CXX_FLAGS_DEBUG
+         CMAKE_CXX_FLAGS_RELEASE
+         CMAKE_CXX_FLAGS_MINSIZEREL
+         CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+foreach(CompilerFlag ${CompilerFlags})
+  string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
+endforeach()
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_reader_api inference_engine_plugin_api
                                              inference_engine_legacy inference_engine pugixml openvino::itt)

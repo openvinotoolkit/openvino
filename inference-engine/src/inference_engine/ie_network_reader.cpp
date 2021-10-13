@@ -9,7 +9,8 @@
 #include <file_utils.h>
 #include <ie_blob_stream.hpp>
 #include <ie_reader.hpp>
-#include <ie_ir_version.hpp>
+#include <xml_parse_utils.h>
+#include <array>
 
 #include <fstream>
 #include <istream>
@@ -44,7 +45,7 @@ class Reader: public IReader {
     std::string location;
 
     InferenceEngine::details::SOPointer<IReader> getReaderPtr() {
-        std::call_once(readFlag, [&] () {
+/*        std::call_once(readFlag, [&] () { // ASG static linking
             FileUtils::FilePath libraryName = FileUtils::toFilePath(location);
             FileUtils::FilePath readersLibraryPath = FileUtils::makeSharedLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
@@ -55,7 +56,7 @@ class Reader: public IReader {
             }
             ptr = InferenceEngine::details::SOPointer<IReader>(readersLibraryPath);
         });
-
+*/
         return ptr;
     }
 
@@ -95,7 +96,8 @@ public:
 namespace {
 
 // Extension to plugins creator
-std::multimap<std::string, Reader::Ptr> readers;
+    //std::multimap<std::string, Reader::Ptr> readers;
+    std::multimap<std::string, IReader*> readers; // ASG static linking
 
 void registerReaders() {
     OV_ITT_SCOPED_TASK(itt::domains::IE, "registerReaders");
@@ -104,6 +106,7 @@ void registerReaders() {
     std::lock_guard<std::mutex> lock(readerMutex);
     if (initialized) return;
 
+    /* // ASG static linking
     // TODO: Read readers info from XML
     auto create_if_exists = [] (const std::string name, const std::string library_name) {
         FileUtils::FilePath libraryName = FileUtils::toFilePath(library_name);
@@ -123,30 +126,68 @@ void registerReaders() {
 
     // try to load IR reader v10 if library exists
     auto irReaderv10 = create_if_exists("IRv10", std::string("inference_engine_ir_reader") + std::string(IE_BUILD_POSTFIX));
+*/
+    IReader* irReaderv10; // ASG static linking
+    ResponseDesc resp;
+    CreateReader(irReaderv10, &resp);
     if (irReaderv10)
         readers.emplace("xml", irReaderv10);
 
-    // try to load IR reader v7 if library exists
-    auto irReaderv7 = create_if_exists("IRv7", std::string("inference_engine_ir_v7_reader") + std::string(IE_BUILD_POSTFIX));
+    // try to load IR reader v7 if library exists // ASG static linking
+    /*auto irReaderv7 = create_if_exists("IRv7", std::string("inference_engine_ir_v7_reader") + std::string(IE_BUILD_POSTFIX));
     if (irReaderv7)
         readers.emplace("xml", irReaderv7);
-
+    */
     initialized = true;
 }
 
+inline size_t GetIRVersion_IE(pugi::xml_node& root) {
+    return XMLParseUtils::GetUIntAttr(root, "version", 0);
+}
+
+/**
+ * @brief Extracts IR version from model stream
+ * @param model Models stream
+ * @return IR version, 0 if model does represent IR
+ */
+size_t GetIRVersion_IE(std::istream& model) {
+    std::array<char, 512> header = {};
+
+    model.seekg(0, model.beg);
+    model.read(header.data(), header.size());
+    model.clear();
+    model.seekg(0, model.beg);
+
+    pugi::xml_document doc;
+    auto res = doc.load_buffer(header.data(), header.size(), pugi::parse_default | pugi::parse_fragment, pugi::encoding_utf8);
+
+    if (res == pugi::status_ok) {
+        pugi::xml_node root = doc.document_element();
+
+        std::string node_name = root.name();
+        std::transform(node_name.begin(), node_name.end(), node_name.begin(), ::tolower);
+
+        if (node_name == "net") {
+            return GetIRVersion_IE(root);
+        }
+    }
+
+    return 0;
+}
+
 void assertIfIRv7LikeModel(std::istream & modelStream) {
-    auto irVersion = details::GetIRVersion(modelStream);
+    auto irVersion = GetIRVersion_IE(modelStream);
     bool isIRv7 = irVersion > 1 && irVersion <= 7;
 
     if (!isIRv7)
         return;
 
-    for (auto && kvp : readers) {
+    /*for (auto && kvp : readers) {
         Reader::Ptr reader = kvp.second;
         if (reader->getName() == "IRv7") {
             return;
         }
-    }
+    }*/
 
     THROW_IE_EXCEPTION << "The support of IR v" << irVersion <<  " has been removed from the product. "
         "Please, convert the original model using the Model Optimizer which comes with this "

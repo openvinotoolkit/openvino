@@ -98,10 +98,10 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/jit_mkldnn_emitters.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/argmax.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/argmax_imp.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/argmax_imp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/topk.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_imp.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_imp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/cum_sum.cpp
 )
 
@@ -171,7 +171,8 @@ set_ie_threading_interface_for(${TARGET_NAME})
 target_compile_definitions(${TARGET_NAME} PUBLIC -DMKLDNN_THR=${MKLDNN_THR})
 
 target_link_libraries(${TARGET_NAME} PRIVATE mkldnn inference_engine inference_engine_legacy
-                                             inference_engine_transformations inference_engine_lp_transformations)
+                                             inference_engine_transformations inference_engine_lp_transformations
+                                             ${TARGET_NAME}_obj)
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
@@ -203,6 +204,16 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inferenc
                                                       $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
+
+set(CompilerFlags
+         CMAKE_CXX_FLAGS
+         CMAKE_CXX_FLAGS_DEBUG
+         CMAKE_CXX_FLAGS_RELEASE
+         CMAKE_CXX_FLAGS_MINSIZEREL
+         CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+foreach(CompilerFlag ${CompilerFlags})
+  string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
+endforeach()
 
 target_compile_definitions(${TARGET_NAME}_obj PUBLIC -DMKLDNN_THR=${MKLDNN_THR}
                                               PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)

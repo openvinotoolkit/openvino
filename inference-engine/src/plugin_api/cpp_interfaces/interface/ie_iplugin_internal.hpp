@@ -280,6 +280,10 @@ public:
  * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
  * @ingroup ie_dev_api_plugin_api
  */
+INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(
+    InferenceEngine::IInferencePlugin*& plugin, 
+    InferenceEngine::ResponseDesc* resp);
+/*
 #define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                       \
     INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(                \
             InferenceEngine::IInferencePlugin *&plugin,                                  \
@@ -293,3 +297,4 @@ public:
             return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what(); \
         }                                                                                \
     }
+    */

@@ -52,7 +52,7 @@ function(ie_add_plugin)
         add_cpplint_target(${obj_lib}_cpplint FOR_TARGETS ${obj_lib})
     endforeach()
 
-    add_library(${IE_PLUGIN_NAME} SHARED ${input_files})
+    add_library(${IE_PLUGIN_NAME} STATIC ${input_files})
     target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
     ie_add_vs_version_file(NAME ${TARGET_NAME}

@@ -15,9 +15,19 @@ set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
-# Create shared library
+# Create static library
 
-add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(${TARGET_NAME} STATIC  ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+
+set(CompilerFlags
+         CMAKE_CXX_FLAGS
+         CMAKE_CXX_FLAGS_DEBUG
+         CMAKE_CXX_FLAGS_RELEASE
+         CMAKE_CXX_FLAGS_MINSIZEREL
+         CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+foreach(CompilerFlag ${CompilerFlags})
+  string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
+endforeach()
 
 ie_faster_build(${TARGET_NAME}
     UNITY

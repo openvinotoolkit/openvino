@@ -24,7 +24,7 @@ set(SRC
     ie_executable.hpp
 )
 
-add_library(ie_backend SHARED ${SRC})
+add_library(ie_backend STATIC ${SRC})
 
 if(COMMAND ie_faster_build)
     ie_faster_build(ie_backend
@@ -36,6 +36,16 @@ if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME ie_backend
                            FILEDESCRIPTION "nGraph IE backend library")
 endif()
+
+set(CompilerFlags
+         CMAKE_CXX_FLAGS
+         CMAKE_CXX_FLAGS_DEBUG
+         CMAKE_CXX_FLAGS_RELEASE
+         CMAKE_CXX_FLAGS_MINSIZEREL
+         CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+foreach(CompilerFlag ${CompilerFlags})
+  string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
+endforeach()
 
 add_dependencies(ie_backend inference_engine)
 target_compile_definitions(ie_backend PRIVATE IE_BACKEND_DLL_EXPORTS)

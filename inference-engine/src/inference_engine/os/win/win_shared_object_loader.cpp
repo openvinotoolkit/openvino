@@ -79,12 +79,13 @@ private:
 
     void LoadSymbols() {
         static std::once_flag loadFlag;
-        std::call_once(loadFlag, [&] () {
+        // MSFT: removed to pass apivalidator check 
+        /*std::call_once(loadFlag, [&] () {
             if (HMODULE hm = GetModuleHandleW(L"kernel32.dll")) {
                 IEGetDllDirectoryA = reinterpret_cast<GetDllDirectoryA_Fnc>(GetProcAddress(hm, "GetDllDirectoryA"));
                 IEGetDllDirectoryW = reinterpret_cast<GetDllDirectoryW_Fnc>(GetProcAddress(hm, "GetDllDirectoryW"));
             }
-        });
+        });*/
     }
 
     // Exclude current directory from DLL search path process wise.
@@ -94,23 +95,28 @@ private:
     // path was set to "" or NULL so reset it to "" to keep
     // application safe.
     void ExcludeCurrentDirectoryA() {
-        GetDllDirectoryA;
+        // MSFT: removed to pass apivalidator check 
+        /*GetDllDirectoryA;
 #ifndef WINAPI_FAMILY
         LoadSymbols();
         if (IEGetDllDirectoryA && IEGetDllDirectoryA(0, NULL) <= 1) {
             SetDllDirectoryA("");
         }
 #endif
+        */
     }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
     void ExcludeCurrentDirectoryW() {
+        // MSFT: removed to pass apivalidator check
+        /*
 #ifndef WINAPI_FAMILY
         LoadSymbols();
         if (IEGetDllDirectoryW && IEGetDllDirectoryW(0, NULL) <= 1) {
             SetDllDirectoryW(L"");
         }
 #endif
+        */
     }
 #endif
 
@@ -119,7 +125,7 @@ public:
     explicit Impl(const wchar_t* pluginName) {
         ExcludeCurrentDirectoryW();
 
-        shared_object = LoadLibraryW(pluginName);
+        shared_object = 0;//LoadLibraryW(pluginName);
         if (!shared_object) {
             char cwd[1024];
             THROW_IE_EXCEPTION << "Cannot load library '" << FileUtils::wStringtoMBCSstringChar(std::wstring(pluginName)) << "': " << GetLastError()
@@ -131,7 +137,7 @@ public:
     explicit Impl(const char* pluginName) {
         ExcludeCurrentDirectoryA();
 
-        shared_object = LoadLibraryA(pluginName);
+        shared_object = 0; //LoadLibraryA(pluginName);
         if (!shared_object) {
             char cwd[1024];
             THROW_IE_EXCEPTION << "Cannot load library '" << pluginName << "': " << GetLastError()
@@ -140,7 +146,7 @@ public:
     }
 
     ~Impl() {
-        FreeLibrary(shared_object);
+        //FreeLibrary(shared_object);
     }
 
     void* get_symbol(const char* symbolName) const {

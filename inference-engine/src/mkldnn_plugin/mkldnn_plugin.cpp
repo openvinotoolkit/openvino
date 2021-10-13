@@ -500,4 +500,14 @@ QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork& network, const std::m
 }
 
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MKLDNNPlugin"};
-IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)
+INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept {
+    try {
+        plugin = new Engine();
+        plugin->SetVersion(version);
+        return OK;
+    }
+    catch (std::exception& ex) {
+        return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
+    }
+}
+//IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)

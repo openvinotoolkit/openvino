@@ -15,7 +15,17 @@
 # ******************************************************************************
 
 if (NGRAPH_INTERPRETER_ENABLE)
-    add_library(interpreter_backend SHARED int_backend.cpp int_executable.cpp)
+    add_library(interpreter_backend STATIC int_backend.cpp int_executable.cpp)
+
+set(CompilerFlags
+         CMAKE_CXX_FLAGS
+         CMAKE_CXX_FLAGS_DEBUG
+         CMAKE_CXX_FLAGS_RELEASE
+         CMAKE_CXX_FLAGS_MINSIZEREL
+         CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+foreach(CompilerFlag ${CompilerFlags})
+  string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
+endforeach()
 
     if(COMMAND ie_faster_build)
         ie_faster_build(interpreter_backend

@@ -124,8 +124,17 @@ set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
 # Create shared library file from object library
 
-add_library(${TARGET_NAME} SHARED
+add_library(${TARGET_NAME} STATIC
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
+set(CompilerFlags
+         CMAKE_CXX_FLAGS
+         CMAKE_CXX_FLAGS_DEBUG
+         CMAKE_CXX_FLAGS_RELEASE
+         CMAKE_CXX_FLAGS_MINSIZEREL
+         CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+foreach(CompilerFlag ${CompilerFlags})
+  string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
+endforeach()
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Preprocessing plugin")
@@ -155,6 +164,16 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 add_library(${TARGET_NAME}_s STATIC
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
+
+set(CompilerFlags
+         CMAKE_CXX_FLAGS
+         CMAKE_CXX_FLAGS_DEBUG
+         CMAKE_CXX_FLAGS_RELEASE
+         CMAKE_CXX_FLAGS_MINSIZEREL
+         CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+foreach(CompilerFlag ${CompilerFlags})
+  string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
+endforeach()
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)
 

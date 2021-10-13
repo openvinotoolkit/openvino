@@ -51,7 +51,17 @@ set (SRC
 
 disable_deprecated_warnings()
 
-add_library(ngraph_backend SHARED ${SRC})
+add_library(ngraph_backend STATIC ${SRC})
+
+set(CompilerFlags
+         CMAKE_CXX_FLAGS
+         CMAKE_CXX_FLAGS_DEBUG
+         CMAKE_CXX_FLAGS_RELEASE
+         CMAKE_CXX_FLAGS_MINSIZEREL
+         CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+foreach(CompilerFlag ${CompilerFlags})
+  string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
+endforeach()
 
 if(COMMAND ie_faster_build)
     ie_faster_build(ngraph_backend

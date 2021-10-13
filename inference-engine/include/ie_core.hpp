@@ -270,7 +270,8 @@ public:
      *
      * @param xmlConfigFile A path to .xml file with plugins to register.
      */
-    void RegisterPlugins(const std::string& xmlConfigFile);
+    //void RegisterPlugins(const std::string& xmlConfigFile);
+    void RegisterPlugins(); //ASG For static linking
 
     /**
      * @brief Create a new shared context object on specified accelerator device

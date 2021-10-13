@@ -34,7 +34,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 configure_file(include/ngraph/version.in.hpp include/ngraph/version.hpp)
 
 # Create shared library
-add_library(ngraph SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(ngraph STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 if(COMMAND ie_faster_build)
     ie_faster_build(ngraph
@@ -56,6 +56,16 @@ set_target_properties(ngraph PROPERTIES
                       CXX_VISIBILITY_PRESET hidden
                       C_VISIBILITY_PRESET hidden
                       VISIBILITY_INLINES_HIDDEN ON)
+
+set(CompilerFlags
+         CMAKE_CXX_FLAGS
+         CMAKE_CXX_FLAGS_DEBUG
+         CMAKE_CXX_FLAGS_RELEASE
+         CMAKE_CXX_FLAGS_MINSIZEREL
+         CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+foreach(CompilerFlag ${CompilerFlags})
+  string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
+endforeach()
 
 target_link_libraries(ngraph PRIVATE openvino::itt ngraph::builder ngraph::reference)
 

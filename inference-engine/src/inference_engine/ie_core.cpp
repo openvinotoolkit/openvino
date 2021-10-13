@@ -23,7 +23,7 @@
 #include "file_utils.h"
 #include "ie_network_reader.hpp"
 #include "xml_parse_utils.h"
-
+#include "..\src\plugin_api\cpp_interfaces\interface\ie_iplugin_internal.hpp"
 using namespace InferenceEngine::PluginConfigParams;
 
 namespace InferenceEngine {
@@ -161,7 +161,8 @@ class Core::Impl : public ICore {
     // Fields are ordered by deletion order
     ITaskExecutor::Ptr _taskExecutor = nullptr;
 
-    mutable std::map<std::string, InferencePlugin> plugins;
+    //mutable std::map<std::string, InferencePlugin> plugins; // ASG For static linking
+    mutable std::map<std::string, IInferencePlugin*> plugins;
 
     struct PluginDescriptor {
         FileUtils::FilePath libraryLocation;
@@ -183,9 +184,11 @@ public:
      * @brief Register plugins for devices which are located in .xml configuration file. The function supports UNICODE path
      * @param xmlConfigFile An .xml configuraion with device / plugin information
      */
-    void RegisterPluginsInRegistry(const std::string& xmlConfigFile) {
+    //void RegisterPluginsInRegistry(const std::string& xmlConfigFile) {
+    void RegisterPluginsInRegistry() { //- ASG For static linking
         std::lock_guard<std::mutex> lock(pluginsMutex);
 
+        /* - ASG For static linking
         auto parse_result = ParseXml(xmlConfigFile.c_str());
         if (!parse_result.error_msg.empty()) {
             THROW_IE_EXCEPTION << parse_result.error_msg;
@@ -242,6 +245,12 @@ public:
                 PluginDescriptor desc = {pluginPath, config, listOfExtentions};
                 pluginRegistry[deviceName] = desc;
             }
+        }*/
+        std::string deviceName ("CPU");
+        FileUtils::FilePath pluginPath;
+        {
+            PluginDescriptor desc = { pluginPath, {}, {} };
+            pluginRegistry[deviceName] = desc;
         }
     }
 
@@ -271,7 +280,7 @@ public:
                                   const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::LoadNetwork");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
-        return GetCPPPluginByName(parsed._deviceName).LoadNetwork(network, parsed._config);
+        return GetCPPPluginByName(parsed._deviceName)->LoadNetwork(network, parsed._config);
     }
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName,
@@ -289,13 +298,14 @@ public:
             networkModel.seekg(currentPos, networkModel.beg);
         }
 
-        return GetCPPPluginByName(parsed._deviceName).ImportNetwork(networkModel, parsed._config);
+        return GetCPPPluginByName(parsed._deviceName)->ImportNetwork(networkModel, parsed._config);
     }
 
     QueryNetworkResult QueryNetwork(const ICNNNetwork& network, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) const override {
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
-        return GetCPPPluginByName(parsed._deviceName).QueryNetwork(network, parsed._config);
+        return GetCPPPluginByName(parsed._deviceName)->QueryNetwork(network, parsed._config);
+
     }
 
     Parameter GetMetric(const std::string& deviceName, const std::string& name) const override {
@@ -322,7 +332,7 @@ public:
         // we need to return a copy of Parameter object which is created on Core side,
         // not in InferenceEngine plugin side, which can be unloaded from Core in a parallel thread
         // TODO: remove this WA after *-31417 is resolved
-        return copyParameterValue(GetCPPPluginByName(parsed._deviceName).GetMetric(name, parsed._config));
+        return copyParameterValue(GetCPPPluginByName(parsed._deviceName)->GetMetric(name, parsed._config));
     }
 
     /**
@@ -331,7 +341,8 @@ public:
      * @param deviceName A name of device
      * @return Reference to a CPP plugin wrapper
      */
-    InferencePlugin GetCPPPluginByName(const std::string& deviceName) const {
+    //InferencePlugin GetCPPPluginByName(const std::string& deviceName) const { ASG For static linking
+     IInferencePlugin* GetCPPPluginByName(const std::string& deviceName) const {
         OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::Impl::GetCPPPluginByName");
 
         std::lock_guard<std::mutex> lock(pluginsMutex);
@@ -347,16 +358,20 @@ public:
             PluginDescriptor desc = it->second;
 
             try {
-                InferencePlugin plugin(desc.libraryLocation);
+                //InferencePlugin plugin(desc.libraryLocation);
+                IInferencePlugin* plugin = NULL;
+                ResponseDesc resp;
+                CreatePluginEngine(plugin, &resp);
 
                 {
-                    plugin.SetName(deviceName);
+                    plugin->SetName(deviceName);
 
                     // Set Inference Engine class reference to plugins
                     ICore* mutableCore = const_cast<ICore*>(static_cast<const ICore*>(this));
-                    plugin.SetCore(mutableCore);
+                    plugin->SetCore(mutableCore);
                 }
 
+                /*
                 // Add registered extensions to new plugin
                 allowNotImplemented([&](){
                     for (const auto& ext : extensions) {
@@ -377,9 +392,10 @@ public:
                     });
                 }
 
+                */
                 plugins[deviceName] = plugin;
             } catch (const details::InferenceEngineException& ex) {
-                THROW_IE_EXCEPTION << "Failed to create plugin " << FileUtils::fromFilePath(desc.libraryLocation) << " for device " << deviceName
+                THROW_IE_EXCEPTION << "Failed to create plugin " << " for device " << deviceName
                                    << "\n"
                                    << "Please, check your environment\n"
                                    << ex.what() << "\n";
@@ -474,7 +490,7 @@ public:
         for (auto& plugin : plugins) {
             if (deviceName.empty() || deviceName == plugin.first) {
                 allowNotImplemented([&]() {
-                    plugin.second.SetConfig(config);
+                    plugin.second->SetConfig(config);
                 });
             }
         }
@@ -497,7 +513,7 @@ public:
         // add extensions for already created plugins
         for (auto& plugin : plugins) {
             try {
-                plugin.second.AddExtension(extension);
+                plugin.second->AddExtension(extension);
             } catch (...) {}
         }
         extensions.emplace_back(extension);
@@ -524,14 +540,16 @@ Core::Impl::~Impl() {}
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
-    std::string xmlConfigFile_ = xmlConfigFile;
+    // No need to read plugin list from xml. - ASG For static linking
+    /* std::string xmlConfigFile_ = xmlConfigFile;
     if (xmlConfigFile_.empty()) {
         // register plugins from default plugins.xml config
         FileUtils::FilePath xmlConfigFileDefault = FileUtils::makePath(getInferenceEngineLibraryPath(), FileUtils::toFilePath("plugins.xml"));
         xmlConfigFile_ = FileUtils::fromFilePath(xmlConfigFileDefault);
     }
 
-    RegisterPlugins(xmlConfigFile_);
+    RegisterPlugins(xmlConfigFile_); */
+    RegisterPlugins();
 }
 
 std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) const {
@@ -561,9 +579,10 @@ std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) 
         DeviceIDParser parser(deviceName_);
         std::string deviceNameLocal = parser.getDeviceName();
 
-        InferenceEngine::InferencePlugin cppPlugin = _impl->GetCPPPluginByName(deviceNameLocal);
-        const Version version = cppPlugin.GetVersion();
-        versions[deviceNameLocal] = version;
+        //InferenceEngine::InferencePlugin cppPlugin = _impl->GetCPPPluginByName(deviceNameLocal); ASG For static linking
+         IInferencePlugin* cppPlugin = _impl->GetCPPPluginByName(deviceNameLocal);
+         //const Version * version = cppPlugin->GetVersion();
+         versions[deviceNameLocal] =  cppPlugin->GetVersion();
     }
 
     return versions;
@@ -604,7 +623,7 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, RemoteContext::Pt
     }
 
     auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), config);
-    return _impl->GetCPPPluginByName(parsed._deviceName).LoadNetwork(network, parsed._config, context);
+    return _impl->GetCPPPluginByName(parsed._deviceName)->LoadNetwork(network, parsed._config, context);
 }
 
 RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const ParamMap& params) {
@@ -616,7 +635,7 @@ RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const Para
     }
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, params);
-    return _impl->GetCPPPluginByName(parsed._deviceName).CreateContext(parsed._config);
+    return _impl->GetCPPPluginByName(parsed._deviceName)->CreateContext(parsed._config);
 }
 
 RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
@@ -628,7 +647,7 @@ RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
     }
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, ParamMap());
-    return _impl->GetCPPPluginByName(parsed._deviceName).GetDefaultContext(parsed._config);
+    return _impl->GetCPPPluginByName(parsed._deviceName)->GetDefaultContext(parsed._config);
 }
 
 void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_) {
@@ -654,7 +673,7 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName, const st
     }
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, config);
-    return _impl->GetCPPPluginByName(parsed._deviceName).ImportNetwork(modelFileName, parsed._config);
+    return _impl->GetCPPPluginByName(parsed._deviceName)->ImportNetwork(modelFileName, parsed._config);
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel, const std::string& deviceName,
@@ -676,7 +695,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     std::string deviceName = device.getDeviceName();
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, config);
-    return _impl->GetCPPPluginByName(deviceName).ImportNetwork(networkModel, context, parsed._config);
+    return _impl->GetCPPPluginByName(deviceName)->ImportNetwork(networkModel, context, parsed._config);
 }
 
 QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network, const std::string& deviceName,
@@ -732,7 +751,7 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
     // we need to return a copy of Parameter object which is created on Core side,
     // not in InferenceEngine plugin side, which can be unloaded from Core in a parallel thread
     // TODO: remove this WA after *-31417 is resolved
-    return copyParameterValue(_impl->GetCPPPluginByName(parsed._deviceName).GetConfig(name, parsed._config));
+    return copyParameterValue(_impl->GetCPPPluginByName(parsed._deviceName)->GetConfig(name, parsed._config));
 }
 
 Parameter Core::GetMetric(const std::string& deviceName, const std::string& name) const {
@@ -776,8 +795,13 @@ void Core::RegisterPlugin(const std::string& pluginName, const std::string& devi
     _impl->RegisterPluginByName(pluginName, deviceName);
 }
 
+/*
 void Core::RegisterPlugins(const std::string& xmlConfigFile) {
     _impl->RegisterPluginsInRegistry(xmlConfigFile);
+}*/
+//ASG For static linking
+void Core::RegisterPlugins() {
+    _impl->RegisterPluginsInRegistry();
 }
 
 void Core::UnregisterPlugin(const std::string& deviceName_) {

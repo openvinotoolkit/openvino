@@ -663,7 +663,8 @@ public:
 
 #define REG_MKLDNN_CONCAT2(X, Y) X ## Y
 #define REG_MKLDNN_CONCAT(X, Y) REG_MKLDNN_CONCAT2(X, Y)
-#define REG_MKLDNN_PRIM_FOR(__prim, __type) \
+#define REG_MKLDNN_PRIM_FOR(__prim, __type) // Do nothing
+#define REG_MKLDNN_PRIM_FOR_NEW(__prim, __type) \
 static MKLDNNNode::Registrar<__prim> REG_MKLDNN_CONCAT(_reg_, __LINE__)(__type)
 
 template <typename T, typename U>

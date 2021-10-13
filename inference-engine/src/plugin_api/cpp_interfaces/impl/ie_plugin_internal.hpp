@@ -80,7 +80,7 @@ public:
 
         impl->setNetworkInputs(networkInputsCloned);
         impl->setNetworkOutputs(networkOutputsCloned);
-        impl->SetPointerToPlugin(shared_from_this());
+        //impl->SetPointerToPlugin(shared_from_this()); ASG For static linking
 
         auto executableNetwork = make_executable_network(impl);
         return ExecutableNetwork(executableNetwork);

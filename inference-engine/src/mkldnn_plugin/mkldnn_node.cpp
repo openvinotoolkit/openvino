@@ -1163,3 +1163,56 @@ MKLDNNNode* MKLDNNNode::Factory::create(const InferenceEngine::CNNLayerPtr& laye
 void MKLDNNNode::Factory::registerNode(Type type, builder_t builder) {
     builders[type] = builder;
 }
+
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNBatchNormalizationNode, BatchNormalization);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNBinaryConvolutionNode, BinaryConvolution);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNConcatNode, Concatenation);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNConvolutionNode, Convolution);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNCropNode, Crop);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNDeconvolutionNode, Deconvolution);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNDeformableConvolutionNode, DeformableConvolution);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNEltwiseNode, Eltwise);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNFullyConnectedNode, FullyConnected);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNGemmNode, Gemm);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNGenericNode, Generic);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNInputNode, Input);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNInputNode, Output);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNInterpolateNode, Interpolate);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNLrnNode, Lrn);
+#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNMemoryInputNode, MemoryInput);
+#endif
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNMemoryOutputNode, MemoryOutput);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNMVNNode, MVN);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNNormalizeNode, Normalize);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNPermuteNode, Permute);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNPadNode, Pad);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNPoolingNode, Pooling);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNQuantizeNode, Quantize);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNReduceNode, ReduceAnd);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNReduceNode, ReduceL1);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNReduceNode, ReduceL2);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNReduceNode, ReduceLogSum);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNReduceNode, ReduceLogSumExp);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNReduceNode, ReduceMax);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNReduceNode, ReduceMean);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNReduceNode, ReduceMin);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNReduceNode, ReduceOr);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNReduceNode, ReduceProd);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNReduceNode, ReduceSum);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNReduceNode, ReduceSumSquare);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNReorderNode, Reorder);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNResampleNode, Resample);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNReshapeNode, Reshape);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNReshapeNode, Flatten);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNRNN, MKLDNNPlugin::Type::RNNCell);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNRNN, RNNSeq);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNROIPoolingNode, ROIPooling);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNScatterUpdateNode, ScatterUpdate);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNScatterUpdateNode, ScatterElementsUpdate);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNScatterUpdateNode, ScatterNDUpdate);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNSoftMaxNode, SoftMax);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNSplitNode, Split);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNTensorIteratorNode, MKLDNNPlugin::Type::TensorIterator);
+REG_MKLDNN_PRIM_FOR_NEW(MKLDNNTileNode, Tile);
+
