@@ -51,6 +51,7 @@
 #include "pyopenvino/graph/types/regmodule_graph_types.hpp"
 #include "pyopenvino/graph/util.hpp"
 #include "pyopenvino/graph/variant.hpp"
+#include "pyopenvino/core/ie_offline_transformations.hpp"
 
 namespace py = pybind11;
 
@@ -158,4 +159,6 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_InputInfo(m);
     regclass_InferQueue(m);
     regclass_PreProcessInfo(m);
+
+    regmodule_offline_transformations(m);
 }

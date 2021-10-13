@@ -17,20 +17,19 @@ def get_available_transformations():
         return {}
 
 
-# net should be openvino.inference_engine.IENetwork type, but IE Engine is still optional dependency
-def apply_user_transformations(net: object, transforms: list):
+def apply_user_transformations(ng_function: object, transforms: list):
     available_transformations = get_available_transformations()
 
     for name, args in transforms:
         if name not in available_transformations.keys():
             raise Error("Transformation {} is not available.".format(name))
 
-        available_transformations[name](net, **args)
+        available_transformations[name](ng_function, **args)
 
 
-def apply_moc_transformations(net: object):
+def apply_moc_transformations(ng_function: object):
     from openvino.offline_transformations import ApplyMOCTransformations  # pylint: disable=import-error,no-name-in-module
-    ApplyMOCTransformations(net, False)
+    ApplyMOCTransformations(ng_function, False)
 
 
 def apply_offline_transformations(input_model: str, framework: str, transforms: list):
@@ -38,15 +37,16 @@ def apply_offline_transformations(input_model: str, framework: str, transforms: 
     # to produce correct mapping
     extract_names = framework in ['tf', 'mxnet', 'kaldi']
 
-    from openvino.inference_engine import read_network  # pylint: disable=import-error,no-name-in-module
+    from openvino import Core
     from openvino.offline_transformations import GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
 
-    net = read_network(input_model + "_tmp.xml", input_model + "_tmp.bin")
-    apply_user_transformations(net, transforms)
-    apply_moc_transformations(net)
+    net = Core().read_network(input_model + "_tmp.xml", input_model + "_tmp.bin")
+    ng_function = net.get_function()
+    apply_user_transformations(ng_function, transforms)
+    apply_moc_transformations(ng_function)
     net.serialize(input_model + ".xml", input_model + ".bin")
     path_to_mapping = input_model + ".mapping"
-    GenerateMappingFile(net, path_to_mapping.encode('utf-8'), extract_names)
+    GenerateMappingFile(ng_function, path_to_mapping.encode('utf-8'), extract_names)
 
 
 if __name__ == "__main__":
