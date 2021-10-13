@@ -17,6 +17,8 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 TEST(op_eval, rounding_to_even) {
     auto p = make_shared<op::Parameter>(element::f32, Shape{9});
     auto round = make_shared<op::v5::Round>(p, op::v5::Round::RoundMode::HALF_TO_EVEN);
