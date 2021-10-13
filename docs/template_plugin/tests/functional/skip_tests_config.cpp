@@ -19,9 +19,20 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-51758
         R"(.*InferRequestPreprocessConversionTest.*oLT=(NHWC|NCHW).*)",
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*)",
+
+        // TODO: execution graph is not supported
+        R"(.*ExecGraph.*)",
+
+        // TODO: support import / export of precisions in template plugin
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.ieImportExportedFunction.*)",
+        R"(.*smoke_BehaviorTests.*OVExecNetwork.ieImportExportedFunction.*)",
+
+        // TODO: Round with f16 is not supported
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
+
         // CVS-64094
         R"(.*ReferenceLogSoftmaxLayerTest.*4.*iType=f16.*axis=.*1.*)",
         // CVS-64080
-        R"(.*ReferenceMishLayerTest.*dimensionDynamic.*)"
+        R"(.*ReferenceMishLayerTest.*dimensionDynamic.*)",
     };
 }
