@@ -7,6 +7,7 @@
 #include <ngraph_functions/builders.hpp>
 #include "openvino/op/binary_convolution.hpp"
 #include "base_reference_test.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -15,7 +16,7 @@ namespace {
 struct BinaryConvolutionParams {
     template <class T>
     BinaryConvolutionParams(const PartialShape& inputShape,
-                            const PartialShape& filterShape,
+                            const Shape& filterShape,
                             const PartialShape& outputShape,
                             const element::Type& iType,
                             const std::vector<T>& iValues,
@@ -42,7 +43,7 @@ struct BinaryConvolutionParams {
           padValue(padValue) {}
 
     PartialShape inputShape;
-    PartialShape filterShape;
+    Shape filterShape;
     PartialShape outputShape;
     ov::element::Type inType;
     ov::element::Type outType;
@@ -89,10 +90,9 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const BinaryConvolutionParams& params, const std::vector<uint8_t>& filterData) {
-        const std::vector<uint8_t> filters_bin_conv{0xAA, 0x80}; // 10101010 10000000
         const op::PadType auto_pad{op::PadType::EXPLICIT};
         const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
-        auto filter = std::make_shared<op::v0::Constant>(ov::element::u1, params.filterShape, filterData);
+        auto filter = std::make_shared<opset8::Constant>(ov::element::u1, params.filterShape, &filterData[0]);
         const auto BinaryConvolution = std::make_shared<op::v1::BinaryConvolution>(in,
                                                                        filter,
                                                                        params.strides,
@@ -117,7 +117,7 @@ std::vector<BinaryConvolutionParams> generateBinaryConvolutionParams() {
     std::vector<BinaryConvolutionParams> binaryConvolutionParams {
 // --------------------- 2D BinaryConvolution ------------------------------------------
         BinaryConvolutionParams(PartialShape {1, 1, 4, 4},
-                                PartialShape {1, 1, 3, 3},
+                                Shape {1, 1, 3, 3},
                                 PartialShape {1, 1, 2, 2},
                                 IN_ET,
                                 std::vector<T>{1, 0, 0, 1,
