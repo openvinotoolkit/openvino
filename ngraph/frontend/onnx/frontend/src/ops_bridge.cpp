@@ -113,6 +113,8 @@
 #include "op/prelu.hpp"
 #include "op/qlinear_conv.hpp"
 #include "op/quantize_linear.hpp"
+#include "op/random_normal.hpp"
+#include "op/random_normal_like.hpp"
 #include "op/random_uniform.hpp"
 #include "op/random_uniform_like.hpp"
 #include "op/range.hpp"
@@ -381,6 +383,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
     REGISTER_OPERATOR("QuantizeLinear", 13, quantize_linear);
     REGISTER_OPERATOR("Range", 1, range);
+    REGISTER_OPERATOR("RandomNormal", 1, random_normal);
+    REGISTER_OPERATOR("RandomNormalLike", 1, random_normal_like);
     REGISTER_OPERATOR("RandomUniform", 1, random_uniform);
     REGISTER_OPERATOR("RandomUniformLike", 1, random_uniform_like);
     REGISTER_OPERATOR("Reciprocal", 1, reciprocal);
