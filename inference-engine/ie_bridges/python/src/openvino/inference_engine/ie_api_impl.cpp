@@ -619,12 +619,14 @@ std::unique_ptr<InferenceEnginePython::IEExecNetwork> InferenceEnginePython::IEC
     exec_network->createInferRequests(num_requests);
 
     return exec_network;
-}inference-engine/ie_bridges/python/src/openvino/offline_transformations/offline_transformations_api_impl.cpp
+}
+inference - engine / ie_bridges / python / src / openvino / offline_transformations /
+                offline_transformations_api_impl.cpp
 
-std::map<std::string, std::string> InferenceEnginePython::IECore::queryNetwork(
-    InferenceEnginePython::IENetwork network,
-    const std::string& deviceName,
-    const std::map<std::string, std::string>& config) {
+                    std::map<std::string, std::string>
+                    InferenceEnginePython::IECore::queryNetwork(InferenceEnginePython::IENetwork network,
+                                                                const std::string& deviceName,
+                                                                const std::map<std::string, std::string>& config) {
     auto res = actual.QueryNetwork(*network.actual, deviceName, config);
     return res.supportedLayersMap;
 }

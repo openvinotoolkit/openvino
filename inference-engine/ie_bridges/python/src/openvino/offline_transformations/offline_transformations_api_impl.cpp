@@ -15,7 +15,6 @@
 #include <transformations/common_optimizations/moc_transformations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
-
 void InferenceEnginePython::ApplyMOCTransformations(InferenceEnginePython::IENetwork network, bool cf) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::MOCTransformations>(cf);
