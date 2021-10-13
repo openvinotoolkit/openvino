@@ -87,17 +87,14 @@ bool SupportsFusingWithConvolution_SumActivation(std::shared_ptr<Node> node) {
             ov::is_type<ngraph::op::v5::Round>(node);
 }
 bool SupportsFusingWithConvolution_Simple(std::shared_ptr<Node> node) {
-    //  This is an approximate solution. Do ann bynaries are supported?
+    //  This is an approximate solution. Do all binary ops are supported?
     //   node->canBePerformedAsScaleShift(this);
-    if (ngraph::op::is_binary_elementwise_arithmetic(node) ||
+    return ngraph::op::is_binary_elementwise_arithmetic(node) ||
         SupportsFusingWithConvolution_SumActivation(node) ||
         ov::is_type<ngraph::op::Tanh>(node) ||
         ov::is_type<ngraph::op::Gelu>(node) ||
         ov::is_type<ngraph::op::Abs>(node) ||
-        ov::is_type<ngraph::op::Sqrt>(node))
-        return true;
-    else
-        return false;
+        ov::is_type<ngraph::op::Sqrt>(node);
 }
 // Convolution is a special case, since it supports peculiar fusings
 bool isSuitableConvolutionParent(std::shared_ptr<Node> node) {
@@ -133,29 +130,50 @@ bool isSuitablePoolChild(std::shared_ptr<Node> node) {
     return is_suitable_node && has_only_child;
 }
 bool isSuitableChildForFusingSimple(std::shared_ptr<Node> node) {
-    if ( !SupportsFusingWithConvolution_Simple(node) )
-        return false;
-    return (getNumNonConstInputs(node) == 1);
+    // Note: Fusing child is allowed to have several users, but that must be the end of the chain
+    return SupportsFusingWithConvolution_Simple(node) && getNumNonConstInputs(node) == 1;
 }
 bool isSuitableParentForFusingSumActivation(std::shared_ptr<Node> node) {
-    if (dynamic_cast<const ngraph::op::v1::Add *>(node.get()) == nullptr)
+    if (!ov::is_type<ngraph::op::v1::Add>(node))
         return false;
+    auto isFusedBiasNode = [](std::shared_ptr<Node> n){
+        if (!(ov::is_type<ngraph::op::v1::Add>(n) &&
+                GetSnippetsNodeType(n) ==  SnippetsNodeType::FusedWithConvolution))
+            return false;
+        const auto conv = n->get_input_source_output(0);
+        const auto bias = n->get_input_source_output(1);
+        if (!(ngraph::op::is_constant(bias.get_node_shared_ptr()) && isSuitableConvolutionParent(conv.get_node_shared_ptr())))
+            return false;
+        const auto conv_shape = conv.get_shape();
+        const auto bias_shape = bias.get_shape();
+        if (bias_shape.size() > conv_shape.size())
+            return false;
+        auto getNormalizedDims = [](const ov::Shape &dims, size_t ndims) -> std::vector<size_t>{
+            std::vector<size_t> normalizedDims = dims;
+            for (size_t i = 0; i < (ndims - dims.size()); i++) {
+                normalizedDims.insert(normalizedDims.begin(), 1);
+            }
+            return normalizedDims;
+        };
+        const auto bias_norm_dims = getNormalizedDims(bias_shape, conv_shape.size());
+        if (bias_norm_dims.size() < 2 || bias_norm_dims[0] != 1 || conv_shape[1] != bias_norm_dims[1])
+            return false;
+        for (size_t i = 2; i < bias_norm_dims.size(); i++) {
+            if (bias_norm_dims[i] != 1)
+                return false;
+        }
+        return true;
+    };
     int num_conv_parents = 0;
     for (size_t i = 0; i < node->get_input_size(); i++) {
-        num_conv_parents += isSuitableConvolutionParent(node->get_input_node_shared_ptr(i));
+        const auto n = node->get_input_node_shared_ptr(i);
+        num_conv_parents += (isSuitableConvolutionParent(n) || isFusedBiasNode(n));
     }
-    const auto out = node->outputs();
-    // Add always has one child, but the child should also have only one parent
-    const bool has_only_child = (out[0].get_target_inputs().size() == 1);
-    return getNumNonConstInputs(node) == 2 && has_only_child;
+    // Todo: strictly speaking, BinaryConvolution allows other ops fused before the Add
+    return getNumNonConstInputs(node) == 2 && num_conv_parents >=1;
 }
 bool isSuitableChildForFusingSumActivation(std::shared_ptr<Node> node) {
-    if ( !SupportsFusingWithConvolution_SumActivation(node) )
-        return false;
-    const auto out = node->outputs();
-    // Activations always has one child, but the child should also have only one parent
-    const bool has_only_child = (out[0].get_target_inputs().size() == 1);
-    return has_only_child;
+    return SupportsFusingWithConvolution_SumActivation(node);
 }
 } // namespace
 
@@ -178,6 +196,13 @@ void SetSnippetsNodeType(std::shared_ptr<Node> node, SnippetsNodeType nodeType) 
     }
     rt["MayBeFusedInPlugin"] = std::make_shared<VariantWrapper<int64_t>>(VariantWrapper<int64_t>(static_cast<int64_t>(nodeType)));
 }
+// Continue fusing chain of the passed type if the node has one child
+// Otherwise mark node as FusedTerminator (Fused, but fusing chain is interrupted)
+void PropagateIfHasOnlyChild(std::shared_ptr<Node> node, SnippetsNodeType nodeType) {
+    const auto out = node->outputs();
+    const bool has_only_child = out.size() == 1 && out[0].get_target_inputs().size() == 1;
+    SetSnippetsNodeType(node, has_only_child ? nodeType : SnippetsNodeType::FusedTerminator);
+}
 
 bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
     RUN_ON_FUNCTION_SCOPE(FulterFused);
@@ -195,17 +220,18 @@ bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
         SnippetsNodeType fusingChainType{SnippetsNodeType::NotSet};
         if (hasFusedParent(node, fusingChainType)) {
             if (isSuitableChildForFusingSimple(node)) {
-                SetSnippetsNodeType(node, fusingChainType);
-            } else if (fusingChainType == SnippetsNodeType::FusedWithConvolution &&
-                        isSuitableParentForFusingSumActivation(node)) {
-                SetSnippetsNodeType(node, SnippetsNodeType::FusedWithConvolutionSumActivation);
+                PropagateIfHasOnlyChild(node, fusingChainType);
+            } else if (fusingChainType == SnippetsNodeType::FusedWithConvolution) {
+                if (isSuitableParentForFusingSumActivation(node)) {
+                    PropagateIfHasOnlyChild(node, SnippetsNodeType::FusedWithConvolutionSumActivation);
+                // Mimic FuseConvolutionAndSimpleOperationThroughMaxPool
+                } else if (isSuitablePoolChild(node)) {
+                    PropagateIfHasOnlyChild(node, SnippetsNodeType::FusedWithConvolution);
+                }
             } else if (fusingChainType == SnippetsNodeType::FusedWithConvolutionSumActivation &&
                         isSuitableChildForFusingSumActivation(node)) {
                 // Set FusedWithConvolution, so the fusing chain could be propagated
-                SetSnippetsNodeType(node, SnippetsNodeType::FusedWithConvolution);
-            // Mimic FuseConvolutionAndSimpleOperationThroughMaxPool
-            } else if (fusingChainType == SnippetsNodeType::FusedWithConvolution && isSuitablePoolChild(node)) {
-                SetSnippetsNodeType(node, SnippetsNodeType::FusedWithConvolution);
+                PropagateIfHasOnlyChild(node, SnippetsNodeType::FusedWithConvolution);
             }
         }
         if (AppropriateForSubgraph(node)) {
@@ -217,7 +243,8 @@ bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
             }
             if (GetSnippetsNodeType(node) == SnippetsNodeType::FusedWithMisc ||
                 GetSnippetsNodeType(node) == SnippetsNodeType::FusedWithConvolution ||
-                GetSnippetsNodeType(node) == SnippetsNodeType::FusedWithConvolutionSumActivation)
+                GetSnippetsNodeType(node) == SnippetsNodeType::FusedWithConvolutionSumActivation ||
+                GetSnippetsNodeType(node) == SnippetsNodeType::FusedTerminator)
                 continue;
             if (hasParentInStartedSubgraph (node))
                 SetSnippetsNodeType(node, SnippetsNodeType::SubgraphBody);

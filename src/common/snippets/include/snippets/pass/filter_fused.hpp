@@ -23,10 +23,13 @@ public:
     }
     bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
 };
-// Fused - is likely to be fused in CPU plugin
-// Ignored - must be skipped, since can't be handled properly at this time
+/*
+ FusedWithConvolution, FusedWithConvolutionSumActivation, FusedWithMisc - fusing chain is active and may be continued
+ FusedTerminator - the node is fused, but the chain must be interrupted
+ Ignored - must be skipped, since can't be handled properly at this time
+ */
 enum class SnippetsNodeType : int64_t {NotSet = 0, FusedWithConvolution, FusedWithConvolutionSumActivation,
-                                        FusedWithMisc, Ignored, SubgraphStart, SubgraphBody};
+                                        FusedWithMisc, FusedTerminator, Ignored, SubgraphStart, SubgraphBody};
 void SetSnippetsNodeType(std::shared_ptr<Node> node, SnippetsNodeType);
 SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node> node);
 
