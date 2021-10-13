@@ -8,11 +8,15 @@
 #include <ie_plugin_config.hpp>
 #include <threading/ie_executor_manager.hpp>
 
+#include "cpp/ie_cnn_network.h"
+#include "ie_icnn_network.hpp"
 #include "ie_icore.hpp"
+#include "ie_ngraph_utils.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "template/template_config.hpp"
 #include "template_itt.hpp"
 #include "template_plugin.hpp"
-#include "transformations/serialize.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace TemplatePlugin;
@@ -67,18 +71,19 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
         model.read(dataBlob->buffer(), dataSize);
     }
 
-    // TODO: implement Import / Export of configuration options and merge with `cfg`
-    // TODO: implement Import / Export of network precisions, layouts, preprocessing info
-    InferenceEngine::InputsDataMap inputInfoMap;
-    InferenceEngine::OutputsDataMap outputInfoMap;
-
     auto cnnnetwork = _plugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
 
-    setNetworkInputs(cnnnetwork.getInputsInfo());
-    setNetworkOutputs(cnnnetwork.getOutputsInfo());
+    // TODO: implement Import / Export of configuration options and merge with `cfg`
+    // TODO: implement Import / Export of network precisions, layouts, preprocessing info
+    InferenceEngine::InputsDataMap inputInfoMap = cnnnetwork.getInputsInfo();
+    InferenceEngine::OutputsDataMap outputInfoMap = cnnnetwork.getOutputsInfo();
+
+    setNetworkInputs(inputInfoMap);
+    setNetworkOutputs(outputInfoMap);
     SetPointerToPlugin(_plugin->shared_from_this());
 
     try {
+        // TODO: remove compilation, network is already compiled and serialized in compiled form
         CompileNetwork(cnnnetwork.getFunction(), inputInfoMap, outputInfoMap);
         InitExecutor();  // creates thread-based executor using for async requests
     } catch (const InferenceEngine::Exception&) {
@@ -201,7 +206,7 @@ void TemplatePlugin::ExecutableNetwork::Export(std::ostream& modelStream) {
     // Note: custom ngraph extensions are not supported
     std::map<std::string, ngraph::OpSet> custom_opsets;
     std::stringstream xmlFile, binFile;
-    ngraph::pass::Serialize serializer(xmlFile, binFile, custom_opsets);
+    ov::pass::Serialize serializer(xmlFile, binFile, custom_opsets);
     serializer.run_on_function(_function);
 
     auto m_constants = binFile.str();
