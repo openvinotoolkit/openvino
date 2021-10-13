@@ -326,4 +326,65 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(testValues)),
     TransposeTransformation::getTestCaseName);
 } // namespace testValues4
+namespace testValues5 {
+    const std::vector<ngraph::PartialShape> inputShapes6D = {
+        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(),
+          Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }
+    };
+
+    const std::vector<TransposeTransformationTestValues> testValues = {
+        {
+            { 0, 1, 2, 3, 4, 5},
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {128}, {0.1f}}
+            },
+            {
+                ngraph::element::u8,
+                {{}, {}, {}},
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {128}, {0.1f}}
+            }
+        },
+    };
+
+    INSTANTIATE_TEST_SUITE_P(
+        smoke_LPT,
+        TransposeTransformation,
+        ::testing::Combine(
+            ::testing::ValuesIn(inputShapes6D),
+            ::testing::ValuesIn(testValues)),
+        TransposeTransformation::getTestCaseName);
+} // namespace testValues5
+namespace testValues6 {
+    const std::vector<ngraph::PartialShape> inputShapes1D = {
+        { Dimension::dynamic() }
+    };
+
+    const std::vector<TransposeTransformationTestValues> testValues = {
+        {
+            { 0 },
+            LayerTransformation::createParamsU8I8(),
+            {
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {128}, {0.1f}}
+            },
+            {
+                ngraph::element::u8,
+                {{}, {}, {}},
+                ngraph::element::u8,
+                {{ngraph::element::f32}, {128}, {0.1f}}
+            }
+        },
+    };
+
+    INSTANTIATE_TEST_SUITE_P(
+        smoke_LPT,
+        TransposeTransformation,
+        ::testing::Combine(
+            ::testing::ValuesIn(inputShapes1D),
+            ::testing::ValuesIn(testValues)),
+        TransposeTransformation::getTestCaseName);
+} // namespace testValues6
 } // namespace
