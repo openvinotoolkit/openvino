@@ -33,6 +33,11 @@ namespace Common
         }
     }
 
+    extern const std::map<ov::element::Type, py::dtype> ov_type_to_dtype;
+    extern const std::map<py::str, ov::element::Type> dtype_to_ov_type;
+
+    ov::Strides to_numpy_strides(const ov::Strides& strides, const ov::element::Type& ov_type);
+
     InferenceEngine::Layout get_layout_from_string(const std::string& layout);
 
     const std::string& get_layout_from_enum(const InferenceEngine::Layout& layout);

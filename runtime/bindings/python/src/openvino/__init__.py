@@ -20,6 +20,7 @@ from openvino.pyopenvino import MeanVariant
 from openvino.pyopenvino import ResizeAlgorithm
 from openvino.pyopenvino import ColorFormat
 from openvino.pyopenvino import PreProcessChannel
+from openvino.pyopenvino import Tensor
 
 from openvino.ie_api import BlobWrapper
 from openvino.ie_api import infer
@@ -29,6 +30,7 @@ from openvino.ie_api import blob_from_file
 
 # Patching for Blob class
 # flake8: noqa: F811
+# this class will be removed
 Blob = BlobWrapper
 # Patching ExecutableNetwork
 ExecutableNetwork.infer = infer
