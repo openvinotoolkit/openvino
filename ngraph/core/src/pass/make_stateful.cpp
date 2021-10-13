@@ -63,8 +63,6 @@ bool ov::pass::MakeStateful::run_on_function(std::shared_ptr<ngraph::Function> f
                      param->get_friendly_name(),
                      " must be static. MakeStateful transformation doesn't support dynamic shapes.");
 
-        const auto& target_inputs = param->get_output_target_inputs(0);
-
         // Create Variable
         std::string var_name = generate_variable_name(param, res);
         auto variable =
