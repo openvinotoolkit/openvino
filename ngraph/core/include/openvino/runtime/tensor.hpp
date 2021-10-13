@@ -23,6 +23,7 @@ class Blob;
 namespace ov {
 namespace runtime {
 
+class Core;
 class InferRequest;
 class RemoteContext;
 class VariableState;
@@ -45,6 +46,7 @@ protected:
      */
     Tensor(const std::shared_ptr<void>& so, const std::shared_ptr<InferenceEngine::Blob>& impl);
 
+    friend class ov::runtime::Core;
     friend class ov::runtime::InferRequest;
     friend class ov::runtime::RemoteContext;
     friend class ov::runtime::VariableState;
@@ -149,5 +151,7 @@ public:
      */
     explicit operator bool() const noexcept;
 };
+
+using TensorVector = std::vector<Tensor>;
 }  // namespace runtime
 }  // namespace ov

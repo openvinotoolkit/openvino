@@ -21,6 +21,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/sink.hpp"
 #include "openvino/op/util/variable.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 /// A user-defined function.
@@ -182,13 +183,25 @@ public:
     /// Index for value or result referencing it, or -1
     int64_t get_result_index(const ov::Output<ov::Node>& value) const;
 
+    /// \deprecated Use evaluate with ov::runtime::Tensor instead
     /// \brief Evaluate the function on inputs, putting results in outputs.
     /// \param output_tensors Tensors for the outputs to compute. One for each result
     /// \param input_tensors Tensors for the inputs. One for each inputs.
     /// \param evaluation_context Storage of additional settings and attributes that can be used
     /// when evaluating the function. This additional information can be shared across nodes.
+    OPENVINO_DEPRECATED(
+        "This method is deprecated and will be removed soon. Please use evaluate with ov::runtime::Tensor instead.")
     bool evaluate(const ov::HostTensorVector& output_tensors,
                   const ov::HostTensorVector& input_tensors,
+                  ov::EvaluationContext evaluation_context = ov::EvaluationContext()) const;
+
+    /// \brief Evaluate the function on inputs, putting results in outputs.
+    /// \param output_tensors Tensors for the outputs to compute. One for each result
+    /// \param input_tensors Tensors for the inputs. One for each inputs.
+    /// \param evaluation_context Storage of additional settings and attributes that can be used
+    /// when evaluating the function. This additional information can be shared across nodes.
+    bool evaluate(ov::runtime::TensorVector& output_tensors,
+                  const ov::runtime::TensorVector& input_tensors,
                   ov::EvaluationContext evaluation_context = ov::EvaluationContext()) const;
 
     /// \brief Return a list of function's sinks.

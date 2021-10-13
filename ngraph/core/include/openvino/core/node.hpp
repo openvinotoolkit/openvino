@@ -37,6 +37,7 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/util/variable_value.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ngraph {
 
@@ -204,22 +205,50 @@ public:
     /// operation
     // \returns true if evaluate is available
     virtual bool has_evaluate() const;
+    /// \deprecated Use evaluate with ov::runtime::Tensor instead
     /// \brief Evaluates the op on input_values putting results in output_values
     /// \param output_values Tensors for the outputs to compute. One for each result
     /// \param input_values Tensors for the inputs. One for each inputs.
     /// \returns true if successful
+    OPENVINO_DEPRECATED(
+        "This method is deprecated and will be removed soon. Please use evaluate with ov::runtime::Tensor instead.")
     virtual bool evaluate(const ov::HostTensorVector& output_values, const ov::HostTensorVector& input_values) const;
+    /// \deprecated Use evaluate with ov::runtime::Tensor instead
     /// \brief Evaluates the op on input_values putting results in output_values
     /// \param output_values Tensors for the outputs to compute. One for each result
     /// \param input_values Tensors for the inputs. One for each inputs.
     /// \param evaluation_context Storage of additional settings and attributes that can be used
     /// when evaluating the op.
     /// \returns true if successful
+    OPENVINO_DEPRECATED(
+        "This method is deprecated and will be removed soon. Please use evaluate with ov::runtime::Tensor instead.")
     virtual bool evaluate(const ov::HostTensorVector& output_values,
                           const ov::HostTensorVector& input_values,
                           const EvaluationContext& evaluationContext) const;
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon. Please use evaluate_lower with "
+                        "ov::runtime::Tensor instead.")
     virtual bool evaluate_lower(const ov::HostTensorVector& output_values) const;
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon. Please use evaluate_upper with "
+                        "ov::runtime::Tensor instead.")
     virtual bool evaluate_upper(const ov::HostTensorVector& output_values) const;
+
+    /// \brief Evaluates the op on input_values putting results in output_values
+    /// \param output_values Tensors for the outputs to compute. One for each result
+    /// \param input_values Tensors for the inputs. One for each inputs.
+    /// \returns true if successful
+    virtual bool evaluate(ov::runtime::TensorVector& output_values,
+                          const ov::runtime::TensorVector& input_values) const;
+    /// \brief Evaluates the op on input_values putting results in output_values
+    /// \param output_values Tensors for the outputs to compute. One for each result
+    /// \param input_values Tensors for the inputs. One for each inputs.
+    /// \param evaluation_context Storage of additional settings and attributes that can be used
+    /// when evaluating the op.
+    /// \returns true if successful
+    virtual bool evaluate(ov::runtime::TensorVector& output_values,
+                          const ov::runtime::TensorVector& input_values,
+                          const ov::EvaluationContext& evaluationContext) const;
+    virtual bool evaluate_lower(ov::runtime::TensorVector& output_values) const;
+    virtual bool evaluate_upper(ov::runtime::TensorVector& output_values) const;
 
     virtual bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values);
     /// \brief Decomposes the FusedOp into a sub-graph consisting of core openvino ops
