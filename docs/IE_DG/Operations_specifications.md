@@ -1,5 +1,7 @@
 # Operations Specifications {#openvino_docs_operations_specifications}
 
+@sphinxdirective
+
 .. toctree::
    :maxdepth: 1
    

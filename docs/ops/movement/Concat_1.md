@@ -1,4 +1,4 @@
-## Concat <a name="Concat"></a> {#openvino_docs_ops_movement_Concat_1}
+# Concat {#openvino_docs_ops_movement_Concat_1}
 
 **Versioned name**: *Concat-1*
 

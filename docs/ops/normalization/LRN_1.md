@@ -1,4 +1,4 @@
-## LRN <a name="LRN"></a> {#openvino_docs_ops_normalization_LRN_1}
+# LRN {#openvino_docs_ops_normalization_LRN_1}
 
 **Versioned name**: *LRN-1*
 
