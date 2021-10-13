@@ -20,9 +20,13 @@ def test_init_with_tensor_desc():
     assert blob.tensor_desc == tensor_desc
 
 
-def test_init_with_numpy():
-    tensor_desc = TensorDesc("FP32", [1, 3, 127, 127], "NCHW")
-    array = np.ones(shape=(1, 3, 127, 127), dtype=np.float32)
+@pytest.mark.parametrize("shape, layout", [
+    ([1, 3, 127, 127], "NCHW"),
+    ([], "SCALAR"),
+])
+def test_init_with_numpy(shape, layout):
+    tensor_desc = TensorDesc("FP32", shape, layout)
+    array = np.ones(shape=shape, dtype=np.float32)
     blob = Blob(tensor_desc, array)
     assert isinstance(blob.buffer, np.ndarray)
     assert np.shares_memory(blob.buffer, array)
