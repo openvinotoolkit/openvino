@@ -14,6 +14,7 @@ def get_available_transformations():
         from openvino.pyopenvino.offline_transformations import ApplyMakeStatefulTransformation  # pylint: disable=import-error,no-name-in-module
 
         return {
+            'MakeStateful': ApplyMakeStatefulTransformation,
             'LowLatency2': ApplyLowLatencyTransformation,
         }
     except Exception as e:
