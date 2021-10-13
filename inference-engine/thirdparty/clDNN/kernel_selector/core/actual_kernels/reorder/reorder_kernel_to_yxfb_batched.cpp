@@ -26,6 +26,9 @@ bool ReorderKernel_to_yxfb_batched::Validate(const Params& params, const optiona
         return false;
     }
 
+    if (!IsSIMDSizeSupported(params.engineInfo, 8))
+        return false;
+
     const reorder_params& r_params = static_cast<const reorder_params&>(params);
 
     const auto& output = r_params.output;
