@@ -74,5 +74,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_PrePostProcess_GPU.*convert_element_type_and_mean.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
+            R"(.*EltwiseLayerTest.*OpType=FloorMod.*NetType=i64.*)",
+            // Issue connected with OV2.0
+            R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
     };
 }

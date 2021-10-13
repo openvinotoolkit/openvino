@@ -69,7 +69,7 @@ private:
     std::vector<ov::runtime::Tensor> get_plugin_outputs();
 };
 
-static std::vector<InputShape> static_shapes_to_test_representation(const std::vector<ov::Shape>& staticShapes) {
+inline std::vector<InputShape> static_shapes_to_test_representation(const std::vector<ov::Shape>& staticShapes) {
     std::vector<InputShape> result;
     for (const auto& staticShape : staticShapes) {
         result.push_back({{}, {staticShape}});
@@ -77,7 +77,7 @@ static std::vector<InputShape> static_shapes_to_test_representation(const std::v
     return result;
 }
 
-static std::vector<InputShapes> static_shapes_to_test_representation(const std::vector<std::vector<ov::Shape>>& staticShapes) {
+inline std::vector<InputShapes> static_shapes_to_test_representation(const std::vector<std::vector<ov::Shape>>& staticShapes) {
     std::vector<InputShapes> result;
     for (const auto& staticShape : staticShapes) {
         result.push_back({{}, {staticShape}});

@@ -54,6 +54,8 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 29577
         R"(.*QueryNetwork.*)",
         // TODO: GNA plugin does not support ExecGraph
-        R"(.*ExecGraphTests.*)"
+        R"(.*ExecGraphTests.*)",
+        // Issue connected with OV2.0
+        R"(.*EltwiseLayerTest.*NetType=f16.*)",
     };
 }
