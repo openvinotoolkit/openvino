@@ -16,7 +16,7 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND LINK_LIBRARIES onnx_custom_op)
     list(APPEND DEPENDENCIES template_extension onnx_custom_op)
 else()
-    set(EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/extension")
+    set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/extension ${CMAKE_CURRENT_SOURCE_DIR}/onnx)
 endif()
 
 addIeTargetTest(
