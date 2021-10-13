@@ -95,6 +95,33 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::SplitConcatPairToInterpolateFusion, "SplitC
 
 ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion() {
     MATCHER_SCOPE(SplitConcatPairToInterpolateFusion);
+    // This transformation looks for Interpolate layer implemented using simple operations, namely Split and Concat,
+    // and replaces found pattern with a sequence of Shape, StridedSlice, Const, Mul, Interpolate.
+    // Found pattern:
+    //     Split -> Concat
+    // Here we assume that
+    //     1) input data of Split is 4D or 5D tensor;
+    //     2) split dimensions for 'split' belongs to {1, 2, 3};
+    //     3) all outputs of 'split' go to only inputs of 'concat';
+    //     4) 'concat' takes inputs only from 'split';
+    //     5) split_dim of 'split' is equal to axis of 'concat';
+    //     6) output port 0 of 'split' goes to ports [0, ..., m-1] of next node, output port 1 of 'split' goes to ports
+    //        [m, ..., m + (m-1)] of next node, ..., output port i of 'split' goes to ports [i * m, ..., i * m + (m - 1)],
+    //        and so on.
+    // Such subgraph
+    //     Split -> Concat
+    // can be replaced with the Interpolate layer with the following attributes:
+    //     mode = nearest
+    //     shape_calculation_mode = scales
+    //     nearest_mode = round_prefer_floor
+    //     pads_begin = {0}
+    //     pads_end = {0}
+    //     antialias = false
+    //     coordinate_transformation_mode = half_pixel
+    //     cube_coeff = -0.75
+    // Next, the scaling factor in Interpolate is equal to a quotient of dividing number of input ports of 'concat'
+    // by number of output ports of 'split'.
+    //
     // Detect only concat, because we don't know how many inputs will go into concat.
     auto concat_pattern = ngraph::pattern::wrap_type<ngraph::opset8::Concat>();
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
