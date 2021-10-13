@@ -56,6 +56,9 @@ bool FullyConnected_fb_io_b8_f8::Validate(const Params& p, const optional_params
         return false;
     }
 
+    if (!IsSIMDSizeSupported(p.engineInfo, 8))
+        return false;
+
     const auto& params = static_cast<const fully_connected_params&>(p);
 
     const auto& output = params.output;
