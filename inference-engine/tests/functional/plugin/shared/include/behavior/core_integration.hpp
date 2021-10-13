@@ -978,7 +978,7 @@ TEST_P(IEClassGetAvailableDevices, GetAvailableDevicesNoThrow) {
     Core ie = createCoreWithTemplate();
     std::vector<std::string> devices;
 
-    ASSERT_NO_THROW(devices = ie.GetAvailableDevices());
+    devices = ie.GetAvailableDevices();
 
     bool deviceFound = false;
     std::cout << "Available devices: " << std::endl;
