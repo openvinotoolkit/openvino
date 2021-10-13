@@ -231,4 +231,4 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
 
     cdef object getPartialShape_capsule(DataPtr)
 
-    cdef size_t product(const SizeVector& dims)
+    cdef const size_t product(const SizeVector& dims)

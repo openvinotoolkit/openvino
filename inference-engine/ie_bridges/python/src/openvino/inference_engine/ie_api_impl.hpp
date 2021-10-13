@@ -205,6 +205,6 @@ InferenceEnginePython::IENetwork read_network(std::string path_to_xml, std::stri
 
 PyObject* getPartialShape_capsule(InferenceEngine::CDataPtr data);
 
-size_t product(const InferenceEngine::SizeVector& dims);
+const size_t product(const InferenceEngine::SizeVector& dims);
 
 };  // namespace InferenceEnginePython
