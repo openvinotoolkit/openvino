@@ -23,9 +23,8 @@ util::DictAttributeDeserializer::DictAttributeDeserializer(
 
 void util::DictAttributeDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
     if (m_attributes.contains(name)) {
-        if (const auto& a = ngraph::as_type<
-                ngraph::AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>>>(
-                &adapter)) {
+        if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<
+                std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>>>(&adapter)) {
             std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>> input_descs;
 
             if (name == "input_descriptions") {
