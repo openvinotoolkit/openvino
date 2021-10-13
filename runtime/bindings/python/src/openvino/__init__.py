@@ -54,6 +54,7 @@ from openvino.pyopenvino import MeanVariant
 from openvino.pyopenvino import ResizeAlgorithm
 from openvino.pyopenvino import ColorFormat
 from openvino.pyopenvino import PreProcessChannel
+from openvino.pyopenvino import Tensor
 
 from openvino import opset1
 from openvino import opset2
@@ -84,6 +85,7 @@ Node.__ge__ = opset8.greater_equal
 
 # Patching for Blob class
 # flake8: noqa: F811
+# this class will be removed
 Blob = BlobWrapper
 # Patching ExecutableNetwork
 ExecutableNetwork.infer = infer
