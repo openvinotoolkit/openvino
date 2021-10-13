@@ -20,10 +20,10 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/executable_network.hpp"
 #include "openvino/runtime/remote_context.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace InferenceEngine {
 class IExtension;
-class Blob;
 class RemoteContext;
 }  // namespace InferenceEngine
 
@@ -91,19 +91,14 @@ public:
     /**
      * @brief Reads models from IR and ONNX formats
      * @param model string with model in IR or ONNX format
-     * @param weights shared pointer to constant blob with weights
-     * Reading ONNX models doesn't support loading weights from data blobs.
-     * If you are using an ONNX model with external data files, please use the
-     * `ov::runtime::Core::read_model(const std::string& model, const Blob::CPtr& weights) const`
-     * function overload which takes a filesystem path to the model.
-     * For ONNX case the second parameter should contain empty blob.
+     * @param weights shared pointer to constant tensor with weights
+     * Reading ONNX models doesn't support loading weights from data tensors.
      * @note Created Function object shares the weights with `weights` object.
      * So, do not create `weights` on temporary data which can be later freed, since the network
      * constant data becomes to point to invalid memory.
      * @return Function
      */
-    std::shared_ptr<ov::Function> read_model(const std::string& model,
-                                             const std::shared_ptr<const ie::Blob>& weights) const;
+    std::shared_ptr<ov::Function> read_model(const std::string& model, const Tensor& weights) const;
 
     /**
      * @brief Creates an executable network from a network object.
