@@ -60,8 +60,7 @@ inline std::string get_ie_output_name(const ngraph::Output<ngraph::Node>& output
     NGRAPH_SUPPRESS_DEPRECATED_START
     auto name = output.get_tensor().get_name();
     NGRAPH_SUPPRESS_DEPRECATED_END
-    if (name.empty())
-    {
+    if (name.empty()) {
         name = create_ie_output_name(output);
     }
     return name;
