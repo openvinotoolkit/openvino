@@ -178,7 +178,7 @@ TEST_F(RTInfoDeserialization, NodeV10) {
         f_10_ref->set_friendly_name("Network");
 
         ov::runtime::Core core;
-        auto f_10_core = core.read_model(model, InferenceEngine::Blob::CPtr());
+        auto f_10_core = core.read_model(model, ov::runtime::Tensor());
         ASSERT_NE(nullptr, f_10_core);
 
         check_version(f_10_core, 10);
@@ -330,7 +330,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
         f_10_ref->set_friendly_name("Network");
 
         ov::runtime::Core core;
-        auto f_10_core = core.read_model(model, InferenceEngine::Blob::CPtr());
+        auto f_10_core = core.read_model(model, ov::runtime::Tensor());
         ASSERT_NE(nullptr, f_10_core);
         check_version(f_10_core, 10);
 
@@ -451,7 +451,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
     // read IR v11 with new API
     {
         ov::runtime::Core core;
-        auto f_11 = core.read_model(model, InferenceEngine::Blob::CPtr());
+        auto f_11 = core.read_model(model, ov::runtime::Tensor());
         ASSERT_NE(nullptr, f_11);
 
         check_old_api_map(f_11->get_parameters()[0]->get_rt_info(),
