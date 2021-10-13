@@ -40,7 +40,7 @@ def find_nearest_conv(graph: Graph, start_node: Node, end_nodes: List[Node]) -> 
     shortest_path_len = np.iinfo(np.int64).max
     for conv_node in end_nodes:
         if nx.has_path(graph, start_node.id, conv_node.id):
-            path = nx.shortest_path(graph, start_node.id, conv_node.id)
+            path = nx.shortest_path(graph, start_node.id, conv_node.id)  # pylint: disable-msg=E1121
             if len(path) == 2:  # if input goes directly into convolution
                 found_shortest_path = path
                 break
