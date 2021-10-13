@@ -462,7 +462,6 @@ set(MULTI_TEST_SRC
     backend/constant.in.cpp
     backend/convolution_backprop.in.cpp
     backend/binary_convolution.in.cpp
-    backend/clamp.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/deformable_psroi_pooling.in.cpp
@@ -477,8 +476,6 @@ set(MULTI_TEST_SRC
     backend/experimental_detectron_topk_rois.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
-    backend/elu.in.cpp
-    backend/exp.in.cpp
     backend/experimental_detectron_detection_output.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
     backend/fake_quantize.in.cpp
@@ -488,20 +485,16 @@ set(MULTI_TEST_SRC
     backend/gather.in.cpp
     backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
-    backend/gelu.in.cpp
     backend/group_convolution.in.cpp
     backend/group_convolution_backprop_data.in.cpp
-    backend/hard_sigmoid.in.cpp
     backend/idft.in.cpp
     backend/interpolate.in.cpp
     backend/log.in.cpp
-    backend/log_softmax.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
     backend/matrix_nms.in.cpp
     backend/maximum.in.cpp
     backend/max_pool.in.cpp
-    backend/mish.in.cpp
     backend/mod.in.cpp
     backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
@@ -516,7 +509,6 @@ set(MULTI_TEST_SRC
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
-    backend/prelu.in.cpp
     backend/prior_box_clustered.in.cpp
     backend/prior_box.in.cpp
     backend/proposal.in.cpp
@@ -524,7 +516,6 @@ set(MULTI_TEST_SRC
     backend/range.in.cpp
     backend/recurrent_cells.in.cpp
     backend/region_yolo.in.cpp
-    backend/relu.in.cpp
     backend/reorg_yolo.in.cpp
     backend/reshape.in.cpp
     backend/result.in.cpp
@@ -533,19 +524,14 @@ set(MULTI_TEST_SRC
     backend/round.in.cpp
     backend/scatter_nd_update.in.cpp
     backend/space_to_depth.in.cpp
-    backend/selu.in.cpp
     backend/shape_of.in.cpp
     backend/shuffle_channels.in.cpp
-    backend/sigmoid.in.cpp
-    backend/softmax.in.cpp
-    backend/softplus.in.cpp
     backend/space_to_batch.in.cpp
     backend/split.in.cpp
     backend/sqrt.in.cpp
     backend/squared_difference.in.cpp
     backend/squeeze.in.cpp
     backend/subtract.in.cpp
-    backend/swish.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp
     backend/transpose.in.cpp
