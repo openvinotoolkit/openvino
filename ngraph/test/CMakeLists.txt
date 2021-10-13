@@ -206,6 +206,7 @@ set(SRC
     type_prop/reduce_min.cpp
     type_prop/reduce_prod.cpp
     type_prop/reduce_sum.cpp
+    type_prop/relu.cpp
     type_prop/reorg_yolo.cpp
     type_prop/reshape.cpp
     type_prop/result.cpp
@@ -225,6 +226,7 @@ set(SRC
     type_prop/selu.cpp
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
+    type_prop/sigmoid.cpp
     type_prop/sign.cpp
     type_prop/sin.cpp
     type_prop/sinh.cpp
@@ -265,6 +267,7 @@ set(SRC
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
     visitors/op/ceiling.cpp
+    visitors/op/clamp.cpp
     visitors/op/constant.cpp
     visitors/op/convert.cpp
     visitors/op/convert_color_nv12.cpp
@@ -282,6 +285,7 @@ set(SRC
     visitors/op/elu.cpp
     visitors/op/equal.cpp
     visitors/op/erf.cpp
+    visitors/op/exp.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
     visitors/op/floor_mod.cpp
@@ -293,11 +297,15 @@ set(SRC
     visitors/op/greater.cpp
     visitors/op/grn.cpp
     visitors/op/group_conv.cpp
+    visitors/op/hard_sigmoid.cpp
+    visitors/op/hsigmoid.cpp
+    visitors/op/hswish.cpp
     visitors/op/interpolate.cpp
     visitors/op/if.cpp
     visitors/op/less_equal.cpp
     visitors/op/less.cpp
     visitors/op/log.cpp
+    visitors/op/log_softmax.cpp
     visitors/op/logical_and.cpp
     visitors/op/logical_or.cpp
     visitors/op/logical_not.cpp
@@ -324,6 +332,7 @@ set(SRC
     visitors/op/pad.cpp
     visitors/op/parameter.cpp
     visitors/op/power.cpp
+    visitors/op/prelu.cpp
     visitors/op/prior_box.cpp
     visitors/op/prior_box_clustered.cpp
     visitors/op/proposal.cpp
@@ -339,6 +348,7 @@ set(SRC
     visitors/op/reduce_prod.cpp
     visitors/op/reduce_sum.cpp
     visitors/op/region_yolo.cpp
+    visitors/op/relu.cpp
     visitors/op/reorg_yolo.cpp
     visitors/op/reshape.cpp
     visitors/op/result.cpp
@@ -354,6 +364,7 @@ set(SRC
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
+    visitors/op/sigmoid.cpp
     visitors/op/sign.cpp
     visitors/op/sin.cpp
     visitors/op/sinh.cpp
