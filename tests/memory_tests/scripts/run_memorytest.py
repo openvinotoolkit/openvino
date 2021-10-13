@@ -75,7 +75,7 @@ def run_memorytest(args: dict, log=None):
     stats = {}
     for run_iter in range(args["niter"]):
         tmp_stats_path = tempfile.NamedTemporaryFile().name
-        retcode, msg = cmd_exec(cmd_common + ["-s", str(tmp_stats_path)], log=log)
+        retcode, msg = cmd_exec(cmd_common + ["-s", str(tmp_stats_path)], timeout=60, log=log)
         if retcode != 0:
             log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
                       "Statistics aggregation is skipped.".format(args["executable"], retcode, msg))
