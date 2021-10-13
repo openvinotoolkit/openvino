@@ -27,22 +27,23 @@ public:
     OPENVINO_RTTI("Serialize");
 
     enum class Version : uint8_t {
-        IR_V10 = 10,  // v10 IR
-        IR_V11 = 11   // v11 IR
+        UNSPECIFIED = 0,        // Use the latest or function version
+        IR_V10 = 10,            // v10 IR
+        IR_V11 = 11             // v11 IR
     };
     bool run_on_function(std::shared_ptr<ov::Function> f) override;
 
     Serialize(std::ostream& xmlFile,
               std::ostream& binFile,
               std::map<std::string, ngraph::OpSet> custom_opsets,
-              Version version = Version::IR_V11);
-    Serialize(std::ostream& xmlFile, std::ostream& binFile, Version version = Version::IR_V11);
+              Version version = Version::UNSPECIFIED);
+    Serialize(std::ostream& xmlFile, std::ostream& binFile, Version version = Version::UNSPECIFIED);
 
     Serialize(const std::string& xmlPath,
               const std::string& binPath,
               std::map<std::string, ngraph::OpSet> custom_opsets,
-              Version version = Version::IR_V11);
-    Serialize(const std::string& xmlPath, const std::string& binPath, Version version = Version::IR_V11);
+              Version version = Version::UNSPECIFIED);
+    Serialize(const std::string& xmlPath, const std::string& binPath, Version version = Version::UNSPECIFIED);
 
 private:
     std::ostream* m_xmlFile;
@@ -76,7 +77,7 @@ public:
     StreamSerialize(std::ostream& stream,
                     std::map<std::string, ngraph::OpSet>&& custom_opsets = {},
                     const std::function<void(std::ostream&)>& custom_data_serializer = {},
-                    Serialize::Version version = Serialize::Version::IR_V11);
+                    Serialize::Version version = Serialize::Version::UNSPECIFIED);
 
 private:
     std::ostream& m_stream;

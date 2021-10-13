@@ -117,6 +117,7 @@ void CNNNetworkSerializer::operator << (const CNNNetwork & network) {
         xml_doc.save(stream);
     };
 
+    // Serialize to old representation in case of old API
     ov::pass::StreamSerialize serializer(_ostream, getCustomOpSets(), serializeInputsAndOutputs);
     serializer.run_on_function(std::const_pointer_cast<ngraph::Function>(network.getFunction()));
 }

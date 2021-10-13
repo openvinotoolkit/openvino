@@ -344,7 +344,9 @@ void LayerTestsCommon::Compare(const InferenceEngine::TensorDesc &actualDesc, co
 
 void LayerTestsCommon::ConfigureNetwork() {
     for (const auto &in : cnnNetwork.getInputsInfo()) {
-        if (inLayout != InferenceEngine::Layout::ANY) {
+        if (inLayout != InferenceEngine::Layout::ANY &&
+            // cannot setLayout for fully-dynamic network
+            !in.second->getPartialShape().rank().is_dynamic()) {
             in.second->setLayout(inLayout);
         }
         if (inPrc != InferenceEngine::Precision::UNSPECIFIED) {
@@ -353,7 +355,9 @@ void LayerTestsCommon::ConfigureNetwork() {
     }
 
     for (const auto &out : cnnNetwork.getOutputsInfo()) {
-        if (outLayout != InferenceEngine::Layout::ANY) {
+        if (outLayout != InferenceEngine::Layout::ANY &&
+            // cannot setLayout for fully-dynamic network
+            !out.second->getPartialShape().rank().is_dynamic()) {
             out.second->setLayout(outLayout);
         }
         if (outPrc != InferenceEngine::Precision::UNSPECIFIED) {
