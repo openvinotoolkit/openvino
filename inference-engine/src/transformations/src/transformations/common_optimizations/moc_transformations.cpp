@@ -50,7 +50,6 @@
 #include <transformations/common_optimizations/mul_conv_fusion.hpp>
 #include "transformations/common_optimizations/split_concat_pair_to_interpolate_fusion.hpp"
 
-
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
 bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::Function> f) {
