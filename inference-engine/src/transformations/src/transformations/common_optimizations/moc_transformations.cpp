@@ -134,7 +134,7 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
-    decomp->add_matcher<ngraph::pass::ConvertDivideWithConstant>();
+    // decomp->add_matcher<ngraph::pass::ConvertDivideWithConstant>();
 
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
 
