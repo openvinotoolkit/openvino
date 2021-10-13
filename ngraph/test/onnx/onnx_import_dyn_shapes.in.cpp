@@ -1255,9 +1255,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_dynamic_input) {
     test_case.run();
 }
 
-
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_eye_like_dyn_shape) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/eye_like_dyn_shape.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/eye_like_dyn_shape.onnx"));
 
     auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
     test_case.add_input<float>(Shape{3, 4}, {5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f});
@@ -1267,7 +1267,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_eye_like_dyn_shape) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_eye_like_dyn_rank) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/eye_like_dyn_rank.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/eye_like_dyn_rank.onnx"));
 
     auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
     test_case.add_input<float>(Shape{3, 4}, {5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f});
