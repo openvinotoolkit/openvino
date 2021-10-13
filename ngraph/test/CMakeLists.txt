@@ -86,7 +86,6 @@ set(SRC
     pass/serialization/cleanup.cpp
     pass/serialization/const_compression.cpp
     pass/serialization/deterministicity.cpp
-    pass/serialization/rt_info_serialization.cpp
     pass/serialization/serialize.cpp
     pattern.cpp
     preprocess.cpp
