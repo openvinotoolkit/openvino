@@ -20,20 +20,20 @@ struct EmbeddingBagPackedSumParams {
                                 const ConstantPtr& per_sample_weights = nullptr)
         : _iShape(iShape),
           _iType(iType),
-          _iData(CreateBlob(iType, iValues)),
+          _iData(CreateTensor(iType, iValues)),
           _refShape(oShape),
           _refType(oType),
-          _refData(CreateBlob(oType, oValues)) {
+          _refData(CreateTensor(oType, oValues)) {
         _indices = indices;
         _perSampleWeights = per_sample_weights;
     }
-    ngraph::PartialShape _iShape;
-    ngraph::element::Type _iType;
-    InferenceEngine::Blob::Ptr _iData;
+    ov::PartialShape _iShape;
+    ov::element::Type _iType;
+    ov::runtime::Tensor _iData;
 
-    ngraph::PartialShape _refShape;
-    ngraph::element::Type _refType;
-    InferenceEngine::Blob::Ptr _refData;
+    ov::PartialShape _refShape;
+    ov::element::Type _refType;
+    ov::runtime::Tensor _refData;
 
     ConstantPtr _indices;
     ConstantPtr _perSampleWeights;  // Optional, default is tensor of ones.
