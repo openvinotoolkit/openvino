@@ -97,9 +97,9 @@ std::vector<SubtractParams> generateParamsForSubtract() {
         SubtractParams(ov::PartialShape{1},
                        ov::PartialShape{1},
                        IN_ET,
-                       std::vector<T>{2},
                        std::vector<T>{8},
-                       std::vector<T>{-6})
+                       std::vector<T>{2},
+                       std::vector<T>{6})
     };
     return params;
 }
@@ -123,8 +123,11 @@ std::vector<SubtractParams> generateCombinedParamsForSubtract() {
     const std::vector<std::vector<SubtractParams>> allTypeParams{
         generateParamsForSubtract<element::Type_t::f32>(),
         generateParamsForSubtract<element::Type_t::f16>(),
+        generateParamsForSubtract<element::Type_t::bf16>(),
         generateParamsForSubtract<element::Type_t::i64>(),
-        generateParamsForSubtract<element::Type_t::i32>()
+        generateParamsForSubtract<element::Type_t::i32>(),
+        generateParamsForSubtract<element::Type_t::u64>(),
+        generateParamsForSubtract<element::Type_t::u32>()
     };
 
     std::vector<SubtractParams> combinedParams;
@@ -138,8 +141,8 @@ std::vector<SubtractParams> generateCombinedParamsForSubtract() {
 
 std::vector<SubtractParams> generateCombinedParamsForSubtractFloat() {
     const std::vector<std::vector<SubtractParams>> allTypeParams{
-        generateParamsForSubtract<element::Type_t::f32>(),
-        generateParamsForSubtract<element::Type_t::f16>()
+        generateParamsForSubtractFloat<element::Type_t::f32>(),
+        generateParamsForSubtractFloat<element::Type_t::f16>()
     };
 
     std::vector<SubtractParams> combinedParams;
