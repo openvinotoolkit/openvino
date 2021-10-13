@@ -3,38 +3,35 @@
 //
 // NOTE: WILL BE REWORKED (31905)
 
-#include <gtest/gtest.h>
-
-#include <map>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "common_test_utils/test_common.hpp"
-#include "common_test_utils/test_constants.hpp"
-#include "ie_core.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace LayerTestsDefinitions {
+namespace ov {
+namespace test {
+namespace subgraph {
 
 typedef std::tuple<
-    std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>,             // input shapes
-    ngraph::helpers::EltwiseTypes,                // eltwise op type
-    ngraph::helpers::InputLayerType,              // secondary input type
-    CommonTestUtils::OpType,                      // op type
-    InferenceEngine::Precision,                   // Net precision
-    InferenceEngine::Precision,                   // Input precision
-    InferenceEngine::Precision,                   // Output precision
-    InferenceEngine::Layout,                      // Input layout
-    std::string,                                  // Device name
-    std::map<std::string, std::string>            // Additional network configuration
+    InputShapes,                       // input shapes
+    ngraph::helpers::EltwiseTypes,     // eltwise op type
+    ngraph::helpers::InputLayerType,   // secondary input type
+    CommonTestUtils::OpType,           // op type
+    ElementType,                       // Net precision
+    ElementType,                       // Input precision
+    ElementType,                       // Output precision
+    TargetDevice,                      // Device name
+    Config                             // Additional network configuration
 > EltwiseTestParams;
 
 class EltwiseLayerTest : public testing::WithParamInterface<EltwiseTestParams>,
-    virtual public LayerTestsUtils::LayerTestsCommon {
+                         virtual public SubgraphBaseTest {
 protected:
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
+    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
 
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<EltwiseTestParams>& obj);
 };
-} // namespace LayerTestsDefinitions
+} // namespace subgraph
+} // namespace test
+} // namespace ov

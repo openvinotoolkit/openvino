@@ -92,6 +92,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*type=(f16).*)",
         R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=(i8|u32).*)",
         R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=(f16).*)",
+        R"(.*EltwiseLayerTest.*NetType=f16.*)",
 
         // TODO: CVS-66526 overrides i/o precisions in execution graph
         // as WA we used GetInputsInfo() precisions instead of ngraph ones

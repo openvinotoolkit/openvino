@@ -6,34 +6,34 @@
 #include "single_layer_tests/eltwise.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace ov::test::subgraph;
 
 namespace {
-std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesStatic = {
-        {{}, {{{2}}}},
-        {{}, {{{2, 200}}}},
-        {{}, {{{10, 200}}}},
-        {{}, {{{1, 10, 100}}}},
-        {{}, {{{4, 4, 16}}}},
-        {{}, {{{1, 1, 1, 3}}}},
-        {{}, {{{2, 17, 5, 4}, {1, 17, 1, 1}}}},
-        {{}, {{{2, 17, 5, 1}, {1, 17, 1, 4}}}},
-        {{}, {{{1, 2, 4}}}},
-        {{}, {{{1, 4, 4}}}},
-        {{}, {{{1, 4, 4, 1}}}},
-        {{}, {{{1, 1, 1, 1, 1, 1, 3}}}},
-        {{}, {{{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}}}
+std::vector<std::vector<ov::Shape>> inShapesStatic = {
+        {{2}},
+        {{2, 200}},
+        {{10, 200}},
+        {{1, 10, 100}},
+        {{4, 4, 16}},
+        {{1, 1, 1, 3}},
+        {{2, 17, 5, 4}, {1, 17, 1, 1}},
+        {{2, 17, 5, 1}, {1, 17, 1, 4}},
+        {{1, 2, 4}},
+        {{1, 4, 4}},
+        {{1, 4, 4, 1}},
+        {{1, 1, 1, 1, 1, 1, 3}},
+        {{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}},
 };
 
-std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesDynamic = {
+std::vector<ov::test::InputShapes> inShapesDynamic = {
         {{{ngraph::Dimension(1, 10), 200}, {ngraph::Dimension(1, 10), 200}},
          {{{2, 200}, {2, 200}}, {{1, 200}, {5, 200}}}},
 };
 
-std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::I32,
+std::vector<ov::test::ElementType> netPrecisions = {
+        ov::element::f32,
+        ov::element::f16,
+        ov::element::i32,
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
@@ -71,17 +71,16 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesDynamic = {
         ngraph::helpers::EltwiseTypes::SUBTRACT,
 };
 
-std::map<std::string, std::string> additional_config = {};
+ov::test::Config additional_config = {};
 
 const auto multiply_params = ::testing::Combine(
-        ::testing::ValuesIn(inShapesStatic),
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesStatic)),
         ::testing::ValuesIn(eltwiseOpTypes),
         ::testing::ValuesIn(secondaryInputTypes),
         ::testing::ValuesIn(opTypes),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(ov::element::Type_t::undefined),
+        ::testing::Values(ov::element::Type_t::undefined),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
@@ -91,9 +90,8 @@ const auto multiply_params_dynamic = ::testing::Combine(
         ::testing::ValuesIn(secondaryInputTypesDynamic),
         ::testing::ValuesIn(opTypesDynamic),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(ov::element::Type_t::undefined),
+        ::testing::Values(ov::element::Type_t::undefined),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
@@ -101,10 +99,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_static, EltwiseLayerTest, multipl
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic, EltwiseLayerTest, multiply_params_dynamic, EltwiseLayerTest::getTestCaseName);
 
 
-std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesSingleThread = {
-        {{}, {{{1, 2, 3, 4}}}},
-        {{}, {{{2, 2, 2, 2}}}},
-        {{}, {{{2, 1, 2, 1, 2, 2}}}}
+std::vector<std::vector<ov::Shape>> inShapesSingleThread = {
+        {{1, 2, 3, 4}},
+        {{2, 2, 2, 2}},
+        {{2, 1, 2, 1, 2, 2}},
 };
 
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesSingleThread = {
@@ -117,18 +115,17 @@ std::map<std::string, std::string> additional_config_single_thread = {
 };
 
 const auto single_thread_params = ::testing::Combine(
-        ::testing::ValuesIn(inShapesSingleThread),
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesSingleThread)),
         ::testing::ValuesIn(eltwiseOpTypesSingleThread),
         ::testing::ValuesIn(secondaryInputTypes),
         ::testing::ValuesIn(opTypes),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(ov::element::Type_t::undefined),
+        ::testing::Values(ov::element::Type_t::undefined),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additional_config_single_thread));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SingleThread, EltwiseLayerTest, single_thread_params, EltwiseLayerTest::getTestCaseName);
 
 
-}  // namespace
+} // namespace

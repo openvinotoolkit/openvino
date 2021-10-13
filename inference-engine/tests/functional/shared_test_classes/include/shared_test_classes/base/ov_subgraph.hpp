@@ -77,12 +77,12 @@ static std::vector<InputShape> static_shapes_to_test_representation(const std::v
     return result;
 }
 
-//static std::vector<InputShapes> static_shapes_to_test_representation(const std::vector<std::vector<ov::Shape>>& staticShapes) {
-//    std::vector<InputShapes> result;
-//    for (const auto& staticShape : staticShapes) {
-//        result.push_back({{}, {staticShape}});
-//    }
-//    return result;
-//}
+static std::vector<InputShapes> static_shapes_to_test_representation(const std::vector<std::vector<ov::Shape>>& staticShapes) {
+    std::vector<InputShapes> result;
+    for (const auto& staticShape : staticShapes) {
+        result.push_back({{}, {staticShape}});
+    }
+    return result;
+}
 }  // namespace test
 }  // namespace ov
