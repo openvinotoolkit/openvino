@@ -329,6 +329,7 @@ set(SRC
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
     visitors/op/random_uniform.cpp
+    visitors/op/range.cpp
     visitors/op/reduce_l1.cpp
     visitors/op/reduce_l2.cpp
     visitors/op/reduce_logical_and.cpp
@@ -510,7 +511,6 @@ set(MULTI_TEST_SRC
     backend/prior_box.in.cpp
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
-    backend/range.in.cpp
     backend/recurrent_cells.in.cpp
     backend/region_yolo.in.cpp
     backend/relu.in.cpp
