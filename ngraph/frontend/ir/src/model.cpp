@@ -194,7 +194,7 @@ public:
           m_extensions(extensions) {
         pugi::xml_parse_result res = m_xml_doc.load(stream);
         if (res.status != pugi::status_ok) {
-            IE_THROW() << res.description() << "at offset " << res.offset;
+            IE_THROW() << res.description() << " at offset " << res.offset;
         }
         m_root = m_xml_doc.document_element();
     }
@@ -231,11 +231,12 @@ std::shared_ptr<Function> InputModelIR::InputModelIRImpl::convert() {
         opsets[it.first] = it.second;
     }
 
-    ov::XmlDeserializer visitor(m_root, m_weights, opsets, variables);
+    size_t version = XMLParseUtils::GetUIntAttr(m_root, "version", 0);
+    ov::XmlDeserializer visitor(m_root, m_weights, opsets, variables, version);
     visitor.use_framework_node(opsets.count("framework_node_ext"));
     std::shared_ptr<ngraph::Function> function;
     visitor.on_attribute("net", function);
-
+    function->get_rt_info()["version"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(version);
     ParsePreProcess(m_root, m_weights, function);
 
     return function;
