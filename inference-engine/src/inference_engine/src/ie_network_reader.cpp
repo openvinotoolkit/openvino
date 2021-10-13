@@ -319,9 +319,6 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             }
 
             function = prepost.build(function);
-
-            // Set version to 10
-            rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
         } else if (ir_version == 11 && !newAPI) {
             const std::string& old_api_map_key = ov::OldApiMap::get_type_info_static();
 
@@ -363,9 +360,6 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                             InputTensorInfo().set_element_type(old_api_type).set_layout(ov::Layout(tensorLayout.str())))
                         .preprocess(std::move(steps))
                         .network(InputNetworkInfo().set_layout(ov::Layout(networkLayout.str()))));
-
-                // Set version to 10
-                rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
             }
 
             auto& resuls = function->get_results();
@@ -417,6 +411,9 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 result->set_layout({});
             }
         }
+
+        // remove IR version
+        rt_info.erase(it);
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
