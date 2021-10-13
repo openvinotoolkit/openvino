@@ -221,10 +221,13 @@ static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx,
  * @param target_tile_id Desired tile id within given context for multi-tile system
  * @return A shared remote context instance
  */
-static inline RemoteContext::Ptr make_shared_context(Core& core, std::string deviceName, cl_context ctx, int target_tile_id = -1) {
-    ParamMap contextParams = { {GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL)},
+static inline RemoteContext::Ptr make_shared_context(Core& core,
+                                                     std::string deviceName,
+                                                     cl_context ctx,
+                                                     int target_tile_id = -1) {
+    ParamMap contextParams = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL)},
                               {GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx)},
-                              {GPU_PARAM_KEY(TILE_ID), target_tile_id} };
+                              {GPU_PARAM_KEY(TILE_ID), target_tile_id}};
     return core.CreateContext(deviceName, contextParams);
 }
 

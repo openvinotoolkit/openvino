@@ -157,7 +157,10 @@ static inline Blob::Ptr make_shared_blob_nv12(size_t height,
  * @param target_tile_id Desired tile id within given context for multi-tile system
  * @return A shared remote context instance
  */
-static inline D3DContext::Ptr make_shared_context(Core& core, std::string deviceName, ID3D11Device* device, int target_tile_id = -1) {
+static inline D3DContext::Ptr make_shared_context(Core& core,
+                                                  std::string deviceName,
+                                                  ID3D11Device* device,
+                                                  int target_tile_id = -1) {
     // clang-format off
     ParamMap contextParams = {
         {GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
