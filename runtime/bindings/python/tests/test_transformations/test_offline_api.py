@@ -4,9 +4,10 @@
 from openvino.pyopenvino.offline_transformations import ApplyMOCTransformations, ApplyPOTTransformations, \
     ApplyLowLatencyTransformation, ApplyPruningTransformation
 
-from ngraph.impl.op import Parameter
-from ngraph.impl import Function, Shape, Type
-from ngraph import relu
+from openvino.impl.op import Parameter
+from openvino.impl import Function, Shape, Type
+from openvino.opset8 import relu
+
 
 def get_test_function():
     element_type = Type.f32
