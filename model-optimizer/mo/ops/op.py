@@ -63,6 +63,7 @@ class Op(object):
         backend_attrs_mapping = {
             None: self.backend_attrs,
             10: self.backend_attrs,
+            11: self.backend_attrs,
         }
 
         if self.ir_version not in backend_attrs_mapping.keys():

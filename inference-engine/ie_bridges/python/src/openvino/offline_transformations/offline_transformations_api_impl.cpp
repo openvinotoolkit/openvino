@@ -14,6 +14,7 @@
 #include <pruning.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
+#include <transformations/serialize.hpp>
 
 void InferenceEnginePython::ApplyMOCTransformations(InferenceEnginePython::IENetwork network, bool cf) {
     ngraph::pass::Manager manager;
@@ -52,6 +53,14 @@ void InferenceEnginePython::GenerateMappingFile(InferenceEnginePython::IENetwork
                                                 bool extract_names) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::GenerateMappingFile>(path, extract_names);
+    manager.run_passes(network.actual->getFunction());
+}
+
+void InferenceEnginePython::Serialize(InferenceEnginePython::IENetwork network,
+                                      std::string path_to_xml,
+                                      std::string path_to_bin) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::Serialize>(path_to_xml, path_to_bin);
     manager.run_passes(network.actual->getFunction());
 }
 
