@@ -213,7 +213,7 @@ InferRequest::InferRequest(const std::shared_ptr<void>& so, const ie::IInferRequ
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
 }
 
-void InferRequest::set_tensor1(const std::string& name, const Tensor& tensor) {
+void InferRequest::set_tensor(const std::string& name, const Tensor& tensor) {
     OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlob(name, tensor._impl); });
 }
 
@@ -233,7 +233,7 @@ void InferRequest::set_input_tensor(const Tensor& tensor) {
     IE_THROW() << "Not implemented";
 }
 
-Tensor InferRequest::get_tensor1(const std::string& name) {
+Tensor InferRequest::get_tensor(const std::string& name) {
     OV_INFER_REQ_CALL_STATEMENT({
         auto blob = _impl->GetBlob(name);
         const bool remoteBlobPassed = blob->is<ie::RemoteBlob>();

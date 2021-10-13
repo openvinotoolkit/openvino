@@ -16,12 +16,12 @@ using namespace InferenceEngine::details;
 
 TEST(InferRequestOVTests, throwsOnUninitializedSetTensor) {
     ov::runtime::InferRequest req;
-    ASSERT_THROW(req.set_tensor({}, {}), ov::Exception);
+    ASSERT_THROW(req.set_tensor("", {}), ov::Exception);
 }
 
 TEST(InferRequestOVTests, throwsOnUninitializedGetTensor) {
     ov::runtime::InferRequest req;
-    ASSERT_THROW(req.get_tensor({}), ov::Exception);
+    ASSERT_THROW(req.get_tensor(""), ov::Exception);
 }
 
 TEST(InferRequestOVTests, throwsOnUninitializedInfer) {
@@ -64,5 +64,5 @@ TEST(InferRequestOVTests, throwsOnUninitializedQueryState) {
 TEST(InferRequestOVTests, throwsOnUninitializedSetRemoteTensor) {
     ov::runtime::InferRequest req;
     ov::runtime::RemoteTensor remote_tensor;
-    ASSERT_THROW(req.set_tensor({}, remote_tensor), ov::Exception);
+    ASSERT_THROW(req.set_tensor("", remote_tensor), ov::Exception);
 }

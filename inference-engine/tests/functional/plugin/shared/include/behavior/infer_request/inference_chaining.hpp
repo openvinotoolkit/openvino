@@ -110,9 +110,9 @@ public:
 
         // perform inference chaining
         if (outputToInput) {
-            ASSERT_NO_THROW(r1.set_tensor1("input_tensor_0", r0.get_tensor1("result_tensor_0")));
+            ASSERT_NO_THROW(r1.set_tensor("input_tensor_0", r0.get_tensor("result_tensor_0")));
         } else {
-            ASSERT_NO_THROW(r0.set_tensor1("result_tensor_0", r1.get_tensor1("input_tensor_0")));
+            ASSERT_NO_THROW(r0.set_tensor("result_tensor_0", r1.get_tensor("input_tensor_0")));
         }
 
         // create input tensors
@@ -121,15 +121,15 @@ public:
         ov::runtime::Tensor t2 = tensor(std::vector<float>{7.0f, 8.0f, 9.0f});
         ov::runtime::Tensor t3 = tensor(std::vector<float>{2.0f, 3.0f, 2.0f});
 
-        ASSERT_NO_THROW(r0.set_tensor1("input_tensor_0", t0));
-        ASSERT_NO_THROW(r0.set_tensor1("input_tensor_1", t1));
-        ASSERT_NO_THROW(r0.set_tensor1("input_tensor_2", t2));
-        ASSERT_NO_THROW(r1.set_tensor1("input_tensor_1", t3));
+        ASSERT_NO_THROW(r0.set_tensor("input_tensor_0", t0));
+        ASSERT_NO_THROW(r0.set_tensor("input_tensor_1", t1));
+        ASSERT_NO_THROW(r0.set_tensor("input_tensor_2", t2));
+        ASSERT_NO_THROW(r1.set_tensor("input_tensor_1", t3));
 
-        ASSERT_NO_THROW(r2.set_tensor1("input_tensor_0", t0));
-        ASSERT_NO_THROW(r2.set_tensor1("input_tensor_1", t1));
-        ASSERT_NO_THROW(r2.set_tensor1("input_tensor_2", t2));
-        ASSERT_NO_THROW(r2.set_tensor1("input_tensor_3", t3));
+        ASSERT_NO_THROW(r2.set_tensor("input_tensor_0", t0));
+        ASSERT_NO_THROW(r2.set_tensor("input_tensor_1", t1));
+        ASSERT_NO_THROW(r2.set_tensor("input_tensor_2", t2));
+        ASSERT_NO_THROW(r2.set_tensor("input_tensor_3", t3));
 
         ASSERT_NO_THROW(r0.infer());
         ASSERT_NO_THROW(r1.infer());
@@ -139,9 +139,9 @@ public:
         std::vector<float> reference1 = {12.0f, 15.0f, 18.0f};
         std::vector<float> reference2 = {24.0f, 45.0f, 36.0f};
 
-        auto rti = r0.get_tensor1("result_tensor_0");
-        auto rt0 = r1.get_tensor1("result_tensor_0");
-        auto rt1 = r2.get_tensor1("result_tensor_0");
+        auto rti = r0.get_tensor("result_tensor_0");
+        auto rt0 = r1.get_tensor("result_tensor_0");
+        auto rt1 = r2.get_tensor("result_tensor_0");
 
         for (size_t i = 0; i < reference1.size(); ++i) {
             EXPECT_EQ(reference1[i], rti.data<float>()[i]);
