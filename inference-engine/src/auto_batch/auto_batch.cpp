@@ -140,6 +140,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoBatchInfe
 void AutoBatchInferRequest::InferImpl() {
     auto _event = _workerInferRequest->_event;
     auto numReady = ++_workerInferRequest->_numRequestsReady;
+    // printf("!!! numReady: %d \n", numReady);
     if (numReady == _workerInferRequest->_batchSize) {
         _workerInferRequest->_numRequestsReady = 0;
         _workerInferRequest->_inferRequest->StartAsync();
@@ -402,58 +403,61 @@ InferenceEngine::Parameter AutoBatchInferencePlugin::GetMetric(const std::string
 IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&network,
                                                                               const std::map<std::string, std::string>& config) {
     if (GetCore() == nullptr) {
-        IE_THROW() <<"Please, work with MULTI device via InferencEngine::Core object";
+        IE_THROW() << "Please, work with MULTI device via InferencEngine::Core object";
     }
 
     auto fullConfig = mergeConfigs(_config, config);
     auto device_batch = fullConfig.find(CONFIG_KEY(AUTO_BATCH));
     if (device_batch == fullConfig.end()) {
-        IE_THROW() <<"KEY_AUTO_BATCH key is not set for BATCH device";
+        IE_THROW() << "KEY_AUTO_BATCH key is not set for BATCH device";
     }
 
     auto metaDevice = ParseMetaDevice(device_batch->second, fullConfig);
+    const auto &deviceName = metaDevice.deviceName;
+    const auto &deviceConfig = metaDevice.config;
+    const auto perfConfig = fullConfig.find(PluginConfigParams::KEY_PERF_COUNT);
+    const bool enablePerfCounters = (fullConfig.end() != perfConfig) && (perfConfig->second == PluginConfigParams::YES);
 
-    // collect the settings that are applicable to the devices we are loading the network to
+    // device settings + auto-batch settings
     std::unordered_map<std::string, InferenceEngine::Parameter> networkConfig;
     networkConfig.insert(*device_batch);
+    networkConfig.insert(deviceConfig.begin(), deviceConfig.end());
 
-    auto & deviceName = metaDevice.deviceName;
-    auto & deviceConfig = metaDevice.config;
-
-    CNNNetwork clonedNetwork(InferenceEngine::cloneNetwork(network));
-    const InputsDataMap inputInfo = clonedNetwork.getInputsInfo();
-    ICNNNetwork::InputShapes shapes = clonedNetwork.getInputShapes();
-
-    for (const InputsDataMap::value_type &item : inputInfo) {
-        auto layout = item.second->getTensorDesc().getLayout();
-        if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW
+    const uint64_t total_mem = GetCore()->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+    // TODO: remove this experimental code that does loop rather than use the batch1 footprint only
+    do {
+        CNNNetwork clonedNetwork(InferenceEngine::cloneNetwork(network));
+        const InputsDataMap inputInfo = clonedNetwork.getInputsInfo();
+        ICNNNetwork::InputShapes shapes = clonedNetwork.getInputShapes();
+        for (const InputsDataMap::value_type &item : inputInfo) {
+            auto layout = item.second->getTensorDesc().getLayout();
+            if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW
                 || layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC
                 || layout == InferenceEngine::Layout::NDHWC) {
-            shapes[item.first][0] = metaDevice.batchForDevice;
-            std::cout << "  reshaping the input " << item.first << " (layout " << layout << ")" << " by the batch" << std::endl;
+                shapes[item.first][0] = metaDevice.batchForDevice;
+                std::cout << "  reshaping the input " << item.first << " (layout " << layout << ")" << " by the batch"
+                          << std::endl;
+            }
         }
-    }
-    std::cout << "Reshaped network by batch to  " << metaDevice.batchForDevice << std::endl;
-    clonedNetwork.reshape(shapes);
-    // clonedNetwork.serialize("out_batch4.xml", "out_batch4.bin");
+        std::cout << "Reshaped network by batch to  " << metaDevice.batchForDevice << std::endl;
+        clonedNetwork.reshape(shapes);
+        auto executableNetworkForDevice = GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, deviceName, deviceConfig);
+        if (executableNetworkForDevice == nullptr)
+            IE_THROW(NotFound) << "Failed to load Executable network the device "
+                               << "that the BATCH device is initialized to work with";
+        uint64_t footprint = executableNetworkForDevice->GetMetric(GPU_METRIC_KEY(NETWORK_MEM_FOOTPRINT));
+        std::cout << "!!!!!!!!!!!!!! (BATCHED):" << footprint << std::endl;
 
-    std::map<std::string, std::string> deviceConfig0 = deviceConfig;
-    // deviceConfig0["DO_NOT_AUTO_BATCH"] = "TRUE";
-    auto executableNetworkForDevice = GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, deviceName, deviceConfig0);
-    networkConfig.insert(deviceConfig.begin(), deviceConfig.end());
-    if (executableNetworkForDevice == nullptr)
-        IE_THROW(NotFound) << "Failed to load Executable network the device "
-                                            <<  "that the BATCH device is initialized to work with";
-    uint64_t footprint = executableNetworkForDevice->GetMetric(GPU_METRIC_KEY(NETWORK_MEM_FOOTPRINT));
-    std::cout << "!!!!!!!!!!!!!! (BATCHED):" << footprint << std::endl;
-
-    auto perfConfig = fullConfig.find(PluginConfigParams::KEY_PERF_COUNT);
-    bool enablePerfCounters = (fullConfig.end() != perfConfig) && (perfConfig->second == PluginConfigParams::YES);
-
-    return std::make_shared<AutoBatchExecutableNetwork>(executableNetworkForDevice,
-                                                          metaDevice,
-                                                          networkConfig,
-                                                          enablePerfCounters);
+        if (footprint < total_mem) {
+            return std::make_shared<AutoBatchExecutableNetwork>(executableNetworkForDevice,
+                                                                metaDevice,
+                                                                networkConfig,
+                                                                enablePerfCounters);
+        } else { // WA for inaccurate footprint estimations
+            std::cout << "WA for inaccurate footprint estimations!!!" << std::endl;
+            metaDevice.batchForDevice /= 2;
+        }
+    } while (1);
 }
 
 InferenceEngine::QueryNetworkResult AutoBatchInferencePlugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
