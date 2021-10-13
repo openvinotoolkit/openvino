@@ -13,8 +13,6 @@ from openvino.pyopenvino import TBlobInt8
 from openvino.pyopenvino import TBlobUint8
 from openvino.pyopenvino import TensorDesc
 from openvino.pyopenvino import InferRequest
-from openvino.pyopenvino import Function
-from openvino.pyopenvino import IENetwork
 
 import numpy as np
 
@@ -114,9 +112,3 @@ def blob_from_file(path_to_bin_file: str) -> BlobWrapper:
     array = np.fromfile(path_to_bin_file, dtype=np.uint8)
     tensor_desc = TensorDesc("U8", array.shape, "C")
     return BlobWrapper(tensor_desc, array)
-
-
-def function_to_cnn(ng_function: Function) -> Function:
-    """Get Inference Engine CNN network from nGraph function."""
-    capsule = Function.to_capsule(ng_function)
-    return IENetwork(capsule)

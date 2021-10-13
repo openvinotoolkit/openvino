@@ -10,6 +10,7 @@
 #include <transformations/common_optimizations/moc_transformations.hpp>
 
 #include "openvino/pass/low_latency.hpp"
+#include "openvino/pass/make_stateful.hpp"
 #include "openvino/pass/manager.hpp"
 
 namespace py = pybind11;
@@ -66,4 +67,14 @@ void regmodule_offline_transformations(py::module m) {
         py::arg("function"),
         py::arg("path"),
         py::arg("extract_names"));
+
+    m_offline_transformations.def(
+        "ApplyMakeStatefulTransformation",
+        [](std::shared_ptr<ov::Function> function, std::map<std::string, std::string> param_res_names) {
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::MakeStateful>(param_res_names);
+            manager.run_passes(function);
+        },
+        py::arg("function"),
+        py::arg("param_res_names"));
 }
