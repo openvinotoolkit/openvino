@@ -62,7 +62,7 @@ class ReferenceBinaryConvolutionLayerTest : public testing::TestWithParam<Binary
 public:
     void SetUp() override {
         auto params = GetParam();
-        function = CreateFunction(params);
+        function = CreateFunction(params, params.filterData);
         inputData = {params.inputData};
         refOutData = {params.refData};
     }
@@ -88,11 +88,11 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const BinaryConvolutionParams& params) {
-        std::vector<uint8_t> filterArray = params.filterData;
+    static std::shared_ptr<Function> CreateFunction(const BinaryConvolutionParams& params, const std::vector<uint8_t>& filterData) {
+        const std::vector<uint8_t> filters_bin_conv{0xAA, 0x80}; // 10101010 10000000
         const op::PadType auto_pad{op::PadType::EXPLICIT};
         const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
-        const auto filter = std::make_shared<op::v0::Constant>(ov::element::u1, params.filterShape, params.filterData);
+        auto filter = std::make_shared<op::v0::Constant>(ov::element::u1, params.filterShape, filterData);
         const auto BinaryConvolution = std::make_shared<op::v1::BinaryConvolution>(in,
                                                                        filter,
                                                                        params.strides,
