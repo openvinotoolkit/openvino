@@ -17,6 +17,7 @@
 #include "core/ie_infer_request.hpp"
 #include "core/ie_input_info.hpp"
 #include "core/ie_network.hpp"
+#include "core/ie_offline_transformations.hpp"
 #include "core/ie_parameter.hpp"
 #include "core/ie_preprocess_info.hpp"
 #include "core/ie_version.hpp"
@@ -88,4 +89,6 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_InputInfo(m);
     regclass_InferQueue(m);
     regclass_PreProcessInfo(m);
+
+    regmodule_offline_transformations(m);
 }
