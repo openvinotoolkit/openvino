@@ -17,26 +17,32 @@ void shape_infer(ExperimentalDetectronPriorGridGenerator* op,
     auto featmap_shape = input_shapes[1];
     auto im_data_shape = input_shapes[2];
 
+    auto& output_shape = output_shapes[0];
+    size_t output_size = op->m_attrs.flatten ? 2 : 4;
+
+    output_shape.resize(output_size);
+    output_shape[output_shape.size() - 1] = 4;
+
     if (priors_shape.rank().is_dynamic() || featmap_shape.rank().is_dynamic()) {
         return;
     }
 
-    NODE_VALIDATION_CHECK(op, priors_shape.rank().get_length() == 2, "Priors rank must be equal to 2.");
+    NODE_VALIDATION_CHECK(op, priors_shape.rank().compatible(2), "Priors rank must be equal to 2.");
 
     if (priors_shape[1].is_static()) {
         NODE_VALIDATION_CHECK(op,
-                              priors_shape[1].is_static() && priors_shape[1].get_length() == 4u,
+                              priors_shape[1].compatible(4),
                               "The last dimension of the 'priors' input must be equal to 4. Got: ",
                               priors_shape[1]);
     }
 
-    NODE_VALIDATION_CHECK(op, featmap_shape.rank().get_length() == 4, "Feature_map rank must be equal to 4.");
+    NODE_VALIDATION_CHECK(op, featmap_shape.rank().compatible(4), "Feature_map rank must be equal to 4.");
 
     if (im_data_shape.rank().is_dynamic()) {
         return;
     }
 
-    NODE_VALIDATION_CHECK(op, im_data_shape.rank().get_length() == 4, "Im_data rank must be equal to 4.");
+    NODE_VALIDATION_CHECK(op, im_data_shape.rank().compatible(4), "Im_data rank must be equal to 4.");
 
     const auto num_batches_featmap = featmap_shape[0];
     const auto num_batches_im_data = im_data_shape[0];
@@ -49,12 +55,6 @@ void shape_infer(ExperimentalDetectronPriorGridGenerator* op,
                           "; Im_data: ",
                           num_batches_im_data);
 
-    auto& output_shape = output_shapes[0];
-    size_t output_size = op->m_attrs.flatten ? 2 : 4;
-
-    output_shape.resize(output_size);
-    output_shape[output_shape.size() - 1] = 4;
-
     if (priors_shape.rank().is_dynamic() || featmap_shape.rank().is_dynamic()) {
         return;
     }
@@ -65,12 +65,10 @@ void shape_infer(ExperimentalDetectronPriorGridGenerator* op,
 
     if (op->m_attrs.flatten) {
         output_shape[0] = featmap_height * featmap_width * num_priors;
-        output_shape[1] = 4;
     } else {
         output_shape[0] = featmap_height;
         output_shape[1] = featmap_width;
         output_shape[2] = num_priors;
-        output_shape[3] = 4;
     }
 }
 
