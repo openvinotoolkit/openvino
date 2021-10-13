@@ -237,7 +237,12 @@ std::vector<DivideRoundingParams> generateParamsForDivideCppRoundingInt32() {
 std::vector<DivideParams> generateCombinedParamsForDivide() {
     const std::vector<std::vector<DivideParams>> allTypeParams{
         generateParamsForDivide<element::Type_t::f32>(),
-        generateParamsForDivide<element::Type_t::i32>()
+        generateParamsForDivide<element::Type_t::f16>(),
+        generateParamsForDivide<element::Type_t::bf16>(),
+        generateParamsForDivide<element::Type_t::i64>(),
+        generateParamsForDivide<element::Type_t::i32>(),
+        generateParamsForDivide<element::Type_t::u64>(),
+        generateParamsForDivide<element::Type_t::u32>()
     };
 
     std::vector<DivideParams> combinedParams;

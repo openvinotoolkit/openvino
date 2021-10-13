@@ -109,6 +109,7 @@ std::vector<PowerParams> generateCombinedParamsForPower() {
     const std::vector<std::vector<PowerParams>> allTypeParams{
         generateParamsForPower<element::Type_t::f32>(),
         generateParamsForPower<element::Type_t::f16>(),
+        generateParamsForPower<element::Type_t::bf16>(),
         generateParamsForPower<element::Type_t::i64>(),
         generateParamsForPower<element::Type_t::i32>(),
         generateParamsForPower<element::Type_t::u64>(),

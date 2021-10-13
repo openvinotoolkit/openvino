@@ -161,10 +161,15 @@ std::vector<AddParams> generateCombinedParamsForAdd() {
     const std::vector<std::vector<AddParams>> allTypeParams{
         generateParamsForAdd<element::Type_t::f32>(),
         generateParamsForAdd<element::Type_t::f16>(),
+        generateParamsForAdd<element::Type_t::bf16>(),
         generateParamsForAdd<element::Type_t::i64>(),
         generateParamsForAdd<element::Type_t::i32>(),
+        generateParamsForAdd<element::Type_t::i16>(),
+        generateParamsForAdd<element::Type_t::i8>(),
         generateParamsForAdd<element::Type_t::u64>(),
-        generateParamsForAdd<element::Type_t::u32>()
+        generateParamsForAdd<element::Type_t::u32>(),
+        generateParamsForAdd<element::Type_t::u16>(),
+        generateParamsForAdd<element::Type_t::u8>()
     };
 
     std::vector<AddParams> combinedParams;
@@ -180,10 +185,15 @@ std::vector<AddParams> generateCombinedParamsForAddInPlace() {
     const std::vector<std::vector<AddParams>> allTypeParams{
         generateParamsForAddInPlace<element::Type_t::f32>(),
         generateParamsForAddInPlace<element::Type_t::f16>(),
+        generateParamsForAddInPlace<element::Type_t::bf16>(),
         generateParamsForAddInPlace<element::Type_t::i64>(),
         generateParamsForAddInPlace<element::Type_t::i32>(),
+        generateParamsForAddInPlace<element::Type_t::i16>(),
+        generateParamsForAddInPlace<element::Type_t::i8>(),
         generateParamsForAddInPlace<element::Type_t::u64>(),
-        generateParamsForAddInPlace<element::Type_t::u32>()
+        generateParamsForAddInPlace<element::Type_t::u32>(),
+        generateParamsForAddInPlace<element::Type_t::u16>(),
+        generateParamsForAddInPlace<element::Type_t::u8>()
     };
 
     std::vector<AddParams> combinedParams;

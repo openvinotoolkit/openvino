@@ -112,7 +112,7 @@ std::vector<FloorModParams> generateParamsForFloorModScalar() {
                        IN_ET,
                        std::vector<T>{2},
                        std::vector<T>{4},
-                       std::vector<T>{2.0f}),
+                       std::vector<T>{2}),
     };
     return params;
 }
@@ -121,8 +121,10 @@ std::vector<FloorModParams> generateCombinedParamsForFloorMod() {
     const std::vector<std::vector<FloorModParams>> allTypeParams{
         generateParamsForFloorMod<element::Type_t::f32>(),
         generateParamsForFloorMod<element::Type_t::f16>(),
+        generateParamsForFloorMod<element::Type_t::bf16>(),
         generateParamsForFloorMod<element::Type_t::i64>(),
-        generateParamsForFloorMod<element::Type_t::i32>()
+        generateParamsForFloorMod<element::Type_t::i32>(),
+        generateParamsForFloorMod<element::Type_t::i8>()
     };
 
     std::vector<FloorModParams> combinedParams;
@@ -152,7 +154,14 @@ std::vector<FloorModParams> generateCombinedParamsForFloorModBroadcast() {
 std::vector<FloorModParams> generateCombinedParamsForFloorModScalar() {
     const std::vector<std::vector<FloorModParams>> allTypeParams{
         generateParamsForFloorModScalar<element::Type_t::f32>(),
-        generateParamsForFloorModScalar<element::Type_t::f16>()
+        generateParamsForFloorModScalar<element::Type_t::f16>(),
+        generateParamsForFloorModScalar<element::Type_t::bf16>(),
+        generateParamsForFloorModScalar<element::Type_t::i64>(),
+        generateParamsForFloorModScalar<element::Type_t::i32>(),
+        generateParamsForFloorModScalar<element::Type_t::i8>(),
+        generateParamsForFloorModScalar<element::Type_t::u64>(),
+        generateParamsForFloorModScalar<element::Type_t::u32>(),
+        generateParamsForFloorModScalar<element::Type_t::u8>()
     };
 
     std::vector<FloorModParams> combinedParams;

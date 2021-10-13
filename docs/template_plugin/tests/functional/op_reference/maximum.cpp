@@ -117,6 +117,21 @@ std::vector<MaximumParams> generateParamsForMaximumInt64() {
     return params;
 }
 
+template <element::Type_t IN_ET>
+std::vector<MaximumParams> generateParamsForMaximumUnsignedInt() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+
+    std::vector<MaximumParams> params{
+        MaximumParams(ov::PartialShape{2, 2, 2},
+                       ov::PartialShape{2, 2, 2},
+                       IN_ET,
+                       std::vector<T>{1, 8, 7, 17, 5, 67635216, 2, 17179887},
+                       std::vector<T>{1, 2, 4, 8, 0, 18448, 1, 28059},
+                       std::vector<T>{1, 8, 7, 17, 5, 67635216, 2, 17179887})
+    };
+    return params;
+}
+
 std::vector<MaximumParams> generateCombinedParamsForMaximumFloat() {
     const std::vector<std::vector<MaximumParams>> allTypeParams{
         generateParamsForMaximumFloat<element::Type_t::f32>(),
@@ -160,22 +175,43 @@ std::vector<MaximumParams> generateCombinedParamsForMaximumInt64() {
     return combinedParams;
 }
 
+std::vector<MaximumParams> generateCombinedParamsForMaximumUnsignedInt() {
+    const std::vector<std::vector<MaximumParams>> allTypeParams{
+        generateParamsForMaximumUnsignedInt<element::Type_t::u64>(),
+        generateParamsForMaximumUnsignedInt<element::Type_t::u32>()
+    };
+
+    std::vector<MaximumParams> combinedParams;
+
+    for (const auto& params : allTypeParams) {
+        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    }
+
+    return combinedParams;
+}
+
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Maximum_With_Hardcoded_Refs, 
+    smoke_Maximum_Float_With_Hardcoded_Refs, 
     ReferenceMaximumLayerTest,
     ::testing::ValuesIn(generateCombinedParamsForMaximumFloat()),
     ReferenceMaximumLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Maximum_Broadcast_With_Hardcoded_Refs, 
+    smoke_Maximum_Int32_With_Hardcoded_Refs, 
     ReferenceMaximumLayerTest,
     ::testing::ValuesIn(generateCombinedParamsForMaximumInt32()),
     ReferenceMaximumLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Maximume_Scalar_With_Hardcoded_Refs, 
+    smoke_Maximume_Int64_With_Hardcoded_Refs, 
     ReferenceMaximumLayerTest,
     ::testing::ValuesIn(generateCombinedParamsForMaximumInt64()),
+    ReferenceMaximumLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Maximume_UnsignedInt_With_Hardcoded_Refs, 
+    ReferenceMaximumLayerTest,
+    ::testing::ValuesIn(generateCombinedParamsForMaximumUnsignedInt()),
     ReferenceMaximumLayerTest::getTestCaseName);
 
 }  // namespace
