@@ -60,6 +60,7 @@ protected:
 
 extern template class OPENVINO_API VariantImpl<std::string>;
 extern template class OPENVINO_API VariantImpl<int64_t>;
+extern template class OPENVINO_API VariantImpl<bool>;
 
 template <typename VT>
 class VariantWrapper {};
