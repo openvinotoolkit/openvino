@@ -22,15 +22,6 @@ void color_convert_nv12(const T* arg_y,
                         size_t stride_y,
                         size_t stride_uv,
                         ov::op::util::ConvertColorNV12Base::ColorConversion color_format) {
-    // With C++20 - std::endian can be used at compile time
-    auto little_endian = []() -> int {
-        union {
-            int32_t i;
-            char c[4];
-        } u = {0x00000001};
-        return static_cast<int>(u.c[0]);
-    };
-    auto is_little_endian = little_endian();
     for (int batch = 0; batch < batch_size; batch++) {
         T* out = out_ptr + batch * image_w * image_h * 3;
         auto y_ptr = arg_y + batch * stride_y;
@@ -38,15 +29,10 @@ void color_convert_nv12(const T* arg_y,
         for (int h = 0; h < image_h; h++) {
             for (int w = 0; w < image_w; w++) {
                 auto y_index = h * image_w + w;
-                // For little-endian systems:
-                //      Y bytes are shuffled as Y1, Y0, Y3, Y2, Y5, Y4, etc.
-                //      UV bytes are ordered as V0, U0, V1, U1, V2, U2, etc.
-                // For float point case follow the same order
-                auto add_y_index = is_little_endian ? (w % 2 ? -1 : 1) : 0;
-                auto y_val = static_cast<float>(y_ptr[y_index + add_y_index]);
+                auto y_val = static_cast<float>(y_ptr[y_index]);
                 auto uv_index = (h / 2) * image_w + (w / 2) * 2;
-                auto u_val = static_cast<float>(uv_ptr[uv_index + is_little_endian]);
-                auto v_val = static_cast<float>(uv_ptr[uv_index + 1 - is_little_endian]);
+                auto u_val = static_cast<float>(uv_ptr[uv_index]);
+                auto v_val = static_cast<float>(uv_ptr[uv_index + 1]);
                 auto c = y_val - 16.f;
                 auto d = u_val - 128.f;
                 auto e = v_val - 128.f;
