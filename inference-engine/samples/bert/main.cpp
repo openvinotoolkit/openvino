@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
     std::map<std::string, ov::PartialShape> shapes;
     for (const auto &in: inputsInfo) {
         std::cout << "INPUT: " << in.first << std::endl;
-        shapes[in.first] = {1, -1};
+        shapes[in.first] = {1, {0, 1024}};
     }
     network.reshape(shapes);
 

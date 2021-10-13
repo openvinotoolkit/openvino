@@ -20,6 +20,13 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
+    bool needShapeInfer() const override {
+        if (std::string(opToShapeInfer->get_type_name()) == "Broadcast") {
+            return true;
+        } else {
+            return MKLDNNNode::needShapeInfer();
+        }
+    }
     bool needPrepareParams() const override { return false; }
     void executeDynamicImpl(mkldnn::stream strm) override;
 

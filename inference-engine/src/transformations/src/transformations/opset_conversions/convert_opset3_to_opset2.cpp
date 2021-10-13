@@ -22,7 +22,7 @@ bool ngraph::pass::ConvertOpSet3ToOpSet2::run_on_function(std::shared_ptr<ngraph
     RUN_ON_FUNCTION_SCOPE(ConvertOpSet3ToOpSet2);
     ngraph::pass::Manager manager(get_pass_config());
 
-    // manager.register_pass<ngraph::pass::ConvertBroadcast3>();
+    manager.register_pass<ngraph::pass::ConvertBroadcast3>();
     manager.register_pass<ngraph::pass::ConvertShapeOf3>();
     manager.register_pass<ngraph::pass::ConvertShuffleChannels3>();
     manager.register_pass<ngraph::pass::ConvertTopK3>();

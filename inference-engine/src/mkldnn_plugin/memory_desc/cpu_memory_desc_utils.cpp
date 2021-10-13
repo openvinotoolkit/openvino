@@ -113,9 +113,10 @@ std::shared_ptr<MemoryDesc> MemoryDescUtils::makeDummyDesc(const MemoryDesc &des
 }
 
 Shape MemoryDescUtils::makeDummyShape(const Shape &shape, Dim dummyVal) {
-    const auto& maxDims = shape.getMaxDims();
-    VectorDims dummyDims(maxDims.size());
-    std::transform(maxDims.begin(), maxDims.end(), dummyDims.begin(), [=](const Dim& dim){ return dim == Shape::UNDEFINED_DIM ? dummyVal : dim; });
+    // relaxed from getMaxDims() to getDims(), because maybe overflow after computation on upper bound value
+    const auto& dims = shape.getDims();
+    VectorDims dummyDims(dims.size());
+    std::transform(dims.begin(), dims.end(), dummyDims.begin(), [=](const Dim& dim){ return dim == Shape::UNDEFINED_DIM ? dummyVal : dim; });
     return Shape(dummyDims);
 }
 

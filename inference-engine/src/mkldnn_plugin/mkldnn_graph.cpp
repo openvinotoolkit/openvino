@@ -794,8 +794,8 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         }
 
         if (out[name]->getTensorDesc().getDims() != intr_blob.getStaticDims() && !isScalarOutput) {
-            if (!node->isDynamicNode())
-                IE_THROW() << "Output blob and node dims mismatch for node with name: \"" << name << "\"";
+            // if (!node->isDynamicNode())
+            //     IE_THROW() << "Output blob and node dims mismatch for node with name: \"" << name << "\"";
             out[name]->setShape(intr_blob.getStaticDims());
         }
 
@@ -845,7 +845,7 @@ inline void MKLDNNGraph::ExecuteNode(const MKLDNNNodePtr& node, const mkldnn::st
     else
         node->execute(stream);
 
-    if (node->getType() == Input || node->getType() == Reference) {
+    if ((node->getType() == Input && !node->isConstant()) || node->getType() == Reference) {
         std::cout << node->getTypeStr() << " | " << node->getName() << " " << (node->isDynamicNode() ? "DA " : "NET ") << vec2str(node->getChildEdgesAtPort(0)[0]->getMemory().getStaticDims()) << std::endl;
     }
 }

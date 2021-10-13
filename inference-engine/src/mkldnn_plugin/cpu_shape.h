@@ -20,22 +20,8 @@ public:
     explicit Shape(const ngraph::PartialShape& shape) {
         minDims = shape.get_min_shape();
         std::transform(minDims.begin(), minDims.end(), minDims.begin(), [](Dim x){ return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;});
-
-        for (size_t i = 0; i < minDims.size(); i++) {
-            if (minDims[i] == static_cast<size_t>(2147483647)) {
-                minDims[i] = UNDEFINED_DIM;
-            }
-        }
-
         maxDims = shape.get_max_shape();
         std::transform(maxDims.begin(), maxDims.end(), maxDims.begin(), [](Dim x){ return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;});
-
-        for (size_t i = 0; i < maxDims.size(); i++) {
-            if (maxDims[i] == static_cast<size_t>(2147483647)) {
-                maxDims[i] = UNDEFINED_DIM;
-            }
-        }
-
         type = shape.is_static() ? ShapeType::Static : ShapeType::Dynamic;
 
         initDims();

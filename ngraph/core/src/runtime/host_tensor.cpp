@@ -136,6 +136,10 @@ void runtime::HostTensor::set_element_type(const element::Type& element_type) {
 }
 
 void runtime::HostTensor::set_shape(const Shape& shape) {
+    if (!PartialShape(shape).refines(get_partial_shape())) {
+        int a = 0;
+        a++;
+    }
     NGRAPH_CHECK(PartialShape(shape).refines(get_partial_shape()),
                  "Allocation shape ",
                  shape,

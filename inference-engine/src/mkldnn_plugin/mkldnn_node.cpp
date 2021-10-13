@@ -1263,7 +1263,7 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
         inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i32,
                                                                                  getParentEdgesAtPort(1)[0]->getMemory().getStaticDims(),
                                                                                  getParentEdgesAtPort(1)[0]->getMemory().GetPtr()));
-        // inputsForShapeInfer.push_back(opToShapeInfer->get_input_node_shared_ptr(2));
+        inputsForShapeInfer.push_back(opToShapeInfer->get_input_node_shared_ptr(2));
 
         opToShapeInfer = opToShapeInfer->clone_with_new_inputs(inputsForShapeInfer);
     }

@@ -64,11 +64,11 @@ MKLDNNMatMulNode::MKLDNNMatMulNode(const std::shared_ptr<ngraph::Node>& op, cons
     transposeIn[0] = matMul->get_transpose_a();
     transposeIn[1] = matMul->get_transpose_b();
 
-    if (getName() == "292") {
-        std::cout << "MATMUL 0: " << getName() << std::endl;
-        std::cout << inputShapes[0].toString() << std::endl;
-        std::cout << inputShapes[1].toString() << std::endl;
-    }
+    // if (getName() == "292") {
+    //     std::cout << "MATMUL 0: " << getName() << std::endl;
+    //     std::cout << inputShapes[0].toString() << std::endl;
+    //     std::cout << inputShapes[1].toString() << std::endl;
+    // }
 }
 
 bool MKLDNNMatMulNode::canFuse(const MKLDNNNodePtr& node) const {
@@ -176,12 +176,12 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
         }
     }
 
-    if (getName() == "292") {
-        std::cout << "MATMUL 1: " << getName() << std::endl;
-        std::cout << inputShapes[0].toString() << std::endl;
-        std::cout << inputShapes[1].toString() << std::endl;
-    }
-
+    // if (getName() == "292") {
+    //     std::cout << "MATMUL 1: " << getName() << std::endl;
+    //     std::cout << inputShapes[0].toString() << std::endl;
+    //     std::cout << inputShapes[1].toString() << std::endl;
+    // }
+// std::cout << "MM: 0" << std::endl;
     std::vector<Shape> staticInputShapes(2);
     staticInputShapes[0] = inputShapes[0].isStatic() ? inputShapes[0] : MemoryDescUtils::makeDummyShape(inputShapes[0]);
     staticInputShapes[1] = inputShapes[1].isStatic() ? inputShapes[1] : MemoryDescUtils::makeDummyShape(inputShapes[1]);
@@ -190,12 +190,13 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
 
     const VectorDims inStrides0 = getStridesAndModifyShape(staticInputShapes[0], transposeIn[0]);
     const VectorDims inStrides1 = getStridesAndModifyShape(staticInputShapes[1], transposeIn[1]);
-
+// std::cout << "MM: 1" << std::endl;
     inDataDesc[0] = std::make_shared<DnnlBlockedMemoryDesc>(firstInPortPrec, staticInputShapes[0], inStrides0);
     inDataDesc[1] = std::make_shared<DnnlBlockedMemoryDesc>(secondInPortPrec, staticInputShapes[1], inStrides1);
     outDataDesc   = std::make_shared<DnnlBlockedMemoryDesc>(outPortPrec, staticOutputShape);
-
+// std::cout << "MM: 2" << std::endl;
     createDescriptor({inDataDesc[0], inDataDesc[1]}, {outDataDesc});
+// std::cout << "MM: 3" << std::endl;
 }
 
 void MKLDNNMatMulNode::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
