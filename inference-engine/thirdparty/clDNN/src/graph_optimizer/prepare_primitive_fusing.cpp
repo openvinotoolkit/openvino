@@ -923,7 +923,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             for (size_t i = 0; i < parents.size(); i++) {
                 can_fuse_parents[i] = (parents[i]->is_type<convolution>() && conv_supports_fusings(parents[i]->as<convolution>())) ||
                                       (parents[i]->is_type<binary_convolution>() && bin_conv_supports_eltw_fusings(parents[i]->as<binary_convolution>())) ||
-                                      (parents[i]->is_type<fully_connected>() && fc_supports_fusings(parents[i]->as<fully_connected>())) ||
                                       (parents[i]->is_type<mvn>() && mvn_supports_fusings(parents[i]->as<mvn>())) ||
                                       (parents[i]->is_type<deconvolution>()) ||
                                       (parents[i]->is_type<permute>()) ||
@@ -992,7 +991,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto fused_node = parents[fused_idx];
             auto peer_node = parents[peer_idx];
 
-            if (_lo.get_optimization_attributes().use_onednn_impls == 1) {
+            if (_lo.get_optimization_attributes().use_onednn_impls) {
                 auto eltw_in_size = peer_node->get_output_layout().size;
                 // Temporary disable mul fusion with full tensor as onednn doesn't support it
                 if (fused_node->is_type<convolution>() && prim->mode == eltwise_mode::prod &&
