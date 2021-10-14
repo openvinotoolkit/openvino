@@ -13,4 +13,3 @@
 #        define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    endif
 #endif
-
