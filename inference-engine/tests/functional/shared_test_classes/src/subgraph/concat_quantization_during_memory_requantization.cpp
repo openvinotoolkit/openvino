@@ -99,8 +99,8 @@ namespace SubgraphTestsDefinitions {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
         LoadNetwork();
-        IE_SUPPRESS_DEPRECATED_START
-        auto states = executableNetwork.QueryState();
+
+        auto states = inferRequest.QueryState();
         for (auto& state : states) {
             auto name = state.GetName();
             if (name == "memory_1") {
@@ -115,7 +115,6 @@ namespace SubgraphTestsDefinitions {
                 GTEST_FAIL() << "unknown memory state";
             }
         }
-        IE_SUPPRESS_DEPRECATED_END
         GenerateInputs();
         Infer();
         switchToNgraphFriendlyModel();

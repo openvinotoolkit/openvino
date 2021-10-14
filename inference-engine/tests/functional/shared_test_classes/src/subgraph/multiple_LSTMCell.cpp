@@ -397,8 +397,7 @@ void MultipleLSTMCellTest::InitMemory() {
     InferenceEngine::TensorDesc state_description(InferenceEngine::Precision::FP32,
                                                   InferenceEngine::SizeVector({1, hiddenSize}),
                                                   InferenceEngine::Layout::NC);
-    IE_SUPPRESS_DEPRECATED_START
-    auto states = executableNetwork.QueryState();
+    auto states = inferReq.QueryState();
     for (auto& state : states) {
         auto name = state.GetName();
         if (name.find("cell_state_1") != std::string::npos) {
@@ -421,7 +420,6 @@ void MultipleLSTMCellTest::InitMemory() {
             GTEST_FAIL() << "unknown memory state";
         }
     }
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 void MultipleLSTMCellTest::ApplyLowLatency() {
