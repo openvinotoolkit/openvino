@@ -3,6 +3,7 @@
 //
 
 #include "details/ie_so_loader.h"
+#include "ie_common.h"
 #include "openvino/util/so_loader.hpp"
 
 namespace InferenceEngine {
