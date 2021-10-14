@@ -12,26 +12,16 @@ namespace onnx_import {
 namespace detail {
 
 OutputVector make_random_normal(const Output<ngraph::Node>& shape,
-                                element::Type type,
+                                element::Type target_type,
                                 float mean,
                                 float scale,
                                 float seed) {
-    // ONNX specifies the seed as a float, but OpenVINO uses uint64_t
-    const auto seed_uint64 = static_cast<uint64_t>(seed * 1000);
-    return box_muller(shape, type, mean, scale, seed_uint64);
-}
-
-OutputVector make_random_normal(const Output<ngraph::Node>& shape, element::Type type, float mean, float scale) {
-    return box_muller(shape, type, mean, scale);
-}
-
-OutputVector box_muller(const Output<ngraph::Node>& shape,
-                        element::Type target_type,
-                        float mean,
-                        float scale,
-                        uint64_t op_seed,
-                        uint64_t global_seed) {
     // We start by generating two random series from a uniform distribution
+    const uint64_t global_seed = 0;
+
+    // ONNX specifies the seed as a float, but OpenVINO uses uint64_t
+    const auto op_seed = static_cast<uint64_t>(seed * 1000);
+
     // We need to use two op_seeds to make sure we get different results for two RandomUniform series
     const uint64_t seed_1 = (op_seed == 0 ? rand() % 10000 : op_seed);
     const uint64_t seed_2 = (op_seed == 0 ? rand() % 10000 : op_seed + 10000);
