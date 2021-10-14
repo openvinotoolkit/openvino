@@ -8,9 +8,9 @@
 #include <memory>
 #include <vector>
 
-#include "ngraph/util.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/core/enum_mask.hpp"
 #include "openvino/core/function.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/pass/pass_config.hpp"
@@ -24,7 +24,7 @@ enum class PassProperty : uint32_t {
     CHANGE_DYNAMIC_STATE = 1 << 1,
 };
 
-using PassPropertyMask = ngraph::EnumMask<PassProperty>;
+using PassPropertyMask = ov::EnumMask<PassProperty>;
 
 class OPENVINO_API PassBase {
     friend class Manager;
@@ -61,7 +61,7 @@ public:
     /// This method remains here only for backward compatibility and will be removed
     /// after all transformations are moved to transformation_callback() method.
     /// \return result of callback execution for given node
-    NGRAPH_DEPRECATED("Please use transformation_callback method instead")
+    OPENVINO_DEPRECATED("Please use transformation_callback method instead")
     bool m_transformation_callback(const std::shared_ptr<const Node>& node) {
         return m_pass_config->get_callback(get_type_info())(node);
     }
@@ -91,7 +91,7 @@ class OPENVINO_API FunctionPass : public PassBase {
 public:
     OPENVINO_RTTI("ov::pass::FunctionPass");
     ~FunctionPass() override;
-    virtual bool run_on_function(std::shared_ptr<ngraph::Function>) = 0;
+    virtual bool run_on_function(std::shared_ptr<ov::Function>) = 0;
 };
 
 class Manager;
@@ -105,6 +105,6 @@ enum class FusionType : uint32_t {
     FOP_FUSIONS = 0x4,
     ALL_FUSIONS = 0xFFFFFFFF
 };
-using FusionTypeMask = ngraph::EnumMask<FusionType>;
+using FusionTypeMask = ov::EnumMask<FusionType>;
 }  // namespace pass
 }  // namespace ov

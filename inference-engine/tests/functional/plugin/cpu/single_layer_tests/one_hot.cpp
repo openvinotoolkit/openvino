@@ -73,7 +73,6 @@ protected:
 
         auto oneHot = std::make_shared<ngraph::opset5::OneHot>(inputParams.front(), depthConst, onConst, offConst, axis);
         function = makeNgraphFunction(ngPrc, inputParams, oneHot, "OneHot");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

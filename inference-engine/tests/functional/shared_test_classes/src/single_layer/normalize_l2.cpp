@@ -50,7 +50,6 @@ void NormalizeL2LayerTest::SetUp() {
     auto norm = ngraph::builder::makeNormalizeL2(data_input, axes, eps, epsMode);
     ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(norm)};
     function = std::make_shared<ngraph::Function>(results, params, "NormalizeL2");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace LayerTestsDefinitions

@@ -58,6 +58,5 @@ void CTCLossLayerTest::SetUp() {
                 ngFpPrc, ngIntPrc, preprocessCollapseRepeated, ctcMergeRepeated, unique));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ctcLoss)};
     function = std::make_shared<ngraph::Function>(results, params, "CTCLoss");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions
