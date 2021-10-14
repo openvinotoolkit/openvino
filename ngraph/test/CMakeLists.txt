@@ -454,7 +454,6 @@ set(MULTI_TEST_SRC
     backend/ceiling.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
-    backend/convolution_backprop.in.cpp
     backend/clamp.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
