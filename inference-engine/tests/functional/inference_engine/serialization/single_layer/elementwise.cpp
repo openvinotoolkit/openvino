@@ -6,23 +6,28 @@
 
 #include "shared_test_classes/single_layer/eltwise.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace ov::test::subgraph;
 
 namespace {
 TEST_P(EltwiseLayerTest, Serialize) {
-    Serialize();
+    serialize();
 }
 
-const std::vector<InferenceEngine::Precision> inputPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::I32,
+const std::vector<ov::test::ElementType> inputPrecisions = {
+        ov::element::f32,
+        ov::element::f16,
+        ov::element::i32,
         };
 
-std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inputShapes = {
-        {{}, {{{2}}}},
-        {{}, {{{1, 5, 50}}}},
-        {{}, {{{2, 10, 1, 4}, {2, 10, 1, 1}}}}
+std::vector<std::vector<ov::Shape>> inputShapes = {
+        {{2}},
+        {{1, 5, 50}},
+        {{2, 10, 1, 4}, {2, 10, 1, 1}}
+};
+
+std::vector<ov::test::InputShapes> inShapesDynamic = {
+        {{{ngraph::Dimension(1, 10), 200}, {ngraph::Dimension(1, 10), 200}},
+         {{{2, 200}, {2, 200}}, {{1, 200}, {5, 200}}}},
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
@@ -49,18 +54,32 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
 std::map<std::string, std::string> additionalConfig = {};
 
 const auto elementiwiseParams = ::testing::Combine(
-        ::testing::ValuesIn(inputShapes),
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes)),
         ::testing::ValuesIn(eltwiseOpTypes),
         ::testing::ValuesIn(secondaryInputTypes),
         ::testing::ValuesIn(opTypes),
         ::testing::ValuesIn(inputPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additionalConfig));
 
-INSTANTIATE_TEST_SUITE_P(smoke_ElementwiseSerialization, EltwiseLayerTest,
+const auto elementiwiseParamsDyn = ::testing::Combine(
+        ::testing::ValuesIn(inShapesDynamic),
+        ::testing::ValuesIn(eltwiseOpTypes),
+        ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::ValuesIn(opTypes),
+        ::testing::ValuesIn(inputPrecisions),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(additionalConfig));
+
+INSTANTIATE_TEST_SUITE_P(smoke_ElementwiseSerialization_static, EltwiseLayerTest,
                         elementiwiseParams,
                         EltwiseLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ElementwiseSerialization_dynamic, EltwiseLayerTest,
+                         elementiwiseParamsDyn,
+                         EltwiseLayerTest::getTestCaseName);
 } // namespace
