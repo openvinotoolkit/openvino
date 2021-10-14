@@ -36,7 +36,9 @@ public:
     void set_axis(const size_t axis) {
         m_axis = axis;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 private:
