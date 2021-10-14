@@ -83,6 +83,10 @@ set(SRC
     partial_shape.cpp
     pass_config.cpp
     pass_manager.cpp
+    pass/serialization/cleanup.cpp
+    pass/serialization/const_compression.cpp
+    pass/serialization/deterministicity.cpp
+    pass/serialization/serialize.cpp
     pattern.cpp
     preprocess.cpp
     provenance.cpp
@@ -206,6 +210,7 @@ set(SRC
     type_prop/reduce_min.cpp
     type_prop/reduce_prod.cpp
     type_prop/reduce_sum.cpp
+    type_prop/relu.cpp
     type_prop/reorg_yolo.cpp
     type_prop/reshape.cpp
     type_prop/result.cpp
@@ -225,6 +230,7 @@ set(SRC
     type_prop/selu.cpp
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
+    type_prop/sigmoid.cpp
     type_prop/sign.cpp
     type_prop/sin.cpp
     type_prop/sinh.cpp
@@ -265,6 +271,7 @@ set(SRC
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
     visitors/op/ceiling.cpp
+    visitors/op/clamp.cpp
     visitors/op/constant.cpp
     visitors/op/convert.cpp
     visitors/op/convert_color_nv12.cpp
@@ -282,6 +289,7 @@ set(SRC
     visitors/op/elu.cpp
     visitors/op/equal.cpp
     visitors/op/erf.cpp
+    visitors/op/exp.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
     visitors/op/floor_mod.cpp
@@ -293,11 +301,15 @@ set(SRC
     visitors/op/greater.cpp
     visitors/op/grn.cpp
     visitors/op/group_conv.cpp
+    visitors/op/hard_sigmoid.cpp
+    visitors/op/hsigmoid.cpp
+    visitors/op/hswish.cpp
     visitors/op/interpolate.cpp
     visitors/op/if.cpp
     visitors/op/less_equal.cpp
     visitors/op/less.cpp
     visitors/op/log.cpp
+    visitors/op/log_softmax.cpp
     visitors/op/logical_and.cpp
     visitors/op/logical_or.cpp
     visitors/op/logical_not.cpp
@@ -324,6 +336,7 @@ set(SRC
     visitors/op/pad.cpp
     visitors/op/parameter.cpp
     visitors/op/power.cpp
+    visitors/op/prelu.cpp
     visitors/op/prior_box.cpp
     visitors/op/prior_box_clustered.cpp
     visitors/op/proposal.cpp
@@ -339,6 +352,7 @@ set(SRC
     visitors/op/reduce_prod.cpp
     visitors/op/reduce_sum.cpp
     visitors/op/region_yolo.cpp
+    visitors/op/relu.cpp
     visitors/op/reorg_yolo.cpp
     visitors/op/reshape.cpp
     visitors/op/result.cpp
@@ -354,6 +368,7 @@ set(SRC
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
+    visitors/op/sigmoid.cpp
     visitors/op/sign.cpp
     visitors/op/sin.cpp
     visitors/op/sinh.cpp
@@ -451,7 +466,6 @@ set(MULTI_TEST_SRC
     backend/constant.in.cpp
     backend/convolution_backprop.in.cpp
     backend/binary_convolution.in.cpp
-    backend/clamp.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/deformable_psroi_pooling.in.cpp
@@ -466,8 +480,6 @@ set(MULTI_TEST_SRC
     backend/experimental_detectron_topk_rois.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
-    backend/elu.in.cpp
-    backend/exp.in.cpp
     backend/experimental_detectron_detection_output.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
     backend/fake_quantize.in.cpp
@@ -477,20 +489,16 @@ set(MULTI_TEST_SRC
     backend/gather.in.cpp
     backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
-    backend/gelu.in.cpp
     backend/group_convolution.in.cpp
     backend/group_convolution_backprop_data.in.cpp
-    backend/hard_sigmoid.in.cpp
     backend/idft.in.cpp
     backend/interpolate.in.cpp
     backend/log.in.cpp
-    backend/log_softmax.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
     backend/matrix_nms.in.cpp
     backend/maximum.in.cpp
     backend/max_pool.in.cpp
-    backend/mish.in.cpp
     backend/mod.in.cpp
     backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
@@ -505,7 +513,6 @@ set(MULTI_TEST_SRC
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
-    backend/prelu.in.cpp
     backend/prior_box_clustered.in.cpp
     backend/prior_box.in.cpp
     backend/proposal.in.cpp
@@ -513,7 +520,6 @@ set(MULTI_TEST_SRC
     backend/range.in.cpp
     backend/recurrent_cells.in.cpp
     backend/region_yolo.in.cpp
-    backend/relu.in.cpp
     backend/reorg_yolo.in.cpp
     backend/reshape.in.cpp
     backend/result.in.cpp
@@ -522,19 +528,14 @@ set(MULTI_TEST_SRC
     backend/round.in.cpp
     backend/scatter_nd_update.in.cpp
     backend/space_to_depth.in.cpp
-    backend/selu.in.cpp
     backend/shape_of.in.cpp
     backend/shuffle_channels.in.cpp
-    backend/sigmoid.in.cpp
-    backend/softmax.in.cpp
-    backend/softplus.in.cpp
     backend/space_to_batch.in.cpp
     backend/split.in.cpp
     backend/sqrt.in.cpp
     backend/squared_difference.in.cpp
     backend/squeeze.in.cpp
     backend/subtract.in.cpp
-    backend/swish.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp
     backend/transpose.in.cpp
@@ -604,6 +605,8 @@ endforeach()
 
 add_executable(unit-test ${SRC})
 
+add_dependencies(unit-test template_extension)
+
 target_include_directories(unit-test PRIVATE ".")
 target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
 
@@ -620,6 +623,8 @@ endif()
 target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         engines_test_util
                                         ngraph::builder
+                                        openvino::util
+                                        pugixml::static
                                         ${CMAKE_DL_LIBS}
                                         ie_backend
                                         interpreter_backend
@@ -639,6 +644,7 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
             ${Protobuf_INCLUDE_DIRS})
     target_compile_definitions(unit-test
         PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
+    target_compile_definitions(unit-test PRIVATE NGRAPH_ONNX_FRONTEND_ENABLE)
 endif()
 
 if (OV_COMPILER_IS_CLANG)
