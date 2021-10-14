@@ -143,7 +143,7 @@ def test_cannot_set_shape_preallocated_memory():
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_blob_set_shape_after_async_infer():
-    from conftest import create_encoder
+    from ..conftest import create_encoder
     import ngraph as ng
 
     function = create_encoder([1, 4, 20, 20])

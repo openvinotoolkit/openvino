@@ -50,7 +50,7 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
 # perform copy
 add_custom_command(TARGET ${TARGET_NAME}
     POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/src/openvino/offline_transformations/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
+    COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/offline_transformations/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
 )
 
 # install

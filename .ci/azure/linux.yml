@@ -83,7 +83,7 @@ jobs:
       sudo apt --assume-yes install openjdk-11-jdk
       # For opencv-python: python3-setuptools and pip upgrade
       python3 -m pip install --upgrade pip
-      python3 -m pip install -r $(REPO_DIR)/runtime/bindings/python/requirements.txt
+      python3 -m pip install -r $(REPO_DIR)/runtime/bindings/python/src/compatibility/openvino/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/runtime/bindings/python/wheel/requirements-dev.txt
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/runtime/bindings/python/src/compatibility/openvino/requirements-dev.txt
@@ -253,7 +253,7 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      cd $(REPO_DIR)/runtime/bindings/python/tests/test_inference_engine
+      cd $(REPO_DIR)/runtime/bindings/python/tests_compatibility/test_inference_engine
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest --junitxml=TEST-PythonAPI.xml
     displayName: 'Python API Tests'
     continueOnError: false

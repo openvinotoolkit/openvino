@@ -11,22 +11,11 @@ add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
 set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 set(PYTHON_BRIDGE_CPACK_PATH "python")
 
-if(PYTHONLIBS_VERSION_STRING MATCHES "^([0-9]+)\.([0-9]+).*")
-    set(PYTHON_VERSION python${CMAKE_MATCH_1}.${CMAKE_MATCH_2})
-else()
-    message(FATAL_ERROR "Failed to extract python major.minor from ${PYTHONLIBS_VERSION_STRING}")
-endif()
-
 add_subdirectory(src)
 
 if(ENABLE_WHEEL)
     add_subdirectory(wheel)
 endif()
-
-if(ENABLE_TESTS)
-    add_subdirectory(src/compatibility/openvino/test_utils)
-endif()
-
 
 if(NGRAPH_UNIT_TEST_ENABLE)
     add_subdirectory(tests/mock/mock_py_ngraph_frontend)

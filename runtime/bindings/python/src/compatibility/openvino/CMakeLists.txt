@@ -66,6 +66,11 @@ set (PYTHON_BRIDGE_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory (inference_engine)
 add_subdirectory (offline_transformations)
 
+if(ENABLE_TESTS)
+    add_subdirectory(test_utils)
+endif()
+
+
 if(TARGET _pyngraph)
     add_dependencies(ie_api _pyngraph)
 endif()

@@ -61,7 +61,7 @@ def test_initialized(device):
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_is_dynamic():
-    from conftest import create_relu
+    from ..conftest import create_relu
     import ngraph as ng
 
     function = create_relu([-1, 3, 20, 20])

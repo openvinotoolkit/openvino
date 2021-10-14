@@ -166,7 +166,7 @@ def test_reshape():
     ([1, 3, -1, 25], [1, 3, 22, -1])
 ])
 def test_reshape_with_partial_shape(device, shape, p_shape):
-    from conftest import create_relu
+    from ..conftest import create_relu
     import ngraph as ng
 
     function = create_relu(shape)
@@ -186,7 +186,7 @@ def test_reshape_with_partial_shape(device, shape, p_shape):
 
 @pytest.mark.ngraph_dependent_test
 def test_incorrect_reshape(device):
-    from conftest import create_relu
+    from ..conftest import create_relu
     import ngraph as ng
 
     function = create_relu([1, 3, 22, 22])
@@ -289,7 +289,7 @@ def test_tensor_names():
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_create_two_exec_net():
-    from conftest import create_relu
+    from ..conftest import create_relu
     import ngraph as ng
 
     function = create_relu([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])

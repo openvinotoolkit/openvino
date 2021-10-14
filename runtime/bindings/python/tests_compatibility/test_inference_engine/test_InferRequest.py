@@ -593,7 +593,7 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
     ([1, 4, 20, 20], [(3,5), 4, 20, 20], [6, 4, 20, 20]),
 ])
 def test_infer_dynamic_network_with_set_shape(shape, p_shape, ref_shape):
-    from conftest import create_encoder
+    from ..conftest import create_encoder
     import ngraph as ng
 
     function = create_encoder(shape)
@@ -621,7 +621,7 @@ def test_infer_dynamic_network_with_set_shape(shape, p_shape, ref_shape):
     ([1, 4, 20, 20], [(3,5), 4, 20, 20], [6, 4, 20, 20]),
 ])
 def test_infer_dynamic_network_without_set_shape(shape, p_shape, ref_shape):
-    from conftest import create_encoder
+    from ..conftest import create_encoder
     import ngraph as ng
 
     function = create_encoder(shape)
@@ -648,7 +648,7 @@ def test_infer_dynamic_network_without_set_shape(shape, p_shape, ref_shape):
     ([1, 4, 20, 20], [(3,5), 4, 20, 20], [6, 4, 20, 20]),
 ])
 def test_infer_dynamic_network_with_set_blob(shape, p_shape, ref_shape):
-    from conftest import create_encoder
+    from ..conftest import create_encoder
     import ngraph as ng
 
     function = create_encoder(shape)
@@ -673,7 +673,7 @@ def test_infer_dynamic_network_with_set_blob(shape, p_shape, ref_shape):
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_infer_dynamic_network_twice():
-    from conftest import create_encoder
+    from ..conftest import create_encoder
     import ngraph as ng
 
     shape, p_shape = [1, 4, 20, 20], [(0,5), 4, 20, 20]
@@ -696,7 +696,7 @@ def test_infer_dynamic_network_twice():
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_infer_dynamic_network_with_set_blob_twice():
-    from conftest import create_encoder
+    from ..conftest import create_encoder
     import ngraph as ng
 
     shape, p_shape = [1, 4, 20, 20], [(0,5), 4, 20, 20]
@@ -731,7 +731,7 @@ def test_infer_dynamic_network_with_set_blob_twice():
     ([3, 4, 20, 20], [3, 4, 28, 28], [3, 4, 45, 45]),
 ])
 def test_async_infer_dynamic_network_3_requests(shapes):
-    from conftest import create_encoder
+    from ..conftest import create_encoder
     import ngraph as ng
 
     function = create_encoder([3, 4, 20, 20])
@@ -751,7 +751,7 @@ def test_async_infer_dynamic_network_3_requests(shapes):
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_set_blob_with_incorrect_name():
-    from conftest import create_encoder
+    from ..conftest import create_encoder
     import ngraph as ng
 
     function = create_encoder([4, 4, 20, 20])
@@ -770,7 +770,7 @@ def test_set_blob_with_incorrect_name():
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_set_blob_with_incorrect_size():
-    from conftest import create_encoder
+    from ..conftest import create_encoder
     import ngraph as ng
 
     function = create_encoder([4, 4, 20, 20])
@@ -793,7 +793,7 @@ def test_set_blob_with_incorrect_size():
 @pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_set_blob_after_async_infer():
-    from conftest import create_encoder
+    from ..conftest import create_encoder
     import ngraph as ng
 
     function = create_encoder([1, 4, 20, 20])
