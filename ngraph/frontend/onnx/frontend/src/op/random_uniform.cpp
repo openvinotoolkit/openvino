@@ -23,7 +23,7 @@ OutputVector random_uniform(const Node& node) {
         node.get_attribute_value<int64_t>("dtype", static_cast<int64_t>(ONNX_NAMESPACE::TensorProto_DataType_FLOAT));
     const auto high = node.get_attribute_value<float>("high", 1.0f);
     const auto low = node.get_attribute_value<float>("low", 0.0f);
-    const auto seed = node.get_attribute_value<int64_t>("seed", 0);
+    const auto seed = node.get_attribute_value<float>("seed", 0.0f);
     const auto shape = node.get_attribute_value<std::vector<int64_t>>("shape");
 
     const auto target_shape_const = default_opset::Constant::create(ngraph::element::i64, Shape{shape.size()}, shape);
@@ -32,13 +32,14 @@ OutputVector random_uniform(const Node& node) {
 
     const auto target_type = common::get_ngraph_element_type(dtype);
     const uint64_t global_seed = 0;
+    const auto seed_uint64 = static_cast<uint64_t>(seed*1000);
 
     return {std::make_shared<ngraph::opset8::RandomUniform>(target_shape_const,
                                                             low_const,
                                                             high_const,
                                                             target_type,
                                                             global_seed,
-                                                            seed)};
+                                                            seed_uint64)};
 }
 
 }  // namespace set_1
