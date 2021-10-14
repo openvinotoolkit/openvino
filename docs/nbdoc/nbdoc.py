@@ -135,6 +135,8 @@ class NbProcessor:
         """
         list_of_buttons = glob(f"{self.nb_path}/*.{file_format}")
         if list_of_buttons:
+            with open(list_of_buttons[0]) as file:
+                list_of_buttons = file.read().splitlines()
             return list_of_buttons
         else:
             return []
