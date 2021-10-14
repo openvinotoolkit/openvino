@@ -29,9 +29,7 @@ protected:
     std::shared_ptr<ov::Function> function;
     InferenceEngine::CNNNetwork legacy_network;
 
-    float min_value = 0.f;
-    float max_value = 255.f;
-    float threshold = 1e-2f;    // Relative diff
+    float threshold = 1e-5f;    // Relative diff
     float abs_threshold = -1.f; // Absolute diff (not used when negative)
 
 protected:

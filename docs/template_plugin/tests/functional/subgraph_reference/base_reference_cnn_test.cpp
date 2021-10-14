@@ -63,7 +63,8 @@ void ReferenceCNNTest::LoadNetworkLegacy() {
 void ReferenceCNNTest::FillInputs() {
     const auto& inputInfo = legacy_exec_network.GetInputsInfo();
     const auto& params = function->get_parameters();
-
+    std::default_random_engine random(0); // hard-coded seed to make results reproducible
+    std::uniform_int_distribution<int> distrib(0, 255);
     for (const auto& param : params) {
         auto elem_count = shape_size(param->get_output_tensor(0).get_shape());
         InferenceEngine::TensorDesc d(InferenceEngine::Precision::FP32, param->get_output_tensor(0).get_shape(), InferenceEngine::Layout::NCHW);
@@ -79,14 +80,10 @@ void ReferenceCNNTest::FillInputs() {
         ov_blob = ov::runtime::Tensor(param->get_element_type(), param->get_shape());
         auto ov_buf = static_cast<float*>(ov_blob.data());
 
-        float val = min_value;
-        float step = 5 * (max_value - min_value) / static_cast<float>(elem_count);
         for (size_t j = 0; j < elem_count; j++) {
-            buf[j] = val;
-            ov_buf[j] = val;
-            val += step;
-            while (val > max_value)
-                val = val - max_value + min_value;
+            auto v = distrib(random);
+            buf[j] = v;
+            ov_buf[j] = v;
         }
         legacy_input_blobs[param->get_friendly_name()] = blob;
         inputData.push_back(ov_blob);
