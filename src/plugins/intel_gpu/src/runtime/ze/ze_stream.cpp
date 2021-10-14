@@ -236,7 +236,7 @@ ze_event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, 
     ze_event_handle_t hEvent;
     ZE_CHECK(zeEventCreate(_event_pool, &eventDesc, &hEvent));
 
-    return std::make_shared<ze_event>(hEvent, false);
+    return std::make_shared<ze_event>(hEvent, is_output);
 
 /*
     if (sync_method  == sync_methods::events) {
