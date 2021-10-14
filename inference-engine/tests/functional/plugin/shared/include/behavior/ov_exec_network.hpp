@@ -2,24 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <chrono>
 #include <gtest/gtest.h>
+
+#include <chrono>
 #include <memory>
+#include <openvino/pass/serialize.hpp>
 #include <string>
 #include <tuple>
 #include <vector>
 
+#include "all_close.hpp"
 #include "base/ov_behavior_test_utils.hpp"
-#include <openvino/pass/serialize.hpp>
 #include "common_test_utils/test_constants.hpp"
 #include "cpp/ie_cnn_network.h"
+#include "functional_test_utils/plugin_cache.hpp"
 #include "ie_core.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/runtime.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 
 namespace ov {
 namespace test {
@@ -31,12 +33,18 @@ TEST_P(OVExecNetwork, getInputFromFunctionWithSingleInput) {
     ov::runtime::ExecutableNetwork execNet;
 
     execNet = ie->compile_model(function, targetDevice, configuration);
-    ASSERT_EQ(function->inputs().size(), 1);
+    EXPECT_EQ(function->inputs().size(), 1);
     EXPECT_EQ(function->inputs().size(), execNet.inputs().size());
     EXPECT_NO_THROW(execNet.input());
     EXPECT_EQ(function->input().get_tensor().get_names(), execNet.input().get_tensor().get_names());
     EXPECT_EQ(function->input().get_tensor().get_partial_shape(), execNet.input().get_tensor().get_partial_shape());
     EXPECT_EQ(function->input().get_tensor().get_element_type(), execNet.input().get_tensor().get_element_type());
+
+    ov::runtime::InferRequest request = execNet.create_infer_request();
+
+    EXPECT_NO_THROW(request.get_tensor(execNet.input()));
+    EXPECT_NO_THROW(request.get_tensor(function->input()));
+    EXPECT_TRUE(ov::test::all_close(request.get_tensor(execNet.input()), request.get_tensor(function->input())));
 }
 
 TEST_P(OVExecNetwork, getOutputFromFunctionWithSingleInput) {
@@ -51,6 +59,10 @@ TEST_P(OVExecNetwork, getOutputFromFunctionWithSingleInput) {
     EXPECT_EQ(function->output().get_tensor().get_names(), execNet.output().get_tensor().get_names());
     EXPECT_EQ(function->output().get_tensor().get_partial_shape(), execNet.output().get_tensor().get_partial_shape());
     EXPECT_EQ(function->output().get_tensor().get_element_type(), execNet.output().get_tensor().get_element_type());
+
+    ov::runtime::InferRequest request = execNet.create_infer_request();
+    EXPECT_NO_THROW(request.get_tensor(execNet.output()));
+    EXPECT_NO_THROW(request.get_tensor(function->output()));
 }
 
 TEST_P(OVExecNetwork, getInputsFromFunctionWithSeveralInputs) {
@@ -81,7 +93,7 @@ TEST_P(OVExecNetwork, getInputsFromFunctionWithSeveralInputs) {
         function->set_friendly_name("SingleRuLU");
     }
     execNet = ie->compile_model(function, targetDevice, configuration);
-    ASSERT_EQ(function->inputs().size(), 2);
+    EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->inputs().size(), execNet.inputs().size());
     EXPECT_THROW(execNet.input(), ov::Exception);
     EXPECT_EQ(function->input(0).get_tensor().get_names(), execNet.input(0).get_tensor().get_names());
@@ -124,7 +136,7 @@ TEST_P(OVExecNetwork, getOutputsFromFunctionWithSeveralOutputs) {
         function->set_friendly_name("SingleRuLU");
     }
     execNet = ie->compile_model(function, targetDevice, configuration);
-    ASSERT_EQ(function->outputs().size(), 2);
+    EXPECT_EQ(function->outputs().size(), 2);
     EXPECT_EQ(function->outputs().size(), execNet.outputs().size());
     EXPECT_THROW(execNet.output(), ov::Exception);
     EXPECT_EQ(function->output(0).get_tensor().get_names(), execNet.output(0).get_tensor().get_names());
@@ -226,7 +238,7 @@ TEST_P(OVExecNetwork, importExportedFunction) {
     execNet.export_model(strm);
 
     ov::runtime::ExecutableNetwork importedExecNet = ie->import_model(strm, targetDevice, configuration);
-    ASSERT_EQ(function->inputs().size(), 2);
+    EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
     EXPECT_THROW(importedExecNet.input(), ov::Exception);
     EXPECT_EQ(function->input(0).get_tensor().get_names(), importedExecNet.input(0).get_tensor().get_names());
@@ -323,8 +335,8 @@ TEST_P(OVExecNetwork, readFromV10IR) {
     function = ie->read_model(model, ov::runtime::Tensor());
     EXPECT_EQ(function->inputs().size(), 1);
     EXPECT_EQ(function->outputs().size(), 1);
-    EXPECT_NO_THROW(function->input("in1")); // remove if read_model does not change function names
-    EXPECT_NO_THROW(function->output("round")); // remove if read_model does not change function names
+    EXPECT_NO_THROW(function->input("in1"));     // remove if read_model does not change function names
+    EXPECT_NO_THROW(function->output("round"));  // remove if read_model does not change function names
 
     ov::runtime::ExecutableNetwork execNet = ie->compile_model(function, targetDevice, configuration);
     EXPECT_EQ(execNet.inputs().size(), 1);
@@ -388,25 +400,25 @@ TEST_P(OVExecNetwork, importExportedIENetwork) {
     execNet.Export(strm);
 
     ov::runtime::ExecutableNetwork importedExecNet = ie->import_model(strm, targetDevice, configuration);
-    ASSERT_EQ(function->inputs().size(), 2);
+    EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
     EXPECT_THROW(importedExecNet.input(), ov::Exception);
     EXPECT_NO_THROW(importedExecNet.input("data1").get_node());
     EXPECT_NO_THROW(importedExecNet.input("data2").get_node());
     EXPECT_NO_THROW(importedExecNet.input("param1").get_node());
     EXPECT_NO_THROW(importedExecNet.input("param2").get_node());
-    ASSERT_EQ(function->outputs().size(), 2);
+    EXPECT_EQ(function->outputs().size(), 2);
     EXPECT_EQ(function->outputs().size(), importedExecNet.outputs().size());
     EXPECT_THROW(importedExecNet.output(), ov::Exception);
-    EXPECT_NE(function->output(0).get_tensor().get_names(),
-        importedExecNet.output(0).get_tensor().get_names());
+    EXPECT_NE(function->output(0).get_tensor().get_names(), importedExecNet.output(0).get_tensor().get_names());
     EXPECT_NO_THROW(importedExecNet.output("relu").get_node());
     EXPECT_NO_THROW(importedExecNet.output("concat").get_node());
     EXPECT_NO_THROW(importedExecNet.output("relu_op").get_node());
     EXPECT_NO_THROW(importedExecNet.output("concat_op").get_node());
 
-    const auto outputType = elementType == ngraph::element::i32 ||
-        elementType == ngraph::element::i64 ? ngraph::element::i32 : ngraph::element::f32;
+    const auto outputType = elementType == ngraph::element::i32 || elementType == ngraph::element::i64
+                                ? ngraph::element::i32
+                                : ngraph::element::f32;
     const auto inputType = elementType == ngraph::element::f16 ? ngraph::element::f32 : elementType;
 
     EXPECT_EQ(inputType, importedExecNet.input("param1").get_element_type());
@@ -414,7 +426,6 @@ TEST_P(OVExecNetwork, importExportedIENetwork) {
     EXPECT_EQ(outputType, importedExecNet.output("concat_op").get_element_type());
     EXPECT_EQ(outputType, importedExecNet.output("relu_op").get_element_type());
 }
-
 
 TEST_P(OVExecNetwork, ieImportExportedFunction) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
@@ -455,11 +466,11 @@ TEST_P(OVExecNetwork, ieImportExportedFunction) {
     execNet.export_model(strm);
 
     InferenceEngine::ExecutableNetwork importedExecNet = core->ImportNetwork(strm, targetDevice, configuration);
-    ASSERT_EQ(function->inputs().size(), 2);
+    EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->inputs().size(), importedExecNet.GetInputsInfo().size());
     EXPECT_NO_THROW(importedExecNet.GetInputsInfo()["param1"]);
     EXPECT_NO_THROW(importedExecNet.GetInputsInfo()["param2"]);
-    ASSERT_EQ(function->outputs().size(), 2);
+    EXPECT_EQ(function->outputs().size(), 2);
     EXPECT_EQ(function->outputs().size(), importedExecNet.GetOutputsInfo().size());
     EXPECT_NO_THROW(importedExecNet.GetOutputsInfo()["relu_op"]);
     EXPECT_NO_THROW(importedExecNet.GetOutputsInfo()["concat_op"]);

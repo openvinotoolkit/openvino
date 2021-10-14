@@ -11,6 +11,7 @@
 #include "gtest/gtest.h"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ngraph {
 namespace test {
@@ -116,3 +117,116 @@ template <typename T>
 }
 }  // namespace test
 }  // namespace ngraph
+
+namespace ov {
+namespace test {
+/// \brief Same as numpy.allclose
+/// \param a First tensor to compare
+/// \param b Second tensor to compare
+/// \param rtol Relative tolerance
+/// \param atol Absolute tolerance
+/// Returns true if shapes match and for all elements, |a_i-b_i| <= atol + rtol*|b_i|.
+template <typename T>
+::testing::AssertionResult all_close(const ov::runtime::Tensor& a,
+                                     const ov::runtime::Tensor& b,
+                                     T rtol = 1e-5f,
+                                     T atol = 1e-8f) {
+    auto a_t = std::make_shared<ngraph::runtime::HostTensor>(a.get_element_type(), a.get_shape(), a.data());
+    auto b_t = std::make_shared<ngraph::runtime::HostTensor>(b.get_element_type(), b.get_shape(), b.data());
+
+    return ngraph::test::all_close(a_t, b_t, rtol, atol);
+}
+
+/// \brief Same as numpy.allclose
+/// \param a First tensor to compare
+/// \param b Second tensor to compare
+/// \param rtol Relative tolerance
+/// \param atol Absolute tolerance
+/// Returns true if shapes match and for all elements, |a_i-b_i| <= atol + rtol*|b_i|.
+::testing::AssertionResult all_close(const ov::runtime::Tensor& a,
+                                     const ov::runtime::Tensor& b,
+                                     float rtol = 1e-5f,
+                                     float atol = 1e-8f) {
+    if (a.get_element_type() != b.get_element_type()) {
+        return ::testing::AssertionFailure() << "Cannot compare tensors with different element types";
+    }
+    switch (a.get_element_type()) {
+    case ov::element::u8:
+        return all_close<ov::element_type_traits<ov::element::u8>::value_type>(
+            a,
+            b,
+            static_cast<ov::element_type_traits<ov::element::u8>::value_type>(rtol),
+            static_cast<ov::element_type_traits<ov::element::u8>::value_type>(atol));
+    case ov::element::u16:
+        return all_close<ov::element_type_traits<ov::element::u16>::value_type>(
+            a,
+            b,
+            static_cast<ov::element_type_traits<ov::element::u16>::value_type>(rtol),
+            static_cast<ov::element_type_traits<ov::element::u16>::value_type>(atol));
+    case ov::element::u32:
+        return all_close<ov::element_type_traits<ov::element::u32>::value_type>(
+            a,
+            b,
+            static_cast<ov::element_type_traits<ov::element::u32>::value_type>(rtol),
+            static_cast<ov::element_type_traits<ov::element::u32>::value_type>(atol));
+    case ov::element::u64:
+        return all_close<ov::element_type_traits<ov::element::u64>::value_type>(
+            a,
+            b,
+            static_cast<ov::element_type_traits<ov::element::u64>::value_type>(rtol),
+            static_cast<ov::element_type_traits<ov::element::u64>::value_type>(atol));
+    case ov::element::i8:
+        return all_close<ov::element_type_traits<ov::element::i8>::value_type>(
+            a,
+            b,
+            static_cast<ov::element_type_traits<ov::element::i8>::value_type>(rtol),
+            static_cast<ov::element_type_traits<ov::element::i8>::value_type>(atol));
+    case ov::element::i16:
+        return all_close<ov::element_type_traits<ov::element::i16>::value_type>(
+            a,
+            b,
+            static_cast<ov::element_type_traits<ov::element::i16>::value_type>(rtol),
+            static_cast<ov::element_type_traits<ov::element::i16>::value_type>(atol));
+    case ov::element::i32:
+        return all_close<ov::element_type_traits<ov::element::i32>::value_type>(
+            a,
+            b,
+            static_cast<ov::element_type_traits<ov::element::i32>::value_type>(rtol),
+            static_cast<ov::element_type_traits<ov::element::i32>::value_type>(atol));
+    case ov::element::i64:
+        return all_close<ov::element_type_traits<ov::element::i64>::value_type>(
+            a,
+            b,
+            static_cast<ov::element_type_traits<ov::element::i64>::value_type>(rtol),
+            static_cast<ov::element_type_traits<ov::element::i64>::value_type>(atol));
+    // case ov::element::bf16:
+    //     return all_close<ov::element_type_traits<ov::element::bf16>::value_type>(
+    //         a,
+    //         b,
+    //         static_cast<ov::element_type_traits<ov::element::bf16>::value_type>(rtol),
+    //         static_cast<ov::element_type_traits<ov::element::bf16>::value_type>(atol));
+    // case ov::element::f16:
+    //     return all_close<ov::element_type_traits<ov::element::f16>::value_type>(
+    //         a,
+    //         b,
+    //         static_cast<ov::element_type_traits<ov::element::f16>::value_type>(rtol),
+    //         static_cast<ov::element_type_traits<ov::element::f16>::value_type>(atol));
+    case ov::element::f32:
+        return all_close<ov::element_type_traits<ov::element::f32>::value_type>(
+            a,
+            b,
+            static_cast<ov::element_type_traits<ov::element::f32>::value_type>(rtol),
+            static_cast<ov::element_type_traits<ov::element::f32>::value_type>(atol));
+    case ov::element::f64:
+        return all_close<ov::element_type_traits<ov::element::f64>::value_type>(
+            a,
+            b,
+            static_cast<ov::element_type_traits<ov::element::f64>::value_type>(rtol),
+            static_cast<ov::element_type_traits<ov::element::f64>::value_type>(atol));
+    default:
+        return ::testing::AssertionFailure()
+               << "Cannot compare tensors with unsupported element type: " << a.get_element_type();
+    }
+}
+}  // namespace test
+}  // namespace ov
