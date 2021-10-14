@@ -350,7 +350,7 @@ void remove_redundant_reorders::run(program& p) {
             usr->get_output_layout().data_type != dep.get_output_layout().data_type ||
             dep.get_output_layout().format != format::bfyx)
             return;
-        if (usr->as<convolution>().get_preferred_impl_type() == impl_types::ocl &&
+        if (usr->as<convolution>().get_preferred_impl_type() != impl_types::onednn &&
             usr->get_output_layout().format != format::fs_b_yx_fsv32)
             return;
         if (usr->as<convolution>().get_preferred_impl_type() == impl_types::onednn &&

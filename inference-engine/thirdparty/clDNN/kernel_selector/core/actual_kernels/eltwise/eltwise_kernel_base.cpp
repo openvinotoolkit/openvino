@@ -41,7 +41,7 @@ static uint32_t GetNumberOfInputs(EltwiseMode m) {
 
 std::vector<size_t> GetLimitedOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const EngineInfo& info, std::vector<size_t> limited_size_lws) {
     const size_t lws_max = info.maxWorkGroupSize;
-    const size_t optimal_lws_values[] = {256, 227, 224, 192, 160, 128, 96, 64, 32, 16, 8, 7, 6, 5, 4, 2, 1};
+    const size_t optimal_lws_values[] = {256, 227, 224, 192, 160, 128, 96, 64, 32, 16, 8, 7, 6, 5, 4, 3, 2, 1};
     size_t total_lws = 1;
     std::vector<size_t> lws;
     for (size_t i = 0; i < gws.size(); ++i) {

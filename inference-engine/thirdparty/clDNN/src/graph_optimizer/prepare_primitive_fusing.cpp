@@ -587,6 +587,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (!input_data_supports_fusings(input_data, activation_node.id()))
                 return;
 
+            if ((input_data.get_users().size() != 1 || activation_node.get_dependencies().size() != 1) &&
+                _lo.get_optimization_attributes().use_onednn_impls == 1)
+                return;
+
             bool should_fuse = input_data.is_type<binary_convolution>();
 
             should_fuse |= input_data.is_type<convolution>() && conv_supports_fusings(input_data.as<convolution>());
