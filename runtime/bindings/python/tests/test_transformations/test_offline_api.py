@@ -15,46 +15,46 @@ def get_test_function():
 
 
 def test_moc_transformations():
-    f = get_test_function()
+    function = get_test_function()
 
-    ApplyMOCTransformations(f, False)
+    ApplyMOCTransformations(function, False)
 
-    assert f != None
-    assert len(f.get_ops()) == 3
+    assert function != None
+    assert len(function.get_ops()) == 3
 
 
 def test_pot_transformations():
-    f = get_test_function()
+    function = get_test_function()
 
-    ApplyPOTTransformations(f, "GNA")
+    ApplyPOTTransformations(function, "GNA")
 
-    assert f != None
-    assert len(f.get_ops()) == 3
+    assert function != None
+    assert len(function.get_ops()) == 3
 
 
 def test_low_latency_transformation():
-    f = get_test_function()
+    function = get_test_function()
 
-    ApplyLowLatencyTransformation(f, True)
+    ApplyLowLatencyTransformation(function, True)
 
-    assert f != None
-    assert len(f.get_ops()) == 3
+    assert function != None
+    assert len(function.get_ops()) == 3
 
 
 def test_pruning_transformation():
-    f = get_test_function()
+    function = get_test_function()
 
-    ApplyPruningTransformation(f)
+    ApplyPruningTransformation(function)
 
-    assert f != None
-    assert len(f.get_ops()) == 3
+    assert function != None
+    assert len(function.get_ops()) == 3
 
 
 def test_make_stateful_transformations():
-    f = get_test_function()
+    function = get_test_function()
 
-    ApplyMakeStatefulTransformation(f, {"parameter": "result"})
+    ApplyMakeStatefulTransformation(function, {"parameter": "result"})
 
-    assert f != None
-    assert len(f.get_parameters()) == 0
-    assert len(f.get_results()) == 0
+    assert function != None
+    assert len(function.get_parameters()) == 0
+    assert len(function.get_results()) == 0
