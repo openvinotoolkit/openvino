@@ -4,10 +4,13 @@
 
 #include "pyopenvino/core/ie_offline_transformations.hpp"
 
+#include <pybind11/stl.h>
+
 #include <generate_mapping_file.hpp>
-#include <transformations/common_optimizations/moc_transformations.hpp>
+#include <openvino/pass/make_stateful.hpp>
 #include <pot_transformations.hpp>
 #include <pruning.hpp>
+#include <transformations/common_optimizations/moc_transformations.hpp>
 
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
@@ -66,4 +69,14 @@ void regmodule_offline_transformations(py::module m) {
         py::arg("function"),
         py::arg("path"),
         py::arg("extract_names"));
+
+    m_offline_transformations.def(
+        "ApplyMakeStatefulTransformation",
+        [](std::shared_ptr<ov::Function> function, const std::map<std::string, std::string>& param_res_names) {
+            ngraph::pass::Manager manager;
+            manager.register_pass<ov::pass::MakeStateful>(param_res_names);
+            manager.run_passes(function);
+        },
+        py::arg("function"),
+        py::arg("param_res_names"));
 }

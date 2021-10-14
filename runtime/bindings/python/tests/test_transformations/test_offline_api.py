@@ -2,17 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.pyopenvino.offline_transformations import ApplyMOCTransformations, ApplyPOTTransformations, \
-    ApplyLowLatencyTransformation, ApplyPruningTransformation
+    ApplyLowLatencyTransformation, ApplyPruningTransformation, ApplyMakeStatefulTransformation
 
-from ngraph.impl.op import Parameter
-from ngraph.impl import Function, Shape, Type
-from ngraph import relu
+from ngraph.impl import Function, Shape
+import ngraph as ng
 
 def get_test_function():
-    element_type = Type.f32
-    param = Parameter(element_type, Shape([1, 3, 22, 22]))
-    op = relu(param)
-    return Function([op], [param], 'test')
+    param = ng.parameter(Shape([1, 3, 22, 22]), name="parameter")
+    relu = ng.relu(param)
+    res = ng.result(relu, name='result')
+    return Function([res], [param], 'test')
 
 
 def test_moc_transformations():
@@ -49,3 +48,13 @@ def test_pruning_transformation():
 
     assert f != None
     assert len(f.get_ops()) == 3
+
+
+def test_make_stateful_transformations():
+    f = get_test_function()
+
+    ApplyMakeStatefulTransformation(f, {"parameter": "result"})
+
+    assert f != None
+    assert len(f.get_parameters()) == 0
+    assert len(f.get_results()) == 0
