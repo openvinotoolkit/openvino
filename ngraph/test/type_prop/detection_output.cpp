@@ -595,7 +595,7 @@ TEST(type_prop_layers, detection_output_invalid_aux_class_preds) {
         } catch (const NodeValidationFailure& error) {
             EXPECT_HAS_SUBSTRING(error.what(),
                                  std::string("Additional class predictions' second dimension must "
-                                             "be equal to num_prior_boxes * 2 (6). Got 7."));
+                                             "be compatible with num_prior_boxes * 2 "));
         } catch (...) {
             FAIL() << "Unknown exception was thrown";
         }

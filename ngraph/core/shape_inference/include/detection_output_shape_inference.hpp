@@ -10,15 +10,18 @@ namespace v0 {
 
 template <class T>
 void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    using dim_t =
-        typename std::remove_const<typename std::remove_reference<decltype((input_shapes[0])[0])>::type>::type;
+    using dim_t = typename std::decay<decltype((input_shapes[0])[0])>::type;
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 5) && output_shapes.size() == 1);
+
+    auto& ret_output_shape = output_shapes[0];
+    ret_output_shape.resize(4);
+
     const auto& box_logits_pshape = input_shapes[0];
     const auto& class_preds_pshape = input_shapes[1];
     const auto& proposals_pshape = input_shapes[2];
 
-    int num_loc_classes = op->m_attrs.share_location ? 1 : op->m_attrs.num_classes;
-    int prior_box_size = op->m_attrs.normalized ? 4 : 5;
+    const int& num_loc_classes = op->m_attrs.share_location ? 1 : op->m_attrs.num_classes;
+    const int& prior_box_size = op->m_attrs.normalized ? 4 : 5;
 
     dim_t num_images{};
     dim_t num_prior_boxes{};
@@ -29,13 +32,14 @@ void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, 
                               "Box logits rank must be 2. Got " + std::to_string(box_logits_pshape.size()));
         num_images = box_logits_pshape[0];
         if (box_logits_pshape[1].is_static()) {
+            auto box_logits_pshape_2nd_dim = box_logits_pshape[1].get_length();
             NODE_VALIDATION_CHECK(op,
-                                  (box_logits_pshape[1].get_length() % (num_loc_classes * 4)) == 0,
+                                  (box_logits_pshape_2nd_dim % (num_loc_classes * 4)) == 0,
                                   "Box logits' second dimension must be a multiply of num_loc_classes * 4 (" +
                                       std::to_string(num_loc_classes * 4) + "). Current value is: ",
-                                  box_logits_pshape[1].get_length(),
+                                  box_logits_pshape_2nd_dim,
                                   ".");
-            num_prior_boxes = box_logits_pshape[1].get_length() / (num_loc_classes * 4);
+            num_prior_boxes = box_logits_pshape_2nd_dim / (num_loc_classes * 4);
         }
     }
     if (class_preds_pshape.rank().is_static()) {
@@ -50,24 +54,25 @@ void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, 
                                   "Class predictions' first dimension is not compatible with batch size.");
         }
         if (class_preds_pshape[1].is_static()) {
+            auto class_preds_pshape_2nd_dim = class_preds_pshape[1].get_length();
             if (num_prior_boxes.is_dynamic()) {
                 NODE_VALIDATION_CHECK(op,
-                                      class_preds_pshape[1].get_length() % op->m_attrs.num_classes == 0,
+                                      class_preds_pshape_2nd_dim % op->m_attrs.num_classes == 0,
                                       "Class predictions' second dimension must be a multiply of num_classes (" +
                                           std::to_string(op->m_attrs.num_classes) + "). Current value is: ",
-                                      class_preds_pshape[1].get_length(),
+                                      class_preds_pshape_2nd_dim,
                                       ".");
-                num_prior_boxes = class_preds_pshape[1].get_length() / op->m_attrs.num_classes;
+                num_prior_boxes = class_preds_pshape_2nd_dim / op->m_attrs.num_classes;
             } else {
                 int num_prior_boxes_val = num_prior_boxes.get_length();
-                NODE_VALIDATION_CHECK(
-                    op,
-                    class_preds_pshape[1].get_length() == num_prior_boxes_val * op->m_attrs.num_classes,
-                    "Class predictions' second dimension must be equal to num_prior_boxes * "
-                    "num_classes (" +
-                        std::to_string(num_prior_boxes_val * op->m_attrs.num_classes) + "). Current value is: ",
-                    class_preds_pshape[1].get_length(),
-                    ".");
+                NODE_VALIDATION_CHECK(op,
+                                      class_preds_pshape_2nd_dim == num_prior_boxes_val * op->m_attrs.num_classes,
+                                      "Class predictions' second dimension must be equal to num_prior_boxes * "
+                                      "num_classes (" +
+                                          std::to_string(num_prior_boxes_val * op->m_attrs.num_classes) +
+                                          "). Current value is: ",
+                                      class_preds_pshape_2nd_dim,
+                                      ".");
             }
         }
     }
@@ -84,34 +89,35 @@ void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, 
                                       std::to_string(num_images_val) +
                                       ") or 1. Got: " + std::to_string(proposals_1st_dim) + ".");
         }
-        if (proposals_pshape[1].is_static()) {
-            size_t proposals_expected_2nd_dim = op->m_attrs.variance_encoded_in_target ? 1 : 2;
-            NODE_VALIDATION_CHECK(op,
-                                  proposals_pshape[1].compatible(proposals_expected_2nd_dim),
-                                  "Proposals' second dimension is mismatched. Current value is: ",
-                                  proposals_pshape[1].get_length(),
-                                  ", expected: ",
-                                  proposals_expected_2nd_dim,
-                                  ".");
-        }
+
+        size_t proposals_expected_2nd_dim = op->m_attrs.variance_encoded_in_target ? 1 : 2;
+        NODE_VALIDATION_CHECK(op,
+                              proposals_pshape[1].compatible(proposals_expected_2nd_dim),
+                              "Proposals' second dimension is mismatched. Current value is: ",
+                              proposals_pshape[1],
+                              ", expected: ",
+                              proposals_expected_2nd_dim,
+                              ".");
+
         if (proposals_pshape[2].is_static()) {
+            auto proposals_pshape_3rd_dim = proposals_pshape[2].get_length();
             if (num_prior_boxes.is_dynamic()) {
                 NODE_VALIDATION_CHECK(op,
-                                      proposals_pshape[2].get_length() % prior_box_size == 0,
+                                      proposals_pshape_3rd_dim % prior_box_size == 0,
                                       "Proposals' third dimension must be a multiply of prior_box_size (" +
                                           std::to_string(prior_box_size) + "). Current value is: ",
-                                      proposals_pshape[2].get_length(),
+                                      proposals_pshape_3rd_dim,
                                       ".");
-                num_prior_boxes = proposals_pshape[2].get_length() / prior_box_size;
+                num_prior_boxes = proposals_pshape_3rd_dim / prior_box_size;
             } else {
                 int num_prior_boxes_val = num_prior_boxes.get_length();
                 NODE_VALIDATION_CHECK(op,
-                                      proposals_pshape[2].get_length() == num_prior_boxes_val * prior_box_size,
+                                      proposals_pshape_3rd_dim == num_prior_boxes_val * prior_box_size,
                                       "Proposals' third dimension must be equal to num_prior_boxes "
                                       "* prior_box_size (" +
                                           std::to_string(num_prior_boxes_val * prior_box_size) +
                                           "). Current value is: ",
-                                      proposals_pshape[2].get_length(),
+                                      proposals_pshape_3rd_dim,
                                       ".");
             }
         }
@@ -128,11 +134,9 @@ void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, 
             if (num_prior_boxes.is_static()) {
                 int num_prior_boxes_val = num_prior_boxes.get_length();
                 NODE_VALIDATION_CHECK(op,
-                                      aux_class_preds_pshape[1].get_length() == num_prior_boxes_val * 2,
-                                      "Additional class predictions' second dimension must be equal to "
-                                      "num_prior_boxes * 2 (" +
-                                          std::to_string(num_prior_boxes_val * 2) + "). Got " +
-                                          std::to_string(aux_class_preds_pshape[1].get_length()) + ".");
+                                      aux_class_preds_pshape[1].compatible(num_prior_boxes_val * 2),
+                                      "Additional class predictions' second dimension must be compatible with "
+                                      "num_prior_boxes * 2 ");
             }
         }
         NODE_VALIDATION_CHECK(op,
@@ -140,9 +144,6 @@ void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, 
                               "Additional box predictions' shape must be compatible with box logits shape.");
     }
 
-    // Update the return output shape.
-    auto& ret_output_shape = output_shapes[0];
-    ret_output_shape.resize(4);
     ret_output_shape[0] = 1;
     ret_output_shape[1] = 1;
     ret_output_shape[3] = 7;
