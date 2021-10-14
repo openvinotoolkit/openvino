@@ -600,42 +600,16 @@ std::string ov::node_validation_failure_loc_string(const Node* node) {
     return ss.str();
 }
 
-const std::shared_ptr<ov::Node>& ov::check_single_output_arg(const std::shared_ptr<Node>& node, size_t i) {
+const std::shared_ptr<ov::Node>& ngraph::check_single_output_arg(const std::shared_ptr<Node>& node, size_t i) {
     NGRAPH_CHECK(node->get_output_size() == 1, "Argument ", i, node, " must produce exactly one value.");
     return node;
 }
 
-const ov::NodeVector& ov::check_single_output_args(const NodeVector& args) {
+const ov::NodeVector& ngraph::check_single_output_args(const NodeVector& args) {
     for (size_t i = 0; i < args.size(); ++i) {
         ngraph::check_single_output_arg(args.at(i), i);
     }
     return args;
-}
-
-ov::OutputVector ov::as_output_vector(const NodeVector& args) {
-    OutputVector output_vector;
-    for (const auto& arg : args) {
-        output_vector.push_back(arg);
-    }
-    return output_vector;
-}
-
-ov::NodeVector ov::as_node_vector(const OutputVector& values) {
-    NodeVector node_vector;
-    for (auto& value : values) {
-        node_vector.emplace_back(value.get_node_shared_ptr());
-    }
-    return node_vector;
-}
-
-ov::ResultVector ov::as_result_vector(const OutputVector& values) {
-    ResultVector result;
-    for (auto value : values) {
-        shared_ptr<Node> node = value.get_node_shared_ptr();
-        result.push_back(ov::is_type<ngraph::op::Result>(node) ? ov::as_type_ptr<ngraph::op::Result>(node)
-                                                               : make_shared<ngraph::op::Result>(value));
-    }
-    return result;
 }
 
 bool ov::Node::match_value(ngraph::pattern::Matcher* matcher,
