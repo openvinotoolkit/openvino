@@ -5,14 +5,14 @@
 #include <dlfcn.h>
 
 #include <iostream>
+#include <sstream>
 
-#include "details/ie_so_loader.h"
-#include "file_utils.h"
 #include "openvino/util/file_util.hpp"
-#include "shared_object.hpp"
+#include "openvino/util/shared_object.hpp"
+#include "openvino/util/so_loader.hpp"
 
 namespace ov {
-namespace runtime {
+namespace util {
 std::shared_ptr<void> load_shared_object(const char* path) {
     auto shared_object = std::shared_ptr<void>{dlopen(path, RTLD_NOW), [](void* shared_object) {
                                                    if (shared_object != nullptr) {
@@ -22,7 +22,9 @@ std::shared_ptr<void> load_shared_object(const char* path) {
                                                    }
                                                }};
     if (!shared_object) {
-        IE_THROW() << "Cannot load library '" << path << "': " << dlerror();
+        std::stringstream ss;
+        ss << "Cannot load library '" << path << "': " << dlerror();
+        throw std::runtime_error(ss.str());
     }
     return shared_object;
 }
@@ -35,34 +37,33 @@ std::shared_ptr<void> load_shared_object(const wchar_t* path) {
 
 void* get_symbol(const std::shared_ptr<void>& shared_object, const char* symbol_name) {
     if (!shared_object) {
-        IE_THROW() << "Cannot get '" << symbol_name << "' content from unknown library!";
+        std::stringstream ss;
+        ss << "Cannot get '" << symbol_name << "' content from unknown library!";
+        throw std::runtime_error(ss.str());
     }
     void* procAddr = nullptr;
     procAddr = dlsym(shared_object.get(), symbol_name);
     if (procAddr == nullptr) {
-        IE_THROW(NotFound) << "dlSym cannot locate method '" << symbol_name << "': " << dlerror();
+        std::stringstream ss;
+        ss << "dlSym cannot locate method '" << symbol_name << "': " << dlerror();
+        throw std::runtime_error(ss.str());
     }
     return procAddr;
 }
-}  // namespace runtime
-}  // namespace ov
-
-namespace InferenceEngine {
-namespace details {
 
 struct SharedObjectLoader::Impl {
     std::shared_ptr<void> shared_object = nullptr;
 
     explicit Impl(const std::shared_ptr<void>& shared_object_) : shared_object{shared_object_} {}
 
-    explicit Impl(const char* pluginName) : shared_object{ov::runtime::load_shared_object(pluginName)} {}
+    explicit Impl(const char* pluginName) : shared_object{ov::util::load_shared_object(pluginName)} {}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     explicit Impl(const wchar_t* pluginName) : Impl(ov::util::wstring_to_string(pluginName).c_str()) {}
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
     void* get_symbol(const char* symbolName) const {
-        return ov::runtime::get_symbol(shared_object, symbolName);
+        return ov::util::get_symbol(shared_object, symbolName);
     }
 };
 
@@ -84,7 +85,9 @@ SharedObjectLoader::~SharedObjectLoader() {}
 
 void* SharedObjectLoader::get_symbol(const char* symbolName) const {
     if (_impl == nullptr) {
-        IE_THROW(NotAllocated) << "SharedObjectLoader is not initialized";
+        std::stringstream ss;
+        ss << "SharedObjectLoader is not initialized";
+        throw std::runtime_error(ss.str());
     }
     return _impl->get_symbol(symbolName);
 }
@@ -93,5 +96,5 @@ std::shared_ptr<void> SharedObjectLoader::get() const {
     return _impl->shared_object;
 }
 
-}  // namespace details
-}  // namespace InferenceEngine
+}  // namespace util
+}  // namespace ov

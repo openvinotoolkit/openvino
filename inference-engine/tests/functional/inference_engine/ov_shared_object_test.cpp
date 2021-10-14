@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <file_utils.h>
-#include "shared_object.hpp"
+#include "openvino/util/shared_object.hpp"
 #include <cpp/ie_plugin.hpp>
 
 using namespace ::testing;
@@ -19,14 +19,14 @@ protected:
     }
 
     void loadDll(const string &libraryName) {
-        shared_object = ov::runtime::load_shared_object(libraryName.c_str());
+        shared_object = ov::util::load_shared_object(libraryName.c_str());
     }
    std::shared_ptr<void> shared_object;
 
     using CreateF = void(std::shared_ptr<InferenceEngine::IInferencePlugin>&);
 
     std::function<CreateF> make_std_function(const std::string& functionName) {
-        std::function<CreateF> ptr(reinterpret_cast<CreateF*>(ov::runtime::get_symbol(shared_object, functionName.c_str())));
+        std::function<CreateF> ptr(reinterpret_cast<CreateF*>(ov::util::get_symbol(shared_object, functionName.c_str())));
         return ptr;
     }
 };
@@ -37,7 +37,7 @@ TEST_F(SharedObjectOVTests, canLoadExistedPlugin) {
 }
 
 TEST_F(SharedObjectOVTests, loaderThrowsIfNoPlugin) {
-    EXPECT_THROW(loadDll("wrong_name"), InferenceEngine::Exception);
+    EXPECT_THROW(loadDll("wrong_name"), std::runtime_error);
 }
 
 TEST_F(SharedObjectOVTests, canFindExistedMethod) {
@@ -49,7 +49,7 @@ TEST_F(SharedObjectOVTests, canFindExistedMethod) {
 
 TEST_F(SharedObjectOVTests, throwIfMethodNofFoundInLibrary) {
     loadDll(get_mock_engine_name());
-    EXPECT_THROW(make_std_function("wrong_function"), InferenceEngine::Exception);
+    EXPECT_THROW(make_std_function("wrong_function"), std::runtime_error);
 }
 
 TEST_F(SharedObjectOVTests, canCallExistedMethod) {
