@@ -48,3 +48,8 @@ main img {
 .sort-btn.sort-active {
     background-image: url('media/union-up.svg');
 }
+
+.highlight .err {
+    border:none;
+    color:inherit;
+}
