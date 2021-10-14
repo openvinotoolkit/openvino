@@ -123,7 +123,8 @@ static inline Blob::Ptr make_shared_blob_nv12(size_t height,
  * @param core Inference Engine Core object
  * @param deviceName A device name to create a remote context for
  * @param device A `VADisplay` to create remote context from
- * @param target_tile_id Desired tile id within given context for multi-tile system
+ * @param target_tile_id Desired tile id within given context for multi-tile system. Default value (-1) means that root
+ * device should be used
  * @return A remote context wrapping `VADisplay`
  */
 static inline VAContext::Ptr make_shared_context(Core& core,

@@ -218,7 +218,8 @@ static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx,
  * @param core A reference to Inference Engine Core object
  * @param deviceName A name of device to create a remote context for
  * @param ctx A OpenCL context to be used to create shared remote context
- * @param target_tile_id Desired tile id within given context for multi-tile system
+ * @param target_tile_id Desired tile id within given context for multi-tile system. Default value (-1) means that root
+ * device should be used
  * @return A shared remote context instance
  */
 static inline RemoteContext::Ptr make_shared_context(Core& core,
