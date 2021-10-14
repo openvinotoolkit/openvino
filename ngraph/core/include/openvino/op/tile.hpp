@@ -35,6 +35,8 @@ public:
 
 private:
     bool evaluate_tile(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
+    template <class T>
+    friend void shape_infer(Tile* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
 }  // namespace v0
 }  // namespace op

@@ -7,6 +7,7 @@
 #include <openvino/op/convolution.hpp>
 #include <openvino/op/parameter.hpp>
 #include <convolution_shape_inference.hpp>
+#include <tile_shape_inference.hpp>
 #include <openvino/op/ops.hpp>
 #include "utils/shape_inference/static_shape.hpp"
 
@@ -38,6 +39,20 @@ TEST(StaticShapeInferenceTest, ConvolutionTest) {
     ASSERT_EQ(static_output_shapes[0], StaticShape({3, 7, 5, 5}));
     ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{1, 1}));
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{1, 1}));
+}
+
+TEST(StaticShapeInferenceTest, TileTest) {
+    auto param0 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
+    auto param1 = std::make_shared<ov::op::v0::Parameter>(element::i64, PartialShape{-1});
+    auto tile = std::make_shared<op::v0::Tile>(param0, param1);
+    std::vector<PartialShape> input_shapes = {PartialShape{6, 8, 10}, PartialShape{3, 4, 1}},
+                              output_shapes = {PartialShape{}};
+    shape_infer(tile.get(), input_shapes, output_shapes);
+    ASSERT_EQ(output_shapes[0], PartialShape({18, 32, 10}));
+    std::vector<StaticShape> static_input_shapes = {StaticShape{6, 8, 10}, StaticShape{3, 4, 1}},
+                             static_output_shapes = {StaticShape{}};
+    shape_infer(tile.get(), static_input_shapes, static_output_shapes);
+    ASSERT_EQ(static_output_shapes[0], StaticShape({18, 32, 10}));
 }
 
 #if 0
