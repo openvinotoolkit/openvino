@@ -31,7 +31,7 @@ using gpu_handle_param = void*;
 /**
  * @brief This class represents an abstraction for GPU plugin remote tensor
  * which can be shared with user-supplied OpenCL buffer.
- * The plugin object derived from this class can be obtained with create_tensor() call.
+ * The plugin object derived from this class can be obtained with ClContext::create_tensor() call.
  * @note User can obtain OpenCL buffer handle from this class.
  */
 class ClBufferTensor : public RemoteTensor {
@@ -75,7 +75,7 @@ public:
 /**
  * @brief This class represents an abstraction for GPU plugin remote tensor
  * which can be shared with user-supplied OpenCL 2D Image.
- * The plugin object derived from this class can be obtained with create_tensor() call.
+ * The plugin object derived from this class can be obtained with ClContext::create_tensor() call.
  * @note User can obtain OpenCL image handle from this class.
  */
 class ClImage2DTensor : public RemoteTensor {
@@ -120,7 +120,7 @@ public:
  * @brief This class represents an abstraction for GPU plugin remote context
  * which is shared with OpenCL context object.
  * The plugin object derived from this class can be obtained either with
- * GetContext() method of Executable network or using CreateContext() Core call.
+ * ExecutableNetwork::get_context() or Core::create_context() calls.
  */
 class ClContext : public RemoteContext {
     using RemoteContext::create_tensor;
@@ -138,7 +138,7 @@ public:
 
     /**
      * @brief Constructs context object from user-supplied OpenCL context handle
-     * @param core A reference to Inference Engine Core object
+     * @param core A reference to OpenVINO Runtime Core object
      * @param deviceName A name of device to create a remote context for
      * @param ctx A OpenCL context to be used to create shared remote context
      */
