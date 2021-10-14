@@ -29,6 +29,9 @@
 #include "op/cast_like.hpp"
 #include "op/ceil.hpp"
 #include "op/clip.hpp"
+#include "op/com.microsoft/bias_gelu.hpp"
+#include "op/com.microsoft/embed_layer_normalization.hpp"
+#include "op/com.microsoft/skip_layer_normalization.hpp"
 #include "op/compress.hpp"
 #include "op/concat.hpp"
 #include "op/constant.hpp"
@@ -66,6 +69,7 @@
 #include "op/hard_swish.hpp"
 #include "op/hardmax.hpp"
 #include "op/identity.hpp"
+#include "op/if.hpp"
 #include "op/image_scaler.hpp"
 #include "op/instance_norm.hpp"
 #include "op/leaky_relu.hpp"
@@ -78,6 +82,7 @@
 #include "op/lrn.hpp"
 #include "op/lstm.hpp"
 #include "op/matmul.hpp"
+#include "op/matmul_integer.hpp"
 #include "op/max.hpp"
 #include "op/max_pool.hpp"
 #include "op/mean.hpp"
@@ -261,6 +266,8 @@ bool OperatorsBridge::_is_operator_registered(const std::string& name,
     }
 }
 
+static const char* const MICROSOFT_DOMAIN = "com.microsoft";
+
 #define REGISTER_OPERATOR(name_, ver_, fn_) \
     m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1))
 
@@ -335,6 +342,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("HardSigmoid", 1, hard_sigmoid);
     REGISTER_OPERATOR("HardSwish", 1, hard_swish);
     REGISTER_OPERATOR("Identity", 1, identity);
+    REGISTER_OPERATOR("If", 1, if_op);
     REGISTER_OPERATOR("ImageScaler", 1, image_scaler);
     REGISTER_OPERATOR("InstanceNormalization", 1, instance_norm);
     REGISTER_OPERATOR("LeakyRelu", 1, leaky_relu);
@@ -346,6 +354,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("LpNormalization", 1, lp_norm);
     REGISTER_OPERATOR("LRN", 1, lrn);
     REGISTER_OPERATOR("LSTM", 1, lstm);
+    REGISTER_OPERATOR("MatMulInteger", 1, matmul_integer);
     REGISTER_OPERATOR("MatMul", 1, matmul);
     REGISTER_OPERATOR("MaxPool", 1, max_pool);
     REGISTER_OPERATOR("Max", 1, max);
@@ -472,6 +481,10 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBox", 1, prior_box);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBoxClustered", 1, prior_box_clustered);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Swish", 1, swish);
+
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "BiasGelu", 1, bias_gelu);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
 }
 
 #undef REGISTER_OPERATOR

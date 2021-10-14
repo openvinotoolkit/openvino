@@ -9,6 +9,7 @@ from ngraph import PartialShape
 from ngraph.frontend import FrontEndManager
 
 
+# ------Test input model 1------
 #       in1        in2        in3
 #        |          |          |
 #        \          /          |
@@ -24,9 +25,32 @@ from ngraph.frontend import FrontEndManager
 #     /     \       |
 #   out1   out2    out4
 #
+#
+# ------Test input model 2------
+#       in1        in2
+#        |          |
+#        \          /
+#         +--------+
+#         |  Add   |
+#         +--------+
+#          <add_out>
+#             |
+#        +--------+
+#        | Split  |
+#        |(split2)|
+#        +--------+
+#        /         \
+#   <sp_out1>    <sp_out2>
+#   +-------+    +-------+
+#   |  Abs  |    |  Sin  |
+#   | (abs1)|    |       |
+#   +------ +    +-------+
+#      |             |
+#     out1          out2
+#
 def create_test_onnx_models():
     models = {}
-    # Input model
+    # Input model 1
     add = onnx.helper.make_node("Add", inputs=["in1", "in2"], outputs=["add_out"])
     split = onnx.helper.make_node("Split", inputs=["add_out"],
                                   outputs=["out1", "out2"], name="split1", axis=0)
@@ -47,6 +71,24 @@ def create_test_onnx_models():
     graph = make_graph([add, split, relu, mul], "test_graph", input_tensors, output_tensors)
     models["input_model.onnx"] = make_model(graph, producer_name="ONNX Importer",
                                             opset_imports=[onnx.helper.make_opsetid("", 13)])
+
+    # Input model 2
+    split_2 = onnx.helper.make_node("Split", inputs=["add_out"],
+                                    outputs=["sp_out1", "sp_out2"], name="split2", axis=0)
+    abs = onnx.helper.make_node("Abs", inputs=["sp_out1"], outputs=["out1"], name="abs1")
+    sin = onnx.helper.make_node("Sin", inputs=["sp_out2"], outputs=["out2"])
+
+    input_tensors = [
+        make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("in2", onnx.TensorProto.FLOAT, (2, 2)),
+    ]
+    output_tensors = [
+        make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (1, 2)),
+        make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (1, 2)),
+    ]
+    graph = make_graph([add, split_2, abs, sin], "test_graph_2", input_tensors, output_tensors)
+    models["input_model_2.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                              opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for extract_subgraph
     input_tensors = [
@@ -90,9 +132,9 @@ def create_test_onnx_models():
 
     # Expected for extract_subgraph 4
     input_tensors = [
+        make_tensor_value_info("out1/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)),
         make_tensor_value_info("out4/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)),
         make_tensor_value_info("out4/placeholder_port_1", onnx.TensorProto.FLOAT, (2, 2)),
-        make_tensor_value_info("out1/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     output_tensors = [
         make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (1, 2)),
@@ -105,6 +147,18 @@ def create_test_onnx_models():
                                          outputs=["out4"])
     graph = make_graph([expected_split, expected_mul], "test_graph", input_tensors, output_tensors)
     models["extract_subgraph_4.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
+
+    # Expected for extract_subgraph 5
+    input_tensors = [
+        make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("in2", onnx.TensorProto.FLOAT, (2, 2)),
+    ]
+    output_tensors = [
+        make_tensor_value_info("add_out", onnx.TensorProto.FLOAT, (2, 2)),
+    ]
+    graph = make_graph([add], "test_graph", input_tensors, output_tensors)
+    models["extract_subgraph_5.onnx"] = make_model(graph, producer_name="ONNX Importer",
                                                    opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for test_override_all_outputs
@@ -175,7 +229,7 @@ def create_test_onnx_models():
 
 fem = FrontEndManager()
 test_models_names = []
-ONNX_FRONTEND_NAME = "onnx_experimental"
+ONNX_FRONTEND_NAME = "onnx"
 
 
 def setup_module():
@@ -312,9 +366,10 @@ def test_extract_subgraph_4():
     model = fe.load("input_model.onnx")
     assert model
 
-    place1 = model.get_place_by_tensor_name(tensorName="out4").get_input_port(inputPortIndex=0)
-    place2 = model.get_place_by_tensor_name(tensorName="out4").get_input_port(inputPortIndex=1)
-    place3 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
+    out4_tensor = model.get_place_by_tensor_name(tensorName="out4")
+    place1 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
+    place2 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
+    place3 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=1)
     place4 = model.get_place_by_tensor_name(tensorName="out1")
     place5 = model.get_place_by_tensor_name(tensorName="out2")
     place6 = model.get_place_by_tensor_name(tensorName="out4")
@@ -322,6 +377,99 @@ def test_extract_subgraph_4():
     result_func = fe.convert(model)
 
     expected_model = fe.load("extract_subgraph_4.onnx")
+    expected_func = fe.convert(expected_model)
+
+    res = compare_functions(result_func, expected_func)
+    assert res
+
+
+def test_extract_subgraph_by_op_place_as_input():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model.onnx")
+    assert model
+
+    split_op = model.get_place_by_operation_name(operationName="split1")
+    out4 = model.get_place_by_tensor_name(tensorName="out4")
+    mul_op = out4.get_producing_operation()
+    out1 = model.get_place_by_tensor_name(tensorName="out1")
+    out2 = model.get_place_by_tensor_name(tensorName="out2")
+
+    model.extract_subgraph(inputs=[split_op, mul_op], outputs=[out1, out2, out4])
+    result_func = fe.convert(model)
+
+    expected_model = fe.load("extract_subgraph_4.onnx")
+    expected_func = fe.convert(expected_model)
+
+    res = compare_functions(result_func, expected_func)
+    assert res
+
+
+def test_extract_subgraph_by_op_place_as_output():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model.onnx")
+    assert model
+
+    in1_tensor = model.get_place_by_tensor_name(tensorName="in1")
+    in2_tensor = model.get_place_by_tensor_name(tensorName="in2")
+    add_out_tensor = model.get_place_by_tensor_name(tensorName="add_out")
+    add_op = add_out_tensor.get_producing_operation()
+
+    model.extract_subgraph(inputs=[in1_tensor, in2_tensor], outputs=[add_op])
+    result_func = fe.convert(model)
+
+    expected_model = fe.load("extract_subgraph_5.onnx")
+    expected_func = fe.convert(expected_model)
+
+    res = compare_functions(result_func, expected_func)
+    assert res
+
+
+def test_extract_subgraph_by_op_place_as_output_2():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model.onnx")
+    assert model
+
+    split_op = model.get_place_by_operation_name(operationName="split1")
+    out4 = model.get_place_by_tensor_name(tensorName="out4")
+    mul_op = out4.get_producing_operation()
+
+    model.extract_subgraph(inputs=[split_op, mul_op], outputs=[])
+    result_func = fe.convert(model)
+
+    expected_model = fe.load("test_override_all_inputs.onnx")
+    expected_func = fe.convert(expected_model)
+
+    res = compare_functions(result_func, expected_func)
+    assert res
+
+
+def test_extract_subgraph_by_port_place_as_output():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model.onnx")
+    assert model
+
+    add_out_tensor = model.get_place_by_tensor_name(tensorName="add_out")
+    add_op = add_out_tensor.get_producing_operation()
+    add_op_out_port = add_op.get_output_port(outputPortIndex=0)
+    in1_tensor = model.get_place_by_tensor_name(tensorName="in1")
+    in2_tensor = model.get_place_by_tensor_name(tensorName="in2")
+
+    model.extract_subgraph(inputs=[in1_tensor, in2_tensor], outputs=[add_op_out_port])
+    result_func = fe.convert(model)
+
+    expected_model = fe.load("extract_subgraph.onnx")
     expected_func = fe.convert(expected_model)
 
     res = compare_functions(result_func, expected_func)
@@ -377,8 +525,9 @@ def test_override_all_inputs():
 
     place1 = model.get_place_by_operation_name_and_input_port(
         operationName="split1", inputPortIndex=0)
-    place2 = model.get_place_by_tensor_name(tensorName="out4").get_input_port(inputPortIndex=0)
-    place3 = model.get_place_by_tensor_name(tensorName="out4").get_input_port(inputPortIndex=1)
+    out4_tensor = model.get_place_by_tensor_name(tensorName="out4")
+    place2 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
+    place3 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=1)
     place4 = model.get_place_by_tensor_name(tensorName="in3")
     model.override_all_inputs(inputs=[place1, place2, place3, place4])
     result_func = fe.convert(model)
@@ -432,10 +581,14 @@ def test_is_input_output():
     assert not place3.is_input()
     assert not place3.is_output()
 
-    place4 = place1 = model.get_place_by_operation_name_and_input_port(
+    place4 = model.get_place_by_operation_name_and_input_port(
         operationName="split1", inputPortIndex=0)
     assert not place4.is_input()
     assert not place4.is_output()
+
+    place5 = model.get_place_by_operation_name(operationName="split1")
+    assert not place5.is_input()
+    assert not place5.is_output()
 
 
 def test_set_partial_shape():
@@ -520,12 +673,14 @@ def test_is_equal():
     place2 = model.get_place_by_tensor_name(tensorName="out2")
     assert place2.is_equal(place2)
 
-    place3 = model.get_place_by_tensor_name(tensorName="out4").get_input_port(inputPortIndex=0)
-    place4 = model.get_place_by_tensor_name(tensorName="out4").get_input_port(inputPortIndex=0)
+    out4_tensor = model.get_place_by_tensor_name(tensorName="out4")
+    place3 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
+    place4 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
     assert place3.is_equal(place4)
 
+    out1_tensor = model.get_place_by_tensor_name(tensorName="out1")
     place5 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
-    place6 = model.get_place_by_tensor_name(tensorName="out1").get_input_port(inputPortIndex=0)
+    place6 = out1_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
     assert place5.is_equal(place6)
 
     place7 = model.get_place_by_tensor_name(tensorName="out4").get_producing_port()
@@ -537,6 +692,10 @@ def test_is_equal():
     assert not place1.is_equal(place2)
     assert not place6.is_equal(place7)
     assert not place8.is_equal(place2)
+
+    place9 = model.get_place_by_operation_name(operationName="split1")
+    assert place2.get_producing_operation().is_equal(place9)
+    assert not place9.is_equal(place2)
 
 
 def test_is_equal_data():
@@ -560,11 +719,12 @@ def test_is_equal_data():
     place4 = place2.get_producing_port()
     assert place2.is_equal_data(place4)
 
-    place5 = model.get_place_by_tensor_name(tensorName="out4").get_input_port(inputPortIndex=0)
+    out4_tensor = model.get_place_by_tensor_name(tensorName="out4")
+    place5 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
     assert place2.is_equal_data(place5)
     assert place4.is_equal_data(place5)
 
-    place6 = model.get_place_by_tensor_name(tensorName="out4").get_input_port(inputPortIndex=1)
+    place6 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=1)
     assert place6.is_equal_data(place5)
 
     place7 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
@@ -648,3 +808,228 @@ def test_get_input_port():
 
     assert not split_op.get_input_port(inputPortIndex=1)
     assert not split_op.get_input_port(inputName="not_existed")
+
+
+def test_get_consuming_ports():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+    model = fe.load("input_model.onnx")
+    assert model
+
+    place1 = model.get_place_by_tensor_name(tensorName="add_out")
+    add_tensor_consuming_ports = place1.get_consuming_ports()
+    assert len(add_tensor_consuming_ports) == 3
+    place2 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
+    assert add_tensor_consuming_ports[0].is_equal(place2)
+    out4_tensor = model.get_place_by_tensor_name(tensorName="out4")
+    place3 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
+    assert add_tensor_consuming_ports[1].is_equal(place3)
+    place4 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=1)
+    assert add_tensor_consuming_ports[2].is_equal(place4)
+
+    add_op_consuming_ports = place1.get_producing_operation().get_consuming_ports()
+    assert len(add_op_consuming_ports) == len(add_tensor_consuming_ports)
+    for i in range(len(add_op_consuming_ports)):
+        assert add_op_consuming_ports[i].is_equal(add_tensor_consuming_ports[i])
+
+
+def test_get_consuming_ports_2():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+    model = fe.load("input_model_2.onnx")
+    assert model
+
+    split_op = model.get_place_by_operation_name(operationName="split2")
+    split_op_consuming_ports = split_op.get_consuming_ports()
+    assert len(split_op_consuming_ports) == 2
+    abs_input_port = model.get_place_by_operation_name(operationName="abs1").get_input_port(inputPortIndex=0)
+    assert split_op_consuming_ports[0].is_equal(abs_input_port)
+    out2_tensor = model.get_place_by_tensor_name(tensorName="out2")
+    sin_input_port = out2_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
+    assert split_op_consuming_ports[1].is_equal(sin_input_port)
+
+    split_out_port_0 = split_op.get_output_port(outputPortIndex=0)
+    split_out_port_0_consuming_ports = split_out_port_0.get_consuming_ports()
+    assert len(split_out_port_0_consuming_ports) == 1
+    assert split_out_port_0_consuming_ports[0].is_equal(abs_input_port)
+
+
+def test_get_producing_operation():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+    model = fe.load("input_model_2.onnx")
+    assert model
+
+    split_tensor_out_2 = model.get_place_by_tensor_name(tensorName="sp_out2")
+    split_op = model.get_place_by_operation_name(operationName="split2")
+    assert split_tensor_out_2.get_producing_operation().is_equal(split_op)
+
+    split_op = model.get_place_by_operation_name(operationName="split2")
+    split_out_port_2 = split_op.get_output_port(outputPortIndex=1)
+    assert split_out_port_2.get_producing_operation().is_equal(split_op)
+
+
+def test_get_producing_operation_2():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+    model = fe.load("input_model_2.onnx")
+    assert model
+
+    abs_op = model.get_place_by_operation_name(operationName="abs1")
+    abs_port_0 = abs_op.get_input_port()
+    split_op = model.get_place_by_operation_name(operationName="split2")
+    assert abs_port_0.get_producing_operation().is_equal(split_op)
+    assert abs_op.get_producing_operation().is_equal(split_op)
+
+    add_out_tensor = model.get_place_by_tensor_name(tensorName="add_out")
+    add_op = add_out_tensor.get_producing_operation()
+    assert not add_op.get_producing_operation()
+
+    split_op_producing_op = split_op.get_producing_operation(inputName="add_out")
+    assert split_op_producing_op.is_equal(add_op)
+
+    out2_tensor = model.get_place_by_tensor_name(tensorName="out2")
+    sin_op = out2_tensor.get_producing_operation()
+    assert sin_op.get_producing_operation(inputPortIndex=0).is_equal(split_op)
+
+
+def test_get_consuming_operations():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+    model = fe.load("input_model_2.onnx")
+    assert model
+
+    split_op = model.get_place_by_operation_name(operationName="split2")
+    split_op_consuming_ops = split_op.get_consuming_operations()
+    abs_op = model.get_place_by_operation_name(operationName="abs1")
+    sin_op = model.get_place_by_tensor_name(tensorName="out2").get_producing_operation()
+
+    assert len(split_op_consuming_ops) == 2
+    assert split_op_consuming_ops[0].is_equal(abs_op)
+    assert split_op_consuming_ops[1].is_equal(sin_op)
+
+    split_op_port = split_op.get_input_port(inputPortIndex=0)
+    split_op_port_consuming_ops = split_op_port.get_consuming_operations()
+
+    assert len(split_op_port_consuming_ops) == 1
+    assert split_op_port_consuming_ops[0].is_equal(split_op)
+
+    add_out_port = model.get_place_by_tensor_name(tensorName="add_out").get_producing_port()
+    add_out_port_consuming_ops = add_out_port.get_consuming_operations()
+    assert len(add_out_port_consuming_ops) == 1
+    assert add_out_port_consuming_ops[0].is_equal(split_op)
+
+    sp_out2_tensor = model.get_place_by_tensor_name(tensorName="sp_out2")
+    sp_out2_tensor_consuming_ops = sp_out2_tensor.get_consuming_operations()
+    assert len(sp_out2_tensor_consuming_ops) == 1
+    assert sp_out2_tensor_consuming_ops[0].is_equal(sin_op)
+
+    out2_tensor = model.get_place_by_tensor_name(tensorName="out2")
+    out2_tensor_consuming_ops = out2_tensor.get_consuming_operations()
+    assert len(out2_tensor_consuming_ops) == 0
+    out2_port_consuming_ops = out2_tensor.get_producing_port().get_consuming_operations()
+    assert len(out2_port_consuming_ops) == 0
+
+    split_out_1_consuming_ops = split_op.get_consuming_operations(outputPortIndex=1)
+    assert len(split_out_1_consuming_ops) == 1
+    split_out_sp_out_2_consuming_ops = split_op.get_consuming_operations(outputName="sp_out2")
+    assert len(split_out_sp_out_2_consuming_ops) == 1
+    assert split_out_1_consuming_ops[0].is_equal(split_out_sp_out_2_consuming_ops[0])
+    assert split_out_1_consuming_ops[0].is_equal(sin_op)
+
+
+def test_get_target_tensor():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+    model = fe.load("input_model_2.onnx")
+    assert model
+
+    split_op = model.get_place_by_operation_name(operationName="split2")
+    assert not split_op.get_target_tensor()
+
+    split_op_tensor_1 = split_op.get_target_tensor(outputPortIndex=1)
+    sp_out2_tensor = model.get_place_by_tensor_name(tensorName="sp_out2")
+    assert split_op_tensor_1.is_equal(sp_out2_tensor)
+
+    split_tensor_sp_out2 = split_op.get_target_tensor(outputName="sp_out2")
+    assert split_tensor_sp_out2.is_equal(split_op_tensor_1)
+
+    abs_op = model.get_place_by_operation_name(operationName="abs1")
+    out1_tensor = model.get_place_by_tensor_name(tensorName="out1")
+    assert abs_op.get_target_tensor().is_equal(out1_tensor)
+
+
+def test_get_source_tensor():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+    model = fe.load("input_model_2.onnx")
+    assert model
+
+    add_out_tensor = model.get_place_by_tensor_name(tensorName="add_out")
+    add_op = add_out_tensor.get_producing_operation()
+    assert not add_op.get_source_tensor()
+
+    add_op_in_tensor_1 = add_op.get_source_tensor(inputPortIndex=1)
+    in2_tensor = model.get_place_by_tensor_name(tensorName="in2")
+    assert add_op_in_tensor_1.is_equal(in2_tensor)
+
+    add_op_in_tensor_in2 = add_op.get_source_tensor(inputName="in2")
+    assert add_op_in_tensor_in2.is_equal(in2_tensor)
+
+    split_op = model.get_place_by_operation_name(operationName="split2")
+    assert split_op.get_source_tensor().is_equal(add_out_tensor)
+
+
+def test_get_producing_port():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+    model = fe.load("input_model_2.onnx")
+    assert model
+
+    split_op = model.get_place_by_operation_name(operationName="split2")
+    split_op_in_port = split_op.get_input_port()
+    split_op_in_port_prod_port = split_op_in_port.get_producing_port()
+
+    add_out_tensor = model.get_place_by_tensor_name(tensorName="add_out")
+    add_op = add_out_tensor.get_producing_operation()
+    add_op_out_port = add_op.get_output_port()
+
+    assert split_op_in_port_prod_port.is_equal(add_op_out_port)
+
+
+def test_get_place_by_operation_name_and_input_port():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model.onnx")
+    assert model
+
+    place1 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
+    sp_out1_tensor = model.get_place_by_tensor_name("out2")
+    place2 = sp_out1_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
+
+    assert place1.is_equal(place2)
+
+
+def test_get_place_by_operation_name_and_output_port():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model_2.onnx")
+    assert model
+
+    place1 = model.get_place_by_operation_name_and_output_port(operationName="split2", outputPortIndex=0)
+    sp_out1_tensor = model.get_place_by_tensor_name("sp_out1")
+    place2 = sp_out1_tensor.get_producing_operation().get_output_port(outputPortIndex=0)
+
+    assert place1.is_equal(place2)

@@ -70,6 +70,12 @@ if(TARGET openvino::frontend::paddlepaddle AND NOT TARGET ngraph::paddlepaddle_n
         INTERFACE_LINK_LIBRARIES openvino::frontend::paddlepaddle)
 endif()
 
+if(TARGET openvino::frontend::tensorflow AND NOT TARGET ngraph::tensorflow_ngraph_frontend)
+    add_library(ngraph::tensorflow_ngraph_frontend INTERFACE IMPORTED)
+    set_target_properties(ngraph::tensorflow_ngraph_frontend PROPERTIES
+        INTERFACE_LINK_LIBRARIES openvino::frontend::tensorflow)
+endif()
+
 set(ngraph_ngraph_FOUND ON)
 set(NGRAPH_LIBRARIES ngraph::ngraph)
 
@@ -88,5 +94,7 @@ if(ngraph_onnx_importer_FOUND)
 endif()
 
 set(ngraph_paddlepaddle_frontend_FOUND ${OpenVINO_Frontend_PaddlePaddle_FOUND})
+set(ngraph_tensorflow_frontend_FOUND ${OpenVINO_Frontend_TensorFlow_FOUND})
+set(ngraph_ir_frontend_FOUND ${OpenVINO_Frontend_IR_FOUND})
 
 check_required_components(ngraph)

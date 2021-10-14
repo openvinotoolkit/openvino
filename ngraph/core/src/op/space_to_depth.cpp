@@ -17,7 +17,7 @@
 
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(ov::op::v0::SpaceToDepth, "SpaceToDepth", 0);
+BWDCMP_RTTI_DEFINITION(ov::op::v0::SpaceToDepth);
 
 ov::op::v0::SpaceToDepth::SpaceToDepth(const Output<Node>& data, const SpaceToDepthMode& mode, size_t block_size)
     : Op({data}),
@@ -46,7 +46,7 @@ std::shared_ptr<Node> ov::op::v0::SpaceToDepth::clone_with_new_inputs(const Outp
 
 void ngraph::op::v0::SpaceToDepth::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_SpaceToDepth_validate_and_infer_types);
-    ov::Shape data_pshape = get_input_partial_shape(0);
+    ov::PartialShape data_pshape = get_input_partial_shape(0);
 
     const auto& data_type = get_input_element_type(0);
 
@@ -81,7 +81,7 @@ void ngraph::op::v0::SpaceToDepth::validate_and_infer_types() {
         set_output_size(1);
         set_output_type(0, data_type, out_shape);
     } else {
-        set_output_type(0, data_type, ov::Shape::dynamic(data_pshape.rank()));
+        set_output_type(0, data_type, ov::PartialShape::dynamic(data_pshape.rank()));
     }
 }
 
@@ -131,5 +131,5 @@ EnumNames<ngraph::op::v0::SpaceToDepth::SpaceToDepthMode>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v0::SpaceToDepth::SpaceToDepthMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v0::SpaceToDepth::SpaceToDepthMode>);
 }  // namespace ov

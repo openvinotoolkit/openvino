@@ -54,6 +54,7 @@ void DetectNetworkBatch::SetUp() {
 void DetectNetworkBatch::LoadNetwork() {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
     cnnNetwork.setBatchSize(m_batchSize);
+    functionRefs = ngraph::clone_function(*cnnNetwork.getFunction());
     ConfigureNetwork();
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
 }

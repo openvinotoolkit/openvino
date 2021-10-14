@@ -78,8 +78,9 @@ struct eltwise : public primitive_base<eltwise> {
             const primitive_id& input,
             const primitive_id& input2,
             eltwise_mode mode,
+            const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, {input, input2}, output_padding),
+        : primitive_base(id, {input, input2}, ext_prim_id, output_padding),
           mode(mode),
           coefficients(std::vector<float>(0)),
           stride(std::vector<tensor>(0)) {}
@@ -97,8 +98,9 @@ struct eltwise : public primitive_base<eltwise> {
             const primitive_id& input2,
             std::vector<tensor> stride,
             eltwise_mode mode,
+            const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, {input, input2}, output_padding),
+        : primitive_base(id, {input, input2}, ext_prim_id, output_padding),
           mode(mode),
           coefficients(std::vector<float>(0)),
           stride(stride) {}
@@ -112,8 +114,9 @@ struct eltwise : public primitive_base<eltwise> {
             const std::vector<primitive_id>& inputs,
             eltwise_mode mode,
             data_types data_type,
+            const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding, optional_data_type{data_type}),
+        : primitive_base(id, inputs, ext_prim_id, output_padding, optional_data_type{data_type}),
           mode(mode),
           coefficients(std::vector<float>(0)),
           stride(std::vector<tensor>(0)) {}
@@ -125,8 +128,9 @@ struct eltwise : public primitive_base<eltwise> {
     eltwise(const primitive_id& id,
             const std::vector<primitive_id>& inputs,
             eltwise_mode mode,
+            const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding),
+        : primitive_base(id, inputs, ext_prim_id, output_padding),
           mode(mode),
           coefficients(std::vector<float>(0)),
           stride(std::vector<tensor>(0)) {}
@@ -141,8 +145,9 @@ struct eltwise : public primitive_base<eltwise> {
             eltwise_mode mode,
             const std::vector<float>& coefficients,
             data_types data_type,
+            const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding, optional_data_type{data_type}),
+        : primitive_base(id, inputs, ext_prim_id, output_padding, optional_data_type{data_type}),
           mode(mode),
           coefficients(coefficients),
           stride(std::vector<tensor>(0)) {
@@ -152,6 +157,15 @@ struct eltwise : public primitive_base<eltwise> {
         if (mode != eltwise_mode::sum && !coefficients.empty()) {
             throw std::invalid_argument("Only eltwise sum operation supports blob-wise coefficients");
         }
+    }
+
+    bool needs_onednn_sum_post_op(layout input_layout) const {
+        if (mode == eltwise_mode::sum &&
+            (input_layout.size.spatial[0] > 1 || input_layout.size.spatial[1] > 1 || input_layout.size.batch[0] > 1)) {
+            return true;
+        }
+
+        return false;
     }
 
     /// @param mode Eltwise mode.

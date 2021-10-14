@@ -106,6 +106,8 @@ TEST_P(MultiplyToGroupConvolutionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues = {
@@ -276,7 +278,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
             ngraph::element::u8,
             {
                 {},
-                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32},
+                DequantizationOperations::Subtract{{1.f, 2.f, 3.f, 4.f}, element::f32}.setConstantPrecision(element::f32),
                 {{0.45f, 0.82f, 0.71f, 0.37f}}
             }
         },
@@ -301,7 +303,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
             ngraph::element::u8,
             {
                 {},
-                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32},
+                DequantizationOperations::Subtract{{1.f, 2.f, 3.f, 4.f}, element::f32}.setConstantPrecision(element::f32),
                 {{0.45f, 0.82f, 0.71f, 0.37f}}
             }
         },

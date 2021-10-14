@@ -8,9 +8,9 @@
 #include <map>
 #include <unordered_set>
 
-#include "ngraph/shape.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/variant.hpp"
@@ -37,7 +37,6 @@ public:
     /// \param node A `shared_ptr` to the node for the output handle.
     /// \param index The index of the output.
     ///
-    /// TODO: Make a plan to deprecate this.
     Output(const std::shared_ptr<Node>& node, size_t index);
 
     /// \brief Constructs a Output, referencing the zeroth output of the node.
@@ -56,7 +55,6 @@ public:
     Node* get_node() const;
     /// \return A `shared_ptr` to the node referred to by this output handle.
     ///
-    /// TODO: Make a plan to deprecate this.
     std::shared_ptr<Node> get_node_shared_ptr() const;
 
     /// \return The index of the output referred to by this output handle.
@@ -68,9 +66,9 @@ public:
     /// \return The element type of the output referred to by this output handle.
     const element::Type& get_element_type() const;
     /// \return The shape of the output referred to by this output handle.
-    const StaticShape& get_shape() const;
+    const Shape& get_shape() const;
     /// \return The partial shape of the output referred to by this output handle.
-    const Shape& get_partial_shape() const;
+    const PartialShape& get_partial_shape() const;
 
     /// \return The reference to runtime info map
     RTMap& get_rt_info();
@@ -84,7 +82,6 @@ public:
     /// \brief Removes a target input from the output referenced by this output handle.
     /// \param target_input The target input to remove.
     ///
-    // TODO(amprocte): Investigate whether this really ought to be public.
     void remove_target_input(const Input<Node>& target_input) const;
 
     /// \brief Replace all users of this value with replacement
@@ -114,13 +111,12 @@ public:
     /// \param node A `shared_ptr` to the node for the output handle.
     /// \param index The index of the output.
     ///
-    /// TODO: Make a plan to deprecate this.
     Output(const std::shared_ptr<const Node>& node, size_t index);
 
     /// \brief Constructs a Output, referencing the zeroth output of the node.
     /// \param node A `shared_ptr` to the node for the output handle.
     template <typename T>
-    Output(const std::shared_ptr<T>& node) : Output(node ? node->get_default_output() : Output<const Node>()) {}
+    Output(const std::shared_ptr<const T>& node) : Output(node ? node->get_default_output() : Output<const Node>()) {}
 
     /// A null output
     Output() = default;
@@ -134,7 +130,6 @@ public:
     const Node* get_node() const;
     /// \return A `shared_ptr` to the node referred to by this output handle.
     ///
-    /// TODO: Make a plan to deprecate this.
     std::shared_ptr<const Node> get_node_shared_ptr() const;
     /// \return The index of the output referred to by this output handle.
     size_t get_index() const;
@@ -145,9 +140,9 @@ public:
     /// \return The element type of the output referred to by this output handle.
     const element::Type& get_element_type() const;
     /// \return The shape of the output referred to by this output handle.
-    const StaticShape& get_shape() const;
+    const Shape& get_shape() const;
     /// \return The partial shape of the output referred to by this output handle.
-    const Shape& get_partial_shape() const;
+    const PartialShape& get_partial_shape() const;
 
     /// \return The constant reference to runtime info map
     const RTMap& get_rt_info() const;

@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
@@ -25,7 +26,9 @@ TEST(op_eval, hsigmoid) {
     std::vector<float> expected_result{0.416667f, 0.5f, 0.583333f};
 
     auto result = make_shared<HostTensor>();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_TRUE(fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{3}, inputs)}));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     EXPECT_EQ(result->get_element_type(), element::f32);
     EXPECT_EQ(result->get_shape(), Shape{3});
     auto result_data = read_vector<float>(result);

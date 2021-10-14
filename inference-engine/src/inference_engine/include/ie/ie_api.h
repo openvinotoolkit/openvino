@@ -13,21 +13,18 @@
 #    define INFERENCE_ENGINE_API(...)       extern "C" __VA_ARGS__
 #    define INFERENCE_ENGINE_API_CPP(...)   __VA_ARGS__
 #    define INFERENCE_ENGINE_API_CLASS(...) __VA_ARGS__
-#    define INFERENCE_ENGINE_CDECL          __attribute__((cdecl))
 #else
 #    if defined(_WIN32)
-#        define INFERENCE_ENGINE_CDECL
 #        ifdef IMPLEMENT_INFERENCE_ENGINE_API
 #            define INFERENCE_ENGINE_API(...)       extern "C" __declspec(dllexport) __VA_ARGS__ __cdecl
-#            define INFERENCE_ENGINE_API_CPP(...)   __declspec(dllexport) __VA_ARGS__ __cdecl
+#            define INFERENCE_ENGINE_API_CPP(...)   __declspec(dllexport) __VA_ARGS__
 #            define INFERENCE_ENGINE_API_CLASS(...) __declspec(dllexport) __VA_ARGS__
 #        else
 #            define INFERENCE_ENGINE_API(...)       extern "C" __declspec(dllimport) __VA_ARGS__ __cdecl
-#            define INFERENCE_ENGINE_API_CPP(...)   __declspec(dllimport) __VA_ARGS__ __cdecl
+#            define INFERENCE_ENGINE_API_CPP(...)   __declspec(dllimport) __VA_ARGS__
 #            define INFERENCE_ENGINE_API_CLASS(...) __declspec(dllimport) __VA_ARGS__
 #        endif
 #    else
-#        define INFERENCE_ENGINE_CDECL          __attribute__((cdecl))
 #        define INFERENCE_ENGINE_API(...)       extern "C" __attribute__((visibility("default"))) __VA_ARGS__
 #        define INFERENCE_ENGINE_API_CPP(...)   __attribute__((visibility("default"))) __VA_ARGS__
 #        define INFERENCE_ENGINE_API_CLASS(...) __attribute__((visibility("default"))) __VA_ARGS__
@@ -39,15 +36,9 @@
 #elif defined __INTEL_COMPILER
 #    define INFERENCE_ENGINE_DEPRECATED(msg) __attribute__((deprecated(msg)))
 #elif defined(__GNUC__)
-#    define INFERENCE_ENGINE_DEPRECATED(msg) __attribute__((deprecated((msg))))
+#    define INFERENCE_ENGINE_DEPRECATED(msg) __attribute__((deprecated(msg)))
 #else
 #    define INFERENCE_ENGINE_DEPRECATED(msg)
-#endif
-
-#if defined IMPLEMENT_INFERENCE_ENGINE_API || defined IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-#    define INFERENCE_ENGINE_INTERNAL(msg)
-#else
-#    define INFERENCE_ENGINE_INTERNAL(msg) INFERENCE_ENGINE_DEPRECATED(msg)
 #endif
 
 // Suppress warning "-Wdeprecated-declarations" / C4996
@@ -80,14 +71,6 @@ IE_DO_PRAGMA(warning(disable : 1786))
 #    define IE_SUPPRESS_DEPRECATED_END
 #endif
 
-#ifdef _WIN32
-#    define _IE_SUPPRESS_DEPRECATED_START_MSVC IE_SUPPRESS_DEPRECATED_START
-#    define _IE_SUPPRESS_DEPRECATED_END_MSVC   IE_SUPPRESS_DEPRECATED_END
-#else
-#    define _IE_SUPPRESS_DEPRECATED_START_MSVC
-#    define _IE_SUPPRESS_DEPRECATED_END_MSVC
-#endif
-
 #if defined __GNUC__ && (__GNUC__ <= 4 || (__GNUC__ == 5 && __GNUC_MINOR__ <= 5) || \
                          (defined __i386__ || defined __arm__ || defined __aarch64__))
 #    define _IE_SUPPRESS_DEPRECATED_START_GCC IE_SUPPRESS_DEPRECATED_START
@@ -105,6 +88,10 @@ IE_DO_PRAGMA(warning(disable : 1786))
 #    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
 #        define ENABLE_UNICODE_PATH_SUPPORT
 #    endif
+#endif
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#    define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #endif
 
 /**

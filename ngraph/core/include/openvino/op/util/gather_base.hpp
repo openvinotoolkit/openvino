@@ -12,7 +12,8 @@ namespace util {
 /// \brief GatherBase basic class for Gather v1 and v7
 class OPENVINO_API GatherBase : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("GatherBase", "util");
+    BWDCMP_RTTI_DECLARATION;
     GatherBase() = default;
 
     /// \param data The tensor from which slices are gathered
@@ -27,10 +28,12 @@ public:
     void validate_and_infer_types() override;
     virtual int64_t get_axis() const;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
 
     bool evaluate_lower(const HostTensorVector& outputs) const override;
     bool evaluate_upper(const HostTensorVector& outputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
 

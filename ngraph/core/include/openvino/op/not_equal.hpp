@@ -12,7 +12,8 @@ namespace v1 {
 /// \brief Elementwise not-equal operation.
 class OPENVINO_API NotEqual : public util::BinaryElementwiseComparison {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("NotEqual", "opset1", op::util::BinaryElementwiseComparison, 1);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a not-equal operation.
     NotEqual() : util::BinaryElementwiseComparison(AutoBroadcastSpec::NUMPY) {}
     /// \brief Constructs a not-equal operation.
@@ -26,7 +27,9 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
 };

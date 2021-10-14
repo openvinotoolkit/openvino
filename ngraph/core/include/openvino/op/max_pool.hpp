@@ -14,7 +14,8 @@ namespace v1 {
 /// \brief Batched max pooling operation.
 class OPENVINO_API MaxPool : public op::util::MaxPoolBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("MaxPool", "opset1", op::util::MaxPoolBase, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a batched max pooling operation.
     MaxPool() = default;
@@ -31,9 +32,9 @@ public:
     /// \param auto_pad The pad type for automatically computing padding sizes.
     MaxPool(const Output<Node>& arg,
             const Strides& strides,
-            const StaticShape& pads_begin,
-            const StaticShape& pads_end,
-            const StaticShape& kernel,
+            const Shape& pads_begin,
+            const Shape& pads_end,
+            const Shape& kernel,
             const op::RoundingType rounding_type = op::RoundingType::FLOOR,
             const PadType auto_pad = op::PadType::EXPLICIT);
 
@@ -47,7 +48,9 @@ public:
     std::shared_ptr<Node> get_default_value() const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 private:
@@ -59,7 +62,7 @@ namespace v8 {
 /// \brief MaxPooling operation with values and indices calculated as individual outputs
 class OPENVINO_API MaxPool : public op::util::MaxPoolBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("MaxPool", "opset8", op::util::MaxPoolBase);
 
     /// \brief Constructs an empty MaxPool operation.
     MaxPool() = default;
@@ -83,9 +86,9 @@ public:
     MaxPool(const Output<Node>& arg,
             const Strides& strides,
             const Strides& dilations,
-            const StaticShape& pads_begin,
-            const StaticShape& pads_end,
-            const StaticShape& kernel,
+            const Shape& pads_begin,
+            const Shape& pads_end,
+            const Shape& kernel,
             const op::RoundingType rounding_type = op::RoundingType::FLOOR,
             const PadType auto_pad = op::PadType::EXPLICIT,
             const element::Type index_element_type = element::i64,
@@ -121,7 +124,9 @@ public:
     }
 
     bool has_evaluate() const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector&, const HostTensorVector&) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
 private:
     Strides m_dilations;

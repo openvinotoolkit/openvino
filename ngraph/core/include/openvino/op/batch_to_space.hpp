@@ -22,7 +22,8 @@ namespace v1 {
 ///         of the same type as `data` input.
 class OPENVINO_API BatchToSpace : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("BatchToSpace", "opset2", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
     BatchToSpace() = default;
     /// \brief Constructs a BatchToSpace operation.
     ///
@@ -36,7 +37,9 @@ public:
                  const Output<Node>& block_shape,
                  const Output<Node>& crops_begin,
                  const Output<Node>& crops_end);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
     void validate_and_infer_types() override;

@@ -10,7 +10,6 @@
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
-#include "ngraph/util.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -22,7 +21,8 @@ namespace v0 {
 /// \brief Class for constants.
 class OPENVINO_API Constant : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Constant", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     Constant() = default;
 
@@ -37,8 +37,7 @@ public:
     /// \param values A vector of literals for initializing the tensor constant. The
     ///               size of values must match the size of the shape.
     template <typename T>
-    Constant(const element::Type& type, const StaticShape& shape, const std::vector<T>& values)
-        : Constant(type, shape) {
+    Constant(const element::Type& type, const Shape& shape, const std::vector<T>& values) : Constant(type, shape) {
         NODE_VALIDATION_CHECK(this,
                               values.size() == 1 || values.size() == shape_size(m_shape),
                               "Did not get the expected number of literals for a constant of shape ",
@@ -59,7 +58,7 @@ public:
     }
 
     /// \brief Create uninitialized constant
-    Constant(const element::Type& type, const StaticShape& shape);
+    Constant(const element::Type& type, const Shape& shape);
     /// \brief Constructs a uniform tensor constant.
     ///
     /// \param type The element type of the tensor constant.
@@ -67,7 +66,7 @@ public:
     /// \param value A scalar for initializing the uniform tensor constant. The
     ///               value is broadcast to the specified shape.
     template <class T, class = typename std::enable_if<std::is_fundamental<T>::value>::type>
-    Constant(const element::Type& type, const StaticShape& shape, T value) : Constant(type, shape) {
+    Constant(const element::Type& type, const Shape& shape, T value) : Constant(type, shape) {
         fill_data(type, value);
         m_all_elements_bitwise_identical = true;
     }
@@ -144,14 +143,14 @@ public:
     /// \param type The element type of the tensor constant.
     /// \param shape The shape of the tensor constant.
     /// \param values A list of string values to use as the constant data.
-    Constant(const element::Type& type, const StaticShape& shape, const std::vector<std::string>& values);
+    Constant(const element::Type& type, const Shape& shape, const std::vector<std::string>& values);
 
     /// \brief Constructs a tensor constant with the supplied data
     ///
     /// \param type The element type of the tensor constant.
     /// \param shape The shape of the tensor constant.
     /// \param data A void* to constant data.
-    Constant(const element::Type& type, const StaticShape& shape, const void* data);
+    Constant(const element::Type& type, const Shape& shape, const void* data);
 
     /// \brief Constructs a tensor constant with the supplied data
     ///
@@ -159,9 +158,7 @@ public:
     /// \param shape The shape of the tensor constant.
     /// \param data A pointer to pre-allocated shared data.
     template <typename T>
-    Constant(const element::Type& type,
-             const StaticShape& shape,
-             std::shared_ptr<ngraph::runtime::SharedBuffer<T>> data)
+    Constant(const element::Type& type, const Shape& shape, std::shared_ptr<ngraph::runtime::SharedBuffer<T>> data)
         : m_element_type(type),
           m_shape(shape) {
         m_data = data;
@@ -169,7 +166,7 @@ public:
     }
 
     Constant(const Constant& other);
-    Constant(const Constant& other, const StaticShape& new_shape);
+    Constant(const Constant& other, const Shape& new_shape);
     Constant& operator=(const Constant&) = delete;
 
     ~Constant() override;
@@ -181,10 +178,14 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate_lower(const HostTensorVector& outputs) const override;
     bool evaluate_upper(const HostTensorVector& outputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // Don't constant fold a constant; it would make a copy
     bool constant_fold(OutputVector& outputs, const OutputVector& inputs) override {
@@ -196,7 +197,7 @@ public:
     /// \brief Returns the value of the constant node as a Shape object
     ///        Can only be used on element::i64 nodes and interprets
     ///        negative values as zeros.
-    StaticShape get_shape_val() const;
+    Shape get_shape_val() const;
     /// \brief Returns the value of the constant node as a Strides
     ///        object
     ///        Can only be used on element::i64 nodes and interprets
@@ -228,7 +229,12 @@ public:
     ///
     /// \param shape The shape of the tensor constant.
     OPENVINO_DEPRECATED("Use Constant c-tor with shape argument instead")
-    void set_data_shape(const StaticShape& shape);
+    void set_data_shape(const Shape& shape);
+
+    /// \brief Return data size in bytes
+    size_t get_byte_size() const {
+        return m_data->size();
+    }
 
     /// \brief Wrapper around constructing a shared_ptr of a Constant
     ///
@@ -237,7 +243,7 @@ public:
     /// \param values A vector of values to use as the constant data.
     template <typename T>
     static std::shared_ptr<Constant> create(const element::Type& type,
-                                            const StaticShape& shape,
+                                            const Shape& shape,
                                             const std::vector<T>& values) {
         return std::make_shared<Constant>(type, shape, values);
     }
@@ -249,7 +255,7 @@ public:
     /// \param values An initializer_list of values to use as the constant data.
     template <typename T>
     static std::shared_ptr<Constant> create(const element::Type& type,
-                                            const StaticShape& shape,
+                                            const Shape& shape,
                                             std::initializer_list<T> values) {
         return std::make_shared<Constant>(type, shape, std::vector<T>{values});
     }
@@ -259,7 +265,7 @@ public:
     /// \param type The element type of the tensor constant.
     /// \param shape The shape of the tensor constant.
     /// \param memory An continues memory chunk which contains the constant data.
-    static std::shared_ptr<Constant> create(const element::Type& type, const StaticShape& shape, const void* memory) {
+    static std::shared_ptr<Constant> create(const element::Type& type, const Shape& shape, const void* memory) {
         return std::make_shared<Constant>(type, shape, memory);
     }
 
@@ -361,7 +367,7 @@ public:
 
     template <element::Type_t ET>
     const typename element_type_traits<ET>::value_type* get_data_ptr() const {
-        NGRAPH_CHECK(ET == get_element_type(), "get_data_ptr() called for incorrect element type.");
+        OPENVINO_ASSERT(ET == get_element_type(), "get_data_ptr() called for incorrect element type.");
         return static_cast<const typename element_type_traits<ET>::value_type*>(get_data_ptr());
     }
 
@@ -527,7 +533,7 @@ private:
 
     template <element::Type_t ET>
     typename element_type_traits<ET>::value_type* get_data_ptr_nc() {
-        NGRAPH_CHECK(ET == get_element_type(), "get_data_ptr_nc() called for incorrect element type.");
+        OPENVINO_ASSERT(ET == get_element_type(), "get_data_ptr_nc() called for incorrect element type.");
         return static_cast<typename element_type_traits<ET>::value_type*>(get_data_ptr_nc());
     }
 
@@ -665,21 +671,21 @@ private:
 #    pragma GCC diagnostic pop
 #endif
     }
-    template <ngraph::element::Type_t Type,
+    template <ov::element::Type_t Type,
               typename ValueT,
-              typename std::enable_if<Type == ngraph::element::Type_t::u4, bool>::type = true>
-    static ngraph::fundamental_type_for<Type> value_in_range(const ValueT& value) {
-        const auto result = ngraph::fundamental_type_for<Type>(value);
-        NGRAPH_CHECK(0 <= result && result <= 15, "assigned value out of range u4 values");
+              typename std::enable_if<Type == ov::element::Type_t::u4, bool>::type = true>
+    static ov::fundamental_type_for<Type> value_in_range(const ValueT& value) {
+        const auto result = ov::fundamental_type_for<Type>(value);
+        OPENVINO_ASSERT(0 <= result && result <= 15, "assigned value out of range u4 values");
         return result;
     }
 
-    template <ngraph::element::Type_t Type,
+    template <ov::element::Type_t Type,
               typename ValueT,
-              typename std::enable_if<Type == ngraph::element::Type_t::i4, bool>::type = true>
-    static ngraph::fundamental_type_for<Type> value_in_range(const ValueT& value) {
-        const auto result = ngraph::fundamental_type_for<Type>(value);
-        NGRAPH_CHECK(-8 <= result && result <= 7, "assigned value out of range i4 values");
+              typename std::enable_if<Type == ov::element::Type_t::i4, bool>::type = true>
+    static ov::fundamental_type_for<Type> value_in_range(const ValueT& value) {
+        const auto result = ov::fundamental_type_for<Type>(value);
+        OPENVINO_ASSERT(-8 <= result && result <= 7, "assigned value out of range i4 values");
         return result;
     }
 
@@ -701,7 +707,7 @@ private:
     }
 
     element::Type m_element_type;
-    StaticShape m_shape{};
+    Shape m_shape{};
     std::shared_ptr<ngraph::runtime::AlignedBuffer> m_data;
     bool m_all_elements_bitwise_identical;
     bool m_alloc_buffer_on_visit_attributes = true;

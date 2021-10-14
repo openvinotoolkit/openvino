@@ -16,14 +16,13 @@
 #include <string>
 #include <vector>
 
-#include "ie_parameter.hpp"
 #include "openvino/core/function.hpp"
 #include "openvino/runtime/infer_request.hpp"
+#include "openvino/runtime/parameter.hpp"
 #include "openvino/runtime/remote_context.hpp"
 
 namespace InferenceEngine {
 class IExecutableNetworkInternal;
-class RemoteContext;
 }  // namespace InferenceEngine
 namespace ov {
 namespace runtime {
@@ -33,8 +32,8 @@ class Core;
 /**
  * @brief This is an interface of an executable network
  */
-class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
-    std::shared_ptr<SharedObject> _so;
+class OPENVINO_RUNTIME_API ExecutableNetwork {
+    std::shared_ptr<void> _so;
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> _impl;
 
     /**
@@ -43,8 +42,7 @@ class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
      * object is destroyed.
      * @param impl Initialized shared pointer
      */
-    ExecutableNetwork(const std::shared_ptr<SharedObject>& so,
-                      const std::shared_ptr<ie::IExecutableNetworkInternal>& impl);
+    ExecutableNetwork(const std::shared_ptr<void>& so, const std::shared_ptr<ie::IExecutableNetworkInternal>& impl);
     friend class ov::runtime::Core;
 
 public:
@@ -61,18 +59,58 @@ public:
     std::shared_ptr<const Function> get_runtime_function() const;
 
     /**
-     * @brief Get parameters of executeble graph function
+     * @brief Get inputs of executable graph function
      *
-     * @return vector of paramter nodes
+     * @return vector of inputs
      */
-    ParameterVector get_parameters() const;
+    std::vector<ov::Output<const ov::Node>> inputs() const;
+    /**
+     * @brief Get input of executable graph function
+     *
+     * @return Function input or throw ov::Exception in case of several outputs
+     */
+    ov::Output<const ov::Node> input() const;
+    /**
+     * @brief Get input of executable graph function
+     *
+     * @param i input index
+     * @return Function input or throw ov::Exception if input wasn't found
+     */
+    ov::Output<const ov::Node> input(size_t i) const;
+    /**
+     * @brief Get input of executable graph function
+     *
+     * @param tensor_name The input tensor name
+     * @return Function output or throw ov::Exception if input wasn't found
+     */
+    ov::Output<const ov::Node> input(const std::string& tensor_name) const;
 
     /**
-     * @brief Get results of executeble graph function
+     * @brief Get outputs of executable graph function
      *
-     * @return vector of result nodes
+     * @return vector of outputs
      */
-    ResultVector get_results() const;
+    std::vector<ov::Output<const ov::Node>> outputs() const;
+    /**
+     * @brief Get output of executable graph function
+     *
+     * @return Function output or throw ov::Exception in case of several outputs
+     */
+    ov::Output<const ov::Node> output() const;
+    /**
+     * @brief Get output of executable graph function
+     *
+     * @param i output index
+     * @return Function output or throw ov::Exception if output wasn't found
+     */
+    ov::Output<const ov::Node> output(size_t i) const;
+    /**
+     * @brief Get output of executable graph function
+     *
+     * @param tensor_name The output tensor name
+     * @return Function output or throw ov::Exception if output wasn't found
+     */
+    ov::Output<const ov::Node> output(const std::string& tensor_name) const;
 
     /**
      * @brief Creates an inference request object used to infer the network.
@@ -97,7 +135,7 @@ public:
      *
      * @param config Map of pairs: (config parameter name, config parameter value)
      */
-    void set_config(const ie::ParamMap& config);
+    void set_config(const ParamMap& config);
 
     /** @brief Gets configuration for current executable network.
      *
@@ -110,7 +148,7 @@ public:
      * @param name config key, can be found in ie_plugin_config.hpp
      * @return Configuration parameter value
      */
-    ie::Parameter get_config(const std::string& name) const;
+    Parameter get_config(const std::string& name) const;
 
     /**
      * @brief Gets general runtime metric for an executable network.
@@ -121,14 +159,14 @@ public:
      * @param name metric name to request
      * @return Metric parameter value
      */
-    ie::Parameter get_metric(const std::string& name) const;
+    Parameter get_metric(const std::string& name) const;
 
     /**
      * @brief Returns pointer to plugin-specific shared context
      * on remote accelerator device that was used to create this ExecutableNetwork
      * @return A context
      */
-    std::shared_ptr<ie::RemoteContext> get_context() const;
+    RemoteContext get_context() const;
 
     /**
      * @brief Checks if current ExecutableNetwork object is not initialized

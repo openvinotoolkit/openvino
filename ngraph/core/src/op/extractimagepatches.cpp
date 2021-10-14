@@ -12,12 +12,12 @@ using namespace ngraph;
 
 // ExtractImagePatches v3
 
-OPENVINO_RTTI_DEFINITION(op::v3::ExtractImagePatches, "ExtractImagePatches", 3);
+BWDCMP_RTTI_DEFINITION(op::v3::ExtractImagePatches);
 
 op::v3::ExtractImagePatches::ExtractImagePatches(const Output<Node>& image,
-                                                 const ov::StaticShape& sizes,
+                                                 const ov::Shape& sizes,
                                                  const Strides& strides,
-                                                 const ov::StaticShape& rates,
+                                                 const ov::Shape& rates,
                                                  const PadType& auto_pad)
     : Op({image}),
       m_patch_sizes(sizes),
@@ -29,7 +29,7 @@ op::v3::ExtractImagePatches::ExtractImagePatches(const Output<Node>& image,
 
 void op::v3::ExtractImagePatches::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_ExtractImagePatches_validate_and_infer_types);
-    const ov::Shape input_pshape = get_input_partial_shape(0);
+    const ov::PartialShape input_pshape = get_input_partial_shape(0);
 
     NODE_VALIDATION_CHECK(this, input_pshape.rank() == 4, "input tensor must be 4D tensor.");
 
@@ -60,7 +60,7 @@ void op::v3::ExtractImagePatches::validate_and_infer_types() {
 
     if (input_pshape[1].is_dynamic() || input_pshape[2].is_dynamic() || input_pshape[3].is_dynamic()) {
         set_input_is_relevant_to_shape(0);
-        auto output_pshape = ov::Shape::dynamic(4);
+        auto output_pshape = ov::PartialShape::dynamic(4);
         set_output_type(0, get_input_element_type(0), output_pshape);
     } else {
         int32_t input_depth = input_pshape[1].get_length();
@@ -98,12 +98,12 @@ void op::v3::ExtractImagePatches::validate_and_infer_types() {
         auto out_rows_cast = static_cast<ngraph::Dimension::value_type>(out_rows);
         auto out_cols_cast = static_cast<ngraph::Dimension::value_type>(out_cols);
 
-        ov::Shape output_pshape;
+        ov::PartialShape output_pshape;
         if (input_pshape[0].is_dynamic()) {
-            output_pshape = ov::Shape{input_pshape[0], out_depth_cast, out_rows_cast, out_cols_cast};
+            output_pshape = ov::PartialShape{input_pshape[0], out_depth_cast, out_rows_cast, out_cols_cast};
         } else {
             auto input_batch_cast = static_cast<ngraph::Dimension::value_type>(input_pshape[0].get_length());
-            output_pshape = ov::Shape{input_batch_cast, out_depth_cast, out_rows_cast, out_cols_cast};
+            output_pshape = ov::PartialShape{input_batch_cast, out_depth_cast, out_rows_cast, out_cols_cast};
         }
 
         if (input_rows == 0 || input_cols == 0) {

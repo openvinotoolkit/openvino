@@ -49,7 +49,7 @@ def import_core_modules(silent: bool, path_to_module: str):
     try:
         from openvino.inference_engine import get_version, read_network  # pylint: disable=import-error,no-name-in-module
         from openvino.offline_transformations import ApplyMOCTransformations, ApplyLowLatencyTransformation, \
-            GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
+            ApplyMakeStatefulTransformation, GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
 
         # TODO: it is temporary import to check that nGraph python API is available. But in future
         # we need to replace it with Frontend imports
@@ -98,7 +98,7 @@ def import_core_modules(silent: bool, path_to_module: str):
         return True
     except Exception as e:
         # Do not print a warning if module wasn't found or silent mode is on
-        if "No module named 'openvino'" not in str(e) and not silent:
+        if "No module named 'openvino'" not in str(e):
             print("[ WARNING ] Failed to import Inference Engine Python API in: {}".format(path_to_module))
             print("[ WARNING ] {}".format(e))
 
