@@ -1,4 +1,4 @@
-## ReLU <a name="ReLU"></a> {#openvino_docs_ops_activation_ReLU_1}
+# ReLU {#openvino_docs_ops_activation_ReLU_1}
 
 **Versioned name**: *ReLU-1*
 

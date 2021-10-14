@@ -1,4 +1,4 @@
-## LSTMSequence <a name="LSTMSequence"></a> {#openvino_docs_ops_sequence_LSTMSequence_1}
+# LSTMSequence {#openvino_docs_ops_sequence_LSTMSequence_1}
 
 **Versioned name**: *LSTMSequence-1*
 
