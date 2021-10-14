@@ -13,35 +13,34 @@ namespace detail {
 
 
 
-OutputVector make_random_normal(Shape shape, element::Type type, float mean, float scale, float seed)
+OutputVector make_random_normal(const Output<ngraph::Node>& shape, element::Type type, float mean, float scale, float seed)
 {
     // ONNX spefifies the seed as a float, but ngraph uses uint64_t
     uint64_t seed_uint64 = static_cast<uint64_t>(seed*1000);
     return box_muller(shape, type, mean, scale, seed_uint64);
 }
 
-OutputVector make_random_normal(Shape shape, element::Type type, float mean, float scale)
+OutputVector make_random_normal(const Output<ngraph::Node>& shape, element::Type type, float mean, float scale)
 {
     return box_muller(shape, type, mean, scale);
 }
 
-OutputVector box_muller(Shape shape, element::Type target_type, float mean, float scale, uint64_t op_seed, uint64_t global_seed)
+OutputVector box_muller(const Output<ngraph::Node>& shape, element::Type target_type, float mean, float scale, uint64_t op_seed, uint64_t global_seed)
 {
     // We need to use two op_seeds to make sure we get different results for two RandomUniform series
     const uint64_t seed_1 = (op_seed == 0 ? rand() % 10000 : op_seed);
     const uint64_t seed_2 = (op_seed == 0 ? rand() % 10000 : op_seed + 10000);
 
-    const auto target_shape_const = default_opset::Constant::create(ngraph::element::i64, Shape{shape.size()}, shape);
     const auto min_val = default_opset::Constant::create(target_type, Shape{1}, {0});
     const auto max_val = default_opset::Constant::create(target_type, Shape{1}, {1});
 
-    const auto uniform_1 = std::make_shared<ngraph::opset8::RandomUniform>(target_shape_const,
+    const auto uniform_1 = std::make_shared<ngraph::opset8::RandomUniform>(shape,
                                                             min_val,
                                                             max_val,
                                                             target_type,
                                                             global_seed,
                                                             seed_1);
-    const auto uniform_2 = std::make_shared<ngraph::opset8::RandomUniform>(target_shape_const,
+    const auto uniform_2 = std::make_shared<ngraph::opset8::RandomUniform>(shape,
                                                             min_val,
                                                             max_val,
                                                             target_type,

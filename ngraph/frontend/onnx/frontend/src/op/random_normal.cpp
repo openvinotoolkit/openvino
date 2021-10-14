@@ -24,7 +24,7 @@ OutputVector random_normal(const Node& node) {
     const auto seed = node.get_attribute_value<float>("seed", 0);
 
     const auto shape_dims = node.get_attribute_value<std::vector<int64_t>>("shape");
-    const auto shape = Shape{shape_dims.begin(), shape_dims.end()};
+    const auto shape = default_opset::Constant::create(element::i64, {shape_dims.size()}, shape_dims);
 
     return ngraph::onnx_import::detail::make_random_normal(shape, target_type, mean, scale, seed);
 

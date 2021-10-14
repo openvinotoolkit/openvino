@@ -32,19 +32,20 @@ OutputVector random_uniform_like(const Node& node) {
 
     const auto high = node.get_attribute_value<float>("high", 1.0f);
     const auto low = node.get_attribute_value<float>("low", 0.0f);
-    const auto seed = node.get_attribute_value<int64_t>("seed", 0);
+    const auto seed = node.get_attribute_value<float>("seed", 0.f);
 
     const auto high_const = default_opset::Constant::create(ngraph::element::f32, Shape{1}, {high});
     const auto low_const = default_opset::Constant::create(ngraph::element::f32, Shape{1}, {low});
 
     const uint64_t global_seed = 0;
+    const auto seed_uint64 = static_cast<uint64_t>(seed*1000);
 
     return {std::make_shared<ngraph::opset8::RandomUniform>(target_shape,
                                                             low_const,
                                                             high_const,
                                                             target_type,
                                                             global_seed,
-                                                            seed)};
+                                                            seed_uint64)};
 }
 
 }  // namespace set_1

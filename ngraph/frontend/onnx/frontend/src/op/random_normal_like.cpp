@@ -26,12 +26,11 @@ OutputVector random_normal_like(const Node& node) {
         target_type = input.get_element_type();
     }
 
+    const auto shape = std::make_shared<default_opset::ShapeOf>(input);
+
     const auto mean = node.get_attribute_value<float>("mean", 0.0f);
     const auto scale = node.get_attribute_value<float>("scale", 1.0f);
     const auto seed = node.get_attribute_value<float>("seed", 0);
-
-    const auto shape_dims = node.get_attribute_value<std::vector<int64_t>>("shape");
-    const auto shape = input.get_shape();
 
     return ngraph::onnx_import::detail::make_random_normal(shape, target_type, mean, scale, seed);
 

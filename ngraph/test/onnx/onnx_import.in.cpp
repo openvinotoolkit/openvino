@@ -4133,9 +4133,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_random_uniform) {
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/random_uniform.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    // These output values are unknown at this time as we don't have a reference implementation of random number
-    // generator
-    test_case.add_expected_output<ngraph::float16>(Shape{2, 2}, {41, 42, 43, 44});
+    test_case.add_expected_output<float>(Shape{2, 2}, {43.45518 , 48.67585, 42.227386, 40.86294});
     test_case.run();
 }
 
@@ -4144,11 +4142,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_random_uniform_like) {
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/random_uniform_like.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_expected_output<ngraph::float16>(Shape{2, 2}, {0, 0, 0, 0});
-
-    // These output values are unknown at this time as we don't have a reference implementation of random number
-    // generator
-    test_case.add_input<ngraph::float16>(Shape{2, 2}, {41, 42, 43, 44});
+    test_case.add_input<float>(Shape{2, 2}, {41, 42, 43, 44});
+    test_case.add_expected_output<float>(Shape{2, 2}, {43.45518 , 48.67585, 42.227386, 40.86294});
     test_case.run();
 }
 
@@ -4157,9 +4152,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_random_normal) {
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/random_normal.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    // These output values are unknown at this time as we don't have a reference implementation of random number
-    // generator
-    test_case.add_expected_output<ngraph::float16>(Shape{2, 2}, {41, 42, 43, 44});
+    test_case.add_expected_output<float>(Shape{2, 2}, {13.459274, 41.75028, -19.311913, 131.79282});
     test_case.run();
 }
 
@@ -4168,10 +4161,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_random_normal_like) {
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/random_normal_like.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_expected_output<ngraph::float16>(Shape{2, 2}, {0, 0, 0, 0});
-
-    // These output values are unknown at this time as we don't have a reference implementation of random number
-    // generator
-    test_case.add_input<ngraph::float16>(Shape{2, 2}, {41, 42, 43, 44});
+    test_case.add_input<float>(Shape{2, 2}, {0, 0, 0, 0});
+    test_case.add_expected_output<float>(Shape{2, 2}, {13.459274, 41.75028, -19.311913, 131.79282});
     test_case.run();
 }

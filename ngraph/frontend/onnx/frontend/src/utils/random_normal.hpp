@@ -11,11 +11,11 @@ namespace ngraph {
 namespace onnx_import {
 namespace detail {
 
-OutputVector make_random_normal(Shape shape, element::Type type, float mean, float scale);
+OutputVector make_random_normal(const Output<ngraph::Node>& shape, element::Type type, float mean, float scale);
 
-OutputVector make_random_normal(Shape shape, element::Type type, float mean, float scale, float seed);
+OutputVector make_random_normal(const Output<ngraph::Node>& shape, element::Type type, float mean, float scale, float seed);
 
-OutputVector box_muller(Shape shape, element::Type type, float mean, float scale, uint64_t op_seed = 0, uint64_t global_seed = 0);
+OutputVector box_muller(const Output<ngraph::Node>& shape, element::Type type, float mean, float scale, uint64_t op_seed = 0, uint64_t global_seed = 0);
 
 }  // namespace detail
 }  // namespace onnx_import

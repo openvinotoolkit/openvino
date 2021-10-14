@@ -27,7 +27,7 @@ def test_random_uniform():
     assert result.shape == (30, 30)
     assert len(np.unique(result)) == 900
     assert np.max(result) < high
-    assert np.min(result) < low
+    assert np.min(result) > low
     assert np.isclose(np.mean(result), np.mean(np.array([low, high])), rtol=0.001)
 
 
