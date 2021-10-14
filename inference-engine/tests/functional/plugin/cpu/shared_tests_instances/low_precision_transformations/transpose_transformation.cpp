@@ -39,6 +39,7 @@ const std::vector<TransposeTransformationTestValues> testValues = {
             {25.5f, 25.5f + 12.5f * 2, 25.5f + 12.5f * 4}
         }
     },
+    // 6D
     {
         { 1, 1000, 1, 1, 3, 4},
         { 0, 2, 1, 3, 5, 4},

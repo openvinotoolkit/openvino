@@ -34,7 +34,7 @@ const std::vector<ReshapeTransformationParam> params = {
         { -1 },
         { 256ul, ngraph::Shape{}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         "Reshape",
-        "FP32"
+        "U8"
     },
     // 4D -> 3D
     {
@@ -57,6 +57,15 @@ const std::vector<ReshapeTransformationParam> params = {
         { 1, 3, 4, 8 },
         { 1, -1 },
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        "Reshape",
+        "U8"
+    },
+    // 4D -> 6D
+    {
+
+        { 1, 3, 4, 8 },
+        { 1, 3, 4, 8, 1, 1 },
+        { 256ul, ngraph::Shape{ 1, 1, 1, 1}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         "Reshape",
         "U8"
     },
