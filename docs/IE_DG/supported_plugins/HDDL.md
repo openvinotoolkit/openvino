@@ -6,7 +6,7 @@ The Inference Engine HDDL plugin was developed for inference with neural network
 
 ## Configuring the HDDL Plugin
 
-To configure your Intel® Vision Accelerator Design With Intel® Movidius™ on supported operating systemss, refer to the Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs section in the installation guides for [Linux](../../install_guides/installing-openvino-linux.md) or [Windows](../../install_guides/installing-openvino-windows.md).
+To configure your Intel® Vision Accelerator Design With Intel® Movidius™ on supported operating systems, refer to the Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs section in the installation guides for [Linux](../../install_guides/installing-openvino-linux.md) or [Windows](../../install_guides/installing-openvino-windows.md).
 
 ## Supported networks
 

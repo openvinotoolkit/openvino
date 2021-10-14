@@ -2,7 +2,7 @@ CPU Plugin {#openvino_docs_IE_DG_supported_plugins_CPU}
 =======
 
 ## Introducing the CPU Plugin
-The CPU plugin was developed to achieve high performance of neural networks on CPU, using the Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN). As with other OpenVINO™ device plugins, the Inference Engine automatically loads the correct plugin for the device you specify (or CPU by default).
+The CPU plugin was developed to achieve high performance of neural networks on CPU, using the Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN).
 
 Currently, the CPU plugin uses Intel® Threading Building Blocks (Intel® TBB) in order to parallelize calculations. Please refer to the [Optimization Guide](../../optimization_guide/dldt_optimization_guide.md) for associated performance considerations.
 
