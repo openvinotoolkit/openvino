@@ -9,97 +9,96 @@ OpenVINO Documentation
 .. raw:: html
 
    <div class="section" id="welcome-to-openvino-toolkit-s-documentation">
-      <style>
-      h1 {
-         display: none;
-      }
-      </style>
       <link rel="stylesheet" type="text/css" href="_static/css/homepage_style.css">
       <div id="HP_head_banner">
-
-         <p>AI development and deployment made easy</p>
+         <p>Write once, deploy anywhere</p>
          <div>
-               <a href=""> GET STARTED </a>
-               <a href=""> <img src="_static/images/download_btn_installer.svg" alt="download OpenVINO" /> </a>
-               <a href=""> <img src="_static/images/download_btn_github.svg" alt="OpenVINO GitHub" /> </a>
+            <a href=""> GET STARTED </a>
+            <a href="https://software.seek.intel.com/openvino-toolkit"> <img
+                  src="_static/images/download_btn_installer.svg" alt="download OpenVINO" /> </a>
+            <a href="https://github.com/openvinotoolkit/openvino"> <img src="_static/images/download_btn_github.svg"
+                  alt="OpenVINO GitHub" /> </a>
          </div>
       </div>
       <div style="clear:both;"> </div>
       <p>
-         OpenVINO™ toolkit is a comprehensive solution for quick development and deployment of applications based
-         on AI and deep learning. It supports a wide range of tasks such as emulation of human vision, automatic
-         speech recognition, natural language processing, recommendation systems, etc.
+         OpenVINO™ toolkit is a comprehensive solution for quick development and deployment of applications based on AI and
+         deep learning. It supports a wide range of tasks such as emulation of human vision, automatic speech recognition,
+         natural language processing, recommendation systems, etc.
       </p>
       <ul>
-         <li>Enables CNN-based deep learning inference on the edge</li>
-         <li>Optimized for Intel® range of products: CPUs, Integrated Graphics, Intel® Neural Compute Stick 2, and
-               Intel® Movidius™ VPUs</li>
+         <li>Enables optimized deep learning inference from the edge to the cloud</li>
+         <li>Optimized for a range of Intel® platforms: CPUs, Integrated Graphics, Intel® Neural Compute Stick 2, and Intel®
+            Movidius™ VPUs</li>
          <li>Easy-to-use library of computer vision functions and pre-optimized kernels</li>
          <li>Optimized calls for computer vision standards, including OpenCV* and OpenCL™</li>
       </ul>
       <img class="HP_img_chart" src="_static/images/ov_chart.png"
          alt="OpenVINO allows to process models built with Caffe, Keras, mxnet, TensorFlow, ONNX, and PyTorch. They can be easily optimized and deployed on devices running Windows, Linux, or MacOS." />
       <div style="clear:both;"> </div>
+      <div class="HP_separator-header">
+         <p> Train, Optimize, Deploy </p>
+      </div>
+      <div style="clear:both;"> </div>
       <img class="HP_img_chart" src="_static/images/HP_ov_flow.svg" alt="" />
-      <p>* Not required by ONNX models</p>
+      <p>* The ONNX format is also supported, but conversion to OpenVINO is recommended for better performance.</p>
       <div style="clear:both;"> </div>
       <div class="HP_separator-header">
-         <p> Optimized for the<br />Intel® range of products </p>
+         <p> Optimized for a range <br /> of Intel® platforms</p>
       </div>
       <div style="clear:both;"> </div>
       <div id="HP_optimized_for">
          <p>
-               Intel® CPU<br />
-               Intel® Processor Graphics<br />
-               Intel® Neural Compute Stick 2<br />
-               Intel® Vision Accelerator Design<br />
-               Intel® Movidius™ VPU
+            Intel® CPU<br />
+            Intel® Processor Graphics<br />
+            Intel® Neural Compute Stick 2<br />
+            Intel® Vision Accelerator Design<br />
+            Intel® Movidius™ VPU
          </p>
          <img src="_static/images/HP_optimized_for.png" alt="" />
       </div>
       <div style="clear:both;"> </div>
       <div class="HP_separator-header">
-         <p> Would you like <br /> to know more?</p>
+         <p> Get Started</p>
       </div>
       <div style="clear:both;"> </div>
       <div class="HP_infoboxes">
-         <a href="">
-               <h3>Get Started </H3>
-               <p> Learn how to download, install, and configure OpenVINO </p>
+         <a href="get_started.html">
+            <h3>Get Started </H3>
+            <p> Learn how to download, install, and configure OpenVINO. </p>
          </a>
-         <a href="">
-               <h3>Open Model Zoo </h3>
-               <p> Browse through over a 100 publicly available neural networks and pick the right one for your
-                  solution.</p>
+         <a href="model_zoo.html">
+            <h3>Open Model Zoo </h3>
+            <p> Browse through over 200 publicly available neural networks and pick the right one for your solution. </p>
          </a>
-         <a href="">
-               <h3>Samples & Demos</h3>
-               <p> Try OpenVINO using ready-made applications, from small code snippets, to entire pipelines which are
-                  implementation-ready.</p>
+         <a href="openvino_docs_get_started_get_started_demos.html">
+            <h3>Samples & Demos</h3>
+            <p> Try OpenVINO using ready-made applications, from small code snippets, to entire pipelines which are
+               implementation-ready. </p>
          </a>
-         <a href="">
-               <h3>Tutorials </h3>
-               <p> Learn how to use OpenVINO based on our training material</p>
+         <a href="tutorials.html">
+            <h3>Tutorials </h3>
+            <p> Learn how to use OpenVINO based on our training material. </p>
          </a>
-         <a href="">
-               <h3>DL Workbench </h3>
-               <p> Learn about the alternative, web-based version of OpenVINO </p>
+         <a href="workbench_docs_Workbench_DG_Introduction.html">
+            <h3>DL Workbench </h3>
+            <p> Learn about the alternative, web-based version of OpenVINO. </p>
          </a>
-         <a href="">
-               <h3>Tune & Optimize </h3>
-               <p> Adjust your application to your specific needs </p>
+         <a href="openvino_docs_optimization_guide_dldt_optimization_guide.html">
+            <h3>Tune & Optimize </h3>
+            <p> Adjust your application to your specific needs. </p>
          </a>
-         <a href="">
-               <h3>Model Optimizer </h3>
-               <p> Learn how to convert your model and optimize it for use with OpenVINO </p>
+         <a href="openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html">
+            <h3>Model Optimizer </h3>
+            <p> Learn how to convert your model and optimize it for use with OpenVINO. </p>
          </a>
-         <a href="">
-               <h3>Inference Engine </h3>
-               <p> Learn about the heart of OpenVINO which executes the IR and ONNX models on target devices. </p>
+         <a href="openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html">
+            <h3>Inference Engine </h3>
+            <p> Learn about the heart of OpenVINO which executes the IR and ONNX models on target devices. </p>
          </a>
-         <a href="">
-               <h3>Performance Benchmark </h3>
-               <p> Performance benchmark result for models on Intel (r) hardware' </p>
+         <a href="openvino_docs_performance_benchmarks_openvino.html">
+            <h3>Performance Benchmarks </h3>
+            <p> View performance benchmark results for various models on Intel platforms. </p>
          </a>
       </div>
       <div style="clear:both;"> </div>

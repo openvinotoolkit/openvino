@@ -37,7 +37,7 @@ function getCompoundTocTree(compound)
 			local fileName = getItemFileName(item)
 			local isDuplicate = hash[fileName]
 			if isDuplicate == nil then
-				s = s .. "\t" .. fileName .. "\n"
+				s = s .. "\t" .. item.name .. " <" .. fileName .. ">\n"
 				hash[fileName] = true
 			end
 		end
@@ -50,7 +50,7 @@ function getCompoundTocTree(compound)
 			local fileName = getItemFileName(item)
 			local isDuplicate = hash[fileName]
 			if isDuplicate == nil then
-				s = s .. "\t" .. fileName .. "\n"
+				s = s .. "\t" .. item.name .. " <" .. fileName .. ">\n"
 				hash[fileName] = true
 			end
 		end
@@ -63,7 +63,7 @@ function getCompoundTocTree(compound)
 			local fileName = getItemFileName(item)
 			local isDuplicate = hash[fileName]
 			if isDuplicate == nil then
-				s = s .. "\t" .. fileName .. "\n"
+				s = s .. "\t" .. item.name .. " <" .. fileName .. ">\n"
 				hash[fileName] = true
 			end
 		end
@@ -76,7 +76,7 @@ function getCompoundTocTree(compound)
 			local fileName = getItemFileName(item)
 			local isDuplicate = hash[fileName]
 			if isDuplicate == nil then
-				s = s .. "\t" .. fileName .. "\n"
+				s = s .. "\t" .. item.name .. " <" .. fileName .. ">\n"
 				hash[fileName] = true
 			end
 		end
@@ -89,7 +89,7 @@ function getCompoundTocTree(compound)
 			local fileName = getItemFileName(item)
 			local isDuplicate = hash[fileName]
 			if isDuplicate == nil then
-				s = s .. "\t" .. fileName .. "\n"
+				s = s .. "\t" .. item.name .. " <" .. fileName .. ">\n"
 				hash[fileName] = true
 			end
 		end
@@ -102,7 +102,7 @@ function getCompoundTocTree(compound)
 			local fileName = getItemFileName(item)
 			local isDuplicate = hash[fileName]
 			if isDuplicate == nil then
-				s = s .. "\t" .. fileName .. "\n"
+				s = s .. "\t" .. item.name .. " <" .. fileName .. ">\n"
 				hash[fileName] = true
 			end
 		end
@@ -115,7 +115,7 @@ function getCompoundTocTree(compound)
 			local fileName = getItemFileName(item)
 			local isDuplicate = hash[fileName]
 			if isDuplicate == nil then
-				s = s .. "\t" .. fileName .. "\n"
+				s = s .. "\t" .. item.name .. " <" .. fileName .. ">\n"
 				hash[fileName] = true
 			end
 		end
@@ -128,7 +128,7 @@ function getCompoundTocTree(compound)
 			local fileName = getItemFileName(item)
 			local isDuplicate = hash[fileName]
 			if isDuplicate == nil then
-				s = s .. "\t" .. fileName .. "\n"
+				s = s .. "\t" .. item.name .. " <" .. fileName .. ">\n"
 				hash[fileName] = true
 			end
 		end
@@ -154,7 +154,7 @@ function getCompoundTocTree(compound)
 			local fileName = getItemFileName(item)
 			local isDuplicate = hash[fileName]
 			if isDuplicate == nil then
-				s = s .. "\t" .. fileName .. "\n"
+				s = s .. "\t" .. item.name .. " <" .. fileName .. ">\n"
 				hash[fileName] = true
 			end
 		end
