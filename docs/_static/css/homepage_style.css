@@ -1,7 +1,7 @@
 /* overrides */
 .switcher-set {display: none;}
 
-.openvino-documentation ~ h1 {
+#openvino-documentation ~ h1 {
 	display: none;
 }
 
