@@ -17,12 +17,13 @@
 #include <ngraph/variant.hpp>
 #include <transformations/utils/utils.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <legacy/cnn_network_impl.hpp>  // deprecated API
-#include <legacy/ie_layers.h>  // deprecated API
-
+#include <ie_ngraph_utils.hpp>
+#include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
+using namespace InferenceEngine;
+using namespace InferenceEngine::details;
 
 TEST(TransformationTests, ConvBiasFusion) {
     std::shared_ptr<ngraph::Function> f(nullptr);
@@ -52,12 +53,13 @@ TEST(TransformationTests, ConvBiasFusion) {
         }
     }
 
-    auto clonedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+    auto clonedNetwork = InferenceEngine::details::cloneNetwork(network);
+    auto funcs = clonedNetwork.getFunction();
 
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::CNNLayerPtr conv;
-    clonedNetwork->getLayerByName("add", conv, nullptr);
-    ASSERT_TRUE(conv->params.count("PrimitivesPriority"));
-    ASSERT_EQ(conv->params.at("PrimitivesPriority"), "test");
-    IE_SUPPRESS_DEPRECATED_END
+    for (const auto & op : funcs->get_ops()) {
+        if (op->get_friendly_name() == "add") {
+            auto pp = getPrimitivesPriority(op);
+            ASSERT_EQ(pp, "test");
+        }
+    }
 }
