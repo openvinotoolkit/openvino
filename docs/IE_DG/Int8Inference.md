@@ -11,25 +11,31 @@ Low-precision 8-bit inference is optimized for:
 - Intel® processor graphics:
   - Intel® Iris® Xe Graphics
   - Intel® Iris® Xe MAX Graphics
-- A model must be quantized. You can use a quantized model from [OpenVINO™ Toolkit Intel's Pre-Trained Models](@ref omz_models_group_intel) or quantize a model yourself. For quantization, you can use the:
-  - [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
-  - [Neural Network Compression Framework](https://www.intel.com/content/www/us/en/artificial-intelligence/posts/openvino-nncf.html) available on GitHub: https://github.com/openvinotoolkit/nncf
 
 ## Introduction
 
-A lot of investigation was made in the field of deep learning with the idea of using low-precision computation during inference in order to boost deep learning pipelines and achieve higher performance. For example, one of the popular approaches is to shrink the precision of activations and weights values from `fp32` precision to smaller ones, for example, to `fp11` or `int8`. For more information about this approach, refer to the
-**Brief History of Lower Precision in Deep Learning** section in [this whitepaper](https://software.intel.com/en-us/articles/lower-numerical-precision-deep-learning-inference-and-training).
+For 8-bit integer computation, a model must be quantized. You can use a quantized model from [OpenVINO™ Toolkit Intel's Pre-Trained Models](@ref omz_models_group_intel) or quantize a model yourself. For quantization, you can use the following:
+- [Post-Training Optimization Tool](@ref pot_docs_LowPrecisionOptimizationGuide) delivered with the Intel® Distribution of OpenVINO™ toolkit release package
+- [Neural Network Compression Framework](https://www.intel.com/content/www/us/en/artificial-intelligence/posts/openvino-nncf.html) available on GitHub: https://github.com/openvinotoolkit/nncf
 
-8-bit computation (referred to as `int8`) offers better performance compared to the results of inference in higher precision (for example, `fp32`), because they allow loading more data into a single processor instruction. Usually the cost for significant boost is reduced accuracy. However, it has been proven that the drop in accuracy can be negligible and depends on task requirements, so that an application engineer configure the maximum accuracy drop that is acceptable.
+The quantization process adds [FakeQuantize](../ops/quantization/FakeQuantize_1.md) layers on activations and weights for most layers. Read more about mathematical computations in the [Uniform Quantization with Fine-Tuning](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md).
 
-Let's explore the quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model. Use the [Model Downloader](@ref omz_tools_downloader) tool to download the `fp16` model from [OpenVINO™ Toolkit - Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo):
+When you pass the quantized IR to the OpenVINO™ plugin, the plugin automatically recognizes it as a quantized model and performs 8-bit inference. Note that if you pass a quantized model to another plugin that does not support 8-bit inference but supports all operations from the model, the model is inferred in precision that this plugin supports.
+
+At runtime, the quantized model is loaded to the plugin. The plugin uses the `Low Precision Transformation` component to update the model to infer it in low precision:
+   - Update `FakeQuantize` layers to have quantized output tensors in low-precision range and add dequantization layers to compensate for the update. Dequantization layers are pushed through as many layers as possible to have more layers in low precision. After that, most layers have quantized input tensors in low-precision range and can be inferred in low precision. Ideally, dequantization layers should be fused in the next `FakeQuantize` layer.
+   - Weights are quantized and stored in `Constant` layers. 
+
+## Prerequisites
+
+Let's explore quantized [TensorFlow* implementation of the ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model. Use [Model Downloader](@ref omz_tools_downloader) to download the `FP16` model from [OpenVINO™ Toolkit - Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo):
+
 ```sh
-cd <INSTALL_DIR>/deployment_tools/tools/model_downloader
-./downloader.py --name resnet-50-tf --precisions FP16-INT8 --output_dir <your_model_directory>
+<omz_dir>//tools/downloader/downloader.py --name resnet-50-tf --precisions FP16-INT8
 ```
-After that, you should quantize the model by the [Model Quantizer](@ref omz_tools_downloader) tool. For the dataset, you can choose to download the ImageNet dataset from [here](https://www.image-net.org/download.php).
+After that you should quantize the model with the [Model Quantizer](@ref omz_tools_downloader) tool.
 ```sh
-./quantizer.py --model_dir --name public/resnet-50-tf --dataset_dir <DATASET_DIR> --precisions=FP16-INT8
+<omz_dir>//tools/downloader/quantizer.py --model_dir public/resnet-50-tf --dataset_dir <DATASET_DIR> --precisions=FP16-INT8
 ```
 The simplest way to infer the model and collect performance counters is the [C++ Benchmark Application](../../inference-engine/samples/benchmark_app/README.md). 
 ```sh
@@ -70,14 +76,12 @@ available from the Inference Engine API. For example, the part of performance co
 | resnet\_model/add\_5/fq\_input\_1                         | NOT\_RUN   | FakeQuantize | undef                | 0             | 0            |
 
 
-> The `exeStatus` column of the table includes possible values:
-> - `EXECUTED` - layer was executed by standalone primitive,
-> - `NOT_RUN` - layer was not executed by standalone primitive or was fused with another operation and executed in another layer primitive.  
->
-> The `execType` column of the table includes inference primitives with specific suffixes. The layers have the following marks:
-> * Suffix `I8` for layers that had 8-bit data type input and were computed in 8-bit precision
-> * Suffix `FP32` for layers computed in 32-bit precision 
+   The `exeStatus` column of the table includes possible values:
+   - `EXECUTED` - layer was executed by standalone primitive,
+   - `NOT_RUN` - layer was not executed by standalone primitive or was fused with another operation and executed in another layer primitive.  
+   
+   The `execType` column of the table includes inference primitives with specific suffixes. The layers have the following marks:
+   * Suffix `I8` for layers that had 8-bit data type input and were computed in 8-bit precision
+   * Suffix `FP32` for layers computed in 32-bit precision 
 
-All `Convolution` layers are executed in int8 precision. Rest layers are fused into Convolutions using post operations optimization technique, which is described in [Internal CPU Plugin Optimizations](supported_plugins/CPU.md).
-
-[int8_flow]: img/cpu_int8_flow.png
+   All `Convolution` layers are executed in int8 precision. Rest layers are fused into Convolutions using post operations optimization technique, which is described in [Internal CPU Plugin Optimizations](supported_plugins/CPU.md).
