@@ -7,6 +7,7 @@
 #include <random>
 #include "openvino/op/constant.hpp"
 #include "openvino/op/abs.hpp"
+#include "openvino/op/equal.hpp"
 #include "base_reference_test.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
@@ -38,7 +39,6 @@ struct ConstantParams {
 class ReferenceConstantLayerTest : public testing::TestWithParam<ConstantParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         auto params = GetParam();
         if (params.testcaseName == "tensor_constant"                ||
                 params.testcaseName == "scalar_constant_float32"    ||
@@ -68,7 +68,7 @@ public:
         } else if (params.testcaseName == "constant_equality_bool") {
             function = CreateFunction_Equality_Bool(params.inputShape, params.inType, params.inputData);
             inputData = {};
-            refOutData = {params.refData, params.refData};
+            refOutData = {params.refData};
         } else {
             IE_THROW() << "This test is not supported";
         }
@@ -98,7 +98,8 @@ private:
     static std::shared_ptr<Function> CreateFunction_2Constant(const PartialShape& input_shape, const element::Type& input_type,
                                                     const runtime::Tensor& constant_tensor) {
         auto A = op::v0::Constant::create(input_type, input_shape.to_shape(), constant_tensor.data());
-        return std::make_shared<Function>(NodeVector{A, A}, ParameterVector{});
+        auto B = op::v0::Constant::create(input_type, input_shape.to_shape(), constant_tensor.data());
+        return std::make_shared<Function>(NodeVector{A, B}, ParameterVector{});
     }
 
     static std::shared_ptr<Function> CreateFunction_With_Op(const PartialShape& input_shape, const element::Type& input_type,
@@ -119,12 +120,17 @@ private:
     static std::shared_ptr<Function> CreateFunction_Equality_Bool(const PartialShape& input_shape, const element::Type& input_type,
                                                     const runtime::Tensor& constant_tensor) {
         auto A = op::v0::Constant::create(input_type, input_shape.to_shape(), constant_tensor.data());
-        return std::make_shared<Function>(NodeVector{A, A}, ParameterVector{});
+        auto B = op::v0::Constant::create(input_type, input_shape.to_shape(), {true, true, true, true});
+        return std::make_shared<Function>(std::make_shared<op::v1::Equal>(A, B), ParameterVector{});
     }
 };
 
 TEST_P(ReferenceConstantLayerTest, CompareWithHardcodedRefs) {
     Exec();
+    if (this->GetParam().testcaseName == "constant_multi_use") {
+        Infer();
+        Validate();
+    }
 }
 
 template <element::Type_t IET, element::Type_t OET>
@@ -177,10 +183,10 @@ std::vector<ConstantParams> generateConstantCombinedParams() {
             {0x4000000000000001, 0x4000000000000002},
             {0x4000000000000001, 0x4000000000000002},
             "tensor_constant_int64"),
-        generateConstantParams<element::Type_t::boolean, element::Type_t::i32>(
+        generateConstantParams<element::Type_t::u8, element::Type_t::u8>(
             {4},
             {true, false, true, false},
-            {},
+            {true, false, true, false},
             "constant_equality_bool"),
         generateConstantParams<element::Type_t::u4, element::Type_t::u4>(
             {2, 2, 3},
