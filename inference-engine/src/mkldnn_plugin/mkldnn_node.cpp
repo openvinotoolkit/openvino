@@ -50,6 +50,7 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "mkldnn_debug.h"
 #include "utils/rt_info/memory_formats_attribute.hpp"
+#include <ngraph/opsets/opset1.hpp>
 
 #include <dnnl_types.h>
 #include <ie_ngraph_utils.hpp>
@@ -107,6 +108,9 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
 
     isDynamic = std::any_of(inputShapes.begin(), inputShapes.end(), [](const Shape& shape){ return shape.isDynamic(); }) ||
                 std::any_of(outputShapes.begin(), outputShapes.end(), [](const Shape& shape){ return shape.isDynamic(); });
+
+    if (isDynamic)
+        createShapeInferSubgraph(op);
 
     const auto& rtInfo = op->get_rt_info();
     if (rtInfo.count("originalLayersNames")) {
@@ -487,19 +491,29 @@ void MKLDNNNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNNode::executeDynamic(mkldnn::stream strm) {
-    const auto newShapes = shapeInfer();
-    if (!newShapes.empty())
-        redefineOutputMemory(newShapes);
+    if (needShapeInfer())
+        redefineOutputMemory(shapeInfer());
+    if (needPrepareParams())
+        prepareParams();
     executeDynamicImpl(strm);
+    updateLastInputDims();
 }
 
-void MKLDNNNode::redefineOutputMemory(const std::vector<VectorDims> &newShapes) {
-    if (newShapes.size() != outputShapes.size()) {
+void MKLDNNNode::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) {
+    if (newOutputShapes.size() != outputShapes.size()) {
         IE_THROW() << "Number shapes mismatch with real outputs number for node with name: " << getName();
     }
     for (size_t i = 0; i < outputShapes.size(); i++) {
         const auto edges = getChildEdgesAtPort(i);
-        const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newShapes[i]);
+        const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShapes[i]);
+
+        const auto &currDesc = edges[0]->getMemory().getDesc();
+        if (currDesc.getShape().isStatic() && currDesc.getShape().getStaticDims() == newOutputShapes[i])
+            continue;
+
+        // this path neccesary if there are several edges per one port
+        // in this case edge memory share same physical memory
+        // so we need to find which edge allocate memory, reallocate memory and share this memory between other edges
         size_t sharedEdgeNum = 0;
         for (size_t j = 0; j < edges.size(); j++) {
             if (!edges[j]->getMemory().isUsedExternalStorage()) {
@@ -533,7 +547,7 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
                 portConfig.constant = false;
                 auto desc = getSrcMemDesc(itpd, i);
                 if (desc->getType() & MemoryDescType::Blocked) {
-                    portConfig.desc = MemoryDescUtils::cloneWithUndefStridesAndOffset(*desc);
+                    portConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
                 } else {
                     portConfig.desc = std::move(desc);
                 }
@@ -546,7 +560,7 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
                 portConfig.constant = false;
                 auto desc = getDstMemDesc(itpd, i);
                 if (desc->getType() & MemoryDescType::Blocked) {
-                    portConfig.desc = MemoryDescUtils::cloneWithUndefStridesAndOffset(*desc);
+                    portConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
                 } else {
                     portConfig.desc = std::move(desc);
                 }
@@ -856,7 +870,7 @@ MemoryDescPtr MKLDNNNode::getDefinedInputDesc(const NodeConfig &config, size_t i
 
     if (num >= 0) {
         auto parentConf = selectedPD->getConfig().outConfs[num];
-        parentConf.desc = MemoryDescUtils::cloneWithNewPrecision(*parentConf.desc, config.inConfs[idx].desc->getPrecision());
+        parentConf.desc = parentConf.desc->cloneWithNewPrecision(config.inConfs[idx].desc->getPrecision());
         if (!parentConf.desc->isDefined() && parentConf.inPlace >= 0)
             getParentEdgeAt(idx)->getParent()->initOptimalPrimitiveDescriptor();
         parentConf = getParentEdgeAt(idx)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num];
@@ -865,7 +879,7 @@ MemoryDescPtr MKLDNNNode::getDefinedInputDesc(const NodeConfig &config, size_t i
         }
     }
 
-    return MemoryDescUtils::cloneWithDefaultStridesAndOffset(*config.inConfs[idx].desc);
+    return config.inConfs[idx].desc->as<BlockedMemoryDesc>()->cloneWithDefaultStridesAndOffset();
 }
 
 MemoryDescPtr MKLDNNNode::getDefinedOutputDesc(const NodeConfig &config, size_t idx) const {
@@ -884,7 +898,7 @@ MemoryDescPtr MKLDNNNode::getDefinedOutputDesc(const NodeConfig &config, size_t 
 
     if (num >= 0) {
         auto childConf = selectedPD->getConfig().inConfs[num];
-        childConf.desc = MemoryDescUtils::cloneWithNewPrecision(*childConf.desc, config.outConfs[idx].desc->getPrecision());
+        childConf.desc = childConf.desc->cloneWithNewPrecision(config.outConfs[idx].desc->getPrecision());
         if (!childConf.desc->isDefined() && childConf.inPlace >= 0)
             getChildEdgeAt(idx)->getChild()->initOptimalPrimitiveDescriptor();
         childConf = getChildEdgeAt(idx)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
@@ -893,7 +907,7 @@ MemoryDescPtr MKLDNNNode::getDefinedOutputDesc(const NodeConfig &config, size_t 
         }
     }
 
-    return MemoryDescUtils::cloneWithDefaultStridesAndOffset(*config.outConfs[idx].desc);
+    return config.outConfs[idx].desc->as<BlockedMemoryDesc>()->cloneWithDefaultStridesAndOffset();
 }
 
 void MKLDNNNode::initOptimalPrimitiveDescriptor() {
@@ -934,12 +948,12 @@ MemoryDescPtr MKLDNNNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primiti
     return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
 }
 
-int MKLDNNNode::batchToProcess() {
+int MKLDNNNode::batchToProcess() const {
     return dynBatchLim == 0 ? getMaxBatch() : std::min<int>(getMaxBatch(), dynBatchLim);
 }
 
 // TODO [DS]: how we should process this for dynamic shape?
-size_t MKLDNNNode::getMaxBatch() {
+size_t MKLDNNNode::getMaxBatch() const {
     // FIXME: batch != 0 dims number
     if (!inputShapes.empty()) {
         if (inputShapes[0].getRank())
@@ -1010,7 +1024,7 @@ Layout MKLDNNNode::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
     }
 }
 
-void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops) {
+void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops, bool initAsBinary, bool initBinaryMemory) {
     IE_THROW() << "Fusing of " << this->getType() << " operation is not implemented";
 }
 
@@ -1172,6 +1186,69 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
             || isConvertablePowerStatic();
 }
 
+bool MKLDNNNode::inputShapesDefined() const {
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        if (!getParentEdgesAtPort(i)[0]->getMemory().getDesc().isDefined())
+            return false;
+    }
+    return true;
+}
+
+bool MKLDNNNode::needPrepareParams() const {
+    return inputShapesModified();
+}
+
+bool MKLDNNNode::inputShapesModified() const {
+    if (lastInputDims.size() != getParentEdges().size()) {
+        if (lastInputDims.empty())
+            return true;
+        IE_THROW() << "Input dims and parent edges number mismatch!";
+    }
+
+    for (size_t i = 0; i < lastInputDims.size(); i++) {
+        if (lastInputDims[i] != getParentEdgesAtPort(i)[0]->getMemory().getStaticDims())
+            return true;
+    }
+    return false;
+}
+
+bool MKLDNNNode::needShapeInfer() const {
+    return inputShapesModified();
+}
+
+std::vector<VectorDims> MKLDNNNode::shapeInfer() const {
+    for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
+        if (!dynamic_cast<ngraph::opset1::Constant *>(opToShapeInfer->get_input_node_ptr(i))) {
+            opToShapeInfer->get_input_tensor(i).set_partial_shape(
+                getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape().toPartialShape());
+        }
+    }
+
+    opToShapeInfer->validate_and_infer_types();
+
+    IE_ASSERT(opToShapeInfer->get_output_size() == outputShapes.size());
+
+    std::vector<VectorDims> newOutputShapes(outputShapes.size());
+    for (size_t i = 0; i < newOutputShapes.size(); i++) {
+        const auto &partShape = opToShapeInfer->get_output_partial_shape(i);
+        if (partShape.is_dynamic())
+            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for nodes with internal dynamism";
+        newOutputShapes[i] = partShape.get_shape();
+    }
+    return newOutputShapes;
+}
+
+void MKLDNNNode::updateLastInputDims() {
+    if (lastInputDims.size() != getParentEdges().size()) {
+        if (!lastInputDims.empty())
+            IE_THROW() << "Input dims and parent edges number mismatch!";
+        lastInputDims.resize(getParentEdges().size());
+    }
+
+    for (size_t i = 0; i < lastInputDims.size(); i++)
+        lastInputDims[i] = getParentEdgesAtPort(i)[0]->getMemory().getStaticDims();
+}
+
 bool MKLDNNNode::canFuseSimpleOperation(const MKLDNNNodePtr& node) const {
     if (node->getType() == FakeQuantize) {
         bool ret = node->getAlgorithm() != FQBinarization;
@@ -1266,4 +1343,17 @@ void MKLDNNNode::fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<f
         }
         default: break;
     }
+}
+
+void MKLDNNNode::createShapeInferSubgraph(const std::shared_ptr<ngraph::Node>& op) {
+    ngraph::OutputVector inputsForShapeInfer;
+    for (size_t i = 0; i < inputShapes.size(); i++) {
+        if (dynamic_cast<ngraph::opset1::Constant *>(op->get_input_node_ptr(i))) {
+            inputsForShapeInfer.push_back(op->get_input_node_shared_ptr(i));
+        } else {
+            inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Parameter>(op->get_input_element_type(i),
+                                                                                      op->get_input_partial_shape(i)));
+        }
+    }
+    opToShapeInfer = op->clone_with_new_inputs(inputsForShapeInfer);
 }

@@ -15,11 +15,19 @@ std::vector<std::string> disabledTestPatterns() {
         //
         R"(.*ExclusiveAsyncRequests.*)",
         R"(.*ReusableCPUStreamsExecutor.*)",
-        R"(.*SplitLayerTest.*numSplits\=30.*)",
+        R"(.*SplitLayerTest.*numSplits=30.*)",
         // CVS-51758
         R"(.*InferRequestPreprocessConversionTest.*oLT=(NHWC|NCHW).*)",
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*)",
-        // CVS-58963: Not implemented yet
-        R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
+
+        // TODO: execution graph is not supported
+        R"(.*ExecGraph.*)",
+
+        // TODO: support import / export of precisions in template plugin
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.ieImportExportedFunction.*)",
+        R"(.*smoke_BehaviorTests.*OVExecNetwork.ieImportExportedFunction.*)",
+
+        // TODO: Round with f16 is not supported
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
     };
 }

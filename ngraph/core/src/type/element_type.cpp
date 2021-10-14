@@ -12,8 +12,8 @@
 #include "ngraph/log.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 
-BWDCMP_RTTI_DEFINITION(ngraph::AttributeAdapter<ov::element::Type>);
-BWDCMP_RTTI_DEFINITION(ngraph::AttributeAdapter<ov::element::TypeVector>);
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::element::Type>);
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::element::TypeVector>);
 
 namespace {
 class TypeInfo {
@@ -195,6 +195,46 @@ template <>
 Type from<ov::bfloat16>() {
     return Type_t::bf16;
 }
+
+Type fundamental_type_for(const Type& type) {
+    switch (type) {
+    case Type_t::boolean:
+        return from<element_type_traits<Type_t::boolean>::value_type>();
+    case Type_t::bf16:
+        return from<element_type_traits<Type_t::bf16>::value_type>();
+    case Type_t::f16:
+        return from<element_type_traits<Type_t::f16>::value_type>();
+    case Type_t::f32:
+        return from<element_type_traits<Type_t::f32>::value_type>();
+    case Type_t::f64:
+        return from<element_type_traits<Type_t::f64>::value_type>();
+    case Type_t::i4:
+        return from<element_type_traits<Type_t::i4>::value_type>();
+    case Type_t::i8:
+        return from<element_type_traits<Type_t::i8>::value_type>();
+    case Type_t::i16:
+        return from<element_type_traits<Type_t::i16>::value_type>();
+    case Type_t::i32:
+        return from<element_type_traits<Type_t::i32>::value_type>();
+    case Type_t::i64:
+        return from<element_type_traits<Type_t::i64>::value_type>();
+    case Type_t::u1:
+        return from<element_type_traits<Type_t::u1>::value_type>();
+    case Type_t::u4:
+        return from<element_type_traits<Type_t::u4>::value_type>();
+    case Type_t::u8:
+        return from<element_type_traits<Type_t::u8>::value_type>();
+    case Type_t::u16:
+        return from<element_type_traits<Type_t::u16>::value_type>();
+    case Type_t::u32:
+        return from<element_type_traits<Type_t::u32>::value_type>();
+    case Type_t::u64:
+        return from<element_type_traits<Type_t::u64>::value_type>();
+    default:
+        OPENVINO_UNREACHABLE("Unsupported Data type: ", type);
+    }
+}
+
 }  // namespace element
 }  // namespace ov
 
@@ -273,8 +313,8 @@ size_t compiler_byte_size(ov::element::Type_t et) {
         return 0;
     }
 
-    throw ngraph::ngraph_error("compiler_byte_size: Unsupported value of ov::element::Type_t: " +
-                               std::to_string(static_cast<int>(et)));
+    throw ov::Exception("compiler_byte_size: Unsupported value of ov::element::Type_t: " +
+                        std::to_string(static_cast<int>(et)));
 }
 
 namespace ov {

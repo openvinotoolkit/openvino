@@ -30,16 +30,14 @@ public:
         return false;
     }
 
-    std::vector<VectorDims> shapeInfer() const override {
-        return std::vector<VectorDims>();
-    }
+    bool needShapeInfer() const override { return false; }
+    bool needPrepareParams() const override { return false; }
 
 private:
     void cloneBlobIfRequired();
 
 private:
     std::shared_ptr<ngraph::op::Constant> constOp;
-    InferenceEngine::Precision precision;
     MKLDNNMemoryCPtr memoryPtr;
     bool isMeanImage = false;
 };

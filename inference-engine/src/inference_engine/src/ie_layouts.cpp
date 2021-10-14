@@ -186,6 +186,10 @@ Layout TensorDesc::getLayoutByRank(size_t rank) {
 }
 
 Layout TensorDesc::getLayoutByDims(const SizeVector& dims) {
+    // {0} shape is fully dynamic shape with default (BLOCKED) layout
+    if (dims.size() == 1 && dims[0] == 0)
+        return Layout::BLOCKED;
+
     return getLayoutByRank(dims.size());
 }
 
@@ -288,6 +292,21 @@ BlockingDesc::BlockingDesc(const SizeVector& blocked_dims,
     if (blocked_dims.size() != dimOffsets.size())
         IE_THROW() << "Offsets are not initialized for all dimensions.";
     this->offsetPaddingToData = dimOffsets;
+
+    // check that strides are valid
+    {
+        size_t denseStride = 1;
+
+        for (size_t i = 1; i <= strides.size(); i++) {
+            if (denseStride > strides[strides.size() - i]) {
+                IE_THROW() << "Stride in " << (strides.size() - i)
+                           << "-th dimension "
+                              "is not valid; actual "
+                           << strides[strides.size() - i] << ", should be >= " << denseStride << std::endl;
+            }
+            denseStride = std::max(strides[strides.size() - i], denseStride) * blocked_dims[blocked_dims.size() - i];
+        }
+    }
 }
 
 BlockingDesc::BlockingDesc(const SizeVector& dims, Layout layout) : offsetPadding(0) {
@@ -500,7 +519,9 @@ TensorDesc InferenceEngine::make_roi_desc(const TensorDesc& origDesc,
                                           const std::vector<size_t>& begin,
                                           const std::vector<size_t>& end,
                                           bool useOrigMemDesc) {
-    IE_ASSERT(begin.size() == end.size());
+    if (begin.size() != end.size()) {
+        IE_THROW() << "`begin` vector size must match `end` vector size";
+    }
     TensorSlice slice;
     for (size_t i = 0; i < begin.size(); ++i) {
         IE_ASSERT(end[i] >= begin[i]);
