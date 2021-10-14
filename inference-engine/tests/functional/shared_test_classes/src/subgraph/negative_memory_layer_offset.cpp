@@ -72,7 +72,7 @@ namespace SubgraphTestsDefinitions {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
         LoadNetwork();
-        auto states = inferReq.QueryState();
+        auto states = inferRequest.QueryState();
         for (auto& state : states) {
             auto name = state.GetName();
             if (name == "memory") {

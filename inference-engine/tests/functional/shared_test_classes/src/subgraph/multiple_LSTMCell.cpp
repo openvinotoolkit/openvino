@@ -397,7 +397,7 @@ void MultipleLSTMCellTest::InitMemory() {
     InferenceEngine::TensorDesc state_description(InferenceEngine::Precision::FP32,
                                                   InferenceEngine::SizeVector({1, hiddenSize}),
                                                   InferenceEngine::Layout::NC);
-    auto states = inferReq.QueryState();
+    auto states = inferRequest.QueryState();
     for (auto& state : states) {
         auto name = state.GetName();
         if (name.find("cell_state_1") != std::string::npos) {

@@ -276,7 +276,7 @@ namespace SubgraphTestsDefinitions {
     }
 
     void MemoryLSTMCellTest::InitMemory() {
-        auto states = inferReq.QueryState();
+        auto states = inferRequest.QueryState();
         for (auto& state : states) {
             auto name = state.GetName();
             if (name.find("cell_state_1") != std::string::npos) {

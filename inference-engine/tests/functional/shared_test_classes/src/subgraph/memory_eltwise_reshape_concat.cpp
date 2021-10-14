@@ -122,7 +122,7 @@ void MemoryEltwiseReshapeConcatTest::Run() {
                                                   InferenceEngine::Layout::NC);
 
     IE_SUPPRESS_DEPRECATED_START
-    auto states = inferReq.QueryState();
+    auto states = inferRequest.QueryState();
     auto state_values_blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
                                                                             memory_init.data(), memory_init.size());
     states[0].SetState(state_values_blob);
