@@ -5,6 +5,7 @@
 #include "ngraph/op/tile.hpp"
 
 #include <ngraph/validation_util.hpp>
+#include <tile_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
@@ -40,21 +41,12 @@ void op::v0::Tile::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, repeats_shape.rank().compatible(1), "PartialShape of repeats must be of rank 1");
     ov::PartialShape repeats_as_pshape;
     bool repeats_are_known = evaluate_as_partial_shape(get_input_source_output(1), repeats_as_pshape);
-    std::vector<Dimension> repeats_value(repeats_as_pshape);
-    if (repeats_are_known && !repeats_value.empty() && arg_shape.rank().is_static()) {
-        std::vector<Dimension> data_shape(arg_shape);
-        auto data_rank = data_shape.size();
-        auto repeats_rank = repeats_value.size();
-        auto output_rank = std::max(data_rank, repeats_rank);
 
-        // expand data shape and repeats to output rank
-        data_shape.insert(data_shape.begin(), output_rank - data_rank, 1);
-        repeats_value.insert(repeats_value.begin(), output_rank - repeats_rank, 1);
-
-        auto output_shape = ov::PartialShape::dynamic(output_rank);
-        for (size_t i = 0; i < output_rank; i++)
-            output_shape[i] = data_shape[i] * repeats_value[i];
-        set_output_type(0, arg_et, output_shape);
+    if (repeats_are_known) {
+        std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+        std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0), repeats_as_pshape};
+        shape_infer(this, input_shapes, output_shapes);
+        set_output_type(0, arg_et, output_shapes[0]);
     } else {
         set_output_type(0, arg_et, ov::PartialShape::dynamic());
     }

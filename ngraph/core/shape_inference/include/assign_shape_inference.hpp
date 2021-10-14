@@ -3,20 +3,10 @@
 //
 #pragma once
 #include <openvino/op/assign.hpp>
-
+#include "shape_infer_utils.hpp"
 namespace ov {
 namespace op {
 namespace v3 {
-
-template <class T1, class T2>
-void inline default_work(T1* op, T2& shape) {
-    NODE_VALIDATION_CHECK(op, false, "[Assign]Can not infer shape based on input shape");
-}
-
-template <class T1>
-void inline default_work(T1* op, ov::PartialShape& shape) {
-    shape = ov::PartialShape::dynamic();
-}
 
 template <class T>
 void shape_infer(const Assign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
@@ -25,7 +15,7 @@ void shape_infer(const Assign* op, const std::vector<T>& input_shapes, std::vect
     if (input_shape.is_static())
         output_shapes[0] = input_shapes[0];
     else
-        default_work(op, output_shapes[0]);
+        ShapeInfer::default_work(output_shapes[0]);
 }
 }  // namespace v3
 
