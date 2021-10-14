@@ -4,24 +4,24 @@
 
 #pragma once
 
-#include <ngraph/ngraph.hpp>
+#include <openvino/op/op.hpp>
 
 //! [op:header]
 namespace TemplateExtension {
 
-class Operation : public ngraph::op::Op {
+class Operation : public ov::op::Op {
 public:
     OPENVINO_OP("Operation");
 
     Operation() = default;
-    Operation(const ngraph::Output<ngraph::Node>& arg, int64_t add);
+    Operation(const ngraph::Output<ov::Node>& arg, int64_t add);
     void validate_and_infer_types() override;
-    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override;
-    bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
+    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
+    bool visit_attributes(ov::AttributeVisitor& visitor) override;
     int64_t getAddAttr() const {
         return add;
     }
-    bool evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const override;
+    bool evaluate(ov::runtime::TensorVector& outputs, const ov::runtime::TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
 private:

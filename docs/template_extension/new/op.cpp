@@ -20,7 +20,7 @@ void Operation::validate_and_infer_types() {
 //! [op:validate]
 
 //! [op:copy]
-std::shared_ptr<ngraph::Node> Operation::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
+std::shared_ptr<ngraph::Node> Operation::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     if (new_args.size() != 1) {
         throw ngraph::ngraph_error("Incorrect number of new arguments");
     }
@@ -30,7 +30,7 @@ std::shared_ptr<ngraph::Node> Operation::clone_with_new_inputs(const ngraph::Out
 //! [op:copy]
 
 //! [op:visit_attributes]
-bool Operation::visit_attributes(ngraph::AttributeVisitor& visitor) {
+bool Operation::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("add", add);
     return true;
 }
@@ -47,38 +47,41 @@ void implementation(const T* input, T* output, int64_t add, size_t size) {
 }
 
 template <ngraph::element::Type_t ET>
-bool evaluate_op(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr& out, int64_t add) {
-    size_t size = ngraph::shape_size(arg0->get_shape());
-    implementation(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), add, size);
+bool evaluate_op(const ov::runtime::Tensor& arg0, ov::runtime::Tensor& out, int64_t add) {
+    size_t size = ov::shape_size(arg0.get_shape());
+    implementation(arg0.data<typename ov::element_type_traits<ET>::value_type>(),
+                   out.data<typename ov::element_type_traits<ET>::value_type>(),
+                   add,
+                   size);
     return true;
 }
 
 }  // namespace
 
-bool Operation::evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const {
-    switch (inputs[0]->get_element_type()) {
-    case ngraph::element::Type_t::i8:
-        return evaluate_op<ngraph::element::Type_t::i8>(inputs[0], outputs[0], getAddAttr());
-    case ngraph::element::Type_t::i16:
-        return evaluate_op<ngraph::element::Type_t::i16>(inputs[0], outputs[0], getAddAttr());
-    case ngraph::element::Type_t::i32:
-        return evaluate_op<ngraph::element::Type_t::i32>(inputs[0], outputs[0], getAddAttr());
-    case ngraph::element::Type_t::i64:
-        return evaluate_op<ngraph::element::Type_t::i64>(inputs[0], outputs[0], getAddAttr());
-    case ngraph::element::Type_t::u8:
-        return evaluate_op<ngraph::element::Type_t::u8>(inputs[0], outputs[0], getAddAttr());
-    case ngraph::element::Type_t::u16:
-        return evaluate_op<ngraph::element::Type_t::u16>(inputs[0], outputs[0], getAddAttr());
-    case ngraph::element::Type_t::u32:
-        return evaluate_op<ngraph::element::Type_t::u32>(inputs[0], outputs[0], getAddAttr());
-    case ngraph::element::Type_t::u64:
-        return evaluate_op<ngraph::element::Type_t::u8>(inputs[0], outputs[0], getAddAttr());
-    case ngraph::element::Type_t::bf16:
-        return evaluate_op<ngraph::element::Type_t::bf16>(inputs[0], outputs[0], getAddAttr());
-    case ngraph::element::Type_t::f16:
-        return evaluate_op<ngraph::element::Type_t::f16>(inputs[0], outputs[0], getAddAttr());
-    case ngraph::element::Type_t::f32:
-        return evaluate_op<ngraph::element::Type_t::f32>(inputs[0], outputs[0], getAddAttr());
+bool Operation::evaluate(ov::runtime::TensorVector& outputs, const ov::runtime::TensorVector& inputs) const {
+    switch (inputs[0].get_element_type()) {
+    case ov::element::Type_t::i8:
+        return evaluate_op<ov::element::Type_t::i8>(inputs[0], outputs[0], getAddAttr());
+    case ov::element::Type_t::i16:
+        return evaluate_op<ov::element::Type_t::i16>(inputs[0], outputs[0], getAddAttr());
+    case ov::element::Type_t::i32:
+        return evaluate_op<ov::element::Type_t::i32>(inputs[0], outputs[0], getAddAttr());
+    case ov::element::Type_t::i64:
+        return evaluate_op<ov::element::Type_t::i64>(inputs[0], outputs[0], getAddAttr());
+    case ov::element::Type_t::u8:
+        return evaluate_op<ov::element::Type_t::u8>(inputs[0], outputs[0], getAddAttr());
+    case ov::element::Type_t::u16:
+        return evaluate_op<ov::element::Type_t::u16>(inputs[0], outputs[0], getAddAttr());
+    case ov::element::Type_t::u32:
+        return evaluate_op<ov::element::Type_t::u32>(inputs[0], outputs[0], getAddAttr());
+    case ov::element::Type_t::u64:
+        return evaluate_op<ov::element::Type_t::u8>(inputs[0], outputs[0], getAddAttr());
+    case ov::element::Type_t::bf16:
+        return evaluate_op<ov::element::Type_t::bf16>(inputs[0], outputs[0], getAddAttr());
+    case ov::element::Type_t::f16:
+        return evaluate_op<ov::element::Type_t::f16>(inputs[0], outputs[0], getAddAttr());
+    case ov::element::Type_t::f32:
+        return evaluate_op<ov::element::Type_t::f32>(inputs[0], outputs[0], getAddAttr());
     default:
         break;
     }
@@ -87,16 +90,16 @@ bool Operation::evaluate(const ngraph::HostTensorVector& outputs, const ngraph::
 
 bool Operation::has_evaluate() const {
     switch (get_input_element_type(0)) {
-    case ngraph::element::Type_t::i8:
-    case ngraph::element::Type_t::i16:
-    case ngraph::element::Type_t::i32:
-    case ngraph::element::Type_t::i64:
-    case ngraph::element::Type_t::u8:
-    case ngraph::element::Type_t::u16:
-    case ngraph::element::Type_t::u32:
-    case ngraph::element::Type_t::u64:
-    case ngraph::element::Type_t::bf16:
-    case ngraph::element::Type_t::f16:
+    case ov::element::Type_t::i8:
+    case ov::element::Type_t::i16:
+    case ov::element::Type_t::i32:
+    case ov::element::Type_t::i64:
+    case ov::element::Type_t::u8:
+    case ov::element::Type_t::u16:
+    case ov::element::Type_t::u32:
+    case ov::element::Type_t::u64:
+    case ov::element::Type_t::bf16:
+    case ov::element::Type_t::f16:
     case ngraph::element::Type_t::f32:
         return true;
     default:
