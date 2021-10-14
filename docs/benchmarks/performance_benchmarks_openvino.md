@@ -2,8 +2,10 @@
 
 .. toctree::
    :maxdepth: 1
+   :hidden:
    
    openvino_docs_performance_benchmarks_faq
+   Download Performance Data Spreadsheet in MS Excel* Format <https://docs.openvinotoolkit.org/downloads/benchmark_files/OV-2021.4-Download-Excel.xlsx>
    openvino_docs_performance_int8_vs_fp32
 
       
@@ -21,6 +23,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 - **Value** - While throughput is important, what is more critical in edge AI deployments is the performance efficiency or performance-per-cost. Application performance in throughput per dollar of system cost is the best measure of value.
 - **Efficiency** - System power is a key consideration from the edge to the data center. When selecting deep learning solutions, power efficiency (throughput/watt) is a critical factor to consider. Intel designs provide excellent power efficiency for running deep learning workloads.
 - **Latency** - This measures the synchronous execution of inference requests and is reported in milliseconds. Each inference request (for example: preprocess, infer, postprocess) is allowed to complete before the next is started. This performance metric is relevant in usage scenarios where a single image input needs to be acted upon as soon as possible. An example would be the healthcare sector where medical personnel only request analysis of a single ultra sound scanning image or in real-time or near real-time applications for example an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles. 
+
 
 @sphinxdirective
 .. raw:: html
@@ -50,6 +53,208 @@ Measuring inference performance involves many variables and is extremely use-cas
     <div class="chart-block" data-loadcsv="csv/yolo_v4-tf-608x608.csv"></div>
 
 @endsphinxdirective
+
+
+### bert-large-uncased-whole-word-masking-squad-int8-0001 (384)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/bert-large-uncased-whole-word-masking-squad-int8-0001-384.csv"></div>
+    
+@endsphinxdirective
+
+### brain-tumor-segmentation-0001-MXNET (128x128x128)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/brain-tumor-segmentation-0001-MXNET-128x128x128.csv"></div>
+    
+@endsphinxdirective
+
+### brain-tumor-segmentation-0002-CF2 (128x128x128)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/brain-tumor-segmentation-0002-CF2-128x128x128.csv"></div>
+    
+@endsphinxdirective
+
+
+## deeplabv3-TF (513x513)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/deeplabv3-TF-513x513.csv"></div>
+    
+@endsphinxdirective
+
+## densenet-121-TF (224x224)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/densenet-121-TF-224x224.csv"></div>
+    
+@endsphinxdirective
+
+## facenet-20180408-102900-TF (160x160)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/facenet-20180408-102900-TF-160x160.csv"></div>
+    
+@endsphinxdirective
+
+## faster_rcnn_resnet50_coco-TF (600x1024)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/faster_rcnn_resnet50_coco-TF-600x1024.csv"></div>
+    
+@endsphinxdirective
+
+## googlenet-v1-TF (224x224)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/googlenet-v1-TF-224x224.csv"></div>
+    
+@endsphinxdirective
+
+## mobilenet-ssd-CF (300x300)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/mobilenet-ssd-CF-300x300.csv"></div>
+    
+@endsphinxdirective
+
+## mobilenet-v1-1.0-224-TF (224x224)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/mobilenet-v1-1.0-224-TF-224x224.csv"></div>
+    
+@endsphinxdirective
+
+## mobilenet-v2-1.0-224-TF (224x224)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/mobilenet-v2-1.0-224-TF-224x224.csv"></div>
+    
+@endsphinxdirective
+
+## mobilenet-v2-pytorch (224x224)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/mobilenet-v2-pytorch-224x224.csv"></div>
+    
+@endsphinxdirective
+
+## resnet-18-pytorch (224x224)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/resnet-18-pytorch-224x224.csv"></div>
+    
+@endsphinxdirective
+
+## resnet-50-PYTORCH (224x224)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/resnet-50-PYTORCH-224x224.csv"></div>
+    
+@endsphinxdirective
+
+## resnet_50_tf (224x224)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/resnet-50-TF-224x224.csv"></div>
+    
+@endsphinxdirective
+
+## se-resnext-50-CF (224x224)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/se-resnext-50-CF-224x224.csv"></div>
+    
+@endsphinxdirective
+
+## squeezenet1.1-CF (227x227)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/squeezenet1.1-CF-227x227.csv"></div>
+    
+@endsphinxdirective
+
+## ssd300-CF (300x300)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/ssd300-CF-300x300.csv"></div>
+    
+@endsphinxdirective
+
+## ssdlite_mobilenet_v2-TF (300x300)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/ssdlite_mobilenet_v2-TF-300x300.csv"></div>
+    
+@endsphinxdirective
+
+## ssd_mobilenet_v1_coco-TF (300x300)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/ssd_mobilenet_v1_coco-TF-300x300.csv"></div>
+    
+@endsphinxdirective
+
+## unet-camvid-onnx-0001 (368x480)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/unet-camvid-onnx-0001-368x480.csv"></div>
+    
+@endsphinxdirective
+
+## unet-camvid-onnx-0001 (368x480)
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/yolo_v3-TF.csv"></div>
+    
+@endsphinxdirective
+
+
 
 ## Platform Configurations
 

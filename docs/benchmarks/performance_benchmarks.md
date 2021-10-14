@@ -4,6 +4,7 @@
 
 .. toctree::
    :maxdepth: 1
+   :hidden:
 
    openvino_docs_performance_benchmarks_openvino
    openvino_docs_performance_benchmarks_ovms

@@ -65,7 +65,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    After installing your Intel® Movidius™ VPU, you will return to this guide to complete OpenVINO™ installation.<br>   
 5. <a href="#get-started">Start Using the Toolkit</a>
 
-- [Steps to uninstall the Intel® Distribution of OpenVINO™ Toolkit](../install_guides/uninstalling_openvino.md)
+- [Steps to uninstall the Intel® Distribution of OpenVINO™ Toolkit](../install_guides/uninstalling-openvino.md)
 
 ## <a name="install-openvino"></a>Step 1: Install the Intel® Distribution of OpenVINO™ Toolkit Core Components
 
@@ -109,27 +109,28 @@ toolkit installed, rename or delete these two directories:
    sudo sed -i 's/decline/accept/g' silent.cfg
    sudo ./install.sh -s silent.cfg
    ```   
-   In option 3 you can select which OpenVINO components will be installed by modifying the `COMPONENTS` parameter in the `silent.cfg` file. For example, to install only CPU runtime for the Inference Engine, set `COMPONENTS=intel-openvino-ie-rt-cpu__x86_64` in `silent.cfg`. To get a full list of available components for installation, run the `./install.sh --list_components` command from the unpacked OpenVINO™ toolkit package.
+   In Option 3 you can select which OpenVINO components will be installed by modifying the `COMPONENTS` parameter in the `silent.cfg` file. For example, to install only CPU runtime for the Inference Engine, set `COMPONENTS=intel-openvino-ie-rt-cpu__x86_64` in `silent.cfg`. To get a full list of available components for installation, run the `./install.sh --list_components` command from the unpacked OpenVINO™ toolkit package.
 
-> **NOTE**: Follow the instructions on your screen. Watch for informational messages such as the following in case you must complete additional steps:
+7. Follow the instructions on your screen. Watch for informational messages such as the following in case you must complete additional steps:
 
    ![](../img/openvino-install-linux-01.png)
 
-7. By default, the Intel® Distribution of OpenVINO™ is installed to the following directory:
-      * For root or administrator: `/opt/intel/openvino_<version>/`
-      * For regular users: `/home/<USER>/intel/openvino_<version>/`
+8. By default, the Intel® Distribution of OpenVINO™ is installed to the following directory:
+   * For root or administrator: `/opt/intel/openvino_<version>/`
+   * For regular users: `/home/<USER>/intel/openvino_<version>/`
 
    For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2021/` or `/home/<USER>/intel/openvino_2021/`
 
-8. **Optional**: You can choose **Customize** to change the installation directory or the components you want to install:
-> **NOTE**: If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for the next installation. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions.
+9. **Optional**: You can choose **Customize** to change the installation directory or the components you want to install.
+ 
+   > **NOTE**: If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for the next installation. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions.
+   
    > **NOTE**: The Intel® Media SDK component is always installed in the `/opt/intel/mediasdk` directory regardless of the OpenVINO installation path chosen.
-
-9. The Finish screen indicates that the core components have been installed:
+10. The **Finish** screen indicates that the core components have been installed:
 
    ![](../img/openvino-install-linux-04.png)
 
-> **NOTE**: Once you click Finish to close the installation wizard, a new browser window will open with this documentation. It jumps to the section with your next installation steps.
+   Once you click **Finish** to close the installation wizard, a new browser window will open with this documentation. It jumps to the section with your next installation steps.
 
 The core components are now installed. Continue to the next section to install additional dependencies.
 
@@ -200,21 +201,19 @@ For more information about the Model Optimizer, refer to the [Model Optimizer De
 
 > **NOTE**: Since the TensorFlow framework is not officially supported on CentOS*, the Model Optimizer for TensorFlow can't be configured and run on that operating system.  
 
-1.  Go to the Model Optimizer prerequisites directory:
+1. Go to the Model Optimizer prerequisites directory:
    ```sh
    cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
    ```
 
-2.  Run the script to configure the Model Optimizer for Caffe, TensorFlow 2.x, MXNet, Kaldi\*, and ONNX:
+2. Run the script to configure the Model Optimizer for Caffe, TensorFlow 2.x, MXNet, Kaldi\*, and ONNX:
    ```sh
    sudo ./install_prerequisites.sh
    ```
 
-**Optional:** You can choose to configure each framework separately instead. If you see error messages, make sure you installed all dependencies.
-
-1.  From the Model Optimizer prerequisites directory, run the scripts for the model frameworks you want support for. You can run more than one script.
-
-> **NOTE**: You can choose to install Model Optimizer support for only certain frameworks. In the same directory are individual scripts for Caffe, TensorFlow 1.x, TensorFlow 2.x, MXNet, Kaldi*, and ONNX (install_prerequisites_caffe.sh, etc.).
+3. **Optional:** You can choose to configure each framework separately instead. If you see error messages, make sure you installed all dependencies. From the Model Optimizer prerequisites directory, run the scripts for the model frameworks you want support for. You can run more than one script.
+   
+   > **NOTE**: You can choose to install Model Optimizer support for only certain frameworks. In the same directory are individual scripts for Caffe, TensorFlow 1.x, TensorFlow 2.x, MXNet, Kaldi*, and ONNX (install_prerequisites_caffe.sh, etc.).
    
 The Model Optimizer is configured for one or more frameworks.
 
@@ -225,7 +224,7 @@ To enable inference on other hardware, see below:
 - <a href="#additional-NCS-steps">Steps for Intel® Neural Compute Stick 2</a>
 - <a href="#install-VPU">Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs</a><br>
 
-Or proceed to <a href="#get-started">Start Using the Toolkit</a> to start running code samples and demo applications.
+Or proceed to the <a href="#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
 
 ## <a name="additional-GPU-steps"></a>Steps for Intel® Processor Graphics (GPU)
 
@@ -240,8 +239,7 @@ The steps in this section are required only if you want to enable the toolkit co
    ```sh
    sudo -E ./install_NEO_OCL_driver.sh
    ```
-   
-      > **NOTE**: To use the **Intel® Iris® Xe MAX Graphics**, see the [Intel® Iris® Xe MAX Graphics with Linux*](https://dgpu-docs.intel.com/devices/iris-xe-max-graphics/index.html) page for driver installation instructions.
+   > **NOTE**: To use the **Intel® Iris® Xe MAX Graphics**, see the [Intel® Iris® Xe MAX Graphics with Linux*](https://dgpu-docs.intel.com/devices/iris-xe-max-graphics/index.html) page for driver installation instructions.
    
    The script compares the driver version on the system to the current version. If the driver version on the system is higher or equal to the current version, the script does 
 not install a new driver. If the version of the driver is lower than the current version, the script uninstalls the lower version and installs the current version with your permission:
@@ -255,39 +253,27 @@ not install a new driver. If the version of the driver is lower than the current
    Ignore this suggestion and continue.<br>
    You can also find the most recent version of the driver, installation procedure and other information on the [Intel® software for general purpose GPU capabilities](https://dgpu-docs.intel.com/index.html) site.
 
-3. **Optional** Install header files to allow compilation of new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
+3. **Optional:** Install header files to allow compilation of new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
 
 You've completed all required configuration steps to perform inference on processor graphics. 
-Proceed to the <a href="#get-started">Get Started</a> guide to start running code samples and demo applications.
+Proceed to the <a href="#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
 
 ## <a name="additional-NCS-steps"></a>Steps for Intel® Neural Compute Stick 2
 
-These steps are only required if you want to perform inference on Intel® Movidius™ NCS powered by the Intel® Movidius™ Myriad™ 2 VPU or Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU. For more details, see the [Get Started page for Intel® Neural Compute Stick 2:](https://software.intel.com/en-us/neural-compute-stick/get-started)
+These steps are only required if you want to perform inference on Intel® Movidius™ NCS powered by the Intel® Movidius™ Myriad™ 2 VPU or Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU. For more details, see the [Get Started page for Intel® Neural Compute Stick 2:](https://software.intel.com/en-us/neural-compute-stick/get-started).
 
-1. Add the current Linux user to the `users` group:
+1. Go to the install_dependencies directory:
    ```sh
-   sudo usermod -a -G users "$(whoami)"
+   cd /opt/intel/openvino_2021/install_dependencies/
    ```
-   Log out and log in for it to take effect.
-   
-2. To enable inference on Intel® Neural Compute Stick 2, install the USB rules as follows:
-   ```sh
-   sudo cp /opt/intel/openvino_2021/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/
+2. Run the `install_NCS_udev_rules.sh` script:
    ```
-   ```sh
-   sudo udevadm control --reload-rules
+   ./install_NCS_udev_rules.sh
    ```
-   ```sh
-   sudo udevadm trigger
-   ```
-   ```sh
-   sudo ldconfig
-   ```
-   
-> **NOTE**: You may need to reboot your machine for this to take effect.
+3. You may need to reboot your machine for this to take effect.
 
 You've completed all required configuration steps to perform inference on Intel® Neural Compute Stick 2. 
-Proceed to the <a href="#get-started">Get Started</a> guide to start running code samples and demo applications.
+Proceed to the <a href="#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
 
 ## <a name="install-VPU"></a>Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 
@@ -313,13 +299,11 @@ After configuration is done, you are ready to run the verification scripts with 
    ```
 
 You've completed all required configuration steps to perform inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs. 
-Proceed to the <a href="#get-started">Get Started</a> guide to start running code samples and demo applications.
+Proceed to the <a href="#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
 
 ## <a name="get-started"></a>Start Using the Toolkit
 
-Now you are ready to try out the toolkit. To continue, see the following pages:
-* [OpenVINO™ Toolkit Overview](../index.md)
-* [Get Started Guide](../get_started/get_started_guide.md) to see the basic OpenVINO™ toolkit workflow and run code samples and demo applications with pre-trained models on different inference devices.
+Now you are ready to try out the toolkit. To continue, see the [Get Started Guide](../get_started/get_started.md) section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications with pre-trained models on different inference devices.
 
 ## Troubleshooting
 
@@ -341,7 +325,7 @@ Use the `--trusted-host` parameter if the URL above is `http` instead of `https`
    ```
 ## <a name="uninstall"></a>Uninstall the Intel® Distribution of OpenVINO™ Toolkit
 
-To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling_openvino.md).
+To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
 ## Additional Resources
 

@@ -39,6 +39,7 @@
    :caption: Tuning for Performance
    :hidden:
 
+   openvino_docs_performance_benchmarks
    openvino_docs_optimization_guide_dldt_optimization_guide
    openvino_docs_MO_DG_Getting_Performance_Numbers
    pot_README

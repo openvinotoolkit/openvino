@@ -13,6 +13,8 @@
    openvino_docs_install_guides_installing_openvino_windows_fpga
    openvino_docs_install_guides_installing_openvino_macos
    openvino_docs_install_guides_installing_openvino_raspbian
+   openvino_docs_install_guides_installing_openvino_raspbian
+   openvino_docs_install_guides_uninstalling_openvino
 
 
 .. toctree::

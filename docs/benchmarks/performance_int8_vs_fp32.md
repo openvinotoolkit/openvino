@@ -429,6 +429,6 @@ The following table shows the absolute accuracy drop that is calculated as the d
   </tr>
 </table>
 
-![INT8 vs FP32 Comparison](img/int8vsfp32.png)
+![INT8 vs FP32 Comparison](../img/int8vsfp32.png)
 
 For more complete information about performance and benchmark results, visit: [www.intel.com/benchmarks](https://www.intel.com/benchmarks) and [Optimization Notice](https://software.intel.com/articles/optimization-notice). [Legal Information](../Legal_Information.md).
