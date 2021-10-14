@@ -36,7 +36,7 @@ ONNX_NAMESPACE::TypeProto get_input_type(std::string const& name, ONNX_NAMESPACE
 inline void function_expand_and_remove_original_node(const ONNX_NAMESPACE::NodeProto& node,
                                                      const ONNX_NAMESPACE::FunctionProto& func_proto,
                                                      ONNX_NAMESPACE::GraphProto* graph,
-                                                     int& current_node_idx) {
+                                                     int current_node_idx) {
     const auto before_expand_size = graph->node().size();
     ONNX_NAMESPACE::FunctionExpandHelper(node, func_proto, *graph);
     const auto added_nodes = graph->node().size() - before_expand_size;
@@ -48,8 +48,6 @@ inline void function_expand_and_remove_original_node(const ONNX_NAMESPACE::NodeP
     std::rotate(graph->mutable_node()->begin() + current_node_idx,
                 graph->mutable_node()->end() - added_nodes,
                 graph->mutable_node()->end());
-    // Move index to the previous position because first node of expanded function can be also function
-    --current_node_idx;
 }
 
 }  // namespace detail
@@ -82,7 +80,8 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
         // Check if operation schema contains a function body and expand function
         if (node_op_schema->HasFunction()) {
             const auto* func_proto = node_op_schema->GetFunction();
-            detail::function_expand_and_remove_original_node(node, *func_proto, graph_proto, i);
+            // Move index to the previous position because a first node of expanded function can have also function
+            detail::function_expand_and_remove_original_node(node, *func_proto, graph_proto, i--);
         }
 
         else if (node_op_schema->HasContextDependentFunction()) {
@@ -101,7 +100,8 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
             ONNX_NAMESPACE::FunctionBodyBuildContextImpl ctx(node, input_types);
             ONNX_NAMESPACE::FunctionProto func_proto;
             node_op_schema->BuildContextDependentFunction(ctx, func_proto);
-            detail::function_expand_and_remove_original_node(node, func_proto, graph_proto, i);
+            // Move index to the previous position because a first node of expanded function can have also function
+            detail::function_expand_and_remove_original_node(node, func_proto, graph_proto, i--);
         }
     }
 }

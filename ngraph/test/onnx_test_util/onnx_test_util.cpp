@@ -172,7 +172,7 @@ ComparisonResult compare_initializers(const ONNX_NAMESPACE::GraphProto& graph,
 
 ComparisonResult compare_onnx_graphs(const ONNX_NAMESPACE::GraphProto& graph,
                                      const ONNX_NAMESPACE::GraphProto& ref_graph,
-                                     CompType comp) {
+                                     CompType comp = default_name_comparator) {
     ComparisonResult comparison = compare_inputs(graph, ref_graph);
     if (!comparison.is_ok) {
         return comparison;
