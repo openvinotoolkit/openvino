@@ -44,7 +44,6 @@ public:
         if (!configuration.empty()) {
             utils::PluginCache::get().reset();
         }
-        function.reset();
     }
 
 protected:

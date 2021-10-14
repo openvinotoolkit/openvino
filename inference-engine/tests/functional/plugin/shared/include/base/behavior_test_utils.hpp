@@ -35,7 +35,7 @@ public:
         return result.str();
     }
 
-    void SetUp()  override {
+    void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
@@ -43,9 +43,8 @@ public:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().ie().reset();
+            PluginCache::get().reset();
         }
-        function.reset();
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
@@ -81,7 +80,6 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(targetDevice, configuration) = this->GetParam();
-        ie = PluginCache::get().ie(targetDevice);
         function = ngraph::builder::subgraph::makeConvPoolRelu();
         cnnNet = InferenceEngine::CNNNetwork(function);
         // Load CNNNetwork to target plugins
@@ -90,9 +88,8 @@ public:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().ie().reset();
+            PluginCache::get().reset();
         }
-        function.reset();
     }
 
 protected:
@@ -105,6 +102,7 @@ protected:
 };
 
 inline InferenceEngine::Core createIECoreWithTemplate() {
+    PluginCache::get().reset();
     InferenceEngine::Core ie;
     std::string pluginName = "templatePlugin";
     pluginName += IE_BUILD_POSTFIX;

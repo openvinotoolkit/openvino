@@ -55,7 +55,6 @@ class OVExecGraphImportExportTest : public testing::WithParamInterface<OVExecGra
         if (!configuration.empty()) {
             utils::PluginCache::get().reset();
         }
-        function.reset();
     }
 
     protected:
