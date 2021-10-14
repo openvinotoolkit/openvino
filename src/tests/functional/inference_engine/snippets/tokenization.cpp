@@ -98,6 +98,80 @@ TEST(TransformationTests, StartSubgraphMultipleOutputs) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
+TEST(TransformationTests, TokenizeMulAddSubgraph) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    {
+        auto data_1 = std::make_shared<opset1::Parameter>(element::f32, Shape{ 1, 3, 4, 4 });
+        auto data_2 = std::make_shared<opset1::Parameter>(element::f32, Shape{ 1, 3, 4, 4 });
+        auto non_snippet_op = std::make_shared<opset1::MatMul>(data_1, data_2);
+
+        auto mul_const_1 = opset1::Constant::create(element::f32, { 1, 3, 1, 1 }, { 4.f });
+        auto mul_1 = std::make_shared<opset1::Multiply>(non_snippet_op, mul_const_1);
+        auto add_const_1 = opset1::Constant::create(element::f32, { 1, 3, 1, 1 }, { 16.4f });
+        auto add_1 = std::make_shared<opset1::Add>(mul_1, add_const_1);
+        auto elu = std::make_shared<opset1::Elu>(add_1, 0.01);
+
+        auto mul_const_2 = opset1::Constant::create(element::f32, { 1, 3, 1, 1 }, { 4.f });
+        auto mul_2 = std::make_shared<opset1::Multiply>(non_snippet_op, mul_const_2);
+        auto add_const_2 = opset1::Constant::create(element::f32, { 1, 3, 1, 1 }, { 16.4f });
+        auto add_2 = std::make_shared<opset1::Add>(mul_2, add_const_2);
+        auto relu = std::make_shared<opset1::Relu>(add_2);
+
+        auto add = std::make_shared<opset1::Add>(elu, relu);
+        auto result = std::make_shared<opset1::Result>(add);
+
+        f = std::make_shared<Function>(ResultVector{ result }, ParameterVector{ data_1, data_2 });
+
+        pass::Manager m;
+        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<ngraph::snippets::pass::FilterFused>();
+        m.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
+        m.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    {
+        auto data_1 = std::make_shared<opset1::Parameter>(element::f32, Shape{ 1, 3, 4, 4 });
+        auto data_2 = std::make_shared<opset1::Parameter>(element::f32, Shape{ 1, 3, 4, 4 });
+
+        // snippet inputs
+        auto non_snippet_op = std::make_shared<opset1::MatMul>(data_1, data_2);
+        auto mul_const_1 = opset1::Constant::create(element::f32, { 1, 3, 1, 1 }, { 4.f });
+        auto add_const_1 = opset1::Constant::create(element::f32, { 1, 3, 1, 1 }, { 16.4f });
+        auto mul_const_2 = opset1::Constant::create(element::f32, { 1, 3, 1, 1 }, { 4.f });
+        auto add_const_2 = opset1::Constant::create(element::f32, { 1, 3, 1, 1 }, { 16.4f });
+
+        // snippet function
+        auto snippet_input = std::make_shared<opset1::Parameter>(element::f32, Shape{ 1, 3, 4, 4 });
+
+        auto sn_mul_const_1 = std::make_shared<opset1::Parameter>(element::f32, Shape{ 1, 3, 1, 1 });
+        auto mul_1 = std::make_shared<opset1::Multiply>(snippet_input, sn_mul_const_1);
+        auto sn_add_const_1 = std::make_shared<opset1::Parameter>(element::f32, Shape{ 1, 3, 1, 1 });
+        auto add_1 = std::make_shared<opset1::Add>(mul_1, sn_add_const_1);
+        auto elu = std::make_shared<opset1::Elu>(add_1, 0.01);
+
+        auto sn_mul_const_2 = std::make_shared<opset1::Parameter>(element::f32, Shape{ 1, 3, 1, 1 });
+        auto mul_2 = std::make_shared<opset1::Multiply>(snippet_input, sn_mul_const_2);
+        auto sn_add_const_2 = std::make_shared<opset1::Parameter>(element::f32, Shape{ 1, 3, 1, 1 });
+        auto add_2 = std::make_shared<opset1::Add>(mul_2, sn_add_const_2);
+        auto relu = std::make_shared<opset1::Relu>(add_2);
+
+        auto add = std::make_shared<opset1::Add>(elu, relu);
+        ParameterVector subgraph_params{ snippet_input, sn_mul_const_1, sn_add_const_1, sn_mul_const_2, sn_add_const_2 };
+        auto snippet_function = std::make_shared<Function>(NodeVector{ add }, subgraph_params);
+
+        ngraph::NodeVector snippet_inputs{ non_snippet_op, mul_const_1, add_const_1, mul_const_2, add_const_2 };
+        auto snippet = std::make_shared<snippets::op::Subgraph>(snippet_inputs, snippet_function);
+        auto result = std::make_shared<opset1::Result>(snippet);
+
+        f_ref = std::make_shared<Function>(NodeVector{ result }, ParameterVector{ data_1, data_2 });
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+
 TEST(TransformationTests, DontStartSubgraphSingleOutput) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);

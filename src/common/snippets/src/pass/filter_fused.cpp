@@ -275,6 +275,19 @@ bool isSuitableParentForFusingSumActivation(std::shared_ptr<Node> node) {
 bool isSuitableChildForFusingSumActivation(std::shared_ptr<Node> node) {
     return SupportsFusingWithConvolution_SumActivation(node);
 }
+// Continue fusing chain of the passed type if the node has one child
+// Otherwise mark node as FusedTerminator (Fused, but fusing chain is interrupted)
+void PropagateIfHasOnlyChild(std::shared_ptr<Node> node, SnippetsNodeType nodeType) {
+    const auto out = node->outputs();
+    const bool has_only_child = out.size() == 1 && out[0].get_target_inputs().size() == 1;
+    SetSnippetsNodeType(node, has_only_child ? nodeType : SnippetsNodeType::FusedTerminator);
+}
+
+void SetTopologicalOrder(std::shared_ptr<Node> node, int64_t order) {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::SetTopologicalOrder")
+    auto &rt = node->get_rt_info();
+    rt["TopologicalOrder"] = std::make_shared<VariantWrapper<int64_t>>(static_cast<int64_t>(order));
+}
 } // namespace
 
 SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node> node) {
@@ -302,19 +315,6 @@ void SetSnippetsNodeType(std::shared_ptr<Node> node, SnippetsNodeType nodeType) 
     }
     #endif
     rt["MayBeFusedInPlugin"] = std::make_shared<VariantWrapper<int64_t>>(static_cast<int64_t>(nodeType));
-}
-// Continue fusing chain of the passed type if the node has one child
-// Otherwise mark node as FusedTerminator (Fused, but fusing chain is interrupted)
-void PropagateIfHasOnlyChild(std::shared_ptr<Node> node, SnippetsNodeType nodeType) {
-    const auto out = node->outputs();
-    const bool has_only_child = out.size() == 1 && out[0].get_target_inputs().size() == 1;
-    SetSnippetsNodeType(node, has_only_child ? nodeType : SnippetsNodeType::FusedTerminator);
-}
-
-void SetTopologicalOrder(std::shared_ptr<Node> node, int64_t order) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::SetTopologicalOrder")
-    auto &rt = node->get_rt_info();
-    rt["TopologicalOrder"] = std::make_shared<VariantWrapper<int64_t>>(static_cast<int64_t>(order));
 }
 
 bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
