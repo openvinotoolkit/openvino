@@ -51,14 +51,14 @@ void fillBlobRandom(InferenceEngine::Blob::Ptr& inputBlob,
 
 int main(int argc, char* argv[]) {
     Core ie;
-    CNNNetwork network = ie.ReadNetwork("/home/maximandronov/test_repo/openvino/models/BERT/fp32/bert-base-chinese-xnli-zh-fp32-onnx-0001.xml",
-                                        "/home/maximandronov/test_repo/openvino/models/BERT/fp32/bert-base-chinese-xnli-zh-fp32-onnx-0001.bin");
+    CNNNetwork network = ie.ReadNetwork("/home/maximandronov/test_repo/openvino/models/BERT_TF/bert-base-chinese-xnli-zh.xml",
+                                        "/home/maximandronov/test_repo/openvino/models/BERT_TF/bert-base-chinese-xnli-zh.bin");
 
     InferenceEngine::InputsDataMap inputsInfo = network.getInputsInfo();
     std::map<std::string, ov::PartialShape> shapes;
     for (const auto &in: inputsInfo) {
         std::cout << "INPUT: " << in.first << std::endl;
-        shapes[in.first] = {1, -1};
+        shapes[in.first] = {1, 64};
     }
     network.reshape(shapes);
 

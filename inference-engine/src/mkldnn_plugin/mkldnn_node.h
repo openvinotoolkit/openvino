@@ -30,6 +30,8 @@
 #include "cpu_shape.h"
 #include "memory_desc/cpu_memory_desc.h"
 
+#include <mutex>
+
 namespace MKLDNNPlugin {
 
 using MKLDNNNodePtr = std::shared_ptr<MKLDNNNode>;

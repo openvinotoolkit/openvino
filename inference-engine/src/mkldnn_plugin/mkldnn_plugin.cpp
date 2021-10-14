@@ -461,6 +461,14 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
             || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled for the plugin */;
     auto nGraphFunc = clonedNetwork.getFunction();
+
+    // std::cout << "LOOOOOOOOOOOOOOOOOOOOOOOOADDDDDDDDDDDDDDDD" << std::endl;
+    // for (const auto &node : nGraphFunc->get_ordered_ops()) {
+    //     if (std::string(node->get_type_name()) == "Parameter") {
+    //         std::cout << (*node) << std::endl;
+    //     }
+    // }
+
     TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT);
 
     // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
@@ -544,7 +552,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
 // std::cout << "SERIALIZE START" << std::endl;
-//     clonedNetwork.serialize("/home/maximandronov/test_repo/openvino/models/BERT/ng.xml");
+//     clonedNetwork.serialize("/home/maximandronov/test_repo/openvino/models/BERT/ng_INT8.xml");
 // std::cout << "SERIALIZE END" << std::endl;
 
     // for (const auto &node : nGraphFunc->get_ordered_ops()) {
