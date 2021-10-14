@@ -41,7 +41,7 @@ def apply_offline_transformations(input_model: str, framework: str, transforms: 
     # to produce correct mapping
     extract_names = framework in ['tf', 'mxnet', 'kaldi']
 
-    from openvino import Core
+    from openvino.pyopenvino import Core  # pylint: disable=import-error,no-name-in-module
     from openvino.pyopenvino.offline_transformations import GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
 
     core = Core()
