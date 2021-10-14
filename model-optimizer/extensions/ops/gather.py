@@ -53,9 +53,9 @@ class Gather(Op):
         assert indices_shape is not None
         axis = node.in_port(2).data.get_value()
 
-        # We use .items here to support 1d tensors
-        if isinstance(axis, np.ndarray):
-            axis = axis.item()
+        # axis of Gather could be accepted as both scalar and 1D tensor
+        assert isinstance(axis, np.ndarray)
+        axis = axis.item()
         assert axis is not None, 'axis input is undefined'
 
         assert -len(data_shape) <= axis < len(data_shape), \
