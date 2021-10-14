@@ -10,7 +10,7 @@ from datetime import datetime
 import time
 
 from openvino.inference_engine import ie_api as ie
-from runtime.bindings.python.tests.conftest import model_path, image_path
+from ..conftest import model_path, image_path
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)

@@ -9,7 +9,7 @@ import ngraph as ng
 from ngraph.impl.op import Parameter
 from ngraph.impl import Function, Shape, Type
 
-from runtime.bindings.python.tests.conftest import model_path
+from ..conftest import model_path
 
 
 test_net_xml, test_net_bin = model_path()

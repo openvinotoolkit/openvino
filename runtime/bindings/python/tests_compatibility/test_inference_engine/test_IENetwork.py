@@ -6,7 +6,7 @@ import pytest
 import warnings
 
 from openvino.inference_engine import IECore, IENetwork, DataPtr, InputInfoPtr, PreProcessInfo
-from runtime.bindings.python.tests.conftest import model_path
+from ..conftest import model_path
 
 
 test_net_xml, test_net_bin = model_path()

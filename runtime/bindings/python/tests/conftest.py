@@ -3,7 +3,6 @@
 
 import os
 import pytest
-import numpy as np
 
 import tests
 
@@ -79,10 +78,6 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "skip_on_hetero: Skip test on HETERO")
     config.addinivalue_line("markers", "skip_on_template: Skip test on TEMPLATE")
     config.addinivalue_line("markers", "onnx_coverage: Collect ONNX operator coverage")
-    config.addinivalue_line("markers", "ngraph_dependent_test")
-    config.addinivalue_line("markers", "template_plugin")
-    config.addinivalue_line("markers", "ngraph_dependent_test")
-    config.addinivalue_line("markers", "template_plugin")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -113,48 +108,6 @@ def pytest_collection_modifyitems(config, items):
         if skip_this_backend in item.keywords:
             item.add_marker(skip_markers[backend_name])
 
-
-def create_encoder(input_shape, levels = 4):
-    import ngraph as ng
-    # input
-    input_node = ng.parameter(input_shape, np.float32, name="data")
-
-    padding_begin = padding_end = [0, 0]
-    strides = [1, 1]
-    dilations = [1, 1]
-    input_channels = [input_shape[1]]
-    last_output = input_node
-
-    # convolution layers
-    for i in range(levels):
-        input_c = input_channels[-1]
-        output_c = input_c * 2
-        conv_w = np.random.uniform(0, 1, [output_c, input_c, 5, 5]).astype(np.float32)
-        conv_node = ng.convolution(last_output, conv_w, strides, padding_begin, padding_end, dilations)
-        input_channels.append(output_c)
-        last_output = conv_node
-
-    # deconvolution layers
-    for i in range(levels):
-        input_c = input_channels[-2]
-        output_c = input_channels.pop(-1)
-        deconv_w = np.random.uniform(0, 1, [output_c, input_c, 5, 5]).astype(np.float32)
-        deconv_node = ng.convolution_backprop_data(last_output, deconv_w, strides)
-        last_output = deconv_node
-
-    # result
-    last_output.set_friendly_name("out")
-    result_node = ng.result(last_output)
-    return ng.Function(result_node, [input_node], "Encoder")
-
-
-def create_relu(input_shape):
-    import ngraph as ng
-    input_shape = ng.impl.PartialShape(input_shape)
-    param = ng.parameter(input_shape, dtype=np.float32, name="data")
-    result = ng.relu(param, name="out")
-    function  = ng.Function(result, [param], "TestFunction")
-    return function
 
 @pytest.fixture(scope="session")
 def device():

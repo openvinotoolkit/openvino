@@ -5,7 +5,7 @@ import pytest
 
 from openvino.inference_engine import PreProcessInfo, IECore, TensorDesc, Blob, PreProcessChannel,\
     MeanVariant, ResizeAlgorithm, ColorFormat
-from runtime.bindings.python.tests.conftest import model_path
+from ..conftest import model_path
 
 
 test_net_xml, test_net_bin = model_path()
