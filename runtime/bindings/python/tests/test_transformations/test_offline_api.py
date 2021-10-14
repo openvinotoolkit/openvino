@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.pyopenvino.offline_transformations import apply_moc_transformations, apply_pot_transformations, \
+from openvino.offline_transformations import apply_moc_transformations, apply_pot_transformations, \
     apply_low_latency_transformation, apply_pruning_transformation, apply_make_stateful_transformation
 
 from ngraph.impl import Function, Shape
