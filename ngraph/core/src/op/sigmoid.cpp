@@ -41,7 +41,6 @@ bool evaluate_sigmoid(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_sigmoid, boolean, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_sigmoid, i32, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_sigmoid, i64, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_sigmoid, u32, arg0, out, count);
@@ -65,7 +64,6 @@ bool ov::op::v0::Sigmoid::evaluate(const HostTensorVector& outputs, const HostTe
 bool ov::op::v0::Sigmoid::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Sigmoid_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::boolean:
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:
