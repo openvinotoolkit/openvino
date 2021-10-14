@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cstdint>
 #include <gtest/gtest.h>
 
 #include <sstream>
@@ -10,9 +9,11 @@
 #include <memory>
 
 #include <inference_engine.hpp>
+#include <memory>
+#include <ngraph/opsets/opset8.hpp>
+#include <string>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/rt_info/old_api_map_attribute.hpp>
-#include <transformations/serialize.hpp>
 #include "frontend_manager/frontend_manager.hpp"
 #include "graph_comparator.hpp"
 #include "ie_blob.h"
@@ -25,7 +26,6 @@
 #include "ngraph/variant.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "openvino/runtime/core.hpp"
-#include <ngraph/opsets/opset8.hpp>
 
 using namespace ngraph;
 
@@ -115,11 +115,11 @@ TEST_F(RTInfoDeserialization, NodeV10) {
     auto f = getWithIRFrontend(model);
     ASSERT_NE(nullptr, f);
 
-    auto check_rt_info = [](const RTMap & info) {
-        const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+    auto check_rt_info = [](const RTMap& info) {
+        const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
         EXPECT_FALSE(info.count(key));
 
-        const std::string & key_old_api = ov::OldApiMap::get_type_info_static();
+        const std::string& key_old_api = ov::OldApiMap::get_type_info_static();
         EXPECT_FALSE(info.count(key_old_api));
     };
 
@@ -173,8 +173,8 @@ TEST_F(RTInfoDeserialization, NodeV10) {
         auto result = std::make_shared<opset8::Result>(convert_result);
         result->set_friendly_name("output");
 
-        auto f_10_ref = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                           ngraph::ParameterVector{param});
+        auto f_10_ref =
+            std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
         f_10_ref->set_friendly_name("Network");
 
         ov::runtime::Core core;
@@ -184,11 +184,11 @@ TEST_F(RTInfoDeserialization, NodeV10) {
         check_version(f_10_core, 10);
 
         const auto fc = FunctionsComparator::with_default()
-                .enable(FunctionsComparator::ATTRIBUTES)
-                .enable(FunctionsComparator::PRECISIONS)
-                .enable(FunctionsComparator::RUNTIME_KEYS)
-                .enable(FunctionsComparator::NAMES)
-                .enable(FunctionsComparator::CONST_VALUES);
+                            .enable(FunctionsComparator::ATTRIBUTES)
+                            .enable(FunctionsComparator::PRECISIONS)
+                            .enable(FunctionsComparator::RUNTIME_KEYS)
+                            .enable(FunctionsComparator::NAMES)
+                            .enable(FunctionsComparator::CONST_VALUES);
         auto res = fc.compare(f_10_core, f_10_ref);
         EXPECT_TRUE(res.valid) << res.message;
     }
@@ -269,8 +269,8 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
     auto f = getWithIRFrontend(model);
     ASSERT_NE(nullptr, f);
 
-    auto check_rt_info = [](const RTMap & info) {
-        const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+    auto check_rt_info = [](const RTMap& info) {
+        const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
         ASSERT_FALSE(info.count(key));
     };
 
@@ -325,8 +325,8 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
         auto result = std::make_shared<opset8::Result>(convert_result);
         result->set_friendly_name("output");
 
-        auto f_10_ref = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                           ngraph::ParameterVector{param});
+        auto f_10_ref =
+            std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
         f_10_ref->set_friendly_name("Network");
 
         ov::runtime::Core core;
@@ -335,11 +335,11 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
         check_version(f_10_core, 10);
 
         const auto fc = FunctionsComparator::with_default()
-                .enable(FunctionsComparator::ATTRIBUTES)
-                .enable(FunctionsComparator::PRECISIONS)
-                .enable(FunctionsComparator::RUNTIME_KEYS)
-                .enable(FunctionsComparator::NAMES)
-                .enable(FunctionsComparator::CONST_VALUES);
+                            .enable(FunctionsComparator::ATTRIBUTES)
+                            .enable(FunctionsComparator::PRECISIONS)
+                            .enable(FunctionsComparator::RUNTIME_KEYS)
+                            .enable(FunctionsComparator::NAMES)
+                            .enable(FunctionsComparator::CONST_VALUES);
         auto res = fc.compare(f_10_core, f_10_ref);
         EXPECT_TRUE(res.valid) << res.message;
     }
@@ -409,8 +409,8 @@ TEST_F(RTInfoDeserialization, NodeV11) {
     auto f = getWithIRFrontend(model);
     ASSERT_NE(nullptr, f);
 
-    auto check_fused_names = [](const RTMap & info, const std::string & names) {
-        const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+    auto check_fused_names = [](const RTMap& info, const std::string& names) {
+        const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
         ASSERT_TRUE(info.count(key));
         auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(info.at(key));
         ASSERT_TRUE(fused_names_attr);
@@ -437,14 +437,10 @@ TEST_F(RTInfoDeserialization, NodeV11) {
 
     auto param = f->get_parameters()[0];
     check_fused_names(param->get_rt_info(), "in1");
-    check_old_api_map(param->get_rt_info(),
-                      std::vector<uint64_t>({0, 2, 3, 1}),
-                      ngraph::element::Type_t::f16);
+    check_old_api_map(param->get_rt_info(), std::vector<uint64_t>({0, 2, 3, 1}), ngraph::element::Type_t::f16);
 
     auto result = f->get_result();
-    check_old_api_map(result->get_rt_info(),
-                      std::vector<uint64_t>({0, 3, 1, 2}),
-                      ngraph::element::Type_t::f16);
+    check_old_api_map(result->get_rt_info(), std::vector<uint64_t>({0, 3, 1, 2}), ngraph::element::Type_t::f16);
     auto round = result->get_input_node_ptr(0);
     check_fused_names(round->get_rt_info(), "Round1,Round2");
 
@@ -478,8 +474,9 @@ TEST_F(RTInfoDeserialization, NodeV11) {
 
         auto convert_param = std::make_shared<opset8::Convert>(param, ngraph::element::f32);
 
-        auto constant_param = std::make_shared<opset8::Constant>(ngraph::element::i64, ngraph::Shape{4},
-            std::vector<int64_t>{0, 2, 3, 1});
+        auto constant_param = std::make_shared<opset8::Constant>(ngraph::element::i64,
+                                                                 ngraph::Shape{4},
+                                                                 std::vector<int64_t>{0, 2, 3, 1});
         auto transpose_param = std::make_shared<opset8::Transpose>(convert_param, constant_param);
 
         auto round = std::make_shared<opset8::Round>(transpose_param,
@@ -488,8 +485,9 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         round->get_rt_info()[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
             std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("Round1,Round2"));
 
-        auto constant_result = std::make_shared<opset8::Constant>(ngraph::element::i64, ngraph::Shape{4},
-            std::vector<int64_t>{0, 3, 1, 2});
+        auto constant_result = std::make_shared<opset8::Constant>(ngraph::element::i64,
+                                                                  ngraph::Shape{4},
+                                                                  std::vector<int64_t>{0, 3, 1, 2});
         auto transpose_result = std::make_shared<opset8::Transpose>(round, constant_result);
 
         auto convert_result = std::make_shared<opset8::Convert>(transpose_result, type);
@@ -499,8 +497,8 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         auto result = std::make_shared<opset8::Result>(convert_result);
         result->set_friendly_name("output");
 
-        auto f_10_ref = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                           ngraph::ParameterVector{param});
+        auto f_10_ref =
+            std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
         f_10_ref->set_friendly_name("Network");
 
         InferenceEngine::Core core;
@@ -514,11 +512,11 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         EXPECT_EQ(InferenceEngine::Precision::FP32, cnn_core.getOutputsInfo()["Round"]->getPrecision());
 
         const auto fc = FunctionsComparator::with_default()
-                .enable(FunctionsComparator::ATTRIBUTES)
-                .enable(FunctionsComparator::PRECISIONS)
-                .enable(FunctionsComparator::RUNTIME_KEYS)
-                .enable(FunctionsComparator::NAMES)
-                .enable(FunctionsComparator::CONST_VALUES);
+                            .enable(FunctionsComparator::ATTRIBUTES)
+                            .enable(FunctionsComparator::PRECISIONS)
+                            .enable(FunctionsComparator::RUNTIME_KEYS)
+                            .enable(FunctionsComparator::NAMES)
+                            .enable(FunctionsComparator::CONST_VALUES);
         auto res = fc.compare(f_10_core, f_10_ref);
         EXPECT_TRUE(res.valid) << res.message;
 
@@ -634,16 +632,16 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
     };
     check_version(f, 11);
 
-    auto check_fused_names = [](const RTMap & info, const std::string & names) {
-        const std::string & key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+    auto check_fused_names = [](const RTMap& info, const std::string& names) {
+        const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
         ASSERT_TRUE(info.count(key));
         auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(info.at(key));
         ASSERT_TRUE(fused_names_attr);
         ASSERT_EQ(fused_names_attr->get().getNames(), names);
     };
 
-    auto check_old_api_map = [](const RTMap & info, const std::vector<uint64_t> & order, ngraph::element::Type type) {
-        const std::string & old_api_map_key = ov::OldApiMap::get_type_info_static();
+    auto check_old_api_map = [](const RTMap& info, const std::vector<uint64_t>& order, ngraph::element::Type type) {
+        const std::string& old_api_map_key = ov::OldApiMap::get_type_info_static();
         ASSERT_TRUE(info.count(old_api_map_key));
         auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
         ASSERT_TRUE(old_api_map_attr);
@@ -654,15 +652,11 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
 
     auto param = f->get_parameters()[0];
     check_fused_names(param->output(0).get_rt_info(), "test1,test2");
-    check_old_api_map(param->get_rt_info(),
-                      std::vector<uint64_t>({}),
-                      ngraph::element::Type_t::undefined);
+    check_old_api_map(param->get_rt_info(), std::vector<uint64_t>({}), ngraph::element::Type_t::undefined);
 
     auto result = f->get_result();
     check_fused_names(result->input(0).get_rt_info(), "test5,test6");
-    check_old_api_map(result->get_rt_info(),
-                      std::vector<uint64_t>({}),
-                      ngraph::element::Type_t::undefined);
+    check_old_api_map(result->get_rt_info(), std::vector<uint64_t>({}), ngraph::element::Type_t::undefined);
 
     auto add = result->get_input_node_ptr(0);
     check_fused_names(add->input(0).get_rt_info(), "test2,test3");
@@ -680,8 +674,8 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
         EXPECT_EQ(InferenceEngine::Precision::FP32, cnn.getOutputsInfo()["sum"]->getPrecision());
 
         // check that old api map is removed once applied
-        auto check_old_api_rt_info = [](const RTMap & info) {
-            const std::string & key = ov::OldApiMap::get_type_info_static();
+        auto check_old_api_rt_info = [](const RTMap& info) {
+            const std::string& key = ov::OldApiMap::get_type_info_static();
             EXPECT_FALSE(info.count(key));
         };
 

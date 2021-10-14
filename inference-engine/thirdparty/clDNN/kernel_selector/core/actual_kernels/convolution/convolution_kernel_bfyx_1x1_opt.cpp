@@ -93,6 +93,9 @@ bool convolution_kernel_bfyx_1x1_opt::Validate(const Params& p, const optional_p
     }
     const convolution_params& cp = static_cast<const convolution_params&>(p);
 
+    if (!IsSIMDSizeSupported(cp.engineInfo, 8))
+        return false;
+
     if (cp.stride.x != 1 || cp.stride.y != 1)
         return false;
 
