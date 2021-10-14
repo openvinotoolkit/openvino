@@ -7,11 +7,12 @@ from openvino.pyopenvino.offline_transformations import ApplyMOCTransformations,
 from ngraph.impl import Function, Shape
 import ngraph as ng
 
+
 def get_test_function():
     param = ng.parameter(Shape([1, 3, 22, 22]), name="parameter")
     relu = ng.relu(param)
-    res = ng.result(relu, name='result')
-    return Function([res], [param], 'test')
+    res = ng.result(relu, name="result")
+    return Function([res], [param], "test")
 
 
 def test_moc_transformations():
@@ -19,7 +20,7 @@ def test_moc_transformations():
 
     ApplyMOCTransformations(function, False)
 
-    assert function != None
+    assert function is not None
     assert len(function.get_ops()) == 3
 
 
@@ -28,7 +29,7 @@ def test_pot_transformations():
 
     ApplyPOTTransformations(function, "GNA")
 
-    assert function != None
+    assert function is not None
     assert len(function.get_ops()) == 3
 
 
@@ -37,7 +38,7 @@ def test_low_latency_transformation():
 
     ApplyLowLatencyTransformation(function, True)
 
-    assert function != None
+    assert function is not None
     assert len(function.get_ops()) == 3
 
 
@@ -46,7 +47,7 @@ def test_pruning_transformation():
 
     ApplyPruningTransformation(function)
 
-    assert function != None
+    assert function is not None
     assert len(function.get_ops()) == 3
 
 
@@ -55,6 +56,6 @@ def test_make_stateful_transformations():
 
     ApplyMakeStatefulTransformation(function, {"parameter": "result"})
 
-    assert function != None
+    assert function is not None
     assert len(function.get_parameters()) == 0
     assert len(function.get_results()) == 0
