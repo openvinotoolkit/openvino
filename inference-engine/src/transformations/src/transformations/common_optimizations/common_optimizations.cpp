@@ -33,6 +33,7 @@
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/clamp_fusion.hpp"
+#include "transformations/common_optimizations/pad_fillvalue.hpp"
 #include "transformations/common_optimizations/pad_fusion.hpp"
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
 #include "transformations/common_optimizations/shuffle_channels_fusion.hpp"
@@ -95,6 +96,18 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     // Disable low_precision_enabled as all plugins handle low-precision sub-graph manually
     // before CommonOptimization pipeline execution
     manager.register_pass<ngraph::pass::MOCTransformations>(true, false);
+
+    auto fill = manager.register_pass<ngraph::pass::GraphRewrite>();
+    fill->add_matcher<ngraph::pass::PadFillValue>();
+    fill->set_name("ngraph::pass::PadFill");
+
+    // This pass must be called first in pipeline
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
+    manager.register_pass<ngraph::pass::SimplifyShapeOfSubGraph>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>(); // Resolves dynamism (replaces NonZero), CF needed
+    manager.register_pass<ngraph::pass::ConvertNmsGatherPathToUnsigned>(); // workaround until dynamism in NMS is not supported
 
     // TODO: move to KMB
     manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();

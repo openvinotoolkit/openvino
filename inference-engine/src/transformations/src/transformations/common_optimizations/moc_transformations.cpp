@@ -19,6 +19,7 @@
 #include <transformations/common_optimizations/hswish_fusion.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
 #include <transformations/common_optimizations/pad_fusion.hpp>
+#include <transformations/common_optimizations/pad_fillvalue.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
 #include <transformations/op_conversions/convert_scatter_elements_to_scatter.hpp>
 #include <transformations/common_optimizations/clamp_fusion.hpp>
@@ -64,6 +65,10 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     }
 
     ngraph::pass::Manager manager(get_pass_config());
+
+    auto fill = manager.register_pass<ngraph::pass::GraphRewrite>();
+    fill->add_matcher<ngraph::pass::PadFillValue>();
+    fill->set_name("ngraph::pass::PadFill");
 
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     if (m_low_precision_enabled) {
