@@ -2525,6 +2525,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_eye_like) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/eye_like.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{3, 4}, {5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f});
     test_case.add_expected_output<float>(Shape{3, 4}, {0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f});
 
     test_case.run();

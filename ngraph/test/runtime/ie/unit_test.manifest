@@ -235,6 +235,8 @@ onnx_model_rnn_defaults_fwd_const_dynamic
 onnx_model_depth_to_space_dynamic_input
 onnx_model_space_to_depth_dynamic_input
 squeeze_dynamic
+onnx_model_eye_like_dyn_shape
+onnx_model_eye_like_dyn_rank
 
 
 # Constant network
