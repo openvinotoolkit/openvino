@@ -138,7 +138,7 @@ std::vector<CeilingParams> generateCombinedParamsForCeiling() {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Ceiling_With_Hardcoded_Refs, 
+    smoke_Ceiling_With_Hardcoded_Refs,
     ReferenceCeilingLayerTest,
     ::testing::ValuesIn(generateCombinedParamsForCeiling()),
     ReferenceCeilingLayerTest::getTestCaseName);
