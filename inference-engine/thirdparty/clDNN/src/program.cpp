@@ -428,7 +428,7 @@ void program::build_program(bool is_internal) {
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
 #ifdef GPU_DEBUG_CONFIG
-    if (debug_config->dry_run_path.empty()) {
+    if (debug_config->dry_run_path.empty() || is_internal) {
 #else
     {
 #endif
