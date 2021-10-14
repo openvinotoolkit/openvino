@@ -10,7 +10,7 @@ import logging
 import subprocess
 
 
-def cmd_exec(args, env=None, log=None, verbose=True, shell=False):
+def cmd_exec(args, timeout=None, env=None, log=None, verbose=True, shell=False):
     """ Run cmd using subprocess with logging and other improvements
     """
     if log is None:
@@ -37,7 +37,7 @@ def cmd_exec(args, env=None, log=None, verbose=True, shell=False):
         if line or proc.poll() is None:
             continue
         break
-    outs = proc.communicate()[0]
+    outs = proc.communicate(timeout=timeout)[0]
 
     if outs:
         log_out(outs.strip("\n"))
