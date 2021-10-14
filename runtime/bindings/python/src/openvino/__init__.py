@@ -13,8 +13,6 @@ try:
 except DistributionNotFound:
     __version__ = "0.0.0.dev0"
 
-from openvino import inference_engine
-
 from openvino.ie_api import BlobWrapper
 from openvino.ie_api import infer
 from openvino.ie_api import async_infer
