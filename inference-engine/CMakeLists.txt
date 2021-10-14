@@ -67,26 +67,3 @@ elseif(WIN32)
             PATTERN .clang-format EXCLUDE)
 endif()
 
-# install C samples
-
-ie_cpack_add_component(c_samples DEPENDS core_c)
-
-if(UNIX)
-    install(PROGRAMS samples/build_samples.sh
-            DESTINATION samples/c
-            COMPONENT c_samples)
-elseif(WIN32)
-    install(PROGRAMS samples/build_samples_msvc.bat
-            DESTINATION samples/c
-            COMPONENT c_samples)
-endif()
-
-install(DIRECTORY ie_bridges/c/samples/
-        DESTINATION samples/c
-        COMPONENT c_samples
-        PATTERN ie_bridges/c/samples/CMakeLists.txt EXCLUDE
-        PATTERN ie_bridges/c/samples/.clang-format EXCLUDE)
-
-install(FILES samples/CMakeLists.txt
-        DESTINATION samples/c
-        COMPONENT c_samples)
