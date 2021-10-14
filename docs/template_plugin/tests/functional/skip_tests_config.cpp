@@ -29,5 +29,10 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO: Round with f16 is not supported
         R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
+
+        // CVS-63948
+        R"(.*ReferenceConstantLayerTest.*_tensor_2constant)",
+        R"(.*ReferenceConstantLayerTest.*_constant_equality_bool)",
+        R"(.*ReferenceConstantLayerTest.*_constant_multi_use)",
     };
 }
