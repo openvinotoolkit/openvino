@@ -9,7 +9,3 @@ add_subdirectory(src)
 if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
-
-if(ENABLE_SAMPLES)
-    add_subdirectory(samples)
-endif()

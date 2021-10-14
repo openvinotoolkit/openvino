@@ -2,6 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(ENABLE_SAMPLES)
+    add_subdirectory(C)
+endif()
+
+
 # install Python samples
 
 ie_cpack_add_component(python_samples)
