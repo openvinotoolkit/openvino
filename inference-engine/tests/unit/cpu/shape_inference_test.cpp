@@ -102,8 +102,8 @@ TEST(StaticShapeInferenceTest, ExperimentalDetectronROIFeatureExtractor) {
 
     ASSERT_EQ(roi->get_output_element_type(0), element::f32);
 
-    EXPECT_EQ(output_shapes[0], (Shape{1000, 256, 14, 14}));
-    EXPECT_EQ(output_shapes[1], (Shape{1000, 4}));
+    EXPECT_EQ(output_shapes[0], (PartialShape{1000, 256, 14, 14}));
+    EXPECT_EQ(output_shapes[1], (PartialShape{1000, 4}));
 
     std::vector<StaticShape> input_shapes2 = {StaticShape{1000, 4},
                                               StaticShape{1, 256, 200, 336},
@@ -115,8 +115,8 @@ TEST(StaticShapeInferenceTest, ExperimentalDetectronROIFeatureExtractor) {
 
     ASSERT_EQ(roi->get_output_element_type(0), element::f32);
 
-    EXPECT_EQ(output_shapes2[0], (Shape{1000, 256, 14, 14}));
-    EXPECT_EQ(output_shapes2[1], (Shape{1000, 4}));
+    EXPECT_EQ(output_shapes2[0], (StaticShape{1000, 256, 14, 14}));
+    EXPECT_EQ(output_shapes2[1], (StaticShape{1000, 4}));
 }
 
 #if 0
