@@ -78,7 +78,7 @@ def pytest_addoption(parser):
         help="number of iterations to run executable and aggregate results",
         default=3
     )
-    omz_args_parser = parser.getgroup("test with omz models")
+    omz_args_parser = parser.getgroup("Test with OMZ models")
     omz_args_parser.addoption(
         "--omz",
         type=Path,
@@ -103,12 +103,6 @@ def pytest_addoption(parser):
         default=abs_path('../_omz_out/irs'),
         help='Directory to put test data into. Required for OMZ converter.py only.'
     )
-    omz_args_parser.addoption(
-        "--mo",
-        type=Path,
-        default=abs_path("../../../model-optimizer/mo.py"),
-        help="Path to model-optimizer mo.py. Required for OMZ converter.py only",
-    )
     helpers_args_parser = parser.getgroup("test helpers")
     helpers_args_parser.addoption(
         "--dump_refs",
@@ -120,9 +114,9 @@ def pytest_addoption(parser):
         '--db_submit',
         metavar="RUN_ID",
         type=str,
-        help='submit results to the database. ' \
-             '`RUN_ID` should be a string uniquely identifying the run' \
-             ' (like Jenkins URL or time)'
+        help='submit results to the database. '
+             '`RUN_ID` should be a string uniquely identifying the run '
+             '(like Jenkins URL or time)'
     )
     is_db_used = db_args_parser.parser.parse_known_args(sys.argv).db_submit
     db_args_parser.addoption(
@@ -196,18 +190,18 @@ def omz_models_conversion(instance, request):
     # Check Open Model Zoo key
     omz_path = request.config.getoption("omz")
     if omz_path:
-        cache_dir = request.config.getoption("omz_cache_dir")
-        omz_models_out_dir = request.config.getoption("omz_models_out_dir")
-        omz_irs_out_dir = request.config.getoption("omz_irs_out_dir")
-        mo_path = request.config.getoption("mo")
-
-        downloader_path = omz_path / "tools" / "downloader" / "downloader.py"
-        converter_path = omz_path / "tools" / "downloader" / "converter.py"
-        info_dumper_path = omz_path / "tools" / "downloader" / "info_dumper.py"
+        # TODO: After switch to wheel OV installation, omz tools should be accessible through command line
+        downloader_path = omz_path / "tools" / "model_tools" / "downloader.py"
+        converter_path = omz_path / "tools" / "model_tools" / "converter.py"
+        info_dumper_path = omz_path / "tools" / "model_tools" / "info_dumper.py"
 
         if instance["instance"]["model"]["source"] == "omz":
             model_name = instance["instance"]["model"]["name"]
             model_precision = instance["instance"]["model"]["precision"]
+
+            cache_dir = request.config.getoption("omz_cache_dir")
+            omz_models_out_dir = request.config.getoption("omz_models_out_dir")
+            omz_irs_out_dir = request.config.getoption("omz_irs_out_dir")
 
             # get full model info
             cmd = [f'{sys.executable}', f'{info_dumper_path}', '--name', f'{model_name}']
@@ -220,9 +214,9 @@ def omz_models_conversion(instance, request):
                 logging.error(f"Please specify precision for the model "
                               f"{model_name} from the list: {model_info['precisions']}")
 
-            model_out_path = Path(omz_models_out_dir / model_info["subdirectory"]) / model_precision / (
-                    model_name + ".xml")
-            model_full_path = omz_irs_out_dir / model_info["subdirectory"] / model_precision / (model_name + ".xml")
+            sub_model_path = str(Path(model_info["subdirectory"]) / model_precision / (model_name + ".xml"))
+            model_out_path = omz_models_out_dir / sub_model_path
+            model_irs_out_path = omz_irs_out_dir / sub_model_path
 
             # prepare models and convert models to IRs
             cmd = [f'{sys.executable}', f'{downloader_path}', '--name', f'{model_name}',
@@ -234,14 +228,16 @@ def omz_models_conversion(instance, request):
 
             cmd = [f'{sys.executable}', f'{converter_path}', '--name', f'{model_name}', '-p', f'{sys.executable}',
                    '--precisions', f'{model_precision}', '--output_dir', f'{omz_irs_out_dir}',
-                   '--download_dir', f'{omz_models_out_dir}', '--mo', f'{mo_path}']
+                   '--download_dir', f'{omz_models_out_dir}']
 
             return_code, _ = cmd_exec(cmd, log=logging)
             assert return_code == 0, "Converting OMZ models has failed!"
 
-            instance["instance"]["model"]["framework"] = model_info["framework"]
-            instance["instance"]["model"]["path"] = model_out_path
-            instance["instance"]["model"]["full_path"] = model_full_path
+            instance["orig_instance"]["model"]["framework"] = model_info["framework"]
+            instance["orig_instance"]["model"]["path"] = sub_model_path
+
+            instance["instance"]["model"]["cache_path"] = model_out_path
+            instance["instance"]["model"]["irs_out_path"] = model_irs_out_path
 
 
 @pytest.fixture(scope="function")
@@ -346,7 +342,6 @@ def prepare_db_info(request, instance, executable, niter, manifest_metadata):
             "model": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string"},
                     "name": {"type": "string"},
                     "precision": {"type": "string"},
                     "framework": {"type": "string"}
@@ -445,6 +440,8 @@ def prepare_timeline_report(pytestconfig):
         template = env.get_template('timeline_report.html')
         template.stream(records=records, timelines=timelines).dump(report_path)
 
+        logging.info(f"Save html timeline_report to {report_path}")
+
 
 @pytest.fixture(scope="session", autouse=True)
 def prepare_tconf_with_refs(pytestconfig):
@@ -454,7 +451,7 @@ def prepare_tconf_with_refs(pytestconfig):
     yield
     new_tconf_path = pytestconfig.getoption('dump_refs')
     if new_tconf_path:
-        logging.info("Save new test config with test results as references to {}".format(new_tconf_path))
+        logging.info(f"Save new test config with test results as references to {new_tconf_path}")
 
         upd_cases = []
         steps_to_dump = {"create_exenetwork", "first_inference"}
