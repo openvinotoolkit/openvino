@@ -1749,7 +1749,7 @@ std::vector<ConvolutionBackpropParams> generateConvolutionBackpropUintParams() {
 
 std::vector<ConvolutionBackpropParams> generateConvolutionBackpropCombinedParams() {
     const std::vector<std::vector<ConvolutionBackpropParams>> convolutionBackpropTypeParams {
-        //generateConvolutionBackpropFloatParams<element::Type_t::f64>(),
+        generateConvolutionBackpropFloatParams<element::Type_t::f64>(),
         generateConvolutionBackpropFloatParams<element::Type_t::f32>(),
         generateConvolutionBackpropFloatParams<element::Type_t::f16>(),
         generateConvolutionBackpropFloatParams<element::Type_t::bf16>(),
