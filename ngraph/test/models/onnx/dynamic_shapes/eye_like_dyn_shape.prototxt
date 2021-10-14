@@ -19,10 +19,8 @@ graph {
         elem_type: 1
         shape {
           dim {
-            dim_value: 3
           }
           dim {
-            dim_value: 4
           }
         }
       }
@@ -35,10 +33,8 @@ graph {
         elem_type: 1
         shape {
           dim {
-            dim_value: 3
           }
           dim {
-            dim_value: 4
           }
         }
       }
