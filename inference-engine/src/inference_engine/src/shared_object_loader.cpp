@@ -2,13 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <dlfcn.h>
-
-#include <iostream>
-
 #include "details/ie_so_loader.h"
-#include "file_utils.h"
-#include "openvino/util/file_util.hpp"
 #include "openvino/util/so_loader.hpp"
 
 namespace InferenceEngine {
