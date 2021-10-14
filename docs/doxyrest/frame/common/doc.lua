@@ -442,6 +442,24 @@ function formatDocBlock_graph(block, context, graphtype)
 	return "\n\n.. " .. graphtype .. "::\n\n" .. code .. "\n\n"
 end
 
+function formatDocBlock_blockquote(block, context)
+	local text = getDocBlockText(block, context)
+	local test
+	if text.find(text,'**NOTE**') then
+		text = string.gsub(text, '^%s*%*%*NOTE%*%*%s*:%s*', '')
+		return ".. note:: " .. text
+	end
+	if text.find(text,'**IMPORTANT**') then
+		text = string.gsub(text, '^%s*%*%*IMPORTANT%*%*%s*:%s*', '')
+		return ".. warning:: " .. text
+	end
+	if text.find(text,'**TIP**') then
+		text = string.gsub(text, '^%s*%*%*TIP%*%*%s*:%s*', '')
+		return ".. tip:: " .. text
+	end
+	return "\t" .. text
+end
+
 function formatDocBlock_sphinxdirective(block, context)
 	local code = getCodeDocBlockContents(block, context)
 	return "\n\n" .. code .. "\n\n"
@@ -459,7 +477,7 @@ g_blockKindFormatMap =
 	["itemizedlist"]         = function(b, c) return formatDocBlock_list(b, c, "*") end,
 	["orderedlist"]          = function(b, c) return formatDocBlock_list(b, c, "#.") end,
 	["variablelist"]         = formatDocBlock_variablelist,
-	["linebreak"]            = function(b, c) return "\n\n" end,
+	["linebreak"]            = function(b, c) return "\n|br|\n" end,
 	["ref"]                  = formatDocBlock_ref,
 	["anchor"]               = formatDocBlock_anchor,
 	["image"]                = formatDocBlock_image,
@@ -482,6 +500,7 @@ g_blockKindFormatMap =
 	["dot"]                  = function(b, c) return formatDocBlock_graph(b, c, "graphviz") end,
 	["plantuml"]             = function(b, c) return formatDocBlock_graph(b, c, "uml") end,
 	["msc"]                  = function(b, c) return formatDocBlock_graph(b, c, "msc") end,
+	["blockquote"]           = formatDocBlock_blockquote,
 	["sphinxdirective"]      = formatDocBlock_sphinxdirective
 }
 

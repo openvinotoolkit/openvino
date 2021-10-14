@@ -85,6 +85,7 @@ function(build_docs)
     set(DOXY_LOG_SCRIPT "${DOXYGEN_DIR}/log.py")
     set(PYX_FILTER "${DOXYGEN_DIR}/pyx_filter.py")
     set(PREPARE_XML_SCRIPT "${DOXYGEN_DIR}/prepare_xml.py")
+    set(REMOVE_XML_SCRIPT "${DOXYGEN_DIR}/remove_xml.py")
     set(COPY_IMAGES_SCRIPT "${DOXYGEN_DIR}/copy_images.py")
     set(DOXYGEN_MAPPING_SCRIPT "${DOXYGEN_DIR}/create_mapping.py")
     set(DOXYGEN_MAPPING_FILE "${DOCS_BUILD_DIR}/mapping.json")
@@ -194,6 +195,7 @@ function(build_docs)
 
     add_custom_target(doxygen_xml
                       DEPENDS preprocess_docs
+                      COMMAND ${PYTHON_EXECUTABLE} ${REMOVE_XML_SCRIPT} ${XML_OUTPUT}
                       COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       COMMENT "Generate doxygen XML output"

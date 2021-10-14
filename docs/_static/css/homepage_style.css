@@ -1,6 +1,10 @@
 /* overrides */
 .switcher-set {display: none;}
 
+.openvino-documentation ~ h1 {
+	display: none;
+}
+
 
 /* === SEPARATOR HEADERS ================================================= */
 .HP_separator-header { 
@@ -75,6 +79,7 @@ float: right;
 	-ms-transition: all 0.5s;
 }
 #HP_head_banner > div > a img{
+	vertical-align: inherit;
 	transition: all 0.5s;
 	-webkit-transition: all 0.5s;
 	-moz-transition: all 0.5s;
@@ -100,7 +105,7 @@ float: right;
 }
 
 #HP_head_banner ~ div ~ p {
-	text-align: justify;
+	text-align: left;
 }
 
 .HP_img_chart {
@@ -214,5 +219,3 @@ img.HP_img_chart ~ p {
 		margin-right: 0;
 	}	
 }
-
-
