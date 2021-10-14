@@ -56,15 +56,11 @@ std::vector<std::string> disabledTestPatterns() {
         // Not expected behavior
         R"(.*Behavior.*ExecNetSetPrecision.*canSetOutputPrecisionForNetwork.*U8.*)",
         R"(.*CoreThreadingTestsWithIterations.*)",
-        R"(.*OVExecutableNetworkBaseTest.*CanSetConfig.*)",
-        R"(.*OVExecutableNetworkBaseTest.*CanGetInputsInfoAndCheck.*)",
-        R"(.*OVExecutableNetworkBaseTest.*(canLoadCorrectNetworkToGetExecutableWithIncorrectConfig).*)",
-        R"(.*OVExecutableNetworkBaseTest.*(precisionsAsInOriginalFunction|precisionsAsInOriginalIR).*)",
+        R"(.*OVExecutableNetworkBaseTest.*)",
         R"(.*OVClassNetworkTestP.*SetAffinity.*)",
         R"(.*OVClassNetworkTestP.*LoadNetworkActual.*NoThrow.*)",
         R"(.*OVClassExecutableNetworkGetMetricTest.*GetMetric.*)",
-        R"(.*ClassImportExportTestP.*ImportNetworkThrowsIfNoDeviceName.*)",
-        R"(.*Behavior.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutable.*)",
-        R"(.*OVClassLoadNetworkTest.*LoadNetworkHETEROwithMULTINoThrow.*)",
+        R"(.*OVClassImportExportTestP.*)",
+        R"(.*OVClassLoadNetworkTest.*)",
     };
 }
