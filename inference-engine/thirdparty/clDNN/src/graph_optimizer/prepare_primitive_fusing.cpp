@@ -55,6 +55,22 @@
 
 void prepare_primitive_fusing::run(program& p) {
     fuse_reorders(p);
+    auto node_itr = p.get_processing_order().begin();
+    while (node_itr != p.get_processing_order().end()) {
+        auto node = (*node_itr++);
+        program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
+            auto input_lay = node.input().get_output_layout();
+            auto output_lay = node.get_output_layout();
+
+            if (!node.is_in_place())
+                return;
+
+            if (program_helpers::are_layouts_identical(input_lay, output_lay).first) {
+                p.add_optimized_primitive_info(node.id());
+                p.extract_and_remove(node);
+            }
+        });
+    }
     fuse_sigmoid_mul_to_swish(p);
     fuse_bias(p);
     fuse_simple_primitives(p);
@@ -191,11 +207,9 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
                 // TODO: new api needs to be created to read such caps
                 // right now use whitelist so no new primitives will be affected in case of lack of fused activation
                 // support
-                (!input.is_type<concatenation>() && !input.is_type<convolution>() &&
-                 !input.is_type<crop>() && !input.is_type<deconvolution>() && !input.is_type<eltwise>() &&
+                (!input.is_type<crop>() && !input.is_type<deconvolution>() && !input.is_type<eltwise>() &&
                  !input.is_type<fully_connected>() && !input.is_type<lrn>() && !input.is_type<normalize>() &&
-                 !input.is_type<permute>() && !input.is_type<pooling>() && !input.is_type<reorder>() &&
-                 !input.is_type<reshape>() && !input.is_type<roi_pooling>() && !input.is_type<scale>() &&
+                 !input.is_type<permute>() && !input.is_type<roi_pooling>() && !input.is_type<scale>() &&
                  !input.is_type<softmax>() && !input.is_type<resample>() && !input.is_type<mvn>() &&
                  !input.is_type<depth_to_space>() && !input.is_type<batch_to_space>() &&
                  !input.is_type<space_to_batch>() && !input.is_type<gather>() && !input.is_type<scatter_update>() && !input.is_type<shuffle_channels>() &&
@@ -592,12 +606,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
-            auto out_layout = node.get_output_layout();
-            if (out_layout.data_type == data_types::f16 && out_layout.size.batch[0] > 1 &&
-                (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
-                return false;
+            if (_lo.get_optimization_attributes().use_onednn_impls == 0) {
+                auto out_layout = node.get_output_layout();
+                if (out_layout.data_type == data_types::f16 && out_layout.size.batch[0] > 1 &&
+                    (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
+                    return false;
+                }
             }
-
             return true;
         };
 
@@ -908,6 +923,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             for (size_t i = 0; i < parents.size(); i++) {
                 can_fuse_parents[i] = (parents[i]->is_type<convolution>() && conv_supports_fusings(parents[i]->as<convolution>())) ||
                                       (parents[i]->is_type<binary_convolution>() && bin_conv_supports_eltw_fusings(parents[i]->as<binary_convolution>())) ||
+                                      (parents[i]->is_type<fully_connected>() && fc_supports_fusings(parents[i]->as<fully_connected>())) ||
                                       (parents[i]->is_type<mvn>() && mvn_supports_fusings(parents[i]->as<mvn>())) ||
                                       (parents[i]->is_type<deconvolution>()) ||
                                       (parents[i]->is_type<permute>()) ||
@@ -975,6 +991,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             auto fused_node = parents[fused_idx];
             auto peer_node = parents[peer_idx];
+
+            if (_lo.get_optimization_attributes().use_onednn_impls == 1) {
+                auto eltw_in_size = peer_node->get_output_layout().size;
+                // Temporary disable mul fusion with full tensor as onednn doesn't support it
+                if (fused_node->is_type<convolution>() && prim->mode == eltwise_mode::prod &&
+                    (eltw_in_size.spatial[0] > 1 || eltw_in_size.spatial[1] > 1 || eltw_in_size.batch[0] > 1))
+                    return;
+            }
 
             if (parent1->is_type<convolution>() && !conv_supports_fusings(parent1->as<convolution>()))
                 return;
