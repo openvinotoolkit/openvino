@@ -43,7 +43,7 @@ Parameters to convert your model:
 ### Example of Converting a Paddle* Model
 Below is the example command to convert yolo v3 Paddle\* network to OpenVINO IR network with Model Optimizer.
 ```sh
-python3 mo.py --model_name yolov3_darknet53_270e_coco --output_dir <OUTPUT_MODEL_DIR> --framework=paddle --data_type=FP32 --reverse_input_channels --input_shape=[2,3,608,608],[1,2],[1,2] --input=image,im_shape,scale_factor --output=save_infer_model/scale_0.tmp_1,save_infer_model/scale_1.tmp_1 --input_model=yolov3.pdmodel
+python3 mo.py --model_name yolov3_darknet53_270e_coco --output_dir <OUTPUT_MODEL_DIR> --framework=paddle --data_type=FP32 --reverse_input_channels --input_shape=[1,3,608,608],[1,2],[1,2] --input=image,im_shape,scale_factor --output=save_infer_model/scale_0.tmp_1,save_infer_model/scale_1.tmp_1 --input_model=yolov3.pdmodel
 ```
 
 ## Supported Paddle\* Layers
