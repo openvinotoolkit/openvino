@@ -36,7 +36,7 @@ public:
     void set_name_for_operation(Place::Ptr operation, const std::string& new_name) override;
     void free_name_for_operation(const std::string& name) override;
     void set_name_for_dimension(Place::Ptr place, size_t shape_dim_index, const std::string& dim_name) override;
-    // not applicable: throws
+    // TODO add descr -> not applicable & throws
     void add_name_for_tensor(Place::Ptr tensor, const std::string& new_name) override;
     void free_name_for_tensor(const std::string& name) override;
 

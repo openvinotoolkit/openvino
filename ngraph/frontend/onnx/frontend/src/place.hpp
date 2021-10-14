@@ -87,7 +87,8 @@ public:
     std::vector<std::string> get_names() const override;
 
     // internal usage
-    onnx_editor::EditorNode get_editor_node() const;
+    const onnx_editor::EditorNode& get_editor_node() const;
+    void set_name(const std::string& new_name);
 
     // external usage
     Place::Ptr get_output_port() const override;

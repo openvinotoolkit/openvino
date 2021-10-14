@@ -24,8 +24,6 @@ namespace onnx_editor {
 ///       model's input types and shapes, extract a subgraph and more.
 class ONNX_IMPORTER_API ONNXModelEditor final {
 public:
-    ONNXModelEditor() = delete;
-
     /// \brief Creates an editor from a model file located on a storage device. The file
     ///        is parsed and loaded into the m_model_proto member variable.
     ///
@@ -92,7 +90,10 @@ public:
     ///                     overwritten.
     void set_input_values(const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values);
 
+    // TODO add descr
     void set_tensor_name(const std::string& current_name, const std::string& new_name);
+    // TODO add descr
+    void set_node_name(const EditorNode& node, const std::string& new_name);
 
     /// \brief Returns a serialized ONNX model, possibly modified by the editor.
     std::string model_string() const;

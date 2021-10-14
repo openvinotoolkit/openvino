@@ -1075,7 +1075,49 @@ def test_set_name_for_tensor():
 
     new_tensor = model.get_place_by_tensor_name(tensorName=new_name)
     assert new_tensor
-    assert new_tensor.is_equal(tensor) # previous Place object holds the handle
+    assert new_tensor.is_equal(tensor)  # previous Place object holds the handle
 
     old_tensor = model.get_place_by_tensor_name(tensorName=old_name)
     assert old_tensor is None
+
+
+def test_set_name_for_operation_with_name():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+    old_name = "split1"
+    new_name = "split1_new"
+
+    operation = model.get_place_by_operation_name(operationName=old_name)
+
+    # ignore rename to own name (expect no exception)
+    model.set_name_for_operation(operation=operation, newName=old_name)
+
+    # actual rename
+    model.set_name_for_operation(operation=operation, newName=new_name)
+
+    new_operation = model.get_place_by_operation_name(operationName=new_name)
+    assert new_operation
+    assert new_operation.is_equal(operation)  # previous Place object holds the handle
+
+    old_operation = model.get_place_by_operation_name(operationName=old_name)
+    assert old_operation is None
+
+
+def test_set_name_for_operation_without_name():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+    output_name = "add_out"
+    new_name = "Add_new"
+
+    operation = model.get_place_by_tensor_name(tensorName=output_name).get_producing_operation()
+    # assure test is performed on node with empty name
+    assert not operation.get_names() or len(operation.get_names()) == 0 or not operation.get_names()[0]
+
+    # actual rename
+    model.set_name_for_operation(operation=operation, newName=new_name)
+
+    new_operation = model.get_place_by_tensor_name(tensorName=output_name).get_producing_operation()
+    assert new_operation
+    assert new_operation.is_equal(operation)  # previous Place object holds the handle

@@ -93,12 +93,12 @@ public:
     ///// Naming and annotation  /////
 
     /// \brief Sets name for tensor. Overwrites existing names of this place
-    /// \param operation Tensor place
+    /// \param tensor Tensor place
     /// \param new_name New name for this tensor
     virtual void set_name_for_tensor(Place::Ptr tensor, const std::string& new_name);
 
     /// \brief Adds new name for tensor
-    /// \param operation Tensor place
+    /// \param tensor Tensor place
     /// \param new_name New name to be added to this place
     virtual void add_name_for_tensor(Place::Ptr tensor, const std::string& new_name);
 

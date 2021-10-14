@@ -200,7 +200,7 @@ std::vector<std::string> PlaceOpONNX::get_names() const {
     return {m_node.m_node_name};
 }
 
-onnx_editor::EditorNode PlaceOpONNX::get_editor_node() const {
+const onnx_editor::EditorNode& PlaceOpONNX::get_editor_node() const {
     return m_node;
 }
 
@@ -384,4 +384,9 @@ bool PlaceOpONNX::is_input() const {
 
 bool PlaceOpONNX::is_output() const {
     return false;
+}
+
+void PlaceOpONNX::set_name(const std::string& new_name) {
+    m_editor->set_node_name(m_node, new_name);
+    m_node.m_node_name = new_name;
 }

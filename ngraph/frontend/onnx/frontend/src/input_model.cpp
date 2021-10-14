@@ -89,7 +89,11 @@ void InputModelONNX::set_name_for_tensor(Place::Ptr tensor, const std::string& n
     onnx_tensor->set_name(new_name);
 }
 
-void InputModelONNX::set_name_for_operation(Place::Ptr operation, const std::string& new_name) {}
+void InputModelONNX::set_name_for_operation(Place::Ptr operation, const std::string& new_name) {
+    const auto onnx_operation = std::dynamic_pointer_cast<PlaceOpONNX>(operation);
+    FRONT_END_GENERAL_CHECK(onnx_operation, __FUNCTION__, " expects a pointer to place of ONNX operation type.");
+    onnx_operation->set_name(new_name);
+}
 
 void InputModelONNX::free_name_for_operation(const std::string& name) {}
 
