@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/random_uniform_like.hpp"
-
 #include "ngraph/shape.hpp"
+#include "op/random_uniform_like.hpp"
 #include "utils/common.hpp"
 #include "utils/random_normal.hpp"
-
 
 namespace ngraph {
 namespace onnx_import {
@@ -33,7 +31,6 @@ OutputVector random_normal_like(const Node& node) {
     const auto seed = node.get_attribute_value<float>("seed", 0);
 
     return ngraph::onnx_import::detail::make_random_normal(shape, target_type, mean, scale, seed);
-
 }
 
 }  // namespace set_1

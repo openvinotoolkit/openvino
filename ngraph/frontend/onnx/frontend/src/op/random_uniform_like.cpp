@@ -38,7 +38,7 @@ OutputVector random_uniform_like(const Node& node) {
     const auto low_const = default_opset::Constant::create(ngraph::element::f32, Shape{1}, {low});
 
     const uint64_t global_seed = 0;
-    const auto seed_uint64 = static_cast<uint64_t>(seed*1000);
+    const auto seed_uint64 = static_cast<uint64_t>(seed * 1000);
 
     return {std::make_shared<ngraph::opset8::RandomUniform>(target_shape,
                                                             low_const,

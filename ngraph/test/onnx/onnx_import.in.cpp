@@ -4133,7 +4133,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_random_uniform) {
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/random_uniform.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_expected_output<float>(Shape{2, 2}, {43.45518 , 48.67585, 42.227386, 40.86294});
+    test_case.add_expected_output<float>(Shape{2, 2}, {43.45518, 48.67585, 42.227386, 40.86294});
     test_case.run();
 }
 
@@ -4143,7 +4143,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_random_uniform_like) {
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>(Shape{2, 2}, {41, 42, 43, 44});
-    test_case.add_expected_output<float>(Shape{2, 2}, {43.45518 , 48.67585, 42.227386, 40.86294});
+    test_case.add_expected_output<float>(Shape{2, 2}, {43.45518, 48.67585, 42.227386, 40.86294});
     test_case.run();
 }
 

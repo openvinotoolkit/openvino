@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "utils/random_normal.hpp"
+
 #include "exceptions.hpp"
 #include "ngraph/shape.hpp"
 #include "utils/common.hpp"
-#include "utils/random_normal.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -27,7 +28,6 @@ OutputVector random_normal(const Node& node) {
     const auto shape = default_opset::Constant::create(element::i64, {shape_dims.size()}, shape_dims);
 
     return ngraph::onnx_import::detail::make_random_normal(shape, target_type, mean, scale, seed);
-
 }
 
 }  // namespace set_1
