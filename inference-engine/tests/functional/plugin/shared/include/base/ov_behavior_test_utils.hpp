@@ -110,6 +110,7 @@ public:
 };
 
 class OVClassBaseTestP : public OVClassNetworkTest, public ::testing::WithParamInterface<std::string> {
+               std::tuple<std::string, std::string, InferenceEngine::Parameter>  // Configuration key, value and
 public:
     std::string deviceName;
 
