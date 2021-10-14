@@ -11,7 +11,7 @@
 
 #include "pugixml.hpp"
 
-#include <transformations/serialize.hpp>
+#include <openvino/pass/serialize.hpp>
 #include <ngraph/opsets/opset.hpp>
 
 #include "ngraph/variant.hpp"
@@ -103,7 +103,7 @@ void LayerTestsCommon::Serialize() {
     std::string out_bin_path = output_name + ".bin";
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path);
+    manager.register_pass<ov::pass::Serialize>(out_xml_path, out_bin_path);
     manager.run_passes(function);
     function->validate_nodes_and_infer_types();
 
@@ -344,7 +344,9 @@ void LayerTestsCommon::Compare(const InferenceEngine::TensorDesc &actualDesc, co
 
 void LayerTestsCommon::ConfigureNetwork() {
     for (const auto &in : cnnNetwork.getInputsInfo()) {
-        if (inLayout != InferenceEngine::Layout::ANY) {
+        if (inLayout != InferenceEngine::Layout::ANY &&
+            // cannot setLayout for fully-dynamic network
+            !in.second->getPartialShape().rank().is_dynamic()) {
             in.second->setLayout(inLayout);
         }
         if (inPrc != InferenceEngine::Precision::UNSPECIFIED) {
@@ -353,7 +355,9 @@ void LayerTestsCommon::ConfigureNetwork() {
     }
 
     for (const auto &out : cnnNetwork.getOutputsInfo()) {
-        if (outLayout != InferenceEngine::Layout::ANY) {
+        if (outLayout != InferenceEngine::Layout::ANY &&
+            // cannot setLayout for fully-dynamic network
+            !out.second->getPartialShape().rank().is_dynamic()) {
             out.second->setLayout(outLayout);
         }
         if (outPrc != InferenceEngine::Precision::UNSPECIFIED) {
@@ -436,11 +440,6 @@ void LayerTestsCommon::Infer() {
 }
 
 std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTestsCommon::CalculateRefs() {
-    //TODO: w/a: to identify gaps with functionRefs and init it
-    if (functionRefs == nullptr) {
-        functionRefs = ngraph::clone_function(*function);
-    }
-    // nGraph interpreter does not support f16/bf16
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
 
@@ -508,6 +507,9 @@ void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type
 }
 
 void LayerTestsCommon::Validate() {
+    if (functionRefs == nullptr) {
+        functionRefs = ngraph::clone_function(*function);
+    }
     auto expectedOutputs = CalculateRefs();
     const auto &actualOutputs = GetOutputs();
 

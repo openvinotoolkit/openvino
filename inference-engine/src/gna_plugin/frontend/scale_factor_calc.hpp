@@ -238,6 +238,57 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
     const double pow_domain = 16;
 
  protected :
+    /**
+     * @brief Adjust output scale factor to get the most precise PWL slope.
+     * NOTE: Currently it is only implemented for identity, clamp, relu and FQ layers.
+     *       For all other layers, it does not improve accuracy.
+     * @param sf Scale factor to be adjusted
+     * @param layer Layer information
+     * @param quantizedParams Quantization parameters
+     * @return the adjusted scale factor
+     */
+    float adjustScaleFactor(float sf, InferenceEngine::CNNLayer const* cnnLayer,
+                            GNAPluginNS::LayerInfo const& layer,
+                            QuantizedLayerParams* quantizedParams) {
+        auto get_rank = [](uint32_t value) {
+            uint8_t rank = 0;
+            while (value >= 1) {
+                ++rank;
+                value /= 10;
+            }
+            return rank;
+        };
+        auto pow_10 = [](uint8_t degree) {
+            uint32_t value = 1;
+            for (uint8_t i = 0; i < degree; ++i) {
+                value *= 10;
+            }
+            return value;
+        };
+
+        auto slopes = getPWLSlopes(layer);
+        if (!slopes.empty()) {
+            auto div = 10;
+            auto startRange = sf > 1.0f ? static_cast<uint32_t>(sf) : sf;
+            auto endRange = startRange - startRange / div;
+            endRange = endRange > 1.0f ? static_cast<uint32_t>(endRange) : endRange;
+            uint32_t steps = 10000;
+            uint32_t rangeSize = static_cast<uint32_t>(startRange - endRange);
+            if (rangeSize >= 1) {
+                steps *= rangeSize / pow_10(get_rank(rangeSize) - 1);
+            }
+
+            auto scaleFactors = generateScaleFactors(startRange, endRange, steps);
+            auto newScaleFactor = selectBestOutputScaleFactors(quantizedParams->_src_quant.GetScale(), scaleFactors, slopes);
+            if (!fp32eq(sf, newScaleFactor) && !fp32eq(newScaleFactor, 0.0f) && !std::isinf(newScaleFactor)) {
+                gnalog() << "[INFO] Adjusting scale factor for " << cnnLayer->name
+                    << " from: " << sf << " to: " << newScaleFactor << "\n";
+                sf = newScaleFactor;
+            }
+        }
+        return sf;
+    }
+
     float getActivationScale(InferenceEngine::CNNLayer const* cnnLayer,
                              GNAPluginNS::LayerInfo const& layer,
                              int inputsSize,
@@ -418,24 +469,8 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
                 }
             }
 
-            // Adjust output scale factor to get the most precise PWL slope.
-            // NOTE: Currently it is only implemented for identity, clamp, relu and FQ layers.
-            //       For all other layers, it does not improve accuracy.
-            auto slopes = getPWLSlopes(layer);
-            if (!slopes.empty() && !usePrevScaleFactor) {
-                auto div = 10;
-                auto mul = 10;
-                auto startRange = result > 1.0f ? static_cast<int32_t>(result) : result;
-                auto endRange = startRange - startRange / div;
-                endRange = endRange > 1.0f ? static_cast<int32_t>(endRange) : endRange;
-                auto scaleFactors = generateScaleFactors(startRange, endRange, static_cast<int32_t>(startRange - endRange) * mul);
-                auto newScaleFactor = selectBestOutputScaleFactors(quantizedParams->_src_quant.GetScale(), scaleFactors, slopes);
-                if (!fp32eq(result, newScaleFactor) &&
-                    !fp32eq(newScaleFactor, 1.0f) && !fp32eq(newScaleFactor, 0.0f) && !std::isinf(newScaleFactor)) {
-                    gnalog() << "[INFO] Adjusting scale factor for " << cnnLayer->name
-                        << " from: " << result << " to: " << newScaleFactor << "\n";
-                    result = newScaleFactor;
-                }
+            if (!usePrevScaleFactor) {
+                result = adjustScaleFactor(result, cnnLayer, layer, quantizedParams);
             }
         }
 
@@ -1354,6 +1389,12 @@ class ScaleFactorCalculator {
                 } else {
                     return frontend::FakeQuantI16().getWeightsPrecision().size();
                 }
+            } else {
+                if (!info.isSynthetic()) {
+                    gnawarn() << "The layer (" << ptr->name << ") has not quantization statistics\n";
+                }
+
+                return GetOptionalWeightsBytesSize();
             }
         }
 

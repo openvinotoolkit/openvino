@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "ngraph/op/parameter.hpp"
 #include "openvino/core/function.hpp"
 #include "openvino/op/op.hpp"
+#include "openvino/op/parameter.hpp"
 
 namespace ov {
 namespace op {
@@ -266,13 +266,20 @@ public:
     ///
     /// \param      value              The value supplied as an input to the block.
     /// \param      bodies_parameters  vector of bodies parameters.
-    virtual void set_invariant_inputs(const Output<Node>& value, const ngraph::ParameterVector& bodies_parameters);
+    virtual void set_invariant_inputs(const Output<Node>& value, const ov::ParameterVector& bodies_parameters);
     ///
     /// \brief     Set output decriptions for MultiSubGraphOp output.
     ///
     /// \param      bodies_results  vector of bodies results for one output.
     /// \return     value           Output node for bodies_results.
     virtual Output<Node> set_body_outputs(const ResultVector& bodies_results);
+    ///
+    /// \brief     Get number of internal sub-graphs
+    ///
+    /// \return    Number of sub-graphs.
+    virtual size_t get_num_internal_subgraphs() const {
+        return m_bodies.size();
+    }
 
     MultiSubGraphOp(const MultiSubGraphOp&) = delete;
     MultiSubGraphOp(MultiSubGraphOp&&) = default;
@@ -303,7 +310,7 @@ public:
     AttributeAdapter(std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>& value)
         : DirectValueAccessor<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>>(value) {}
 
-    OPENVINO_RTTI("AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>>")
+    OPENVINO_RTTI("AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>>")
     BWDCMP_RTTI_DECLARATION;
 };
 
@@ -314,8 +321,7 @@ public:
     AttributeAdapter(std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>& value)
         : DirectValueAccessor<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>>(value) {}
 
-    OPENVINO_RTTI(
-        "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>>");
+    OPENVINO_RTTI("AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>>");
     BWDCMP_RTTI_DECLARATION;
 };
 

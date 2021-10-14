@@ -836,6 +836,7 @@ void set_params(const program_node& node, kernel_selector::params& params) {
     params.engineInfo.maxThreadsPerDevice = params.engineInfo.maxThreadsPerExecutionUnit * device_info.execution_units_count;
     params.engineInfo.deviceCache = program.get_tuning_cache();
     params.engineInfo.driverVersion = device_info.driver_version;
+    params.engineInfo.supportedSimdSizes = device_info.supported_simd_sizes;
 
     auto impl_forcing_bo = program.get_options().get<build_option_type::force_implementations>();
     const auto& impl_forcing = impl_forcing_bo->forcing;
