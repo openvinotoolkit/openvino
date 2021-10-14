@@ -77,67 +77,66 @@ void make_gna_pwl(const DnnActivation  fun,
         case kActSigmoid:
         case kActTanh:
         case kActSoftSign: {
-            auto n_segments = static_cast<int32_t> (pwl_size) + 1;
-            gna_pwl.resize(n_segments);
             // insert extra segment for x values < l_bound
-            gna_pwl[0].xBase = static_cast<int32_t> (INT32_MIN & XBASEMASK);  // zero out the 2 lsb
+            float min_x_val;
+            float min_y_val;
             if (fun == kActSigmoid) {
                 gnalog() <<  "=========================== Sigmoid Segments ===========================\n";
-                auto minVal = (fun.fqParams.set && *fun.fqParams.input_low > 0) ? FLOAT_TO_INT16(*fun.fqParams.input_low * out_scale) : 0;
-                gna_pwl[0].yBase = gna_pwl[1].yBase = minVal;
-                gna_pwl[1].xBase = (static_cast<int32_t> (in_scale * (-pwl[0].b / pwl[0].m))) & XBASEMASK;
+                min_y_val = fun.fqParams.set ? pwl[0].beta : 0;
+                min_x_val = -pwl[0].b / pwl[0].m;
             } else if (fun == kActTanh) {
                 gnalog() <<  "=========================== Tanh Segments ===========================\n";
-                auto minVal = (fun.fqParams.set && *fun.fqParams.input_low > -1) ? FLOAT_TO_INT16(*fun.fqParams.input_low * out_scale) :
-                    static_cast<int16_t>(-1.0 * out_scale);
-                gna_pwl[0].yBase = gna_pwl[1].yBase = minVal;
-                gna_pwl[1].xBase = (static_cast<int32_t> (in_scale * (-1.0 - pwl[0].b) / pwl[0].m)) & XBASEMASK;
+                min_y_val = fun.fqParams.set ? pwl[0].beta : -1.0;
+                min_x_val = (-1.0 - pwl[0].b) / pwl[0].m;
             } else {
                 gnalog() << "=========================== SoftSign Segments ===========================\n";
-                auto minVal = (fun.fqParams.set && *fun.fqParams.input_low > -1) ? FLOAT_TO_INT16(*fun.fqParams.input_low * out_scale) :
-                    static_cast<int16_t>(-1.0 * out_scale);
-                gna_pwl[0].yBase = gna_pwl[1].yBase = minVal;
-                gna_pwl[1].xBase = (static_cast<int32_t> (in_scale * (-1.0 - pwl[0].b) / pwl[0].m)) & XBASEMASK;
+                min_y_val = fun.fqParams.set ? pwl[0].beta : -1.0;
+                min_x_val = (-1.0 - pwl[0].b) / pwl[0].m;
             }
-            gna_pwl[0].slope = 0;
+            float max_y_val = (fun.fqParams.set && (*fun.fqParams.input_high <= 1)) ? (*fun.fqParams.input_high) : 1.0;
+            float max_x_val = fun.srcFQParams.set ? u_bound : (1.0 - pwl[pwl_size - 2].b) / pwl[pwl_size - 2].m;
 
-            gnalog() << (gna_pwl[0].xBase) / in_scale
-                     << " " << (gna_pwl[0].yBase) / out_scale
-                     << " " << 0.0
-                     << "\n";
+            gna_pwl.resize(0);
 
-            s = gna_slope(pwl[0].m, in_scale, out_scale);
-            gna_pwl[1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
-            gna_pwl[1].xBase = gna_pwl[1].xBase | s.slope_scale_index;
+            int32_t xbase = static_cast<int32_t> (INT32_MIN & XBASEMASK);  // zero out the 2 lsb
+            int16_t ybase = FLOAT_TO_INT16(min_y_val * out_scale);
+            int16_t slope = 0;
+            gna_pwl.push_back({xbase, ybase, slope});
+            gnalog() << xbase / in_scale << " " << min_y_val << " " << slope << "\n";
 
-            gnalog() << (gna_pwl[1].xBase/in_scale)
-                     << " " << (gna_pwl[1].yBase) / out_scale
-                     << " " << pwl[0].m
-                     << "\n";
+            if (!fun.fqParams.set) {
+                s = gna_slope(pwl[0].m, in_scale, out_scale);
+                slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
+                xbase = (static_cast<int32_t>(min_x_val * in_scale) & XBASEMASK) | s.slope_scale_index;
+                ybase = FLOAT_TO_INT16(min_y_val * out_scale);
+                gna_pwl.push_back({xbase, ybase, slope});
+                gnalog() << min_x_val << " " << min_y_val << " " << pwl[0].m << "\n";
+            }
 
-            for (uint32_t i = 1; i < pwl_size - 1; ++i) {
+            for (uint32_t i = 0; i < pwl_size; ++i) {
+                if (!fun.fqParams.set && (pwl[i].alpha <= min_x_val || pwl[i].alpha >= max_x_val)) {
+                    continue;
+                }
+
                 s = gna_slope(pwl[i].m, in_scale, out_scale);
-                gna_pwl[i + 1].xBase = (static_cast<int32_t> (in_scale * pwl[i].alpha)) & XBASEMASK;
-                gna_pwl[i + 1].yBase = FLOAT_TO_INT16(pwl[i].beta * out_scale);
-                gna_pwl[i + 1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
-                gna_pwl[i + 1].xBase = gna_pwl[i + 1].xBase | s.slope_scale_index;
+                xbase = ((static_cast<int32_t> (in_scale * pwl[i].alpha)) & XBASEMASK) | s.slope_scale_index;
+                ybase = FLOAT_TO_INT16(pwl[i].beta * out_scale);
+                slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
+                gna_pwl.push_back({xbase, ybase, slope});
 
-                gnalog() << (pwl[i].alpha)
-                         << " " << pwl[i].beta
-                         << " " << pwl[i].m
-                         << "\n";
+                gnalog() << pwl[i].alpha << " " << pwl[i].beta << " " << pwl[i].m << "\n";
             }
-            // insert extra segment for xvalues > u_bound
-            auto maxVal = (fun.fqParams.set && *fun.fqParams.input_high <= 1) ? *fun.fqParams.input_high : 1.0;
-            gna_pwl[n_segments - 1].xBase =
-                    ((uint32_t) (in_scale * (1.0 - pwl[pwl_size - 2].b) / pwl[pwl_size - 2].m)) & XBASEMASK;
-            gna_pwl[n_segments - 1].yBase = FLOAT_TO_INT16(maxVal * out_scale);
-            gna_pwl[n_segments - 1].slope = 0;
 
-            gnalog() << (gna_pwl[n_segments - 1].xBase / in_scale)
-                     << " " << 1.0
-                     << " " << 0.0
-                     << "\n";
+            if (!fun.fqParams.set) {
+                // insert extra segment for xvalues > u_bound
+                xbase = static_cast<int32_t>(max_x_val * in_scale) & XBASEMASK;
+                ybase = FLOAT_TO_INT16(max_y_val * out_scale);
+                slope = 0;
+                gna_pwl.push_back({xbase, ybase, slope});
+
+                gnalog() << max_x_val << " " << max_y_val << " " << slope << "\n";
+            }
+
             break;
         }
         case kActExp: {
@@ -156,36 +155,51 @@ void make_gna_pwl(const DnnActivation  fun,
                 << "\n";
 
             s = gna_slope(pwl[0].m, in_scale, out_scale);
-            gna_pwl[1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
-            gna_pwl[1].xBase = gna_pwl[1].xBase | s.slope_scale_index;
 
-            gnalog() << ((int32_t)(gna_pwl[1].xBase & XBASEMASK) / in_scale)
-                << " " << (gna_pwl[1].yBase) / out_scale
-                << " " << pwl[0].m
-                << "\n";
+            uint32_t start_pwl_seg = 0;
+            if (!fun.fqParams.set) {
+                gna_pwl[1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
+                gna_pwl[1].xBase = gna_pwl[1].xBase | s.slope_scale_index;
+                ++start_pwl_seg;
+                gnalog() << ((int32_t)(gna_pwl[1].xBase & XBASEMASK) / in_scale)
+                    << " " << (gna_pwl[1].yBase) / out_scale
+                    << " " << pwl[0].m
+                    << "\n";
 
-            for (uint32_t i = 1; i < pwl_size - 1; ++i) {
+                // insert extra segment for xvalues > u_bound
+                gna_pwl[n_segments - 1].xBase =
+                    ((uint32_t)(in_scale * (y_max/out_scale - pwl[pwl_size - 2].b) / pwl[pwl_size - 2].m)) & XBASEMASK;
+                gna_pwl[n_segments - 1].yBase = y_max;
+                gna_pwl[n_segments - 1].slope = 0;
+
+                gnalog() << (gna_pwl[n_segments - 1].xBase / in_scale)
+                    << " " << 1.0
+                    << " " << 0.0
+                    << "\n";
+            }
+
+            uint32_t gna_pwl_index = start_pwl_seg + 1;
+            for (uint32_t i = start_pwl_seg; i < pwl_size; ++i) {
+                auto x = (static_cast<int64_t> (in_scale * pwl[i].alpha)) & XBASEMASK;
+                // Skip segments which are out of the availble range
+                if (x < gna_pwl[0].xBase ||
+                    fun.fqParams.set && (x < gna_pwl[1].xBase || x > gna_pwl[n_segments - 1].xBase)) {
+                    continue;
+                }
+
                 s = gna_slope(pwl[i].m, in_scale, out_scale);
-                gna_pwl[i + 1].xBase = (static_cast<int32_t> (in_scale * pwl[i].alpha)) & XBASEMASK;
-                gna_pwl[i + 1].yBase = FLOAT_TO_INT16(pwl[i].beta * out_scale);
-                gna_pwl[i + 1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
-                gna_pwl[i + 1].xBase = gna_pwl[i + 1].xBase | s.slope_scale_index;
+                gna_pwl[gna_pwl_index].xBase = (static_cast<int32_t> (in_scale * pwl[i].alpha)) & XBASEMASK;
+                gna_pwl[gna_pwl_index].yBase = FLOAT_TO_INT16(pwl[i].beta * out_scale);
+                gna_pwl[gna_pwl_index].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
+                gna_pwl[gna_pwl_index].xBase = gna_pwl[gna_pwl_index].xBase | s.slope_scale_index;
+                ++gna_pwl_index;
 
                 gnalog() << (pwl[i].alpha)
                     << " " << pwl[i].beta
                     << " " << pwl[i].m
                     << "\n";
             }
-            // insert extra segment for xvalues > u_bound
-            gna_pwl[n_segments - 1].xBase =
-                ((uint32_t)(in_scale * (y_max/out_scale - pwl[pwl_size - 2].b) / pwl[pwl_size - 2].m)) & XBASEMASK;
-            gna_pwl[n_segments - 1].yBase = y_max;
-            gna_pwl[n_segments - 1].slope = 0;
 
-            gnalog() << (gna_pwl[n_segments - 1].xBase / in_scale)
-                << " " << 1.0
-                << " " << 0.0
-                << "\n";
             break;
         }
         case kActLog: {
