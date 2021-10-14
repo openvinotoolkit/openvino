@@ -133,7 +133,9 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
         uint64_t scale_factor;
         std::shared_ptr<opset8::Split> split;
         std::tie(split, scale_factor) = get_split_before_concat(concat);
-        if (!split || !scale_factor) return false;
+        // If scale_factor == 1, then output data of Interpolate are equal to input data. Hence, we should not replace
+        // Split->Concat pair with Interpolate.
+        if (!split || !scale_factor || scale_factor == 1) return false;
 
         if (split->get_input_partial_shape(0).rank().is_dynamic()) return false;
         int64_t split_input_rank = split->get_input_partial_shape(0).rank().get_length();
