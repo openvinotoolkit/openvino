@@ -86,7 +86,7 @@ function formatDocBlock_programlisting(block, context)
 	code = replaceCommonSpacePrefix(code, "\t")
 	code = trimTrailingWhitespace(code)
 
-	return "\n\n.. code-block:: " .. "guess" .. "\n\n" .. code .. "\n\n"
+	return "\n\n.. ref-code-block:: " .. LANGUAGE .. "\n\n" .. code .. "\n\n"
 end
 
 function formatDocBlock_preformatted(block, context)
@@ -477,7 +477,7 @@ g_blockKindFormatMap =
 	["itemizedlist"]         = function(b, c) return formatDocBlock_list(b, c, "*") end,
 	["orderedlist"]          = function(b, c) return formatDocBlock_list(b, c, "#.") end,
 	["variablelist"]         = formatDocBlock_variablelist,
-	["linebreak"]            = function(b, c) return "\n|br|\n" end,
+	["linebreak"]            = function(b, c) return "\n\n|br|\n\n" end,
 	["ref"]                  = formatDocBlock_ref,
 	["anchor"]               = formatDocBlock_anchor,
 	["image"]                = formatDocBlock_image,

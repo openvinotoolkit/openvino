@@ -123,7 +123,9 @@ function handleSwitcherParam() {
     }
     $('.reference.internal.nav-link[href="#' + section_id + '"]').parent('li').css('display', 'block');
     $('#' + section_id).css('display', 'block');
-    $('#button-' + section_id).addClass('switcher-active');
+    $('#button-' + section_id).removeClass('spark-button-secondary')
+    $('#button-' + section_id).addClass('spark-button-action');
+    $('#button-' + section_id).attr('style', 'color: #fff !important');
 }
 
 function init_switchers() {
@@ -140,7 +142,7 @@ function init_switchers() {
         var link = $('<a></a>');
         link.text(option);
         link.attr('href', '?sw_type=' + id);
-        link.addClass('switcher-button');
+        link.addClass('spark-button spark-button-secondary spark-button-size-l');
         switcherPanel.append(link);
         var section = $(anchor).parent('div.section');
         section.css('display', 'none');

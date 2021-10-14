@@ -1,26 +1,5 @@
 .switcher-set {
-    background: rgba(var(--sst-color-navbar-background), 1);
-    border-top: 2px solid #fff;
     margin-bottom:1rem;
-}
-
-.switcher-button {
-    margin-top:2px;
-    margin-left:1px;
-}
-
-.switcher-button, .switcher-button:hover {
-    display: inline-block;
-    z-index: 1000;
-    width: auto;
-    padding: 1em 1.25em 0.5em;
-    cursor: pointer;
-    color: #fff;
-}
-
-.switcher-active, .switcher-active:hover {
-    background: #fff;
-    color: rgb(var(--sst-color-primary));
 }
 
 main img {
@@ -68,4 +47,9 @@ main img {
 
 .sort-btn.sort-active {
     background-image: url('media/union-up.svg');
+}
+
+.highlight .err {
+    border:none;
+    color:inherit;
 }

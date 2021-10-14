@@ -22,9 +22,9 @@ sys.path.insert(0, os.path.abspath('doxyrest-sphinx'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'OpenVINO Toolkit'
-copyright = '2021, Intel'
-author = 'Intel'
+project = 'OpenVINO™'
+copyright = '2021, Intel®'
+author = 'Intel®'
 
 language = 'en'
 
@@ -76,10 +76,10 @@ html_theme_options = {
 }
 
 html_context = {
-    'current_version': 'latest',
+    'current_version': 'Latest',
     'current_language': 'English',
     'languages': (('English', '/en/latest'), ('Chinese', '/cn/latest')),
-    'versions': (('latest', '/latest'), ('2021.4', '/2021.4'),
+    'versions': (('Latest', '/latest'), ('2021.4', '/2021.4'),
                 ('2021.3', '/2021.3'), ('2021.2', '/2021.2'), ('2021.1', '/2021.1'),
                  ('2020.4', '/2020.4'), ('2020.3', '/2020.3'), ('2020.2', '/2020.1'),
                   ('2020.1', '/2020.1'), ('2019_R3.1', '/2019_R3.1'), ('2019_R3', '/2019_R3'),
