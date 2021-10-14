@@ -20,8 +20,13 @@ const std::vector<InferenceEngine::Precision> net_precisions = {
     InferenceEngine::Precision::FP16
 };
 
-std::map<std::string, std::string> additional_config = {
-    {"GNA_DEVICE_MODE", "GNA_SW_EXACT"}
+std::vector<std::map<std::string, std::string>> additional_config = {
+    {
+        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"}
+    },
+    {
+        {"GNA_DEVICE_MODE", "GNA_SW_FP32"}
+    }
 };
 } // namespace
 
@@ -30,7 +35,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulMultipleOutputs, MatMulMultipleOutputsTest,
                                 ::testing::ValuesIn(input_sizes),
                                 ::testing::ValuesIn(net_precisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                ::testing::Values(additional_config)),
+                                ::testing::ValuesIn(additional_config)),
                         MatMulMultipleOutputsTest::getTestCaseName);
 
 } // namespace LayerTestsDefinitions
