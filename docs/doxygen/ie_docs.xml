@@ -221,6 +221,7 @@ limitations under the License.
                 <tab type="user" title="Power-1" url="@ref openvino_docs_ops_arithmetic_Power_1"/>
                 <tab type="user" title="PriorBoxClustered-1" url="@ref openvino_docs_ops_detection_PriorBoxClustered_1"/>
                 <tab type="user" title="PriorBox-1" url="@ref openvino_docs_ops_detection_PriorBox_1"/>
+                <tab type="user" title="PriorBox-8" url="@ref openvino_docs_ops_detection_PriorBox_8"/>
                 <tab type="user" title="Proposal-1" url="@ref openvino_docs_ops_detection_Proposal_1"/>
                 <tab type="user" title="Proposal-4" url="@ref openvino_docs_ops_detection_Proposal_4"/>
                 <tab type="user" title="RandomUniform-8" url="@ref openvino_docs_ops_generation_RandomUniform_8"/>
