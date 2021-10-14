@@ -134,7 +134,7 @@ def test_batch_size_after_reshape():
     assert net.input_info['data'].input_data.shape == [8, 3, 32, 32]
 
 
-@pytest.mark.ngraph_dependent_test
+
 def test_serialize():
     import ngraph as ng
     ie = IECore()
@@ -159,7 +159,7 @@ def test_reshape():
     assert net.input_info["data"].input_data.shape == [2, 3, 32, 32]
 
 
-@pytest.mark.ngraph_dependent_test
+
 @pytest.mark.parametrize("shape, p_shape", [
     ([1, 3, 22, 22], [1, 3, -1, 25]),
     ([1, 3, 22, 22], [-1, -1, -1, -1]),
@@ -183,7 +183,7 @@ def test_reshape_with_partial_shape(device, shape, p_shape):
     assert function.get_results()[0].get_output_partial_shape(0) == p_shape
 
 
-@pytest.mark.ngraph_dependent_test
+
 def test_incorrect_reshape(device):
     from conftest import create_relu
     import ngraph as ng
@@ -284,7 +284,7 @@ def test_tensor_names():
     assert net.get_ov_name_for_tensor("input") == "in1"
 
 
-@pytest.mark.ngraph_dependent_test
+
 @pytest.mark.template_plugin
 def test_create_two_exec_net():
     from conftest import create_relu

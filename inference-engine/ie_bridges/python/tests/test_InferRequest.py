@@ -380,7 +380,7 @@ def test_async_infer_wait_while_callback_will_not_finish(device):
     assert callback_status['finished'] == True
 
 
-@pytest.mark.ngraph_dependent_test
+
 def test_get_perf_counts(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
@@ -391,7 +391,6 @@ def test_get_perf_counts(device):
     request.infer({'data': img})
     pc = request.get_perf_counts()
     assert pc['29']["status"] == "EXECUTED"
-    assert pc['29']["layer_type"] == "FullyConnected"
     del exec_net
     del ie_core
     del net
@@ -529,7 +528,7 @@ def test_resize_algorithm_work(device):
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
 
 
-@pytest.mark.ngraph_dependent_test
+
 @pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal"])
 @pytest.mark.parametrize("data_type", ["FP32", "FP16", "I32"])
 @pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
@@ -584,7 +583,7 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
             "Expected values: {} \n Actual values: {} \n".format(expected_res, res)
 
 
-@pytest.mark.ngraph_dependent_test
+
 @pytest.mark.template_plugin
 @pytest.mark.parametrize("shape, p_shape, ref_shape", [
     ([1, 4, 20, 20], [-1, 4, 20, 20], [5, 4, 20, 20]),
@@ -611,7 +610,7 @@ def test_infer_dynamic_network_with_set_shape(shape, p_shape, ref_shape):
     assert request.output_blobs['out'].tensor_desc.dims == ref_shape
 
 
-@pytest.mark.ngraph_dependent_test
+
 @pytest.mark.template_plugin
 @pytest.mark.parametrize("shape, p_shape, ref_shape", [
     ([1, 4, 20, 20], [-1, 4, 20, 20], [5, 4, 20, 20]),
@@ -637,7 +636,7 @@ def test_infer_dynamic_network_without_set_shape(shape, p_shape, ref_shape):
     assert request.output_blobs['out'].tensor_desc.dims == ref_shape
 
 
-@pytest.mark.ngraph_dependent_test
+
 @pytest.mark.template_plugin
 @pytest.mark.parametrize("shape, p_shape, ref_shape", [
     ([1, 4, 20, 20], [-1, 4, 20, 20], [5, 4, 20, 20]),
@@ -667,7 +666,7 @@ def test_infer_dynamic_network_with_set_blob(shape, p_shape, ref_shape):
     assert request.output_blobs["out"].tensor_desc.dims == ref_shape
 
 
-@pytest.mark.ngraph_dependent_test
+
 @pytest.mark.template_plugin
 def test_infer_dynamic_network_twice():
     from conftest import create_encoder
@@ -689,7 +688,7 @@ def test_infer_dynamic_network_twice():
     assert request.output_blobs['out'].tensor_desc.dims == ref_shape2
 
 
-@pytest.mark.ngraph_dependent_test
+
 @pytest.mark.template_plugin
 def test_infer_dynamic_network_with_set_blob_twice():
     from conftest import create_encoder
@@ -719,7 +718,7 @@ def test_infer_dynamic_network_with_set_blob_twice():
     assert request.output_blobs['out'].tensor_desc.dims == ref_shape2
 
 
-@pytest.mark.ngraph_dependent_test
+
 @pytest.mark.template_plugin
 @pytest.mark.parametrize("shapes", [
     ([3, 4, 20, 20], [3, 4, 20, 20], [3, 4, 20, 20]),
@@ -742,7 +741,7 @@ def test_async_infer_dynamic_network_3_requests(shapes):
         assert request.output_blobs['out'].tensor_desc.dims == shapes[i]
 
 
-@pytest.mark.ngraph_dependent_test
+
 @pytest.mark.template_plugin
 def test_set_blob_with_incorrect_name():
     from conftest import create_encoder
@@ -760,7 +759,7 @@ def test_set_blob_with_incorrect_name():
     assert f"Failed to find input or output with name: 'incorrect_name'" in str(e.value)
 
 
-@pytest.mark.ngraph_dependent_test
+
 @pytest.mark.template_plugin
 def test_set_blob_with_incorrect_size():
     from conftest import create_encoder
@@ -782,7 +781,7 @@ def test_set_blob_with_incorrect_size():
     assert f"Output blob size is not equal network output size" in str(e.value)
 
 
-@pytest.mark.ngraph_dependent_test
+
 @pytest.mark.template_plugin
 def test_set_blob_after_async_infer():
     from conftest import create_encoder

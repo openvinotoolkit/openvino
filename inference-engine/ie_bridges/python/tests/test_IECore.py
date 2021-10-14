@@ -61,7 +61,7 @@ def test_load_network_wrong_device():
     assert 'Device with "BLA" name is not registered in the InferenceEngine' in str(e.value)
 
 
-@pytest.mark.ngraph_dependent_test
+
 def test_query_network(device):
     import ngraph as ng
     ie = IECore()
