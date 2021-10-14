@@ -21,6 +21,7 @@ CommonReferenceTest::CommonReferenceTest(): targetDevice("TEMPLATE") {
 }
 
 void CommonReferenceTest::Exec() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     LoadNetwork();
     FillInputs();
     Infer();
@@ -94,6 +95,11 @@ void CommonReferenceTest::ValidateBlobs(const ov::runtime::Tensor& refBlob, cons
     case ov::element::f32:
         LayerTestsUtils::LayerTestsCommon::Compare<float, float>(
             refBlob.data<const float>(), outBlob.data<const float>(),
+            refBlob.get_size(), threshold, abs_threshold);
+        break;
+    case ov::element::f64:
+        LayerTestsUtils::LayerTestsCommon::Compare<double, double>(
+            refBlob.data<const double>(), outBlob.data<const double>(),
             refBlob.get_size(), threshold, abs_threshold);
         break;
     case ov::element::i8:
