@@ -74,6 +74,9 @@ public:
 private:
     PadMode m_pad_mode;
     bool evaluate_pad(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
+
+    template <class T>
+    friend void shape_infer(Pad* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
 }  // namespace v1
 }  // namespace op
