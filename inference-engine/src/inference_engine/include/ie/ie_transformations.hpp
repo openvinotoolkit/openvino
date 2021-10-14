@@ -84,5 +84,4 @@ INFERENCE_ENGINE_API_CPP(void) LowLatency(InferenceEngine::CNNNetwork& network);
  * Loop operation by a given number. Does not affect TensorIterators.
  */
 INFERENCE_ENGINE_API_CPP(void) lowLatency2(InferenceEngine::CNNNetwork& network, bool use_const_initializer = true);
-
 }  // namespace InferenceEngine
