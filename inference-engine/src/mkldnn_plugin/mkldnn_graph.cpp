@@ -73,7 +73,7 @@ void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMg
     // std::cout << "weightsCache: " << weightsCache.get() << std::endl;
 
     Replicate(net, extMgr);
-    // InitGraph();
+    InitGraph();
 
     status = Ready;
 
@@ -212,112 +212,112 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
     // Replicate All Nodes in topological order
     for (const auto& op : orderedOps) {
         const MKLDNNNodePtr node(MKLDNNNode::factory().create(op, getEngine(), extMgr, weightsCache));
-        // if (isQuantized()) {
-        //     node->setQuantizedGraphFlag(true);
-        // }
-        // graphNodes.push_back(node);
+        if (isQuantized()) {
+            node->setQuantizedGraphFlag(true);
+        }
+        graphNodes.push_back(node);
 
-        // if (op->get_type_info() == ngraph::op::v0::Parameter::type_info) {
-        //     const auto inInfo = inputsInfo.find(node->getName());
-        //     if (inInfo != inputsInfo.end()) {
-        //         inputNodesMap[node->getName()] = node;
-        //         IE_SUPPRESS_DEPRECATED_START
-        //         if (inInfo->second->getInputData()->isDynamic())
-        //             graphHasDynamicInput = true;
-        //         IE_SUPPRESS_DEPRECATED_END
-        //     }
-        // }
+        if (op->get_type_info() == ngraph::op::v0::Parameter::type_info) {
+            const auto inInfo = inputsInfo.find(node->getName());
+            if (inInfo != inputsInfo.end()) {
+                inputNodesMap[node->getName()] = node;
+                IE_SUPPRESS_DEPRECATED_START
+                if (inInfo->second->getInputData()->isDynamic())
+                    graphHasDynamicInput = true;
+                IE_SUPPRESS_DEPRECATED_END
+            }
+        }
 
-        // if (op->get_type_info() == ngraph::op::v0::Result::type_info) {
-        //     const auto &input = op->input_value(0);
-        //     NGRAPH_SUPPRESS_DEPRECATED_START
-        //     auto name = input.get_tensor().get_name();
-        //     NGRAPH_SUPPRESS_DEPRECATED_END
-        //     if (name.empty()) {
-        //         name = ngraph::op::util::create_ie_output_name(input);
-        //     }
+        if (op->get_type_info() == ngraph::op::v0::Result::type_info) {
+            const auto &input = op->input_value(0);
+            NGRAPH_SUPPRESS_DEPRECATED_START
+            auto name = input.get_tensor().get_name();
+            NGRAPH_SUPPRESS_DEPRECATED_END
+            if (name.empty()) {
+                name = ngraph::op::util::create_ie_output_name(input);
+            }
 
-        //     if (outputsInfo.count(name) != 0) {
-        //         outputNodesMap[name] = node;
-        //     }
-        // }
+            if (outputsInfo.count(name) != 0) {
+                outputNodesMap[name] = node;
+            }
+        }
 
-        // op2node[op] = node;
+        op2node[op] = node;
 
-        // for (size_t port = 0; port < op->get_input_size(); port++) {
-        //     auto parentOp = op->get_input_node_shared_ptr(port);
-        //     auto parentNode = op2node[parentOp];
+        for (size_t port = 0; port < op->get_input_size(); port++) {
+            auto parentOp = op->get_input_node_shared_ptr(port);
+            auto parentNode = op2node[parentOp];
 
-        //     MKLDNNEdgePtr edge(new MKLDNNEdge(parentNode, node, getParentOutputPort(op, parentOp, port), static_cast<int>(port)));
-        //     node->addEdge(edge);
-        //     graphEdges.push_back(edge);
-        // }
+            MKLDNNEdgePtr edge(new MKLDNNEdge(parentNode, node, getParentOutputPort(op, parentOp, port), static_cast<int>(port)));
+            node->addEdge(edge);
+            graphEdges.push_back(edge);
+        }
 
-        // if (!MKLDNNPlugin::one_of(op->get_type_info(),
-        //         ngraph::op::v0::Result::type_info,
-        //         ngraph::op::v3::Assign::type_info,
-        //         ngraph::op::v6::Assign::type_info)) {
-        //     for (int oi = 0; oi < op->get_output_size(); oi++) {
-        //         if (op->get_output_target_inputs(oi).empty()) {
-        //             unusedOutputs.push_back(op->output(oi));
-        //         }
-        //     }
-        // }
+        if (!MKLDNNPlugin::one_of(op->get_type_info(),
+                ngraph::op::v0::Result::type_info,
+                ngraph::op::v3::Assign::type_info,
+                ngraph::op::v6::Assign::type_info)) {
+            for (int oi = 0; oi < op->get_output_size(); oi++) {
+                if (op->get_output_target_inputs(oi).empty()) {
+                    unusedOutputs.push_back(op->output(oi));
+                }
+            }
+        }
     }
 
-    // // Add stub output node for unused outputs
-    // for (auto unusedOutput : unusedOutputs) {
-    //     auto parentNode = op2node[unusedOutput.get_node_shared_ptr()];
-    //     const auto port = unusedOutput.get_index();
-    //     const auto nodeName = std::string("stub_") + std::to_string(unusedOutput.get_index()) + "_" + parentNode->getName();
-    //     const MKLDNNNodePtr outNode = std::make_shared<MKLDNNInputNode>(parentNode->outputShapes[port],
-    //                                                                     parentNode->getOriginalOutputPrecisionAtPort(port),
-    //                                                                     nodeName, "Result", getEngine(), weightsCache);
-    //     MKLDNNEdgePtr edge(new MKLDNNEdge(parentNode, outNode, port, 0));
-    //     outNode->addEdge(edge);
-    //     graphEdges.push_back(edge);
-    //     graphNodes.push_back(outNode);
-    // }
+    // Add stub output node for unused outputs
+    for (auto unusedOutput : unusedOutputs) {
+        auto parentNode = op2node[unusedOutput.get_node_shared_ptr()];
+        const auto port = unusedOutput.get_index();
+        const auto nodeName = std::string("stub_") + std::to_string(unusedOutput.get_index()) + "_" + parentNode->getName();
+        const MKLDNNNodePtr outNode = std::make_shared<MKLDNNInputNode>(parentNode->outputShapes[port],
+                                                                        parentNode->getOriginalOutputPrecisionAtPort(port),
+                                                                        nodeName, "Result", getEngine(), weightsCache);
+        MKLDNNEdgePtr edge(new MKLDNNEdge(parentNode, outNode, port, 0));
+        outNode->addEdge(edge);
+        graphEdges.push_back(edge);
+        graphNodes.push_back(outNode);
+    }
 
-    // if (config.enforceBF16)
-    //     EnforceBF16();
+    if (config.enforceBF16)
+        EnforceBF16();
 
-    // // change precision for input/output nodes to avoid extra data conversion when set input/output blobs
-    // // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
-    // for (auto &input : inputNodesMap) {
-    //     const auto precToSet = normalizeToSupportedPrecision(inputsInfo.at(input.first)->getPrecision());
-    //     input.second->setOriginalOutputPrecisionAtPort(0, precToSet);
-    //     const auto childEdges = input.second->getChildEdgesAtPort(0);
-    //     for (size_t i = 0; i < childEdges.size(); i++) {
-    //         const auto child = childEdges[i]->getChild();
-    //         if (child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum()) != Precision::BF16)
-    //             child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
-    //     }
-    // }
+    // change precision for input/output nodes to avoid extra data conversion when set input/output blobs
+    // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
+    for (auto &input : inputNodesMap) {
+        const auto precToSet = normalizeToSupportedPrecision(inputsInfo.at(input.first)->getPrecision());
+        input.second->setOriginalOutputPrecisionAtPort(0, precToSet);
+        const auto childEdges = input.second->getChildEdgesAtPort(0);
+        for (size_t i = 0; i < childEdges.size(); i++) {
+            const auto child = childEdges[i]->getChild();
+            if (child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum()) != Precision::BF16)
+                child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
+        }
+    }
 
-    // for (auto &output : outputNodesMap) {
-    //     const auto precToSet = normalizeToSupportedPrecision(outputsInfo.at(output.first)->getPrecision());
-    //     output.second->setOriginalInputPrecisionAtPort(0, precToSet);
-    //     const auto parentEdges = output.second->getParentEdgesAtPort(0);
-    //     for (size_t i = 0; i < parentEdges.size(); i++) {
-    //         const auto parent = parentEdges[i]->getParent();
-    //         parent->setOriginalOutputPrecisionAtPort(parentEdges[i]->getInputNum(), precToSet);
-    //     }
-    // }
+    for (auto &output : outputNodesMap) {
+        const auto precToSet = normalizeToSupportedPrecision(outputsInfo.at(output.first)->getPrecision());
+        output.second->setOriginalInputPrecisionAtPort(0, precToSet);
+        const auto parentEdges = output.second->getParentEdgesAtPort(0);
+        for (size_t i = 0; i < parentEdges.size(); i++) {
+            const auto parent = parentEdges[i]->getParent();
+            parent->setOriginalOutputPrecisionAtPort(parentEdges[i]->getInputNum(), precToSet);
+        }
+    }
 
-    // // Loading mean images
-    // for (const auto& input : inputsInfo) {
-    //     Shape outShape;
-    //     if (!inputNodesMap[input.first]->outputShapes.front().getRank()) {
-    //         outShape =  Shape(SizeVector({1, 1}));
-    //     } else {
-    //         outShape = inputNodesMap[input.first]->outputShapes.front();
-    //     }
-    //     InputInfo::Ptr ii = inputsInfo[input.first];
-    //     if (ii && ii->getPreProcess().getNumberOfChannels()) {
-    //         _normalizePreprocMap[input.first].Load(outShape, ii);
-    //     }
-    // }
+    // Loading mean images
+    for (const auto& input : inputsInfo) {
+        Shape outShape;
+        if (!inputNodesMap[input.first]->outputShapes.front().getRank()) {
+            outShape =  Shape(SizeVector({1, 1}));
+        } else {
+            outShape = inputNodesMap[input.first]->outputShapes.front();
+        }
+        InputInfo::Ptr ii = inputsInfo[input.first];
+        if (ii && ii->getPreProcess().getNumberOfChannels()) {
+            _normalizePreprocMap[input.first].Load(outShape, ii);
+        }
+    }
 }
 
 void MKLDNNGraph::InitGraph() {

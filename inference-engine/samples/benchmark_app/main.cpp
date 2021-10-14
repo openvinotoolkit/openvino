@@ -373,6 +373,9 @@ int main(int argc, char* argv[]) {
         if (!FLAGS_cache_dir.empty()) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), FLAGS_cache_dir}});
         }
+
+        // std::cout << "*******************************************************************" << std::endl;
+
         if (FLAGS_load_from_file && !isNetworkCompiled) {
             next_step();
             slog::info << "Skipping the step for loading network from file" << slog::endl;
@@ -522,9 +525,9 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        std::cout << "====================================================================" << std::endl;
-        std::cout << "LOAD COMPLETE" << std::endl;
-        return 0;
+        // std::cout << "====================================================================" << std::endl;
+        // std::cout << "LOAD COMPLETE" << std::endl;
+        // return 0;
 
         // Update number of streams
         for (auto&& ds : device_nstreams) {
