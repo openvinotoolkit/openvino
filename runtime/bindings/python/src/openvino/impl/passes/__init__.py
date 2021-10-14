@@ -3,4 +3,4 @@
 
 # flake8: noqa
 
-from _pyngraph.passes import Manager
+from openvino.pyopenvino.passes import Manager

@@ -3,7 +3,7 @@
 
 from typing import Iterable, Optional
 
-from ngraph.impl import Node
+from openvino.impl import Node
 
 
 def get_reduction_axes(node: Node, reduction_axes: Optional[Iterable[int]]) -> Iterable[int]:

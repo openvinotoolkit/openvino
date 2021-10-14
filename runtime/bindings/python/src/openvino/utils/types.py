@@ -1,17 +1,17 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Functions related to converting between Python and numpy types and ngraph types."""
+"""Functions related to converting between Python and numpy types and openvino types."""
 
 import logging
 from typing import List, Union
 
 import numpy as np
 
-from ngraph.exceptions import NgraphTypeError
-from ngraph.impl import Node, Shape, Output
-from ngraph.impl import Type as NgraphType
-from ngraph.impl.op import Constant
+from openvino.exceptions import NgraphTypeError
+from openvino.impl import Node, Shape, Output
+from openvino.impl import Type as NgraphType
+from openvino.impl.op import Constant
 
 log = logging.getLogger(__name__)
 

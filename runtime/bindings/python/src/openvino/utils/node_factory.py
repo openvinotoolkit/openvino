@@ -6,11 +6,11 @@ import logging as log
 from functools import partial
 from typing import Any, Dict, List, Optional, Union
 
-from _pyngraph import NodeFactory as _NodeFactory
+from openvino.pyopenvino import NodeFactory as _NodeFactory
 
-from ngraph.impl import Node, Output
+from openvino.impl import Node, Output
 
-from ngraph.exceptions import UserInputError
+from openvino.exceptions import UserInputError
 
 DEFAULT_OPSET = "opset8"
 

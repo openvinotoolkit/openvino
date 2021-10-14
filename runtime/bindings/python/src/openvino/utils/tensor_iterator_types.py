@@ -5,8 +5,8 @@
 
 from typing import List
 
-from ngraph.impl import Node
-from ngraph.impl.op import Parameter
+from openvino.impl import Node
+from openvino.impl.op import Parameter
 
 
 class GraphBody(object):

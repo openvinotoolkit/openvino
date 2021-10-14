@@ -4,8 +4,8 @@
 from functools import wraps
 from typing import Any, Callable
 
-from ngraph.impl import Node
-from ngraph.utils.types import NodeInput, as_node, as_nodes
+from openvino.impl import Node
+from openvino.utils.types import NodeInput, as_node, as_nodes
 
 
 def _set_node_friendly_name(node: Node, **kwargs: Any) -> Node:
@@ -15,7 +15,7 @@ def _set_node_friendly_name(node: Node, **kwargs: Any) -> Node:
 
 
 def nameable_op(node_factory_function: Callable) -> Callable:
-    """Set the name to the ngraph operator returned by the wrapped function."""
+    """Set the name to the openvino operator returned by the wrapped function."""
 
     @wraps(node_factory_function)
     def wrapper(*args: Any, **kwargs: Any) -> Node:

@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""ngraph exceptions hierarchy. All exceptions are descendants of NgraphError."""
+"""openvino exceptions hierarchy. All exceptions are descendants of NgraphError."""
 
 
 class NgraphError(Exception):

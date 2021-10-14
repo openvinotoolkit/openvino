@@ -2,15 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-Package: ngraph.op
-Low level wrappers for the nGraph c++ api in ngraph::op.
+Package: openvino.op
+Low level wrappers for the c++ api in ov::op.
 """
 
 # flake8: noqa
 
 import numpy as np
 
-from _pyngraph.op import Constant
+from openvino.pyopenvino.op import Constant
 
 """Retrieve Constant inner data.
 
@@ -20,4 +20,4 @@ from _pyngraph.op import Constant
 """
 Constant.get_data = lambda self: np.array(self, copy=True)
 
-from _pyngraph.op import Parameter
+from openvino.pyopenvino.op import Parameter

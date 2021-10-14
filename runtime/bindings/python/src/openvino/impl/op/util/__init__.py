@@ -2,15 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-Package: ngraph.op.util
-Low level wrappers for the nGraph c++ api in ngraph::op::util.
+Package: openvino.op.util
+Low level wrappers for the c++ api in ov::op::util.
 """
 # flake8: noqa
 
-from _pyngraph.op.util import UnaryElementwiseArithmetic
-from _pyngraph.op.util import BinaryElementwiseComparison
-from _pyngraph.op.util import BinaryElementwiseArithmetic
-from _pyngraph.op.util import BinaryElementwiseLogical
-from _pyngraph.op.util import OpAnnotations
-from _pyngraph.op.util import ArithmeticReduction
-from _pyngraph.op.util import IndexReduction
+from openvino.pyopenvino.op.util import UnaryElementwiseArithmetic
+from openvino.pyopenvino.op.util import BinaryElementwiseComparison
+from openvino.pyopenvino.op.util import BinaryElementwiseArithmetic
+from openvino.pyopenvino.op.util import BinaryElementwiseLogical
+from openvino.pyopenvino.op.util import OpAnnotations
+from openvino.pyopenvino.op.util import ArithmeticReduction
+from openvino.pyopenvino.op.util import IndexReduction

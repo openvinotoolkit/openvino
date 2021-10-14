@@ -4,10 +4,10 @@
 from typing import Optional
 import numpy as np
 
-from ngraph.impl import Node
-from ngraph.utils.decorators import nameable_op
-from ngraph.utils.node_factory import NodeFactory
-from ngraph.utils.types import (
+from openvino.impl import Node
+from openvino.utils.decorators import nameable_op
+from openvino.utils.node_factory import NodeFactory
+from openvino.utils.types import (
     as_node,
     NodeInput,
 )
