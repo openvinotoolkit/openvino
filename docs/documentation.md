@@ -14,17 +14,6 @@
 
 .. toctree::
    :maxdepth: 1
-   :caption: Intermediate Representation and Operations Sets
-   :hidden:
-    
-   openvino_docs_ops_opset
-   openvino_docs_ops_broadcast_rules
-   openvino_docs_operations_specifications
-
-
- 
-.. toctree::
-   :maxdepth: 1
    :caption: Deploying Inference
    :hidden:
 
@@ -43,15 +32,50 @@
    openvino_docs_optimization_guide_dldt_optimization_guide
    openvino_docs_MO_DG_Getting_Performance_Numbers
    pot_README
-   tuning_utilities
+   openvino_docs_tuning_utilities
 
 
 .. toctree::
    :maxdepth: 1
-   :caption: OpenVINO™ Deep Learning Workbench 
+   :caption: Graphical Web Interface for OpenVINO™ toolkit  
    :hidden:
 
    workbench_docs_Workbench_DG_Introduction
+   workbench_docs_Workbench_DG_Install
+   workbench_docs_Workbench_DG_Work_with_Models_and_Sample_Datasets
+   workbench_docs_Workbench_DG_User_Guide
+   workbench_docs_security_Workbench
+   workbench_docs_Workbench_DG_Troubleshooting
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Media Processing
+
+   DL Streamer API Reference <https://openvinotoolkit.github.io/dlstreamer_gst/>
+   gst_samples_README
+   openvino_docs_gapi_gapi_intro
+   OpenVX Developer Guide <https://software.intel.com/en-us/openvino-ovx-guide>
+   OpenVX API Reference <https://khronos.org/openvx>
+   OpenCV* Developer Guide <https://docs.opencv.org/master/>
+   OpenCL™ Developer Guide <https://software.intel.com/en-us/openclsdk-devguide>   
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Add-Ons
+   :hidden:
+
+   openvino_docs_ovms
+   ovsa_get_started
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Developing Inference Engine Plugins 
+   :hidden:
+
+   groupie_dev_api
+   Inference Engine Plugin Developer Guide <docs_ie_plugin_dg_overview>
+
 
 @endsphinxdirective
 

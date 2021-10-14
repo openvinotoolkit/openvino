@@ -1,5 +1,6 @@
 # Intel® Distribution of OpenVINO™ toolkit Benchmark Results {#openvino_docs_performance_benchmarks_openvino}
 
+@sphinxdirective
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -25,37 +26,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 - **Latency** - This measures the synchronous execution of inference requests and is reported in milliseconds. Each inference request (for example: preprocess, infer, postprocess) is allowed to complete before the next is started. This performance metric is relevant in usage scenarios where a single image input needs to be acted upon as soon as possible. An example would be the healthcare sector where medical personnel only request analysis of a single ultra sound scanning image or in real-time or near real-time applications for example an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles. 
 
 
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/bert-large-uncased-whole-word-masking-squad-int8-0001-384.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/brain-tumor-segmentation-0001-MXNET-128x128x128.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/brain-tumor-segmentation-0002-CF2-128x128x128.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/deeplabv3-TF-513x513.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/densenet-121-TF-224x224.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/facenet-20180408-102900-TF-160x160.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/faster_rcnn_resnet50_coco-TF-600x1024.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/googlenet-v1-TF-224x224.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/mobilenet-ssd-CF-300x300.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/mobilenet-v1-1.0-224-TF-224x224.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/mobilenet-v2-1.0-224-TF-224x224.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/mobilenet-v2-pytorch-224x224.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/resnet-18-pytorch-224x224.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/resnet-50-PYTORCH-224x224.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/resnet-50-TF.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/se-resnext-50-CF-224x224.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/squeezenet1.1-CF-227x227.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/ssd300-CF-300x300.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/ssdlite_mobilenet_v2-TF-300x300.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/ssd_mobilenet_v1_coco-TF-300x300.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/unet-camvid-onnx-0001-368x480.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/yolo_v3-TF.csv"></div>
-    <div class="chart-block" data-loadcsv="csv/yolo_v4-tf-608x608.csv"></div>
-
-@endsphinxdirective
-
-
-### bert-large-uncased-whole-word-masking-squad-int8-0001 (384)
+## bert-large-uncased-whole-word-masking-squad-int8-0001 [384]
 
 @sphinxdirective
 .. raw:: html
@@ -64,26 +35,7 @@ Measuring inference performance involves many variables and is extremely use-cas
     
 @endsphinxdirective
 
-### brain-tumor-segmentation-0001-MXNET (128x128x128)
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/brain-tumor-segmentation-0001-MXNET-128x128x128.csv"></div>
-    
-@endsphinxdirective
-
-### brain-tumor-segmentation-0002-CF2 (128x128x128)
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/brain-tumor-segmentation-0002-CF2-128x128x128.csv"></div>
-    
-@endsphinxdirective
-
-
-## deeplabv3-TF (513x513)
+## deeplabv3-TF [513x513]
 
 @sphinxdirective
 .. raw:: html
@@ -92,7 +44,7 @@ Measuring inference performance involves many variables and is extremely use-cas
     
 @endsphinxdirective
 
-## densenet-121-TF (224x224)
+## densenet-121-TF [224x224]
 
 @sphinxdirective
 .. raw:: html
@@ -101,16 +53,7 @@ Measuring inference performance involves many variables and is extremely use-cas
     
 @endsphinxdirective
 
-## facenet-20180408-102900-TF (160x160)
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/facenet-20180408-102900-TF-160x160.csv"></div>
-    
-@endsphinxdirective
-
-## faster_rcnn_resnet50_coco-TF (600x1024)
+## faster-rcnn-resnet50-coco-TF [600x1024]
 
 @sphinxdirective
 .. raw:: html
@@ -119,16 +62,26 @@ Measuring inference performance involves many variables and is extremely use-cas
     
 @endsphinxdirective
 
-## googlenet-v1-TF (224x224)
+
+## inception-v3-TF [299x299]
 
 @sphinxdirective
 .. raw:: html
 
-    <div class="chart-block" data-loadcsv="csv/googlenet-v1-TF-224x224.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/inception-v3-TF-299x299.csv"></div>
     
 @endsphinxdirective
 
-## mobilenet-ssd-CF (300x300)
+## inception-v4-TF [299x299]
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/inception-v4-TF-299x299.csv"></div>
+    
+@endsphinxdirective
+
+## mobilenet-ssd-CF [300x300]
 
 @sphinxdirective
 .. raw:: html
@@ -137,25 +90,7 @@ Measuring inference performance involves many variables and is extremely use-cas
     
 @endsphinxdirective
 
-## mobilenet-v1-1.0-224-TF (224x224)
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/mobilenet-v1-1.0-224-TF-224x224.csv"></div>
-    
-@endsphinxdirective
-
-## mobilenet-v2-1.0-224-TF (224x224)
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/mobilenet-v2-1.0-224-TF-224x224.csv"></div>
-    
-@endsphinxdirective
-
-## mobilenet-v2-pytorch (224x224)
+## mobilenet-v2-pytorch [224x224]
 
 @sphinxdirective
 .. raw:: html
@@ -164,7 +99,7 @@ Measuring inference performance involves many variables and is extremely use-cas
     
 @endsphinxdirective
 
-## resnet-18-pytorch (224x224)
+## resnet-18-pytorch [224x224]
 
 @sphinxdirective
 .. raw:: html
@@ -173,16 +108,7 @@ Measuring inference performance involves many variables and is extremely use-cas
     
 @endsphinxdirective
 
-## resnet-50-PYTORCH (224x224)
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/resnet-50-PYTORCH-224x224.csv"></div>
-    
-@endsphinxdirective
-
-## resnet_50_tf (224x224)
+## resnet_50_TF [224x224]
 
 @sphinxdirective
 .. raw:: html
@@ -191,7 +117,7 @@ Measuring inference performance involves many variables and is extremely use-cas
     
 @endsphinxdirective
 
-## se-resnext-50-CF (224x224)
+## se-resnext-50-CF [224x224]
 
 @sphinxdirective
 .. raw:: html
@@ -200,7 +126,7 @@ Measuring inference performance involves many variables and is extremely use-cas
     
 @endsphinxdirective
 
-## squeezenet1.1-CF (227x227)
+## squeezenet1.1-CF [227x227]
 
 @sphinxdirective
 .. raw:: html
@@ -209,7 +135,7 @@ Measuring inference performance involves many variables and is extremely use-cas
     
 @endsphinxdirective
 
-## ssd300-CF (300x300)
+## ssd300-CF [300x300]
 
 @sphinxdirective
 .. raw:: html
@@ -218,25 +144,26 @@ Measuring inference performance involves many variables and is extremely use-cas
     
 @endsphinxdirective
 
-## ssdlite_mobilenet_v2-TF (300x300)
+## yolo-v3-tiny-tf [416x416]
 
 @sphinxdirective
 .. raw:: html
 
-    <div class="chart-block" data-loadcsv="csv/ssdlite_mobilenet_v2-TF-300x300.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/yolo-v3-tiny-tf-416x416.csv"></div>
     
 @endsphinxdirective
 
-## ssd_mobilenet_v1_coco-TF (300x300)
+## yolo_v4-tf [608x608]
 
 @sphinxdirective
 .. raw:: html
 
-    <div class="chart-block" data-loadcsv="csv/ssd_mobilenet_v1_coco-TF-300x300.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/yolo_v4-tf-608x608.csv"></div>
     
 @endsphinxdirective
 
-## unet-camvid-onnx-0001 (368x480)
+
+## unet-camvid-onnx-0001 [368x480]
 
 @sphinxdirective
 .. raw:: html
@@ -245,16 +172,23 @@ Measuring inference performance involves many variables and is extremely use-cas
     
 @endsphinxdirective
 
-## unet-camvid-onnx-0001 (368x480)
+## ssd-resnet34-1200-onnx [1200x1200]
 
 @sphinxdirective
 .. raw:: html
 
-    <div class="chart-block" data-loadcsv="csv/yolo_v3-TF.csv"></div>
+    <div class="chart-block" data-loadcsv="csv/ssd-resnet34-1200-onnx-1200x1200.csv"></div>
     
 @endsphinxdirective
 
+## vgg19-caffe [224x224]
 
+@sphinxdirective
+.. raw:: html
+
+    <div class="chart-block" data-loadcsv="csv/vgg19-caffe-224x224.csv"></div>
+    
+@endsphinxdirective
 
 ## Platform Configurations
 

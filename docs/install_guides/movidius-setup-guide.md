@@ -17,10 +17,10 @@
 ## See Also
 
 - [Intel® Movidius™ VPUs Programming Guide for use with the Intel® Distribution of OpenVINO™](movidius-programming-guide.md)
-- <a class="download" href="<domain_placeholder>/downloads/595850_Intel_Vision_Accelerator_Design_with_Intel_Movidius™_VPUs-HAL Configuration Guide_rev1.3.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs HAL Configuration Guide</a>
-- <a class="download" href="<domain_placeholder>/downloads/613514_Intel Vision Accelerator Design with Intel Movidius™ VPUs Workload Distribution_UG_r0.9.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Workload Distribution User Guide</a>
-- <a class="download" href="<domain_placeholder>/downloads/613759_Intel Vision Accelerator Design with Intel Movidius™ VPUs Scheduler_UG_r0.9.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Scheduler User Guide</a>
-- <a class="download" href="<domain_placeholder>/downloads/Intel Vision Accelerator Design with Intel Movidius™ VPUs Errata.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Errata</a>
+- <a class="download" href="<domain_placeholder>/downloads/595850_Intel_Vision_Accelerator_Design_with_Intel_Movidius_VPUs-HAL Configuration Guide_rev1.3.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs HAL Configuration Guide</a>
+- <a class="download" href="<domain_placeholder>/downloads/613514_Intel Vision Accelerator Design with Intel Movidius VPUs Workload Distribution_UG_r0.9.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Workload Distribution User Guide</a>
+- <a class="download" href="<domain_placeholder>/downloads/613759_Intel Vision Accelerator Design with Intel Movidius VPUs Scheduler_UG_r0.9.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Scheduler User Guide</a>
+- <a class="download" href="<domain_placeholder>/downloads/Intel Vision Accelerator Design with Intel Movidius VPUs Errata.pdf">Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Errata</a>
 
 The IEI Mustang-V100-MX8 is an OEM version of the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
 This guide assumes you have installed the [Mustang-V100-MX8](https://download.ieiworld.com/) and the [Intel® Distribution of OpenVINO™ Toolkit](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html).

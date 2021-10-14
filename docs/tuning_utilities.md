@@ -1,4 +1,4 @@
-# Tuning Utilities {#docs_tuning_utilities}
+# Tuning Utilities {#openvino_docs_tuning_utilities}
 
 @sphinxdirective
 
