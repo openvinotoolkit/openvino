@@ -70,7 +70,7 @@ void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMg
     // disable caching if graph was created only once
     weightsCache = config.streamExecutorConfig._streams != 1 ? w_cache : nullptr;
 
-    std::cout << "weightsCache: " << weightsCache.get() << std::endl;
+    // std::cout << "weightsCache: " << weightsCache.get() << std::endl;
 
     Replicate(net, extMgr);
     InitGraph();
@@ -668,9 +668,9 @@ void MKLDNNGraph::AllocateWithReuse() {
     size_t total_size = static_cast<size_t>(memSolver.solve()) * alignment;
 
     memWorkspace = std::make_shared<MKLDNNMemory>(eng);
-    std::cout << "TOTAL: " << total_size << std::endl;
+    // std::cout << "TOTAL: " << total_size << std::endl;
     memWorkspace->Create(DnnlBlockedMemoryDesc(InferenceEngine::Precision::I8, Shape(InferenceEngine::SizeVector{total_size})));
-    std::cout << "END TOTAL: " << total_size << std::endl;
+    // std::cout << "END TOTAL: " << total_size << std::endl;
     if (edge_clusters.empty())
         return;
 

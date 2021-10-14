@@ -58,11 +58,11 @@ int main(int argc, char* argv[]) {
     std::map<std::string, ov::PartialShape> shapes;
     for (const auto &in: inputsInfo) {
         std::cout << "INPUT: " << in.first << std::endl;
-        shapes[in.first] = {1, {0, 1024}};
+        shapes[in.first] = {1, -1};
     }
     network.reshape(shapes);
 
-    // network.serialize("/home/maximandronov/test_repo/openvino/models/BERT/dump.xml");
+    network.serialize("/home/maximandronov/test_repo/openvino/models/BERT/dynamic_fp32/model.xml");
 
     InferenceEngine::SizeVector initDims = {1, 111};
 std::cout << "START LOAD NETWORK" << std::endl; 
