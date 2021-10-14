@@ -24,12 +24,12 @@ namespace GPUContextParams {
  * @def GPU_PARAM_KEY(name)
  * @brief Shortcut for defining configuration keys
  */
-#define GPU_PARAM_KEY(name) GPUContextParams::PARAM_##name
+#define GPU_PARAM_KEY(name) ::InferenceEngine::GPUContextParams::PARAM_##name
 /**
  * @def GPU_PARAM_VALUE(name)
  * @brief Shortcut for defining configuration values
  */
-#define GPU_PARAM_VALUE(name) GPUContextParams::name
+#define GPU_PARAM_VALUE(name) ::InferenceEngine::GPUContextParams::name
 
 /**
  * @def DECLARE_GPU_PARAM_VALUE(name)
