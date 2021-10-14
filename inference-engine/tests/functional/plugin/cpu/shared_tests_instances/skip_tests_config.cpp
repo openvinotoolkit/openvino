@@ -123,7 +123,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)",
 
         // TODO:
-        R"(smoke_PrePostProcess.*two_inputs_basic_Device.*)"
+        R"(smoke_PrePostProcess.*two_inputs_basic_Device.*)",
+        // TODO: CVS-67255
+        R"(smoke_If.*SimpleIf2OutTest.*)"
     };
 
 #define FIX_62820 0
