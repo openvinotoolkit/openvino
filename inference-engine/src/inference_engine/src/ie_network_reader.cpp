@@ -278,11 +278,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             for (size_t i = 0; i < inputs.size(); ++i) {
                 const auto ngraph_type = inputs[i].get_element_type();
                 const auto legacy_type = details::toLegacyType(ngraph_type, true);
-                prepost.input(ov::preprocess::InputInfo(i)
-                                  .tensor(InputTensorInfo().set_element_type(legacy_type))
-                                  .preprocess(PreProcessSteps()
-                                                  // TODO: remove explicit type
-                                                  .convert_element_type(ngraph_type)));
+                prepost.input(ov::preprocess::InputInfo(i).tensor(InputTensorInfo().set_element_type(legacy_type)));
             }
 
             // in order to support the following scenarios for IR v10 cases:
@@ -313,9 +309,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 const auto ngraph_type = outputs[i].get_element_type();
                 const auto legacy_type = details::toLegacyType(ngraph_type, false);
 
-                prepost.output(OutputInfo(i)
-                                   .postprocess(PostProcessSteps().convert_element_type())
-                                   .tensor(OutputTensorInfo().set_element_type(legacy_type)));
+                prepost.output(OutputInfo(i).tensor(OutputTensorInfo().set_element_type(legacy_type)));
             }
 
             function = prepost.build(function);
@@ -350,18 +344,10 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                     networkLayout << old_api_transpose_args[i];
                 }
 
-                PreProcessSteps steps;
-                // TODO: remove explicit type
-                steps.convert_element_type(parameter->get_element_type());
-                // TODO: move steps directly to builder once we allow Layout() -> Layout transpose
-                if (!old_api_transpose_args.empty())
-                    steps.convert_layout();
-
                 prepost.input(
                     ov::preprocess::InputInfo(i)
                         .tensor(
                             InputTensorInfo().set_element_type(old_api_type).set_layout(ov::Layout(tensorLayout.str())))
-                        .preprocess(std::move(steps))
                         .network(InputNetworkInfo().set_layout(ov::Layout(networkLayout.str()))));
 
                 // Set version to 10
@@ -395,7 +381,6 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
 
                 prepost.output(OutputInfo(i)
                                    .network(OutputNetworkInfo().set_layout(ov::Layout(networkLayout.str())))
-                                   .postprocess(PostProcessSteps().convert_layout().convert_element_type())
                                    .tensor(OutputTensorInfo()
                                                .set_element_type(old_api_type)
                                                .set_layout(ov::Layout(tensorLayout.str()))));

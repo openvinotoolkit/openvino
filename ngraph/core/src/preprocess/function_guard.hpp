@@ -13,6 +13,8 @@ namespace preprocess {
 class FunctionGuard {
     std::shared_ptr<Function> m_function;
     ParameterVector m_parameters;
+    ResultVector m_results;
+    std::vector<std::unordered_set<std::string>> m_result_tensors;
     std::map<std::shared_ptr<op::v0::Parameter>, std::set<Input<Node>>> m_backup;
     bool m_done = false;
 
@@ -21,6 +23,10 @@ public:
         m_parameters = f->get_parameters();
         for (const auto& param : f->get_parameters()) {
             m_backup.insert({param, param->output(0).get_target_inputs()});
+        }
+        m_results = f->get_results();
+        for (const auto& result : m_results) {
+            m_result_tensors.push_back(result->get_default_output().get_tensor().get_names());
         }
     }
     virtual ~FunctionGuard() {
@@ -39,6 +45,18 @@ public:
                     }
                 }
                 m_function->add_parameters(m_parameters);
+
+                auto results = m_function->get_results();
+
+                // Remove results added by postprocessing
+                for (const auto& result : results) {
+                    m_function->remove_result(result);
+                }
+                // Restore removed tensor names
+                for (size_t i = 0; i < m_results.size(); ++i) {
+                    m_results[i]->get_default_output().get_tensor().set_names(m_result_tensors[i]);
+                }
+                m_function->add_results(m_results);
             } catch (std::exception& ex) {
                 // Stress condition, can't recover function to original state
                 std::cerr << "Unrecoverable error occurred during preprocessing. Function is corrupted, exiting\n";
