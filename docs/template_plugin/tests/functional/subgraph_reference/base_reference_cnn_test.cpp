@@ -19,6 +19,15 @@ namespace reference_tests {
 
 ReferenceCNNTest::ReferenceCNNTest(): targetDevice("TEMPLATE") {
     core = ov::test::PluginCache::get().core(targetDevice);
+
+    // Register template plugin in legacy core.
+    // TODO: consider have 'legacy_core' in plugin cache if number of such tests grows significantly
+    try {
+        std::string pluginName = "templatePlugin";
+        pluginName += IE_BUILD_POSTFIX;
+        legacy_core.RegisterPlugin(pluginName, "TEMPLATE");
+    } catch (...) {
+    }
 }
 
 void ReferenceCNNTest::Exec() {

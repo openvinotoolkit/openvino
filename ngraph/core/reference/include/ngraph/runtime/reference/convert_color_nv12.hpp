@@ -37,7 +37,11 @@ void color_convert_nv12(const T* arg_y,
                 auto d = u_val - 128.f;
                 auto e = v_val - 128.f;
                 auto clip = [](float a) -> T {
-                    return a < 0.5f ? static_cast<T>(0) : (a > 254.5f ? static_cast<T>(255) : static_cast<T>(a));
+                    if (std::is_integral<T>()) {
+                        return static_cast<T>(std::min(std::max(std::round(a), 0.f), 255.f));
+                    } else {
+                        return static_cast<T>(std::min(std::max(a, 0.f), 255.f));
+                    }
                 };
                 auto b = clip(1.164f * c + 2.018f * d);
                 auto g = clip(1.164f * c - 0.391f * d - 0.813f * e);

@@ -156,7 +156,7 @@ TEST_F(ConvertNV12WithLegacyTest, convert_nv12_full_color_range) {
     // Try NV12 conversion for all R/G/B combinations
     size_t height = 128;
     size_t width = 128;
-    int b_step = 51;
+    int b_step = 17;
     int b_dim = 255 / b_step;
 
     // Test all possible r/g/b values within dimensions
