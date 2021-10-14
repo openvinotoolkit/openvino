@@ -17,7 +17,7 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 | Validated Models           | [mobilenet-ssd](@ref omz_models_model_mobilenet_ssd), [face-detection-0206](@ref omz_models_model_face_detection_0206) |
 | Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx)                                                                                                                                                                                                              |
 | Supported devices          | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                                                                                                                                                                                                               |
-| Other language realization | [C++](../../../inference-engine/samples/object_detection_sample_ssd/README.md), [C](../../../inference-engine/ie_bridges/c/samples/object_detection_sample_ssd/README.md)                                                                                                                                                                           |
+| Other language realization | [C++](../../../inference-engine/samples/object_detection_sample_ssd/README.md), [C](../../C/object_detection_sample_ssd/README.md)                                                                                                                                                                           |
 
 ## How It Works
 
