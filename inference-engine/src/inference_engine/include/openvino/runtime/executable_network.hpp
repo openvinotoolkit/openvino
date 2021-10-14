@@ -23,7 +23,6 @@
 
 namespace InferenceEngine {
 class IExecutableNetworkInternal;
-class RemoteContext;
 }  // namespace InferenceEngine
 namespace ov {
 namespace runtime {
@@ -167,7 +166,7 @@ public:
      * on remote accelerator device that was used to create this ExecutableNetwork
      * @return A context
      */
-    std::shared_ptr<ie::RemoteContext> get_context() const;
+    RemoteContext get_context() const;
 
     /**
      * @brief Checks if current ExecutableNetwork object is not initialized

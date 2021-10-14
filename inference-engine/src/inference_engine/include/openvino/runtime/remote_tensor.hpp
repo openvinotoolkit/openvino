@@ -9,7 +9,6 @@
  */
 #pragma once
 
-#include "ie_remote_blob.hpp"
 #include "openvino/runtime/parameter.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -27,6 +26,14 @@ class OPENVINO_RUNTIME_API RemoteTensor : public Tensor {
     friend class ov::runtime::RemoteContext;
 
 public:
+    /**
+     * @brief Checks openvino remote type
+     * @param tensor tensor which type will be checked
+     * @param type_info map with remote object runtime info
+     * @throw Exception if type check with specified paramters is not pass
+     */
+    static void type_check(const Tensor& tensor, const std::map<std::string, std::vector<std::string>>& type_info = {});
+
     void* data(const element::Type) = delete;
 
     template <typename T>
@@ -49,56 +56,6 @@ public:
      * @return A device name string in fully specified format `<device_name>[.<device_id>[.<tile_id>]]`.
      */
     std::string get_device_name() const;
-
-    /**
-     * @brief Checks if the RemoteTensor object can be cast to the type T*
-     *
-     * @tparam T Type to be checked. Must represent a class derived from the RemoteTensor
-     * @return true if this object can be dynamically cast to the type T*. Otherwise, false
-     */
-    template <typename T,
-              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_base_of<ie::RemoteBlob, T>::value, int>::type = 0>
-    bool is() noexcept {
-        return dynamic_cast<T*>(_impl.get()) != nullptr;
-    }
-
-    /**
-     * @brief Checks if the RemoteTensor object can be cast to the type const T*
-     *
-     * @tparam T Type to be checked. Must represent a class derived from the RemoteTensor
-     * @return true if this object can be dynamically cast to the type const T*. Otherwise, false
-     */
-    template <typename T>
-    bool is() const noexcept {
-        return dynamic_cast<const T*>(_impl.get()) != nullptr;
-    }
-
-    /**
-     * @brief Casts this RemoteTensor object to the type T*.
-     *
-     * @tparam T Type to cast to. Must represent a class derived from the RemoteTensor
-     * @return Raw pointer to the object of the type T or nullptr on error
-     */
-    template <typename T,
-              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_base_of<ie::RemoteBlob, T>::value, int>::type = 0>
-    T* as() noexcept {
-        return dynamic_cast<T*>(_impl.get());
-    }
-
-    /**
-     * @brief Casts this RemoteTensor object to the type const T*.
-     *
-     * @tparam T Type to cast to. Must represent a class derived from the RemoteTensor
-     * @return Raw pointer to the object of the type const T or nullptr on error
-     */
-    template <typename T,
-              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_base_of<ie::RemoteBlob, T>::value, int>::type = 0>
-    const T* as() const noexcept {
-        return dynamic_cast<const T*>(_impl.get());
-    }
 };
 }  // namespace runtime
 }  // namespace ov

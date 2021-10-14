@@ -168,14 +168,14 @@ public:
 using BehaviorParamsSingleOptionDefault =
     std::tuple<ov::element::Type,                                  // element type
                std::string,                                        // Device name
-               std::pair<std::string, InferenceEngine::Parameter>  // Configuration key and its default value
+               std::pair<std::string, ov::runtime::Parameter>  // Configuration key and its default value
                >;
 
 class BehaviorTestsSingleOptionDefault : public testing::WithParamInterface<BehaviorParamsSingleOptionDefault>,
                                          public CommonTestUtils::TestsCommon {
 public:
     void SetUp() override {
-        std::pair<std::string, InferenceEngine::Parameter> entry;
+        std::pair<std::string, ov::runtime::Parameter> entry;
         std::tie(elementType, targetDevice, entry) = this->GetParam();
         std::tie(key, value) = entry;
         function = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, 32, 32}, elementType);
@@ -189,14 +189,14 @@ public:
     std::shared_ptr<ngraph::Function> function;
     std::string targetDevice;
     std::string key;
-    InferenceEngine::Parameter value;
+    ov::runtime::Parameter value;
     ov::element::Type elementType;
 };
 
 using BehaviorParamsSingleOptionCustom =
     std::tuple<ov::element::Type,                                                // element type
                std::string,                                                      // Device name
-               std::tuple<std::string, std::string, InferenceEngine::Parameter>  // Configuration key, value and
+               std::tuple<std::string, std::string, ov::runtime::Parameter>  // Configuration key, value and
                                                                                  // reference
                >;
 
@@ -204,7 +204,7 @@ class BehaviorTestsSingleOptionCustom : public testing::WithParamInterface<Behav
                                         public CommonTestUtils::TestsCommon {
 public:
     void SetUp() override {
-        std::tuple<std::string, std::string, InferenceEngine::Parameter> entry;
+        std::tuple<std::string, std::string, ov::runtime::Parameter> entry;
         std::tie(elementType, targetDevice, entry) = this->GetParam();
         std::tie(key, value, reference) = entry;
         function = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, 32, 32}, elementType);

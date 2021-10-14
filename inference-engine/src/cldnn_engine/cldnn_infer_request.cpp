@@ -228,7 +228,9 @@ void CLDNNInferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) 
     bool is_remote = remote_ptr != nullptr;
     if (is_remote) {
         auto impl = getBlobImpl(remote_ptr);
-        impl->allocate();
+        if (!impl->is_allocated()) {
+            impl->allocate();
+        }
     }
     if (is_input) {
         if (is_remote) {
