@@ -157,9 +157,11 @@ class BuildCMakeExt(build_ext):
 
         self.announce("Configuring cmake project", level=3)
         ext_args = self.cmake_args.split() if self.cmake_args else []
+        ov_build_dir = os.path.join(OPENVINO_ROOT_DIR, 'build')
         self.spawn(["cmake", "-S" + root_dir, "-B" + self.build_temp,
                     f"-DCMAKE_BUILD_TYPE={self.config}",
-                    f"-DInferenceEngine_DIR={os.path.join(OPENVINO_ROOT_DIR, 'build')}",
+                    f"-DInferenceEngine_DIR={ov_build_dir}",
+                    f"-DInferenceEngineDeveloperPackage_DIR={ov_build_dir}",
                     "-DENABLE_PYTHON=ON",
                     "-DNGRAPH_ONNX_FRONTEND_ENABLE=ON"] + ext_args)
 

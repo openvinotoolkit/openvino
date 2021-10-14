@@ -4,11 +4,6 @@
 
 project (pyngraph)
 
-if(NOT DEFINED OpenVINO_SOURCE_DIR)
-    find_package(InferenceEngineDeveloperPackage QUIET)
-    find_package(OpenVINO REQUIRED)
-endif()
-
 # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
 set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 message(STATUS "Python version=${PYTHON_VERSION}")

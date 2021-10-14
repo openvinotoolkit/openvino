@@ -3,10 +3,6 @@
 
 project (pyopenvino)
 
-if(NOT DEFINED OpenVINO_SOURCE_DIR)
-    find_package(OpenVINO REQUIRED)
-endif()
-
 # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
 set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 message(STATUS "Python version=${PYTHON_VERSION}")
@@ -30,10 +26,15 @@ file(GLOB_RECURSE SOURCES *.cpp)
 
 pybind11_add_module(${PROJECT_NAME} MODULE ${SOURCES})
 
-add_dependencies(${PROJECT_NAME} offline_transformations)
+if(TARGET offline_transformations)
+    set(OFFLINE_TRANSFORMATIONS_LIB offline_transformations)
+else()
+    set(OFFLINE_TRANSFORMATIONS_LIB IE::offline_transformations)
+endif()
+
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../inference_engine")
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime offline_transformations)
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)
