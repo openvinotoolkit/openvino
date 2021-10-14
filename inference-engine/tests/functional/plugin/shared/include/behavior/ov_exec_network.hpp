@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/ov_behavior_test_utils.hpp"
+#include <openvino/pass/serialize.hpp>
 #include "common_test_utils/test_constants.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "ie_core.hpp"
@@ -18,7 +19,6 @@
 #include "openvino/core/except.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/runtime.hpp"
-#include "transformations/serialize.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 
 namespace ov {
@@ -167,7 +167,7 @@ TEST_P(OVExecNetwork, precisionsAsInOriginalIR) {
 
     const std::string m_out_xml_path_1 = "precisionsAsInOriginalIR.xml";
     const std::string m_out_bin_path_1 = "precisionsAsInOriginalIR.bin";
-    ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(function);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(function);
 
     ov::runtime::ExecutableNetwork execNet;
     execNet = ie->compile_model(m_out_xml_path_1, targetDevice, configuration);
@@ -320,7 +320,7 @@ TEST_P(OVExecNetwork, readFromV10IR) {
     </edges>
 </net>
 )V0G0N";
-    function = ie->read_model(model, InferenceEngine::Blob::Ptr());
+    function = ie->read_model(model, ov::runtime::Tensor());
     EXPECT_EQ(function->inputs().size(), 1);
     EXPECT_EQ(function->outputs().size(), 1);
     EXPECT_NO_THROW(function->input("in1")); // remove if read_model does not change function names
