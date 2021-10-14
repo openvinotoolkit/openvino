@@ -1130,6 +1130,8 @@ std::vector<LayoutType> MKLDNNFakeQuantizeNode::getDataFormats() const {
                 } else {
                     return { LayoutType::ncsp };
                 }
+            } else if (getInputShapeAtPort(0).getRank() == 3) {
+                return { LayoutType::ncsp, LayoutType::nspc };
             } else {
                 return { LayoutType::ncsp };
             }
@@ -1316,6 +1318,7 @@ void MKLDNNFakeQuantizeNode::createPrimitive() {
 void MKLDNNFakeQuantizeNode::executeReference() {
     auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto &srcDesc = srcMemory->getDesc();
 
     auto src = reinterpret_cast<const float *>(srcMemory->GetPtr());
 
@@ -1400,6 +1403,12 @@ void MKLDNNFakeQuantizeNode::executeReference() {
                                 n * s_str[0] + c * s_str[1] :
                                 n * s_str[0];
 
+            const MKLDNNPlugin::BlockedMemoryDesc *srcBlk = srcDesc.as<BlockedMemoryDesc>();
+            auto srcOrder = srcBlk->getOrder();
+            if ((srcDims.size() == 3) && (srcOrder[1] == 2) && (srcOrder[2] == 1)) {
+                src_off = s_str[0] * n + s_str[1] * h + s_str[2] *c;
+            }
+
             float src_val = src[src_off];
 
             int wei_idx = getAxis() == 0 ? n : c;
@@ -1425,6 +1434,9 @@ void MKLDNNFakeQuantizeNode::executeReference() {
                              n * d_str[0] + c * d_str[1] :
                              n * d_str[0];
 
+            if ((srcDims.size() == 3) && (srcOrder[1] == 2) && (srcOrder[2] == 1)) {
+                dst_off = s_str[0] * n + s_str[1] * h + s_str[2] *c;
+            }
             dst[dst_off] = dst_val;
         });
     }
