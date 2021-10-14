@@ -40,7 +40,8 @@ packages = [
     "ngraph.impl.op.util",
     "ngraph.impl.passes",
     "ngraph.frontend",
-    "openvino"
+    "openvino",
+    "openvino.offline_transformations"
 ]
 
 
