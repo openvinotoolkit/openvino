@@ -236,7 +236,7 @@ static inline RemoteContext::Ptr make_shared_context(Core& core,
  * @brief This function is used to obtain remote context object from user-supplied OpenCL context handle
  * @param core A reference to Inference Engine Core object
  * @param deviceName A name of device to create a remote context for
- * @param queue A OpenCL queue to be used to create shared remote context. Queue will be reused inside the plugin.
+ * @param queue An OpenCL queue to be used to create shared remote context. Queue will be reused inside the plugin.
  * @note Only latency mode is supported for such context sharing case.
  * @return A shared remote context instance
  */

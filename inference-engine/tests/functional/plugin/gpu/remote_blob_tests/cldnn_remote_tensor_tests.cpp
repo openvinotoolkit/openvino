@@ -113,7 +113,7 @@ TEST_F(OVRemoteTensor_Test, DISABLED_smoke_canInferOnUserContext) {
     // inference using remote tensor
     auto ocl_instance = std::make_shared<OpenCL>();
 
-    auto remote_context = ov::runtime::gpu::ClContext(ie, CommonTestUtils::DEVICE_GPU, ocl_instance->_context.get());
+    auto remote_context = ov::runtime::gpu::ClContext(ie, ocl_instance->_context.get());
     auto exec_net_shared = ie.compile_model(function, remote_context);
     auto inf_req_shared = exec_net_shared.create_infer_request();
     inf_req_shared.set_tensor(input->get_friendly_name(), fakeImageData);
