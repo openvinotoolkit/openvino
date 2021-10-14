@@ -101,14 +101,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fill->add_matcher<ngraph::pass::PadFillValue>();
     fill->set_name("ngraph::pass::PadFill");
 
-    // This pass must be called first in pipeline
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
-    manager.register_pass<ngraph::pass::SimplifyShapeOfSubGraph>();
-    manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>(); // Resolves dynamism (replaces NonZero), CF needed
-    manager.register_pass<ngraph::pass::ConvertNmsGatherPathToUnsigned>(); // workaround until dynamism in NMS is not supported
-
     // TODO: move to KMB
     manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
 
