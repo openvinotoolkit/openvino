@@ -39,6 +39,7 @@ set(SRC
     eval.cpp
     file_util.cpp
     float16.cpp
+    framework_node.cpp
     function.cpp
     graph_rewrite.cpp
     includes.cpp
@@ -82,6 +83,10 @@ set(SRC
     partial_shape.cpp
     pass_config.cpp
     pass_manager.cpp
+    pass/serialization/cleanup.cpp
+    pass/serialization/const_compression.cpp
+    pass/serialization/deterministicity.cpp
+    pass/serialization/serialize.cpp
     pattern.cpp
     preprocess.cpp
     provenance.cpp
@@ -268,6 +273,7 @@ set(SRC
     visitors/op/convert.cpp
     visitors/op/convert_color_nv12.cpp
     visitors/op/convolution_backprop.cpp
+    visitors/op/convolution.cpp
     visitors/op/cos.cpp
     visitors/op/cosh.cpp
     visitors/op/ctc_loss.cpp
@@ -292,6 +298,7 @@ set(SRC
     visitors/op/grn.cpp
     visitors/op/group_conv.cpp
     visitors/op/interpolate.cpp
+    visitors/op/if.cpp
     visitors/op/less_equal.cpp
     visitors/op/less.cpp
     visitors/op/log.cpp
@@ -447,7 +454,6 @@ set(MULTI_TEST_SRC
     backend/concat.in.cpp
     backend/constant.in.cpp
     backend/convolution_backprop.in.cpp
-    backend/convolution.in.cpp
     backend/binary_convolution.in.cpp
     backend/clamp.in.cpp
     backend/ctc_greedy_decoder.in.cpp
@@ -601,6 +607,8 @@ endforeach()
 
 add_executable(unit-test ${SRC})
 
+add_dependencies(unit-test template_extension)
+
 target_include_directories(unit-test PRIVATE ".")
 target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
 
@@ -617,6 +625,8 @@ endif()
 target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         engines_test_util
                                         ngraph::builder
+                                        openvino::util
+                                        pugixml::static
                                         ${CMAKE_DL_LIBS}
                                         ie_backend
                                         interpreter_backend
@@ -636,6 +646,7 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
             ${Protobuf_INCLUDE_DIRS})
     target_compile_definitions(unit-test
         PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
+    target_compile_definitions(unit-test PRIVATE NGRAPH_ONNX_FRONTEND_ENABLE)
 endif()
 
 if (OV_COMPILER_IS_CLANG)

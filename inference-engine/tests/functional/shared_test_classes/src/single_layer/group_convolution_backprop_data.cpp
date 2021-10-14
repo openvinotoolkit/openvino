@@ -60,7 +60,6 @@ void GroupConvBackpropDataLayerTest::SetUp() {
                                              padEnd, dilation, padType, convOutChannels, numGroups));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConvBackpropData)};
     function = std::make_shared<ngraph::Function>(results, params, "GroupConvolutionBackpropData");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 std::string GroupConvBackpropLayerTest::getTestCaseName(testing::TestParamInfo<groupConvBackpropLayerTestParamsSet> obj) {
@@ -125,6 +124,5 @@ void GroupConvBackpropLayerTest::SetUp() {
     }
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConvBackpropData)};
     function = std::make_shared<ngraph::Function>(results, params, "GroupConvolutionBackpropData");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

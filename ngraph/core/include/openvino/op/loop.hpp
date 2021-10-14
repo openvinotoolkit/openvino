@@ -15,7 +15,7 @@ namespace ov {
 namespace op {
 namespace v5 {
 /// \brief  Iterate a body over tensors, accumulating into tensors.
-class NGRAPH_API Loop : public op::util::SubGraphOp {
+class OPENVINO_API Loop : public op::util::SubGraphOp {
 public:
     /// \brief  Allows to define the purpose of inputs/outputs in the body
     struct SpecialBodyPorts {
@@ -61,7 +61,9 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 protected:
@@ -76,7 +78,7 @@ private:
 }  // namespace op
 
 template <>
-class NGRAPH_API AttributeAdapter<op::v5::Loop::SpecialBodyPorts>
+class OPENVINO_API AttributeAdapter<op::v5::Loop::SpecialBodyPorts>
     : public DirectValueAccessor<op::v5::Loop::SpecialBodyPorts> {
 public:
     AttributeAdapter(op::v5::Loop::SpecialBodyPorts& value)

@@ -50,7 +50,6 @@ void FullyConnectedTransformation::SetUp() {
         shapes.inputB,
         shapes.transposeA,
         shapes.transposeB);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(FullyConnectedTransformation, CompareWithRefImpl) {
