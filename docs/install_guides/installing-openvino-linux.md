@@ -47,7 +47,7 @@ Optimized for these processors:
 - CentOS 7.6, 64-bit (for deployment only, not development)
 - Yocto Project v3.0, 64-bit (for deployment only and requires modifications)
 - For deployment on Red Hat* Enterprise Linux* 8.2 (64 bit), you can use the Intel® Distribution of OpenVINO™ toolkit runtime package that includes the Inference Engine core libraries, nGraph, OpenCV, Python bindings, and CPU and GPU plugins. The package is available as: 
-   - [Downloadable archive](https://storage.openvinotoolkit.org/repositories/openvino/packages/2021.3/l_openvino_toolkit_runtime_rhel8_p_2021.3.394.tgz)
+   - [Downloadable archive](https://storage.openvinotoolkit.org/repositories/openvino/packages/2021.4.1/l_openvino_toolkit_runtime_rhel8_p_2021.4.689.tgz)
    - [PyPi package](https://pypi.org/project/openvino/)
    - [Docker image](https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3)
 
