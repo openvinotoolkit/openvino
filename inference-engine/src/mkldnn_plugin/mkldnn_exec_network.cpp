@@ -273,12 +273,6 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &ne
     return true;
 }
 
-IE_SUPPRESS_DEPRECATED_START
-std::vector<IVariableStateInternal::Ptr> MKLDNNExecNetwork::QueryState() {
-    return memoryStates;
-}
-IE_SUPPRESS_DEPRECATED_END
-
 void MKLDNNExecNetwork::Export(std::ostream& modelStream) {
     CNNNetworkSerializer serializer(modelStream, extensionManager);
     serializer <<_network;

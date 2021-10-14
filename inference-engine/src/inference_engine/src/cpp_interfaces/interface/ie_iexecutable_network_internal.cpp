@@ -79,10 +79,6 @@ std::shared_ptr<ngraph::Function> IExecutableNetworkInternal::GetExecGraphInfo()
     IE_THROW(NotImplemented);
 }
 
-std::vector<std::shared_ptr<IVariableStateInternal>> IExecutableNetworkInternal::QueryState() {
-    IE_THROW(NotImplemented);
-}
-
 void IExecutableNetworkInternal::SetPointerToPlugin(const std::shared_ptr<IInferencePlugin>& plugin) {
     _plugin = plugin;
 }

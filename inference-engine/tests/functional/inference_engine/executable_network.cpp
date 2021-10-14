@@ -35,13 +35,6 @@ TEST(ExecutableNetworkTests, throwsOnUninitializedGetExecGraphInfo) {
     ASSERT_THROW(exec.GetExecGraphInfo(), InferenceEngine::NotAllocated);
 }
 
-TEST(ExecutableNetworkTests, throwsOnUninitializedQueryState) {
-    IE_SUPPRESS_DEPRECATED_START
-    ExecutableNetwork exec;
-    ASSERT_THROW(exec.QueryState(), InferenceEngine::NotAllocated);
-    IE_SUPPRESS_DEPRECATED_END
-}
-
 TEST(ExecutableNetworkTests, throwsOnUninitializedSetConfig) {
     ExecutableNetwork exec;
     ASSERT_THROW(exec.SetConfig({{}}), InferenceEngine::NotAllocated);

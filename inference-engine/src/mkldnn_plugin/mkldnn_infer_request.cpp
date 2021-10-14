@@ -25,10 +25,10 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
 MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsDataMap     networkInputs,
-                                                     InferenceEngine::OutputsDataMap    networkOutputs,
-                                                     MKLDNNExecNetwork::Ptr             execNetwork_)
-: IInferRequestInternal(networkInputs, networkOutputs)
-, execNetwork(execNetwork_) {
+    InferenceEngine::OutputsDataMap    networkOutputs,
+    MKLDNNExecNetwork::Ptr             execNetwork_)
+    : IInferRequestInternal(networkInputs, networkOutputs)
+    , execNetwork(execNetwork_) {
     auto id = (execNetwork->_numRequests)++;
     profilingTask = openvino::itt::handle("MKLDNN_INFER_" + execNetwork->_name + "_" + std::to_string(id));
 
@@ -48,27 +48,22 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
     // Save all MemoryLayer data tensors. Will use insight about mechanics
     // of MemoryLayer implementation. It uses output edge of MemoryLayer
     // producer as storage for tensor to keep it between infer calls.
-    IE_SUPPRESS_DEPRECATED_START
-    if (execNetwork->_numRequests > 1 || execNetwork->QueryState().size() == 0) {
-        for (auto &node : graph->GetNodes()) {
-            if (node->getType() == MemoryInput) {
-                auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
-                auto state_store = memoryNode->getStore();
-                auto state_name = memoryNode->getId();
+    for (auto& node : graph->GetNodes()) {
+        if (node->getType() == MemoryInput) {
+            auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+            auto state_store = memoryNode->getStore();
+            auto state_name = memoryNode->getId();
 
-                // Remove suffix with pair ID. Internal information.
-                auto suffix_idx = state_name.find("/id=");
-                if (suffix_idx != std::string::npos)
-                    state_name = state_name.substr(0, suffix_idx);
+            // Remove suffix with pair ID. Internal information.
+            auto suffix_idx = state_name.find("/id=");
+            if (suffix_idx != std::string::npos)
+                state_name = state_name.substr(0, suffix_idx);
 
-                memoryStates.emplace_back(new MKLDNNVariableState(state_name, state_store));
-           }
+            memoryStates.emplace_back(new MKLDNNVariableState(state_name, state_store));
         }
-    } else {
-        memoryStates = execNetwork->QueryState();
     }
-    IE_SUPPRESS_DEPRECATED_END
 }
+ 
 
 MKLDNNPlugin::MKLDNNInferRequest::~MKLDNNInferRequest() {
     --(execNetwork->_numRequests);
