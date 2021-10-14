@@ -19,15 +19,15 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 | :------------------------- | :---------------------------------------------------------------------------------------------------- |
 | Validated Models           | Acoustic model based on Kaldi* neural networks (see [Model Preparation](#model-preparation) section) |
 | Model Format               | Inference Engine Intermediate Representation (.xml + .bin)                              |
-| Supported devices          | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                             |
-| Other language realization | [C++](../../../../samples/speech_sample/README.md)                                                              |
+| Supported devices          | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                             |
+| Other language realization | [C++](../../../inference-engine/samples/speech_sample/README.md)                                                              |
 
 ## How It Works
 
 At startup, the sample application reads command-line parameters, loads a specified model and input data to the Inference Engine plugin, performs synchronous inference on all speech utterances stored in the input file, logging each step in a standard output stream.
 
 You can see the explicit description of
-each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
+each sample step at [Integration Steps](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) section of "Integrate the Inference Engine with Your Application" guide.
 
 ## GNA-specific details
 
@@ -206,10 +206,10 @@ The sample application logs each step in a standard output stream.
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
+- [Integrate the Inference Engine with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
+- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
-- [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+- [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
 [IENetwork.batch_size]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#a79a647cb1b49645616eaeb2ca255ef2e
 [IENetwork.add_outputs]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#ae8024b07f3301d6d5de5c0d153e2e6e6

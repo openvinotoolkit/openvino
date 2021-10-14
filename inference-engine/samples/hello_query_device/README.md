@@ -13,7 +13,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 | Options  | Values |
 |:---                              |:---
 | Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
-| Other language realization       | [Python](../../ie_bridges/python/sample/hello_query_device/README.md) |
+| Other language realization       | [Python](../../../samples/python/hello_query_device/README.md) |
 
 ## How It Works
 
