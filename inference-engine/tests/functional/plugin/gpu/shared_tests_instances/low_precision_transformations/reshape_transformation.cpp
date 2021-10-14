@@ -62,7 +62,6 @@ const std::vector<ReshapeTransformationParam> params = {
     },
     // 4D -> 6D
     {
-
         { 1, 3, 4, 8 },
         { 1, 3, 4, 8, 1, 1 },
         { 256ul, ngraph::Shape{ 1, 1, 1, 1}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
