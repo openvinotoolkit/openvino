@@ -452,7 +452,6 @@ set(MULTI_TEST_SRC
     backend/builder_reduce_ops_opset1.in.cpp
     backend/ceiling.in.cpp
     backend/concat.in.cpp
-    backend/constant.in.cpp
     backend/convolution_backprop.in.cpp
     backend/binary_convolution.in.cpp
     backend/clamp.in.cpp
