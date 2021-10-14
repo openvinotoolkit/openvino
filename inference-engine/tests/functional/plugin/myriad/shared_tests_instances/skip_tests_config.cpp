@@ -63,9 +63,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVClassNetworkTestP.*SetAffinity.*)",
         R"(.*OVClassNetworkTestP.*LoadNetworkActual.*NoThrow.*)",
         R"(.*OVClassExecutableNetworkGetMetricTest.*GetMetric.*)",
-        R"(.*OVClassImportExportTestP.*ImportNetworkNoThrowWithDeviceName.*)",
-        R"(.*IEClassImportExportTestP.*IEClassImportExportTestP.ImportNetworkThrowsIfNoDeviceName.*)",
-        R"(.*BehaviorTests.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutable.*)",
-        R"(.*OVClassLoadNetworkTest.*OVClassLoadNetworkTest.*LoadNetworkHETEROwithMULTINoThrow.*)",
+        R"(.*ClassImportExportTestP.*ImportNetworkThrowsIfNoDeviceName.*)",
+        R"(.*Behavior.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutable.*)",
+        R"(.*OVClassLoadNetworkTest.*LoadNetworkHETEROwithMULTINoThrow.*)",
     };
 }

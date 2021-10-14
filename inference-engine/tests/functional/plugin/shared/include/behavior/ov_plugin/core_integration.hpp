@@ -388,7 +388,7 @@ TEST_P(OVClassNetworkTestP, QueryNetworkMultiThrows) {
 
 TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
     std::string deviceName = CommonTestUtils::DEVICE_HETERO;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_METRICS)));
@@ -404,7 +404,7 @@ TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
 
 TEST(OVClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
     std::string deviceName = CommonTestUtils::DEVICE_HETERO;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
@@ -427,7 +427,7 @@ TEST(OVClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroThrows) {
 
 TEST_P(OVClassGetMetricTest_SUPPORTED_METRICS, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_METRICS)));
     std::vector<std::string> t = p;
@@ -442,7 +442,7 @@ TEST_P(OVClassGetMetricTest_SUPPORTED_METRICS, GetMetricAndPrintNoThrow) {
 
 TEST_P(OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> t = p;
@@ -457,7 +457,7 @@ TEST_P(OVClassGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricAndPrintNoThrow) {
 
 TEST_P(OVClassGetMetricTest_AVAILABLE_DEVICES, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)));
     std::vector<std::string> t = p;
@@ -472,7 +472,7 @@ TEST_P(OVClassGetMetricTest_AVAILABLE_DEVICES, GetMetricAndPrintNoThrow) {
 
 TEST_P(OVClassGetMetricTest_FULL_DEVICE_NAME, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)));
     std::string t = p;
@@ -483,7 +483,7 @@ TEST_P(OVClassGetMetricTest_FULL_DEVICE_NAME, GetMetricAndPrintNoThrow) {
 
 TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES)));
     std::vector<std::string> t = p;
@@ -498,7 +498,7 @@ TEST_P(OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow)
 
 TEST_P(OVClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(DEVICE_GOPS)));
     std::map<InferenceEngine::Precision, float> t = p;
@@ -513,7 +513,7 @@ TEST_P(OVClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {
 
 TEST_P(OVClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(DEVICE_TYPE)));
     InferenceEngine::Metrics::DeviceType t = p;
@@ -525,7 +525,7 @@ TEST_P(OVClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
 
 TEST_P(OVClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(NUMBER_OF_WAITING_INFER_REQUESTS)));
     unsigned int t = p;
@@ -537,7 +537,7 @@ TEST_P(OVClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS, GetMetricAndPrintN
 
 TEST_P(OVClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS)));
     unsigned int t = p;
@@ -549,7 +549,7 @@ TEST_P(OVClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS, GetMetricAndPrintNoTh
 
 TEST_P(OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)));
     std::tuple<unsigned int, unsigned int, unsigned int> t = p;
@@ -571,7 +571,7 @@ TEST_P(OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoT
 
 TEST_P(OVClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(RANGE_FOR_STREAMS)));
     std::tuple<unsigned int, unsigned int> t = p;
@@ -590,20 +590,20 @@ TEST_P(OVClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
 
 TEST_P(OVClassGetMetricTest_ThrowUnsupported, GetMetricThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
 
     ASSERT_THROW(p = ie.get_metric(deviceName, "unsupported_metric"), ov::Exception);
 }
 
 TEST_P(OVClassGetConfigTest, GetConfigNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> configValues = p;
 
     for (auto&& confKey : configValues) {
-        InferenceEngine::Parameter defaultValue;
+        runtime::Parameter defaultValue;
         ASSERT_NO_THROW(defaultValue = ie.get_config(deviceName, confKey));
         ASSERT_FALSE(defaultValue.empty());
     }
@@ -611,7 +611,7 @@ TEST_P(OVClassGetConfigTest, GetConfigNoThrow) {
 
 TEST_P(OVClassGetConfigTest, GetConfigHeteroNoThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
 
     ASSERT_NO_THROW(p = ie.get_metric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> configValues = p;
@@ -623,14 +623,14 @@ TEST_P(OVClassGetConfigTest, GetConfigHeteroNoThrow) {
 
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
 
     ASSERT_THROW(p = ie.get_config(CommonTestUtils::DEVICE_HETERO, "unsupported_config"), ov::Exception);
 }
 
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
 
     ASSERT_THROW(p = ie.get_config(CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName,
                                    HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)),
@@ -639,7 +639,7 @@ TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
 
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigThrow) {
     ov::runtime::Core ie = createCoreWithTemplate();
-    InferenceEngine::Parameter p;
+    runtime::Parameter p;
 
     ASSERT_THROW(p = ie.get_config(deviceName, "unsupported_config"), ov::Exception);
 }
