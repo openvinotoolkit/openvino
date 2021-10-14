@@ -21,18 +21,18 @@ namespace cldnn {
 namespace ze {
 
 namespace {
-// inline cl::NDRange toNDRange(const std::vector<size_t>& v) {
-//     switch (v.size()) {
-//         case 1:
-//             return cl::NDRange(v[0]);
-//         case 2:
-//             return cl::NDRange(v[0], v[1]);
-//         case 3:
-//             return cl::NDRange(v[0], v[1], v[2]);
-//         default:
-//             return cl::NullRange;
-//     }
-// }
+inline ze_group_count_t to_group_count(const std::vector<size_t>& v) {
+     switch (v.size()) {
+         case 1:
+            return {uint32_t(v[0]), uint32_t(1), uint32_t(1)};
+        case 2:
+            return {uint32_t(v[0]), uint32_t(v[1]), uint32_t(1)};
+        case 3:
+            return {uint32_t(v[0]), uint32_t(v[1]), uint32_t(v[2])};
+        default:
+            return {uint32_t(0), uint32_t(0), uint32_t(0)};
+    }
+}
 
 void set_arguments_impl(ze_kernel_handle_t kernel,
                          const arguments_desc& args,
@@ -351,9 +351,14 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
                                      const kernel_arguments_data& /* args */,
                                      std::vector<event::ptr> const& deps,
                                      bool is_output) {
-    // auto& ze_kernel = downcast<ze::ze_kernel>(kernel);
+    auto& ze_kernel = downcast<ze::ze_kernel>(kernel);
 
-    // auto& kern = ze_kernel.get_handle();
+    auto& kern = ze_kernel.get_handle();
+    //_command_list
+    //zeKernelSetArgumentValue
+
+    //zeKernelSetArgumentValue
+    //zeCommandListAppendLaunchKernel
     // auto global = toNDRange(args_desc.workGroups.global);
     // auto local = toNDRange(args_desc.workGroups.local);
     // std::vector<cl::Event> dep_events;
@@ -372,7 +377,20 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
 
     // cl::Event ret_ev;
 
-    // bool set_output_event = sync_method == sync_methods::events || is_output;
+    std::vector<ze_event_handle_t> dep_events;
+    std::vector<ze_event_handle_t>* dep_events_ptr = nullptr;
+    if (sync_method == sync_methods::events) {
+        for (auto& dep : deps) {
+            if (auto ze_base_ev = std::dynamic_pointer_cast<ze_base_event>(dep)) {
+                if (ze_base_ev->get() != nullptr)
+                    dep_events.push_back(ze_base_ev->get());
+            }
+        }
+        dep_events_ptr = &dep_events;
+    } else if (sync_method == sync_methods::barriers) {
+        sync_events(deps, is_output);
+    }
+    bool set_output_event = sync_method == sync_methods::events || is_output;
 
     // try {
     //     _command_queue.enqueueNDRangeKernel(kern, cl::NullRange, global, local, dep_events_ptr, set_output_event ? &ret_ev : nullptr);
@@ -380,6 +398,24 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     //     throw ze_error(err);
     // }
     ze_event_handle_t ret_ev;
+    ze_event_desc_t eventDesc = {
+        ZE_STRUCTURE_TYPE_EVENT_DESC,
+        nullptr,
+        event_idx++ % 100,       // index
+        0,                       // no additional memory/cache coherency required on signal
+        ZE_EVENT_SCOPE_FLAG_DEVICE // ensure memory coherency across device and Host after event completes
+    };
+    zeEventCreate(_event_pool, &eventDesc, &ret_ev);
+    auto global = to_group_count(args_desc.workGroups.global);
+    auto local = to_group_count(args_desc.workGroups.local);
+    zeKernelSetGroupSize(kern, global.groupCountX/local.groupCountX, global.groupCountY/local.groupCountX, global.groupCountZ/local.groupCountX);
+
+    ZE_CHECK(zeCommandListAppendLaunchKernel(_command_list,
+                                    kern,
+                                    &local,
+                                    set_output_event ? ret_ev : nullptr,
+                                    dep_events_ptr == nullptr ? 0 : dep_events_ptr->size(),
+                                    &dep_events_ptr->at(0)));
 
     return std::make_shared<ze_event>(ret_ev, ++_queue_counter);
     //return nullptr;
@@ -396,14 +432,14 @@ ze_event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, 
     ze_event_desc_t eventDesc = {
         ZE_STRUCTURE_TYPE_EVENT_DESC,
         nullptr,
-        0, // index
-        0, // no additional memory/cache coherency required on signal
-         ZE_EVENT_SCOPE_FLAG_DEVICE  // ensure memory coherency across device and Host after event completes
+        event_idx++ % 100,                 // index
+        0,                         // no additional memory/cache coherency required on signal
+        ZE_EVENT_SCOPE_FLAG_DEVICE // ensure memory coherency across device and Host after event completes
     };
     ze_event_handle_t hEvent;
-    zeEventCreate(_event_pool, &eventDesc, &hEvent);
+    ZE_CHECK(zeEventCreate(_event_pool, &eventDesc, &hEvent));
 
-    return std::make_shared<ze_event>(hEvent, false);//<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    return std::make_shared<ze_event>(hEvent, false);
 /*
     if (sync_method  == sync_methods::events) {
         //cl::Event ret_ev;
@@ -452,27 +488,35 @@ ze_event::ptr ze_stream::create_user_event(bool set) {
     ze_event_desc_t tsEventDesc = {
         ZE_STRUCTURE_TYPE_EVENT_DESC,
         nullptr,
-        0, // index
-        0, // no additional memory/cache coherency required on signal
-         ZE_EVENT_SCOPE_FLAG_DEVICE  // no additional memory/cache coherency required on wait
+        event_idx++ % 100,         // index
+        0,                         // no additional memory/cache coherency required on signal
+        ZE_EVENT_SCOPE_FLAG_DEVICE // no additional memory/cache coherency required on wait
     };
-    zeEventCreate(_event_pool, &tsEventDesc, &hEvent);
+    ZE_CHECK(zeEventCreate(_event_pool, &tsEventDesc, &hEvent));
     return std::make_shared<ze_event>(hEvent, set);//_engine.get_context(), set);
 }
 
 ze_event::ptr ze_stream::create_base_event() {
     //cl::Event ret_ev;
     ze_event_handle_t hEvent;
+    ze_event_desc_t tsEventDesc = {
+        ZE_STRUCTURE_TYPE_EVENT_DESC,
+        nullptr,
+        event_idx++ % 100,         // index
+        0,                         // no additional memory/cache coherency required on signal
+        ZE_EVENT_SCOPE_FLAG_DEVICE // no additional memory/cache coherency required on wait
+    };
+    ZE_CHECK(zeEventCreate(_event_pool, &tsEventDesc, &hEvent));
     return std::make_shared<ze_event>(hEvent, ++_queue_counter);
 }
 
 void ze_stream::flush() const {
-    zeCommandListAppendBarrier(get_queue(), nullptr, 0, nullptr);
+    ZE_CHECK(zeCommandListAppendBarrier(get_queue(), nullptr, 0, nullptr));
 }
 
 void ze_stream::finish() const {
     //zeCommandListClose(get_queue());
-    zeCommandListAppendBarrier(get_queue(), nullptr, 0, nullptr);
+    ZE_CHECK(zeCommandListAppendBarrier(get_queue(), nullptr, 0, nullptr));
 }
 
 void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
@@ -483,7 +527,7 @@ void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
     for (auto& ev : events) {
         if (auto ze_base_ev = dynamic_cast<ze_base_event*>(ev.get())) {
             //clevents.push_back(*ze_base_ev);
-            zeEventHostSynchronize(ze_base_ev->get(), 0);
+            ZE_CHECK(zeEventHostSynchronize(ze_base_ev->get(), 0));
         }
     }
 
@@ -515,9 +559,9 @@ void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output)
                 ze_event_desc_t event_desc = {
                     ZE_STRUCTURE_TYPE_EVENT_DESC,
                     nullptr,
-                    0, // index
-                    0, // no additional memory/cache coherency required on signal
-                     ZE_EVENT_SCOPE_FLAG_DEVICE  // ensure memory coherency across device and Host after event completes
+                    event_idx++ % 100,         // index
+                    0,                         // no additional memory/cache coherency required on signal
+                    ZE_EVENT_SCOPE_FLAG_DEVICE // ensure memory coherency across device and Host after event completes
                 };
                 ze_event_handle_t event;
                 ZE_CHECK(zeEventCreate(_event_pool, &event_desc, &event));
