@@ -77,9 +77,8 @@ public:
         InferenceEngine::SoIInferRequestInternal   _inferRequest;
         InferenceEngine::StatusCode     _status = InferenceEngine::StatusCode::OK;
         int                             _batchSize;
-        std::promise<void>              _cond;
-        std::shared_future<void>        _event;
         std::atomic_int                 _numRequestsReady = {0};
+        ThreadSafeQueue<InferenceEngine::Task> _tasks;
     };
     using NotBusyWorkerRequests = ThreadSafeQueue<WorkerInferRequest*>;
 
@@ -129,13 +128,11 @@ public:
 
     explicit AutoBatchAsyncInferRequest(const AutoBatchInferRequest::Ptr&           inferRequest,
                                           const bool                                needPerfCounters,
-                                          const AutoBatchExecutableNetwork::Ptr&      AutoBatchExecutableNetwork,
                                           const InferenceEngine::ITaskExecutor::Ptr&    callbackExecutor);
     void Infer_ThreadUnsafe() override;
     virtual ~AutoBatchAsyncInferRequest();
 
 protected:
-    AutoBatchExecutableNetwork::Ptr                                   _AutoBatchExecutableNetwork;
     AutoBatchInferRequest::Ptr                                        _inferRequest;
 };
 
