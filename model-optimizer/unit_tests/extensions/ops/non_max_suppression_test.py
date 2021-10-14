@@ -32,16 +32,16 @@ class TestNonMaxSuppressionInfer(unittest.TestCase):
             *connect('boxes', '0:nms'),
             *connect('scores', '1:nms'),
             *connect('max_output_per_class', '2:nms'),
-            *connect('nms:0', 'nms_data_0', front_phase=True),
-            *connect('nms_data_0', 'output_0', front_phase=True),
+            *connect('nms:0', 'nms_data_0', front_phase=True),      # Use this WA for correct creating operation
+            *connect('nms_data_0', 'output_0', front_phase=True),   # with multiple outputs
         ], nodes_with_edges_only=True)
 
         self.graph_nms_5_2_outs = build_graph(nodes, [
             *connect('boxes', '0:nms'),
             *connect('scores', '1:nms'),
             *connect('max_output_per_class', '2:nms'),
-            *connect('nms:0', 'nms_data_0', front_phase=True),
-            *connect('nms_data_0', 'output_0', front_phase=True),
+            *connect('nms:0', 'nms_data_0', front_phase=True),      # Use this WA for correct creating operation
+            *connect('nms_data_0', 'output_0', front_phase=True),   # with multiple outputs
             *connect('nms:1', 'nms_data_1', front_phase=True),
             *connect('nms_data_1', 'output_1', front_phase=True),
         ], nodes_with_edges_only=True)
@@ -50,8 +50,8 @@ class TestNonMaxSuppressionInfer(unittest.TestCase):
             *connect('boxes', '0:nms'),
             *connect('scores', '1:nms'),
             *connect('max_output_per_class', '2:nms'),
-            *connect('nms:0', 'nms_data_0', front_phase=True),
-            *connect('nms_data_0', 'output_0', front_phase=True),
+            *connect('nms:0', 'nms_data_0', front_phase=True),      # Use this WA for correct creating operation
+            *connect('nms_data_0', 'output_0', front_phase=True),   # with multiple outputs
             *connect('nms:1', 'nms_data_1', front_phase=True),
             *connect('nms_data_1', 'output_1', front_phase=True),
             *connect('nms:2', 'nms_data_2', front_phase=True),
@@ -114,7 +114,8 @@ class TestNonMaxSuppressionInfer(unittest.TestCase):
         NonMaxSuppression.infer(nms_node)
         NonMaxSuppression.type_infer(nms_node)
 
-        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(), shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
         self.assertTrue(nms_node.out_port(0).get_data_type() == np.int32)
 
     def test_nms_infer_i64_opset5_1_out(self):
@@ -124,7 +125,8 @@ class TestNonMaxSuppressionInfer(unittest.TestCase):
         NonMaxSuppression.infer(nms_node)
         NonMaxSuppression.type_infer(nms_node)
 
-        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(), shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
         self.assertTrue(nms_node.out_port(0).get_data_type() == np.int64)
 
     def test_nms_infer_i32_opset5_2_outs(self):
@@ -134,8 +136,10 @@ class TestNonMaxSuppressionInfer(unittest.TestCase):
         NonMaxSuppression.infer(nms_node)
         NonMaxSuppression.type_infer(nms_node)
 
-        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(), shape_array([dynamic_dimension_value, 3])))
-        self.assertTrue(np.array_equal(nms_node.out_port(1).data.get_shape(), shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(np.array_equal(nms_node.out_port(1).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
         self.assertTrue(nms_node.out_port(0).get_data_type() == np.int32)
         self.assertTrue(nms_node.out_port(1).get_data_type() == np.float32)
 
@@ -146,8 +150,10 @@ class TestNonMaxSuppressionInfer(unittest.TestCase):
         NonMaxSuppression.infer(nms_node)
         NonMaxSuppression.type_infer(nms_node)
 
-        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(), shape_array([dynamic_dimension_value, 3])))
-        self.assertTrue(np.array_equal(nms_node.out_port(1).data.get_shape(), shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(np.array_equal(nms_node.out_port(1).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
         self.assertTrue(nms_node.out_port(0).get_data_type() == np.int64)
         self.assertTrue(nms_node.out_port(1).get_data_type() == np.float32)
 
@@ -158,8 +164,10 @@ class TestNonMaxSuppressionInfer(unittest.TestCase):
         NonMaxSuppression.infer(nms_node)
         NonMaxSuppression.type_infer(nms_node)
 
-        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(), shape_array([dynamic_dimension_value, 3])))
-        self.assertTrue(np.array_equal(nms_node.out_port(1).data.get_shape(), shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(np.array_equal(nms_node.out_port(1).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
         self.assertTrue(np.array_equal(nms_node.out_port(2).data.get_shape(), [1]))
         self.assertTrue(nms_node.out_port(0).get_data_type() == np.int32)
         self.assertTrue(nms_node.out_port(1).get_data_type() == np.float32)
@@ -172,8 +180,10 @@ class TestNonMaxSuppressionInfer(unittest.TestCase):
         NonMaxSuppression.infer(nms_node)
         NonMaxSuppression.type_infer(nms_node)
 
-        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(), shape_array([dynamic_dimension_value, 3])))
-        self.assertTrue(np.array_equal(nms_node.out_port(1).data.get_shape(), shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
+        self.assertTrue(np.array_equal(nms_node.out_port(1).data.get_shape(),
+                                       shape_array([dynamic_dimension_value, 3])))
         self.assertTrue(np.array_equal(nms_node.out_port(2).data.get_shape(), [1]))
         self.assertTrue(nms_node.out_port(0).get_data_type() == np.int64)
         self.assertTrue(nms_node.out_port(1).get_data_type() == np.float32)
