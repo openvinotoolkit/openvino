@@ -418,8 +418,10 @@ void network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
 
     for (auto& prim : o_iter->second) {
         prim->set_output_memory(eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout()), false);
-        if (!_reset_arguments)
+        if (!_reset_arguments &&
+            (!prim->get_node().is_type<data>() && !(prim->get_node().is_type<mutable_data>() && prim->get_node().get_dependencies().empty()))) {
             prim->set_arguments();
+        }
     }
 }
 

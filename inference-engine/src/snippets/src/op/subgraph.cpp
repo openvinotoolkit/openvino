@@ -256,7 +256,9 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
 
 bool snippets::op::Subgraph::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     INTERNAL_OP_SCOPE(Subgraph);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return m_body->evaluate(outputs, inputs);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void snippets::op::Subgraph::print() const {
