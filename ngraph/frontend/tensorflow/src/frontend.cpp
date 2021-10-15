@@ -7,9 +7,9 @@
 #include <tensorflow_frontend/model.hpp>
 
 #include "op_table.hpp"
+#include "pass/transpose_sinking.hpp"
 #include "tf_framework_node.hpp"
 #include "utils.hpp"
-#include "pass/transpose_sinking.hpp"
 
 using namespace ::ov::frontend;
 using namespace ::ov::frontend::tf;

@@ -364,7 +364,7 @@ bool ov::frontend::tf::pass::TransposeSinkingOVTF::run_on_function(shared_ptr<Fu
             if (ngraph::op::is_output(n)) {
                 orig_result_out_shape[n->get_name()] = n->get_output_shape(0);
             }
-            if (auto transpose = as_type_ptr<Transpose>(n)) {
+            if (auto transpose = as_type_ptr<opset8::Transpose>(n)) {
                 sink_transpose(transpose, reorders, transposes_to_delete);
             } else if (ngraph::op::is_unary_elementwise_arithmetic(n)) {
                 sink_unary(n, reorders, transposes_to_delete);
