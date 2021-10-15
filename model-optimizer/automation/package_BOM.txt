@@ -434,6 +434,7 @@ extensions/front/tf/identityN_to_identity.py
 extensions/front/tf/if_ext.py
 extensions/front/tf/InterpolateTransposes.py
 extensions/front/tf/IteratorGetNext_ext.py
+extensions/front/tf/IteratorGetNextCut.py
 extensions/front/tf/log_softmax_ext.py
 extensions/front/tf/LookupTableInsert_ext.py
 extensions/front/tf/LoopCond_ext.py

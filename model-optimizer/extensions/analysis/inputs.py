@@ -56,19 +56,18 @@ class InputsAnalysis(AnalyzeAction):
     def iterator_get_next_analysis(cls, graph: Graph, inputs_desc: dict):
         message = None
         op_nodes = graph.get_op_nodes(op='IteratorGetNext')
-        if len(op_nodes):
-            params = ''
-            for iter_get_next in op_nodes:
-                for port in iter_get_next.out_nodes().keys():
-                    inputs_desc['{}:{}'.format(iter_get_next.soft_get('name', iter_get_next.id), port)] = {
-                        'shape': iter_get_next.shapes[port].tolist(),
-                        'value': None,
-                        'data_type': iter_get_next.types[port]
-                    }
-                    if params != '':
-                        params = params + ','
-                    shape = str(iter_get_next.shapes[port].tolist()).replace(',', '')
-                    params = params + '{}:{}{}'.format(iter_get_next.soft_get('name', iter_get_next.id), port, shape)
+        params = ''
+        for iter_get_next in op_nodes:
+            for port in iter_get_next.out_nodes().keys():
+                inputs_desc['{}:{}'.format(iter_get_next.soft_get('name', iter_get_next.id), port)] = {
+                    'shape': iter_get_next.shapes[port].tolist(),
+                    'value': None,
+                    'data_type': iter_get_next.types[port]
+                }
+                if params != '':
+                    params = params + ','
+                shape = str(iter_get_next.shapes[port].tolist()).replace(',', '')
+                params = params + '{}:{}{}'.format(iter_get_next.soft_get('name', iter_get_next.id), port, shape)
             message = 'It looks like there is IteratorGetNext as input\n' \
                       'Run the Model Optimizer with:\n\t\t--input "{}"\n' \
                       'And replace all negative values with positive values'.format(params)
