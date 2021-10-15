@@ -3,10 +3,10 @@
 
 import os
 import pytest
-import warnings
 
+import ngraph as ng
 from openvino.inference_engine import IECore, IENetwork, DataPtr, InputInfoPtr, PreProcessInfo
-from conftest import model_path
+from conftest import model_path, create_relu
 
 
 test_net_xml, test_net_bin = model_path()
@@ -134,9 +134,7 @@ def test_batch_size_after_reshape():
     assert net.input_info['data'].input_data.shape == [8, 3, 32, 32]
 
 
-
 def test_serialize():
-    import ngraph as ng
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.serialize("./serialized_net.xml", "./serialized_net.bin")
@@ -159,15 +157,12 @@ def test_reshape():
     assert net.input_info["data"].input_data.shape == [2, 3, 32, 32]
 
 
-
 @pytest.mark.parametrize("shape, p_shape", [
     ([1, 3, 22, 22], [1, 3, -1, 25]),
     ([1, 3, 22, 22], [-1, -1, -1, -1]),
     ([1, 3, -1, 25], [1, 3, 22, -1])
 ])
 def test_reshape_with_partial_shape(device, shape, p_shape):
-    from conftest import create_relu
-    import ngraph as ng
     function = create_relu(shape)
     net = ng.function_to_cnn(function)
     net.reshape({"data": p_shape})
@@ -183,10 +178,7 @@ def test_reshape_with_partial_shape(device, shape, p_shape):
     assert function.get_results()[0].get_output_partial_shape(0) == p_shape
 
 
-
-def test_incorrect_reshape(device):
-    from conftest import create_relu
-    import ngraph as ng
+def test_incorrect_reshape():
     function = create_relu([1, 3, 22, 22])
     net = ng.function_to_cnn(function)
     with pytest.raises(ValueError) as e:
@@ -225,6 +217,7 @@ def test_multi_out_data():
     assert net.outputs["28/Reshape"].name == "28/Reshape" and net.outputs["28/Reshape"].shape == [1, 5184]
     assert net.outputs["fc_out"].name == "fc_out" and net.outputs["fc_out"].shape == [1, 10]
     pass
+
 
 def test_tensor_names():
     model = """
@@ -284,11 +277,8 @@ def test_tensor_names():
     assert net.get_ov_name_for_tensor("input") == "in1"
 
 
-
 @pytest.mark.template_plugin
 def test_create_two_exec_net():
-    from conftest import create_relu
-    import ngraph as ng
     function = create_relu([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])
     net = ng.function_to_cnn(function)
     ie_core = IECore()

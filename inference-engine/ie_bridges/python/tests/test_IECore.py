@@ -11,6 +11,7 @@ from queue import Queue
 
 from openvino.inference_engine import IENetwork, IECore, ExecutableNetwork
 from conftest import model_path, plugins_path, model_onnx_path
+import ngraph as ng
 
 
 test_net_xml, test_net_bin = model_path()
@@ -61,9 +62,7 @@ def test_load_network_wrong_device():
     assert 'Device with "BLA" name is not registered in the InferenceEngine' in str(e.value)
 
 
-
 def test_query_network(device):
-    import ngraph as ng
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     query_res = ie.query_network(net, device)
