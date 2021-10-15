@@ -344,12 +344,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_det_nd_cpu",
     ),
     (
-        xfail_issue_38732,
-        "OnnxBackendNodeModelTest.test_convinteger_without_padding_cpu",
-        "OnnxBackendNodeModelTest.test_convinteger_with_padding_cpu",
-        "OnnxBackendNodeModelTest.test_basic_convinteger_cpu",
-    ),
-    (
         xfail_issue_38734,
         "OnnxBackendNodeModelTest.test_adam_multiple_cpu",
         "OnnxBackendNodeModelTest.test_adam_cpu",

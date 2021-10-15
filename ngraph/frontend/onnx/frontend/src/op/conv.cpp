@@ -16,40 +16,13 @@
 #include "onnx_import/core/null_node.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
+#include "utils/ng_conv.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
 namespace detail {
-std::shared_ptr<ngraph::op::Op> make_ng_convolution(const Output<ngraph::Node>& data,
-                                                    const Output<ngraph::Node>& filters,
-                                                    const ngraph::Strides& strides,
-                                                    const ngraph::Strides& dilations,
-                                                    const ngraph::CoordinateDiff& padding_below,
-                                                    const ngraph::CoordinateDiff& padding_above,
-                                                    int64_t groups,
-                                                    const ngraph::op::PadType& auto_pad) {
-    if (groups > 1) {
-        const auto reshaped_filters = convpool::get_reshaped_filters(filters, groups);
-
-        return std::make_shared<default_opset::GroupConvolution>(data,
-                                                                 reshaped_filters,
-                                                                 strides,
-                                                                 padding_below,
-                                                                 padding_above,
-                                                                 dilations,
-                                                                 auto_pad);
-    } else {
-        return std::make_shared<default_opset::Convolution>(data,
-                                                            filters,
-                                                            strides,
-                                                            padding_below,
-                                                            padding_above,
-                                                            dilations,
-                                                            auto_pad);
-    }
-}
 
 std::shared_ptr<ngraph::Node> add_bias(const Output<ngraph::Node>& ng_conv, const Output<ngraph::Node>& bias) {
     const auto conv_shape = std::make_shared<default_opset::ShapeOf>(ng_conv);
@@ -77,7 +50,14 @@ OutputVector conv(const Node& node,
     const auto& padding_above = paddings.second;
 
     const auto conv_node =
-        make_ng_convolution(data, filters, strides, dilations, padding_below, padding_above, groups, auto_pad_type);
+        ng_conv::make_ng_convolution(data,
+                                     filters,
+                                     strides,
+                                     dilations,
+                                     padding_below,
+                                     padding_above,
+                                     groups,
+                                     auto_pad_type);
 
     // no bias param
     if (ngraph::op::is_null(bias)) {

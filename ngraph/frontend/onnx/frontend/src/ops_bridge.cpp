@@ -38,7 +38,7 @@
 #include "op/constant_fill.hpp"
 #include "op/constant_of_shape.hpp"
 #include "op/conv.hpp"
-// #include "op/conv_integer.hpp"
+#include "op/conv_integer.hpp"
 #include "op/conv_transpose.hpp"
 #include "op/cos.hpp"
 #include "op/cosh.hpp"
@@ -303,7 +303,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Constant", 13, constant);
     REGISTER_OPERATOR("ConstantOfShape", 1, constant_of_shape);
     REGISTER_OPERATOR("Conv", 1, conv);
-    // REGISTER_OPERATOR("ConvInteger", 1, conv_integer);
+    REGISTER_OPERATOR("ConvInteger", 1, conv_integer);
     REGISTER_OPERATOR("ConvTranspose", 1, conv_transpose);
     REGISTER_OPERATOR("Compress", 1, compress);
     REGISTER_OPERATOR("Cos", 1, cos);

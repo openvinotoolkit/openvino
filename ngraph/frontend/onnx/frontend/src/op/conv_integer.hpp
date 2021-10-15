@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Disabled in CMakeList
-// Update to higher opset required
-
 #pragma once
 
 #include "ngraph/node.hpp"

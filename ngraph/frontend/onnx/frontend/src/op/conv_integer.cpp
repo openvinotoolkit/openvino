@@ -2,111 +2,63 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Disabled in CMakeList
-// Update to higher opset required
-
 #include "op/conv_integer.hpp"
-#include "exceptions.hpp"
-#include "ngraph/builder/make_constant.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset0.hpp"
+
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "default_opset.hpp"
 #include "utils/convpool.hpp"
+#include "utils/ng_conv.hpp"
+#include "utils/reshape.hpp"
 
-using namespace ngraph::builder;
+namespace ngraph {
+namespace onnx_import {
+namespace op {
+namespace set_1 {
 
-namespace ngraph
-{
-    namespace onnx_import
-    {
-        namespace op
-        {
-            namespace set_1
-            {
-                OutputVector conv_integer(const Node& node)
-                {
-                    const OutputVector& inputs = node.get_ng_inputs();
-                    auto num_inputs = inputs.size();
-                    auto input = inputs.at(0);
-                    auto filters = inputs.at(1);
+OutputVector conv_integer(const Node& node) {
+    const OutputVector& inputs = node.get_ng_inputs();
 
-                    int64_t groups{node.get_attribute_value<int64_t>("group", 1)};
-                    CHECK_VALID_NODE(
-                        node,
-                        groups == 1,
-                        "Only value of 1 for 'group' supported for ConvInteger. Given: ",
-                        groups);
+    const auto& input = inputs.at(0);
+    const auto& filter = inputs.at(1);
+    const auto& input_zero_point =
+        (inputs.size() > 2) ? inputs.at(2) : ngraph::op::Constant::create(ngraph::element::i32, {1}, {0});
+    const auto& filter_zero_point =
+        (inputs.size() > 3) ? inputs.at(3) : ngraph::op::Constant::create(ngraph::element::i32, {1}, {0});
 
-                    auto window_movement_strides = convpool::get_strides(node);
-                    auto window_dilation_strides = convpool::get_dilations(node);
-                    auto paddings = convpool::get_pads(node);
-                    ngraph::op::PadType auto_pad_type = convpool::get_auto_pad(node);
-                    auto& padding_below = paddings.first;
-                    auto& padding_above = paddings.second;
-                    convpool::calculate_auto_pads(input.get_shape(),
-                                                  filters.get_shape(),
-                                                  window_movement_strides,
-                                                  window_dilation_strides,
-                                                  auto_pad_type,
-                                                  padding_below,
-                                                  padding_above);
+    const auto& converted_input = std::make_shared<default_opset::Convert>(input, element::i32);
+    const auto& converted_filter = std::make_shared<default_opset::Convert>(filter, element::i32);
 
-                    const Strides default_data_dilation_strides(input.get_shape().size() - 2, 1);
-                    auto scale_one = make_constant(ngraph::element::f32, Shape{}, 1);
-                    auto input_zero_point = make_constant(input.get_element_type(), Shape{}, 0);
-                    auto filters_zero_point = make_constant(filters.get_element_type(), Shape{}, 0);
-                    auto output_zero_point = make_constant(ngraph::element::i32, Shape{}, 0);
+    const auto& converted_input_zero_point = std::make_shared<default_opset::Convert>(input_zero_point, element::i32);
+    const auto& converted_filter_zero_point = std::make_shared<default_opset::Convert>(filter_zero_point, element::i32);
 
-                    if (num_inputs == 2)
-                    {
-                        return {std::make_shared<ngraph::opset0::QuantizedConvolution>(
-                            input,
-                            filters,
-                            window_movement_strides,
-                            window_dilation_strides,
-                            padding_below,
-                            padding_above,
-                            default_data_dilation_strides,
-                            scale_one,
-                            input_zero_point,
-                            scale_one,
-                            filters_zero_point,
-                            scale_one,
-                            output_zero_point,
-                            ngraph::element::i32,
-                            ngraph::AxisSet{},
-                            ngraph::AxisSet{},
-                            ngraph::AxisSet{})};
-                    }
+    const auto& input_shape = std::make_shared<default_opset::ShapeOf>(input, element::i32);
+    const auto& input_rank = std::make_shared<default_opset::ShapeOf>(input_shape, element::i32);
+    const auto& input_rank_scalar = reshape::interpret_as_scalar(input_rank);
 
-                    input_zero_point = inputs.at(2);
-                    if (num_inputs == 4)
-                    {
-                        filters_zero_point = inputs.at(3);
-                    }
+    const auto& one_node = ngraph::op::Constant::create(ngraph::element::i32, {}, {1});
+    const auto& missing_dimensions = std::make_shared<default_opset::Range>(one_node, input_rank_scalar, one_node, element::i32);
+    const auto& resized_filter_zero_point = std::make_shared<default_opset::Unsqueeze>(converted_filter_zero_point, missing_dimensions);
 
-                    return {std::make_shared<ngraph::opset0::QuantizedConvolution>(
-                        input,
-                        filters,
-                        window_movement_strides,
-                        window_dilation_strides,
-                        padding_below,
-                        padding_above,
-                        default_data_dilation_strides,
-                        scale_one,
-                        input_zero_point,
-                        scale_one,
-                        filters_zero_point,
-                        scale_one,
-                        output_zero_point,
-                        ngraph::element::i32,
-                        ngraph::AxisSet{},
-                        ngraph::AxisSet{},
-                        ngraph::AxisSet{})};
-                }
-            } // namespace set_1
+    const auto& shifted_input = std::make_shared<default_opset::Subtract>(converted_input, converted_input_zero_point);
+    const auto& shifted_filter = std::make_shared<default_opset::Subtract>(converted_filter, resized_filter_zero_point);
 
-        } // namespace op
+    const auto& groups = node.get_attribute_value<int64_t>("group", 1);
+    const auto& strides = convpool::get_strides(node);
+    const auto& dilations = convpool::get_dilations(node);
+    const auto& paddings = convpool::get_pads(node);
+    const ngraph::op::PadType& auto_pad_type = convpool::get_auto_pad(node);
+    const auto& padding_below = paddings.first;
+    const auto& padding_above = paddings.second;
 
-    } // namespace onnx_import
+    const auto conv_node =
+        ng_conv::make_ng_convolution(shifted_input, shifted_filter, strides, dilations, padding_below, padding_above, groups, auto_pad_type);
 
+    return {conv_node};
+}
+} // namespace set_1
+} // namespace op
+} // namespace onnx_import
 } // namespace ngraph

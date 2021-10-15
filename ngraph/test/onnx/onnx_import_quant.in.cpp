@@ -733,52 +733,128 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_qlinear_matmul_3d) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer) {
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_simple_zero_point) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer.onnx"));
+
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input(std::vector<uint8_t>{2, 3, 4, 5, 6, 7, 8, 9, 10});  // x
-    test_case.add_input(std::vector<uint8_t>{1, 1, 1, 1});                  // w
-    test_case.add_input(std::vector<uint8_t>{1});                           // x_zero_point
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input(std::vector<uint8_t>{11, 22, 33,
+                                             44, 55, 66,
+                                             77, 88, 99});                          // x
+    test_case.add_input(std::vector<uint8_t>{1, 2,
+                                             3, 4});                                // w
+    test_case.add_input(std::vector<uint8_t>{111});                                 // x_zero_point
+    test_case.add_input(std::vector<uint8_t>{1});                                   // x_zero_point
 
-    test_case.add_expected_output({1, 1, 2, 2}, std::vector<uint8_t>{12, 16, 24, 28});  // y
+    test_case.add_expected_output({1, 1, 2, 2}, std::vector<int32_t>{-391, -325,
+                                                                     -193, -127});  // y
+    // clang-format on
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_zero_point_zero) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer.onnx"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_int8) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_int8.onnx"));
+
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input(std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9});  // x
-    test_case.add_input(std::vector<uint8_t>{1, 1, 1, 1});                 // w
-    test_case.add_input(std::vector<uint8_t>{0});                          // x_zero_point
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input(std::vector<int8_t>{-11,  22, -33,
+                                              44, -55,  66,
+                                             -77,  88, -99});                       // x
+    test_case.add_input(std::vector<int8_t>{ 1, -2,
+                                             -3,  4});                              // w
+    test_case.add_input(std::vector<int8_t>{-5});                                   // x_zero_point
+    test_case.add_input(std::vector<int8_t>{-5});                                   // x_zero_point
 
-    test_case.add_expected_output({1, 1, 2, 2}, std::vector<uint8_t>{12, 16, 24, 28});  // y
+    test_case.add_expected_output({1, 1, 2, 2}, std::vector<int32_t>{-307,  617,
+                                                                      837, -747});  // y
+    // clang-format on
     test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_no_zero_point) {
-    auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_no_zero_point.onnx"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_no_zero_point.onnx"));
+
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input(std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9});  // x
-    test_case.add_input(std::vector<uint8_t>{1, 1, 1, 1});                 // w
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input(std::vector<int8_t>{-100, -89, -78,
+                                             -67, -56, -45,
+                                             -34, -23, -12});                       // x
+    test_case.add_input(std::vector<int8_t>{0, 1,
+                                            2, 3});                                 // w
 
-    test_case.add_expected_output({1, 1, 2, 2}, std::vector<uint8_t>{12, 16, 24, 28});  // y
+    test_case.add_expected_output({1, 1, 2, 2}, std::vector<int32_t>{-391, -325,
+                                                                     -193, -127});  // y
+    // clang-format on
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_pads) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_pads.onnx"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_vector_w_zero_point) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_vector_w_zero_point.onnx"));
+
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input(std::vector<uint8_t>{2, 3, 4, 5, 6, 7, 8, 9, 10});  // x
-    test_case.add_input(std::vector<uint8_t>{1, 1, 1, 1});                  // w
-    test_case.add_input(std::vector<uint8_t>{1});                           // x_zero_point
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input(std::vector<uint8_t>{11, 22, 33, 44,
+                                            55, 66, 77, 88,
+                                            99, 88, 77, 66,
+                                            55, 44, 33, 22,
 
-    test_case.add_expected_output({1, 1, 4, 4},
-                                  std::vector<uint8_t>{1, 3, 5, 3, 5, 12, 16, 9, 11, 24, 28, 15, 7, 15, 17, 9});  // y
+                                             1,  2,  3,  4,
+                                             5,  6,  7,  8,
+                                             9, 10, 11, 12,
+                                            13, 14, 15, 16});                       // x
+    test_case.add_input(std::vector<uint8_t>{2, 2, 3,
+                                            4, 5, 6,
+                                            7, 8, 9,
+
+                                            2, 2, 3,
+                                            4, 5, 6,
+                                            7, 8, 9});                              // w
+
+    test_case.add_input(std::vector<uint8_t>{1});                                   // x_zero_point
+    test_case.add_input(std::vector<uint8_t>{1, 2});                                // x_zero_point
+
+    test_case.add_expected_output({2, 2, 2, 2}, std::vector<int32_t>{2702, 2647,
+                                                                     2174, 1855,
+
+                                                                     2183, 2095,
+                                                                     1589, 1303,
+
+
+                                                                      258,  295,
+                                                                      406,  443,
+
+                                                                      213,  241,
+                                                                      325,  353});  // y
+    // clang-format on
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_overload) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_overload.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input(std::vector<uint8_t>{255, 255, 255,
+                                               0,   0,   0,
+                                             255, 255, 255});                           // x
+    test_case.add_input(std::vector<int8_t>{127, -128,
+                                            -128, 127});                                // w
+    test_case.add_input(std::vector<uint8_t>{255});                                     // x_zero_point
+    test_case.add_input(std::vector<int8_t>{-128});                                     // x_zero_point
+
+    test_case.add_expected_output({1, 1, 2, 2}, std::vector<int32_t>{-65025, -65025,
+                                                                     -65025, -65025});  // y
+    // clang-format on
     test_case.run();
 }
 
