@@ -19,7 +19,7 @@
 #include "mkldnn_graph_optimizer.h"
 #include "mkldnn_extension_utils.h"
 #include "mkldnn_extension_mngr.h"
-#include "mkldnn_memory_solver.hpp"
+#include "memory_solver.hpp"
 #include "mkldnn_itt.h"
 #include "mkldnn_infer_request.h"
 #include <nodes/mkldnn_input_node.h>
