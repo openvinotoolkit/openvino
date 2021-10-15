@@ -183,7 +183,7 @@ std::vector<ConstantParams> generateConstantCombinedParams() {
             {0x4000000000000001, 0x4000000000000002},
             {0x4000000000000001, 0x4000000000000002},
             "tensor_constant_int64"),
-        generateConstantParams<element::Type_t::u8, element::Type_t::u8>(
+        generateConstantParams<element::Type_t::boolean, element::Type_t::boolean>(
             {4},
             {true, false, true, false},
             {true, false, true, false},

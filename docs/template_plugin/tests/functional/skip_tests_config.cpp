@@ -31,7 +31,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
 
         // CVS-63948
-        R"(.*ReferenceConstantLayerTest.*_constant_equality_bool)",
+//        R"(.*ReferenceConstantLayerTest.*_constant_equality_bool)",
         // CVS-64094
         R"(.*ReferenceLogSoftmaxLayerTest.*4.*iType=f16.*axis=.*1.*)",
         // CVS-64080
