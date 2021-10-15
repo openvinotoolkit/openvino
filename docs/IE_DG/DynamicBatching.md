@@ -29,7 +29,7 @@ Here is a code example:
 
 ## Limitations
 
-Currently, there certain limitations for using Dynamic Batching:
+Currently, there are certain limitations for using Dynamic Batching:
 
 * Use Dynamic Batching with CPU and GPU plugins only.
 
