@@ -8,14 +8,14 @@ namespace ov {
 namespace op {
 namespace v1 {
 
-// helper to
+// helper to create a default return shape
 template <typename T>
-T dynamic_rank_shape() {
+T unknown_shape() {
     return T{};
 }
 
 template <>
-PartialShape dynamic_rank_shape() {
+PartialShape unknown_shape() {
     return PartialShape::dynamic();
 }
 
@@ -25,7 +25,7 @@ void shape_infer(Pad* op, const std::vector<T>& input_shapes, std::vector<T>& ou
 
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 4));
 
-    output_shapes.resize(1);
+    output_shapes.resize(1, unknown_shape<T>());
     auto& output_shape = output_shapes[0];
 
     // Check the shape of pad_value
@@ -142,7 +142,7 @@ void shape_infer(Pad* op, const std::vector<T>& input_shapes, std::vector<T>& ou
         }
     } else {
         // output_shape is dynamic ranked
-        output_shape = dynamic_rank_shape<T>();
+        output_shape = unknown_shape<T>();
     }
 }
 
