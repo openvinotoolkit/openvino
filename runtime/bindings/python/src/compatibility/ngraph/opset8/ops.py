@@ -374,7 +374,7 @@ def if_op(
     inputs: List[Node],
     bodies: Tuple[GraphBody, GraphBody],
     input_desc: Tuple[List[TensorIteratorInvariantInputDesc], List[TensorIteratorInvariantInputDesc]],
-    output_desc: Tuple[List[TensorIteratorInvariantInputDesc], List[TensorIteratorInvariantInputDesc]],
+    output_desc: Tuple[List[TensorIteratorBodyOutputDesc], List[TensorIteratorBodyOutputDesc]],
     name: Optional[str] = None,
 ) -> Node:
     """Execute one of the body depending on condtion value.
