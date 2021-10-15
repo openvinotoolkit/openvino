@@ -90,6 +90,23 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
         OVClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE,
         ::testing::Values("GPU"));
 
+using OVClassGetMetricTest_GPU_DEVICE_PCI_INFO = OVClassBaseTestP;
+TEST_P(OVClassGetMetricTest_GPU_DEVICE_PCI_INFO, GetMetricAndPrintNoThrow) {
+    ov::runtime::Core ie;
+    ov::runtime::Parameter p;
+
+    ASSERT_NO_THROW(p = ie.get_metric(deviceName, GPU_METRIC_KEY(DEVICE_PCI_INFO)));
+    InferenceEngine::Metrics::PCIInfo t = p;
+
+    std::cout << "GPU device pci info: " << t << std::endl;
+
+    ASSERT_METRIC_SUPPORTED(GPU_METRIC_KEY(DEVICE_PCI_INFO));
+}
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+        OVClassGetMetricTest_GPU_DEVICE_PCI_INFO,
+        ::testing::Values("GPU"));
+
 using OVClassGetMetricTest_GPU_UARCH_VERSION = OVClassBaseTestP;
 TEST_P(OVClassGetMetricTest_GPU_UARCH_VERSION, GetMetricAndPrintNoThrow) {
     ov::runtime::Core ie;

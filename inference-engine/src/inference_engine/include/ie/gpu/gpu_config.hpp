@@ -57,6 +57,41 @@ DECLARE_GPU_METRIC_KEY(MEMORY_STATISTICS, std::map<std::string, uint64_t>);
  */
 DECLARE_GPU_METRIC_VALUE(HW_MATMUL);
 
+/**
+ * @brief Struct to define PCI bus info
+ */
+struct PCIInfo {
+    /**
+     * @brief PCI domain ID
+     */
+    uint32_t domain;
+    /**
+     * @brief PCI bus ID
+     */
+    uint32_t bus;
+    /**
+     * @brief PCI device ID
+     */
+    uint32_t device;
+    /**
+     * @brief PCI function ID
+     */
+    uint32_t function;
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Metrics::PCIInfo& info) {
+    os << "{ domain: " << info.domain << "; bus: " << info.bus << "; device: " << info.device
+       << "; function: " << info.function << " }";
+    return os;
+}
+/** @endcond */
+
+/**
+ * @brief Metric to get PCI bus info for current GPU
+ */
+DECLARE_GPU_METRIC_KEY(DEVICE_PCI_INFO, PCIInfo);
+
 }  // namespace Metrics
 
 /**

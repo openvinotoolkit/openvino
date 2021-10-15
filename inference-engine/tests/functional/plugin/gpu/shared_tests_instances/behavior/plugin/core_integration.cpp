@@ -115,6 +115,25 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("GPU")
 );
 
+using IEClassGetMetricTest_GPU_DEVICE_PCI_INFO = BehaviorTestsUtils::IEClassBaseTestP;
+TEST_P(IEClassGetMetricTest_GPU_DEVICE_PCI_INFO, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::Core ie;
+    InferenceEngine::Parameter p;
+
+    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_PCI_INFO)));
+    InferenceEngine::Metrics::PCIInfo t = p;
+
+    std::cout << "GPU device pci info: " << t << std::endl;
+
+    ASSERT_METRIC_SUPPORTED_IE(GPU_METRIC_KEY(DEVICE_PCI_INFO));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassGetMetricTest, IEClassGetMetricTest_GPU_DEVICE_PCI_INFO,
+        ::testing::Values("GPU")
+);
+
 using IEClassGetMetricTest_GPU_UARCH_VERSION = BehaviorTestsUtils::IEClassBaseTestP;
 TEST_P(IEClassGetMetricTest_GPU_UARCH_VERSION, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()

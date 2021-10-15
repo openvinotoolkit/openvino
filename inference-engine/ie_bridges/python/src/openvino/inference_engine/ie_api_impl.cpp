@@ -171,6 +171,12 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
             PyDict_SetItemString(dict, s.str().c_str(), PyFloat_FromDouble((double)it.second));
         }
         return dict;
+    } else if (param.is<InferenceEngine::Metrics::PCIInfo>()) {
+        auto val = param.as<InferenceEngine::Metrics::PCIInfo>();
+        using namespace InferenceEngine;
+        std::stringstream s;
+        s << val;
+        return PyUnicode_FromString(s.str().c_str());
     } else if (param.is<InferenceEngine::Metrics::DeviceType>()) {
         auto val = param.as<InferenceEngine::Metrics::DeviceType>();
         using namespace InferenceEngine;

@@ -69,6 +69,11 @@ struct device_info {
     uint32_t num_sub_slices_per_slice;          ///< Number of subslices in a slice
     uint32_t num_eus_per_sub_slice;             ///< Number of execution units per subslice
     uint32_t num_threads_per_eu;                ///< Number of hardware threads per execution unit
+
+    uint32_t pci_domain;                        ///< PCI bus domain
+    uint32_t pci_bus;                           ///< PCI bus bus ID
+    uint32_t pci_device;                        ///< PCI bus device ID
+    uint32_t pci_function;                      ///< PCI bus function ID
 };
 
 /// @}

@@ -259,6 +259,20 @@ device_info init_device_info(const cl::Device& device) {
         info.num_threads_per_eu = 0;
     }
 
+    bool pci_info_supported = extensions.find("cl_khr_pci_bus_info") != std::string::npos;
+    if (pci_info_supported) {
+        auto bus_info = device.getInfo<CL_DEVICE_PCI_BUS_INFO_KHR>();
+        info.pci_domain = bus_info.pci_domain;
+        info.pci_bus = bus_info.pci_bus;
+        info.pci_device = bus_info.pci_device;
+        info.pci_function = bus_info.pci_function;
+    } else {
+        info.pci_domain = 0;
+        info.pci_bus = 0;
+        info.pci_device = 0;
+        info.pci_function = 0;
+    }
+
     return info;
 }
 

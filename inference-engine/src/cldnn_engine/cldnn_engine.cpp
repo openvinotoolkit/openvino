@@ -643,6 +643,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         metrics.push_back(METRIC_KEY(RANGE_FOR_STREAMS));
         metrics.push_back(METRIC_KEY(DEVICE_TYPE));
         metrics.push_back(METRIC_KEY(DEVICE_GOPS));
+        metrics.push_back(GPU_METRIC_KEY(DEVICE_PCI_INFO));
         metrics.push_back(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
         metrics.push_back(GPU_METRIC_KEY(UARCH_VERSION));
         metrics.push_back(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
@@ -655,6 +656,9 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
     } else if (name == GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)) {
         IE_SET_METRIC_RETURN(GPU_DEVICE_TOTAL_MEM_SIZE, device_info.max_global_mem_size);
+    } else if (name == GPU_METRIC_KEY(DEVICE_PCI_INFO)) {
+        Metrics::PCIInfo info{device_info.pci_domain, device_info.pci_bus, device_info.pci_device, device_info.pci_function};
+        IE_SET_METRIC_RETURN(GPU_DEVICE_PCI_INFO, info);
     } else if (name == METRIC_KEY(DEVICE_TYPE)) {
         auto dev_type = device_info.dev_type == cldnn::device_type::discrete_gpu ? Metrics::DeviceType::discrete : Metrics::DeviceType::integrated;
         IE_SET_METRIC_RETURN(DEVICE_TYPE, dev_type);

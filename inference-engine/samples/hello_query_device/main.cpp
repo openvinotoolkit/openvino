@@ -68,6 +68,9 @@ void printParameterValue(const Parameter& value) {
     } else if (value.is<Metrics::DeviceType>()) {
         auto v = value.as<Metrics::DeviceType>();
         std::cout << v << std::endl;
+    } else if (value.is<Metrics::PCIInfo>()) {
+        auto v = value.as<Metrics::PCIInfo>();
+        std::cout << v << std::endl;
     } else if (value.is<std::map<InferenceEngine::Precision, float>>()) {
         auto values = value.as<std::map<InferenceEngine::Precision, float>>();
         std::cout << "{ ";
