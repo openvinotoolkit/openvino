@@ -10,8 +10,12 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-TEST_P(TensorIteratorTest, Serialize) {
-    Serialize();
+TEST_P(TensorIteratorTest, Serialize_IR10) {
+    Serialize(ov::pass::Serialize::Version::IR_V10);
+}
+
+TEST_P(TensorIteratorTest, Serialize_IR11) {
+    Serialize(ov::pass::Serialize::Version::IR_V11);
 }
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
