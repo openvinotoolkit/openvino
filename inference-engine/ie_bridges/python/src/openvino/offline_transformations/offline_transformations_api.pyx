@@ -38,8 +38,10 @@ def ApplyPruningTransformation(IENetwork network):
 def GenerateMappingFile(IENetwork network, string path, bool extract_names):
     C.GenerateMappingFile(network.impl, path, extract_names)
 
+
 def Serialize(IENetwork network, string path_to_xml, string path_to_bin):
     C.Serialize(network.impl, path_to_xml, path_to_bin)
+
 
 def CheckAPI():
     C.CheckAPI()
