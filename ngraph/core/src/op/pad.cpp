@@ -13,7 +13,6 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/pad.hpp"
-
 #include "pad_shape_inference.hpp"
 
 using namespace std;
