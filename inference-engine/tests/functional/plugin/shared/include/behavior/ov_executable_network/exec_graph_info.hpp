@@ -100,7 +100,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
     execNet.export_model(strm);
 
     ov::runtime::ExecutableNetwork importedExecNet = core->import_model(strm, targetDevice, configuration);
-    ASSERT_EQ(function->inputs().size(), 2);
+    EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
     EXPECT_THROW(importedExecNet.input(), ov::Exception);
     EXPECT_EQ(function->input(0).get_tensor().get_names(), importedExecNet.input(0).get_tensor().get_names());
@@ -256,7 +256,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
     execNet.Export(strm);
 
     ov::runtime::ExecutableNetwork importedExecNet = core->import_model(strm, targetDevice, configuration);
-    ASSERT_EQ(function->inputs().size(), 2);
+    EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->inputs().size(), importedExecNet.inputs().size());
     EXPECT_THROW(importedExecNet.input(), ov::Exception);
     EXPECT_NO_THROW(importedExecNet.input("data1").get_node());
@@ -319,7 +319,7 @@ TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
     execNet.export_model(strm);
 
     InferenceEngine::ExecutableNetwork importedExecNet = ie->ImportNetwork(strm, targetDevice, configuration);
-    ASSERT_EQ(function->inputs().size(), 2);
+    EXPECT_EQ(function->inputs().size(), 2);
     EXPECT_EQ(function->inputs().size(), importedExecNet.GetInputsInfo().size());
     EXPECT_NO_THROW(importedExecNet.GetInputsInfo()["param1"]);
     EXPECT_NO_THROW(importedExecNet.GetInputsInfo()["param2"]);
