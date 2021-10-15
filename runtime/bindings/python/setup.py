@@ -154,7 +154,6 @@ class BuildCMakeExt(build_ext):
         bin_dir = os.path.join(OPENVINO_ROOT_DIR, "bin")
         if os.environ.get("OpenVINO_DIR") is not None:
             root_dir = PYNGRAPH_ROOT_DIR
-            bin_dir = build_dir
 
         self.announce("Configuring cmake project", level=3)
         ext_args = self.cmake_args.split() if self.cmake_args else []
