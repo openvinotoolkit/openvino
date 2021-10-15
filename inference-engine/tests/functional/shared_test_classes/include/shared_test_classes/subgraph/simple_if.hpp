@@ -20,7 +20,7 @@ using SimpleIfParamsTuple = typename std::tuple<
 
 class SimpleIfTest:
         public testing::WithParamInterface<SimpleIfParamsTuple>,
-        public LayerTestsUtils::LayerTestsCommon {
+        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SimpleIfParamsTuple> &obj);
 protected:

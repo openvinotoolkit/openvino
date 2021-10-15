@@ -27,7 +27,7 @@ typedef std::tuple<
 
 
 class VariadicSplitPad: public testing::WithParamInterface<SplitPadTuple>,
-                        public LayerTestsUtils::LayerTestsCommon{
+                        virtual public LayerTestsUtils::LayerTestsCommon{
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SplitPadTuple> &obj);
 protected:
