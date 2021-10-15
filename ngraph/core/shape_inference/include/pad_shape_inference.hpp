@@ -74,19 +74,6 @@ void shape_infer(Pad* op, const std::vector<T>& input_shapes, std::vector<T>& ou
                                   ").");
         }
 
-        for (size_t i = 0; i < arg_shape.size(); i++) {
-            if (arg_shape[i].is_static()) {
-                NODE_VALIDATION_CHECK(op,
-                                      op->m_pad_mode != op::PadMode::EDGE || arg_shape[i].get_length() >= 1,
-                                      "EDGE padding mode requires an input of dimension of "
-                                      "at least 1 at each axis.");
-                NODE_VALIDATION_CHECK(op,
-                                      op->m_pad_mode != op::PadMode::REFLECT || arg_shape[i].get_length() >= 2,
-                                      "REFLECT padding mode requires an input of dimension "
-                                      "of at least 2 at each spatial axis.");
-            }
-        }
-
         output_shape.resize(arg_shape_rank.get_length());
 
         const auto& pads_begin_coord = op->get_pads_begin();
@@ -99,6 +86,22 @@ void shape_infer(Pad* op, const std::vector<T>& input_shapes, std::vector<T>& ou
                 if (arg_shape[i].is_static()) {
                     const auto& dim = arg_shape[i].get_length();
 
+                    if (op->m_pad_mode == op::PadMode::EDGE) {
+                        NODE_VALIDATION_CHECK(op,
+                                              begin == 0 || dim > 0,
+                                              "EDGE padding mode does not allow non-zero pad-begin (",
+                                              begin,
+                                              ") for zero dimension (",
+                                              dim,
+                                              ")");
+                        NODE_VALIDATION_CHECK(op,
+                                              end == 0 || dim > 0,
+                                              "EDGE padding mode does not allow non-zero pad-end (",
+                                              end,
+                                              ") for zero dimension (",
+                                              dim,
+                                              ")");
+                    }
                     if (op->m_pad_mode == op::PadMode::REFLECT) {
                         NODE_VALIDATION_CHECK(op,
                                               begin < dim,
