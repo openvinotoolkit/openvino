@@ -120,42 +120,34 @@ fi
 
 . "$VENV_DIR/bin/activate"
 python -m pip install -U pip
-python -m pip install -r "$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/downloader/requirements.in"
+python -m pip install openvino-dev[caffe]
 
 # Step 1. Download the Caffe model and the prototxt of the model
 echo -ne "\n###############|| Downloading the Caffe model and the prototxt ||###############\n\n"
 
 downloader_dir="${INTEL_OPENVINO_DIR}/extras/open_model_zoo/tools/downloader"
 
-model_dir=$(python "$downloader_dir/info_dumper.py" --name "$model_name" |
+model_dir=$(omz_info_dumper --name "$model_name" |
     python -c 'import sys, json; print(json.load(sys.stdin)[0]["subdirectory"])')
 
-downloader_path="$downloader_dir/downloader.py"
-
-print_and_run python "$downloader_path" --name "$model_name" --output_dir "${models_path}" --cache_dir "${models_cache}"
+print_and_run omz_downloader --name "$model_name" --output_dir "${models_path}" --cache_dir "${models_cache}"
 
 ir_dir="${irs_path}/${model_dir}/${target_precision}"
 
 if [ ! -e "$ir_dir" ]; then
-    # Step 2. Configure Model Optimizer
-    echo -ne "\n###############|| Install Model Optimizer dependencies ||###############\n\n"
-    cd "${INTEL_OPENVINO_DIR}/tools/model_optimizer"
-    python -m pip install -r requirements.txt
-    cd "$PWD"
-
-    # Step 3. Convert a model with Model Optimizer
+    # Step 2. Convert a model with Model Optimizer
     echo -ne "\n###############|| Convert a model with Model Optimizer ||###############\n\n"
 
     mo_path="${INTEL_OPENVINO_DIR}/tools/model_optimizer/mo.py"
 
     export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
-    print_and_run python "$downloader_dir/converter.py" --mo "$mo_path" --name "$model_name" -d "$models_path" -o "$irs_path" --precisions "$target_precision"
+    print_and_run omz_converter --mo "$mo_path" --name "$model_name" -d "$models_path" -o "$irs_path" --precisions "$target_precision"
 else
     echo -ne "\n\nTarget folder ${ir_dir} already exists. Skipping IR generation  with Model Optimizer."
     echo -ne "If you want to convert a model again, remove the entire ${ir_dir} folder. ${run_again}"
 fi
 
-# Step 4. Build samples
+# Step 3. Build samples
 echo -ne "\n###############|| Build Inference Engine samples ||###############\n\n"
 
 OS_PATH=$(uname -m)
@@ -179,7 +171,7 @@ cmake -DCMAKE_BUILD_TYPE=Release "$samples_path"
 
 make $NUM_THREADS benchmark_app
 
-# Step 5. Run samples
+# Step 4. Run samples
 echo -ne "\n###############|| Run Inference Engine benchmark app ||###############\n\n"
 
 cd "$binaries_dir"

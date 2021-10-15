@@ -104,14 +104,14 @@ if exist "%VENV_DIR%" (
 
 call "%VENV_DIR%\Scripts\activate.bat"
 python -m pip install -U pip
-python -m pip install -r "%ROOT_DIR%..\open_model_zoo\tools\downloader\requirements.in"
+python -m pip install openvino-dev[caffe]
 
 if ERRORLEVEL 1 GOTO errorHandling
 
 set downloader_dir=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader
 
 for /F "tokens=* usebackq" %%d in (
-    `python "%downloader_dir%\info_dumper.py" --name "%model_name%" ^|
+    `omz_info_dumper --name "%model_name%" ^|
         python -c "import sys, json; print(json.load(sys.stdin)[0]['subdirectory'])"`
 ) do (
     set model_dir=%%d
@@ -120,8 +120,8 @@ for /F "tokens=* usebackq" %%d in (
 set ir_dir=%irs_path%\%model_dir%\%target_precision%
 
 echo Download public %model_name% model
-echo python "%downloader_dir%\downloader.py" --name "%model_name%" --output_dir "%models_path%" --cache_dir "%models_cache%"
-python "%downloader_dir%\downloader.py" --name "%model_name%" --output_dir "%models_path%" --cache_dir "%models_cache%"
+echo omz_downloader --name "%model_name%" --output_dir "%models_path%" --cache_dir "%models_cache%"
+omz_downloader --name "%model_name%" --output_dir "%models_path%" --cache_dir "%models_cache%"
 echo %model_name% model downloading completed
 
 CALL :delay 7
@@ -134,14 +134,6 @@ if exist "%ir_dir%" (
     GOTO buildSample
 )
 
-echo.
-echo ###############^|^| Install Model Optimizer prerequisites ^|^|###############
-echo.
-CALL :delay 3
-cd /d "%INTEL_OPENVINO_DIR%\tools\model_optimizer"
-python -m pip install -r requirements.txt
-if ERRORLEVEL 1 GOTO errorHandling
-
 CALL :delay 7
 echo.
 echo ###############^|^| Run Model Optimizer ^|^|###############
@@ -149,8 +141,8 @@ echo.
 CALL :delay 3
 
 ::set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
-echo python "%downloader_dir%\converter.py" --mo "%INTEL_OPENVINO_DIR%\tools\model_optimizer\mo.py" --name "%model_name%" -d "%models_path%" -o "%irs_path%" --precisions "%TARGET_PRECISION%"
-python "%downloader_dir%\converter.py" --mo "%INTEL_OPENVINO_DIR%\tools\model_optimizer\mo.py" --name "%model_name%" -d "%models_path%" -o "%irs_path%" --precisions "%TARGET_PRECISION%"
+echo omz_converter --mo "%INTEL_OPENVINO_DIR%\tools\model_optimizer\mo.py" --name "%model_name%" -d "%models_path%" -o "%irs_path%" --precisions "%TARGET_PRECISION%"
+omz_converter --mo "%INTEL_OPENVINO_DIR%\tools\model_optimizer\mo.py" --name "%model_name%" -d "%models_path%" -o "%irs_path%" --precisions "%TARGET_PRECISION%"
 if ERRORLEVEL 1 GOTO errorHandling
 
 CALL :delay 7
