@@ -35,6 +35,12 @@ public:
         Validated
     };
 
+    enum class ReorderType {
+        Regular = 0,
+        Optimized = 1,
+        No = 2
+    };
+
     inline Status getStatus() const noexcept {
         return status;
     }
@@ -54,9 +60,8 @@ public:
     const MKLDNNMemory& getMemory();
     MKLDNNMemoryPtr& getMemoryPtr();
 
-    bool isInPlaceConflicts();
-    bool needReorder();
-    bool isOptimizedReorder();
+    bool enforceReorder();
+    ReorderType needReorder();
     bool isDropped() const;
     bool isUseExternalMemory() const;
 

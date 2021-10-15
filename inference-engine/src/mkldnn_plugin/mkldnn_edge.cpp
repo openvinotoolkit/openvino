@@ -65,7 +65,7 @@ void MKLDNNEdge::drop() {
     _drop_from(getChild()->parentEdges);
 }
 
-bool MKLDNNEdge::isInPlaceConflicts() {
+bool MKLDNNEdge::enforceReorder() {
     bool canBeInPlaceConflicts = false;
     auto parentNode = getParent();
     auto parentSPD = parentNode->getSelectedPrimitiveDescriptor();
@@ -137,31 +137,108 @@ bool MKLDNNEdge::isInPlaceConflicts() {
     return false;
 }
 
-bool MKLDNNEdge::needReorder() {
-    if (!getInputDesc().isCompatible(getOutputDesc())) {
-        return true;
+static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const MemoryDesc& rhsMemDesc) {
+    if (!lhsMemDesc.isDefined() || !rhsMemDesc.isDefined() ||
+        !(lhsMemDesc.getType() & MemoryDescType::Blocked) || !(rhsMemDesc.getType() & MemoryDescType::Blocked) ||
+        (lhsMemDesc.getType() == DnnlBlocked && !lhsMemDesc.as<const DnnlMemoryDesc>()->hasEmptyExtraData()) ||
+        (rhsMemDesc.getType() == DnnlBlocked && !rhsMemDesc.as<const DnnlMemoryDesc>()->hasEmptyExtraData()))
+        return false;
+
+    const auto lhsBlockMemDesc = lhsMemDesc.as<BlockedMemoryDesc>();
+    const auto rhsBlockMemDesc = rhsMemDesc.as<BlockedMemoryDesc>();
+
+    if (lhsBlockMemDesc->getShape() != rhsBlockMemDesc->getShape() || lhsBlockMemDesc->getPrecision() != rhsBlockMemDesc->getPrecision())
+        return false;
+
+    // dims padding check
+    bool isZeroDimsPaddings =
+        std::all_of(lhsBlockMemDesc->getOffsetPaddingToData().begin(), lhsBlockMemDesc->getOffsetPaddingToData().end(), [](size_t x){ return x == 0; }) &&
+        std::all_of(rhsBlockMemDesc->getOffsetPaddingToData().begin(), rhsBlockMemDesc->getOffsetPaddingToData().end(), [](size_t x){ return x == 0; });
+    bool isSameElementsCount = lhsBlockMemDesc->getPaddedElementsCount() == rhsBlockMemDesc->getPaddedElementsCount();
+    if (!isZeroDimsPaddings || !isSameElementsCount)
+        return false;
+
+    // tensor padding check
+    if (lhsBlockMemDesc->getOffsetPadding() != rhsBlockMemDesc->getOffsetPadding()) {
+        return false;
     }
 
-    return isInPlaceConflicts();
+    // stride check
+    const auto lhsBlockDims = lhsBlockMemDesc->getBlockDims();
+    std::vector<size_t> lhsStridesDefault(lhsBlockDims.size());
+    lhsStridesDefault[lhsBlockDims.size() - 1] = 1;
+    for (size_t i = 2; i <= lhsBlockDims.size(); i++) {
+        lhsStridesDefault[lhsBlockDims.size() - i] = lhsStridesDefault[lhsBlockDims.size() - (i - 1)] * lhsBlockDims[lhsBlockDims.size() - (i - 1)];
+    }
+
+    auto rhsBlockDims = rhsBlockMemDesc->getBlockDims();
+    std::vector<size_t> rhsStridesDefault(rhsBlockDims.size());
+    rhsStridesDefault[rhsBlockDims.size() - 1] = 1;
+    for (size_t i = 2; i <= rhsBlockDims.size(); i++) {
+        rhsStridesDefault[rhsBlockDims.size() - i] =
+             rhsStridesDefault[rhsBlockDims.size() - (i - 1)] * rhsBlockDims[rhsBlockDims.size() - (i - 1)];
+    }
+
+    bool isDenseTensor = dimsEqualStrong(lhsStridesDefault, lhsBlockMemDesc->getStrides()) &&
+                         dimsEqualStrong(rhsStridesDefault, rhsBlockMemDesc->getStrides());
+    if (!isDenseTensor)
+        return false;
+
+    auto getCleanDim = [&](const VectorDims& dims, const VectorDims& flag) {
+        if (dims.size() != flag.size())
+            return dims;
+        std::vector<size_t> ret;
+        for (int i = 0; i < dims.size(); i++) {
+            if (flag[i] != 1) {
+                ret.push_back(dims[i]);
+            }
+        }
+        return ret;
+    };
+
+    // block dim check
+    auto lhsBlockDimsClean = getCleanDim(lhsBlockDims, lhsBlockDims);
+    auto rhsBlockDimsClean = getCleanDim(rhsBlockDims, rhsBlockDims);
+    if (lhsBlockDimsClean.size() != rhsBlockDimsClean.size()) {
+        return false;
+    } else {
+        if (!dimsEqualStrong(lhsBlockDimsClean, rhsBlockDimsClean))
+            return false;
+    }
+
+    // order check
+    auto lhsOrderClean = getCleanDim(lhsBlockMemDesc->getOrder(), lhsBlockDims);
+    auto rhsOrderClean = getCleanDim(rhsBlockMemDesc->getOrder(), rhsBlockDims);
+    if (lhsOrderClean.size() != rhsOrderClean.size()) {
+        return false;
+    } else {
+        if (!dimsEqualStrong(lhsOrderClean, rhsOrderClean))
+            return false;
+    }
+
+    return true;
 }
 
-bool MKLDNNEdge::isOptimizedReorder() {
-    if (!getInputDesc().isDefined() ||
-        !getOutputDesc().isDefined() ||
-        !(getInputDesc().getType() & MemoryDescType::Blocked) ||
-        !(getOutputDesc().getType() & MemoryDescType::Blocked))
-        return false;
-
-    const auto inMemDesc = MemoryDescUtils::convertToBlockedMemoryDesc(getInputDesc().clone());
-    const auto outMemDesc = MemoryDescUtils::convertToBlockedMemoryDesc(getOutputDesc().clone());
-    if (!inMemDesc->isPhycicalMemCompatible(outMemDesc)) {
-        return false;
+MKLDNNEdge::ReorderType MKLDNNEdge::needReorder() {
+    bool optimized = false;
+    if (!getInputDesc().isCompatible(getOutputDesc())) {
+        if (isPhycicalMemCompatible(getInputDesc(), getOutputDesc()) && !getParent()->isConstant()) {
+            optimized = true;
+        } else {
+            return ReorderType::Regular;
+        }
     }
 
-    if (getParent()->isConstant())
-        return false;
+    // put here as more costly than compatible check
+    if (enforceReorder()) {
+        return ReorderType::Regular;
+    }
 
-    return !isInPlaceConflicts();
+    if (optimized) {
+        return ReorderType::Optimized;
+    }
+
+    return ReorderType::No;
 }
 
 void MKLDNNEdge::reuse(MKLDNNMemoryPtr ptr) {
