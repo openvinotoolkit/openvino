@@ -62,7 +62,6 @@ public:
     void setDNNPtr(std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnnPtr);
     void setInputDescPtr(std::shared_ptr<GNAPluginNS::InputDesc> inputDescPtr);
     void setGNAFlagsPtr(std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlagsPtr);
-    void setMemoryOrder();
 
     void fillMemoryConnections(std::unordered_map<std::string,
             std::vector<InferenceEngine::CNNLayerPtr>> &memoryPairs);

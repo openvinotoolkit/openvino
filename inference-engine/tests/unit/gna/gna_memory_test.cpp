@@ -279,9 +279,37 @@ TEST_F(GNAMemoryTest, canPushReadOnlyValue) {
     ASSERT_FLOAT_EQ(pFuture[3], 13);
 }
 
-TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSize) {
+TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeEmptyReqs) {
     mem.push_value(nullptr, 3.f,  2);
     mem.readonly().push_value(nullptr, 13.f, 2);
+    mem.commit();
+
+    ASSERT_EQ(mem.getTotalBytes(), 0);
+    ASSERT_EQ(mem.getRWBytes(), 0);
+}
+
+TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithEmptyReqs) {
+    // empty request before
+    mem.push_value(nullptr, 3.f,  2);
+    // not empty requests
+    float* pFuture1 = reinterpret_cast<float*>(&pFuture1);
+    float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
+    mem.push_value(pFuture1, 3.f,  2);
+    mem.readonly().push_value(pFuture2, 13.f, 2);
+    // empty request after
+    mem.readonly().push_value(nullptr, 13.f, 2);
+
+    mem.commit();
+
+    ASSERT_EQ(mem.getTotalBytes(), 4 * sizeof(float));
+    ASSERT_EQ(mem.getRWBytes(), 2 * sizeof(float));
+}
+
+TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSize) {
+    float* pFuture1 = reinterpret_cast<float*>(&pFuture1);
+    float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
+    mem.push_value(pFuture1, 3.f,  2);
+    mem.readonly().push_value(pFuture2, 13.f, 2);
     mem.commit();
 
     ASSERT_EQ(mem.getTotalBytes(), 4 * sizeof(float));
@@ -290,9 +318,11 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSize) {
 
 TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithAlignment) {
     GNAMemory<std::allocator<uint8_t>> memAligned(64);
+    float* pFuture1 = reinterpret_cast<float*>(&pFuture1);
+    float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
 
-    memAligned.push_value(nullptr, 3.f,  2);
-    memAligned.readonly().push_value(nullptr, 13.f, 2);
+    memAligned.push_value(pFuture1, 3.f,  2);
+    memAligned.readonly().push_value(pFuture2, 13.f, 2);
     memAligned.commit();
 
     ASSERT_EQ(memAligned.getTotalBytes(), 128);

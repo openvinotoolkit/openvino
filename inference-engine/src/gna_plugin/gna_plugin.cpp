@@ -32,7 +32,6 @@
 #include "backend/am_intel_dnn.hpp"
 #include "memory/gna_allocator.hpp"
 #include "memory/gna_memory_state.hpp"
-#include "memory/gna_memory_solver.hpp"
 #include "gna_model_serial.hpp"
 #include "runtime/gna_float_runtime.hpp"
 #include <layers/gna_fake_quantize_layer.hpp>

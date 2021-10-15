@@ -15,7 +15,7 @@
 #include <functional>
 #include <iostream>
 #include "gna_lib_ver_selector.hpp"
-#include "gna_memory_solver.hpp"
+#include "memory_solver.hpp"
 #include "backend/dnn_components.hpp"
 
 #ifdef GNA_HEAP_PROFILER
@@ -78,7 +78,7 @@ class GNAMemory : public GNAMemRequestsQueue {
         auto setOffsets = [&](std::function<bool(MemRequest & request)> filter) {
             size_t region_offset = 0;
             for (auto &originated : _future_heap) {
-                if (filter(originated)) continue;
+                if (filter(originated) || originated._ptr_out == nullptr) continue;
                 size_t offset = 0;
 
                 iterate_binded(originated, [&](MemRequest & reference, MemRequest & binded) {
@@ -308,10 +308,10 @@ class GNAMemory : public GNAMemRequestsQueue {
             });
 #endif
         for (auto &re : _future_heap) {
-            if (re._type & REQUEST_BIND) continue;
+            if (re._type & REQUEST_BIND || re._ptr_out == nullptr) continue;
 
             size_t current = ALIGN(re._num_elements * re._element_size + re._padding, re._alignment);
-            if (re._region == REGION_RW && re._ptr_out != nullptr) {
+            if (re._region == REGION_RW) {
                 _rw_section_size += current;
             } else {
                 _ro_section_size += current;
