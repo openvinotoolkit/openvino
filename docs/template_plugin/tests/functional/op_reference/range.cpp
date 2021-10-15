@@ -109,7 +109,6 @@ private:
                                                     float fstart,
                                                     float fstop,
                                                     float fstep) {
-
         auto start = CreateConstant(ishape, ntype, fstart);
         auto stop = CreateConstant(ishape, ntype, fstop);
         auto step = CreateConstant(ishape, ntype, fstep);
@@ -316,14 +315,14 @@ std::vector<RangeParams> generateParamsForRangeV4Float() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<RangeParams> params{
-        RangeParams(ov::Shape{}, 
-                    ov::Shape{4}, 
-                    IN_ET, 
-                    IN_ET, 
+        RangeParams(ov::Shape{},
+                    ov::Shape{4},
                     IN_ET,
-                    std::vector<T>{0.0f, 0.25f, 0.5f, 0.75f}, 
-                    0.0f, 
-                    1.0f, 
+                    IN_ET,
+                    IN_ET,
+                    std::vector<T>{0.0f, 0.25f, 0.5f, 0.75f},
+                    0.0f,
+                    1.0f,
                     0.25f),
         RangeParams(ov::Shape{},
                     ov::Shape{10},
