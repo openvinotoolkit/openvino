@@ -168,6 +168,7 @@ TEST_P(InferRequestIOBBlobTest, canProcessDeallocatedInputBlobAfterGetAndSetBlob
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob;
+    req = execNet.CreateInferRequest();
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
@@ -411,7 +412,6 @@ public:
         if (!configuration.empty()) {
             PluginCache::get().reset();
         }
-        function.reset();
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
