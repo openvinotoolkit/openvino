@@ -59,16 +59,23 @@ class CommonLayerTest:
         path_to_xml = Path(temp_dir, 'model.xml')
         path_to_bin = Path(temp_dir, 'model.bin')
 
-        ir = IREngine(path_to_xml, path_to_bin, precision=precision)
         if ref_net is not None:
+            ir = IREngine(path_to_xml, path_to_bin, precision=precision)
             (flag, resp) = ir.compare(ref_net)
             assert flag, '\n'.join(resp)
 
+        from openvino.inference_engine import IECore
+        core = IECore()
+        net = core.read_network(path_to_xml, path_to_bin)
+        inputs_info = {}
+        for item in net.input_info.items():
+            inputs_info[item[0]] = item[1].tensor_desc.dims
+
         # Prepare feed dict
         if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
-            inputs_dict = self._prepare_input(ir.get_inputs(), kwargs['kwargs_to_prepare_input'])
+            inputs_dict = self._prepare_input(inputs_info, kwargs['kwargs_to_prepare_input'])
         else:
-            inputs_dict = self._prepare_input(ir.get_inputs())
+            inputs_dict = self._prepare_input(inputs_info)
 
         # IE infer:
         ie_engine = IEInfer(model=path_to_xml,
