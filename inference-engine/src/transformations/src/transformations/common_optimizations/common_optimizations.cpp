@@ -161,6 +161,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConvertGather1ToGather7, false>();
     manager.register_pass<ngraph::pass::ConvertGather7ToGather8, false>();
     manager.register_pass<ngraph::pass::ConvertDeformableConv8To1>();
+    manager.register_pass<ngraph::pass::SliceToStridedSlice>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();

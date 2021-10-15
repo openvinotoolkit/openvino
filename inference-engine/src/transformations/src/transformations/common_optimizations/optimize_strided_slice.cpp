@@ -9,11 +9,141 @@
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+
+#include <ngraph/pass/manager.hpp>
+#include "ngraph/node.hpp"
+#include "ngraph/op/constant.hpp"
+#include "ngraph/op/util/op_types.hpp"
+#include "ngraph/validation_util.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::StridedSliceOptimization, "StridedSliceOptimization", 0);
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::UselessStridedSliceEraser, "UselessStridedSliceEraser", 0);
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SliceToStridedSlice, "SliceToStridedSlice", 0);
+
+using namespace ngraph;
+
+namespace {
+    Output<ngraph::Node> adjust_indices_if_needed(const Output<ngraph::Node>& indices,
+                                              const std::vector<int64_t>& axes,
+                                              uint64_t slice_indices_length,
+                                              int64_t fill_in_value) {
+    const bool are_axes_sorted = std::is_sorted(axes.begin(), axes.end());
+
+    const auto indices_shape = indices.get_partial_shape();
+    // if length of slice indices vector is known
+    if (indices_shape.rank().is_static() && indices_shape.rank().get_length() == 1 && indices_shape[0].is_static()) {
+        if (static_cast<uint64_t>(indices_shape[0].get_length()) >= slice_indices_length && are_axes_sorted) {
+            // adjusting indices is not needed
+            return indices;
+        }
+    }
+    // Handle a case when starts/ends/steps lengths are less than provided axes
+    // in order to ensure compatibility with `StridedSlice:v1` interface
+    // Example:
+    // data_shape: {3, 3, 3, 3}
+    // starts: [1, 1] - after extending --> [0, 0, 1, 1]
+    // ends: [2, 2] - after extending --> [0, 0, 2, 2]
+    // steps : [1, 1] - after extending --> [1, 1, 1, 1] (`1` is neutral as a
+    // strides value)
+    // axes: [2, 3] - apply slice values to 2 and 3 dimension of input data
+    // expected_output_shape: {3, 3, 1, 1}
+    OutputVector adjusted_indices(slice_indices_length);
+    std::vector<int64_t> target_axes(axes);
+    const auto gather_axis = opset8::Constant::create(indices.get_element_type(), {}, {0});
+
+    int added_indices_number = 0;
+    for (uint64_t i = 0; i < slice_indices_length; ++i) {
+        if (std::find(std::begin(axes), std::end(axes), i) == axes.end()) {
+            adjusted_indices[i] = opset8::Constant::create(indices.get_element_type(), {1}, {fill_in_value});
+            target_axes.insert(std::next(target_axes.begin(), i), i);
+            ++added_indices_number;
+        } else {
+            adjusted_indices[i] = std::make_shared<opset8::Gather>(
+                indices,
+                opset8::Constant::create(indices.get_element_type(), {1}, {i - added_indices_number}),
+                gather_axis);
+        }
+    }
+
+    if (!are_axes_sorted) {
+        OutputVector indices_tmp(adjusted_indices);
+        for (size_t i = 0; i < target_axes.size(); ++i) {
+            adjusted_indices[target_axes[i]] = indices_tmp[i];
+        }
+    }
+
+    return std::make_shared<opset8::Concat>(adjusted_indices, 0);
+}
+std::vector<int64_t> axes_to_mask(const std::vector<int64_t>& axes, uint64_t slice_indices_length) {
+    std::vector<int64_t> mask(slice_indices_length, 1);
+    for (auto axis : axes) {
+        mask[axis] = 0;
+    }
+    return mask;
+}
+
+}  // namespace
+
+ngraph::pass::SliceToStridedSlice::SliceToStridedSlice() {
+    MATCHER_SCOPE(SliceToStridedSlice);
+    auto slice = pattern::wrap_type<ngraph::opset8::Slice>();
+
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto slice_node = std::dynamic_pointer_cast<ngraph::opset8::Slice>(m.get_match_root());
+        if (!slice_node)
+            return false;
+
+        if (slice_node->get_input_size() < 4)
+            return false;
+
+        auto arg = slice_node->input_value(0);
+
+        const auto start_const = get_constant_from_source(slice_node->input_value(1));
+        const auto stop_const = get_constant_from_source(slice_node->input_value(2));
+        const auto step_const = get_constant_from_source(slice_node->input_value(3));
+
+        const auto& start_input = start_const ? start_const : slice_node->input_value(1);
+        const auto& stop_input = stop_const ? stop_const : slice_node->input_value(2);
+        const auto& step_input = step_const ? step_const : slice_node->input_value(3);
+
+        std::shared_ptr<opset8::Constant> axes_const;
+        if (slice_node->get_input_size() > 4) {
+            axes_const = get_constant_from_source(slice_node->input_value(4));
+        } else {
+            axes_const = slice_node->get_default_const_axes(start_input);
+        }
+
+        if (!axes_const)
+            return false;
+
+        // auto raw_axes_vec = axes_const->cast_vector<int64_t>();
+        // std::vector<uint64_t> axes_vec = get_normalized_axes_vector(node, data_rank, raw_axes_vec);
+        auto axes_vec = axes_const->cast_vector<int64_t>();
+
+        const size_t slice_indices_length = *std::max_element(std::begin(axes_vec), std::end(axes_vec)) + 1;
+        const auto begin_end_mask = axes_to_mask(axes_vec, slice_indices_length);
+
+        const auto& starts = adjust_indices_if_needed(start_input, axes_vec, slice_indices_length, 0);
+        const auto& ends = adjust_indices_if_needed(stop_input, axes_vec, slice_indices_length, 0);
+        const auto& steps = adjust_indices_if_needed(step_input, axes_vec, slice_indices_length, 1);
+
+        const auto strided_slice = std::make_shared<opset8::StridedSlice>(arg, starts, ends, steps, begin_end_mask, begin_end_mask);
+
+
+        strided_slice->set_friendly_name(slice_node->get_friendly_name());
+        ngraph::copy_runtime_info(strided_slice, slice_node);
+        ngraph::replace_node(slice_node, strided_slice);
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(slice, matcher_name);
+    register_matcher(m, callback);
+}
 
 bool ngraph::pass::UselessStridedSliceEraser::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(UselessStridedSliceEraser);
@@ -244,6 +374,10 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
 
 bool ngraph::pass::StridedSliceOptimization::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(StridedSliceOptimization);
+    ngraph::pass::Manager manager(get_pass_config());
+    manager.register_pass<ngraph::pass::SliceToStridedSlice>();
+    manager.run_passes(f);
+
     bool rewritten = UselessStridedSliceEraser().run_on_function(f);
     rewritten |= SharedStridedSliceEraser().run_on_function(f);
     rewritten |= GroupedStridedSliceOptimizer().run_on_function(f);

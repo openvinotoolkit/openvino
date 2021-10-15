@@ -15,6 +15,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <transformations/utils/utils.hpp>
@@ -307,4 +308,43 @@ TEST(TransformationTests, OptimizeSS_Groupped_Test) {
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
+}
+
+
+TEST(TransformationTests, SliceToStridedSlice) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
+        auto begin = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 0, 0, 0});
+        auto end = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {-1, -1, -1, -1});
+        auto step = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
+
+        auto ss = std::make_shared<ngraph::opset8::Slice>(data, begin, end, step);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
+        ngraph::pass::StridedSliceOptimization().run_on_function(f);
+        ngraph::pass::ConstantFolding().run_on_function(f);
+    }
+    {
+        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
+        auto begin = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 0, 0, 0});
+        auto end = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {-1, -1, -1, -1});
+        auto stride = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1});
+
+        std::vector<int64_t> begin_mask = {0, 0, 0, 0};
+        std::vector<int64_t> end_mask = {0, 0, 0, 0};
+
+        auto ss = std::make_shared<ngraph::opset1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
+    }
+
+    ASSERT_EQ(count_ops_of_type<ngraph::opset8::Slice>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ngraph::opset1::StridedSlice>(f), 1);
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator::Result result = func_comparator(f, f_ref);
+    ASSERT_TRUE(result.valid);
 }
