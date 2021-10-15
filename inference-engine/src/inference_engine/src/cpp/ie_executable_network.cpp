@@ -158,9 +158,7 @@ ov::Output<const ov::Node> ExecutableNetwork::input(size_t i) const {
 }
 
 ov::Output<const ov::Node> ExecutableNetwork::input(const std::string& tensor_name) const {
-    OV_EXEC_NET_CALL_STATEMENT({
-        return _impl->getInput(tensor_name);
-    });
+    OV_EXEC_NET_CALL_STATEMENT({ return _impl->getInput(tensor_name); });
 }
 
 std::vector<ov::Output<const ov::Node>> ExecutableNetwork::outputs() const {
@@ -185,9 +183,7 @@ ov::Output<const ov::Node> ExecutableNetwork::output(size_t i) const {
     OV_EXEC_NET_CALL_STATEMENT(return _impl->getOutputs().at(i));
 }
 ov::Output<const ov::Node> ExecutableNetwork::output(const std::string& tensor_name) const {
-    OV_EXEC_NET_CALL_STATEMENT({
-        return _impl->getOutput(tensor_name);
-    });
+    OV_EXEC_NET_CALL_STATEMENT({ return _impl->getOutput(tensor_name); });
 }
 
 InferRequest ExecutableNetwork::create_infer_request() {

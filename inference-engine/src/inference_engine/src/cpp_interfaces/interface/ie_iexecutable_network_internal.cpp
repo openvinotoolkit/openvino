@@ -39,7 +39,9 @@ const std::vector<std::shared_ptr<const ov::Node>>& IExecutableNetworkInternal::
     return _results;
 }
 
-bool IExecutableNetworkInternal::getPort(ov::Output<const ov::Node>& port, const std::string& name, const std::vector<std::vector<std::shared_ptr<const ov::Node>>>& ports) const {
+bool IExecutableNetworkInternal::getPort(ov::Output<const ov::Node>& port,
+                                         const std::string& name,
+                                         const std::vector<std::vector<std::shared_ptr<const ov::Node>>>& ports) const {
     for (const auto& nodes : ports) {
         for (const auto& node : nodes) {
             const auto& names = node->get_output_tensor(0).get_names();

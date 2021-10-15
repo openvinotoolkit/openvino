@@ -183,7 +183,9 @@ protected:
 
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
-    bool getPort(ov::Output<const ov::Node>& port, const std::string& name, const std::vector<std::vector<std::shared_ptr<const ov::Node>>>& ports) const;
+    bool getPort(ov::Output<const ov::Node>& port,
+                 const std::string& name,
+                 const std::vector<std::vector<std::shared_ptr<const ov::Node>>>& ports) const;
     std::vector<std::shared_ptr<const ov::Node>> _parameters;
     std::vector<std::shared_ptr<const ov::Node>> _results;
 

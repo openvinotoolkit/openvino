@@ -316,7 +316,8 @@ void IInferRequestInternal::setPointerToExecutableNetworkInternal(
     _exeNetwork = exeNetwork;
 }
 
-const std::shared_ptr<IExecutableNetworkInternal>& IInferRequestInternal::getPointerToExecutableNetworkInternal() const {
+const std::shared_ptr<IExecutableNetworkInternal>& IInferRequestInternal::getPointerToExecutableNetworkInternal()
+    const {
     return _exeNetwork;
 }
 

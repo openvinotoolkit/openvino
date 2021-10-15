@@ -8,8 +8,8 @@
 #include <memory>
 #include <string>
 
-#include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "ie_infer_async_request_base.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_context.hpp"
@@ -215,7 +215,7 @@ std::string get_legacy_name_from_port(const ov::Output<const ov::Node>& port) {
     return ngraph::op::util::create_ie_output_name(p);
 }
 
-}
+}  // namespace
 
 namespace ov {
 namespace runtime {
@@ -235,15 +235,12 @@ void InferRequest::set_tensor(const ov::Output<ov::Node>& port, const Tensor& te
 }
 
 void InferRequest::set_tensor(const std::string& name, const Tensor& tensor) {
-    OV_INFER_REQ_CALL_STATEMENT({
-        set_tensor(_impl->getPointerToExecutableNetworkInternal()->getPort(name), tensor);
-    });
+    OV_INFER_REQ_CALL_STATEMENT({ set_tensor(_impl->getPointerToExecutableNetworkInternal()->getPort(name), tensor); });
 }
 
 void InferRequest::set_input_tensor(size_t idx, const Tensor& tensor) {
-    OV_INFER_REQ_CALL_STATEMENT({
-        set_tensor(_impl->getPointerToExecutableNetworkInternal()->getInputs().at(idx)->output(0), tensor);
-    });
+    OV_INFER_REQ_CALL_STATEMENT(
+        { set_tensor(_impl->getPointerToExecutableNetworkInternal()->getInputs().at(idx)->output(0), tensor); });
 }
 
 void InferRequest::set_input_tensor(const Tensor& tensor) {
@@ -257,9 +254,8 @@ void InferRequest::set_input_tensor(const Tensor& tensor) {
 }
 
 void InferRequest::set_output_tensor(size_t idx, const Tensor& tensor) {
-    OV_INFER_REQ_CALL_STATEMENT({
-        set_tensor(_impl->getPointerToExecutableNetworkInternal()->getOutputs().at(idx)->output(0), tensor);
-    });
+    OV_INFER_REQ_CALL_STATEMENT(
+        { set_tensor(_impl->getPointerToExecutableNetworkInternal()->getOutputs().at(idx)->output(0), tensor); });
 }
 
 void InferRequest::set_output_tensor(const Tensor& tensor) {
@@ -294,21 +290,17 @@ Tensor InferRequest::get_tensor(const ov::Output<ov::Node>& port) {
 }
 
 Tensor InferRequest::get_tensor(const std::string& name) {
-    OV_INFER_REQ_CALL_STATEMENT({
-        return get_tensor(_impl->getPointerToExecutableNetworkInternal()->getPort(name));
-    });
+    OV_INFER_REQ_CALL_STATEMENT({ return get_tensor(_impl->getPointerToExecutableNetworkInternal()->getPort(name)); });
 }
 
 Tensor InferRequest::get_input_tensor(size_t idx) {
-    OV_INFER_REQ_CALL_STATEMENT({
-        return get_tensor(_impl->getPointerToExecutableNetworkInternal()->getInputs().at(idx)->output(0));
-    });
+    OV_INFER_REQ_CALL_STATEMENT(
+        { return get_tensor(_impl->getPointerToExecutableNetworkInternal()->getInputs().at(idx)->output(0)); });
 }
 
 Tensor InferRequest::get_output_tensor(size_t idx) {
-    OV_INFER_REQ_CALL_STATEMENT({
-        return get_tensor(_impl->getPointerToExecutableNetworkInternal()->getOutputs().at(idx)->output(0));
-    });
+    OV_INFER_REQ_CALL_STATEMENT(
+        { return get_tensor(_impl->getPointerToExecutableNetworkInternal()->getOutputs().at(idx)->output(0)); });
 }
 
 Tensor InferRequest::get_input_tensor() {
