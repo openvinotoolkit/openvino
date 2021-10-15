@@ -10,6 +10,7 @@
 #include "base/behavior_test_utils.hpp"
 
 namespace BehaviorTestsDefinitions {
+
 using InferRequestCallbackTests = BehaviorTestsUtils::InferRequestTests;
 
 TEST_P(InferRequestCallbackTests, canCallAsyncWithCompletionCallback) {
@@ -32,11 +33,6 @@ TEST_P(InferRequestCallbackTests, canCallAsyncWithCompletionCallback) {
 }
 
 TEST_P(InferRequestCallbackTests, syncInferDoesNotCallCompletionCallback) {
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     bool isCalled = false;
     req.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>(

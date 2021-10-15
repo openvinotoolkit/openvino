@@ -22,11 +22,10 @@ protected:
     std::vector<std::string> statesToQuery;
     std::string deviceName;
 
-    void SetUp() override;
-
     InferenceEngine::ExecutableNetwork PrepareNetwork();
 
 public:
+    void SetUp() override;
     static std::string getTestCaseName(const testing::TestParamInfo<memoryStateParams> &obj);
 };
 } // namespace BehaviorTestsDefinitions
