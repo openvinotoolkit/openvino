@@ -65,12 +65,20 @@ protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
 
 private:
+    void prepareParams() override;
+    void executeDynamicImpl(mkldnn::stream strm) override;
+
     void addZeroPoints(mkldnn::primitive_attr& attr) const;
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights, bool initAsBinary);
     void filterSupportedDescriptors();
     bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) const;
     bool isNspcAvailable() const;
     InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
+    std::shared_ptr<mkldnn::convolution_forward::desc>
+    createDescriptorInternal(const std::array<mkldnn::memory::desc, 3>& inputDesc,
+                             const mkldnn::memory::desc& outputDesc,
+                             mkldnn::algorithm alg);
+    void compileKernel() override {}
 
     bool withBiases;
     bool withSum;
