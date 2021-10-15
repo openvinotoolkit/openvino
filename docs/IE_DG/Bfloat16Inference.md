@@ -1,6 +1,6 @@
 # Bfloat16 Inference {#openvino_docs_IE_DG_Bfloat16Inference}
 
-## Bfloat Inference Usage (C++)
+## Bfloat16 Inference Usage (C++)
 
 @sphinxdirective
 .. raw:: html
