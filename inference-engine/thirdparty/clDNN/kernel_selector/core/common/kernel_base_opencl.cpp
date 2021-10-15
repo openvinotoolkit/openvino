@@ -184,7 +184,7 @@ void KernelBaseOpenCL::FillCLKernelData(clKernelData& kernel,
                                         bool bias,
                                         int number_of_inputs,
                                         uint32_t number_of_inputs_for_fused_prims) const {
-    KernelBase::CheckDispatchData(kernelMapName, dispatchData);
+    KernelBase::CheckDispatchData(kernelMapName, dispatchData, engine_info.maxWorkGroupSize);
     kernel.code.kernelString = GetKernelString(kernelMapName, jit, entryPoint, engine_info, exeMode);
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;

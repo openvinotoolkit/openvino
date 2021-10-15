@@ -62,6 +62,10 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
 
 ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_selector::resample_params &arg) const {
     DispatchData dispatchData;
+    auto in_layout = arg.inputs[0].GetLayout();
+    auto out_layout = arg.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
+
     const auto& out = arg.output;
 
     if (arg.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
@@ -69,7 +73,10 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
         dispatchData.gws[1] = CeilDiv(out.Feature().v, GetFeatureBlockSize(arg));
         dispatchData.gws[2] = arg.output.Batch().v;
 
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
+        dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::FEATURE},
+                       {Tensor::DataChannelName::BATCH}};
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
     } else {
         auto opt_x_block_size = GetOptimalBlockSize(arg);
         if (out.X().v > 32 && opt_x_block_size == 1) {

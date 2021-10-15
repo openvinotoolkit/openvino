@@ -146,17 +146,29 @@ bool ConvolutionKernelBase::CheckPitchForSplitOnly(const convolution_params& par
 
 ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const convolution_params& params, int) const {
     DispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
     const auto& out = params.output;
-    if (params.output.GetLayout() == DataLayout::bfyx || params.output.GetLayout() == DataLayout::byxf) {
+    if (out_layout == DataLayout::bfyx || out_layout == DataLayout::byxf) {
         dispatchData.gws = {out.X().v, out.Y().v, out.Feature().v * out.Batch().v};
-    } else if (params.output.GetLayout() == DataLayout::bfzyx) {
+        dims_by_gws = {{Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+    } else if (out_layout == DataLayout::bfzyx) {
         dispatchData.gws = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
     } else {
         dispatchData.gws = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v};
+        dims_by_gws = {{Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH},
+                       {Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y}};
     }
 
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     dispatchData.cldnnStyle.blockWidth = 1;
     dispatchData.cldnnStyle.blockHeight = 1;

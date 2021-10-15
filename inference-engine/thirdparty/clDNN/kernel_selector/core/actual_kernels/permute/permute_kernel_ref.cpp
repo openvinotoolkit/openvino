@@ -31,10 +31,16 @@ ParamsKey PermuteKernelRef::GetSupportedKey() const {
 
 CommonDispatchData PermuteKernelRef::SetDefault(const permute_params& params) const {
     CommonDispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X},
+                                                                     {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
+                                                                     {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+
     const auto& in =  params.inputs[0];
 
     dispatchData.gws = {in.X().v, in.Y().v * in.Z().v * in.W().v, in.Feature().v * in.Batch().v};
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }

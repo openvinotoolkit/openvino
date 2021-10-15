@@ -231,6 +231,7 @@ inline bool SimpleLayout(DataLayout l) {
         case DataLayout::yxfb:
         case DataLayout::byxf:
         case DataLayout::fyxb:
+        case DataLayout::bfxy:
         case DataLayout::bfzyx:
         case DataLayout::bfwzyx:
             return true;
@@ -267,7 +268,7 @@ inline bool IsDynamicLSTMType(WeightsLayout l) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Tensor Exaplnation
+// Tensor Explanation
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // resource     - 80x80

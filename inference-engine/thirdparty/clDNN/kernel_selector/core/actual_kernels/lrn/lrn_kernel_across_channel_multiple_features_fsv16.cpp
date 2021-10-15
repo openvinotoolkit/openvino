@@ -34,6 +34,11 @@ ParamsKey LRNKernelAcrossChannelMultipleFeaturesFSV16::GetSupportedKey() const {
 
 CommonDispatchData LRNKernelAcrossChannelMultipleFeaturesFSV16::SetDefault(const lrn_params& params) const {
     CommonDispatchData dispatchData = LRNKernelBase::SetDefault(params);
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::FEATURE },
+                                                                     { Tensor::DataChannelName::X },
+                                                                     { Tensor::DataChannelName::Y, Tensor::DataChannelName::BATCH }};
 
     const auto& out = params.output;
     const unsigned int alignment = 16;
@@ -41,7 +46,7 @@ CommonDispatchData LRNKernelAcrossChannelMultipleFeaturesFSV16::SetDefault(const
     dispatchData.gws = { Align(out.Feature().v, alignment),
                          out.X().v,
                          out.Y().v * out.Batch().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }

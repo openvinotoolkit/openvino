@@ -33,14 +33,23 @@ JitConstants ReorgYoloKernelRef::GetJitConstants(const reorg_yolo_params& ry) co
 }
 ReorgYoloKernelRef::DispatchData SetDefault(const reorg_yolo_params& params) {
     ReorgYoloKernelRef::DispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
     const auto& input = params.inputs[0];
     if (input.GetLayout() == DataLayout::bfyx) {
         dispatchData.gws = {input.X().v, input.Y().v, input.Feature().v};
+        dims_by_gws = {{Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::FEATURE}};
     } else {
         dispatchData.gws = {input.Feature().v * input.Batch().v, input.X().v, input.Y().v};
+        dims_by_gws = {{Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH},
+                       {Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y}};
     }
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
