@@ -265,7 +265,8 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
 // NodeMap input may contain default node mapping i.e. pre-cloned nodes
 // NodeMap output (by reference) fully maps input and cloned function ops
 OPENVINO_API
-std::shared_ptr<ov::Function> clone_function(const ov::Function& func, NodeMap& node_map);
+std::shared_ptr<ov::Function> clone_function(const ov::Function& func,
+                                             std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
 
 // input function is cloned and returned
 OPENVINO_API

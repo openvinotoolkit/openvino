@@ -11,6 +11,10 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
     add_subdirectory(onnx)
 endif()
 
+if (NGRAPH_TF_FRONTEND_ENABLE)
+    add_subdirectory(tensorflow)
+endif()
+
 set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_frontend.cpp)
 add_library(mock1_ngraph_frontend SHARED ${SRC})
 
