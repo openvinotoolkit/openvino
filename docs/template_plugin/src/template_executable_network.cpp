@@ -13,10 +13,10 @@
 #include "ie_icore.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "template/template_config.hpp"
 #include "template_itt.hpp"
 #include "template_plugin.hpp"
-#include "transformations/serialize.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace TemplatePlugin;
@@ -113,8 +113,9 @@ void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<con
     // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
     // as inference request output names but the name of the layer before.
     for (auto&& result : _function->get_results()) {
-        auto outputName = ngraph::op::util::create_ie_output_name(result->input_value(0));
-        _outputIndex.emplace(outputName, _function->get_result_index(result));
+        const auto& input = result->input_value(0);
+        auto name = ngraph::op::util::get_ie_output_name(input);
+        _outputIndex.emplace(name, _function->get_result_index(result));
     }
     for (auto&& parameter : _function->get_parameters()) {
         _inputIndex.emplace(parameter->get_friendly_name(), _function->get_parameter_index(parameter));
@@ -205,7 +206,7 @@ void TemplatePlugin::ExecutableNetwork::Export(std::ostream& modelStream) {
     // Note: custom ngraph extensions are not supported
     std::map<std::string, ngraph::OpSet> custom_opsets;
     std::stringstream xmlFile, binFile;
-    ngraph::pass::Serialize serializer(xmlFile, binFile, custom_opsets);
+    ov::pass::Serialize serializer(xmlFile, binFile, custom_opsets);
     serializer.run_on_function(_function);
 
     auto m_constants = binFile.str();
