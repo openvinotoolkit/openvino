@@ -33,6 +33,7 @@
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "transformations/rt_info/old_api_map_attribute.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
 
@@ -268,20 +269,39 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
         using namespace ov::preprocess;
         PrePostProcessor prepost;
 
-        auto iv_version_impl = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second);
-        OPENVINO_ASSERT(iv_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
-        const int64_t ir_version = iv_version_impl->get();
+        auto ir_version_impl = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second);
+        OPENVINO_ASSERT(ir_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
+        const int64_t ir_version = ir_version_impl->get();
 
         if (ir_version == 10 && newAPI) {
             const auto inputs = function->inputs();
             for (size_t i = 0; i < inputs.size(); ++i) {
                 const auto ngraph_type = inputs[i].get_element_type();
                 const auto legacy_type = details::toLegacyType(ngraph_type, true);
-                prepost.input(ov::preprocess::InputInfo(i)
-                                  .tensor(InputTensorInfo().set_element_type(legacy_type))
-                                  .preprocess(PreProcessSteps()
-                                                  // TODO: remove explicit type
-                                                  .convert_element_type(ngraph_type)));
+                prepost.input(ov::preprocess::InputInfo(i).tensor(InputTensorInfo().set_element_type(legacy_type)));
+            }
+
+            // in order to support the following scenarios for IR v10 cases:
+            // ov::Function f = ie.read_model(..);
+            // f.input("input_operation_name");
+            // f.output("output_operation_name");
+            // f.add_output("operation_name[].port_index]");
+            // f.reshape({ { "input_operation_name", ov::PartialShape{} } });
+            // we need to add operation names as tensor names for inputs and outputs
+            {
+                std::vector<std::string> result_names;
+                std::vector<ov::Output<ov::Node>> prevPorts;
+                result_names.reserve(function->get_results().size());
+                prevPorts.reserve(function->get_results().size());
+
+                for (const auto& result : function->get_results()) {
+                    result_names.emplace_back(ngraph::op::util::create_ie_output_name(result->input_value(0)));
+                    result->output(0).get_tensor().add_names({result_names.back()});
+                    prevPorts.emplace_back(result->input_value(0));
+                }
+                for (const auto& param : function->get_parameters()) {
+                    param->output(0).get_tensor().add_names({param->get_friendly_name()});
+                }
             }
 
             const auto outputs = function->outputs();
@@ -289,12 +309,13 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 const auto ngraph_type = outputs[i].get_element_type();
                 const auto legacy_type = details::toLegacyType(ngraph_type, false);
 
-                prepost.output(OutputInfo(i)
-                                   .postprocess(PostProcessSteps().convert_element_type())
-                                   .tensor(OutputTensorInfo().set_element_type(legacy_type)));
+                prepost.output(OutputInfo(i).tensor(OutputTensorInfo().set_element_type(legacy_type)));
             }
 
             function = prepost.build(function);
+
+            // Set version to 10
+            rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
         } else if (ir_version == 11 && !newAPI) {
             const std::string& old_api_map_key = ov::OldApiMap::get_type_info_static();
 
@@ -323,22 +344,14 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                     networkLayout << old_api_transpose_args[i];
                 }
 
-                PreProcessSteps steps;
-                // TODO: remove explicit type
-                steps.convert_element_type(parameter->get_element_type());
-                // TODO: move steps directly to builder once we allow Layout() -> Layout transpose
-                if (!old_api_transpose_args.empty())
-                    steps.convert_layout();
-
                 prepost.input(
                     ov::preprocess::InputInfo(i)
                         .tensor(
                             InputTensorInfo().set_element_type(old_api_type).set_layout(ov::Layout(tensorLayout.str())))
-                        .preprocess(std::move(steps))
                         .network(InputNetworkInfo().set_layout(ov::Layout(networkLayout.str()))));
 
-                // remove old api once we applied it
-                rtInfo.erase(it);
+                // Set version to 10
+                rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
             }
 
             auto& resuls = function->get_results();
@@ -368,7 +381,6 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
 
                 prepost.output(OutputInfo(i)
                                    .network(OutputNetworkInfo().set_layout(ov::Layout(networkLayout.str())))
-                                   .postprocess(PostProcessSteps().convert_layout().convert_element_type())
                                    .tensor(OutputTensorInfo()
                                                .set_element_type(old_api_type)
                                                .set_layout(ov::Layout(tensorLayout.str()))));
@@ -390,11 +402,6 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 result->set_layout({});
             }
         }
-    }
-
-    // need to remove information about IR version since it's needed only on read stage
-    if (is_ir) {
-        rt_info.erase(it);
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -419,7 +426,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
             OPENVINO_ASSERT(!newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
             return cnnnetwork;
         }
-        IE_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     // Fix unicode name

@@ -17,10 +17,11 @@ using namespace ov;
 namespace reference_tests {
 
 CommonReferenceTest::CommonReferenceTest(): targetDevice("TEMPLATE") {
-    core = ov::test::PluginCache::get().core(targetDevice);
+    core = test::utils::PluginCache::get().core(targetDevice);
 }
 
 void CommonReferenceTest::Exec() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     LoadNetwork();
     FillInputs();
     Infer();
@@ -63,7 +64,7 @@ void CommonReferenceTest::Infer() {
 }
 
 void CommonReferenceTest::Validate() {
-    ASSERT_EQ(executableNetwork.get_results().size(), refOutData.size());
+    ASSERT_EQ(executableNetwork.outputs().size(), refOutData.size());
     std::vector<ov::runtime::Tensor> outputs;
     for (const auto& result : function->get_results()) {
         auto name = ngraph::op::util::create_ie_output_name(result->input_value(0));
@@ -95,6 +96,11 @@ void CommonReferenceTest::ValidateBlobs(const ov::runtime::Tensor& refBlob, cons
     case ov::element::f32:
         LayerTestsUtils::LayerTestsCommon::Compare<float, float>(
             refBlob.data<const float>(), outBlob.data<const float>(),
+            refBlob.get_size(), threshold, abs_threshold);
+        break;
+    case ov::element::f64:
+        LayerTestsUtils::LayerTestsCommon::Compare<double, double>(
+            refBlob.data<const double>(), outBlob.data<const double>(),
             refBlob.get_size(), threshold, abs_threshold);
         break;
     case ov::element::i8:
