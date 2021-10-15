@@ -36,7 +36,7 @@
    :hidden:
    :caption: Configuration for Hardware
    
-   Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux*<openvino_docs_install_guides_installing_openvino_linux_ivad_vpu>
+   Configure Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux*<openvino_docs_install_guides_installing_openvino_linux_ivad_vpu>
    Intel® Movidius™ VPUs Setup Guide <openvino_docs_install_guides_movidius_setup_guide>
    Intel® Movidius™ VPUs Programming Guide <openvino_docs_install_guides_movidius_programming_guide>
    

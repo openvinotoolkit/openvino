@@ -83,7 +83,7 @@ Options to find a model suitable for the OpenVINO™ toolkit:
   
 This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You can use one of the following commands to find a model:
 
-### **List the models available in the downloader**
+### List the models available in the downloader
 
 @sphinxdirective
 .. tab:: Linux
@@ -109,7 +109,7 @@ This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You 
 
 @endsphinxdirective
 
-### **Use `grep` to list models that have a specific name pattern**
+### Use `grep` to list models that have a specific name pattern
 
 ``` sh
    python3 info_dumper.py --print_all | grep <model_name>
@@ -151,10 +151,10 @@ Download the following models to run the Image Classification Sample and Securit
 @sphinxdirective
 .. raw:: html
 
-   <div class="collapsible-section">
+   <div class="collapsible-section" data-title="Click for an example of downloading the SqueezeNet Caffe* model">
 
 @endsphinxdirective
-**Click for an example of downloading the SqueezeNet Caffe* model**
+
 To download the SqueezeNet 1.1 Caffe* model to the `models` folder:
 
 @sphinxdirective
@@ -239,10 +239,9 @@ Your screen looks similar to this after the download and shows the paths of down
 @sphinxdirective
 .. raw:: html
 
-   <div class="collapsible-section">
+   <div class="collapsible-section" data-title="Click for an example of downloading models for the Security Barrier Camera Demo application">
 
 @endsphinxdirective
-**Click for an example of downloading models for the Security Barrier Camera Demo application**
 
 To download all three pre-trained models in FP16 precision to the `models` folder in your home folder:
 
@@ -357,7 +356,7 @@ Your screen looks similar to this after the download:
 
 @endsphinxdirective
 
-### Step 2: <a name="convert-models-to-intermediate-representation">Convert the Model with Model Optimizer</a>
+## <a name="convert-models-to-intermediate-representation"></a>Step 2: Convert the Model with Model Optimizer
 
 In this step, your trained models are ready to run through the Model Optimizer to convert them to the IR (Intermediate Representation) format. For most model types, this is required before using the Inference Engine with the model.
 
@@ -450,7 +449,7 @@ The command with most placeholders filled in and FP16 precision:
 
 @endsphinxdirective
 
-### <a name="download-media"></a> Step 3: Download a Video or Still Photo as Media
+## <a name="download-media"></a> Step 3: Download a Video or Still Photo as Media
 
 Many sources are available from which you can download video media to use the code samples and demo applications. Possibilities include:
 
@@ -482,9 +481,9 @@ As an alternative, the Intel® Distribution of OpenVINO™ toolkit includes seve
 
 @endsphinxdirective
 
-### <a name="run-image-classification"></a>Step 4: Run Inference on the Sample
+## <a name="run-image-classification"></a>Step 4: Run Inference on the Sample
 
-#### Run the Image Classification Code Sample
+### Run the Image Classification Code Sample
 
 To run the **Image Classification** code sample with an input image using the IR model:
 
@@ -558,10 +557,9 @@ To run the **Image Classification** code sample with an input image using the IR
 @sphinxdirective
 .. raw:: html
 
-   <div class="collapsible-content">
+   <div class="collapsible-section" data-title="Click for examples of running the Image Classification code sample on different devices">
 
 @endsphinxdirective
-**Click for examples of running the Image Classification code sample on different devices**
 
 The following commands run the Image Classification Code Sample using the `car.png` file from the `demo` directory as an input image, the model in IR format from the `ir` directory, and on different hardware devices:
 
@@ -588,7 +586,7 @@ The following commands run the Image Classification Code Sample using the `car.p
 @endsphinxdirective
 
    **GPU:**
-   >**NOTE**: Running inference on Intel® Processor Graphics (GPU) requires 
+   > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires 
     [additional hardware configuration steps](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html#additional-GPU-steps), as described earlier on this page. Running on GPU is not compatible with macOS*.
 
 @sphinxdirective
@@ -607,8 +605,7 @@ The following commands run the Image Classification Code Sample using the `car.p
 @endsphinxdirective
 
    **MYRIAD:**
-
-   >**NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute
+   > **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute
    Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires 
     [additional hardware configuration steps](inference-engine/README.md#optional-additional-installation-steps-for-the-intel-movidius-neural-compute-stick-and-neural-compute-stick-2), as described earlier on this page.
 
@@ -720,7 +717,7 @@ When the sample application is complete, you see the label and confidence for th
 
 @endsphinxdirective
 
-#### <a name="run-security-barrier"></a>Run the Security Barrier Camera Demo Application
+### <a name="run-security-barrier"></a>Run the Security Barrier Camera Demo Application
 
 To run the **Security Barrier Camera Demo Application** using an input image on the prepared IR models:
 
@@ -793,10 +790,9 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
 @sphinxdirective
 .. raw:: html
 
-   <div class="collapsible-content">
+   <div class="collapsible-section" data-title="Click for examples of running the Security Barrier Camera demo application on different devices">
 
 @endsphinxdirective
-**Click for examples of running the Security Barrier Camera demo application on different devices**
 
 **CPU:**
 @sphinxdirective
@@ -821,8 +817,7 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
 @endsphinxdirective
 
 **GPU:**
->**NOTE**: Running inference on Intel® Processor Graphics (GPU) requires 
-    [additional hardware configuration steps](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html#additional-GPU-steps), as described earlier on this page. Running on GPU is not compatible with macOS*.
+> **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires [additional hardware configuration steps](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html#additional-GPU-steps), as described earlier on this page. Running on GPU is not compatible with macOS*.
 
 @sphinxdirective
 .. tab:: Linux
@@ -837,7 +832,7 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
 
       .\security_barrier_camera_demo.exe -i <INSTALL_DIR>\deployment_tools\demo\car_1.bmp -m <path_to_model>/vehicle-license-plate-detection-barrier-0106.xml -m_va <path_to_model>/vehicle-attributes-recognition-barrier-0039.xml -m_lpr <path_to_model>/license-plate-recognition-barrier-0001.xml -d GPU
 
-.. tab:: MacOS
+.. tab:: macOS
 
    .. code-block:: sh
 
@@ -846,9 +841,7 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
 @endsphinxdirective
 
 **MYRIAD:**
-   >**NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute
-   Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires
-    [additional hardware configuration steps](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html#additional-NCS-steps), as described earlier on this page.
+> **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires     [additional hardware configuration steps](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html#additional-NCS-steps), as described earlier on this page.
 
 @sphinxdirective
 .. tab:: Linux
@@ -864,531 +857,6 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
       .\security_barrier_camera_demo.exe -i <INSTALL_DIR>\deployment_tools\demo\car_1.bmp -m <path_to_model>/vehicle-license-plate-detection-barrier-0106.xml -m_va <path_to_model>/vehicle-attributes-recognition-barrier-0039.xml -m_lpr <path_to_model>/license-plate-recognition-barrier-0001.xml -d MYRIAD
 
 @endsphinxdirective
-
-@sphinxdirective
-.. raw:: html
-
-   </div>
-
-@endsphinxdirective
-
-## Exercises
-
-The following exercises will guide you through using samples with gradually less specific help. As you move through each exercise, you will get a sense of how to use OpenVINO™ in more sophisticated use cases.
-
-In these exercises, you will:
-
-1. Convert and optimize a neural network model to work on Intel® hardware.
-2. Run computer vision applications using optimized models and appropriate media.
-
-   - During optimization with the DL Workbench™, a subset of ImageNet* and VOC* images are used.
-   - When running samples, we'll use an image or video file located on this system.
-
-> **NOTE**: Before starting these sample exercises, change directories into the samples directory:
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      cd ~/omz_demos_build/intel64/Release
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      cd C:\Users\<USER_ID>\Documents\Intel\OpenVINO\inference_engine_demos_build\intel64\Release
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      cd ~/omz_demos_build/intel64/Release
-
-@endsphinxdirective
-
-> **NOTE**: During this exercise you will move to multiple directories and occasionally copy files so that you don't have to specify full paths in commands. You are welcome to set up environment variables to make these tasks easier, but we leave that to you.
-
-> **REMEMBER**: When using OpenVINO™ from the command line, you must set up your environment whenever you change users or launch a new terminal.
-
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      source /opt/intel/openvino/bin/setupvars.sh
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      <INSTALL_DIR>\bin\setupvars.bat
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      source /opt/intel/openvino/bin/setupvars.sh
-
-@endsphinxdirective
-
-@sphinxdirective
-.. raw:: html
-	      
-   <div class="collapsible-section">
-
-@endsphinxdirective
-
-### Exercise 1: Run A Sample Application
-
-Convert a model using the Model Optimizer, then use a sample application to load the model and run inference. In this section, you will convert an FP32 model suitable for running on a CPU.
-
-**Prepare the Software Environment**
-
-1. Set up the environment variables when logging in, changing users, or launching a new terminal. (Details above.)
-
-2. Make a destination directory for the FP32 SqueezeNet* Model:
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      mkdir ~/squeezenet1.1_FP32
-      cd ~/squeezenet1.1_FP32
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      mkdir C:\Users\<USER_ID>\Documents\squeezenet1.1_FP32
-      cd C:\Users\<USER_ID>\Documents\squeezenet1.1_FP32
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      mkdir ~/squeezenet1.1_FP32
-      cd ~/squeezenet1.1_FP32
-
-@endsphinxdirective
-
-*\*Convert and Optimize a Neural Network Model from Caffe*
-
-Use the Model Optimizer to convert a SqueezeNet* Caffe* model into an optimized Intermediate Representation (IR):
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      python3 /opt/intel/openvino/deployment_tools/model_optimizer/mo.py --input_model ~/models/public/squeezenet1.1/squeezenet1.1.caffemodel --data_type FP32 --output_dir .
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      python <INSTALL_DIR>\deployment_tools\model_optimizer\mo.py --input_model C:\Users\<USER_ID>\Documents\models\public\squeezenet1.1\squeezenet1.1.caffemodel --data_type FP32 --output_dir .
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      python3 <INSTALL_DIR>/openvino/deployment_tools/model_optimizer/mo.py --input_model ~/models/public/squeezenet1.1/squeezenet1.1.caffemodel --data_type FP32 --output_dir .
-
-@endsphinxdirective
-
-**Prepare the Data (Media) or Dataset**
-
-> **NOTE**: In this case, we are using a single image.
-
-1. Copy the labels file to the same location as the IR model.
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      cp /opt/intel/openvino/deployment_tools/demo/squeezenet1.1.labels .
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      copy <INSTALL_DIR>\deployment_tools\demo\squeezenet1.1.labels .
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      cp /opt/intel/openvino/deployment_tools/demo/squeezenet1.1.labels .
-
-@endsphinxdirective
-
-> **Tip:** The labels file contains the classes used by this SqueezeNet* model. If it's in the same directory as the model, the inference results will show text in addition to confidence percentages.
-  
-2. Copy a sample image to the current directory. You will use this with your optimized model:
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      cp /opt/intel/openvino/deployment_tools/demo/car.png .
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      copy <INSTALL_DIR>\deployment_tools\demo\car.png .
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      cp /opt/intel/openvino/deployment_tools/demo/car.png .
-
-@endsphinxdirective
-
-**Run the Sample Application**
-
-Once your setup is complete, you're ready to run a sample application:
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      ~/inference_engine_samples_build/intel64/Release/classification_sample_async -i car.png -m ~/squeezenet1.1_FP32/squeezenet1.1.xml -d CPU
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      C:\Users\<USER_ID>\Documents\Intel\OpenVINO\inference_engine_samples_build\intel64\Release\classification_sample_async.exe -i car.png -m C:\Users\<USER_ID>\Documents\squeezenet1.1_FP32\squeezenet1.1.xml -d CPU
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      ~/inference_engine_samples_build/intel64/Release/classification_sample_async -i car.png -m ~/squeezenet1.1_FP32/squeezenet1.1.xml -d CPU
-
-@endsphinxdirective
-
-> **NOTE**: You can usually see an application's help information (parameters, etc.) by using the -h option.
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      ~/inference_engine_samples_build/intel64/Release/classification_sample_async -h
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      C:\Users\<USER_ID>\Documents\Intel\OpenVINO\inference_engine_samples_build\intel64\Release\classification_sample_async.exe -h
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      ~/inference_engine_samples_build/intel64/Release/classification_sample_async -h
-
-@endsphinxdirective
-
-@sphinxdirective
-.. raw:: html
-
-   </div>
-
-@endsphinxdirective
-
-@sphinxdirective
-.. raw:: html
-
-   <div class="collapsible-section">
-
-@endsphinxdirective
-
-### Exercise 2: Human Pose Estimation
-
-This demo detects people and draws stick figures to show limb positions. This model has already been converted for use with the Intel® Distribution of OpenVINO™ toolkit.
-
-- Requires downloading the human-pose-estimation-0001 (ICV) Model
-- Requires video or camera input
-
-Example Syntax:
-
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      ./human_pose_estimation_demo -i <path_to_your_video.mp4> -m <pose_model_path>/human-pose-estimation-0001.xml -d CPU
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      .\human_pose-estimation_demo.exe -i <path_to_your_video.mp4> -m <pose_model_path>\human-pose-estimation-0001.xml -d CPU
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      ./human_pose_estimation_demo -i <path_to_your_video.mp4> -m <pose_model_path>/human-pose-estimation-0001.xml -d CPU
-
-@endsphinxdirective
-
-**Steps to Run the Human Pose Demo:**
-
-1. Set up the environment variables:
-
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      source /opt/intel/openvino/bin/setupvars.sh
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      <INSTALL_DIR>\openvino\bin\setupvars.bat
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      source /opt/intel/openvino/bin/setupvars.sh
-
-@endsphinxdirective
-
-2. Move to the Model Downloader Directory:
-
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      cd /opt/intel/openvino/deployment_tools/tools/model_downloader/
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      cd <INSTALL_DIR>\deployment_tools\tools\model_downloader\
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      cd /opt/intel/openvino/deployment_tools/tools/model_downloader/
-
-@endsphinxdirective  
-
-3. Find a suitable model:
-
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      python3 info_dumper.py --print_all | grep pose
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      python info_dumper.py --print_all | grep pose
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      python3 info_dumper.py --print_all | grep pose
-
-@endsphinxdirective  
-
-**Note:** `info_dumper.py` is a script that can list details about every model available in the Intel® Model Zoo.
-
-4. Download the model:
-
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      python3 downloader.py --name human-pose*
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      python downloader.py --name human-pose*
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      python3 downloader.py --name human-pose*
-
-@endsphinxdirective
-
-5. Move the model to a more convenient location:
-
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      mkdir ~/ir
-      cp /opt/intel/openvino/deployment_tools/tools/model_downloader/intel/human-pose-estimation-0001/FP32/human-pose-estimation-0001* ~/ir/
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      mkdir C:\Users\<USER_ID>\Documents\ir
-      copy <INSTALL_DIR>\deployment_tools\tools\model_downloader\intel\human-pose-estimation-0001\FP32\human-pose-estimation-0001* C:\Users\<USER_ID>\Documents\ir
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      mkdir ~/ir
-      cp /opt/intel/openvino/deployment_tools/tools/model_downloader/intel/human-pose-estimation-0001/FP32/human-pose-estimation-0001* ~/ir/
-
-@endsphinxdirective
-
-6. Download an appropriate video.
-   Browse to the following URL and download the video:
-   [https://www.pexels.com/video/couple-dancing-on-sunset-background-2035509/]()
-
-@sphinxdirective
-.. tab:: Linux
-
-   Rename the video for convenience:
-   .. code-block:: sh
-
-      mv ~/Downloads/Pexels\ Videos\ 2035509.mp4 ~/Videos/hum-pose.mp4
-
-.. tab:: Windows
-
-   Rename the video for convenience:
-   .. code-block:: bat
-
-      ren "C:\Users\<USER_ID>\Downloads\Pexels Videos 2035509.mp4" C:\Users\<USER_ID>\Videos\hum-pose.mp4
-
-.. tab:: macOS
-
-   Rename the video for convenience:
-   .. code-block:: sh
-
-      mv ~/Downloads/Pexels\ Videos\ 2035509.mp4 ~/Videos/hum-pose.mp4
-
-@endsphinxdirective
-
-7. Run the sample:
-        
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      cd ~/omz_demos_build/intel64/Release/
-      ./human_pose_estimation_demo -i ~/Videos/hum-pose.mp4 -m ~/ir/human-pose-estimation-0001.xml -d CPU
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      cd C:\Users\<USER_ID>\Documents\Intel\OpenVINO\inference_engine_demos_build\intel64\Release
-      human_pose_estimation_demo.exe -i C:\Users\<USER_ID>\Videos\hum-pose.mp4 -m C:\Users\<USER_ID>\Documents\ir\human-pose-estimation-0001.xml -d CPU
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      cd ~/omz_demos_build/intel64/Release/
-      ./human_pose_estimation_demo -i ~/Videos/hum-pose.mp4 -m ~/ir/human-pose-estimation-0001.xml -d CPU
-
-@endsphinxdirective
-
-@sphinxdirective
-.. raw:: html
-
-   </div>
-
-@endsphinxdirective
-
-@sphinxdirective
-.. raw:: html
-	      
-   <div class="collapsible-section">
-
-@endsphinxdirective
-### Exercise 3: Interactive Face Detection
-	
-The Face Detection demo draws bounding boxes around faces, and optionally feeds the output of the primary model to additional models. The model has already been converted for use with OpenVINO™. 
-
-This demo supports face detection, plus optional functions:
-
-- Age-gender recognition
-- Emotion recognition
-- Head pose
-- Facial landmark display
-
-Example syntax:
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      interactive_face_detection_demo -i <path_to_your_video> -m <path_to_your_model> -d CPU
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      interactive_face_detection_demo.exe -i <path_to_your_video> -m <path_to_your_model> -d CPU
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      interactive_face_detection_demo -i <path_to_your_video> -m <path_to_your_model> -d CPU
-
-@endsphinxdirective
-   
-Steps:
-
-1. Find and download an appropriate face detection model. There are several available in the Intel® Model Zoo.
-    - You can access the [Pretrained Models](https://software.intel.com/en-us/openvino-toolkit/documentation/pretrained-models) page from the OpenVINO™ documentation to review model options.
-    - You may need to try out different models to find one that works, or that works best for your scenario.
-2. Find and download a video that features faces.
-3. Run the demo with just the face detection model.
-4. **OPTIONAL:** Run the demo using additional models (age, gender, emotion recognition, head pose, etc.).
-    Note that when you use multiple models, there is always a primary model, followed by a number of optional models that use the output from the initial model.
-
-@sphinxdirective
-.. raw:: html
-
-   </div>
-
-@endsphinxdirective
-
-@sphinxdirective
-.. raw:: html
-	      
-   <div class="collapsible-section">
-
-@endsphinxdirective
-### Exercise 4: DL Streamer
-	
-The DL Streamer is a command-line tool and API for integrating OpenVINO into a media analytics pipeline.  It supports OpenVINO, GStreamer, Mosquitto, Kafka, and a variety of other technologies.
-
-Follow the links below, read through the documentation, then do the tutorial.
-
-[DL Streamer Samples](@ref gst_samples_README)
-[DL Streamer API](https://openvinotoolkit.github.io/dlstreamer_gst)
-[DL Streamer Tutorial](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/DL-Streamer-Tutorial)
 
 @sphinxdirective
 .. raw:: html

@@ -45,7 +45,6 @@ Optimized for these processors:
 - Ubuntu 18.04.x long-term support (LTS), 64-bit
 - Ubuntu 20.04.0 long-term support (LTS), 64-bit
 - CentOS 7.6, 64-bit (for deployment only, not development)
-- Yocto Project v3.0, 64-bit (for deployment only and requires modifications)
 - For deployment on Red Hat* Enterprise Linux* 8.2 (64 bit), you can use the Intel® Distribution of OpenVINO™ toolkit runtime package that includes the Inference Engine core libraries, nGraph, OpenCV, Python bindings, and CPU and GPU plugins. The package is available as: 
    - [Downloadable archive](https://storage.openvinotoolkit.org/repositories/openvino/packages/2021.4.1/l_openvino_toolkit_runtime_rhel8_p_2021.4.689.tgz)
    - [PyPi package](https://pypi.org/project/openvino/)
@@ -62,10 +61,10 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    - <a href="#additional-GPU-steps">Steps for Intel® Processor Graphics (GPU)</a>
    - <a href="#additional-NCS-steps">Steps for Intel® Neural Compute Stick 2</a>
    - <a href="#install-VPU">Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPU</a><br>
-   After installing your Intel® Movidius™ VPU, you will return to this guide to complete OpenVINO™ installation.<br>   
+   After installing your Intel® Movidius™ VPU, you will return to this guide to complete OpenVINO™ installation.   
 5. <a href="#get-started">Start Using the Toolkit</a>
 
-- [Steps to uninstall the Intel® Distribution of OpenVINO™ Toolkit](../install_guides/uninstalling-openvino.md)
+- [Steps to uninstall the Intel® Distribution of OpenVINO™ Toolkit](uninstalling-openvino.md)
 
 ## <a name="install-openvino"></a>Step 1: Install the Intel® Distribution of OpenVINO™ Toolkit Core Components
 
