@@ -74,10 +74,7 @@ class GatherND(Op):
         for i in range(batch_dims):
             batch_dims_size *= indices_shape[i]
 
-        if indices_shape[-1] == len(data_shape) - batch_dims:
-            output_shape = batch + list(indices_shape)[batch_dims:-1]
-        else:
-            output_shape = batch + list(indices_shape)[batch_dims:-1] + slice_shape
+        output_shape = batch + list(indices_shape)[batch_dims:-1] + slice_shape
         node.out_port(0).data.set_shape(output_shape)
 
         # compute output value if all input values are defined
