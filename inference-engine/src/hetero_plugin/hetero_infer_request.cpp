@@ -36,13 +36,14 @@ HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInp
         bool emplaced = false;
         std::tie(itBlob, emplaced) = _blobs.emplace(intermediateBlobName, Blob::Ptr{});
         if (emplaced) {
-            itBlob->second = r->GetBlob(blobName);
             if (InferenceEngine::details::contains(_networkInputs, blobName)) {
-                _inputs[blobName] = itBlob->second;
                 _subRequestFromBlobName.emplace(blobName, r._ptr.get());
+                _blobs.erase(intermediateBlobName);
             } else if (InferenceEngine::details::contains(_networkOutputs, blobName)) {
-                _outputs[blobName] = itBlob->second;
                 _subRequestFromBlobName.emplace(blobName, r._ptr.get());
+                _blobs.erase(intermediateBlobName);
+            } else {
+                itBlob->second = r->GetBlob(blobName);
             }
         } else {
             r->SetBlob(blobName, itBlob->second);
