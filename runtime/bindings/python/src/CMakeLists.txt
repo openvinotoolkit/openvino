@@ -4,7 +4,6 @@
 
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage REQUIRED)
-    find_package(OpenVINO REQUIRED)
 endif()
 
 add_subdirectory(compatibility)

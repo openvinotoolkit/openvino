@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pyopenvino/core/ie_offline_transformations.hpp"
+#include "pyopenvino/core/offline_transformations.hpp"
 
 #include <pybind11/stl.h>
 

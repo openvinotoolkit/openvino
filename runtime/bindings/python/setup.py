@@ -161,7 +161,6 @@ class BuildCMakeExt(build_ext):
         ov_build_dir = os.path.join(OPENVINO_ROOT_DIR, "build")
         self.spawn(["cmake", "-S" + root_dir, "-B" + self.build_temp,
                     f"-DCMAKE_BUILD_TYPE={self.config}",
-                    f"-DInferenceEngine_DIR={ov_build_dir}",
                     f"-DInferenceEngineDeveloperPackage_DIR={ov_build_dir}",
                     "-DENABLE_PYTHON=ON",
                     "-DNGRAPH_ONNX_FRONTEND_ENABLE=ON"] + ext_args)
