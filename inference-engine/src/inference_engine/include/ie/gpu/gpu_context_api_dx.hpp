@@ -154,13 +154,19 @@ static inline Blob::Ptr make_shared_blob_nv12(size_t height,
  * @param core Inference Engine Core object instance
  * @param deviceName A name of to create a remote context for
  * @param device A pointer to ID3D11Device to be used to create a remote context
+ * @param target_tile_id Desired tile id within given context for multi-tile system. Default value (-1) means that root
+ * device should be used
  * @return A shared remote context instance
  */
-static inline D3DContext::Ptr make_shared_context(Core& core, std::string deviceName, ID3D11Device* device) {
+static inline D3DContext::Ptr make_shared_context(Core& core,
+                                                  std::string deviceName,
+                                                  ID3D11Device* device,
+                                                  int target_tile_id = -1) {
     // clang-format off
     ParamMap contextParams = {
         {GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
-        {GPU_PARAM_KEY(VA_DEVICE), static_cast<gpu_handle_param>(device)}
+        {GPU_PARAM_KEY(VA_DEVICE), static_cast<gpu_handle_param>(device)},
+        {GPU_PARAM_KEY(TILE_ID), target_tile_id}
     };
     // clang-format on
     return std::dynamic_pointer_cast<D3DContext>(core.CreateContext(deviceName, contextParams));
