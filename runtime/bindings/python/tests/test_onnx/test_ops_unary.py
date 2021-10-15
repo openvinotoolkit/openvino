@@ -486,3 +486,34 @@ def test_constant_err():
 
     ng_results = run_node(node, [])
     assert np.allclose(ng_results, [values])
+
+
+@pytest.mark.parametrize(
+    "shape, shift",
+    [
+        ((4, 4), 0),
+        ((4, 4), 1),
+        ((4, 4), -1),
+        ((4, 4), 2),
+        ((4, 4), -2),
+        ((4, 4), 3),
+        ((4, 4), -3),
+        ((3, 4), 0),
+        ((3, 4), 1),
+        ((3, 4), -1),
+        ((3, 4), 2),
+        ((3, 4), -2),
+        ((5, 3), 0),
+        ((5, 3), 1),
+        ((5, 3), -1),
+        ((5, 3), 2),
+        ((5, 3), -2),
+    ],
+)
+def test_eye_like(shape, shift):
+    input_tensor = np.arange(np.prod(shape)).reshape(shape)
+
+    node = onnx.helper.make_node("EyeLike", inputs=["x"], outputs=["y"], k=shift)
+    result = run_node(node, [input_tensor])[0]
+
+    assert np.allclose(result, np.eye(shape[0], shape[1], k=shift))
