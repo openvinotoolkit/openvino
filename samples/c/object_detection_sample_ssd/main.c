@@ -624,9 +624,9 @@ int main(int argc, char** argv) {
     printf("%sCreate infer request\n", info);
     status = ie_exec_network_create_infer_request(exe_network, &infer_request);
     if (status != OK) {
-            fprintf(stderr, "ERROR ie_exec_network_create_infer_request status %d, line %d\n", status, __LINE__);
-            goto err;
-        }
+        fprintf(stderr, "ERROR ie_exec_network_create_infer_request status %d, line %d\n", status, __LINE__);
+        goto err;
+    }
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- Step 6. Prepare input
