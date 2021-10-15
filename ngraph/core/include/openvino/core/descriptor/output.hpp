@@ -53,10 +53,10 @@ public:
     Tensor& get_tensor() const;
 
     RTMap& get_rt_info() {
-        return m_rt_info;
+        return m_tensor->get_rt_info();
     }
     const RTMap& get_rt_info() const {
-        return m_rt_info;
+        return m_tensor->get_rt_info();
     }
     /// \return the shape of the output
     const Shape& get_shape() const;
@@ -75,7 +75,6 @@ protected:
     Node* m_node;
     size_t m_index;
     std::shared_ptr<Tensor> m_tensor;
-    RTMap m_rt_info;
     std::vector<Input*> m_inputs;
 };
 }  // namespace descriptor
