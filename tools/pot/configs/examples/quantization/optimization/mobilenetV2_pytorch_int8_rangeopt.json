@@ -1,0 +1,47 @@
+{
+    "model": {
+        "model_name": "mobilenetv2",
+        "model": "<MODEL_PATH>",
+        "weights": "<PATH_TO_WEIGHTS>"
+    },
+    "engine": {
+        "config": "./configs/examples/accuracy_checker/mobilenet_v2.yaml"
+    },
+    "compression": {
+        "algorithms": [
+            {
+                "name": "MinMaxQuantization",
+                "params": {
+                    "preset": "mixed",
+                    "stat_subset_size": 1000,
+                    "weights": {
+                        "bits": 8,
+                        "mode": "asymmetric",
+                        "granularity": "perchannel"
+                    },
+                    "activations": {
+                        "bits": 8,
+                        "mode": "asymmetric",
+                        "granularity": "pertensor"
+                    }
+                }
+            },
+            {
+                "name": "RangeOptimization",
+                "params": {
+                    "stat_subset_size": 5000,
+                    "result_filename": "rangeopt_results.csv",
+                    "lower_boxsize": 0.1,
+                    "upper_boxsize": 0.1,
+                    "maxiter": 1500,
+                    "optimization_scope": ["317", "315"],
+                    "metric_name": "accuracy@top1",
+                    "opt_backend": "nevergrad",
+                    "optimizer_name": "CMA"
+                    // use the below option to validate range values
+                    // "activation_ranges_to_set": {"317": [-0.0380698, 2.35978142]}
+                }
+            }
+        ]
+    }
+}

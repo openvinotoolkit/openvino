@@ -1,0 +1,31 @@
+models:
+  - name: ssd-mobilenetv1
+
+    launchers:
+      - framework: dlsdk
+        device: CPU
+        adapter: ssd
+        batch: 1
+
+    datasets:
+      - name: classification_dataset
+        data_source: <PATH TO VALIDATION DATASET>/VOC2007/JPEGImages
+        annotation_conversion:
+            converter: "voc_detection"
+            annotations_dir: <PATH TO VALIDATION DATASET>/VOC2007/Annotations
+            images_dir: <PATH TO VALIDATION DATASET>/VOC2007/JPEGImages
+            imageset_file: <PATH TO VALIDATION DATASET>/VOC2007/ImageSets/Main/test.txt
+            has_background: true
+
+        preprocessing:
+          - type: resize
+            size: 300
+    
+        postprocessing:
+          - type: resize_prediction_boxes
+
+        metrics:
+          - type: map
+            integral: 11point
+            ignore_difficult: true
+            presenter: print_scalar

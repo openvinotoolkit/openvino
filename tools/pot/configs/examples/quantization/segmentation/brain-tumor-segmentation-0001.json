@@ -1,0 +1,49 @@
+{
+    "model": {
+        "model_name": "brain-tumor-segmentation-0001",
+        "model": "<MODEL_PATH>",
+        "weights": "<PATH_TO_WEIGHTS>"
+    },
+    "engine": {
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "adapter": {
+                    "type": "brain_tumor_segmentation"
+                }
+
+            }
+        ],
+        "datasets": [
+            {
+                "name": "BraTS",
+                "data_source": "<PATH_TO_DATASET>",
+                "annotation_conversion": {
+                    "converter": "brats_numpy",
+                    "data_dir": "<PATH_TO_DATASET>",
+                    "ids_file": "<PATH_TO_IDS_FILE>",
+                    "labels_file": "<PATH_TO_LABELS_FILE>"
+                },
+                "reader": "numpy_reader",
+                "metrics": [
+                    {
+                        "type": "dice_index",
+                        "median": true,
+                        "presenter": "print_vector"
+                    }
+                ]
+            }
+        ]
+    },
+    "compression": {
+        "algorithms": [
+            {
+                "name": "DefaultQuantization",
+                "params": {
+                    "stat_subset_size": 72,
+                    "preset": "performance"
+                }
+            }
+        ]
+    }
+}

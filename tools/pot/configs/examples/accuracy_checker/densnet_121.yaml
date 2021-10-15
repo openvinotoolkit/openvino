@@ -1,0 +1,29 @@
+models:
+  - name: DensNet-121
+
+    launchers:
+      - framework: dlsdk
+        device: CPU
+        adapter: classification
+
+    datasets:
+      - name: classification_dataset
+        data_source: <PATH TO VALIDATION DATASET>
+        annotation_conversion:
+          converter: imagenet
+          annotation_file: <PATH TO ANNOTATION FILE>
+
+        preprocessing:
+          - type: resize
+            size: 256
+          - type: crop
+            size: 224
+
+        metrics:
+          - name: accuracy@top1
+            type: accuracy
+            top_k: 1
+
+          - name: accuracy@top5
+            type: accuracy
+            top_k: 5

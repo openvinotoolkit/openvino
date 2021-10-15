@@ -1,0 +1,59 @@
+{
+    "model": {
+        "model_name": "mobilenet-ssd",
+        "model": "<MODEL_PATH>",
+        "weights": "<PATH_TO_WEIGHTS>"
+    },
+    "engine": {
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": "ssd"
+            }
+        ],
+        "datasets": [
+            {
+                "name": "VOC2007",
+                "data_source": "<PATH TO VALIDATION DATASET>/VOC2007/JPEGImages",
+                "annotation_conversion": {
+                    "converter": "voc_detection",
+                    "annotations_dir": "<PATH TO VALIDATION DATASET>/VOC2007/Annotations",
+                    "images_dir": "<PATH TO VALIDATION DATASET>/VOC2007/JPEGImages",
+                    "imageset_file": "<PATH TO VALIDATION DATASET>/VOC2007/ImageSets/Main/test.txt"
+                },
+                "preprocessing":[
+                    {
+                        "type": "resize",
+                        "size": 300
+                    }
+                ],
+                "postprocessing":[{
+                    "type": "resize_prediction_boxes"
+                }],
+                "metrics": [
+                    {
+                        "type": "map",
+                        "integral": "11point",
+                        "ignore_difficult": true,
+                        "presenter": "print_scalar"
+                    }
+                ]
+            }
+        ]
+    },
+    "compression": {
+        "algorithms": [
+            {
+                "name": "MinMaxQuantization",
+                "params": {
+                    "preset": "mixed",
+                    "range_estimator": {
+                        "preset": "quantile"
+                    },
+                    "stat_subset_size": 1000
+                }
+            }
+        ]
+    }
+}

@@ -1,0 +1,26 @@
+{
+  "model": {
+    "model_name": "east",
+    "model": "<MODEL_PATH>",
+    "weights": "<WEIGHTS_PATH>"
+  },
+  "engine": {
+    "config": "./configs/examples/accuracy_checker/east_resnet_v1_50.yaml"
+  },
+  "compression": {
+    "algorithms": [
+      {
+        "name": "DefaultQuantization",
+        "params": {
+          "ignored": {
+            "scope": [
+              "feature_fusion/Conv_4/Conv2D"
+            ]
+          },
+          "preset": "performance",
+          "stat_subset_size": 300
+        }
+      }
+    ]
+  }
+}

@@ -56,3 +56,6 @@
 [submodule "thirdparty/onednn_gpu"]
 	path = thirdparty/onednn_gpu
 	url = https://github.com/oneapi-src/oneDNN.git
+[submodule "tools/pot/thirdparty/open_model_zoo"]
+	path = tools/pot/thirdparty/open_model_zoo
+	url = https://github.com/openvinotoolkit/open_model_zoo.git
