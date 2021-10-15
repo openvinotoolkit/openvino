@@ -67,6 +67,7 @@
 #include <ngraph/runtime/reference/selu.hpp>
 #include <ngraph/runtime/reference/sequences.hpp>
 #include <ngraph/runtime/reference/sign.hpp>
+#include <ngraph/runtime/reference/slice.hpp>
 #include <ngraph/runtime/reference/squared_difference.hpp>
 #include <ngraph/runtime/reference/tensor_iterator.hpp>
 #include <ngraph/runtime/reference/utils/nms_common.hpp>
@@ -1477,6 +1478,43 @@ bool evaluate(const shared_ptr<op::v1::AvgPool>& op, const HostTensorVector& out
                                     op->get_pads_begin(),
                                     op->get_pads_end(),
                                     !op->get_exclude_pad());
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const std::shared_ptr<op::v8::Slice>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    OPENVINO_ASSERT(inputs.size() >= 4, "Slice evaluate needs at least 4 inputs.");
+    std::vector<int64_t> starts = host_tensor_2_vector<int64_t>(inputs[1]);
+    std::vector<int64_t> stops = host_tensor_2_vector<int64_t>(inputs[2]);
+    std::vector<int64_t> steps = host_tensor_2_vector<int64_t>(inputs[3]);
+
+    std::vector<int64_t> axes(starts.size());
+    if (inputs.size() < 5) {
+        std::iota(axes.begin(), axes.end(), 0);
+    } else {
+        axes = host_tensor_2_vector<int64_t>(inputs[4]);
+    }
+
+    // Static HostTensor data shape is needed to clamp and normalize `start` values
+    const auto data_shape = inputs[0]->get_partial_shape();
+    OPENVINO_ASSERT(data_shape.is_static(), "Can't evaluate Slice elements without static HostTensor data shape.");
+    // We need calculate static output shape based on HostTensor inputs
+    PartialShape output_shape = op->calculate_output_shape(starts, stops, steps, axes, data_shape);
+    OPENVINO_ASSERT(output_shape.is_static(), "Can't calculate static output shape for Slice evaluation.");
+
+    outputs[0]->set_shape(output_shape.to_shape());
+    outputs[0]->set_element_type(inputs[0]->get_element_type());
+
+    runtime::reference::slice(inputs[0]->get_data_ptr<char>(),
+                              data_shape.to_shape(),
+                              outputs[0]->get_data_ptr<char>(),
+                              output_shape.to_shape(),
+                              inputs[0]->get_element_type().size(),
+                              starts,
+                              steps,
+                              axes);
     return true;
 }
 
