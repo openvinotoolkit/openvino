@@ -91,9 +91,9 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
                         del in_data_node['permutation']
 
                     # keep result in the framework format
-                    transpose = create_op_node_with_second_input(
-                        graph, Transpose, permutation.inv,
-                        {'name': op_name + '/Transpose({})'.format(permutation.inv)})
+                    transpose = create_op_node_with_second_input(graph, Transpose, permutation.inv)
+                    # preserve output node name as it is used as output name in legacy IE API
+                    transpose.name = in_node.name
+                    in_node.name += "/prev"
 
                     prev_node_out_port.get_connection().insert_node(transpose)
-
