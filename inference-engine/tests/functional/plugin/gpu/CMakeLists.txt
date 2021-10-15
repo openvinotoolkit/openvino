@@ -42,3 +42,8 @@ if(LIBVA_FOUND)
     target_include_directories(${TARGET_NAME} PRIVATE ${LIBVA_INCLUDE_DIRS})
     target_link_libraries(${TARGET_NAME} PRIVATE ${LIBVA_LINK_LIBRARIES})
 endif()
+
+if(WIN32)
+    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DX11)
+    target_link_libraries(${TARGET_NAME} PRIVATE d3d11 dxgi)
+endif()
