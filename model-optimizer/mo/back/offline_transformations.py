@@ -33,7 +33,7 @@ def apply_user_transformations(ng_function: object, transforms: list):
 
 def apply_moc_transformations(ng_function: object):
     from openvino.offline_transformations import apply_moc_transformations  # pylint: disable=import-error,no-name-in-module
-    ApplyMOCTransformations(ng_function, False)
+    apply_moc_transformations(ng_function, False)
 
 
 def apply_offline_transformations(input_model: str, framework: str, transforms: list):
