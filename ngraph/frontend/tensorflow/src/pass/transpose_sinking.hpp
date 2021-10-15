@@ -4,13 +4,16 @@
 
 #include <openvino/pass/pass.hpp>
 
+#include "tensorflow_frontend/utility.hpp"
+
 namespace ov {
 namespace frontend {
 namespace tf {
 namespace pass {
 
-class TransposeSinkingOVTF : public ov::pass::FunctionPass {
+class TF_API TransposeSinkingOVTF : public ov::pass::FunctionPass {
 public:
+    OPENVINO_RTTI("ov::frontend::tf::pass::TransposeSinkingOVTF");
     TransposeSinkingOVTF() {
         set_property(ov::pass::PassProperty::REQUIRE_STATIC_SHAPE, true);
     }
