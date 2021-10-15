@@ -20,8 +20,8 @@ void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, 
     const auto& class_preds_pshape = input_shapes[1];
     const auto& proposals_pshape = input_shapes[2];
 
-    const int& num_loc_classes = op->m_attrs.share_location ? 1 : op->m_attrs.num_classes;
-    const int& prior_box_size = op->m_attrs.normalized ? 4 : 5;
+    const int num_loc_classes = op->m_attrs.share_location ? 1 : op->m_attrs.num_classes;
+    const int prior_box_size = op->m_attrs.normalized ? 4 : 5;
 
     dim_t num_images{};
     dim_t num_prior_boxes{};
