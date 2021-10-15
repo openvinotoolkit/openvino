@@ -17,7 +17,7 @@ using namespace ov;
 namespace reference_tests {
 
 CommonReferenceTest::CommonReferenceTest(): targetDevice("TEMPLATE") {
-    core = ov::test::PluginCache::get().core(targetDevice);
+    core = test::utils::PluginCache::get().core(targetDevice);
 }
 
 void CommonReferenceTest::Exec() {
