@@ -101,7 +101,7 @@ class NonMaxSuppression(Op):
             if num_of_outputs >= 2 and node.has_port('out', 1):
                 node.out_port(1).data.set_shape(shape_array([dynamic_dimension_value, 3]))
             if num_of_outputs >= 3 and node.has_port('out', 2):
-                node.out_port(2).data.set_shape(shape_array(1))
+                node.out_port(2).data.set_shape(shape_array([1]))
 
     @staticmethod
     def type_infer(node):
