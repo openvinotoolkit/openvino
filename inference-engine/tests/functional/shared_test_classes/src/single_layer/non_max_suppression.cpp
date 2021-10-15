@@ -374,9 +374,11 @@ void NmsLayerTest::SetUp() {
         auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(outType, Shape{1}, {1}));
         auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(ngPrc, Shape{1}, {1}));
         auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(outType, Shape{1}, {1}));
+        nms_0_identity->set_friendly_name("Multiply_0");
+        nms_1_identity->set_friendly_name("Multiply_1");
+        nms_2_identity->set_friendly_name("Multiply_2");
         function = std::make_shared<Function>(OutputVector{nms_0_identity, nms_1_identity, nms_2_identity}, params, "NMS");
     }
-    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace LayerTestsDefinitions

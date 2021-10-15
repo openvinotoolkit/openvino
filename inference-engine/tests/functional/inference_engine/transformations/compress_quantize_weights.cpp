@@ -8,7 +8,7 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
-#include <compress_quantize_weights.hpp>
+#include <transformations/common_optimizations/compress_quantize_weights.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>

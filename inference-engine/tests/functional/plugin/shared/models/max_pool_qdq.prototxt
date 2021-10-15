@@ -1,0 +1,126 @@
+ir_version: 6
+producer_name: "pytorch"
+producer_version: "1.8"
+graph {
+  node {
+    output: "886"
+    name: "Constant_12"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        data_type: 1
+        raw_data: "\242k\312<"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "887"
+    name: "Constant_13"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        data_type: 2
+        raw_data: "\000"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "885"
+    input: "886"
+    input: "887"
+    output: "888"
+    name: "QuantizeLinear_14"
+    op_type: "QuantizeLinear"
+  }
+  node {
+    input: "888"
+    input: "886"
+    input: "887"
+    output: "889"
+    name: "DequantizeLinear_15"
+    op_type: "DequantizeLinear"
+  }
+  node {
+    input: "889"
+    output: "890"
+    name: "MaxPool_16"
+    op_type: "MaxPool"
+    attribute {
+      name: "ceil_mode"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "kernel_shape"
+      ints: 3
+      ints: 3
+      type: INTS
+    }
+    attribute {
+      name: "pads"
+      ints: 1
+      ints: 1
+      ints: 1
+      ints: 1
+      type: INTS
+    }
+    attribute {
+      name: "strides"
+      ints: 2
+      ints: 2
+      type: INTS
+    }
+  }
+  name: "torch-jit-export"
+  input {
+    name: "885"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 64
+          }
+          dim {
+            dim_value: 112
+          }
+          dim {
+            dim_value: 112
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "890"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 64
+          }
+          dim {
+            dim_value: 56
+          }
+          dim {
+            dim_value: 56
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 10
+}

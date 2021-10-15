@@ -600,42 +600,16 @@ std::string ov::node_validation_failure_loc_string(const Node* node) {
     return ss.str();
 }
 
-const std::shared_ptr<ov::Node>& ov::check_single_output_arg(const std::shared_ptr<Node>& node, size_t i) {
+const std::shared_ptr<ov::Node>& ngraph::check_single_output_arg(const std::shared_ptr<Node>& node, size_t i) {
     NGRAPH_CHECK(node->get_output_size() == 1, "Argument ", i, node, " must produce exactly one value.");
     return node;
 }
 
-const ov::NodeVector& ov::check_single_output_args(const NodeVector& args) {
+const ov::NodeVector& ngraph::check_single_output_args(const NodeVector& args) {
     for (size_t i = 0; i < args.size(); ++i) {
         ngraph::check_single_output_arg(args.at(i), i);
     }
     return args;
-}
-
-ov::OutputVector ov::as_output_vector(const NodeVector& args) {
-    OutputVector output_vector;
-    for (const auto& arg : args) {
-        output_vector.push_back(arg);
-    }
-    return output_vector;
-}
-
-ov::NodeVector ov::as_node_vector(const OutputVector& values) {
-    NodeVector node_vector;
-    for (auto& value : values) {
-        node_vector.emplace_back(value.get_node_shared_ptr());
-    }
-    return node_vector;
-}
-
-ov::ResultVector ov::as_result_vector(const OutputVector& values) {
-    ResultVector result;
-    for (auto value : values) {
-        shared_ptr<Node> node = value.get_node_shared_ptr();
-        result.push_back(ov::is_type<ngraph::op::Result>(node) ? ov::as_type_ptr<ngraph::op::Result>(node)
-                                                               : make_shared<ngraph::op::Result>(value));
-    }
-    return result;
 }
 
 bool ov::Node::match_value(ngraph::pattern::Matcher* matcher,
@@ -772,6 +746,7 @@ bool ov::Node::has_evaluate() const {
     return false;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool ov::Node::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     return false;
 }
@@ -781,6 +756,106 @@ bool ov::Node::evaluate(const HostTensorVector& output_values,
                         const EvaluationContext& evaluationContext) const {
     return evaluate(output_values, input_values);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
+
+namespace {
+
+class DynamicTensor : public ngraph::runtime::HostTensor {
+private:
+    ov::runtime::Tensor tensor;
+
+public:
+    DynamicTensor(const ov::element::Type& type) : ngraph::runtime::HostTensor(type, ov::PartialShape::dynamic()) {}
+
+    ov::runtime::Tensor get_tensor() {
+        return tensor;
+    }
+
+protected:
+    void allocate_buffer() override {
+        OPENVINO_ASSERT(get_partial_shape().is_static(),
+                        "Attempt to allocate buffer for tensor with partial shape: ",
+                        get_partial_shape());
+        OPENVINO_ASSERT(get_element_type().is_static(),
+                        "Attempt to allocate buffer for tensor with dynamic type: ",
+                        get_element_type());
+        m_buffer_size = m_descriptor->size();
+        tensor = ov::runtime::Tensor(get_element_type(), get_partial_shape().get_shape());
+        m_memory_pointer = tensor.data();
+        m_aligned_buffer_pool = m_memory_pointer;
+    }
+};
+
+inline ngraph::HostTensorVector create_tmp_tensors(const ov::runtime::TensorVector& tensors) {
+    ngraph::HostTensorVector result;
+    result.reserve(tensors.size());
+    for (const auto& tensor : tensors) {
+        if (!tensor || tensor.get_shape() == ov::Shape{0}) {
+            auto el_type = ov::element::dynamic;
+            if (tensor)
+                el_type = tensor.get_element_type();
+            // Create dynamic tensor
+            result.emplace_back(std::make_shared<DynamicTensor>(el_type));
+        } else {
+            result.emplace_back(std::make_shared<ngraph::runtime::HostTensor>(tensor.get_element_type(),
+                                                                              tensor.get_shape(),
+                                                                              tensor.data()));
+        }
+    }
+    return std::move(result);
+}
+
+inline void update_output_tensors(ov::runtime::TensorVector& output_values, const ngraph::HostTensorVector& outputs) {
+    OPENVINO_ASSERT(output_values.size() == outputs.size());
+    for (size_t i = 0; i < outputs.size(); i++) {
+        if (auto dyn_output = std::dynamic_pointer_cast<DynamicTensor>(outputs[i])) {
+            output_values[i] = dyn_output->get_tensor();
+        }
+    }
+}
+}  // namespace
+
+bool ov::Node::evaluate(ov::runtime::TensorVector& output_values, const ov::runtime::TensorVector& input_values) const {
+    HostTensorVector output = create_tmp_tensors(output_values);
+    HostTensorVector input = create_tmp_tensors(input_values);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    bool sts = evaluate(output, input);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    update_output_tensors(output_values, output);
+    return sts;
+}
+
+bool ov::Node::evaluate(ov::runtime::TensorVector& output_values,
+                        const ov::runtime::TensorVector& input_values,
+                        const ov::EvaluationContext& evaluationContext) const {
+    HostTensorVector output = create_tmp_tensors(output_values);
+    HostTensorVector input = create_tmp_tensors(input_values);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    bool sts = evaluate(output, input, evaluationContext);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    update_output_tensors(output_values, output);
+    return sts;
+}
+
+bool ov::Node::evaluate_lower(ov::runtime::TensorVector& output_values) const {
+    HostTensorVector output = create_tmp_tensors(output_values);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    bool sts = evaluate_lower(output);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    update_output_tensors(output_values, output);
+    return sts;
+}
+
+bool ov::Node::evaluate_upper(ov::runtime::TensorVector& output_values) const {
+    HostTensorVector output = create_tmp_tensors(output_values);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    bool sts = evaluate_upper(output);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    update_output_tensors(output_values, output);
+    return sts;
+}
+
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 bool ov::Node::evaluate_lower(const HostTensorVector& output_values) const {
     const auto& inputs = input_values();
@@ -801,6 +876,8 @@ bool ov::Node::evaluate_upper(const HostTensorVector& output_values) const {
         return false;
     return ngraph::default_upper_bound_evaluator(this, output_values);
 }
+
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Node::constant_fold");
@@ -828,12 +905,14 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
         auto tensor = make_shared<HostTensor>(output.get_element_type(), output.get_partial_shape());
         output_tensors.push_back(tensor);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (evaluate(output_tensors, input_tensors)) {
         for (size_t i = 0; i < output_tensors.size(); ++i) {
             output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i]);
         }
         return true;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
 }
 

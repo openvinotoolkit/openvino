@@ -235,6 +235,8 @@ onnx_model_rnn_defaults_fwd_const_dynamic
 onnx_model_depth_to_space_dynamic_input
 onnx_model_space_to_depth_dynamic_input
 squeeze_dynamic
+onnx_model_eye_like_dyn_shape
+onnx_model_eye_like_dyn_rank
 
 
 # Constant network
@@ -1584,3 +1586,5 @@ IE_CPU.onnx_model_gather_float_2D_neg_indices
 
 # CPU plug-in doesn't support operation with dynamic rank
 onnx_model_skip_layer_normalization_dynamic_shapes
+# Doesn't support op with dynamic shapes
+onnx_model_embed_layer_normalization_dynamic_shapes

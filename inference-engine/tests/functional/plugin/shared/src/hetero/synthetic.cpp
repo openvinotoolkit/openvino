@@ -82,6 +82,7 @@ std::string HeteroSyntheticTest::getTestCaseName(const ::testing::TestParamInfo<
 }
 
 void HeteroSyntheticTest::SetUp() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto& param = GetParam();
     targetDevice = "HETERO:";
     int num = std::get<Plugin>(param).size() - 1;
@@ -107,7 +108,6 @@ void HeteroSyntheticTest::SetUp() {
         --num;
     }
     function = std::get<Function>(param)._function;
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void HeteroSyntheticTest::TearDown() {
