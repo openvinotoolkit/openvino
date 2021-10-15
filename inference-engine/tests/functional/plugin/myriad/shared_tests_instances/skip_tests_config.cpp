@@ -33,9 +33,6 @@ std::vector<std::string> disabledTestPatterns() {
         ".*ProposalLayerTest.*",
         // TODO: Issue 51804
         ".*InferRequestPreprocessConversionTest.*oPRC=U8.*",
-        // TODO: Issue: 56556
-        R"(.*(PreprocessTest).*(SetScalePreProcessSetBlob).*)",
-        R"(.*(PreprocessTest).*(SetScalePreProcessGetBlob).*)",
         // TODO: Issue 54163
         R"(.*ActivationLayerTest.*SoftPlus.*)",
         // TODO: Issue 54722
