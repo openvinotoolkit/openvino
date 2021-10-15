@@ -67,16 +67,12 @@ public:
     MKLDNNEdgePtr getSharedEdge() const;
     MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;
 
-    bool hasDefinedMaxSize() {
+    bool hasDefinedMaxSize() const {
         return getDesc().hasDefinedMaxSize();
     }
 
-    const MemoryDesc& getDesc();
-
-    std::string name() const;
-
 private:
-    
+    std::string name() const;
 
     std::weak_ptr<MKLDNNNode> parent;
     std::weak_ptr<MKLDNNNode> child;
@@ -90,7 +86,7 @@ private:
 
     const MemoryDesc& getInputDesc() const;
     const MemoryDesc& getOutputDesc() const;
-    
+    const MemoryDesc& getDesc() const;
 
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN, LOOK_NO_RECURRENT = 4 };
 

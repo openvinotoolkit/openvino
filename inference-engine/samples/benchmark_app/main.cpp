@@ -374,8 +374,6 @@ int main(int argc, char* argv[]) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), FLAGS_cache_dir}});
         }
 
-        // std::cout << "*******************************************************************" << std::endl;
-
         if (FLAGS_load_from_file && !isNetworkCompiled) {
             next_step();
             slog::info << "Skipping the step for loading network from file" << slog::endl;
@@ -433,10 +431,10 @@ int main(int argc, char* argv[]) {
                                                             inputInfo,
                                                             reshape);
             if (reshape) {
-                std::map<std::string, ov::PartialShape> shapes;
+                InferenceEngine::ICNNNetwork::InputShapes shapes = {};
                 for (auto& item : app_inputs_info)
-                    shapes[item.first] = {1, -1};
-                slog::info << "Reshaping network: " << "getShapesString(shapes)" << slog::endl;
+                    shapes[item.first] = item.second.shape;
+                slog::info << "Reshaping network: " << getShapesString(shapes) << slog::endl;
                 startTime = Time::now();
                 cnnNetwork.reshape(shapes);
                 duration_ms = double_to_string(get_total_ms_time(startTime));
@@ -524,10 +522,6 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-
-        // std::cout << "====================================================================" << std::endl;
-        // std::cout << "LOAD COMPLETE" << std::endl;
-        // return 0;
 
         // Update number of streams
         for (auto&& ds : device_nstreams) {

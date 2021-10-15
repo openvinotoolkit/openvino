@@ -200,7 +200,6 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
             const auto& shape = refConfig.inConfs[i].desc->getShape();
 
             config.inConfs[i].inPlace = 0;
-            // config.inConfs[i].inPlace = -1;
             config.inConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(inputPrecision, shape, srcBlkDims, order, offset, offsets, strides);
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);

@@ -60,8 +60,6 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-std::mutex m_mutex;
-
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace openvino;
@@ -498,7 +496,6 @@ void MKLDNNNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNNode::executeDynamic(mkldnn::stream strm) {
-    // std::cout << getName() << std::endl;
     if (needShapeInfer()) {
         redefineOutputMemory(shapeInfer());
     }
@@ -1258,7 +1255,6 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
     }
 
     if (std::string(opToShapeInfer->get_type_name()) == "Broadcast") {
-        // std::cout << "BROADCAST: " << getName() << " " << getParentEdges().size() << std::endl;
         ngraph::OutputVector inputsForShapeInfer;
         inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Parameter>(opToShapeInfer->get_input_element_type(0),
                                                                                   getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape()));
@@ -1323,17 +1319,12 @@ void MKLDNNNode::createShapeInferSubgraph(const std::shared_ptr<ngraph::Node>& o
     ngraph::OutputVector inputsForShapeInfer;
     for (size_t i = 0; i < inputShapes.size(); i++) {
         if (dynamic_cast<ngraph::opset1::Constant *>(op->get_input_node_ptr(i))) {
-            // inputsForShapeInfer.push_back(op->get_input_node_shared_ptr(i)->clone_with_new_inputs(ngraph::OutputVector{}));
             inputsForShapeInfer.push_back(op->get_input_node_shared_ptr(i));
-            // inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Parameter>(op->get_input_element_type(i),
-            //                                                                           op->get_input_partial_shape(i)));
         } else {
             inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Parameter>(op->get_input_element_type(i),
                                                                                       op->get_input_partial_shape(i)));
         }
     }
-    // std::lock_guard<std::mutex> lock(m_mutex);
-    // std::cout << "START: " << getName() << std::endl;
+
     opToShapeInfer = op->clone_with_new_inputs(inputsForShapeInfer);
-    // std::cout << "END: " << getName() << std::endl;
 }

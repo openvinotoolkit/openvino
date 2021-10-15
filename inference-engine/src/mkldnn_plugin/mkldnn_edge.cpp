@@ -7,7 +7,6 @@
 #include "mkldnn_extension_utils.h"
 #include <blob_factory.hpp>
 #include <nodes/mkldnn_input_node.h>
-#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
 namespace MKLDNNPlugin {
@@ -183,19 +182,7 @@ std::string MKLDNNEdge::name() const {
 
     std::stringstream result;
 
-    result << parentPtr->getName() << " port " << parent_port << " <-> " << childPtr->getName() << " port " << child_port << "_";
-
-    if (status == Status::Uninitialized) {
-        result << "Uninitialized";
-    } else if (status == Status::NeedAllocation) {
-        result << "NeedAllocation";
-    } else if (status == Status::NotAllocated) {
-        result << "NotAllocated";
-    } else if (status == Status::Allocated) {
-        result << "Allocated";
-    } else if (status == Status::Validated) {
-        result << "Validated";
-    }
+    result << parentPtr->getName() << " port " << parent_port << " <-> " << childPtr->getName() << " port " << child_port;
 
     return  result.str();
 }
@@ -272,7 +259,7 @@ const MemoryDesc& MKLDNNEdge::getOutputDesc() const {
     return *(inConfs[outputIdx].desc);
 }
 
-const MemoryDesc& MKLDNNEdge::getDesc() {
+const MemoryDesc& MKLDNNEdge::getDesc() const {
     if (!getInputDesc().isCompatible(getOutputDesc()))
         IE_THROW() << "Cannot get descriptor for edge: " << getParent()->getName() << "->"
                    << getChild()->getName();
