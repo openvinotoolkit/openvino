@@ -61,12 +61,21 @@ class GatherND(Op):
         if batch_dims > 0:
             if is_fully_defined(indices_shape[:batch_dims]):
                 batch = indices_shape[:batch_dims].tolist()
-                if node['version'] == 'opset5':     # Support old version of gather
+                if node['version'] == 'opset5':     # Support old version of gatherND shape inference
                     batch = [np.prod(data_shape[:batch_dims]).tolist()]
             else:
-                batch = [dynamic_dimension_value]
+                batch = []
+                for ind in range(batch_dims):
+                    if indices_shape[ind] != dynamic_dimension_value:
+                        batch.append(indices_shape[ind])
+                    elif data_shape[ind] != dynamic_dimension_value:
+                        batch.append(data_shape[ind])
+                    else:
+                        batch.append(dynamic_dimension_value)
+                    pass
         else:
             batch = []
+
         slice_shape = list(data_shape[(batch_dims + indices_shape[-1]):])
 
         batch_dims_size = 1
