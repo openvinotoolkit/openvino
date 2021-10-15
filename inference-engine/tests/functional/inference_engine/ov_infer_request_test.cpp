@@ -60,8 +60,7 @@ TEST(InferRequestOVTests, throwsOnUninitializedQueryState) {
     ASSERT_THROW(req.query_state(), ov::Exception);
 }
 
-
-TEST(InferRequestOVTests, throwsOnUninitializedSetRemoteTensor) {
+TEST(InferRequestOVTests, throwsOnUninitializedSetRemoteTensorWithName) {
     ov::runtime::InferRequest req;
     ov::runtime::RemoteTensor remote_tensor;
     ASSERT_THROW(req.set_tensor("", remote_tensor), ov::Exception);
@@ -77,4 +76,10 @@ TEST(InferRequestOVTests, throwsOnUninitializedSetOutputRemoteTensor) {
     ov::runtime::InferRequest req;
     ov::runtime::RemoteTensor remote_tensor;
     ASSERT_THROW(req.set_output_tensor(0, remote_tensor), ov::Exception);
+}
+
+TEST(InferRequestOVTests, throwsOnUninitializedSetRemoteTensor) {
+    ov::runtime::InferRequest req;
+    ov::runtime::RemoteTensor remote_tensor;
+    ASSERT_THROW(req.set_tensor(ov::Output<const ov::Node>(), remote_tensor), ov::Exception);
 }
