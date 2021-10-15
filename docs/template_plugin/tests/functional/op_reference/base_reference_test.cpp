@@ -57,7 +57,7 @@ void CommonReferenceTest::Infer() {
     const auto& functionParams = function->get_parameters();
 
     for (size_t i = 0; i < functionParams.size(); ++i) {
-        inferRequest.set_tensor(executableNetwork.input(0), inputData[i]);
+        inferRequest.set_tensor(executableNetwork.input(i), inputData[i]);
     }
     inferRequest.infer();
 }
