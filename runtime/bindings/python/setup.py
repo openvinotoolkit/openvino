@@ -230,7 +230,7 @@ cmdclass["install_lib"] = InstallCMakeLibs
 
 setup(
     name="openvino",
-    description="nGraph - Intel's graph compiler and runtime for Neural Networks",
+    description="OpenVINO - deploying pre-trained deep learning models",
     version=__version__,
     author="Intel Corporation",
     url="https://github.com/openvinotoolkit/openvino",
