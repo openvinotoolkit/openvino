@@ -125,9 +125,32 @@ const std::vector<SoftMaxConfig> optimizedConfigsFP32 = {
         {ShapesDefenition{{}, {{{5, 5, 5, 5, 1}}}}, 4},
         {ShapesDefenition{{}, {{{5, 5, 5, 5, 5}}}}, 4},
         //Dynamic shapes
-        {ShapesDefenition{{{-1, -1}}, {{{10, 10}}, {{15, 15}}, {{10, 5}}}}, 1},
-        {ShapesDefenition{{{{1, 100}, {1, 100}}}, {{{10, 10}}, {{15, 15}}, {{10, 5}}}}, 1},
-        {ShapesDefenition{{{-1, -1, 1, 1, 1}}, {{{5, 5, 1, 1, 1}}, {{10, 7, 1, 1, 1}}}}, 1},
+        {ShapesDefenition{
+            { //dynamic shape
+                {-1, -1}
+            },
+            { //target static shapes
+                {{10, 10}},
+                {{15, 15}},
+                {{10, 5}}
+            }}, 1},
+        {ShapesDefenition{
+            { //dynamic shape
+                {{1, 100}, {1, 100}}
+            },
+            { //target static shapes
+                {{10, 10}},
+                {{15, 15}},
+                {{10, 5}}
+            }}, 1},
+        {ShapesDefenition{
+            { //dynamic shape
+                {-1, -1, 1, 1, 1}
+            },
+            { //target static shapes
+                {{5, 5, 1, 1, 1}},
+                {{10, 7, 1, 1, 1}}
+            }}, 1},
 };
 
 const std::vector<SoftMaxConfig> notOptimizedConfigsFP32 {
@@ -137,8 +160,20 @@ const std::vector<SoftMaxConfig> notOptimizedConfigsFP32 {
         {ShapesDefenition{{}, {{{10, 10, 10}}}}, 0},
         {ShapesDefenition{{}, {{{10, 10, 10}}}}, 1},
         //Dynamic shapes
-        {ShapesDefenition{{{-1, -1}}, {{{10, 1}}, {{15, 15}}, {{10, 5}}}}, 0},
-        {ShapesDefenition{{{{1, 100}, {1, 100}, -1}}, {{{10, 10, 10}}, {{10, 10, 1}}, {{10, 5, 10}}}}, 1},
+        {ShapesDefenition{
+            { //dynamic shape
+                {-1, -1}
+            },
+            { //target static shapes
+                {{10, 1}}, {{15, 15}}, {{10, 5}}
+            }}, 0},
+        {ShapesDefenition{
+            { //dynamic shape
+                {{1, 100}, {1, 100}, -1}
+            },
+            { //target static shapes
+                {{10, 10, 10}}, {{10, 10, 1}}, {{10, 5, 10}}
+            }}, 1},
 };
 
 const std::vector<SoftMaxConfig> unsupportedConfigsFP32 {
@@ -150,7 +185,13 @@ const std::vector<SoftMaxConfig> unsupportedConfigsFP32 {
         {ShapesDefenition{{}, {{{5, 5, 5, 5, 5, 5}}}}, 4},
         {ShapesDefenition{{}, {{{5, 5, 5, 5, 5, 5}}}}, 5},
         //Dynamic shapes
-        {ShapesDefenition{{{-1, -1, -1, -1, -1, -1}}, {{{5, 5, 5, 5, 5, 5}}, {{7, 7, 7, 7, 7, 7}}}}, 4},
+        {ShapesDefenition{
+            { //dynamic shape
+                {-1, -1, -1, -1, -1, -1}
+            },
+            { //target static shapes
+                {{5, 5, 5, 5, 5, 5}}, {{7, 7, 7, 7, 7, 7}}
+            }}, 4},
 };
 
 const auto OptimizedParams = testing::Combine(
