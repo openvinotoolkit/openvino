@@ -24,7 +24,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferenceChaining,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferenceChaining,
                         ::testing::Combine(
-                                ::testing::Values(ov::element::f32),
                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                                 ::testing::ValuesIn(HeteroConfigs)),
                         OVInferenceChaining::getTestCaseName);

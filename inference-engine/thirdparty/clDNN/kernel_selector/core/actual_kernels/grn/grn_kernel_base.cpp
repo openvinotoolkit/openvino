@@ -16,10 +16,15 @@ JitConstants GRNKernelBase::GetJitConstants(const grn_params& params, GRNKernelB
 
 GRNKernelBase::DispatchData GRNKernelBase::SetDefault(const grn_params& params) const {
     const auto& output = params.output;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
+                                                                     { Tensor::DataChannelName::Y },
+                                                                     { Tensor::DataChannelName::X }};
 
     DispatchData dispatchData;
     dispatchData.gws = { output.Batch().v, output.Y().v, output.X().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
