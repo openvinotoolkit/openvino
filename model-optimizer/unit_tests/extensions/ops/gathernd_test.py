@@ -114,6 +114,14 @@ output8 = int64_array([[[3, 8, 6],
 inputs9 = {'data_data': {'shape': shape_array([dynamic_dimension_value, 40, 4, 9]), 'value': None},
            'indices_data': {'shape': shape_array([dynamic_dimension_value, 40, 3, 5, 1]), 'value': None}}
 
+# test data for partial infer: gather slices and batch_dims=2
+inputs10 = {'data_data': {'shape': shape_array([40, dynamic_dimension_value, 4, 9]), 'value': None},
+           'indices_data': {'shape': shape_array([40, dynamic_dimension_value, 3, 5, 1]), 'value': None}}
+
+# test data for partial infer: gather slices and batch_dims=2
+inputs11 = {'data_data': {'shape': shape_array([dynamic_dimension_value, 40, 4, 9]), 'value': None},
+           'indices_data': {'shape': shape_array([40, dynamic_dimension_value, 3, 5, 1]), 'value': None}}
+
 # invalid test case with incorrect rank for indices
 inputs_inv1 = {'data_data': {'shape': int64_array([10, 40]), 'value': None},
                'indices_data': {'shape': int64_array([5, 3, 4]), 'value': None}}
@@ -190,14 +198,44 @@ class TestGatherNDUpdate(unittest.TestCase):
         self.assertTrue(np.array_equal(ref_output_shape, res_output_shape),
                         'values do not match expected: {} and given: {}'.format(ref_output_shape, res_output_shape))
 
-    def test_partial_infer_gather_slice_batch_dims2_dynamic(self):
+    def test_partial_infer_gather_slice_batch_dims2_dynamic1(self):
         nodes_attributes['gathernd_node']['batch_dims'] = 2
         graph = build_graph(nodes_attributes, edges, inputs9)
         gathernd_node = Node(graph, 'gathernd_node')
         GatherND.infer(gathernd_node)
 
         # prepare reference results
-        ref_output_shape = shape_array([dynamic_dimension_value, 3, 5, 9])
+        ref_output_shape = shape_array([dynamic_dimension_value, 40, 3, 5, 9])
+
+        # get the result
+        res_output_shape = graph.node['output']['shape']
+
+        self.assertTrue(strict_compare_tensors(ref_output_shape, res_output_shape),
+                        'values do not match expected: {} and given: {}'.format(ref_output_shape, res_output_shape))
+
+    def test_partial_infer_gather_slice_batch_dims2_dynamic2(self):
+        nodes_attributes['gathernd_node']['batch_dims'] = 2
+        graph = build_graph(nodes_attributes, edges, inputs10)
+        gathernd_node = Node(graph, 'gathernd_node')
+        GatherND.infer(gathernd_node)
+
+        # prepare reference results
+        ref_output_shape = shape_array([40, dynamic_dimension_value, 3, 5, 9])
+
+        # get the result
+        res_output_shape = graph.node['output']['shape']
+
+        self.assertTrue(strict_compare_tensors(ref_output_shape, res_output_shape),
+                        'values do not match expected: {} and given: {}'.format(ref_output_shape, res_output_shape))
+
+    def test_partial_infer_gather_slice_batch_dims2_dynamic3(self):
+        nodes_attributes['gathernd_node']['batch_dims'] = 2
+        graph = build_graph(nodes_attributes, edges, inputs11)
+        gathernd_node = Node(graph, 'gathernd_node')
+        GatherND.infer(gathernd_node)
+
+        # prepare reference results
+        ref_output_shape = shape_array([40, 40, 3, 5, 9])
 
         # get the result
         res_output_shape = graph.node['output']['shape']
