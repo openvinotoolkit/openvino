@@ -177,6 +177,12 @@ public:
     void setPointerToExecutableNetworkInternal(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork);
 
     /**
+     * @brief      Returns the pointer to executable network internal.
+     * @return     executable network
+     */
+    const std::shared_ptr<IExecutableNetworkInternal>& getPointerToExecutableNetworkInternal() const;
+
+    /**
      * @brief   Gets the pointer to userData.
      * @return  Pointer to user data
      */

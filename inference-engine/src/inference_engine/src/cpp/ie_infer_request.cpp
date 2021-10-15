@@ -9,6 +9,7 @@
 #include <string>
 
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "ie_infer_async_request_base.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_context.hpp"
@@ -213,10 +214,6 @@ InferRequest::InferRequest(const std::shared_ptr<void>& so, const ie::IInferRequ
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
 }
 
-void InferRequest::set_tensor(const std::string& name, const Tensor& tensor) {
-    OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlob(name, tensor._impl); });
-}
-
 void InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const Tensor& tensor) {
     OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlob(port.get_any_name(), tensor._impl); });
 }
@@ -225,27 +222,41 @@ void InferRequest::set_tensor(const ov::Output<ov::Node>& port, const Tensor& te
     set_tensor(ov::Output<const ov::Node>(port.get_node(), port.get_index()), tensor);
 }
 
+void InferRequest::set_tensor(const std::string& name, const Tensor& tensor) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        set_tensor(_impl->getPointerToExecutableNetworkInternal()->getPort(name), tensor);
+    });
+}
+
 void InferRequest::set_input_tensor(size_t idx, const Tensor& tensor) {
-    IE_THROW() << "Not implemented";
+    OV_INFER_REQ_CALL_STATEMENT({
+        set_tensor(_impl->getPointerToExecutableNetworkInternal()->getInputs().at(idx), tensor);
+    });
 }
 
 void InferRequest::set_input_tensor(const Tensor& tensor) {
-    IE_THROW() << "Not implemented";
+    OV_INFER_REQ_CALL_STATEMENT({
+        const auto inputs = _impl->getPointerToExecutableNetworkInternal()->getInputs();
+        if (inputs.size() != 1) {
+            throw ov::Exception("set_input_tensor() must be called on a function with exactly one parameter.");
+        }
+        set_tensor(inputs.at(0), tensor);
+    });
 }
 
-Tensor InferRequest::get_tensor(const std::string& name) {
+void InferRequest::set_output_tensor(size_t idx, const Tensor& tensor) {
     OV_INFER_REQ_CALL_STATEMENT({
-        auto blob = _impl->GetBlob(name);
-        const bool remoteBlobPassed = blob->is<ie::RemoteBlob>();
-        if (blob == nullptr) {
-            IE_THROW(NotAllocated) << "Internal tensor implementation with name `" << name << "` is not allocated!";
+        set_tensor(_impl->getPointerToExecutableNetworkInternal()->getOutputs().at(idx), tensor);
+    });
+}
+
+void InferRequest::set_output_tensor(const Tensor& tensor) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        const auto outputs = _impl->getPointerToExecutableNetworkInternal()->getOutputs();
+        if (outputs.size() != 1) {
+            throw ov::Exception("set_output_tensor() must be called on a function with exactly one parameter.");
         }
-        if (!remoteBlobPassed && blob->buffer() == nullptr) {
-            IE_THROW(NotAllocated) << "Internal tensor implementation with name `" << name << "` is not allocated!";
-        }
-        auto tensorDesc = blob->getTensorDesc();
-        auto dims = tensorDesc.getDims();
-        return {_so, blob};
+        set_tensor(outputs.at(0), tensor);
     });
 }
 
@@ -270,20 +281,42 @@ Tensor InferRequest::get_tensor(const ov::Output<ov::Node>& port) {
     return get_tensor(ov::Output<const ov::Node>(port.get_node(), port.get_index()));
 }
 
+Tensor InferRequest::get_tensor(const std::string& name) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        return get_tensor(_impl->getPointerToExecutableNetworkInternal()->getPort(name));
+    });
+}
+
 Tensor InferRequest::get_input_tensor(size_t idx) {
-    IE_THROW() << "Not implemented";
+    OV_INFER_REQ_CALL_STATEMENT({
+        return get_tensor(_impl->getPointerToExecutableNetworkInternal()->getInputs().at(idx));
+    });
 }
 
 Tensor InferRequest::get_output_tensor(size_t idx) {
-    IE_THROW() << "Not implemented";
+    OV_INFER_REQ_CALL_STATEMENT({
+        return get_tensor(_impl->getPointerToExecutableNetworkInternal()->getOutputs().at(idx));
+    });
 }
 
 Tensor InferRequest::get_input_tensor() {
-    IE_THROW() << "Not implemented";
+    OV_INFER_REQ_CALL_STATEMENT({
+        const auto inputs = _impl->getPointerToExecutableNetworkInternal()->getInputs();
+        if (inputs.size() != 1) {
+            throw ov::Exception("get_input_tensor() must be called on a function with exactly one parameter.");
+        }
+        return get_tensor(inputs.at(0));
+    });
 }
 
 Tensor InferRequest::get_output_tensor() {
-    IE_THROW() << "Not implemented";
+    OV_INFER_REQ_CALL_STATEMENT({
+        const auto outputs = _impl->getPointerToExecutableNetworkInternal()->getOutputs();
+        if (outputs.size() != 1) {
+            throw ov::Exception("get_output_tensor() must be called on a function with exactly one parameter.");
+        }
+        return get_tensor(outputs.at(0));
+    });
 }
 
 void InferRequest::infer() {
