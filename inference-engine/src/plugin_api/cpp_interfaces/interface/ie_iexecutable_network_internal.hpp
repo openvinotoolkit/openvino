@@ -57,42 +57,35 @@ public:
     virtual void setNetworkOutputs(const OutputsDataMap& networkOutputs);
 
     /**
-     * @brief      Sets the network inputs
-     * @param[in]  params  The network inputs
+     * @brief      Sets the network parameters
+     * @param[in]  params  The network parameters
      */
-    virtual void setInputs(const std::vector<ov::Output<const ov::Node>>& inputs);
+    virtual void setInputs(const std::vector<std::shared_ptr<const ov::Node>>& params);
     /**
-     * @brief      Returns the network inputs
+     * @brief      Returns the network parameters
      */
-    virtual const std::vector<ov::Output<const ov::Node>>& getInputs() const;
-
+    virtual const std::vector<std::shared_ptr<const ov::Node>>& getInputs() const;
     /**
-     * @brief      Returns the network input by tensor name
-     * @param      tensor_name the input tensor name
+     * @brief      Sets the network results
+     * @param[in]  results  The network results
      */
-    virtual const ov::Output<const ov::Node>& getInput(const std::string& tensor_name) const;
-
+    virtual void setOutputs(const std::vector<std::shared_ptr<const ov::Node>>& results);
     /**
-     * @brief      Sets the network outputs
-     * @param[in]  results  The network outputs
+     * @brief      Returns the network results
      */
-    virtual void setOutputs(const std::vector<ov::Output<const ov::Node>>& outputs);
+    virtual const std::vector<std::shared_ptr<const ov::Node>>& getOutputs() const;
     /**
-     * @brief      Returns the network outputs
+     * @brief      Returns the network input port
      */
-    virtual const std::vector<ov::Output<const ov::Node>>& getOutputs() const;
-
+    const ov::Output<const ov::Node> getInput(const std::string& tensor_name) const;
     /**
-     * @brief      Returns the network output by tensor name
-     * @param      tensor_name the output tensor name
+     * @brief      Returns the network output port
      */
-    virtual const ov::Output<const ov::Node>& getOutput(const std::string& tensor_name) const;
-
+    const ov::Output<const ov::Node> getOutput(const std::string& tensor_name) const;
     /**
-     * @brief      Returns the network input or output by tensor name
-     * @param      tensor_name the output tensor name
+     * @brief      Returns the network port
      */
-    virtual const ov::Output<const ov::Node>& getPort(const std::string& tensor_name) const;
+    const ov::Output<const ov::Node> getPort(const std::string& tensor_name) const;
 
     /**
      * @brief Gets the Executable network output Data node information. The received info is stored in the given Data
@@ -190,10 +183,9 @@ protected:
 
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
-    std::vector<ov::Output<const ov::Node>> _inputs;
-    std::vector<ov::Output<const ov::Node>> _outputs;
-
-    const ov::Output<const ov::Node>* getPort(const std::string& name, const std::vector<std::vector<ov::Output<const ov::Node>>>& ports) const;
+    bool getPort(ov::Output<const ov::Node>& port, const std::string& name, const std::vector<std::vector<std::shared_ptr<const ov::Node>>>& ports) const;
+    std::vector<std::shared_ptr<const ov::Node>> _parameters;
+    std::vector<std::shared_ptr<const ov::Node>> _results;
 
     /**
      * @brief A pointer to a IInferencePlugin interface.

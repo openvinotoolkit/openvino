@@ -289,8 +289,8 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
     OPENVINO_ASSERT(exeNetwork != nullptr);
     OPENVINO_ASSERT(function != nullptr);
 
-    std::vector<ov::Output<const ov::Node>> inputs;
-    std::vector<ov::Output<const ov::Node>> outputs;
+    std::vector<std::shared_ptr<const ov::Node>> const_params;
+    std::vector<std::shared_ptr<const ov::Node>> const_results;
 
     bool add_operation_names = false;
     const auto& rt_info = function->get_rt_info();
@@ -321,7 +321,7 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
             0,
             InferenceEngine::details::convertPrecision(inputsInfo.at(new_param->get_friendly_name())->getPrecision()),
             new_param->get_output_partial_shape(0));
-        inputs.emplace_back(std::const_pointer_cast<const ov::Node>(new_param));
+        const_params.emplace_back(new_param);
     }
     for (const auto& result : function->get_results()) {
         auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
@@ -337,11 +337,11 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
         if (add_operation_names) {
             new_result->output(0).get_tensor().add_names({fake_param->get_friendly_name()});
         }
-        outputs.emplace_back(std::const_pointer_cast<const ov::Node>(new_result));
+        const_results.emplace_back(new_result);
     }
 
-    exeNetwork->setInputs(inputs);
-    exeNetwork->setOutputs(outputs);
+    exeNetwork->setInputs(const_params);
+    exeNetwork->setOutputs(const_results);
     exeNetwork->SetPointerToPlugin(shared_from_this());
 }
 

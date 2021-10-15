@@ -135,7 +135,11 @@ std::shared_ptr<const Function> ExecutableNetwork::get_runtime_function() const 
 
 std::vector<ov::Output<const ov::Node>> ExecutableNetwork::inputs() const {
     OV_EXEC_NET_CALL_STATEMENT({
-        return _impl->getInputs();
+        std::vector<ov::Output<const ov::Node>> inputs;
+        for (const auto& input : _impl->getInputs()) {
+            inputs.emplace_back(input);
+        }
+        return inputs;
     });
 }
 
@@ -161,7 +165,11 @@ ov::Output<const ov::Node> ExecutableNetwork::input(const std::string& tensor_na
 
 std::vector<ov::Output<const ov::Node>> ExecutableNetwork::outputs() const {
     OV_EXEC_NET_CALL_STATEMENT({
-        return _impl->getOutputs();
+        std::vector<ov::Output<const ov::Node>> outputs;
+        for (const auto& output : _impl->getOutputs()) {
+            outputs.emplace_back(output);
+        }
+        return outputs;
     });
 }
 ov::Output<const ov::Node> ExecutableNetwork::output() const {

@@ -44,7 +44,8 @@ TEST_P(OVExecNetwork, getInputFromFunctionWithSingleInput) {
 
     EXPECT_NO_THROW(request.get_tensor(execNet.input()));
     EXPECT_NO_THROW(request.get_tensor(function->input()));
-    EXPECT_TRUE(ov::test::all_close(request.get_tensor(execNet.input()), request.get_tensor(function->input())));
+    // Cannot compare data because first of all we need to fill it
+    // EXPECT_TRUE(ov::test::all_close(request.get_tensor(execNet.input()), request.get_tensor(function->input())));
 }
 
 TEST_P(OVExecNetwork, getOutputFromFunctionWithSingleInput) {

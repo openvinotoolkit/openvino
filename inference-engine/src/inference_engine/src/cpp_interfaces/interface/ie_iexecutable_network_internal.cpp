@@ -26,49 +26,51 @@ void IExecutableNetworkInternal::setNetworkOutputs(const OutputsDataMap& network
     _networkOutputs = networkOutputs;
 }
 
-void IExecutableNetworkInternal::setInputs(const std::vector<ov::Output<const ov::Node>>& inputs) {
-    _inputs = inputs;
+void IExecutableNetworkInternal::setInputs(const std::vector<std::shared_ptr<const ov::Node>>& params) {
+    _parameters = params;
 }
-const std::vector<ov::Output<const ov::Node>>& IExecutableNetworkInternal::getInputs() const {
-    return _inputs;
+const std::vector<std::shared_ptr<const ov::Node>>& IExecutableNetworkInternal::getInputs() const {
+    return _parameters;
 }
-void IExecutableNetworkInternal::setOutputs(const std::vector<ov::Output<const ov::Node>>& outputs) {
-    _outputs = outputs;
+void IExecutableNetworkInternal::setOutputs(const std::vector<std::shared_ptr<const ov::Node>>& results) {
+    _results = results;
 }
-const std::vector<ov::Output<const ov::Node>>& IExecutableNetworkInternal::getOutputs() const {
-    return _outputs;
+const std::vector<std::shared_ptr<const ov::Node>>& IExecutableNetworkInternal::getOutputs() const {
+    return _results;
 }
 
-const ov::Output<const ov::Node>* IExecutableNetworkInternal::getPort(const std::string& name, const std::vector<std::vector<ov::Output<const ov::Node>>>& ports) const {
-    for (const auto& p : ports) {
-        for (const auto& port : p) {
-            if (port.get_tensor().get_names().count(name)) {
-                return &port;
+bool IExecutableNetworkInternal::getPort(ov::Output<const ov::Node>& port, const std::string& name, const std::vector<std::vector<std::shared_ptr<const ov::Node>>>& ports) const {
+    for (const auto& nodes : ports) {
+        for (const auto& node : nodes) {
+            const auto& names = node->get_output_tensor(0).get_names();
+            if (names.find(name) != names.end()) {
+                port = node->output(0);
+                return true;
             }
         }
     }
-    return nullptr;
+    return false;
 }
 
-const ov::Output<const ov::Node>& IExecutableNetworkInternal::getInput(const std::string& tensor_name) const {
-    const auto* port = getPort(tensor_name, {getInputs()});
-    if (port == nullptr)
+const ov::Output<const ov::Node> IExecutableNetworkInternal::getInput(const std::string& tensor_name) const {
+    ov::Output<const ov::Node> port;
+    if (!getPort(port, tensor_name, {getInputs()}))
         throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
-    return *port;
+    return port;
 }
 
-const ov::Output<const ov::Node>& IExecutableNetworkInternal::getOutput(const std::string& tensor_name) const {
-    const auto* port = getPort(tensor_name, {getOutputs()});
-    if (port == nullptr)
-        throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
-    return *port;
+const ov::Output<const ov::Node> IExecutableNetworkInternal::getOutput(const std::string& tensor_name) const {
+    ov::Output<const ov::Node> port;
+    if (!getPort(port, tensor_name, {getOutputs()}))
+        throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
+    return port;
 }
 
-const ov::Output<const ov::Node>& IExecutableNetworkInternal::getPort(const std::string& tensor_name) const {
-    const auto* port = getPort(tensor_name, {getInputs(), getOutputs()});
-    if (port == nullptr)
+const ov::Output<const ov::Node> IExecutableNetworkInternal::getPort(const std::string& tensor_name) const {
+    ov::Output<const ov::Node> port;
+    if (!getPort(port, tensor_name, {getInputs(), getOutputs()}))
         throw ov::Exception("Port for tensor name " + tensor_name + " was not found.");
-    return *port;
+    return port;
 }
 
 ConstOutputsDataMap IExecutableNetworkInternal::GetOutputsInfo() const {

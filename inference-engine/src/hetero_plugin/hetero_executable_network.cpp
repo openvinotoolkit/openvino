@@ -587,12 +587,12 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
 
     pugi::xml_node parametersNode = heteroNode.child("parameters");
     FOREACH_CHILD(parameterNode, parametersNode, "parameter") {
-        _inputs.emplace_back(parseNode(parameterNode, true));
+        _parameters.emplace_back(parseNode(parameterNode, true));
     }
 
     pugi::xml_node resultsNode = heteroNode.child("results");
     FOREACH_CHILD(resultNode, resultsNode, "result") {
-        _outputs.emplace_back(parseNode(resultNode, false));
+        _results.emplace_back(parseNode(resultNode, false));
     }
 
     // save state
@@ -646,16 +646,16 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
 
     // ngraph parameters info
     auto subnetworkParamsNode = heteroNode.append_child("parameters");
-    for (auto&& input : getInputs()) {
+    for (auto&& parameter : getInputs()) {
         auto parameterNode = subnetworkParamsNode.append_child("parameter");
-        serializeNode(input.get_node_shared_ptr(), parameterNode);
+        serializeNode(parameter, parameterNode);
     }
 
     // ngraph results info
     auto subnetworkResultsNode = heteroNode.append_child("results");
-    for (auto&& output : getOutputs()) {
+    for (auto&& result : getOutputs()) {
         auto parameterNode = subnetworkResultsNode.append_child("result");
-        serializeNode(output.get_node_shared_ptr(), parameterNode);
+        serializeNode(result, parameterNode);
     }
 
     auto subnetworksNode = heteroNode.append_child("subnetworks");

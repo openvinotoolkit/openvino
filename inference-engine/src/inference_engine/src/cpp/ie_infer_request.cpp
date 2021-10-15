@@ -205,6 +205,18 @@ bool InferRequest::operator==(const InferRequest& r) const noexcept {
 
 }  // namespace InferenceEngine
 
+namespace {
+
+std::string get_legacy_name_from_port(const ov::Output<const ov::Node>& port) {
+    ov::Output<ngraph::Node> p(std::const_pointer_cast<ov::Node>(port.get_node_shared_ptr()), port.get_index());
+    if (auto node = std::dynamic_pointer_cast<ov::op::v0::Result>(p.get_node_shared_ptr())) {
+        p = node->input_value(0);
+    }
+    return ngraph::op::util::create_ie_output_name(p);
+}
+
+}
+
 namespace ov {
 namespace runtime {
 
@@ -215,7 +227,7 @@ InferRequest::InferRequest(const std::shared_ptr<void>& so, const ie::IInferRequ
 }
 
 void InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const Tensor& tensor) {
-    OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlob(port.get_any_name(), tensor._impl); });
+    OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlob(get_legacy_name_from_port(port), tensor._impl); });
 }
 
 void InferRequest::set_tensor(const ov::Output<ov::Node>& port, const Tensor& tensor) {
@@ -230,7 +242,7 @@ void InferRequest::set_tensor(const std::string& name, const Tensor& tensor) {
 
 void InferRequest::set_input_tensor(size_t idx, const Tensor& tensor) {
     OV_INFER_REQ_CALL_STATEMENT({
-        set_tensor(_impl->getPointerToExecutableNetworkInternal()->getInputs().at(idx), tensor);
+        set_tensor(_impl->getPointerToExecutableNetworkInternal()->getInputs().at(idx)->output(0), tensor);
     });
 }
 
@@ -240,13 +252,13 @@ void InferRequest::set_input_tensor(const Tensor& tensor) {
         if (inputs.size() != 1) {
             throw ov::Exception("set_input_tensor() must be called on a function with exactly one parameter.");
         }
-        set_tensor(inputs.at(0), tensor);
+        set_tensor(inputs.at(0)->output(0), tensor);
     });
 }
 
 void InferRequest::set_output_tensor(size_t idx, const Tensor& tensor) {
     OV_INFER_REQ_CALL_STATEMENT({
-        set_tensor(_impl->getPointerToExecutableNetworkInternal()->getOutputs().at(idx), tensor);
+        set_tensor(_impl->getPointerToExecutableNetworkInternal()->getOutputs().at(idx)->output(0), tensor);
     });
 }
 
@@ -256,13 +268,13 @@ void InferRequest::set_output_tensor(const Tensor& tensor) {
         if (outputs.size() != 1) {
             throw ov::Exception("set_output_tensor() must be called on a function with exactly one parameter.");
         }
-        set_tensor(outputs.at(0), tensor);
+        set_tensor(outputs.at(0)->output(0), tensor);
     });
 }
 
 Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
     OV_INFER_REQ_CALL_STATEMENT({
-        const auto& name = port.get_any_name();
+        const auto& name = get_legacy_name_from_port(port);
         auto blob = _impl->GetBlob(name);
         const bool remoteBlobPassed = blob->is<ie::RemoteBlob>();
         if (blob == nullptr) {
@@ -289,13 +301,13 @@ Tensor InferRequest::get_tensor(const std::string& name) {
 
 Tensor InferRequest::get_input_tensor(size_t idx) {
     OV_INFER_REQ_CALL_STATEMENT({
-        return get_tensor(_impl->getPointerToExecutableNetworkInternal()->getInputs().at(idx));
+        return get_tensor(_impl->getPointerToExecutableNetworkInternal()->getInputs().at(idx)->output(0));
     });
 }
 
 Tensor InferRequest::get_output_tensor(size_t idx) {
     OV_INFER_REQ_CALL_STATEMENT({
-        return get_tensor(_impl->getPointerToExecutableNetworkInternal()->getOutputs().at(idx));
+        return get_tensor(_impl->getPointerToExecutableNetworkInternal()->getOutputs().at(idx)->output(0));
     });
 }
 
@@ -305,7 +317,7 @@ Tensor InferRequest::get_input_tensor() {
         if (inputs.size() != 1) {
             throw ov::Exception("get_input_tensor() must be called on a function with exactly one parameter.");
         }
-        return get_tensor(inputs.at(0));
+        return get_tensor(inputs.at(0)->output(0));
     });
 }
 
@@ -315,7 +327,7 @@ Tensor InferRequest::get_output_tensor() {
         if (outputs.size() != 1) {
             throw ov::Exception("get_output_tensor() must be called on a function with exactly one parameter.");
         }
-        return get_tensor(outputs.at(0));
+        return get_tensor(outputs.at(0)->output(0));
     });
 }
 
