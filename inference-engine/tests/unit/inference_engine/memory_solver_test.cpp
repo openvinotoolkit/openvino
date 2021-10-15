@@ -6,35 +6,35 @@
 #include <gtest/gtest.h>
 #include <ie_common.h>
 
-#include "mkldnn_memory_solver.hpp"
+#include "memory_solver.hpp"
 
-using Box = MKLDNNPlugin::MemorySolver::Box;
+using Box = MemorySolver::Box;
 
 
 TEST(MemSolverTest, CanConstruct) {
     {   // Empty vector<Box>
-        MKLDNNPlugin::MemorySolver ms(std::vector<Box>{});
+        MemorySolver ms(std::vector<Box>{});
     }
 
     {   // vector with default Box
-        MKLDNNPlugin::MemorySolver ms(std::vector<Box>{{}});
+        MemorySolver ms(std::vector<Box>{{}});
     }
 
     {   // vector with Box with non-default Box
-        MKLDNNPlugin::MemorySolver ms(std::vector<Box>{{1, 3, 3}});
+        MemorySolver ms(std::vector<Box>{{1, 3, 3}});
     }
 
     {   // vector with Box with size == 0
-        MKLDNNPlugin::MemorySolver ms(std::vector<Box>{{0, 0, 0}});
+        MemorySolver ms(std::vector<Box>{{0, 0, 0}});
     }
 
     {   // vector with Box with finish == -1
-        MKLDNNPlugin::MemorySolver ms(std::vector<Box>{{3, -1, 6}});
+        MemorySolver ms(std::vector<Box>{{3, -1, 6}});
     }
 
-    // TODO: enable after implement TODO from src/mkldnn_plugin/mkldnn_memory_solver.cpp#L17
+    // TODO: enable after implement TODO from memory_solver.hpp#L66
 //    {   // vector with Box with negative values
-//        MKLDNNPlugin::MemorySolver ms(std::vector<Box> {{-5, -5, -5, -5}});
+//        MemorySolver ms(std::vector<Box> {{-5, -5, -5, -5}});
 //    }
 }
 
@@ -47,7 +47,7 @@ TEST(MemSolverTest, GetOffset) {
             {n, ++n, 2, 3},   //      0  1  2  3  4
     };
 
-    MKLDNNPlugin::MemorySolver ms(boxes);
+    MemorySolver ms(boxes);
     ms.solve();
 
     //  The correct answer is [0, 2, 0, 2] or [2, 0, 2, 0].
@@ -65,7 +65,7 @@ TEST(MemSolverTest, GetOffsetThrowException) {
             {n, ++n, 2, id++},   //      0  1  2  3  4
     };
 
-    MKLDNNPlugin::MemorySolver ms(boxes);
+    MemorySolver ms(boxes);
     ms.solve();
 
     EXPECT_THROW(ms.getOffset(100), InferenceEngine::Exception);
@@ -79,7 +79,7 @@ TEST(MemSolverTest, LinearAndEven) {
             {n, ++n, 2},      //  |__|____||____|__
     };                        //      0  1  2  3
 
-    MKLDNNPlugin::MemorySolver ms(boxes);
+    MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 4);
     EXPECT_EQ(ms.maxDepth(), 4);
     EXPECT_EQ(ms.maxTopDepth(), 2);
@@ -93,7 +93,7 @@ TEST(MemSolverTest, LinearAndNotEven) {
             {n, ++n, 3},      //  |__|____||____|__
     };                        //      0  1  2  3
 
-    MKLDNNPlugin::MemorySolver ms(boxes);
+    MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 5);
     EXPECT_EQ(ms.maxDepth(), 5);
     EXPECT_EQ(ms.maxTopDepth(), 2);
@@ -108,7 +108,7 @@ TEST(MemSolverTest, LinearWithEmptyExecIndexes) {
             {n, n += 2, 3},      //  |__|_______|___|_______|__
     };                           //      2  3  4  5  6  7  8
 
-    MKLDNNPlugin::MemorySolver ms(boxes);
+    MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 5);
     EXPECT_EQ(ms.maxDepth(), 5);
     EXPECT_EQ(ms.maxTopDepth(), 2);
@@ -122,7 +122,7 @@ TEST(MemSolverTest, DISABLED_Unefficiency) {
             {2, 3, 2},         //      2  3  4  5  6  7  8
     };
 
-    MKLDNNPlugin::MemorySolver ms(boxes);
+    MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 5);  // currently we have answer 6
     EXPECT_EQ(ms.maxDepth(), 5);
     EXPECT_EQ(ms.maxTopDepth(), 2);
@@ -136,7 +136,7 @@ TEST(MemSolverTest, OverlappingBoxes) {
             {2, 3, 2},         //      2  3  4  5  6  7  8
     };
 
-    MKLDNNPlugin::MemorySolver ms(boxes);
+    MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 6);
     EXPECT_EQ(ms.maxDepth(), 6);
     EXPECT_EQ(ms.maxTopDepth(), 2);
@@ -151,7 +151,7 @@ TEST(MemSolverTest, EndOnSeveralBegins) {
             {3, 4, 2},         //      0  1  2  3  4  5  6
     };
 
-    MKLDNNPlugin::MemorySolver ms(boxes);
+    MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 6);
     EXPECT_EQ(ms.maxDepth(), 6);
     EXPECT_EQ(ms.maxTopDepth(), 3);
@@ -166,7 +166,7 @@ TEST(MemSolverTest, ToEndBoxes) {
             {3, 4,  2},         //      0  1  2  3  4  5  6
     };
 
-    MKLDNNPlugin::MemorySolver ms(boxes);
+    MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 8);
     EXPECT_EQ(ms.maxDepth(), 8);
     EXPECT_EQ(ms.maxTopDepth(), 4);
@@ -181,7 +181,7 @@ TEST(MemSolverTest, LastAndToEndBox) {
             {3, 4,  2},         //      0  1  2  3  4  5  6
     };
 
-    MKLDNNPlugin::MemorySolver ms(boxes);
+    MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 6);
     EXPECT_EQ(ms.maxDepth(), 6);
     EXPECT_EQ(ms.maxTopDepth(), 3);
@@ -218,7 +218,7 @@ TEST(MemSolverTest, OptimalAlexnet) {
     for (const auto &sh : shapes) boxes.push_back({n, ++n, sh[0] * sh[1] * sh[2]});
 
     // For linear topology bottom score is reachable minRequired == maxDepth
-    MKLDNNPlugin::MemorySolver ms(boxes);
+    MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), ms.maxDepth());
     EXPECT_EQ(ms.maxTopDepth(), 2);
 }
@@ -232,7 +232,7 @@ TEST(MemSolverTest, NoOverlapping) {
             {2, 4, 2, n++},   //      2  3  4  5  6  7  8
     };
 
-    MKLDNNPlugin::MemorySolver ms(boxes);
+    MemorySolver ms(boxes);
     ms.solve();
     // TODO: Current algorithm doesn't solve that case. Uncomment check to see inefficiency
     // EXPECT_EQ(ms.solve(), 5);
@@ -258,7 +258,7 @@ TEST(MemSolverTest, BestSolution1) {
             {6, 7, 3, n++},   //      2  3  4  5  6  7  8
     };
 
-    MKLDNNPlugin::MemorySolver ms(boxes);
+    MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 5);
 
     auto no_overlap = [&](Box box1, Box box2) -> bool {
