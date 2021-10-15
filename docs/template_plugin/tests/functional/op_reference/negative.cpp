@@ -49,10 +49,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape, const element::Type& input_type, const element::Type& expected_output_type) {
+    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape,
+                                                    const element::Type& input_type,
+                                                    const element::Type& expected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto negative = std::make_shared<op::v0::Negative>(in);
-        return std::make_shared<Function>(NodeVector {negative}, ParameterVector {in});
+        return std::make_shared<Function>(NodeVector{negative}, ParameterVector{in});
     }
 };
 
@@ -105,8 +107,8 @@ std::vector<NegativeParams> generateCombinedParamsForNegative() {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Negative_With_Hardcoded_Refs, 
+    smoke_Negative_With_Hardcoded_Refs,
     ReferenceNegativeLayerTest,
     ::testing::ValuesIn(generateCombinedParamsForNegative()),
     ReferenceNegativeLayerTest::getTestCaseName);
-}  // namespace reference_tests
+}  // namespace

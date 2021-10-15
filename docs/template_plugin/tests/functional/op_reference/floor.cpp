@@ -139,7 +139,7 @@ std::vector<FloorParams> generateCombinedParamsForFloor() {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Floor_With_Hardcoded_Refs, 
+    smoke_Floor_With_Hardcoded_Refs,
     ReferenceFloorLayerTest,
     ::testing::ValuesIn(generateCombinedParamsForFloor()),
     ReferenceFloorLayerTest::getTestCaseName);
