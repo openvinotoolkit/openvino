@@ -19,24 +19,36 @@
 
 #include "ngraph_functions/pass/convert_prc.hpp"
 
+static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames = {
+        {ngraph::helpers::ActivationTypes::Sigmoid,               "Sigmoid"},
+        {ngraph::helpers::ActivationTypes::Tanh,                  "Tanh"},
+        {ngraph::helpers::ActivationTypes::Relu,                  "Relu"},
+        {ngraph::helpers::ActivationTypes::Exp,                   "Exp"},
+        {ngraph::helpers::ActivationTypes::Log,                   "Log"},
+        {ngraph::helpers::ActivationTypes::Sign,                  "Sign"},
+        {ngraph::helpers::ActivationTypes::Abs,                   "Abs"}
+};
+
 typedef std::tuple<
     InferenceEngine::Precision,         // Network Precision
     std::string,                        // Target Device
     std::map<std::string, std::string>, // Configuration
-    std::pair<float, float>             // Input values
-> tanhFqParams;
+    std::pair<float, float>,            // Input values
+    ngraph::helpers::ActivationTypes    // Activation type
+> eltwiseActFqParams;
 
 namespace LayerTestsDefinitions {
 
-class TanhFqTest : public testing::WithParamInterface<tanhFqParams>,
+class EltwiseActFqTest : public testing::WithParamInterface<eltwiseActFqParams>,
     public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<tanhFqParams> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<eltwiseActFqParams> obj) {
         InferenceEngine::Precision netPrecision;
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
         std::pair<float, float> inputValues;
-        std::tie(netPrecision, targetDevice, configuration, inputValues) = obj.param;
+        ngraph::helpers::ActivationTypes act;
+        std::tie(netPrecision, targetDevice, configuration, inputValues, act) = obj.param;
 
         std::ostringstream result;
         result << "netPRC=" << netPrecision.name() << "_";
@@ -45,6 +57,7 @@ public:
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
         result << "_range=(" << inputValues.first << ", " << inputValues.second << ")";
+        result << "_act=" << activationNames[act];
 
         return result.str();
     }
@@ -65,9 +78,14 @@ protected:
     void SetUp() override {
         InferenceEngine::Precision netPrecision;
         std::pair<float, float> inputValues;
+        ngraph::helpers::ActivationTypes act;
 
-        std::tie(netPrecision, targetDevice, configuration, inputValues) = this->GetParam();
+        std::tie(netPrecision, targetDevice, configuration, inputValues, act) = this->GetParam();
         std::tie(inputDataMin, inputDataMax) = inputValues;
+        if (act == ngraph::helpers::ActivationTypes::Log) {
+            // clamp not positive values
+            inputDataMin = 1.0e-3;
+        }
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         const ngraph::Shape shape = {1, 128};
@@ -87,7 +105,7 @@ protected:
         auto fq = std::make_shared<ngraph::opset8::FakeQuantize>(add, lowNode, highNode,
             lowNode, highNode, levels32);
 
-        auto tanh = std::make_shared<ngraph::opset8::Tanh>(fq);
+        auto tanh = ngraph::builder::makeActivation(fq, ngPrc, act);
 
         auto lowNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, { std::tanh(2 * inputDataMin) });
         auto highNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, { std::tanh(2 * inputDataMax) });
@@ -106,7 +124,7 @@ protected:
     const size_t sf_reducer = 100;
 };
 
-TEST_P(TanhFqTest, CompareWithRefImpl) {
+TEST_P(EltwiseActFqTest, CompareWithRefImpl) {
     Run();
 };
 
@@ -128,11 +146,22 @@ const std::vector<std::pair<float, float>> inputValues = {
     {-0.04, 0.04}
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_base, TanhFqTest,
+const std::vector<ngraph::helpers::ActivationTypes> activationTypes = {
+    ngraph::helpers::ActivationTypes::Sigmoid,
+    ngraph::helpers::ActivationTypes::Tanh,
+    ngraph::helpers::ActivationTypes::Relu,
+    ngraph::helpers::ActivationTypes::Exp,
+    ngraph::helpers::ActivationTypes::Log,
+    ngraph::helpers::ActivationTypes::Sign,
+    ngraph::helpers::ActivationTypes::Abs
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_base, EltwiseActFqTest,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::ValuesIn(configs),
-        ::testing::ValuesIn(inputValues)),
-    TanhFqTest::getTestCaseName);
+        ::testing::ValuesIn(inputValues),
+        ::testing::ValuesIn(activationTypes)),
+    EltwiseActFqTest::getTestCaseName);
 } // namespace LayerTestsDefinitions
