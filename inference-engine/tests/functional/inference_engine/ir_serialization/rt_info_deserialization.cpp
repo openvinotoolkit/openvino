@@ -160,6 +160,7 @@ TEST_F(RTInfoDeserialization, NodeV10) {
         param->set_friendly_name("in1");
         param->get_output_tensor(0).set_names({"input_tensor", param->get_friendly_name()});
 
+        // TODO: No guarantee that exactly 'Convert' will be added
         auto convert_param = std::make_shared<opset8::Convert>(param, ngraph::element::f16);
 
         auto round = std::make_shared<opset8::Round>(convert_param,
@@ -316,8 +317,8 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
         param->get_output_tensor(0).set_names({"input_tensor", param->get_friendly_name()});
 
         auto sum = std::make_shared<opset8::Add>(param, param);
-        sum->set_friendly_name("sum");
 
+        // TODO: No guarantee that exactly 'convert' will be added by post-processing
         auto convert_result = std::make_shared<opset8::Convert>(sum, ngraph::element::i32);
         convert_result->set_friendly_name("sum");
         convert_result->get_output_tensor(0).set_names({"output_tensor", convert_result->get_friendly_name()});
@@ -472,6 +473,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         param->set_friendly_name("in1");
         param->get_output_tensor(0).set_names({"input_tensor"});
 
+        // TODO: No guarantee that exactly 'convert, then transpose' will be added by implicit pre-processing
         auto convert_param = std::make_shared<opset8::Convert>(param, ngraph::element::f32);
 
         auto constant_param = std::make_shared<opset8::Constant>(ngraph::element::i64,
@@ -485,16 +487,16 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         round->get_rt_info()[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
             std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("Round1,Round2"));
 
+        // TODO: No guarantee that exactly 'convert, then transpose' will be added by implicit post-processing
+        auto convert_result = std::make_shared<opset8::Convert>(round, type);
         auto constant_result = std::make_shared<opset8::Constant>(ngraph::element::i64,
                                                                   ngraph::Shape{4},
                                                                   std::vector<int64_t>{0, 3, 1, 2});
-        auto transpose_result = std::make_shared<opset8::Transpose>(round, constant_result);
+        auto transpose_result = std::make_shared<opset8::Transpose>(convert_result, constant_result);
+        transpose_result->set_friendly_name("Round");
+        transpose_result->get_output_tensor(0).set_names({"output_tensor"});
 
-        auto convert_result = std::make_shared<opset8::Convert>(transpose_result, type);
-        convert_result->set_friendly_name("Round");
-        convert_result->get_output_tensor(0).set_names({"output_tensor"});
-
-        auto result = std::make_shared<opset8::Result>(convert_result);
+        auto result = std::make_shared<opset8::Result>(transpose_result);
         result->set_friendly_name("output");
 
         auto f_10_ref =
@@ -508,7 +510,9 @@ TEST_F(RTInfoDeserialization, NodeV11) {
 
         check_version(f_10_core, 10);
 
+        ASSERT_GT(cnn_core.getInputsInfo().count("in1"), 0);
         EXPECT_EQ(InferenceEngine::Precision::FP32, cnn_core.getInputsInfo()["in1"]->getPrecision());
+        ASSERT_GT(cnn_core.getOutputsInfo().count("Round"), 0);
         EXPECT_EQ(InferenceEngine::Precision::FP32, cnn_core.getOutputsInfo()["Round"]->getPrecision());
 
         const auto fc = FunctionsComparator::with_default()
