@@ -66,3 +66,15 @@ TEST(InferRequestOVTests, throwsOnUninitializedSetRemoteTensor) {
     ov::runtime::RemoteTensor remote_tensor;
     ASSERT_THROW(req.set_tensor("", remote_tensor), ov::Exception);
 }
+
+TEST(InferRequestOVTests, throwsOnUninitializedSetInputRemoteTensor) {
+    ov::runtime::InferRequest req;
+    ov::runtime::RemoteTensor remote_tensor;
+    ASSERT_THROW(req.set_input_tensor(0, remote_tensor), ov::Exception);
+}
+
+TEST(InferRequestOVTests, throwsOnUninitializedSetOutputRemoteTensor) {
+    ov::runtime::InferRequest req;
+    ov::runtime::RemoteTensor remote_tensor;
+    ASSERT_THROW(req.set_output_tensor(0, remote_tensor), ov::Exception);
+}

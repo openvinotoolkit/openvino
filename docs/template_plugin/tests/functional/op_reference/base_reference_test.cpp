@@ -57,8 +57,7 @@ void CommonReferenceTest::Infer() {
     const auto& functionParams = function->get_parameters();
 
     for (size_t i = 0; i < functionParams.size(); ++i) {
-        const auto& param = functionParams[i];
-        inferRequest.set_tensor(param->output(0), inputData[i]);
+        inferRequest.set_tensor(executableNetwork.input(0), inputData[i]);
     }
     inferRequest.infer();
 }
@@ -66,8 +65,8 @@ void CommonReferenceTest::Infer() {
 void CommonReferenceTest::Validate() {
     ASSERT_EQ(executableNetwork.outputs().size(), refOutData.size());
     std::vector<ov::runtime::Tensor> outputs;
-    for (const auto& result : function->get_results()) {
-        outputs.emplace_back(inferRequest.get_tensor(result->output(0)));
+    for (const auto& output : executableNetwork.outputs()) {
+        outputs.emplace_back(inferRequest.get_tensor(output));
     }
 
     ASSERT_EQ(refOutData.size(), outputs.size());
