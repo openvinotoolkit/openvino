@@ -2317,17 +2317,6 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
         }
     }
     gnamem->reserve_ptr(ptr, ALIGN64(num_data_bytes_out), 64);
-    // intel_dnn_component_t * unused_input = nullptr;
-    // if (gnaFlags->compact_mode) {
-    //     unused_input = find_first_unused_input(layer);
-    //     if (unused_input != nullptr) {
-    //         gnamem->bind_ptr(ptr, &unused_input->ptr_inputs, 0, ALIGN64(num_data_bytes_out));
-    //     }
-    // }
-    // // cannot reuse suitable input
-    // if (unused_input == nullptr) {
-    //     gnamem->reserve_ptr(ptr, ALIGN64(num_data_bytes_out), 64);
-    // }
 }
 
 GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
