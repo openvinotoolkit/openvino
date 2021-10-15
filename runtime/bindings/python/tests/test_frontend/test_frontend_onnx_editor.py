@@ -1112,7 +1112,7 @@ def test_set_name_for_operation_without_name():
     new_name = "Add_new"
 
     operation = model.get_place_by_tensor_name(tensorName=output_name).get_producing_operation()
-    # assure test is performed on node with empty name
+    # assure the test is performed on node with empty name
     assert not operation.get_names() or len(operation.get_names()) == 0 or not operation.get_names()[0]
 
     # actual rename
@@ -1121,3 +1121,22 @@ def test_set_name_for_operation_without_name():
     new_operation = model.get_place_by_tensor_name(tensorName=output_name).get_producing_operation()
     assert new_operation
     assert new_operation.is_equal(operation)  # previous Place object holds the handle
+
+
+def test_free_name_for_operation():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+    name = "split1"
+
+    # assure non existent names are ignored (expect no exception)
+    model.free_name_for_operation("non existent name")
+
+    split1 = model.get_place_by_operation_name(operationName=name)
+    assert split1
+    model.free_name_for_operation(name)
+    operation = model.get_place_by_operation_name(operationName=name)
+    assert not operation
+
+    new_split1 = model.get_place_by_tensor_name(tensorName="out1").get_producing_operation()
+    assert split1.is_equal(new_split1)

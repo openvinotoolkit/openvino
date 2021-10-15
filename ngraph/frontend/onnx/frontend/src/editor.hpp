@@ -94,6 +94,8 @@ public:
     void set_tensor_name(const std::string& current_name, const std::string& new_name);
     // TODO add descr
     void set_node_name(const EditorNode& node, const std::string& new_name);
+    // TODO add descr
+    void clear_nodes_name(const std::string& name);
 
     /// \brief Returns a serialized ONNX model, possibly modified by the editor.
     std::string model_string() const;

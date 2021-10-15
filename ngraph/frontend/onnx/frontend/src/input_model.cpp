@@ -60,7 +60,8 @@ Place::Ptr InputModelONNX::get_place_by_tensor_name(const std::string& tensor_na
 
 Place::Ptr InputModelONNX::get_place_by_operation_name(const std::string& operation_name) const {
     if (m_editor->is_correct_and_unambiguous_node(operation_name)) {
-        return std::make_shared<PlaceOpONNX>(onnx_editor::EditorNode{operation_name}, m_editor);
+        const auto node_index = m_editor->get_node_index(onnx_editor::EditorNode{operation_name});
+        return std::make_shared<PlaceOpONNX>(onnx_editor::EditorNode{node_index}, m_editor);
     }
     return nullptr;
 }
@@ -95,7 +96,9 @@ void InputModelONNX::set_name_for_operation(Place::Ptr operation, const std::str
     onnx_operation->set_name(new_name);
 }
 
-void InputModelONNX::free_name_for_operation(const std::string& name) {}
+void InputModelONNX::free_name_for_operation(const std::string& name) {
+    m_editor->clear_nodes_name(name);
+}
 
 void InputModelONNX::set_name_for_dimension(Place::Ptr place, size_t shape_dim_index, const std::string& dim_name) {}
 

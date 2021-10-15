@@ -461,9 +461,23 @@ void onnx_editor::ONNXModelEditor::set_tensor_name(const std::string& current_na
 
 void onnx_editor::ONNXModelEditor::set_node_name(const EditorNode& node, const std::string& new_name) {
     const auto node_idx = m_pimpl->m_edge_mapper.get_node_index(node);
-    m_pimpl->m_is_mapper_updated = false;
     auto graph = m_pimpl->m_model_proto->mutable_graph();
+
+    m_pimpl->m_is_mapper_updated = false;
+
     *graph->mutable_node(node_idx)->mutable_name() = new_name;
+}
+
+void onnx_editor::ONNXModelEditor::clear_nodes_name(const std::string& name) {
+    auto graph = m_pimpl->m_model_proto->mutable_graph();
+
+    m_pimpl->m_is_mapper_updated = false;
+
+    for (size_t i = 0; i < graph->node().size(); ++i) {
+        auto node = graph->mutable_node(i);
+        if (node->has_name() && node->name() == name)
+            node->clear_name();
+    }
 }
 
 void onnx_editor::ONNXModelEditor::update_mapper_if_needed() const {
