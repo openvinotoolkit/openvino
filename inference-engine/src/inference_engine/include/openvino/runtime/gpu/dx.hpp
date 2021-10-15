@@ -25,7 +25,7 @@ namespace gpu {
 /**
  * @brief This class represents an abstraction for GPU plugin remote tensor
  * which is shared with Direct3D 11 buffer.
- * The plugin object derived from this class can be obtained with create_tensor() call.
+ * The plugin object derived from this class can be obtained with D3DContext::create_tensor() call.
  * @note User can also obtain OpenCL buffer handle from this class.
  */
 class D3DBufferTensor : public ClBufferTensor {
@@ -52,7 +52,7 @@ public:
 /**
  * @brief This class represents an abstraction for GPU plugin remote tensor
  * which is shared with Direct3D 11 2D texture.
- * The plugin object derived from this class can be obtained with create_tensor() call.
+ * The plugin object derived from this class can be obtained with D3DContext::create_tensor() call.
  * @note User can also obtain OpenCL 2D image handle from this class.
  */
 class D3DSurface2DTensor : public ClImage2DTensor {
@@ -89,7 +89,7 @@ public:
  * @brief This class represents an abstraction for GPU plugin remote context
  * which is shared with Direct3D 11 device.
  * The plugin object derived from this class can be obtained either with
- * GetContext() method of Executable network or using CreateContext() Core call.
+ * ExecutableNetwork::get_context() or Core::create_context() calls.
  * @note User can also obtain OpenCL context handle from this class.
  */
 class D3DContext : public ClContext {
@@ -116,7 +116,7 @@ public:
 
     /**
      * @brief Constructs D3DContext remote context object from ID3D11Device
-     * @param core Inference Engine Core object instance
+     * @param core OpenVINO Runtime Core object instance
      * @param deviceName A name of to create a remote context for
      * @param device A pointer to ID3D11Device to be used to create a remote context
      */
