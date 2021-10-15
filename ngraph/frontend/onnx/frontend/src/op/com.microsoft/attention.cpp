@@ -340,7 +340,7 @@ NodeTuple unidirectional_mask(const element::Type_t& type,
         std::make_shared<default_opset::Multiply>(std::make_shared<default_opset::Convert>(bin_mask, type),
                                                   default_opset::Constant::create(type, Shape{}, {-10000}));
     bin_mask = std::make_shared<default_opset::Convert>(std::make_shared<default_opset::LogicalNot>(bin_mask), type);
-    return {attention_mask, bin_mask};
+    return NodeTuple{attention_mask, bin_mask};
 }
 
 // This is the easiest variant of 'mask_index' input - the input consists of 0 or 1 values
@@ -434,7 +434,7 @@ NodeTuple get_attention_mask(const OutputVector& op_inputs, bool unidirectional)
             attention_mask = mask;
         }
     }
-    return {attention_mask, bin_mask};
+    return NodeTuple{attention_mask, bin_mask};
 }
 
 // Compute softmax(Q x K' / sqrt(head_size)) x V
