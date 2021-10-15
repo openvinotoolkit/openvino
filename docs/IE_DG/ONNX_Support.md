@@ -1,4 +1,4 @@
-# ONNX native format support {#openvino_docs_IE_DG_ONNX_Support}
+# ONNX Native Format Support {#openvino_docs_IE_DG_ONNX_Support}
 
 ## Introduction (C++)
 
@@ -31,12 +31,12 @@ Otherwise, a runtime exception is thrown.
 Reading models with external weights is not supported by the `ReadNetwork(const std::string& model, const Blob::CPtr& weights)` overload.
 
 Paths to external weight files are saved in an ONNX model; these paths are relative to the model's directory path.
-It means that if a model is located at `home/user/workspace/models/model.onnx` and a file that contains external weights is in   `home/user/workspace/models/data/weights.bin`, then the path saved in the model should be:
+It means that if a model is located at `home/user/workspace/models/model.onnx` and a file that contains external weights is in `home/user/workspace/models/data/weights.bin`, then the path saved in the model should be:
   `data/weights.bin`
 
-> **NOTE**
-* A single model can use many external weights files.
-* Data of many tensors can be stored in a single external weights file (it is processed using offset and length values, which can be also saved in a model).
+> **NOTE**: A single model can use many external weights files.
+
+> **NOTE**: Data of many tensors can be stored in a single external weights file (it is processed using offset and length values, which can be also saved in a model).
 
 The described mechanism is the only way to read weights from external files. The following input parameters of the `ReadNetwork` function overloads are **not** supported for ONNX models and should be passed as empty:
 * `const std::wstring& binPath`
@@ -46,7 +46,7 @@ The described mechanism is the only way to read weights from external files. The
 You can find more details about the external data mechanism in [ONNX documentation](https://github.com/onnx/onnx/blob/master/docs/ExternalData.md).
 To convert a model to use the external data feature, you can use [ONNX helper functions](https://github.com/onnx/onnx/blob/master/onnx/external_data_helper.py).
 
-### Unsupported types of tensors
+### Unsupported Types of Tensors
 
 * `string`
 * `complex64`
