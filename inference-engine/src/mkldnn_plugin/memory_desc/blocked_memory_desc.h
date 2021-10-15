@@ -75,13 +75,6 @@ public:
      */
     virtual MemoryDescPtr cloneWithDefaultStridesAndOffset() const = 0;
 
-    /**
-     * @brief Check physical memory on compatibility
-     *
-     * @return true if compatible, otherwise false
-     */
-    bool isPhycicalMemCompatible(const std::shared_ptr<const BlockedMemoryDesc> outMemDesc) const;
-
 protected:
     /**
      * @brief Check descs on compatibility
