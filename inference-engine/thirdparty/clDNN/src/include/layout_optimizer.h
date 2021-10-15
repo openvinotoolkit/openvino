@@ -153,6 +153,10 @@ private:
                                               const layout& output_layout,
                                               const layout& weights_layout,
                                               std::shared_ptr<const convolution> conv);
+    bool convolution_bs_fs_yx_bsv32_fsv32_opt(const layout &input_layout,
+                                              const layout& output_layout,
+                                              const layout& weights_layout,
+                                              std::shared_ptr<const convolution> conv);
     bool convolution_fs_b_yx_fsv32_opt(const layout& input_layout,
                                        const layout& output_layout,
                                        const layout& weights_layout,
@@ -173,6 +177,7 @@ public:
     format get_preferred_format(program_node& node);
     impl_types get_preferred_impl_type(program_node& node, format preferred_format);
 
+    bool are_data_types_suitable_for_onednn(program_node& node);
     bool is_format_supported(program_node& node, format::type fmt);
 
     // Returns whether reorder between "prev" with format fmt_prev and "next" with format fmt_next

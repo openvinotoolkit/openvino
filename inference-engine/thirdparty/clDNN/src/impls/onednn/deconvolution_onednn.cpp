@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convolution_inst.h"
+#include "deconvolution_inst.h"
 #include "eltwise_inst.h"
 #include "quantize_inst.h"
 #include "primitive_onednn_base.h"
@@ -17,16 +17,16 @@
 namespace cldnn {
 namespace onednn {
 
-struct convolution_onednn : typed_primitive_onednn_impl<convolution, dnnl::convolution_forward::desc> {
-    using parent = typed_primitive_onednn_impl<convolution, dnnl::convolution_forward::desc>;
+struct deconvolution_onednn : typed_primitive_onednn_impl<deconvolution, dnnl::deconvolution_forward::desc> {
+    using parent = typed_primitive_onednn_impl<deconvolution, dnnl::deconvolution_forward::desc>;
     using parent::parent;
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<convolution_onednn>(*this);
+        return make_unique<deconvolution_onednn>(*this);
     }
 
-    bool validate_impl(const typed_primitive_inst<convolution>& instance) const override {
+    bool validate_impl(const typed_primitive_inst<deconvolution>& instance) const override {
         bool res = true;
 
         auto outer_id = _outer.id();
@@ -43,8 +43,10 @@ protected:
         return res;
     }
 
-    std::unordered_map<int, dnnl::memory> get_arguments(convolution_inst& instance) const override {
+    std::unordered_map<int, dnnl::memory> get_arguments(deconvolution_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
+        auto& engine = instance.get_network().get_engine();
+        auto onednn_engine = engine.get_onednn_engine();
 
         {
             auto weights = instance.weights_memory(0);
@@ -56,55 +58,16 @@ protected:
             args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1))});
         }
 
-        if (has_zero_points(DNNL_ARG_SRC, _attrs)) {
-            auto a_zp = instance.activations_zero_points_memory(0);
-            dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, true);
-            args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
-        }
-
-        if (has_zero_points(DNNL_ARG_WEIGHTS, _attrs)) {
-            auto w_zp = instance.weights_zero_points_memory(0);
-            dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
-            args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
-        }
-
         return args;
     }
 
-    static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<convolution>& arg) {
+    static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<deconvolution>& arg) {
         auto attrs = parent::get_primitive_attributes(arg);
-
-        if (arg.activations_zero_points_term()) {
-            auto& a_zp = arg.activations_zero_points();
-
-            memory::ptr s32_mem;
-            if (a_zp.get_output_layout().data_type == data_types::i8) {
-                s32_mem = onednn::convert_zp_data_to_s32<data_type_to_type<data_types::i8>::type>(a_zp.as<data>().get_attached_memory_ptr());
-            } else if (a_zp.get_output_layout().data_type == data_types::u8) {
-                s32_mem = onednn::convert_zp_data_to_s32<data_type_to_type<data_types::u8>::type>(a_zp.as<data>().get_attached_memory_ptr());
-            } else {
-                throw std::runtime_error("Unsupported data type for activations zero points for oneDNN convolution");
-            }
-            a_zp.as<data>().attach_memory(s32_mem, false);
-
-            int mask = a_zp.get_output_layout().count() > 1 ? 2 : 0;
-
-            attrs->set_zero_points(DNNL_ARG_SRC, mask, {DNNL_RUNTIME_S32_VAL});
-        }
-
-        if (arg.weights_zero_points_term()) {
-            throw std::runtime_error("Convolution oneDNN primitive doesn't support asymmetric weights quantization");
-
-            // Commented out since oneDNN doesn't support asymmetric weights quantization
-            // auto& w_zp = arg.weights_zero_points();
-            // int mask = w_zp.get_output_layout().count() > 1 ? 2 : 0;
-            // attrs->set_zero_points(DNNL_ARG_WEIGHTS, mask, {DNNL_RUNTIME_S32_VAL});
-        }
 
         return attrs;
     }
 
-    static kernel_selector::WeightsReorderParams get_weights_reorder(const convolution_node& arg, const dnnl::primitive_desc& pd) {
+    static kernel_selector::WeightsReorderParams get_weights_reorder(const deconvolution_node& arg, const dnnl::primitive_desc& pd) {
         kernel_selector::WeightsReorderParams weights_reorder_params;
         auto& reorderKS = kernel_selector::ReorderWeightsKernelSelctor::Instance();
         kernel_selector::reorder_weights_params r_params;
@@ -126,8 +89,8 @@ protected:
 
         if (kernels_data.empty()) {
             throw std::runtime_error("No suitable kernel found for weights reorder from " +
-                                        kernel_selector::toString(r_params.input.GetLayout()) + " to " +
-                                        kernel_selector::toString(r_params.output.GetLayout()));
+                                     kernel_selector::toString(r_params.input.GetLayout()) + " to " +
+                                     kernel_selector::toString(r_params.output.GetLayout()));
         }
 
         weights_reorder_params.engine = kernel_selector::WeightsReorderParams::Engine::GPU;
@@ -137,7 +100,7 @@ protected:
         return weights_reorder_params;
     }
 
-    static std::shared_ptr<dnnl::convolution_forward::desc> get_convolution_descriptor(const convolution_node& arg) {
+    static std::shared_ptr<dnnl::deconvolution_forward::desc> get_deconvolution_descriptor(const deconvolution_node& arg) {
         auto prim = arg.get_primitive();
 
         auto& input = arg.get_dependency(0);
@@ -145,7 +108,7 @@ protected:
         auto spatials_rank = cldnn::format::spatial_num(input.get_output_layout().format);
 
         auto stride = onednn::convert_spatials(prim->stride, spatials_rank);
-        auto dilation = onednn::convert_spatials(prim->dilation, spatials_rank);
+        auto dilation = onednn::convert_spatials(cldnn::tensor{1}, spatials_rank);
         auto pad_l = onednn::convert_spatials(prim->input_offset, spatials_rank);
         auto pad_r = onednn::convert_spatials(prim->input_offset, spatials_rank);
 
@@ -162,14 +125,14 @@ protected:
             auto is = input_md.dims()[2 + i];
             auto ks = weights_md.dims()[weights_offset];
             auto kernel_range = 1 + (ks - 1) * (dilation[i] + 1);
-            pad_r[i] = (os - 1) * stride[i] - is + kernel_range - pad_l[i];
+            pad_r[i] = (is - 1) * stride[i] - os + kernel_range - pad_l[i];
         }
 
         if (arg.bias_term()) {
             auto bias_md = onednn::layout_to_memory_desc(arg.get_dependency(2).get_output_layout(), dnnl::memory::format_tag::any, true);
-            return std::make_shared<dnnl::convolution_forward::desc>(
+            return std::make_shared<dnnl::deconvolution_forward::desc>(
                 dnnl::prop_kind::forward_inference,
-                dnnl::algorithm::convolution_direct,
+                dnnl::algorithm::deconvolution_direct,
                 input_md,
                 weights_md,
                 bias_md,
@@ -179,9 +142,9 @@ protected:
                 pad_l,
                 pad_r);
         } else {
-            return std::make_shared<dnnl::convolution_forward::desc>(
+            return std::make_shared<dnnl::deconvolution_forward::desc>(
                 dnnl::prop_kind::forward_inference,
-                dnnl::algorithm::convolution_direct,
+                dnnl::algorithm::deconvolution_direct,
                 input_md,
                 weights_md,
                 output_md,
@@ -193,44 +156,29 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const convolution_node& arg) {
+    static primitive_impl* create(const deconvolution_node& arg) {
         auto& engine = arg.get_program().get_engine();
-        auto desc = get_convolution_descriptor(arg);
+        auto desc = get_deconvolution_descriptor(arg);
         auto attr = get_primitive_attributes(arg);
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return new convolution_onednn(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));
+        return new deconvolution_onednn(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));
     }
 };
 
 namespace detail {
 
-attach_convolution_onednn::attach_convolution_onednn() {
-    implementation_map<convolution>::add(impl_types::onednn, convolution_onednn::create, {
+attach_deconvolution_onednn::attach_deconvolution_onednn() {
+    implementation_map<deconvolution>::add(impl_types::onednn, deconvolution_onednn::create, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
 
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-
         std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
 
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
