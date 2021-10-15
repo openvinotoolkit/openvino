@@ -1,17 +1,5 @@
 # Intel® Movidius™ VPUs Setup Guide for Use with Intel® Distribution of OpenVINO™ toolkit {#openvino_docs_install_guides_movidius_setup_guide}
 
-@sphinxdirective
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   openvino_docs_install_guides_installing_openvino_linux_ivad_vpu
-   openvino_docs_install_guides_movidius_programming_guide
-
-@endsphinxdirective
-
-
 > **NOTE**: These steps are only required for **IEI Mustang-V100-MX8-R10** card. **IEI Mustang-V100-MX8-R11** card doesn't require any additional steps and it's completely configured using the [general guidance](installing-openvino-linux-ivad-vpu.md).      
 
 ## See Also

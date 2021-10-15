@@ -76,6 +76,15 @@
    groupie_dev_api
    Inference Engine Plugin Developer Guide <docs_ie_plugin_dg_overview>
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Use OpenVINO™ Toolkit Securely
+   
+   openvino_docs_security_guide_introduction
+   openvino_docs_security_guide_workbench
+   openvino_docs_IE_DG_protecting_model_guide
+   ovsa_get_started
 
 @endsphinxdirective
 

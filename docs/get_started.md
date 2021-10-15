@@ -36,9 +36,9 @@
    :hidden:
    :caption: Configuration for Hardware
    
-   openvino_docs_install_guides_installing_openvino_linux_ivad_vpu
-   openvino_docs_install_guides_movidius_setup_guide
-   openvino_docs_install_guides_movidius_programming_guide
+   Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux*<openvino_docs_install_guides_installing_openvino_linux_ivad_vpu>
+   Intel® Movidius™ VPUs Setup Guide <openvino_docs_install_guides_movidius_setup_guide>
+   Intel® Movidius™ VPUs Programming Guide <openvino_docs_install_guides_movidius_programming_guide>
    
 .. toctree::
    :maxdepth: 1
@@ -56,24 +56,6 @@
    :caption: Inference Engine Code Samples
 
    openvino_docs_IE_DG_Samples_Overview
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Demo Applications
-
-   omz_demos
-   
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Use OpenVINO™ Toolkit Securely
-   
-   openvino_docs_security_guide_introduction
-   openvino_docs_security_guide_workbench
-   openvino_docs_IE_DG_protecting_model_guide
-   ovsa_get_started
 
 
 .. toctree::
