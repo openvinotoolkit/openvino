@@ -75,8 +75,6 @@ xfail_issue_38724 = xfail_test(reason="RuntimeError: While validating ONNX node 
                                       "half_pixel")
 xfail_issue_38725 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Loop): "
                                       "value info has no element type specified")
-xfail_issue_38726 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
-                                      "LessOrEqual")
 xfail_issue_38732 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "ConvInteger")
 xfail_issue_38734 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "

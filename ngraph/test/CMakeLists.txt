@@ -563,7 +563,8 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND SRC
             onnx/onnx_import_exceptions.cpp
             onnx/onnx_import_library.cpp
-            onnx/onnx_tensor_names.cpp)
+            onnx/onnx_tensor_names.cpp
+            onnx/onnx_transformations.cpp)
 endif()
 
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
