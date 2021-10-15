@@ -34,7 +34,7 @@ class Core;
  */
 class OPENVINO_RUNTIME_API ExecutableNetwork {
     std::shared_ptr<void> _so;
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> _impl;
+    std::shared_ptr<ie::IExecutableNetworkInternal> _impl;
 
     /**
      * @brief Constructs ExecutableNetwork from the initialized std::shared_ptr
