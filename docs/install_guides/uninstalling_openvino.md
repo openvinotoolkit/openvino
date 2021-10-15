@@ -17,7 +17,7 @@ Choose one of the options provided below to uninstall the Intel® Distribution o
    sudo ./uninstall.sh
    ```
 2. Follow the instructions on your screen.
-4. When uninstallation is complete, press **Enter**.
+3. When uninstallation is complete, press **Enter**.
 
 ### Uninstall with Command Line (Silent Mode)
 1. Run the following command from `<INSTALL_DIR>/openvino_toolkit_uninstaller`:
