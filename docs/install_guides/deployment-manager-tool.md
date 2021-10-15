@@ -29,10 +29,9 @@ There are two ways to create a deployment package that includes inference-relate
 
 .. raw:: html
 
-    <div class="collapsible-content”>
+    <div class="collapsible-section" data-title="Click to expand/collapse">
     
 @endsphinxdirective
-Click to expand/collapse
   
 Interactive mode provides a user-friendly command-line interface that will guide you through the process with text prompts.
 
