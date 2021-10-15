@@ -23,6 +23,8 @@ namespace runtime {
         OPENVINO_ASSERT(false, "Unexpected exception");               \
     }
 
+void Tensor::type_check(const Tensor&) {}
+
 Tensor::Tensor(const std::shared_ptr<void>& so, const std::shared_ptr<ie::Blob>& impl) : _so{so}, _impl{impl} {
     OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
 }
@@ -97,18 +99,26 @@ size_t Tensor::get_byte_size() const {
 }
 
 void* Tensor::data(const element::Type element_type) const {
+    OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
+#define TYPE_CHECK(TYPE) (dynamic_cast<const ie::TBlob<TYPE>*>(_impl.get()) != nullptr)
+    auto host_accesable_implementation = TYPE_CHECK(bool) || TYPE_CHECK(int8_t) || TYPE_CHECK(uint8_t) ||
+                                         TYPE_CHECK(int16_t) || TYPE_CHECK(uint16_t) || TYPE_CHECK(int32_t) ||
+                                         TYPE_CHECK(uint32_t) || TYPE_CHECK(int64_t) || TYPE_CHECK(uint64_t) ||
+                                         TYPE_CHECK(float) || TYPE_CHECK(double);
+#undef TYPE_CHECK
+    OPENVINO_ASSERT(host_accesable_implementation, "Tensor implementation type dose not contains host accessable data");
+    if (element_type != element::undefined) {
+        OPENVINO_ASSERT(
+            element::fundamental_type_for(element_type) == element::fundamental_type_for(get_element_type()),
+            get_element_type(),
+            " tensor fundamental element type is ",
+            element::fundamental_type_for(get_element_type()),
+            ", but it casted to ",
+            element_type,
+            " with fundamental element type ",
+            element::fundamental_type_for(element_type));
+    }
     OV_TENSOR_STATEMENT({
-        if (element_type != element::undefined) {
-            OPENVINO_ASSERT(
-                element::fundamental_type_for(element_type) == element::fundamental_type_for(get_element_type()),
-                get_element_type(),
-                " tensor fundamental element type is ",
-                element::fundamental_type_for(get_element_type()),
-                ", but it casted to ",
-                element_type,
-                " with fundamental element type ",
-                element::fundamental_type_for(element_type));
-        }
         return _impl->getTensorDesc().getBlockingDesc().getOffsetPadding() * get_element_type().size() +
                InferenceEngine::as<InferenceEngine::MemoryBlob>(_impl)->rmap().as<uint8_t*>();
     });

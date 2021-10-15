@@ -44,6 +44,9 @@ return true;
 namespace cldnn {
 namespace ocl {
 static constexpr auto INTEL_PLATFORM_VENDOR = "Intel(R) Corporation";
+#ifdef _WIN32
+static constexpr auto INTEL_D3D11_SHARING_EXT_NAME = "cl_khr_d3d11_sharing";
+#endif // _WIN32
 
 static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
     cl_uint maxSubDevices;
@@ -205,6 +208,18 @@ std::vector<device::ptr>  ocl_device_detector::create_device_list_from_user_devi
 
         std::vector<cl::Device> devices;
 #ifdef _WIN32
+        // From OpenCL Docs:
+        // A non-NULL return value for clGetExtensionFunctionAddressForPlatform
+        // does not guarantee that an extension function is actually supported
+        // by the platform. The application must also make a corresponding query
+        // using clGetPlatformInfo (platform, CL_PLATFORM_EXTENSIONS, …​ ) or
+        // clGetDeviceInfo (device,CL_DEVICE_EXTENSIONS, …​ )
+        // to determine if an extension is supported by the OpenCL implementation.
+        const std::string& ext = platform.getInfo<CL_PLATFORM_EXTENSIONS>();
+        if (ext.empty() || ext.find(INTEL_D3D11_SHARING_EXT_NAME) == std::string::npos) {
+            continue;
+        }
+
         platform.getDevices(CL_D3D11_DEVICE_KHR,
             user_device,
             CL_PREFERRED_DEVICES_FOR_D3D11_KHR,
