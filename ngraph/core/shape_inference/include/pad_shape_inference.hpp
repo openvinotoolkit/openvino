@@ -56,23 +56,24 @@ void shape_infer(Pad* op, const std::vector<T>& input_shapes, std::vector<T>& ou
 
     const auto& arg_shape = input_shapes[0];
     const auto& arg_shape_rank = arg_shape.rank();
-    if (arg_shape_rank.is_static() && pads_begin_shape.is_static()) {
-        NODE_VALIDATION_CHECK(op,
-                              pads_begin_shape[0].get_length() <= arg_shape_rank.get_length(),
-                              "Number of elements of pads_begin must be >= 0 and <= arg rank "
-                              "(pads_begin_shape[0]: ",
-                              pads_begin_shape[0],
-                              ").");
-    }
-    if (arg_shape_rank.is_static() && pads_end_shape.is_static()) {
-        NODE_VALIDATION_CHECK(op,
-                              pads_end_shape[0].get_length() <= arg_shape_rank.get_length(),
-                              "Number of elements of pads_end must be >= 0 and <= arg rank (pads_end_shape[0]: ",
-                              pads_end_shape[0],
-                              ").");
-    }
 
     if (arg_shape_rank.is_static()) {
+        if (pads_begin_shape.is_static()) {
+            NODE_VALIDATION_CHECK(op,
+                                  pads_begin_shape[0].get_length() <= arg_shape_rank.get_length(),
+                                  "Number of elements of pads_begin must be >= 0 and <= arg rank "
+                                  "(pads_begin_shape[0]: ",
+                                  pads_begin_shape[0],
+                                  ").");
+        }
+        if (pads_end_shape.is_static()) {
+            NODE_VALIDATION_CHECK(op,
+                                  pads_end_shape[0].get_length() <= arg_shape_rank.get_length(),
+                                  "Number of elements of pads_end must be >= 0 and <= arg rank (pads_end_shape[0]: ",
+                                  pads_end_shape[0],
+                                  ").");
+        }
+
         for (size_t i = 0; i < arg_shape.size(); i++) {
             if (arg_shape[i].is_static()) {
                 NODE_VALIDATION_CHECK(op,
@@ -91,11 +92,11 @@ void shape_infer(Pad* op, const std::vector<T>& input_shapes, std::vector<T>& ou
         const auto& pads_begin_coord = op->get_pads_begin();
         const auto& pads_end_coord = op->get_pads_end();
         if (!pads_begin_coord.empty() && !pads_end_coord.empty()) {
-            size_t i;
-            for (i = 0; i < pads_begin_coord.size(); i++) {
+            for (size_t i = 0; i < output_shape.size(); i++) {
+                ptrdiff_t begin = i < pads_begin_coord.size() ? pads_begin_coord[i] : 0;
+                ptrdiff_t end = i < pads_end_coord.size() ? pads_end_coord[i] : 0;
+
                 if (arg_shape[i].is_static()) {
-                    const auto& begin = pads_begin_coord[i];
-                    const auto& end = pads_end_coord[i];
                     const auto& dim = arg_shape[i].get_length();
 
                     if (op->m_pad_mode == op::PadMode::REFLECT) {
@@ -133,16 +134,11 @@ void shape_infer(Pad* op, const std::vector<T>& input_shapes, std::vector<T>& ou
                     }
 
                     output_shape[i] = static_cast<size_t>(begin + dim + end);
+                } else {
+                    output_shape[i] = arg_shape[i] + (begin + end);
                 }
             }
-
-            for (; i < output_shape.size(); i++) {
-                output_shape[i] = arg_shape[i];
-            }
         }
-    } else {
-        // output_shape is dynamic ranked
-        output_shape = unknown_shape<T>();
     }
 }
 
