@@ -268,6 +268,7 @@ set(SRC
     visitors/op/atanh.cpp
     visitors/op/batch_norm.cpp
     visitors/op/batch_to_space.cpp
+    visitors/op/binary_convolution.cpp
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
     visitors/op/ceiling.cpp
@@ -464,8 +465,6 @@ set(MULTI_TEST_SRC
     backend/ceiling.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
-    backend/convolution_backprop.in.cpp
-    backend/binary_convolution.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/deformable_psroi_pooling.in.cpp
@@ -564,7 +563,8 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND SRC
             onnx/onnx_import_exceptions.cpp
             onnx/onnx_import_library.cpp
-            onnx/onnx_tensor_names.cpp)
+            onnx/onnx_tensor_names.cpp
+            onnx/onnx_transformations.cpp)
 endif()
 
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
