@@ -92,6 +92,7 @@ add_subdirectory(inference-engine)
 openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph_backend interpreter_backend)
 include(cmake/extra_modules.cmake)
 
+add_subdirectory(samples)
 add_subdirectory(model-optimizer)
 add_subdirectory(docs)
 add_subdirectory(tools)

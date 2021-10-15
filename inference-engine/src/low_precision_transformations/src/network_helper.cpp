@@ -302,12 +302,13 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
 
 void NetworkHelper::copyInfo(
     const std::vector<std::shared_ptr<Node>>& sources,
-    const std::vector<std::shared_ptr<Node>>& targets) {
+    const std::vector<std::shared_ptr<Node>>& targets,
+    bool overrideName) {
     ngraph::copy_runtime_info(sources, targets);
 
     for (const auto& target : targets) {
         const std::string friendlyName = sources[0]->get_friendly_name();
-        if (!friendlyName.empty()) {
+        if (!friendlyName.empty() && overrideName) {
             target->set_friendly_name(friendlyName);
         }
 
@@ -345,12 +346,12 @@ void NetworkHelper::copyInfo(
     }
 }
 
-void NetworkHelper::copyInfo(const std::vector<std::shared_ptr<Node>>& sources, const std::shared_ptr<Node>& target) {
-    copyInfo(sources, std::vector<std::shared_ptr<Node>>{ target });
+void NetworkHelper::copyInfo(const std::vector<std::shared_ptr<Node>>& sources, const std::shared_ptr<Node>& target, bool overrideName) {
+    copyInfo(sources, std::vector<std::shared_ptr<Node>>{ target }, overrideName);
 }
 
-void NetworkHelper::copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target) {
-    copyInfo(std::vector<std::shared_ptr<Node>>{ source }, std::vector<std::shared_ptr<Node>>{ target });
+void NetworkHelper::copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target, bool overrideName) {
+    copyInfo(std::vector<std::shared_ptr<Node>>{ source }, std::vector<std::shared_ptr<Node>>{ target }, overrideName);
 }
 
 bool NetworkHelper::isScalarLike(std::shared_ptr<opset1::Constant> constant) {
@@ -657,8 +658,10 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::fuseConvert(const std::shar
         ngraph::op::TemporaryReplaceOutputType(fakeQuantize->input_value(4), element::f32).get(),
         fakeQuantize->get_levels());
     NetworkHelper::setOutDataPrecisionForTypeRelaxed(newFakeQuantize, node->get_output_element_type(0));
+    newFakeQuantize->set_friendly_name(node->get_friendly_name());
     replace_node(node->shared_from_this(), newFakeQuantize);
-    NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);
+    bool overrideName = false;
+    NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize, overrideName);
 
     return newFakeQuantize;
 }
