@@ -34,8 +34,15 @@ CommonDispatchData BatchToSpaceKernelBase::SetDefault(const batch_to_space_param
         dispatchData.gws = { out.Batch().v, out.Feature().v, out.Y().v * out.X().v };
         dispatchData.lws = { 1, 16, 1 };
     } else {
+        auto in_layout = params.inputs[0].GetLayout();
+        auto out_layout = out.GetLayout();
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
+                                                                         { Tensor::DataChannelName::FEATURE },
+                                                                         { Tensor::DataChannelName::X, Tensor::DataChannelName::Y,
+                                                                           Tensor::DataChannelName::Z, Tensor::DataChannelName::W }};
+
         dispatchData.gws = { out.Batch().v, out.Feature().v, out.W().v * out.Z().v * out.Y().v * out.X().v };
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     }
 
     return dispatchData;

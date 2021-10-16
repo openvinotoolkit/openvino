@@ -29,8 +29,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 43793
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*iPRC=0.*_iLT=1.*)",
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*_oLT=1.*)",
-        // TODO: Issue: 34348
-        R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue: 63469
         R"(.*ConversionLayerTest.*ConvertLike.*)",
         // TODO: Issue: 34055
@@ -79,26 +77,42 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=CN.*targetDevice=(AUTO|MULTI).*)",
         R"(.*Behavior.*InferRequestSetBlobByType.*Batched.*)",
         R"(.*Auto_Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
+        R"(.*Auto.*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
+        R"(.*(Auto|Multi).*Behavior.*CorrectConfigAPITests.*CanSetExclusiveAsyncRequests.*)",
+        R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
+        R"(.*OVExecutableNetworkBaseTest.*(CanGetInputsInfoAndCheck|CanSetConfigToExecNet|canLoadCorrectNetworkToGetExecutableWithIncorrectConfig).*)",
+        R"(.*Behavior.*CorrectConfigCheck.*(canSetConfigAndCheckGetConfig|canSetConfigTwiceAndCheckGetConfig).*CPU_BIND_THREAD=YES.*)",
         // azure is failing after #6199
         R"(.*/NmsLayerTest.*)",
         // TODO: 56520 Accuracy mismatch
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",
+        // Not implemented yet:
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
+        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*checkGetExecGraphInfo.*)",
+        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
+        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution).*)",
+        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*CheckExecGraphInfoSerialization.*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNetWithIncorrectConfig.*)",
+        R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
+        R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*ExecGraphInfo.*)",
+        R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
 
         // CPU plugin does not support some precisions
-        R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*type=(i8|u32).*)",
-        R"(.*smoke_(Auto|Multi)_BehaviorTests.*OVExecNetwork.*type=(f16).*)",
-        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*type=(i8|u32).*)",
-        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*type=(f16).*)",
-        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=(i8|u32).*)",
-        R"(.*smoke_BehaviorTests.*OVExecNetwork.*type=(f16).*)",
+        R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
+        // Issue 66685
+        R"(smoke_PrePostProcess.*resize_linear_nhwc.*)",
+        // CPU plugin does not support some precisions
+        R"(.*Behavior.*OVExecGraphImportExportTest.*elementType=(i8|u32).*)",
+        R"(.*Behavior.*OVExecGraphImportExportTest.*elementType=(f16).*)",
 
         // TODO: CVS-66526 overrides i/o precisions in execution graph
         // as WA we used GetInputsInfo() precisions instead of ngraph ones
-        // R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedFunction.*type=(i16|u16).*)",
-        // R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedFunction.*type=(i64|u64).*)",
-        // R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedIENetwork.*type=(i16|u16).*)",
-        // R"(.*smoke_BehaviorTests.*OVExecNetwork.*importExportedIENetwork.*type=(i64|u64).*)",
+        // R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.*importExportedFunction.*type=(i16|u16).*)",
+        // R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.*importExportedFunction.*type=(i64|u64).*)",
+        // R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.*importExportedIENetwork.*type=(i16|u16).*)",
+        // R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.*importExportedIENetwork.*type=(i64|u64).*)",
 
         // CPU does not support dynamic rank
         // Issue: CVS-66778
@@ -111,18 +125,14 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
         R"(.*smoke_BehaviorTests.*InferDynamicNetworkWithGetTensor.*)",
 
-        // Issue: 62746
-        R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
-
         // TODO: Issue CVS-51680
         R"(.*BehaviorTests.*canRun3SyncRequestsConsistentlyFromThreads.*CPU_THROUGHPUT.*)",
-
-        // Issue 66685
-        R"(smoke_PrePostProcess.*resize_linear_nhwc.*)",
         // Issue 67214
         R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)",
         // Issue 67910
         R"(.*smoke_PrePostProcess.*two_inputs_trivial.*)",
+        // TODO: CVS-67255
+        R"(smoke_If.*SimpleIf2OutTest.*)"
     };
 
 #define FIX_62820 0
