@@ -7,7 +7,7 @@ import pytest
 from common.tf_layer_test_class import CommonTFLayerTest
 from mo.front.common.partial_infer.utils import int64_array
 from unit_tests.utils.graph import build_graph
-from tensorflow_tests.permutation_utils import permute_nchw_to_nhwc, permute_nhwc_to_nchw
+from common.utils.tf_utils import permute_nchw_to_nhwc, permute_nchw_to_nhwc
 
 
 class TestNormalizeL2(CommonTFLayerTest):
@@ -33,7 +33,7 @@ class TestNormalizeL2(CommonTFLayerTest):
             return tf_net
 
     @staticmethod
-    def create_normalize_l2_net_fusable(shape, axes, output_axes, ir_version):
+    def create_normalize_l2_net_fusable(shape, axes, output_axes, ir_version, use_new_frontend):
         tf_net = TestNormalizeL2.build_tf_graph(shape, axes)
 
         nodes_attributes = {
@@ -60,13 +60,13 @@ class TestNormalizeL2(CommonTFLayerTest):
         return tf_net, ref_net
 
     @staticmethod
-    def create_normalize_l2_net_non_fusable(shape, axes, output_axes, ir_version):
+    def create_normalize_l2_net_non_fusable(shape, axes, output_axes, ir_version, use_new_frontend):
         tf_net = TestNormalizeL2.build_tf_graph(shape, axes)
 
         reduced_shape = permute_nchw_to_nhwc(shape).copy()
         for axis in axes:
             reduced_shape[axis] = 1
-        reduced_shape = permute_nhwc_to_nchw(reduced_shape)
+        reduced_shape = permute_nchw_to_nhwc(reduced_shape)
 
         eltwise_shapes = int64_array(np.ones(len(shape)))
         nodes_attributes = {
@@ -147,9 +147,9 @@ class TestNormalizeL2(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_fusable_precommit)
     @pytest.mark.precommit
-    def test_NormalizeL2_fusable_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_normalize_l2_net_fusable(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_NormalizeL2_fusable_precommit(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_normalize_l2_net_fusable(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     test_data_non_fusable_precommit = [
         pytest.param(dict(shape=[2, 3, 5], axes=[0, 1, 2], output_axes=[0, 1, 2]),
@@ -162,10 +162,10 @@ class TestNormalizeL2(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_non_fusable_precommit)
     @pytest.mark.precommit
-    def test_NormalizeL2_non_fusable_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_normalize_l2_net_non_fusable(**params, ir_version=ir_version),
+    def test_NormalizeL2_non_fusable_precommit(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_normalize_l2_net_non_fusable(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     test_data_fusable = [
         dict(shape=[5, 6], axes=[1], output_axes=[1]),
@@ -178,9 +178,9 @@ class TestNormalizeL2(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_fusable)
     @pytest.mark.nightly
-    def test_NormalizeL2_fusable(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_normalize_l2_net_fusable(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_NormalizeL2_fusable(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_normalize_l2_net_fusable(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     test_data_non_fusable = [
         dict(shape=[5], axes=[0], output_axes=[0]),
@@ -201,7 +201,7 @@ class TestNormalizeL2(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_non_fusable)
     @pytest.mark.nightly
-    def test_NormalizeL2_non_fusable(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_normalize_l2_net_non_fusable(**params, ir_version=ir_version),
+    def test_NormalizeL2_non_fusable(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_normalize_l2_net_non_fusable(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend)

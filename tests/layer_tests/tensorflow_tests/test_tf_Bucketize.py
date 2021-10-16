@@ -10,7 +10,7 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestBucketize(CommonTFLayerTest):
-    def create_bucketize_net(self, input_shape, input_type, boundaries_size, ir_version):
+    def create_bucketize_net(self, input_shape, input_type, boundaries_size, ir_version, use_new_frontend):
         """
             Tensorflow net:                     IR net:
                  Input            =>      Input        Boundaries
@@ -64,9 +64,9 @@ class TestBucketize(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly
-    def test_bucketize_float32(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_bucketize_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_bucketize_float32(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_bucketize_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     test_data_int32 = [
         dict(input_shape=[5], input_type=tf.int32, boundaries_size=1),
@@ -78,6 +78,6 @@ class TestBucketize(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_int32)
     @pytest.mark.nightly
-    def test_bucketize_int32(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_bucketize_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_bucketize_int32(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_bucketize_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)

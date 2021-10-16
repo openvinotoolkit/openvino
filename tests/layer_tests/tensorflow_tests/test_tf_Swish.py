@@ -5,11 +5,12 @@ import pytest
 
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
+from common.utils.tf_utils import permute_nchw_to_nhwc
 from unit_tests.utils.graph import build_graph
 
 
 class TestSwish(CommonTFLayerTest):
-    def create_swish_net(self, shape, ir_version):
+    def create_swish_net(self, shape, ir_version, use_new_frontend):
         """
             Tensorflow net                 IR net
 
@@ -27,11 +28,10 @@ class TestSwish(CommonTFLayerTest):
 
         # Create the graph and model
         with tf.Session() as sess:
-            shapes = shape.copy()
-            # reshaping
-            if len(shapes) > 3:
-                shapes.append(shapes.pop(1))
-            input = tf.placeholder(tf.float32, shapes, 'Input')
+            tf_x_shape = shape.copy()
+
+            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
+            input = tf.placeholder(tf.float32, tf_x_shape, 'Input')
 
             tf.nn.swish(input)
 
@@ -71,9 +71,9 @@ class TestSwish(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_swish_precommit(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_swish_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_swish_precommit(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_swish_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     test_data = [dict(shape=[1]),
                  dict(shape=[1, 224]),
@@ -83,6 +83,6 @@ class TestSwish(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_swish(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_swish_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_swish(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_swish_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)

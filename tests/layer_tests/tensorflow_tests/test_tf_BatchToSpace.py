@@ -7,7 +7,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 
 class TestBatchToSpace(CommonTFLayerTest):
-    def create_batch_to_space_net(self, in_shape, crops_value, block_shape_value, out_shape, ir_version):
+    def create_batch_to_space_net(self, in_shape, crops_value, block_shape_value, out_shape, ir_version, use_new_frontend):
         """
             Tensorflow net               IR net
 
@@ -61,9 +61,9 @@ class TestBatchToSpace(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_batch_to_space_4D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_batch_to_space_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_batch_to_space_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_batch_to_space_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     test_data_5D = [
         dict(in_shape=[72, 2, 1, 4, 2], block_shape_value=[3, 4, 2], crops_value=[[1, 2], [0, 0], [3, 0]],
@@ -75,6 +75,6 @@ class TestBatchToSpace(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_batch_to_space_5D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_batch_to_space_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_batch_to_space_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_batch_to_space_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)

@@ -24,14 +24,15 @@ class CommonLayerTest:
     def get_framework_results(self, inputs_dict, model_path):
         pass
 
-    def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir, infer_timeout=60,
-              enabled_transforms='', disabled_transforms='', **kwargs):
+    def _test(self, framework_model, ref_net, ie_device, precision, ir_version, temp_dir, use_new_frontend=False,
+              infer_timeout=60, enabled_transforms='', disabled_transforms='', **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
                                                        Example: "transform_1,transform_2"
         """
         model_path = self.produce_model_path(framework_model=framework_model, save_path=temp_dir)
 
+        self.use_new_frontend = use_new_frontend
         # TODO Pass environment variables via subprocess environment
         os.environ['MO_ENABLED_TRANSFORMS'] = enabled_transforms
         os.environ['MO_DISABLED_TRANSFORMS'] = disabled_transforms
@@ -49,6 +50,9 @@ class CommonLayerTest:
 
         if 'input_names' in kwargs and len(kwargs['input_names']):
             mo_params.update(dict(input=','.join(kwargs['input_names'])))
+
+        if use_new_frontend:
+            mo_params["use_new_frontend"] = ""
 
         exit_code, stderr = generate_ir(**mo_params)
 

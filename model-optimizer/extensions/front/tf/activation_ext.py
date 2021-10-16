@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from extensions.ops.activation_ops import Abs, Elu, Erf, Exp, ReLU, LeakyReLU, LogicalNot, ReLU6, Sigmoid, \
-    Sin, Sinh, Cos, Cosh, Tan, Tanh, Ceiling, Atanh, Acosh, Asinh, Mish, Log
+    Sin, Sinh, Cos, Cosh, Tan, Tanh, Ceiling, Atanh, Acosh, Asinh, Mish, Log, Acos, Atan, Asin
 from mo.front.extractor import FrontExtractorOp
 
 
@@ -217,4 +217,34 @@ class LogExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         Log.update_node_stat(node)
+        return cls.enabled
+
+
+class AsinExtractor(FrontExtractorOp):
+    op = 'Asin'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        Asin.update_node_stat(node)
+        return cls.enabled
+
+
+class AcosExtractor(FrontExtractorOp):
+    op = 'Acos'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        Acos.update_node_stat(node)
+        return cls.enabled
+
+
+class AtanExtractor(FrontExtractorOp):
+    op = 'Atan'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        Atan.update_node_stat(node)
         return cls.enabled

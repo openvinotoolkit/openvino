@@ -29,10 +29,10 @@ class TestResamplePattern(CommonTFLayerTest):
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            tf_shape = shape.copy()
-            tf_shape = np.array(tf_shape)[[0, 2, 3, 1]]
+            tf_x_shape = shape.copy()
+            tf_x_shape = np.array(tf_x_shape)[[0, 2, 3, 1]]
 
-            input = tf.compat.v1.placeholder(tf.float32, tf_shape, 'Input')
+            input = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
 
             transpose_1 = tf.transpose(a=input, perm=[1, 2, 3, 0])
             expand_dims = tf.expand_dims(transpose_1, 0)
@@ -76,6 +76,6 @@ class TestResamplePattern(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.xfail(reason="*-22273")
-    def test_resample(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_resample(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         self._test(*self.create_resample_net(params['shape'], params['factor']),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)

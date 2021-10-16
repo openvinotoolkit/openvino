@@ -9,23 +9,23 @@ from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, con
 
 from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
+from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestTFRandomUniform(CommonTFLayerTest):
     def create_tf_random_uniform_net(self, global_seed, op_seed, x_shape, min_val, max_val, input_type, precision,
-                                     ir_version):
+                                     ir_version, use_new_frontend):
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             tf_x_shape = x_shape.copy()
-            # reshaping
-            if len(tf_x_shape) >= 3:
-                tf_x_shape.append(tf_x_shape.pop(1))
 
-            x = tf.compat.v1.placeholder(input_type, x_shape, 'Input')
+            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
+
+            x = tf.compat.v1.placeholder(input_type, tf_x_shape, 'Input')
             if global_seed is not None:
-                tf.random.set_seed(global_seed)
+                tf.random.set_random_seed(global_seed)
             random_uniform = tf.random.uniform(x_shape, seed=op_seed, dtype=input_type, minval=min_val,
                                                maxval=max_val) + x
 
@@ -86,8 +86,9 @@ class TestTFRandomUniform(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_tf_random_uniform(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_tf_random_uniform(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         if ie_device == 'GPU':
             pytest.skip("RandomUniform is not supported on GPU")
-        self._test(*self.create_tf_random_uniform_net(**params, precision=precision, ir_version=ir_version), ie_device,
-                   precision, temp_dir=temp_dir, ir_version=ir_version, **params)
+        self._test(*self.create_tf_random_uniform_net(**params, precision=precision, ir_version=ir_version,
+                                                      use_new_frontend=use_new_frontend), ie_device,
+                   precision, temp_dir=temp_dir, ir_version=ir_version, use_new_frontend=use_new_frontend, **params)
