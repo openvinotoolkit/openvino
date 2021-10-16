@@ -134,6 +134,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"LessEqual", TranslateBinaryOp<opset8::LessEqual>},
         {"LogicalAnd", TranslateBinaryOp<opset8::LogicalAnd>},
         {"LogicalOr", TranslateBinaryOp<opset8::LogicalOr>},
+        {"LogicalXor", TranslateBinaryOp<opset8::LogicalXor>},
         {"Maximum", TranslateBinaryOp<opset8::Maximum>},
         {"Minimum", TranslateBinaryOp<opset8::Minimum>},
         {"Mul", TranslateBinaryOp<opset8::Multiply>},
