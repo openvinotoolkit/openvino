@@ -48,8 +48,8 @@ def import_core_modules(silent: bool, path_to_module: str):
     """
     try:
         from openvino.inference_engine import get_version, read_network  # pylint: disable=import-error,no-name-in-module
-        from openvino.offline_transformations import ApplyMOCTransformations, ApplyLowLatencyTransformation, \
-            ApplyMakeStatefulTransformation, GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations import apply_moc_transformations, apply_low_latency_transformation, \
+            apply_make_stateful_transformation, generate_mapping_file  # pylint: disable=import-error,no-name-in-module
 
         # TODO: it is temporary import to check that nGraph python API is available. But in future
         # we need to replace it with Frontend imports
