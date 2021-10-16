@@ -97,7 +97,7 @@ class TestElementwiseTypeAlignment(unittest.TestCase):
             **shaped_parameter('input_1', input_shape, {'data_type': input_1_type}),
             **shaped_parameter('input_2', input_shape, {'data_type': input_2_type}),
             **regular_op_with_empty_data('add', {'op': 'Add', 'type': 'Add', 'type_infer': Elementwise.type_infer}),
-            **valued_const_with_data('const', const_value, {'data_type': const_type}),
+            **valued_const_with_data('const', const_value, kwargs={'data_type': const_type}),
             **result('result'),
         }
         graph = build_graph(nodes, edges, nodes_with_edges_only=True)

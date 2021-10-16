@@ -1,0 +1,56 @@
+{
+    "model": {
+        "model_name": "mobilenetv2",
+        "model": "<MODEL_PATH>",
+        "weights": "<PATH_TO_WEIGHTS>"
+    },
+    "engine": {
+        "config": "./configs/examples/accuracy_checker/mobilenet_v2.yaml"
+    },
+    "compression": {
+        "algorithms": [
+            {
+                "name": "QuantileTuningAlgorithm",
+                "params": {
+                    "opt_backend": "skopt",
+                    "maxiter": 100,
+                    "optimization_subset_size": 1000,
+                    "preset": "mixed",
+                    "stat_subset_size": 1000,
+                    "weights": {
+                        "bits": 8,
+                        "mode": "asymmetric",
+                        "granularity": "perchannel",
+                        "range_estimator": {
+                            "min": {
+                                "type": "quantile",
+                                "outlier_prob": 0.0015
+                            },
+                            "max": {
+                                "type": "quantile",
+                                "outlier_prob": 0.0015
+                            }
+                        }
+                    },
+                    "activations": {
+                        "bits": 8,
+                        "mode": "asymmetric",
+                        "granularity": "pertensor",
+                        "range_estimator": {
+                            "min": {
+                                "aggregator": "mean",
+                                "type": "quantile",
+                                "outlier_prob": 1e-3
+                            },
+                            "max": {
+                                "aggregator": "mean",
+                                "type": "quantile",
+                                "outlier_prob": 1e-3
+                            }
+                        }
+                    }
+                }
+            }
+        ]
+    }
+}
