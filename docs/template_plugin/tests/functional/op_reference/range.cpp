@@ -72,7 +72,7 @@ static std::shared_ptr<op::v0::Constant> CreateConstant(Shape& ishape, element::
     case element::Type_t::u8:
         return std::make_shared<op::v0::Constant>(ntype, ishape, std::vector<uint8_t>{static_cast<uint8_t>(input)});
     default:
-	return NULL;
+        return NULL;
     }
 }
 
