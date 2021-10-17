@@ -114,6 +114,98 @@ private:
     injection_callback m_callback;
 };
 
+class UniqueNamesHolder {
+    using names_t = std::unordered_set<std::string>;
+    std::unordered_map<Node *, names_t> m_result_tensor_names;
+    std::unordered_map<Node *, names_t> m_result_node_names;
+
+    size_t m_index{0};
+
+    std::string generate_name() {
+        return "tensor_" + std::to_string(m_index++);
+    }
+public:
+    using Ptr = std::shared_ptr<UniqueNamesHolder>;
+
+    UniqueNamesHolder() = default;
+
+    void init_names(std::shared_ptr<Function> f) {
+        for (auto r : f->get_results()) {
+            const auto & tensor_name = generate_name();
+            m_result_tensor_names[r.get()].insert(tensor_name);
+            r->input_value(0).set_names({tensor_name});
+
+            const auto & node_name = generate_name();
+            m_result_node_names[r.get()].insert(node_name);
+            r->input_value(0).get_node()->set_friendly_name(node_name);
+        }
+    }
+
+    void check_unique_names(std::shared_ptr<Function> f) {
+        // Check that all tensor names and friendly names are unique
+        names_t unique_tensor_names, unique_friendly_names;
+        for (auto node : f->get_ordered_ops()) {
+            for (auto output : node->outputs()) {
+                const auto & tensor_names = output.get_names();
+                if (std::any_of(tensor_names.begin(), tensor_names.end(), [&](const std::string & name) {
+                    return unique_tensor_names.count(name);
+                })) {
+                    std::stringstream ss;
+                    ss << "Node: " << node->get_type_info() << " with name " << node->get_friendly_name() << " ";
+                    ss << "has non unique tensor name.";
+                    throw ngraph_error(ss.str());
+                }
+                unique_tensor_names.insert(tensor_names.begin(), tensor_names.end());
+            }
+
+            if (unique_friendly_names.count(node->get_friendly_name())) {
+                std::stringstream ss;
+                ss << "Node: " << node->get_type_info() << " with name " << node->get_friendly_name() << " ";
+                ss << "has non unique friendly name.";
+                throw ngraph_error(ss.str());
+            }
+            unique_friendly_names.insert(node->get_friendly_name());
+        }
+
+        // Check that old tensor names for results were preserved
+        for (auto r : f->get_results()) {
+            const auto & ref_names = m_result_tensor_names.at(r.get());
+            const auto & cur_names = r->input_value(0).get_names();
+            for (const auto & ref_name : ref_names) {
+                if (cur_names.count(ref_name) == 0) {
+                    std::stringstream ss;
+                    auto node = r->input_value(0).get_node();
+                    ss << "Tensor name: " << ref_name << " is missing in " << node->get_type_info() << " ";
+                    ss << "output(" << r->input_value(0).get_index() << ")";
+                    throw ngraph_error(ss.str());
+                }
+            }
+        }
+
+        // TODO: check that result input node names are preserved
+    }
+};
+
+class InitUniqueNames : public ngraph::pass::FunctionPass {
+    UniqueNamesHolder::Ptr m_unh;
+public:
+    InitUniqueNames(UniqueNamesHolder::Ptr unh) : m_unh(unh) {}
+    bool run_on_function(std::shared_ptr<Function> f) override {
+        m_unh->init_names(f);
+        return false;
+    }
+};
+
+class CheckUniqueNames : public ngraph::pass::FunctionPass {
+    UniqueNamesHolder::Ptr m_unh;
+public:
+    CheckUniqueNames(UniqueNamesHolder::Ptr unh) : m_unh(unh) {}
+    bool run_on_function(std::shared_ptr<Function> f) override {
+        m_unh->check_unique_names(f);
+        return false;
+    }
+};
+
 }  // namespace pass
 }  // namespace ngraph
 

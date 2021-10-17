@@ -15,6 +15,7 @@
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include <transformations/serialize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -39,9 +40,15 @@ TEST(TransformationTests, AddFakeQuantizeFusion) {
                                                          input_high, output_low,
                                                          output_high, 11);
         f = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
+
+        auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+
         pass::Manager m;
+        m.register_pass<pass::InitUniqueNames>(unh);
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::AddFakeQuantizeFusion>();
+        m.register_pass<pass::Serialize>("/tmp/out.xml", "/tmp/out.bin");
+        m.register_pass<pass::CheckUniqueNames>(unh);
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
