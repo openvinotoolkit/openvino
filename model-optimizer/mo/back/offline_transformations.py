@@ -42,7 +42,7 @@ def apply_offline_transformations(input_model: str, framework: str, transforms: 
     from openvino.offline_transformations import GenerateMappingFile, Serialize  # pylint: disable=import-error,no-name-in-module
     from openvino.inference_engine import IENetwork  # pylint: disable=import-error,no-name-in-module
     from ngraph.frontend import FrontEndManager, FrontEnd  # pylint: disable=no-name-in-module,import-error
-    from ngraph.impl import Function  # from ngraph.impl.Function import to_capsule
+    from ngraph.impl import Function  # pylint: disable=no-name-in-module,import-error
 
     fem = FrontEndManager()
 
