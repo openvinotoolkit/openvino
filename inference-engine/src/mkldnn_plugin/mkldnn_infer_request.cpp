@@ -26,7 +26,7 @@
 
 MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsDataMap     networkInputs,
                                                      InferenceEngine::OutputsDataMap    networkOutputs,
-                                                     MKLDNNExecNetwork::Ptr             execNetwork_) 
+                                                     MKLDNNExecNetwork::Ptr             execNetwork_)
 : IInferRequestInternal(networkInputs, networkOutputs)
 , execNetwork(execNetwork_) {
     auto id = (execNetwork->_numRequests)++;
