@@ -25,10 +25,10 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
 MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsDataMap     networkInputs,
-    InferenceEngine::OutputsDataMap    networkOutputs,
-    MKLDNNExecNetwork::Ptr             execNetwork_)
-    : IInferRequestInternal(networkInputs, networkOutputs)
-    , execNetwork(execNetwork_) {
+                                                     InferenceEngine::OutputsDataMap    networkOutputs,
+                                                     MKLDNNExecNetwork::Ptr             execNetwork_) 
+: IInferRequestInternal(networkInputs, networkOutputs)
+, execNetwork(execNetwork_) {
     auto id = (execNetwork->_numRequests)++;
     profilingTask = openvino::itt::handle("MKLDNN_INFER_" + execNetwork->_name + "_" + std::to_string(id));
 
@@ -63,7 +63,6 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
         }
     }
 }
- 
 
 MKLDNNPlugin::MKLDNNInferRequest::~MKLDNNInferRequest() {
     --(execNetwork->_numRequests);
