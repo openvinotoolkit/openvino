@@ -221,12 +221,41 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
             context.color_format() = dst_format;
             return std::make_tuple(std::vector<Output<Node>>{convert}, true);
         }
+        if ((context.color_format() == ColorFormat::RGB || context.color_format() == ColorFormat::BGR) &&
+                (dst_format == ColorFormat::RGB || dst_format == ColorFormat::BGR)) {
+            auto res = reverse_channels(nodes, function, context);
+            context.color_format() = dst_format;
+            return res;
+        }
         OPENVINO_ASSERT(false,
                         "Source color format '",
                         color_format_name(context.color_format()),
                         "' is not convertible to any other");
     });
 }
+
+std::tuple<std::vector<Output<Node>>, bool> PreStepsList::reverse_channels(const std::vector<Output<Node>>& nodes,
+                                                             const std::shared_ptr<Function>& function,
+                                                             PreprocessingContext& context) {
+    OPENVINO_ASSERT(nodes.size() == 1, "Internal error: can't reverse channels for multi-plane inputs");
+    const auto& shape = nodes[0].get_partial_shape();
+    auto channels_idx = get_and_check_channels_idx(context.layout(), shape);
+    if (shape.is_static() && static_cast<int>(shape.size()) > channels_idx && shape[channels_idx].is_static()) {
+        // Can reverse channels
+        auto num_channels = shape[channels_idx].get_length();
+        auto indices = std::vector<int>(num_channels);
+        for (int64_t i = 0; i < num_channels; ++i) {
+            indices[i] = num_channels - 1 - i;
+        }
+        Shape s = {static_cast<size_t>(num_channels)};
+        auto constant = op::v0::Constant::create(element::i32, s, indices);
+        auto constant_axis = op::v0::Constant::create(element::i32, {1}, {channels_idx});
+        auto convert = std::make_shared<op::v8::Gather>(nodes[0], constant, constant_axis);
+        return std::make_tuple(std::vector<Output<Node>>{convert}, true);
+    }
+    return std::make_tuple(std::vector<Output<Node>>{}, false);
+}
+
 
 //------------- Post processing ------
 void PostStepsList::add_convert_impl(const element::Type& type) {

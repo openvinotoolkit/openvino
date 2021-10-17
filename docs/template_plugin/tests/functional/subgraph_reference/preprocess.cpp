@@ -746,6 +746,51 @@ static RefPreprocessParams pre_and_post_processing() {
     return res;
 }
 
+static RefPreprocessParams rgb_to_bgr() {
+    RefPreprocessParams res("rgb_to_bgr");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, Shape{2, 3, 1, 1});
+        f = PrePostProcessor().input(InputInfo()
+                .tensor(InputTensorInfo().set_color_format(ColorFormat::RGB).set_layout("NCHW"))
+                .preprocess(PreProcessSteps().convert_color(ColorFormat::BGR))).build(f);
+        return f;
+    };
+
+    res.inputs.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6});
+    res.expected.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{3, 2, 1, 6, 5, 4});
+    return res;
+}
+
+static RefPreprocessParams bgr_to_rgb_dyn_layout() {
+    RefPreprocessParams res("bgr_to_rgb_dyn_layout");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, Shape{1, 1, 3, 2});
+        f = PrePostProcessor().input(InputInfo()
+                .tensor(InputTensorInfo().set_color_format(ColorFormat::BGR).set_layout("...CN"))
+                .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB))).build(f);
+        return f;
+    };
+
+    res.inputs.emplace_back(Shape{1, 1, 3, 2}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6});
+    res.expected.emplace_back(Shape{1, 1, 3, 2}, element::f32, std::vector<float>{5, 6, 3, 4, 1, 2});
+    return res;
+}
+
+static RefPreprocessParams rgb_to_bgr_def_layout() {
+    RefPreprocessParams res("rgb_to_bgr_def_layout");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{2, 1, 2, 3});
+        f = PrePostProcessor().input(InputInfo()
+                                             .tensor(InputTensorInfo().set_color_format(ColorFormat::RGB))
+                                             .preprocess(PreProcessSteps().convert_color(ColorFormat::BGR))).build(f);
+        return f;
+    };
+
+    res.inputs.emplace_back(Shape{2, 1, 2, 3}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    res.expected.emplace_back(Shape{2, 1, 2, 3}, element::f32, std::vector<float>{3, 2, 1, 6, 5, 4, 9, 8, 7, 12, 11, 10});
+    return res;
+}
+
 std::vector<RefPreprocessParams> allPreprocessTests() {
     return std::vector<RefPreprocessParams> {
         simple_mean_scale(),
@@ -773,7 +818,10 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
         convert_color_nv12_layout_resize(),
         element_type_before_convert_color_nv12(),
         postprocess_2_inputs_basic(),
-        pre_and_post_processing()
+        pre_and_post_processing(),
+        rgb_to_bgr(),
+        bgr_to_rgb_dyn_layout(),
+        rgb_to_bgr_def_layout()
              };
 }
 

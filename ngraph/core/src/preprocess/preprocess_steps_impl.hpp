@@ -164,6 +164,10 @@ public:
     }
 
 private:
+    std::tuple<std::vector<Output<Node>>, bool> reverse_channels(const std::vector<Output<Node>>& nodes,
+                                                                 const std::shared_ptr<Function>& function,
+                                                                 PreprocessingContext& context);
+private:
     std::list<InternalPreprocessOp> m_actions;
 };
 
