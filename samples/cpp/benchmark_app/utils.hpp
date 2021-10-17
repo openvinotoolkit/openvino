@@ -41,32 +41,39 @@ size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info);
 std::vector<std::string> split(const std::string& s, char delim);
 std::map<std::string, std::vector<float>> parseScaleOrMean(const std::string& scale_mean,
                                                            const benchmark_app::InputsInfo& inputs_info);
+std::vector<ngraph::Dimension> parsePartialShape(const std::string& partial_shape);
+InferenceEngine::SizeVector parseTensorShape(const std::string& tensor_shape);
+std::vector<std::map<std::string, std::string>> generateInputsOptions(
+    const std::map<std::string, std::vector<std::string>>& tensors_shape_map);
 
 template <typename T>
-std::map<std::string, std::string> parseInputParameters(const std::string parameter_string,
-                                                        const std::map<std::string, T>& input_info) {
+std::map<std::string, std::vector<std::string>> parseInputParameters(const std::string parameter_string,
+                                                                     const std::map<std::string, T>& input_info) {
     // Parse parameter string like "input0[value0],input1[value1]" or "[value]" (applied to all
     // inputs)
-    std::map<std::string, std::string> return_value;
+    std::map<std::string, std::vector<std::string>> return_value;
     std::string search_string = parameter_string;
     auto start_pos = search_string.find_first_of('[');
+    auto input_name = search_string.substr(0, start_pos);
     while (start_pos != std::string::npos) {
         auto end_pos = search_string.find_first_of(']');
         if (end_pos == std::string::npos)
             break;
-        auto input_name = search_string.substr(0, start_pos);
+        if (start_pos)
+            input_name = search_string.substr(0, start_pos);
         auto input_value = search_string.substr(start_pos + 1, end_pos - start_pos - 1);
         if (!input_name.empty()) {
-            return_value[input_name] = input_value;
+            return_value[input_name].push_back(input_value);
         } else {
             for (auto& item : input_info) {
-                return_value[item.first] = input_value;
+                return_value[item.first].push_back(input_value);
             }
         }
         search_string = search_string.substr(end_pos + 1);
-        if (search_string.empty() || search_string.front() != ',')
+        if (search_string.empty() || search_string.front() != ',' && search_string.front() != '[')
             break;
-        search_string = search_string.substr(1);
+        if (search_string.front() == ',')
+            search_string = search_string.substr(1);
         start_pos = search_string.find_first_of('[');
     }
     if (!search_string.empty())
@@ -75,7 +82,7 @@ std::map<std::string, std::string> parseInputParameters(const std::string parame
 }
 
 template <typename T>
-benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
+std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_string,
                                         const std::string& layout_string,
                                         const size_t batch_size,
                                         const std::string& tensors_shape_string,
@@ -83,101 +90,96 @@ benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
                                         const std::string& mean_string,
                                         const std::map<std::string, T>& input_info,
                                         bool& reshape_required) {
-    std::map<std::string, std::string> shape_map = parseInputParameters(shape_string, input_info);
-    std::map<std::string, std::string> tensors_shape_map = parseInputParameters(tensors_shape_string, input_info);
-    std::map<std::string, std::string> layout_map = parseInputParameters(layout_string, input_info);
+    std::map<std::string, std::vector<std::string>> shape_map = parseInputParameters(shape_string, input_info);
+    std::map<std::string, std::vector<std::string>> tensors_shape_map =
+        parseInputParameters(tensors_shape_string, input_info);
+    std::map<std::string, std::vector<std::string>> layout_map = parseInputParameters(layout_string, input_info);
+
+    auto tensor_options = generateInputsOptions(tensors_shape_map);
 
     reshape_required = false;
-    benchmark_app::InputsInfo info_map;
-    for (auto& item : input_info) {
-        benchmark_app::InputInfo info;
-        auto name = item.first;
-        auto descriptor = item.second->getTensorDesc();
-        // Precision
-        info.precision = descriptor.getPrecision();
-        // Partial Shape
-        if (shape_map.count(name)) {
-            std::vector<ngraph::Dimension> parsed_shape;
-            for (auto& dim : split(shape_map[name], ',')) {
-                if (dim == "?" || dim == "-1") {
-                    parsed_shape.push_back(ngraph::Dimension::dynamic());
-                } else {
-                    const std::string range_divider = "..";
-                    size_t range_index = dim.find(range_divider);
-                    if (range_index != std::string::npos) {
-                        std::string min = dim.substr(0, range_index);
-                        std::string max = dim.substr(range_index + range_divider.length());
-                        parsed_shape.push_back(
-                            ngraph::Dimension(min.empty() ? 0 : std::stoi(min),
-                                              max.empty() ? ngraph::Interval::s_max : std::stoi(max)));
-                    } else {
-                        parsed_shape.push_back(std::stoi(dim));
-                    }
+
+    std::vector<benchmark_app::InputsInfo> info_maps;
+
+    for (auto tensors : tensor_options) {
+        benchmark_app::InputsInfo info_map;
+        for (auto& item : input_info) {
+            benchmark_app::InputInfo info;
+            auto name = item.first;
+            auto descriptor = item.second->getTensorDesc();
+            // Precision
+            info.precision = descriptor.getPrecision();
+            // Partial Shape
+            if (shape_map.count(name)) {
+                std::vector<ngraph::Dimension> parsed_shape;
+                if (shape_map.at(name).size() > 1) {
+                    throw std::logic_error("shape command line parameter doesn't support multiple shapes.");
+                }
+                info.partialShape = parsePartialShape(shape_map.at(name)[0]);
+                reshape_required = true;
+            } else {
+                info.partialShape = item.second->getPartialShape();
+            }
+            // Tensor Shape
+            if (tensors.count(name)) {
+                info.tensorShape = parseTensorShape(tensors.at(name));
+            } else if (info.partialShape.is_static()) {
+                info.tensorShape = info.partialShape.get_shape();
+            } else {
+                throw std::logic_error(
+                    "tensor_shape command line parameter should be set in case of network dynamic shape.");
+            }
+
+            // Layout
+            if (layout_map.count(name)) {
+                if (layout_map.at(name).size() > 1) {
+                    throw std::logic_error("layout command line parameter doesn't support multiple layouts.");
+                }
+                info.layout = layout_map.at(name)[0];
+                std::transform(info.layout.begin(), info.layout.end(), info.layout.begin(), ::toupper);
+            } else {
+                std::stringstream ss;
+                ss << descriptor.getLayout();
+                info.layout = ss.str();
+            }
+            // Update shape with batch if needed
+            // Update blob shape only not affecting network shape to trigger dynamic batch size case
+            if (batch_size != 0) {
+                std::size_t batch_index = info.layout.find("N");
+                if ((batch_index != std::string::npos) && (info.tensorShape.at(batch_index) != batch_size)) {
+                    info.tensorShape[batch_index] = batch_size;
+                    reshape_required = true;
                 }
             }
-            info.partialShape = parsed_shape;
-            reshape_required = true;
-        } else {
-            info.partialShape = item.second->getPartialShape();
-        }
-        // Tensor Shape
-        if (tensors_shape_map.count(name)) {
-            std::vector<size_t> parsed_shape;
-            for (auto& dim : split(tensors_shape_map.at(name), ',')) {
-                parsed_shape.push_back(std::stoi(dim));
-            }
-            info.tensorShape = parsed_shape;
-        } else if (info.partialShape.is_static()) {
-            info.tensorShape = info.partialShape.get_shape();
-        } else {
-            throw std::logic_error(
-                "tensor_shape command line parameter should be set in case of network dynamic shape.");
+            info_map[name] = info;
         }
 
-        // Layout
-        if (layout_map.count(name)) {
-            info.layout = layout_map.at(name);
-            std::transform(info.layout.begin(), info.layout.end(), info.layout.begin(), ::toupper);
-        } else {
-            std::stringstream ss;
-            ss << descriptor.getLayout();
-            info.layout = ss.str();
-        }
-        // Update shape with batch if needed
-        // Update blob shape only not affecting network shape to trigger dynamic batch size case
-        if (batch_size != 0) {
-            std::size_t batch_index = info.layout.find("N");
-            if ((batch_index != std::string::npos) && (info.tensorShape.at(batch_index) != batch_size)) {
-                info.tensorShape[batch_index] = batch_size;
-                reshape_required = true;
+        // Update scale and mean
+        std::map<std::string, std::vector<float>> scale_map = parseScaleOrMean(scale_string, info_map);
+        std::map<std::string, std::vector<float>> mean_map = parseScaleOrMean(mean_string, info_map);
+
+        for (auto& item : info_map) {
+            if (item.second.isImage()) {
+                item.second.scale.assign({1, 1, 1});
+                item.second.mean.assign({0, 0, 0});
+
+                if (scale_map.count(item.first)) {
+                    item.second.scale = scale_map.at(item.first);
+                }
+                if (mean_map.count(item.first)) {
+                    item.second.mean = mean_map.at(item.first);
+                }
             }
         }
-        info_map[name] = info;
+
+         info_maps.push_back(info_map);
     }
 
-    // Update scale and mean
-    std::map<std::string, std::vector<float>> scale_map = parseScaleOrMean(scale_string, info_map);
-    std::map<std::string, std::vector<float>> mean_map = parseScaleOrMean(mean_string, info_map);
-
-    for (auto& item : info_map) {
-        if (item.second.isImage()) {
-            item.second.scale.assign({1, 1, 1});
-            item.second.mean.assign({0, 0, 0});
-
-            if (scale_map.count(item.first)) {
-                item.second.scale = scale_map.at(item.first);
-            }
-            if (mean_map.count(item.first)) {
-                item.second.mean = mean_map.at(item.first);
-            }
-        }
-    }
-
-    return info_map;
+    return info_maps;
 }
 
 template <typename T>
-benchmark_app::InputsInfo getInputsInfo(const std::string& shape_string,
+std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_string,
                                         const std::string& layout_string,
                                         const size_t batch_size,
                                         const std::string& tensors_shape_string,

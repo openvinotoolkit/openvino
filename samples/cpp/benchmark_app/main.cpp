@@ -104,8 +104,8 @@ static void next_step(const std::string additional_info = "") {
         {6, "Configuring input of the model"},
         {7, "Loading the model to the device"},
         {8, "Setting optimal runtime parameters"},
-        {9, "Creating infer requests and filling input blobs with images"},
-        {10, "Measuring performance"},
+        {9, "Creating infer requests and filling input blobs with data for the first inference"},
+        {10, "Measuring performance for each of tprovided tensor shape"},
         {11, "Dumping statistics report"}};
 
     step_id++;
@@ -398,7 +398,8 @@ int main(int argc, char* argv[]) {
         size_t batchSize = FLAGS_b;
         Precision precision = Precision::UNSPECIFIED;
         std::string topology_name = "";
-        benchmark_app::InputsInfo app_inputs_info;
+        //benchmark_app::InputsInfo app_inputs_info;
+        std::vector<benchmark_app::InputsInfo> app_inputs_info;
         std::string output_name;
 
         // Takes priority over config from file
@@ -466,7 +467,7 @@ int main(int argc, char* argv[]) {
                                                             reshape);
             if (reshape) {
                 benchmark_app::PartialShapes shapes = {};
-                for (auto& item : app_inputs_info)
+                for (auto& item : app_inputs_info[0])
                     shapes[item.first] = item.second.partialShape;
                 slog::info << "Reshaping network: " << getShapesString(shapes) << slog::endl;
                 startTime = Time::now();
@@ -477,8 +478,9 @@ int main(int argc, char* argv[]) {
                     statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                               {{"reshape network time (ms)", duration_ms}});
             }
+
             // use batch size according to provided layout and shapes
-            batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info) : cnnNetwork.getBatchSize();
+            batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info[0]) : cnnNetwork.getBatchSize();
 
             topology_name = cnnNetwork.getName();
             slog::info << (FLAGS_b != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize
@@ -492,13 +494,13 @@ int main(int argc, char* argv[]) {
             for (auto& item : cnnNetwork.getInputsInfo()) {
                 // if precision for input set by user, then set it to app_inputs
                 // if it an image, set U8
-                if (!FLAGS_ip.empty() || FLAGS_iop.find(item.first) != std::string::npos || item.second->getPartialShape().is_dynamic()) {
-                    app_inputs_info.at(item.first).precision = item.second->getPrecision();
-                } else if (app_inputs_info.at(item.first).isImage()) {
-                    app_inputs_info.at(item.first).precision = Precision::U8;
-                    item.second->setPrecision(app_inputs_info.at(item.first).precision);
+                if (!FLAGS_ip.empty() || FLAGS_iop.find(item.first) != std::string::npos ||
+                    item.second->getPartialShape().is_dynamic()) {
+                    app_inputs_info[0].at(item.first).precision = item.second->getPrecision();
+                } else if (app_inputs_info[0].at(item.first).isImage()) {
+                    app_inputs_info[0].at(item.first).precision = Precision::U8;
+                    item.second->setPrecision(app_inputs_info[0].at(item.first).precision);
                 }
-
             }
 
             printInputAndOutputsInfo(cnnNetwork);
@@ -627,20 +629,20 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // ----------------- 9. Creating infer requests and filling input blobs
+        // ----------------- 9. Creating infer requests and filling input blobs for each tensor shape
         // ----------------------------------------
         next_step();
 
         InferRequestsQueue inferRequestsQueue(exeNetwork, nireq);
         if (isFlagSetInCommandLine("use_device_mem")) {
             if (device_name.find("GPU") == 0)
-                ::gpu::fillRemoteBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests, exeNetwork);
+                ::gpu::fillRemoteBlobs(inputFiles, batchSize, app_inputs_info[0], inferRequestsQueue.requests, exeNetwork);
             else if (device_name.find("CPU") == 0)
-                fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
+                fillBlobs(inputFiles, batchSize, app_inputs_info[0], inferRequestsQueue.requests);
             else
                 IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
         } else {
-            fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
+            fillBlobs(inputFiles, batchSize, app_inputs_info[0], inferRequestsQueue.requests);
         }
 
         // ----------------- 10. Measuring performance
@@ -680,6 +682,7 @@ int main(int argc, char* argv[]) {
             }
             ss << niter << " iterations";
         }
+
         next_step(ss.str());
 
         // warming up - out of scope
@@ -705,28 +708,45 @@ int main(int argc, char* argv[]) {
 
         /** Start inference & calculate performance **/
         /** to align number if iterations to guarantee that last infer requests are
-         * executed in the same conditions **/
+            * executed in the same conditions **/
         ProgressBar progressBar(progressBarTotalCount, FLAGS_stream_output, FLAGS_progress);
 
         while ((niter != 0LL && iteration < niter) ||
-               (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
-               (FLAGS_api == "async" && iteration % nireq != 0)) {
-            inferRequest = inferRequestsQueue.getIdleRequest();
-            if (!inferRequest) {
-                IE_THROW() << "No idle Infer Requests!";
-            }
+                (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
+                (FLAGS_api == "async" && iteration % nireq != 0)) {
+            for (size_t id = 0; id < app_inputs_info.size(); ++id) {
+                // filling input blobs for each tensor shape
+                inferRequest = inferRequestsQueue.getIdleRequest();
+                if (!inferRequest) {
+                    IE_THROW() << "No idle Infer Requests!";
+                }
+                if (isFlagSetInCommandLine("use_device_mem")) {
+                    if (device_name.find("GPU") == 0)
+                        ::gpu::fillRemoteBlobs(inputFiles,
+                                                batchSize,
+                                                app_inputs_info[id],
+                                                {inferRequest},
+                                                exeNetwork);
+                    else if (device_name.find("CPU") == 0)
+                        fillBlobs(inputFiles, batchSize, app_inputs_info[id], {inferRequest});
+                    else
+                        IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
+                } else {
+                    fillBlobs(inputFiles, batchSize, app_inputs_info[id], {inferRequest}, true);
+                }
 
-            if (FLAGS_api == "sync") {
-                inferRequest->infer();
-            } else {
-                // As the inference request is currently idle, the wait() adds no
-                // additional overhead (and should return immediately). The primary
-                // reason for calling the method is exception checking/re-throwing.
-                // Callback, that governs the actual execution can handle errors as
-                // well, but as it uses just error codes it has no details like ‘what()’
-                // method of `std::exception` So, rechecking for any exceptions here.
-                inferRequest->wait();
-                inferRequest->startAsync();
+                if (FLAGS_api == "sync") {
+                    inferRequest->infer();
+                } else {
+                    // As the inference request is currently idle, the wait() adds no
+                    // additional overhead (and should return immediately). The primary
+                    // reason for calling the method is exception checking/re-throwing.
+                    // Callback, that governs the actual execution can handle errors as
+                    // well, but as it uses just error codes it has no details like ‘what()’
+                    // method of `std::exception` So, rechecking for any exceptions here.
+                    inferRequest->wait();
+                    inferRequest->startAsync();
+                }
             }
             iteration++;
 
@@ -755,13 +775,14 @@ int main(int argc, char* argv[]) {
             for (auto output : outputs) {
                 auto dims = request->getBlob(output.first)->getTensorDesc().getDims();
                 std::cout << "Acquired output blob " << output.first << " with shape: ["
-                          << std::accumulate(dims.begin(),
-                                             dims.end(),
-                                             std::string(""),
-                                             [](std::string str, size_t x) {
-                                                 return str.empty() ? std::to_string(x) : str + "," + std::to_string(x);
-                                             })
-                          << "] (dynamic: " << output.second->getPartialShape() << ")" << '\n';
+                            << std::accumulate(dims.begin(),
+                                                dims.end(),
+                                                std::string(""),
+                                                [](std::string str, size_t x) {
+                                                    return str.empty() ? std::to_string(x)
+                                                                    : str + "," + std::to_string(x);
+                                                })
+                            << "] (dynamic: " << output.second->getPartialShape() << ")" << '\n';
             }
         }
 
@@ -772,10 +793,10 @@ int main(int argc, char* argv[]) {
 
         if (statistics) {
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                      {
-                                          {"total execution time (ms)", double_to_string(totalDuration)},
-                                          {"total number of iterations", std::to_string(iteration)},
-                                      });
+                                        {
+                                            {"total execution time (ms)", double_to_string(totalDuration)},
+                                            {"total number of iterations", std::to_string(iteration)},
+                                        });
             if (device_name.find("MULTI") == std::string::npos) {
                 std::string latency_label;
                 if (FLAGS_latency_percentile == 50) {
@@ -784,14 +805,13 @@ int main(int argc, char* argv[]) {
                     latency_label = "latency (" + std::to_string(FLAGS_latency_percentile) + " percentile) (ms)";
                 }
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                          {
-                                              {latency_label, double_to_string(latency)},
-                                          });
+                                            {
+                                                {latency_label, double_to_string(latency)},
+                                            });
             }
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                      {{"throughput", double_to_string(fps)}});
+                                        {{"throughput", double_to_string(fps)}});
         }
-
         progressBar.finish();
 
         // ----------------- 11. Dumping statistics report
@@ -833,6 +853,9 @@ int main(int argc, char* argv[]) {
         if (statistics)
             statistics->dump();
 
+        //auto totalDuration = 0;
+        //auto latency = 0;
+        //auto fps = 0;
         std::cout << "Count:      " << iteration << " iterations" << std::endl;
         std::cout << "Duration:   " << double_to_string(totalDuration) << " ms" << std::endl;
         if (device_name.find("MULTI") == std::string::npos) {

@@ -228,6 +228,58 @@ std::map<std::string, std::vector<float>> parseScaleOrMean(const std::string& sc
     return return_value;
 }
 
+std::vector<ngraph::Dimension> parsePartialShape(const std::string& partial_shape) {
+    std::vector<ngraph::Dimension> shape;
+    for (auto& dim : split(partial_shape, ',')) {
+        if (dim == "?" || dim == "-1") {
+            shape.push_back(ngraph::Dimension::dynamic());
+        } else {
+            const std::string range_divider = "..";
+            size_t range_index = dim.find(range_divider);
+            if (range_index != std::string::npos) {
+                std::string min = dim.substr(0, range_index);
+                std::string max = dim.substr(range_index + range_divider.length());
+                shape.push_back(ngraph::Dimension(min.empty() ? 0 : std::stoi(min),
+                                                  max.empty() ? ngraph::Interval::s_max : std::stoi(max)));
+            } else {
+                shape.push_back(std::stoi(dim));
+            }
+        }
+    }
+
+    return shape;
+}
+
+InferenceEngine::SizeVector parseTensorShape(const std::string& tensor_shape) {
+    std::vector<size_t> shape;
+    for (auto& dim : split(tensor_shape, ',')) {
+        shape.push_back(std::stoi(dim));
+    }
+    return shape;
+}
+
+std::vector<std::map<std::string, std::string>> generateInputsOptions(
+    const std::map<std::string, std::vector<std::string>>& tensors_shape_map) {
+    std::vector<std::map<std::string, std::string>> options;
+
+    size_t options_num = 1;
+    for (const auto& input : tensors_shape_map) {
+        options_num *= input.second.size();
+    }
+
+    for (size_t i = 0; i < options_num; ++i) {
+        auto n = i;
+        std::map<std::string, std::string> tensors;
+        for (auto const& input : tensors_shape_map) {
+            auto index = n % input.second.size();
+            n /= input.second.size();
+            tensors[input.first] = input.second[index];
+        }
+        options.push_back(tensors);
+    }
+    return options;
+}
+
 #ifdef USE_OPENCV
 void dump_config(const std::string& filename, const std::map<std::string, std::map<std::string, std::string>>& config) {
     auto plugin_to_opencv_format = [](const std::string& str) -> std::string {

@@ -227,18 +227,20 @@ void fillBlobImInfo(Blob::Ptr& inputBlob, const size_t& batchSize, std::pair<siz
 void fillBlobs(const std::vector<std::string>& inputFiles,
                const size_t& batchSize,
                benchmark_app::InputsInfo& app_inputs_info,
-               std::vector<InferReqWrap::Ptr> requests) {
+               std::vector<InferReqWrap::Ptr> requests, bool supress) {
     std::vector<std::pair<size_t, size_t>> input_image_sizes;
     for (auto& item : app_inputs_info) {
         if (item.second.partialShape.is_static() && item.second.isImage()) {
             input_image_sizes.push_back(std::make_pair(item.second.width(), item.second.height()));
         }
-        slog::info << "Network input '" << item.first << "' precision " << item.second.precision << ", dimensions ("
-                   << item.second.layout << "): ";
-        for (const auto& i : item.second.tensorShape) {
-            slog::info << i << " ";
+        if (!supress) {
+            slog::info << "Network input '" << item.first << "' precision " << item.second.precision << ", dimensions ("
+                       << item.second.layout << "): ";
+            for (const auto& i : item.second.tensorShape) {
+                slog::info << i << " ";
+            }
+            slog::info << "(dynamic: " << item.second.partialShape << ")" << slog::endl;
         }
-        slog::info << "(dynamic: " << item.second.partialShape << ")" << slog::endl;
     }
 
     size_t imageInputCount = input_image_sizes.size();
@@ -247,7 +249,7 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
     std::vector<std::string> binaryFiles;
     std::vector<std::string> imageFiles;
 
-    if (inputFiles.empty()) {
+    if (inputFiles.empty() && !supress) {
         slog::warn << "No input files were given: all inputs will be filled with "
                       "random values!"
                    << slog::endl;
@@ -264,9 +266,10 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                 }
                 ss << ext;
             }
-            slog::warn << "No supported binary inputs found! Please check your file "
-                          "extensions: "
-                       << ss.str() << slog::endl;
+            if (!supress)
+                slog::warn << "No supported binary inputs found! Please check your file "
+                              "extensions: "
+                           << ss.str() << slog::endl;
         } else if (binaryToBeUsed > binaryFiles.size()) {
             slog::warn << "Some binary input files will be duplicated: " << binaryToBeUsed
                        << " files are required but only " << binaryFiles.size() << " are provided" << slog::endl;
@@ -287,9 +290,10 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                 }
                 ss << ext;
             }
-            slog::warn << "No supported image inputs found! Please check your file "
-                          "extensions: "
-                       << ss.str() << slog::endl;
+            if (!supress)
+                slog::warn << "No supported image inputs found! Please check your file "
+                              "extensions: "
+                           << ss.str() << slog::endl;
         } else if (imagesToBeUsed > imageFiles.size()) {
             slog::warn << "Some image input files will be duplicated: " << imagesToBeUsed
                        << " files are required but only " << imageFiles.size() << " are provided" << slog::endl;
@@ -300,7 +304,8 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
     }
 
     for (size_t requestId = 0; requestId < requests.size(); requestId++) {
-        slog::info << "Infer Request " << requestId << " filling" << slog::endl;
+        if (!supress)
+            slog::info << "Infer Request " << requestId << " filling" << slog::endl;
 
         size_t imageInputId = 0;
         size_t binaryInputId = 0;
@@ -406,7 +411,8 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                 if (app_info.isImageInfo() && (input_image_sizes.size() == 1)) {
                     // Most likely it is image info: fill with image information
                     auto image_size = input_image_sizes.at(0);
-                    slog::info << "Fill input '" << item.first << "' with image size " << image_size.first << "x"
+                    if (!supress)
+                        slog::info << "Fill input '" << item.first << "' with image size " << image_size.first << "x"
                                << image_size.second << slog::endl;
                     if (precision == InferenceEngine::Precision::FP32) {
                         fillBlobImInfo<float>(inputBlob, batchSize, image_size);
@@ -423,9 +429,10 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                 }
             }
             // Fill random
-            slog::info << "Fill input '" << item.first << "' with random values ("
-                       << std::string((app_info.isImage() ? "image" : "some binary data")) << " is expected)"
-                       << slog::endl;
+            if (!supress)
+                slog::info << "Fill input '" << item.first << "' with random values ("
+                           << std::string((app_info.isImage() ? "image" : "some binary data")) << " is expected)"
+                           << slog::endl;
             if (precision == InferenceEngine::Precision::FP32) {
                 fillBlobRandom<float, float>(inputBlob);
             } else if (precision == InferenceEngine::Precision::FP16) {
