@@ -51,7 +51,7 @@ PadFillValue::PadFillValue() {
             pad_val_const->set_friendly_name(pad_val_const->get_friendly_name() + "/pad_value_convert_input_port");
             new_conv->set_friendly_name(new_conv->get_friendly_name() + "/pad_value_convert");
             auto new_pad = std::make_shared<opset5::Pad>(pad->get_input_node_shared_ptr(0), pads_b, pads_e, new_conv, op::PadMode::CONSTANT);
-            new_pad->set_friendly_name(pad->get_friendly_name() + "/converted");
+            new_pad->set_friendly_name(pad->get_friendly_name());
 
             copy_runtime_info(pad, new_pad);
             replace_node(pad, new_pad);
