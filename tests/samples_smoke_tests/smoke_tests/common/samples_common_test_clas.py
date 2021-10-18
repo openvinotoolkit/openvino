@@ -21,6 +21,8 @@ import pytest
 from glob import iglob
 import numpy as np
 from pathlib import Path
+import requests 
+import zipfile
 
 import logging as log
 from common.common_utils import shell
@@ -119,6 +121,26 @@ def get_tests(cmd_params, use_device=True, use_batch=False):
 
     return test_args
 
+def getting_samples_data_zip(url, samples_path, size_of_chunk=128):
+    if os.path.exists(samples_path) or os.path.exists(samples_path[:-4]):
+        return		
+    try:
+        print("\nStart downloading samples_smoke_tests_data.zip...")
+        samples_request = requests.get(url, stream=True)
+        with open(samples_path, 'wb') as samples_file:
+            for elem in samples_request.iter_content(chunk_size=size_of_chunk):
+                samples_file.write(elem)
+        print("\nsamples_smoke_tests_data.zip downloaded successfully")
+        samples_file.close()
+        print("\nExtracting of samples_smoke_tests_data.zip...")
+        with zipfile.ZipFile(samples_path, 'r') as samples_zip:
+            samples_zip.extractall("./")
+        if os.path.exists(samples_path):
+            print("\nRemoving samples_smoke_tests_data.zip...")
+            os.remove(samples_path)	
+		
+    except Exception:
+        print(f"Exception during downloading samples_smoke_tests_data.zip")
 
 class SamplesCommonTestClass():
 
@@ -304,6 +326,7 @@ class SamplesCommonTestClass():
 
     @classmethod
     def setup_class(cls):
+        getting_samples_data_zip(Environment.env['samples_data_zip'], Environment.env['samples_path'])
         assert os.environ.get('IE_APP_PATH') is not None, "IE_APP_PATH environment variable is not specified!"
         assert os.path.exists(Environment.env['public_models']), \
             "Path for public models {} is not exist!".format(Environment.env['public_models'])

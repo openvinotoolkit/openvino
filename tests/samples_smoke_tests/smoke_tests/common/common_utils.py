@@ -59,7 +59,7 @@ def fix_path(path, root_path=None):
     path = os.path.expandvars(path)
     if not os.path.isabs(path) and root_path is not None:
         path = os.path.join(root_path, path)
-    return os.path.realpath(os.path.abspath(path))
+    return path
 
 
 def fix_env_conf(env, root_path=None):
