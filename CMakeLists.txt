@@ -93,7 +93,9 @@ openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph_backend interp
 include(cmake/extra_modules.cmake)
 
 add_subdirectory(samples)
-add_subdirectory(model-optimizer)
+if (ENABLE_MODEL_OPTIMIZER)
+    add_subdirectory(model-optimizer)
+endif()
 add_subdirectory(docs)
 add_subdirectory(tools)
 add_subdirectory(scripts)
