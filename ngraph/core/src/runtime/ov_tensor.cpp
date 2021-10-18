@@ -91,11 +91,11 @@ Strides Tensor::get_strides() const {
 }
 
 size_t Tensor::get_size() const {
-    OV_TENSOR_STATEMENT(return ov::shape_size(get_shape()));
+    OV_TENSOR_STATEMENT(return _impl->size());
 }
 
 size_t Tensor::get_byte_size() const {
-    OV_TENSOR_STATEMENT(return ov::shape_size(get_shape()) * get_element_type().size());
+    OV_TENSOR_STATEMENT(return _impl->byteSize(););
 }
 
 void* Tensor::data(const element::Type element_type) const {
