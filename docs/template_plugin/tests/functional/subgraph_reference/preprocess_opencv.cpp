@@ -1,9 +1,7 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#ifndef OPENCV_TEMPLATE_TESTS
-#define OPENCV_TEMPLATE_TESTS // Will be enabled by cmake if OpenCV presents
-#endif
+
 #ifdef OPENCV_TEMPLATE_TESTS
 
 #include <gtest/gtest.h>
