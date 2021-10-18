@@ -37,6 +37,8 @@ std::vector<std::string> disabledTestPatterns() {
         //CVS-64012
         R"(.*ReferenceDeformableConvolutionLayerTest.*f16.*real_offset_padding_stride_dialation.*)",
         R"(.*ReferenceDeformableConvolutionLayerTest.*bf16.*)",
+        R"(.*ReferenceDeformableConvolutionV8LayerTest.*f16.*real_offset_padding_stride_dialation.*)",
+        R"(.*ReferenceDeformableConvolutionV8LayerTest.*bf16.*)",
     };
 
 #ifdef _WIN32

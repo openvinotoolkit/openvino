@@ -11,16 +11,17 @@ using namespace reference_tests;
 using namespace ov;
 
 namespace {
-struct DeformableConvolutionParams {
+struct DeformableConvolutionV8Params {
     template <class IT>
-    DeformableConvolutionParams(const PartialShape& inputShape, const PartialShape& filterShape,
+    DeformableConvolutionV8Params(const PartialShape& inputShape, const PartialShape& filterShape,
                       const PartialShape& offsetShape, const PartialShape& outputShape,
                       const element::Type& iType,
                       const std::vector<IT>& iValues, const std::vector<IT>& filterValues,
                       const std::vector<IT>& offsetValues, const std::vector<IT>& oValues,
                       const Strides& strides, const CoordinateDiff& padBegin, const CoordinateDiff& padEnd, const Strides& dialations,
                       const int64_t group = 1, const int64_t deformableGroup = 1,
-                      const std::string& test_name = "")
+                      const std::string& test_name = "",
+                      const bool use_bilinear_interpolation_padding = false)
         : inputShape(inputShape),
           filterShape(filterShape),
           offsetShape(offsetShape),
@@ -39,20 +40,58 @@ struct DeformableConvolutionParams {
           dialations(dialations),
           group(group),
           deformableGroup(deformableGroup),
-          testcaseName(test_name) {}
+          testcaseName(test_name),
+          use_bilinear_interpolation_padding(use_bilinear_interpolation_padding) {}
+
+    template <class IT>
+    DeformableConvolutionV8Params(const PartialShape& inputShape, const PartialShape& filterShape,
+                      const PartialShape& offsetShape, const PartialShape& outputShape, const PartialShape& maskShape,
+                      const element::Type& iType,
+                      const std::vector<IT>& iValues, const std::vector<IT>& filterValues,
+                      const std::vector<IT>& offsetValues, const std::vector<IT>& oValues, const std::vector<IT>& maskValues,
+                      const Strides& strides, const CoordinateDiff& padBegin, const CoordinateDiff& padEnd, const Strides& dialations,
+                      const int64_t group = 1, const int64_t deformableGroup = 1,
+                      const std::string& test_name = "",
+                      const bool use_bilinear_interpolation_padding = false)
+        : inputShape(inputShape),
+          filterShape(filterShape),
+          offsetShape(offsetShape),
+          outputShape(outputShape),
+          maskShape(maskShape),
+          inType(iType),
+          filterType(iType),
+          offsetType(iType),
+          outType(iType),
+          maskType(iType),
+          inputData(CreateTensor(iType, iValues)),
+          filterData(CreateTensor(iType, filterValues)),
+          offsetData(CreateTensor(iType, offsetValues)),
+          refData(CreateTensor(iType, oValues)),
+          maskData(CreateTensor(iType, maskValues)),
+          strides(strides),
+          padBegin(padBegin),
+          padEnd(padEnd),
+          dialations(dialations),
+          group(group),
+          deformableGroup(deformableGroup),
+          testcaseName(test_name),
+          use_bilinear_interpolation_padding(use_bilinear_interpolation_padding) {}
 
     PartialShape inputShape;
     PartialShape filterShape;
     PartialShape offsetShape;
     PartialShape outputShape;
+    PartialShape maskShape{};
     ov::element::Type inType;
     ov::element::Type filterType;
     ov::element::Type offsetType;
     ov::element::Type outType;
+    ov::element::Type maskType;
     ov::runtime::Tensor inputData;
     ov::runtime::Tensor filterData;
     ov::runtime::Tensor offsetData;
     ov::runtime::Tensor refData;
+    ov::runtime::Tensor maskData;
     ov::Strides strides;
     ov::CoordinateDiff padBegin;
     ov::CoordinateDiff padEnd;
@@ -60,70 +99,96 @@ struct DeformableConvolutionParams {
     int64_t group;
     int64_t deformableGroup;
     std::string testcaseName;
+    bool use_bilinear_interpolation_padding;
 };
 
-class ReferenceDeformableConvolutionLayerTest : public testing::TestWithParam<DeformableConvolutionParams>, public CommonReferenceTest {
+class ReferenceDeformableConvolutionV8LayerTest : public testing::TestWithParam<DeformableConvolutionV8Params>, public CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
         function = CreateFunction(params);
-        inputData = {params.inputData, params.offsetData, params.filterData};
+        if (params.maskShape.size() != 0) {
+            inputData = {params.inputData, params.offsetData, params.filterData, params.maskData};
+        } else {
+            inputData = {params.inputData, params.offsetData, params.filterData};
+        }
         refOutData = {params.refData};
     }
-    static std::string getTestCaseName(const testing::TestParamInfo<DeformableConvolutionParams>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<DeformableConvolutionV8Params>& obj) {
         auto param = obj.param;
         std::ostringstream result;
         result << "inputShape=" << param.inputShape << "_";
         result << "filterShape=" << param.filterShape << "_";
         result << "offsetShape=" << param.offsetShape << "_";
         result << "outputShape=" << param.outputShape << "_";
+        if (param.maskShape.size() != 0)
+            result << "maskShape=" << param.maskShape << "_";
         result << "iType=" << param.inType << "_";
         result << "strides=" << param.strides << "_";
         result << "padBegin=" << param.padBegin << "_";
         result << "padEnd=" << param.padEnd << "_";
         result << "dialations=" << param.dialations << "_";
         result << "group=" << param.group << "_";
+        result << "deformableGroup=" << param.deformableGroup << "_";
         if (param.testcaseName != "") {
-            result << "deformableGroup=" << param.deformableGroup << "_";
+            result << "use_bilinear_interpolation_padding=" << param.use_bilinear_interpolation_padding << "_";
             result << param.testcaseName;
         } else {
-            result << "deformableGroup=" << param.deformableGroup;
+            result << "use_bilinear_interpolation_padding=" << param.use_bilinear_interpolation_padding;
         }
         return result.str();
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const DeformableConvolutionParams& params) {
+    static std::shared_ptr<Function> CreateFunction(const DeformableConvolutionV8Params& params) {
         const op::PadType auto_pad{op::PadType::EXPLICIT};
 
         const auto in = std::make_shared<op::v0::Parameter>(params.inType, params.inputShape);
         const auto offset = std::make_shared<op::v0::Parameter>(params.offsetType, params.offsetShape);
         const auto filter = std::make_shared<op::v0::Parameter>(params.filterType, params.filterShape);
-        const auto DeformableConvolution = std::make_shared<op::v1::DeformableConvolution>(in,
-                                                                       offset,
-                                                                       filter,
-                                                                       params.strides,
-                                                                       params.padBegin,
-                                                                       params.padEnd,
-                                                                       params.dialations,
-                                                                       auto_pad,
-                                                                       params.group,
-                                                                       params.deformableGroup);
-        return std::make_shared<ov::Function>(NodeVector {DeformableConvolution}, ParameterVector {in, offset, filter});
+        if (params.maskShape.size() != 0) {
+            const auto mask = std::make_shared<op::v0::Parameter>(params.maskType, params.maskShape);
+            const auto DeformableConvolutionV8 = std::make_shared<op::v8::DeformableConvolution>(in,
+                                                                        offset,
+                                                                        filter,
+                                                                        mask,
+                                                                        params.strides,
+                                                                        params.padBegin,
+                                                                        params.padEnd,
+                                                                        params.dialations,
+                                                                        auto_pad,
+                                                                        params.group,
+                                                                        params.deformableGroup,
+                                                                        params.use_bilinear_interpolation_padding);
+            return std::make_shared<ov::Function>(NodeVector {DeformableConvolutionV8}, ParameterVector {in, offset, filter, mask});
+        } else {
+            const auto DeformableConvolutionV8 = std::make_shared<op::v8::DeformableConvolution>(in,
+                                                                        offset,
+                                                                        filter,
+                                                                        params.strides,
+                                                                        params.padBegin,
+                                                                        params.padEnd,
+                                                                        params.dialations,
+                                                                        auto_pad,
+                                                                        params.group,
+                                                                        params.deformableGroup,
+                                                                        params.use_bilinear_interpolation_padding);
+            return std::make_shared<ov::Function>(NodeVector {DeformableConvolutionV8}, ParameterVector {in, offset, filter});
+        }
     }
 };
 
-TEST_P(ReferenceDeformableConvolutionLayerTest, CompareWithRefs) {
+TEST_P(ReferenceDeformableConvolutionV8LayerTest, CompareWithRefs) {
     Exec();
 }
 
 template <element::Type_t IN_ET>
-std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParams() {
+std::vector<DeformableConvolutionV8Params> generateDeformableConvolutionV8FloatParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<DeformableConvolutionParams> deformableConvolutionParams {
-// --------------------- 2D DeformableConvolution ------------------------------------------
-        DeformableConvolutionParams(PartialShape {1, 1, 4, 4},
+    std::vector<DeformableConvolutionV8Params> deformableConvolutionV8Params {
+// --------------------- 2D DeformableConvolutionV8 ------------------------------------------
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
                           PartialShape {1, 1, 2, 2},
                           PartialShape {1, 8, 3, 3},
                           PartialShape {1, 1, 3, 3},
@@ -154,7 +219,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 1, 3, 3},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 3, 3},
                           PartialShape {1, 1, 2, 2},
                           PartialShape {1, 8, 4, 4},
                           PartialShape {1, 1, 4, 4},
@@ -192,7 +257,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           {1, 1},
                           {1, 1},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 1, 5, 5},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 5, 5},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 2, 2},
                           PartialShape {1, 1, 2, 2},
@@ -219,7 +284,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 1, 7, 7},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 7, 7},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 3, 3},
                           PartialShape {1, 1, 3, 3},
@@ -254,7 +319,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           {0, 0},
                           {0, 0},
                           {2, 2}),
-        DeformableConvolutionParams(PartialShape {1, 1, 7, 7},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 7, 7},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 4, 4},
                           PartialShape {1, 1, 4, 4},
@@ -297,7 +362,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           {2, 2},
                           {2, 2},
                           {2, 2}),
-        DeformableConvolutionParams(PartialShape {1, 2, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 2, 4, 4},
                           PartialShape {1, 2, 3, 3},
                           PartialShape {1, 18, 2, 2},
                           PartialShape {1, 1, 2, 2},
@@ -334,7 +399,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
                           PartialShape {2, 1, 3, 3},
                           PartialShape {1, 18, 2, 2},
                           PartialShape {1, 2, 2, 2},
@@ -369,7 +434,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {2, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {2, 1, 4, 4},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {2, 18, 2, 2},
                           PartialShape {2, 1, 2, 2},
@@ -409,7 +474,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 4, 3, 3},
+        DeformableConvolutionV8Params(PartialShape {1, 4, 3, 3},
                           PartialShape {2, 2, 2, 2},
                           PartialShape {1, 8, 2, 2},
                           PartialShape {1, 2, 2, 2},
@@ -461,7 +526,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           {0, 0},
                           {1, 1},
                           2),
-        DeformableConvolutionParams(PartialShape {1, 8, 3, 3},
+        DeformableConvolutionV8Params(PartialShape {1, 8, 3, 3},
                           PartialShape {4, 2, 2, 2},
                           PartialShape {1, 8, 2, 2},
                           PartialShape {1, 4, 2, 2},
@@ -547,7 +612,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           {0, 0},
                           {1, 1},
                           4),
-        DeformableConvolutionParams(PartialShape {1, 2, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 2, 4, 4},
                           PartialShape {1, 2, 2, 2},
                           PartialShape {1, 8, 3, 3},
                           PartialShape {1, 1, 3, 3},
@@ -588,7 +653,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 4, 3, 3},
+        DeformableConvolutionV8Params(PartialShape {1, 4, 3, 3},
                           PartialShape {2, 2, 2, 2},
                           PartialShape {1, 16, 2, 2},
                           PartialShape {1, 2, 2, 2},
@@ -631,7 +696,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           {1, 1},
                           2,
                           2),
-        DeformableConvolutionParams(PartialShape {1, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
                           PartialShape {1, 1, 2, 2},
                           PartialShape {1, 8, 3, 3},
                           PartialShape {1, 1, 3, 3},
@@ -688,7 +753,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           1,
                           "integral_offsets_1"),
-        DeformableConvolutionParams(PartialShape {1, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 4, 4},
                           PartialShape {1, 1, 4, 4},
@@ -801,7 +866,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           {1, 1},
                           {1, 1},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 1, 5, 5},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 5, 5},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 2, 2},
                           PartialShape {1, 1, 2, 2},
@@ -863,7 +928,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           1,
                           "integral_offsets_stride"),
-        DeformableConvolutionParams(PartialShape {1, 1, 7, 7},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 7, 7},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 3, 3},
                           PartialShape {1, 1, 3, 3},
@@ -946,7 +1011,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           1,
                           "integral_offset_dialation"),
-        DeformableConvolutionParams(PartialShape {1, 1, 7, 7},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 7, 7},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 4, 4},
                           PartialShape {1, 1, 4, 4},
@@ -1065,7 +1130,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           1,
                           "integral_offset_padding_stride_dialation"),
-        DeformableConvolutionParams(PartialShape {1, 2, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 2, 4, 4},
                           PartialShape {1, 2, 3, 3},
                           PartialShape {1, 18, 2, 2},
                           PartialShape {1, 1, 2, 2},
@@ -1137,7 +1202,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           1,
                           "integral_offset_input_channels"),
-        DeformableConvolutionParams(PartialShape {1, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
                           PartialShape {2, 1, 2, 2},
                           PartialShape {1, 8, 3, 3},
                           PartialShape {1, 2, 3, 3},
@@ -1203,7 +1268,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           1,
                           "integral_offset_output_channels"),
-        DeformableConvolutionParams(PartialShape {2, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {2, 1, 4, 4},
                           PartialShape {1, 1, 2, 2},
                           PartialShape {2, 8, 3, 3},
                           PartialShape {2, 1, 3, 3},
@@ -1303,7 +1368,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           1,
                           "integral_offset_batch"),
-        DeformableConvolutionParams(PartialShape {1, 4, 3, 3},
+        DeformableConvolutionV8Params(PartialShape {1, 4, 3, 3},
                           PartialShape {2, 2, 2, 2},
                           PartialShape {1, 8, 2, 2},
                           PartialShape {1, 2, 2, 2},
@@ -1369,7 +1434,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           2,
                           1,
                           "integral_offset_groups_basic"),
-        DeformableConvolutionParams(PartialShape {1, 8, 3, 3},
+        DeformableConvolutionV8Params(PartialShape {1, 8, 3, 3},
                           PartialShape {4, 2, 2, 2},
                           PartialShape {1, 8, 2, 2},
                           PartialShape {1, 4, 2, 2},
@@ -1461,7 +1526,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           4,
                           1,
                           "integral_offset_groups_complex"),
-        DeformableConvolutionParams(PartialShape {1, 2, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 2, 4, 4},
                           PartialShape {2, 2, 2, 2},
                           PartialShape {1, 16, 3, 3},
                           PartialShape {1, 2, 3, 3},
@@ -1571,7 +1636,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           2,
                           "integral_offset_deforgroup_basic"),
-        DeformableConvolutionParams(PartialShape {1, 4, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 4, 4, 4},
                           PartialShape {2, 4, 2, 2},
                           PartialShape {1, 32, 3, 3},
                           PartialShape {1, 2, 3, 3},
@@ -1768,7 +1833,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           4,
                           "integral_offset_deforgroup_complex1"),
-        DeformableConvolutionParams(PartialShape {1, 4, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 4, 4, 4},
                           PartialShape {2, 4, 2, 2},
                           PartialShape {1, 16, 3, 3},
                           PartialShape {1, 2, 3, 3},
@@ -1900,7 +1965,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           2,
                           "integral_offset_deforgroup_complex2"),
-        DeformableConvolutionParams(PartialShape {1, 4, 3, 3},
+        DeformableConvolutionV8Params(PartialShape {1, 4, 3, 3},
                           PartialShape {2, 2, 2, 2},
                           PartialShape {1, 16, 2, 2},
                           PartialShape {1, 2, 2, 2},
@@ -1958,7 +2023,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           2,
                           2,
                           "integral_offset_groups_and_deforgroups"),
-        DeformableConvolutionParams(PartialShape {1, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
                           PartialShape {1, 1, 2, 2},
                           PartialShape {1, 8, 3, 3},
                           PartialShape {1, 1, 3, 3},
@@ -1992,7 +2057,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           1,
                           "real_offset_default"),
-        DeformableConvolutionParams(PartialShape {1, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 4, 4},
                           PartialShape {1, 1, 4, 4},
@@ -2035,7 +2100,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           1,
                           "real_offset_padding"),
-        DeformableConvolutionParams(PartialShape {1, 1, 5, 5},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 5, 5},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 2, 2},
                           PartialShape {1, 1, 2, 2},
@@ -2065,7 +2130,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           1,
                           "real_offset_stride"),
-        DeformableConvolutionParams(PartialShape {1, 1, 7, 7},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 7, 7},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 4, 4},
                           PartialShape {1, 1, 4, 4},
@@ -2111,7 +2176,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           1,
                           "real_offset_padding_stride_dialation"),
-        DeformableConvolutionParams(PartialShape {1, 2, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 2, 4, 4},
                           PartialShape {1, 2, 3, 3},
                           PartialShape {1, 18, 2, 2},
                           PartialShape {1, 1, 2, 2},
@@ -2151,7 +2216,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           1,
                           "real_offset_input_channels"),
-        DeformableConvolutionParams(PartialShape {1, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
                           PartialShape {2, 1, 2, 2},
                           PartialShape {1, 8, 3, 3},
                           PartialShape {1, 2, 3, 3},
@@ -2194,7 +2259,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           1,
                           "real_offset_output_channels"),
-        DeformableConvolutionParams(PartialShape {2, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {2, 1, 4, 4},
                           PartialShape {1, 1, 2, 2},
                           PartialShape {2, 8, 3, 3},
                           PartialShape {2, 2, 3, 3},
@@ -2248,7 +2313,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           1,
                           "real_offset_batch"),
-        DeformableConvolutionParams(PartialShape {1, 4, 3, 3},
+        DeformableConvolutionV8Params(PartialShape {1, 4, 3, 3},
                           PartialShape {2, 2, 2, 2},
                           PartialShape {1, 8, 2, 2},
                           PartialShape {1, 2, 2, 2},
@@ -2302,7 +2367,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           2,
                           1,
                           "real_offset_group_basic"),
-        DeformableConvolutionParams(PartialShape {1, 8, 3, 3},
+        DeformableConvolutionV8Params(PartialShape {1, 8, 3, 3},
                           PartialShape {4, 2, 2, 2},
                           PartialShape {1, 8, 2, 2},
                           PartialShape {1, 4, 2, 2},
@@ -2390,7 +2455,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           4,
                           1,
                           "real_offset_groups_complex"),
-        DeformableConvolutionParams(PartialShape {1, 2, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 2, 4, 4},
                           PartialShape {2, 2, 2, 2},
                           PartialShape {1, 16, 3, 3},
                           PartialShape {1, 2, 3, 3},
@@ -2445,7 +2510,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           2,
                           "real_offset_deforgroup_basic"),
-        DeformableConvolutionParams(PartialShape {1, 4, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 4, 4, 4},
                           PartialShape {2, 4, 2, 2},
                           PartialShape {1, 32, 3, 3},
                           PartialShape {1, 2, 3, 3},
@@ -2531,7 +2596,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           4,
                           "real_offset_deforgroup_complex1"),
-        DeformableConvolutionParams(PartialShape {1, 4, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 4, 4, 4},
                           PartialShape {2, 4, 2, 2},
                           PartialShape {1, 16, 3, 3},
                           PartialShape {1, 2, 3, 3},
@@ -2608,7 +2673,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           1,
                           2,
                           "real_offset_deforgroup_complex2"),
-        DeformableConvolutionParams(PartialShape {1, 4, 3, 3},
+        DeformableConvolutionV8Params(PartialShape {1, 4, 3, 3},
                           PartialShape {2, 2, 2, 2},
                           PartialShape {1, 16, 2, 2},
                           PartialShape {1, 2, 2, 2},
@@ -2652,17 +2717,291 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionFloatParam
                           2,
                           2,
                           "real_offset_groups_and_deforgroups"),
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
+                          PartialShape {1, 1, 2, 2},
+                          PartialShape {1, 8, 3, 3},
+                          PartialShape {1, 1, 3, 3},
+                          PartialShape {1, 4, 3, 3},
+                          IN_ET,
+                          std::vector<T>{
+                                    1.0f, 2.0f, 3.0f, 4.0f,
+                                    5.0f, 6.0f, 7.0f, 8.0f,
+                                    9.0f, 10.0f, 11.0f, 12.0f,
+                                    13.0f, 14.0f, 15.0f, 16.0f},
+                          std::vector<T>{
+                                    1.0f, 2.0f,
+                                    -1.0f, -2.0f},
+                          std::vector<T>{
+                                    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+                          std::vector<T>{
+                                    -6.0f, -6.0f, -6.0f,
+                                    -6.0f, -6.0f, -6.0f,
+                                    -6.0f, -6.0f, -6.0f},
+                          std::vector<T>{
+                                    0.5f, 0.5f, 0.5f,
+                                    0.5f, 0.5f, 0.5f,
+                                    0.5f, 0.5f, 0.5f,
+                                    0.5f, 0.5f, 0.5f,
+                                    0.5f, 0.5f, 0.5f,
+                                    0.5f, 0.5f, 0.5f,
+                                    0.5f, 0.5f, 0.5f,
+                                    0.5f, 0.5f, 0.5f,
+                                    0.5f, 0.5f, 0.5f,
+                                    0.5f, 0.5f, 0.5f,
+                                    0.5f, 0.5f, 0.5f,
+                                    0.5f, 0.5f, 0.5f},
+                          {1, 1},
+                          {0, 0},
+                          {0, 0},
+                          {1, 1},
+                          1,
+                          1,
+                          "v8_zeroed_offset_default_mask",
+                          true),
+        DeformableConvolutionV8Params(PartialShape {1, 4, 3, 3},
+                          PartialShape {2, 2, 2, 2},
+                          PartialShape {1, 16, 2, 2},
+                          PartialShape {1, 2, 2, 2},
+                          PartialShape {1, 8, 2, 2},
+                          IN_ET,
+                          std::vector<T>{
+                                    1.0f, 2.0f, 3.0f,
+                                    4.0f, 5.0f, 6.0f,
+                                    7.0f, 8.0f, 9.0f,
+                                    10.0f, 11.0f, 12.0f,
+                                    13.0f, 14.0f, 15.0f,
+                                    16.0f, 17.0f, 18.0f,
+                                    19.0f, 20.0f, 21.0f,
+                                    22.0f, 23.0f, 24.0f,
+                                    25.0f, 26.0f, 27.0f,
+                                    28.0f, 29.0f, 30.0f,
+                                    31.0f, 32.0f, 33.0f,
+                                    34.0f, 35.0f, 36.0f},
+                          std::vector<T>{
+                                    1.0f, 2.0f,
+                                    3.0f, 4.0f,
+                                    5.0f, 6.0f,
+                                    7.0f, 8.0f,
+                                    -1.0f, -2.0f,
+                                    -3.0f, -4.0f,
+                                    -5.0f, -6.0f,
+                                    -7.0f, -8.0f},
+                          std::vector<T>{
+                                    1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f,
+                                    1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f,
+                                    1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f,
+                                    1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f},
+                          std::vector<T>{
+                                    220.15443f ,   38.199608f,
+                                    32.643005f,   59.340614f,
+                                    -419.0005f  , -252.08015f,
+                                    -182.44444f , -165.99335f},
+                          std::vector<T>{
+                                    0.64f,
+                                    0.18f,
+                                    0.23f,
+                                    0.74f,
+                                    0.89f,
+                                    0.70f,
+                                    0.13f,
+                                    0.99f,
+                                    0.48f,
+                                    0.20f,
+                                    0.67f,
+                                    0.88f,
+                                    0.17f,
+                                    0.19f,
+                                    0.53f,
+                                    0.22f,
+                                    0.50f,
+                                    0.07f,
+                                    0.21f,
+                                    0.99f,
+                                    0.09f,
+                                    0.28f,
+                                    0.66f,
+                                    0.91f,
+                                    0.28f,
+                                    0.89f,
+                                    0.91f,
+                                    0.39f,
+                                    0.70f,
+                                    0.67f,
+                                    0.26f,
+                                    0.09f},
+                          {1, 1},
+                          {0, 0},
+                          {0, 0},
+                          {1, 1},
+                          2,
+                          2,
+                          "v8_real_offset_groups_deforgroups_mask",
+                          true),
+        DeformableConvolutionV8Params(PartialShape {1, 2, 3, 3},
+                          PartialShape {2, 2, 2, 2},
+                          PartialShape {1, 16, 2, 2},
+                          PartialShape {1, 2, 2, 2},
+                          PartialShape {1, 8, 2, 2},
+                          IN_ET,
+                          std::vector<T>{
+                                    1.0f, 2.0f, 3.0f,
+                                    4.0f, 5.0f, 6.0f,
+                                    7.0f, 8.0f, 9.0f,
+                                    10.0f, 11.0f, 12.0f,
+                                    13.0f, 14.0f, 15.0f,
+                                    16.0f, 17.0f, 18.0f},
+                          std::vector<T>{
+                                    1.0f, 2.0f,
+                                    3.0f, 4.0f,
+                                    5.0f, 6.0f,
+                                    7.0f, 8.0f,
+                                    -1.0f, -2.0f,
+                                    -3.0f, -4.0f,
+                                    -5.0f, -6.0f,
+                                    -7.0f, -8.0f},
+                          std::vector<T>{
+                                    1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f,
+                                    1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f,
+                                    1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f,
+                                    1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f, 1.1f},
+                          std::vector<T>{
+                                    184.25163,  101.04752,
+                                    77.46842,   77.56562,
+                                    -184.25163, -101.04752,
+                                    -77.46842,  -77.56562},
+                          std::vector<T>{
+                                    0.64f,
+                                    0.18f,
+                                    0.23f,
+                                    0.74f,
+                                    0.89f,
+                                    0.70f,
+                                    0.13f,
+                                    0.99f,
+                                    0.48f,
+                                    0.20f,
+                                    0.67f,
+                                    0.88f,
+                                    0.17f,
+                                    0.19f,
+                                    0.53f,
+                                    0.22f,
+                                    0.50f,
+                                    0.07f,
+                                    0.21f,
+                                    0.99f,
+                                    0.09f,
+                                    0.28f,
+                                    0.66f,
+                                    0.91f,
+                                    0.28f,
+                                    0.89f,
+                                    0.91f,
+                                    0.39f,
+                                    0.70f,
+                                    0.67f,
+                                    0.26f,
+                                    0.09f},
+                          {1, 1},
+                          {0, 0},
+                          {0, 0},
+                          {1, 1},
+                          1,
+                          2,
+                          "v8_real_offset_groups_deforgroups_mask_2",
+                          true),
+        DeformableConvolutionV8Params(PartialShape {1, 2, 3, 3},
+                          PartialShape {2, 2, 2, 2},
+                          PartialShape {1, 16, 2, 2},
+                          PartialShape {1, 2, 2, 2},
+                          PartialShape {1, 8, 2, 2},
+                          IN_ET,
+                          std::vector<T>{
+                                    1.0f, 2.0f, 3.0f,
+                                    4.0f, 5.0f, 6.0f,
+                                    7.0f, 8.0f, 9.0f,
+                                    10.0f, 11.0f, 12.0f,
+                                    13.0f, 14.0f, 15.0f,
+                                    16.0f, 17.0f, 18.0f},
+                          std::vector<T>{
+                                    1.0f, 2.0f,
+                                    3.0f, 4.0f,
+                                    5.0f, 6.0f,
+                                    7.0f, 8.0f,
+                                    -1.0f, -2.0f,
+                                    -3.0f, -4.0f,
+                                    -5.0f, -6.0f,
+                                    -7.0f, -8.0f},
+                          std::vector<T>{
+                                    -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f,
+                                    -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f,
+                                    -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f,
+                                    -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f, -1.1f},
+                          std::vector<T>{
+                                    45.910797,  104.8302,
+                                    63.12059 ,  151.47789,
+                                    -45.910797, -104.8302,
+                                    -63.12059 , -151.47789},
+                          std::vector<T>{
+                                    0.64f,
+                                    0.18f,
+                                    0.23f,
+                                    0.74f,
+                                    0.89f,
+                                    0.70f,
+                                    0.13f,
+                                    0.99f,
+                                    0.48f,
+                                    0.20f,
+                                    0.67f,
+                                    0.88f,
+                                    0.17f,
+                                    0.19f,
+                                    0.53f,
+                                    0.22f,
+                                    0.50f,
+                                    0.07f,
+                                    0.21f,
+                                    0.99f,
+                                    0.09f,
+                                    0.28f,
+                                    0.66f,
+                                    0.91f,
+                                    0.28f,
+                                    0.89f,
+                                    0.91f,
+                                    0.39f,
+                                    0.70f,
+                                    0.67f,
+                                    0.26f,
+                                    0.09f},
+                          {1, 1},
+                          {0, 0},
+                          {0, 0},
+                          {1, 1},
+                          1,
+                          2,
+                          "v8_neg_offset_groups_deforgroups_mask",
+                          true),
     };
-    return deformableConvolutionParams;
+    return deformableConvolutionV8Params;
 }
 
 template <element::Type_t IN_ET>
-std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams() {
+std::vector<DeformableConvolutionV8Params> generateDeformableConvolutionV8IntParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<DeformableConvolutionParams> deformableConvolutionParams {
-// --------------------- 2D DeformableConvolution ------------------------------------------
-        DeformableConvolutionParams(PartialShape {1, 1, 4, 4},
+    std::vector<DeformableConvolutionV8Params> deformableConvolutionV8Params {
+// --------------------- 2D DeformableConvolutionV8 ------------------------------------------
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
                           PartialShape {1, 1, 2, 2},
                           PartialShape {1, 8, 3, 3},
                           PartialShape {1, 1, 3, 3},
@@ -2693,7 +3032,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 1, 3, 3},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 3, 3},
                           PartialShape {1, 1, 2, 2},
                           PartialShape {1, 8, 4, 4},
                           PartialShape {1, 1, 4, 4},
@@ -2731,7 +3070,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           {1, 1},
                           {1, 1},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 1, 5, 5},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 5, 5},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 2, 2},
                           PartialShape {1, 1, 2, 2},
@@ -2758,7 +3097,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 1, 7, 7},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 7, 7},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 3, 3},
                           PartialShape {1, 1, 3, 3},
@@ -2793,7 +3132,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           {0, 0},
                           {0, 0},
                           {2, 2}),
-        DeformableConvolutionParams(PartialShape {1, 1, 7, 7},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 7, 7},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 4, 4},
                           PartialShape {1, 1, 4, 4},
@@ -2836,7 +3175,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           {2, 2},
                           {2, 2},
                           {2, 2}),
-        DeformableConvolutionParams(PartialShape {1, 2, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 2, 4, 4},
                           PartialShape {1, 2, 3, 3},
                           PartialShape {1, 18, 2, 2},
                           PartialShape {1, 1, 2, 2},
@@ -2873,7 +3212,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
                           PartialShape {2, 1, 3, 3},
                           PartialShape {1, 18, 2, 2},
                           PartialShape {1, 2, 2, 2},
@@ -2908,7 +3247,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {2, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {2, 1, 4, 4},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {2, 18, 2, 2},
                           PartialShape {2, 1, 2, 2},
@@ -2948,7 +3287,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 4, 3, 3},
+        DeformableConvolutionV8Params(PartialShape {1, 4, 3, 3},
                           PartialShape {2, 2, 2, 2},
                           PartialShape {1, 8, 2, 2},
                           PartialShape {1, 2, 2, 2},
@@ -3000,7 +3339,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           {0, 0},
                           {1, 1},
                           2),
-        DeformableConvolutionParams(PartialShape {1, 8, 3, 3},
+        DeformableConvolutionV8Params(PartialShape {1, 8, 3, 3},
                           PartialShape {4, 2, 2, 2},
                           PartialShape {1, 8, 2, 2},
                           PartialShape {1, 4, 2, 2},
@@ -3086,7 +3425,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           {0, 0},
                           {1, 1},
                           4),
-        DeformableConvolutionParams(PartialShape {1, 2, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 2, 4, 4},
                           PartialShape {1, 2, 2, 2},
                           PartialShape {1, 8, 3, 3},
                           PartialShape {1, 1, 3, 3},
@@ -3127,7 +3466,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 4, 3, 3},
+        DeformableConvolutionV8Params(PartialShape {1, 4, 3, 3},
                           PartialShape {2, 2, 2, 2},
                           PartialShape {1, 16, 2, 2},
                           PartialShape {1, 2, 2, 2},
@@ -3170,7 +3509,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           {1, 1},
                           2,
                           2),
-        DeformableConvolutionParams(PartialShape {1, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
                           PartialShape {1, 1, 2, 2},
                           PartialShape {1, 8, 3, 3},
                           PartialShape {1, 1, 3, 3},
@@ -3227,7 +3566,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           1,
                           1,
                           "integral_offsets_1"),
-        DeformableConvolutionParams(PartialShape {1, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 4, 4},
                           PartialShape {1, 1, 4, 4},
@@ -3340,7 +3679,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           {1, 1},
                           {1, 1},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 1, 5, 5},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 5, 5},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 2, 2},
                           PartialShape {1, 1, 2, 2},
@@ -3402,7 +3741,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           1,
                           1,
                           "integral_offsets_stride"),
-        DeformableConvolutionParams(PartialShape {1, 1, 7, 7},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 7, 7},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 3, 3},
                           PartialShape {1, 1, 3, 3},
@@ -3485,7 +3824,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           1,
                           1,
                           "integral_offset_dialation"),
-        DeformableConvolutionParams(PartialShape {1, 1, 7, 7},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 7, 7},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 4, 4},
                           PartialShape {1, 1, 4, 4},
@@ -3604,7 +3943,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           1,
                           1,
                           "integral_offset_padding_stride_dialation"),
-        DeformableConvolutionParams(PartialShape {1, 2, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 2, 4, 4},
                           PartialShape {1, 2, 3, 3},
                           PartialShape {1, 18, 2, 2},
                           PartialShape {1, 1, 2, 2},
@@ -3676,7 +4015,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           1,
                           1,
                           "integral_offset_input_channels"),
-        DeformableConvolutionParams(PartialShape {1, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
                           PartialShape {2, 1, 2, 2},
                           PartialShape {1, 8, 3, 3},
                           PartialShape {1, 2, 3, 3},
@@ -3742,7 +4081,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           1,
                           1,
                           "integral_offset_output_channels"),
-        DeformableConvolutionParams(PartialShape {2, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {2, 1, 4, 4},
                           PartialShape {1, 1, 2, 2},
                           PartialShape {2, 8, 3, 3},
                           PartialShape {2, 1, 3, 3},
@@ -3842,7 +4181,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           1,
                           1,
                           "integral_offset_batch"),
-        DeformableConvolutionParams(PartialShape {1, 4, 3, 3},
+        DeformableConvolutionV8Params(PartialShape {1, 4, 3, 3},
                           PartialShape {2, 2, 2, 2},
                           PartialShape {1, 8, 2, 2},
                           PartialShape {1, 2, 2, 2},
@@ -3908,7 +4247,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           2,
                           1,
                           "integral_offset_groups_basic"),
-        DeformableConvolutionParams(PartialShape {1, 8, 3, 3},
+        DeformableConvolutionV8Params(PartialShape {1, 8, 3, 3},
                           PartialShape {4, 2, 2, 2},
                           PartialShape {1, 8, 2, 2},
                           PartialShape {1, 4, 2, 2},
@@ -4000,7 +4339,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           4,
                           1,
                           "integral_offset_groups_complex"),
-        DeformableConvolutionParams(PartialShape {1, 2, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 2, 4, 4},
                           PartialShape {2, 2, 2, 2},
                           PartialShape {1, 16, 3, 3},
                           PartialShape {1, 2, 3, 3},
@@ -4110,7 +4449,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           1,
                           2,
                           "integral_offset_deforgroup_basic"),
-        DeformableConvolutionParams(PartialShape {1, 4, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 4, 4, 4},
                           PartialShape {2, 4, 2, 2},
                           PartialShape {1, 32, 3, 3},
                           PartialShape {1, 2, 3, 3},
@@ -4307,7 +4646,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           1,
                           4,
                           "integral_offset_deforgroup_complex1"),
-        DeformableConvolutionParams(PartialShape {1, 4, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 4, 4, 4},
                           PartialShape {2, 4, 2, 2},
                           PartialShape {1, 16, 3, 3},
                           PartialShape {1, 2, 3, 3},
@@ -4439,7 +4778,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           1,
                           2,
                           "integral_offset_deforgroup_complex2"),
-        DeformableConvolutionParams(PartialShape {1, 4, 3, 3},
+        DeformableConvolutionV8Params(PartialShape {1, 4, 3, 3},
                           PartialShape {2, 2, 2, 2},
                           PartialShape {1, 16, 2, 2},
                           PartialShape {1, 2, 2, 2},
@@ -4498,16 +4837,16 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionIntParams(
                           2,
                           "integral_offset_groups_and_deforgroups"),
     };
-    return deformableConvolutionParams;
+    return deformableConvolutionV8Params;
 }
 
 template <element::Type_t IN_ET>
-std::vector<DeformableConvolutionParams> generateDeformableConvolutionInt8Params() {
+std::vector<DeformableConvolutionV8Params> generateDeformableConvolutionV8Int8Params() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<DeformableConvolutionParams> deformableConvolutionParams {
-// --------------------- 2D DeformableConvolution ------------------------------------------
-        DeformableConvolutionParams(PartialShape {1, 1, 4, 4},
+    std::vector<DeformableConvolutionV8Params> deformableConvolutionV8Params {
+// --------------------- 2D DeformableConvolutionV8 ------------------------------------------
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
                           PartialShape {1, 1, 2, 2},
                           PartialShape {1, 8, 3, 3},
                           PartialShape {1, 1, 3, 3},
@@ -4538,7 +4877,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionInt8Params
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 1, 3, 3},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 3, 3},
                           PartialShape {1, 1, 2, 2},
                           PartialShape {1, 8, 4, 4},
                           PartialShape {1, 1, 4, 4},
@@ -4576,7 +4915,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionInt8Params
                           {1, 1},
                           {1, 1},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 1, 5, 5},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 5, 5},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 2, 2},
                           PartialShape {1, 1, 2, 2},
@@ -4603,7 +4942,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionInt8Params
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {2, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {2, 1, 4, 4},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {2, 18, 2, 2},
                           PartialShape {2, 1, 2, 2},
@@ -4643,7 +4982,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionInt8Params
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 2, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 2, 4, 4},
                           PartialShape {1, 2, 2, 2},
                           PartialShape {1, 8, 3, 3},
                           PartialShape {1, 1, 3, 3},
@@ -4684,7 +5023,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionInt8Params
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
                           PartialShape {1, 1, 2, 2},
                           PartialShape {1, 8, 3, 3},
                           PartialShape {1, 1, 3, 3},
@@ -4741,7 +5080,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionInt8Params
                           1,
                           1,
                           "integral_offsets_1"),
-        DeformableConvolutionParams(PartialShape {1, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 4, 4},
                           PartialShape {1, 1, 4, 4},
@@ -4854,7 +5193,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionInt8Params
                           {1, 1},
                           {1, 1},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 1, 5, 5},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 5, 5},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 2, 2},
                           PartialShape {1, 1, 2, 2},
@@ -4916,7 +5255,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionInt8Params
                           1,
                           1,
                           "integral_offsets_stride"),
-        DeformableConvolutionParams(PartialShape {1, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
                           PartialShape {2, 1, 2, 2},
                           PartialShape {1, 8, 3, 3},
                           PartialShape {1, 2, 3, 3},
@@ -4982,7 +5321,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionInt8Params
                           1,
                           1,
                           "integral_offset_output_channels"),
-        DeformableConvolutionParams(PartialShape {2, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {2, 1, 4, 4},
                           PartialShape {1, 1, 2, 2},
                           PartialShape {2, 8, 3, 3},
                           PartialShape {2, 1, 3, 3},
@@ -5083,16 +5422,16 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionInt8Params
                           1,
                           "integral_offset_batch"),
     };
-    return deformableConvolutionParams;
+    return deformableConvolutionV8Params;
 }
 
 template <element::Type_t IN_ET>
-std::vector<DeformableConvolutionParams> generateDeformableConvolutionUintParams() {
+std::vector<DeformableConvolutionV8Params> generateDeformableConvolutionV8UintParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
-    std::vector<DeformableConvolutionParams> deformableConvolutionParams {
-// --------------------- 2D DeformableConvolution ------------------------------------------
-        DeformableConvolutionParams(PartialShape {1, 1, 3, 3},
+    std::vector<DeformableConvolutionV8Params> deformableConvolutionV8Params {
+// --------------------- 2D DeformableConvolutionV8 ------------------------------------------
+        DeformableConvolutionV8Params(PartialShape {1, 1, 3, 3},
                           PartialShape {1, 1, 2, 2},
                           PartialShape {1, 8, 4, 4},
                           PartialShape {1, 1, 4, 4},
@@ -5130,7 +5469,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionUintParams
                           {1, 1},
                           {1, 1},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 1, 5, 5},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 5, 5},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 2, 2},
                           PartialShape {1, 1, 2, 2},
@@ -5157,7 +5496,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionUintParams
                           {0, 0},
                           {0, 0},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 1, 4, 4},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 4, 4},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 4, 4},
                           PartialShape {1, 1, 4, 4},
@@ -5270,7 +5609,7 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionUintParams
                           {1, 1},
                           {1, 1},
                           {1, 1}),
-        DeformableConvolutionParams(PartialShape {1, 1, 5, 5},
+        DeformableConvolutionV8Params(PartialShape {1, 1, 5, 5},
                           PartialShape {1, 1, 3, 3},
                           PartialShape {1, 18, 2, 2},
                           PartialShape {1, 1, 2, 2},
@@ -5333,33 +5672,33 @@ std::vector<DeformableConvolutionParams> generateDeformableConvolutionUintParams
                           1,
                           "integral_offsets_stride"),
     };
-    return deformableConvolutionParams;
+    return deformableConvolutionV8Params;
 }
 
-std::vector<DeformableConvolutionParams> generateDeformableConvolutionCombinedParams() {
-    const std::vector<std::vector<DeformableConvolutionParams>> deformableConvolutionTypeParams {
-        generateDeformableConvolutionFloatParams<element::Type_t::f64>(),
-        generateDeformableConvolutionFloatParams<element::Type_t::f32>(),
-        generateDeformableConvolutionFloatParams<element::Type_t::f16>(),
-        generateDeformableConvolutionFloatParams<element::Type_t::bf16>(),
-        generateDeformableConvolutionIntParams<element::Type_t::i64>(),
-        generateDeformableConvolutionIntParams<element::Type_t::i32>(),
-        generateDeformableConvolutionIntParams<element::Type_t::i16>(),
-        generateDeformableConvolutionInt8Params<element::Type_t::i8>(),
-        generateDeformableConvolutionUintParams<element::Type_t::u64>(),
-        generateDeformableConvolutionUintParams<element::Type_t::u32>(),
-        generateDeformableConvolutionUintParams<element::Type_t::u16>(),
-        generateDeformableConvolutionUintParams<element::Type_t::u8>()
+std::vector<DeformableConvolutionV8Params> generateDeformableConvolutionV8CombinedParams() {
+    const std::vector<std::vector<DeformableConvolutionV8Params>> deformableConvolutionV8TypeParams {
+        generateDeformableConvolutionV8FloatParams<element::Type_t::f64>(),
+        generateDeformableConvolutionV8FloatParams<element::Type_t::f32>(),
+        generateDeformableConvolutionV8FloatParams<element::Type_t::f16>(),
+        generateDeformableConvolutionV8FloatParams<element::Type_t::bf16>(),
+        generateDeformableConvolutionV8IntParams<element::Type_t::i64>(),
+        generateDeformableConvolutionV8IntParams<element::Type_t::i32>(),
+        generateDeformableConvolutionV8IntParams<element::Type_t::i16>(),
+        generateDeformableConvolutionV8Int8Params<element::Type_t::i8>(),
+        generateDeformableConvolutionV8UintParams<element::Type_t::u64>(),
+        generateDeformableConvolutionV8UintParams<element::Type_t::u32>(),
+        generateDeformableConvolutionV8UintParams<element::Type_t::u16>(),
+        generateDeformableConvolutionV8UintParams<element::Type_t::u8>()
         };
-    std::vector<DeformableConvolutionParams> combinedParams;
+    std::vector<DeformableConvolutionV8Params> combinedParams;
 
-    for (const auto& params : deformableConvolutionTypeParams) {
+    for (const auto& params : deformableConvolutionV8TypeParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
     }
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_DeformableConvolution_With_Hardcoded_Refs, ReferenceDeformableConvolutionLayerTest,
-    testing::ValuesIn(generateDeformableConvolutionCombinedParams()), ReferenceDeformableConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DeformableConvolutionV8_With_Hardcoded_Refs, ReferenceDeformableConvolutionV8LayerTest,
+    testing::ValuesIn(generateDeformableConvolutionV8CombinedParams()), ReferenceDeformableConvolutionV8LayerTest::getTestCaseName);
 
 } // namespace
