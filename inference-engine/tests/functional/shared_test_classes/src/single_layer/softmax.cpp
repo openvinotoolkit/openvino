@@ -13,17 +13,15 @@ namespace test {
 namespace subgraph {
 
 std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<SoftMaxTestParams>& obj) {
-    ElementType netType, inType, outType;
+    ElementType netType;
     InputShape shapes;
     size_t axis;
     TargetDevice targetDevice;
     Config config;
-    std::tie(netType, inType, outType, shapes, axis, targetDevice, config) = obj.param;
+    std::tie(netType, shapes, axis, targetDevice, config) = obj.param;
 
     std::ostringstream result;
     result << "NetType=" << netType << "_";
-    result << "InType=" << inType << "_";
-    result << "OutType=" << outType << "_";
     result << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
     result << "TS=";
     for (const auto& item : shapes.second) {
@@ -40,10 +38,9 @@ void SoftMaxLayerTest::SetUp() {
     ElementType ngPrc;
     size_t axis;
 
-    std::tie(ngPrc, inType, outType, shapes, axis, targetDevice, configuration) = GetParam();
+    std::tie(ngPrc, shapes, axis, targetDevice, configuration) = GetParam();
     init_input_shapes(shapes);
 
-    // TODO: iefode: change namespace names a bit later
     const auto params = ngraph::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
     const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));

@@ -163,25 +163,20 @@ std::vector<ov::runtime::Tensor>
         const auto &parameterShape = parameter->get_shape();
         const auto &parameterType = parameter->get_element_type();
         const auto &parameterSize = shape_size(parameterShape) * parameterType.size();
+        const auto &parameterIndex = function->get_parameter_index(parameter);
+
 
         auto inputIt = inputs.find(parameter->get_friendly_name());
-        // TODO: iefode
         if (inputIt == inputs.end()) {
-            // runtime error
+            throw std::runtime_error("Parameter: " + parameter->get_friendly_name() + "was nor find in input parameters");
         }
         auto input = inputIt->second;
-        const auto inType = input.get_element_type();
 
-// TODO: iefode
-//        if (inType != element::undefined && inType != parameterType) {
-//            input = convertOutputPrecision(input, inType, parameterType, shape_size(parameterShape));
-//        }
-
-//        const auto &inputSize = input.size();
-//        NGRAPH_CHECK(parameterSize == inputSize,
-//                     "Got parameter (", parameter->get_friendly_name(), ") of size ", parameterSize,
-//                     " bytes, but corresponding input with index ", parameterIndex,
-//                     " has ", inputSize, " bytes");
+        const auto &inputSize = input.get_size();
+        NGRAPH_CHECK(parameterSize == inputSize,
+                     "Got parameter (", parameter->get_friendly_name(), ") of size ", parameterSize,
+                     " bytes, but corresponding input with index ", parameterIndex,
+                     " has ", inputSize, " bytes");
 
         auto tensor = backend->create_tensor(parameterType, parameterShape);
         tensor->write(input.data(), parameterSize);
@@ -906,6 +901,15 @@ std::ostream& operator<<(std::ostream & os, MemoryTransformation type) {
             throw std::runtime_error("NOT_SUPPORTED_TYPE");
     }
     return os;
+}
+
+void resize_function(const std::vector<ov::Shape>& targetInputStaticShapes, std::shared_ptr<ov::Function> function) {
+    auto params = function->get_parameters();
+    std::map<std::string, ov::PartialShape> shapes;
+    for (size_t i = 0; i < params.size(); i++) {
+        shapes.insert({params[i]->get_output_tensor(0).get_any_name(), targetInputStaticShapes[i]});
+    }
+    function->reshape(shapes);
 }
 
 }  // namespace helpers

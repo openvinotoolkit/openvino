@@ -320,5 +320,7 @@ std::ostream& operator<<(std::ostream & os, SequenceTestsMode type);
 
 std::ostream& operator<<(std::ostream & os, MemoryTransformation type);
 
+void resize_function(const std::vector<ov::Shape>& targetInputStaticShapes, std::shared_ptr<ov::Function> function);
+
 }  // namespace helpers
 }  // namespace ngraph

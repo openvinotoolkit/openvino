@@ -12,13 +12,13 @@ namespace subgraph {
 
 std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<EltwiseTestParams>& obj) {
     std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> shapes;
-    ElementType netType, inType, outType;
+    ElementType netType;
     ngraph::helpers::InputLayerType secondaryInputType;
     CommonTestUtils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseOpType;
     std::string targetName;
     std::map<std::string, std::string> additional_config;
-    std::tie(shapes, eltwiseOpType, secondaryInputType, opType, netType, inType, outType, targetName, additional_config) = obj.param;
+    std::tie(shapes, eltwiseOpType, secondaryInputType, opType, netType, targetName, additional_config) = obj.param;
     std::ostringstream results;
 
     results << "IS=" << CommonTestUtils::partialShape2str(shapes.first) << "_";
@@ -34,8 +34,6 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     results << "secondaryInputType=" << secondaryInputType << "_";
     results << "opType=" << opType << "_";
     results << "NetType=" << netType << "_";
-    results << "InType=" << inType << "_";
-    results << "OutType=" << outType << "_";
     results << "trgDev=" << targetName;
     return results.str();
 }
@@ -78,7 +76,7 @@ void EltwiseLayerTest::SetUp() {
     CommonTestUtils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseType;
     Config additional_config;
-    std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, additional_config) =
+    std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, targetDevice, additional_config) =
         this->GetParam();
 
     init_input_shapes(shapes);

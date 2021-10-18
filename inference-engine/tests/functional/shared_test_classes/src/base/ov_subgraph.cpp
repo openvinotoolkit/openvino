@@ -47,7 +47,7 @@ void SubgraphBaseTest::run() {
             try {
                 if (!inputDynamicShapes.empty()) {
                     // resize ngraph function according new target shape
-                    resize_function(targetStaticShapeVec);
+                    ngraph::helpers::resize_function(targetStaticShapeVec, functionRefs);
                 }
                 generate_inputs(targetStaticShapeVec);
                 infer();
@@ -121,27 +121,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor> &expected,
     }
 }
 
-void SubgraphBaseTest::configure_model() {
-    // configure input precision
-    {
-        auto params = function->get_parameters();
-        for (auto& param : params) {
-            if (inType != ov::element::Type_t::undefined) {
-                param->get_output_tensor(0).set_element_type(inType);
-            }
-        }
-    }
-
-    // configure output precision
-    {
-        auto results = function->get_results();
-        for (auto& result : results) {
-            if (outType != ov::element::Type_t::undefined) {
-                result->get_output_tensor(0).set_element_type(outType);
-            }
-        }
-    }
-}
+void SubgraphBaseTest::configure_model() {}
 
 void SubgraphBaseTest::compile_model() {
     configure_model();
@@ -182,7 +162,7 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
 std::vector<ov::runtime::Tensor> SubgraphBaseTest::get_plugin_outputs() {
     auto outputs = std::vector<ov::runtime::Tensor>{};
     for (const auto& output : executableNetwork.outputs()) {
-        const auto& name = *output.get_tensor().get_names().begin();
+        const auto& name = output.get_tensor().get_any_name();
         outputs.push_back(inferRequest.get_tensor(name));
     }
     return outputs;
@@ -200,17 +180,6 @@ void SubgraphBaseTest::validate() {
                     "nGraph interpreter has ", expectedOutputs.size(), " outputs, while IE ", actualOutputs.size());
 
     compare(expectedOutputs, actualOutputs);
-}
-
-void SubgraphBaseTest::resize_function(const std::vector<ov::Shape>& targetInputStaticShapes) {
-    auto params = function->get_parameters();
-    std::map<std::string, ov::PartialShape> shapes;
-    ASSERT_LE(params.size(), targetInputStaticShapes.size());
-    for (size_t i = 0; i < params.size(); i++) {
-        shapes.insert({*params[i]->get_output_tensor(0).get_names().begin(), targetInputStaticShapes[i]});
-    }
-    function->reshape(shapes);
-    functionRefs->reshape(shapes);
 }
 
 void SubgraphBaseTest::init_input_shapes(const InputShapes& shapes) {

@@ -34,8 +34,6 @@ const std::vector<size_t> axis2D = {
 
 const auto params2D_static = testing::Combine(
         testing::ValuesIn(netPrecisions),
-        testing::Values(ov::element::undefined),
-        testing::Values(ov::element::undefined),
         testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputStaticShape2D)),
         testing::ValuesIn(axis2D),
         testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
@@ -44,8 +42,6 @@ const auto params2D_static = testing::Combine(
 
 const auto params2D_dynamic = testing::Combine(
         testing::ValuesIn(netPrecisions),
-        testing::Values(ov::element::undefined),
-        testing::Values(ov::element::undefined),
         testing::ValuesIn(inputDynamicShape2D),
         testing::ValuesIn(axis2D),
         testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
@@ -82,8 +78,6 @@ const std::vector<size_t> axis4D = {0, 1, 2, 3};
 
 const auto params4Dstatic = testing::Combine(
         testing::ValuesIn(netPrecisions),
-        testing::Values(ov::element::undefined),
-        testing::Values(ov::element::undefined),
         testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputStaticShape4D)),
         testing::ValuesIn(axis4D),
         testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
@@ -92,8 +86,6 @@ const auto params4Dstatic = testing::Combine(
 
 const auto params4Ddynamic = testing::Combine(
         testing::ValuesIn(netPrecisions),
-        testing::Values(ov::element::undefined),
-        testing::Values(ov::element::undefined),
         testing::ValuesIn(inputDynamicShape4D),
         testing::ValuesIn(axis4D),
         testing::Values(CommonTestUtils::DEVICE_TEMPLATE),

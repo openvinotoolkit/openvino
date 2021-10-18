@@ -27,7 +27,7 @@ public:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            ov::test::PluginCache::get().core().reset();
+            ov::test::utils::PluginCache::get().core().reset();
         }
     }
 
@@ -44,12 +44,11 @@ protected:
     void init_input_shapes(const InputShapes& shapes);
     void init_input_shapes(const InputShape& shapes);
 
-    std::shared_ptr<ov::runtime::Core> core = ov::test::PluginCache::get().core();
+    std::shared_ptr<ov::runtime::Core> core = ov::test::utils::PluginCache::get().core();
     std::string targetDevice;
     Config configuration;
 
     std::shared_ptr<ov::Function> function, functionRefs = nullptr;
-    ElementType inType = ov::element::Type_t::undefined, outType = ov::element::Type_t::undefined;
     std::map<std::string, ov::runtime::Tensor> inputs;
     std::vector<ngraph::PartialShape> inputDynamicShapes;
     std::vector<std::vector<ngraph::Shape>> targetStaticShapes;
@@ -64,7 +63,6 @@ protected:
     LayerTestsUtils::Summary& summary = LayerTestsUtils::Summary::getInstance();;
 
 private:
-    void resize_function(const std::vector<ov::Shape>& targetInputStaticShapes);
     std::vector<ov::runtime::Tensor> calculate_refs();
     std::vector<ov::runtime::Tensor> get_plugin_outputs();
 };

@@ -53,8 +53,6 @@ const auto multiply_params = ::testing::Combine(
         ::testing::ValuesIn(secondaryInputTypes),
         ::testing::ValuesIn(opTypes),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::Values(additional_config));
 
