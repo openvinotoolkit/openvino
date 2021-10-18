@@ -85,7 +85,14 @@ INSTANTIATE_TEST_SUITE_P(
                                          1,
                                          2,
                                          std::numeric_limits<int32_t>::max()}})
-            .expected({{6}, element::i32, std::vector<int32_t>{0, 0, -INFINITY, INFINITY, 0, 0}}),
+            .expected({{6},
+                       element::i32,
+                       std::vector<int32_t>{std::numeric_limits<int32_t>::min(),
+                                            std::numeric_limits<int32_t>::min(),
+                                            std::numeric_limits<int32_t>::min(),
+                                            std::numeric_limits<int32_t>::max(),
+                                            std::numeric_limits<int32_t>::max(),
+                                            std::numeric_limits<int32_t>::max()}}),
         Builder{}
             .input({{2, 3},
                     element::u32,
@@ -95,7 +102,14 @@ INSTANTIATE_TEST_SUITE_P(
                                           2,
                                           3,
                                           std::numeric_limits<uint32_t>::max()}})
-            .expected({{2, 3}, element::u32, std::vector<uint32_t>{NAN, 0, INFINITY, NAN, NAN, NAN}}),
+            .expected({{2, 3},
+                       element::u32,
+                       std::vector<uint32_t>{std::numeric_limits<uint32_t>::min(),
+                                             0,
+                                             std::numeric_limits<uint32_t>::max(),
+                                             std::numeric_limits<uint32_t>::max(),
+                                             std::numeric_limits<uint32_t>::max(),
+                                             std::numeric_limits<uint32_t>::max()}}),
         Builder{}
             .input({{2, 3},
                     element::i64,
@@ -105,7 +119,14 @@ INSTANTIATE_TEST_SUITE_P(
                                          1,
                                          2,
                                          std::numeric_limits<int64_t>::max()}})
-            .expected({{2, 3}, element::i64, std::vector<int64_t>{NAN, NAN, -INFINITY, INFINITY, NAN, NAN}}),
+            .expected({{2, 3},
+                       element::i64,
+                       std::vector<int64_t>{std::numeric_limits<int64_t>::min(),
+                                            std::numeric_limits<int64_t>::min(),
+                                            std::numeric_limits<int64_t>::min(),
+                                            std::numeric_limits<int64_t>::max(),
+                                            std::numeric_limits<int64_t>::max(),
+                                            std::numeric_limits<int64_t>::max()}}),
         Builder{}
             .input({{2, 3},
                     element::u64,
@@ -115,6 +136,13 @@ INSTANTIATE_TEST_SUITE_P(
                                           2,
                                           3,
                                           std::numeric_limits<uint64_t>::max()}})
-            .expected({{2, 3}, element::u64, std::vector<uint64_t>{NAN, 0, INFINITY, NAN, NAN, NAN}})),
+            .expected({{2, 3},
+                       element::u64,
+                       std::vector<uint64_t>{std::numeric_limits<uint64_t>::min(),
+                                             0,
+                                             std::numeric_limits<uint64_t>::max(),
+                                             std::numeric_limits<uint64_t>::max(),
+                                             std::numeric_limits<uint64_t>::max(),
+                                             std::numeric_limits<uint64_t>::max()}})),
     ReferenceAtanhLayerTest::getTestCaseName);
 }  // namespace reference_tests
