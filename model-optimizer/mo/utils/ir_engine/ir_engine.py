@@ -16,7 +16,9 @@ import numpy as np
 
 from mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array
 from mo.graph.graph import Node, Graph
+from mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.runtime_info import RTInfo, OldAPIMap
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=sys.stdout)
 
@@ -276,6 +278,10 @@ class IREngine(object):
                 layer_attrs = self.__read_if(layer, layer_attrs)
                 continue
 
+            elif attr.tag == 'rt_info':
+                layer_attrs = self.__read_rt_info(layer, layer_attrs)
+                continue
+
         return layer_id, layer_attrs
 
     @staticmethod
@@ -445,3 +451,31 @@ class IREngine(object):
         layer_attrs.update({'else_output_port_map': else_output_port_map})
 
         return layer_attrs
+
+    def __read_rt_info(self, layer, layer_attrs):
+        rt_info = RTInfo()
+        xml_rt_info = list(layer.iterfind('rt_info'))[0]
+
+        for attr in xml_rt_info:
+            attr_name = attr.attrib['name']
+            if attr_name == 'old_api_map':
+                rt_info.info.update(self.__read_old_api_map(attr, layer.attrib['type']))
+
+        layer_attrs.update({'rt_info': rt_info})
+        return layer_attrs
+
+    @staticmethod
+    def __read_old_api_map(attr, layer_type):
+        version = float(attr.attrib['version'])
+        order = list(map(int, attr.attrib['order'].split(',')))
+        element_type = destination_type_to_np_data_type(attr.attrib['element_type'])
+        old_api_map = OldAPIMap()
+        old_api_map.old_api_convert(element_type)
+        if layer_type == 'Parameter':
+            old_api_map.old_api_transpose_parameter(order)
+        elif layer_type == 'Result':
+            old_api_map.old_api_transpose_result(order)
+        else:
+            raise AttributeError("Cannot read old_api_map for layer of type: {}".format(layer_type))
+
+        return {(version, 'old_api_map'): old_api_map}
