@@ -16,7 +16,7 @@
 #include "ie_icore.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_parameter.hpp"
-#include <openvino/core/node.hpp>
+#include "openvino/core/node.hpp"
 
 namespace InferenceEngine {
 
@@ -132,7 +132,8 @@ std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRe
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRequestImpl(
+    const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
     IE_THROW(NotImplemented);
 }

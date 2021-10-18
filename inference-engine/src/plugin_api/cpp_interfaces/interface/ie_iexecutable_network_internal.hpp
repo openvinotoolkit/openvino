@@ -188,8 +188,9 @@ protected:
      * @param[in]  networkOutputs  The network outputs
      * @return     A shared pointer to inference request object.
      */
-    virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                                                                          const std::vector<std::shared_ptr<const ov::Node>>& outputs);
+    virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(
+        const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+        const std::vector<std::shared_ptr<const ov::Node>>& outputs);
 
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data

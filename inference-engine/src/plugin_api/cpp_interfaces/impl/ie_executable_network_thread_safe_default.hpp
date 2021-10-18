@@ -62,7 +62,8 @@ protected:
         if (!_parameters.empty() || !_results.empty()) {
             try {
                 syncRequestImpl = this->CreateInferRequestImpl(_parameters, _results);
-            } catch (...) {}
+            } catch (...) {
+            }
         }
         if (!syncRequestImpl)
             syncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs);
