@@ -16,6 +16,7 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <transformations/rt_info/disable_constant_folding.hpp>
 
 namespace {
 // This function creates a partition of its argument into groups consisting of adjacent identical elements.
@@ -177,8 +178,11 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
 
         std::shared_ptr<Node> sizes_node;
 
-        if (use_shape_for_elimination)
+        if (use_shape_for_elimination) {
             sizes_node = get_constant_from_source(cast_mul_result_to_int);
+        } else {
+            disable_constant_folding(shape_node);
+        }
 
         if (!sizes_node)
             sizes_node = cast_mul_result_to_int;
