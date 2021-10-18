@@ -175,11 +175,6 @@ $(document).ready(function () {
             graphContainer.attr('id', 'ov-graph-container-' + chartSlug);
             chartContainer.addClass('chart-container');
             chartContainer.addClass('container');
-            var chartTitle = $('<h2>');
-            chartTitle.addClass('chart-title');
-            chartTitle.attr('id', chartName.replace(' ', '-'));
-            chartTitle.text(chartName);
-            chartContainer.append(chartTitle);
 
             hwTypes.forEach(function (hwType) {
                 // add title
