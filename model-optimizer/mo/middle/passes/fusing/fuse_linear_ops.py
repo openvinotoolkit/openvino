@@ -62,6 +62,7 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
 
     for fuse_node in fuse_nodes:
         weights_port = fuse_node.in_port(1)
+        dtype = const_port.data.get_value().dtype
         value = np.array(const_port.data.get_value())
 
         value = np.squeeze(value)
@@ -73,7 +74,7 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
 
         # Scalar broadcast
         if value.size == 1:
-            value = np.full(shape, value.item())
+            value = np.full(shape, value.item(), dtype=dtype)
 
         # Common broadcast for forward fusion
         if not backward:
