@@ -9,7 +9,7 @@ graph {
     output: "y"
     op_type: "ConvInteger"
   }
-  name: "MatMulInt"
+  name: "ConvInt"
   input {
     name: "x"
     type {
