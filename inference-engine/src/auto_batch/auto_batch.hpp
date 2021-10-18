@@ -78,11 +78,15 @@ public:
         InferenceEngine::StatusCode     _status = InferenceEngine::StatusCode::OK;
         int                             _batchSize;
         std::atomic_int                 _numRequestsReady = {0};
-        ThreadSafeQueue<InferenceEngine::Task> _tasks;
+        ThreadSafeQueue<std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task>> _tasks;
+        std::thread                     _thread;
+        std::condition_variable         _cond;
+        std::mutex                      _mutex;
     };
     using NotBusyWorkerRequests = ThreadSafeQueue<WorkerInferRequest*>;
 
     explicit AutoBatchExecutableNetwork(const InferenceEngine::SoExecutableNetworkInternal& networkForDevice,
+                                        const InferenceEngine::SoExecutableNetworkInternal& networkForDeviceWithoutBatch,
                                           const DeviceInformation&                                 networkDevices,
                                           const std::unordered_map<std::string, InferenceEngine::Parameter>&    config,
                                           const bool                                                            needPerfCounters = false);
@@ -98,6 +102,7 @@ public:
     std::atomic_bool                                            _terminate = {false};
     DeviceInformation                                           _device;
     InferenceEngine::SoExecutableNetworkInternal                _network;
+    InferenceEngine::SoExecutableNetworkInternal                _networkWithoutBatch;
     std::vector<WorkerInferRequest::Ptr>                        _workerRequests;
     std::unordered_map<std::string, InferenceEngine::Parameter> _config;
     bool                                                        _needPerfCounters = false;
@@ -115,7 +120,7 @@ public:
     void InferImpl() override;
 
     // Batch-Device impl specific: sets the data (blobs from the device request to the batched device request)
-    void SetBlobsToAnotherRequest(InferenceEngine::InferRequest& req);
+    void SetBlobsToAnotherRequest(InferenceEngine::SoIInferRequestInternal& req);
     AutoBatchExecutableNetwork::WorkerInferRequest* _workerInferRequest;
 protected:
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>  _perfMap;
@@ -128,11 +133,12 @@ public:
 
     explicit AutoBatchAsyncInferRequest(const AutoBatchInferRequest::Ptr&           inferRequest,
                                           const bool                                needPerfCounters,
+                                          InferenceEngine::SoIInferRequestInternal& inferRequestWithoutBatch,
                                           const InferenceEngine::ITaskExecutor::Ptr&    callbackExecutor);
     void Infer_ThreadUnsafe() override;
     virtual ~AutoBatchAsyncInferRequest();
 
-protected:
+    InferenceEngine::SoIInferRequestInternal                          _inferRequestWithoutBatch;
     AutoBatchInferRequest::Ptr                                        _inferRequest;
 };
 
