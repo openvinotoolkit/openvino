@@ -21,7 +21,7 @@
    
 @endsphinxdirective
 
-Open Model Zoo for OpenVINO™ toolkit delivers comprehensive sets of pre-trained deep learning models and demo application that provide robust application templates to help you implement specific deep learning scenarios.
+Open Model Zoo for OpenVINO™ toolkit delivers comprehensive sets of pre-trained deep learning models and demo applications that provide robust application templates to help you implement specific deep learning scenarios.
 
 Browse through over 200 [public](@ref omz_models_group_public) and free [Intel's](@ref omz_models_group_intel) pre-trained neural networks and pick the right one for your solution.
 

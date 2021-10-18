@@ -1,26 +1,7 @@
 Supported Devices {#openvino_docs_IE_DG_supported_plugins_Supported_Devices}
 ==================
 
-@sphinxdirective
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   
-   openvino_docs_IE_DG_supported_plugins_GPU
-   openvino_docs_IE_DG_supported_plugins_CPU
-   openvino_docs_IE_DG_supported_plugins_VPU
-   openvino_docs_IE_DG_supported_plugins_FPGA
-   openvino_docs_IE_DG_supported_plugins_HETERO
-   openvino_docs_IE_DG_supported_plugins_MULTI
-   openvino_docs_IE_DG_supported_plugins_AUTO
-   openvino_docs_IE_DG_supported_plugins_GNA
-
-      
-@endsphinxdirective
-
-
-The Inference Engine can infer models in different formats with various input and output formats. This section provides supported and optimal configurations per device.
+The Inference Engine can infer models in different formats with various input and output formats. This section provides supported and optimal configurations per device. In OpenVINO™ documentation, "device" refers to an Intel® processors used for inference, which can be a supported CPU, GPU, VPU (vision processing unit), or GNA (Gaussian neural accelerator coprocessor), or a combination of those devices.
 
 > **NOTE**: With OpenVINO™ 2020.4 release, Intel® Movidius™ Neural Compute Stick is no longer supported.
 
@@ -47,7 +28,6 @@ This page shows supported and optimal configurations for each plugin.
 
 | Acronym/Term      | Description                                   |
 | :-----------------| :---------------------------------------------|
-|   DL              | Deep Learning                                 |
 |   FP32 format     | Single-precision floating-point format        |
 |   BF16 format     | Brain floating-point format                   |
 |   FP16 format     | Half-precision floating-point format          |
@@ -56,7 +36,7 @@ This page shows supported and optimal configurations for each plugin.
 |   U16 format      | 2-byte unsigned integer format                |
 |   U8 format       | 1-byte unsigned integer format                |
 
-NHWC, NCHW, and NCDHW refer to the representation of batches of images.
+NHWC, NCHW, and NCDHW refer to the data ordering in batches of images:
 * NHWC and NCHW refer to image data layout.
 * NCDHW refers to image sequence data layout.
 

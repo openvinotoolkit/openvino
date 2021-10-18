@@ -4,13 +4,13 @@ Remote Blob API of GPU Plugin {#openvino_docs_IE_DG_supported_plugins_GPU_Remote
 The GPU plugin implementation of the `RemoteContext` and `RemoteBlob` interfaces supports GPU 
 pipeline developers who need video memory sharing and interoperability with existing native APIs 
 such as OpenCL\*, Microsoft DirectX\*, or VAAPI\*.
-Using these interfaces allows to avoid any memory copy overhead when plugging the OpenVINO™ inference 
+Using these interfaces allows you to avoid any memory copy overhead when plugging the OpenVINO™ inference 
 into an existing GPU pipeline. It also enables OpenCL kernels participating in the pipeline to become 
 native buffer consumers or producers of the OpenVINO™ inference.
 Since the GPU plugin works on top of the clDNN library, the functionality above is also implemented 
 using OpenCL and its sharing extensions provided by Intel®.
 
-There are two interoperability scenarios that are supported for the Remote Blob API:
+There are two interoperability scenarios supported by the Remote Blob API:
 
 * GPU plugin context and memory objects can be constructed from low-level device, display, or memory 
 handles and used to create the OpenVINO™ `ExecutableNetwork` or `Blob` class. 

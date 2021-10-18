@@ -1,12 +1,20 @@
-Introduction to Inference Engine Device Query API {#openvino_docs_IE_DG_InferenceEngine_QueryAPI}
-===============================
+# Introduction to Inference Engine Device Query API {#openvino_docs_IE_DG_InferenceEngine_QueryAPI}
 
-This section provides a high-level description of the process of querying of different device properties and configuration values.
-Refer to the [Hello Query Device Sample](../../inference-engine/samples/hello_query_device/README.md) sources and [Multi-Device Plugin guide](supported_plugins/MULTI.md) for example of using the Inference Engine Query API in user applications.
+## The Inference Engine Query API (C++)
+
+@sphinxdirective
+.. raw:: html
+
+    <div id="switcher-cpp" class="switcher-anchor">C++</div>
+@endsphinxdirective
+
+The OpenVINO™ toolkit supports inferencing with several types of devices (processors or accelerators). 
+This page provides a high-level description of the process of querying device properties and configuration values at runtime.
+Refer to the [Hello Query Device Sample](../../inference-engine/samples/hello_query_device/README.md) sources and [Multi-Device Plugin guide](supported_plugins/MULTI.md) for examples of using the Inference Engine Query API in user applications.
 
 ## Using the Inference Engine Query API in Your Code
 
-The Inference Engine `Core` class provides the following API to query device information, set or get different device configuration properties:
+The Inference Engine `Core` class provides the following [API](https://docs.openvinotoolkit.org/latest/classInferenceEngine_1_1Core.html) to query device information, set or get different device configuration properties:
 
 * <code>InferenceEngine::Core::GetAvailableDevices</code> - Provides a list of available devices. If there are more than one instance of a specific device, the devices are enumerated with `.suffix` where `suffix` is a unique string identifier. The device name can be passed to all methods of the `InferenceEngine::Core` class that work with devices, for example `InferenceEngine::Core::LoadNetwork`.
 * <code>InferenceEngine::Core::GetMetric</code> - Provides information about specific device.
@@ -26,6 +34,7 @@ The `InferenceEngine::ExecutableNetwork` class is also extended to support the Q
 @snippet snippets/InferenceEngine_QueryAPI0.cpp part0
 
 The function returns list of available devices, for example:
+
 ```
 MYRIAD.1.2-ma2480
 MYRIAD.1.4-ma2480
@@ -39,13 +48,13 @@ GPU.1
 
 Each device name can then be passed to:
 
-* `InferenceEngine::Core::LoadNetwork` to load the network to a specific device.
-* `InferenceEngine::Core::GetMetric` to get common or device specific metrics.
-* All other methods of the `Core` class that accept `deviceName`.
+* `InferenceEngine::Core::LoadNetwork` to load the network to a specific device
+* `InferenceEngine::Core::GetMetric` to get common or device specific metrics
+* All other methods of the `Core` class that accept `deviceName`
 
 ### GetConfig()
 
-The code below demonstrates how to understand whether `HETERO` device dumps `.dot` files with split graphs during the split stage:
+The code below demonstrates how to understand whether the `HETERO` device dumps GraphViz `.dot` files with split graphs during the split stage:
 
 @snippet snippets/InferenceEngine_QueryAPI1.cpp part1
 
@@ -59,17 +68,17 @@ For documentation about common configuration keys, refer to `ie_plugin_config.hp
 
 A returned value appears as follows: `Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz`.
 
-> **NOTE**: All metrics have specific type, which is specified during metric instantiation. The list of common device-agnostic metrics can be found in `ie_plugin_config.hpp`. Device specific metrics (for example, for `HDDL`, `MYRIAD` devices) can be found in corresponding plugin folders.
+> **NOTE**: All metrics have a type, which is specified during metric instantiation. The list of common device-agnostic metrics can be found in `ie_plugin_config.hpp`. Device specific metrics (for example, for HDDL or MYRIAD devices) can be found in corresponding plugin folders.
 
 ## Query API in the ExecutableNetwork Class
 
 ### GetMetric()
 
-The method is used to get executable network specific metric such as `METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)`:
+The method is used to get an executable network specific metric such as `METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)`:
 
 @snippet snippets/InferenceEngine_QueryAPI3.cpp part3
 
-Or the current temperature of `MYRIAD` device:
+Or the current temperature of the `MYRIAD` device:
 
 @snippet snippets/InferenceEngine_QueryAPI4.cpp part4
 

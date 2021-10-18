@@ -7,7 +7,7 @@ This section describes how to work with stateful networks in OpenVINO toolkit, s
 
 The section additionally provides small examples of stateful network and code to infer it.
 
-## What is a Stateful Network
+## What is a Stateful Network?
 
  Several use cases require processing of data sequences. When length of a sequence is known and small enough, 
  we can process it with RNN like networks that contain a cycle inside. But in some cases, like online speech recognition of time series 
@@ -403,7 +403,7 @@ InferenceEngine::LowLatency(cnnNetwork);
 4. Use state API. See sections [OpenVINO state API](#openvino-state-api), [Example of stateful network inference](#example-of-stateful-network-inference).
 
  
-### Known Limitations
+### Known Limitations for LowLatency [DEPRECATED]
 1. Parameters connected directly to ReadValues (States) after the transformation is applied are not allowed.
 
 	Unnecessary parameters may remain on the graph after applying the transformation. The automatic handling of this case inside the transformation is not possible now. Such Parameters should be removed manually from `ngraph::Function` or replaced with a Constant.

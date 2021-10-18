@@ -1,8 +1,8 @@
 CPU Plugin {#openvino_docs_IE_DG_supported_plugins_CPU}
 =======
 
-## Introducing CPU Plugin
-The CPU plugin was developed in order to provide opportunity for high performance scoring of neural networks on CPU, using the Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN).
+## Introducing the CPU Plugin
+The CPU plugin was developed to achieve high performance of neural networks on CPU, using the Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN).
 
 Currently, the CPU plugin uses Intel® Threading Building Blocks (Intel® TBB) in order to parallelize calculations. Please refer to the [Optimization Guide](../../optimization_guide/dldt_optimization_guide.md) for associated performance considerations.
 
@@ -10,56 +10,59 @@ The set of supported layers can be expanded with [the Extensibility mechanism](.
 
 ## Supported Platforms
 
-OpenVINO™ toolkit is officially supported and validated on the following platforms:
+OpenVINO™ toolkit, including the CPU plugin, is officially supported and validated on the following platforms:
 
 | Host              | OS (64-bit)                              |
 | :---              | :---                                     |
-| Development       | Ubuntu* 18.04, CentOS* 7.5, MS Windows* 10 |
-| Target            | Ubuntu* 18.04, CentOS* 7.5, MS Windows* 10 |
+| Development       | Ubuntu* 18.04 or 20.04, CentOS* 7.5, MS Windows* 10, macOS* 10.15 |
+| Target            | Ubuntu* 18.04 or 20.04, CentOS* 7.5, MS Windows* 10, macOS* 10.15 |
 
-The CPU Plugin supports inference on Intel® Xeon® with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel® Core™
+The CPU plugin supports inference on Intel® Xeon® with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel® Core™
 Processors with Intel® AVX2, Intel Atom® Processors with Intel® Streaming SIMD Extensions (Intel® SSE).
 
-You can use `-pc` the flag for samples to know which configuration is used by some layer.
-This flag shows execution statistics that you can use to get information about layer name,
-execution status, layer type, execution time, and the type of the execution primitive.
+You can use the `-pc` flag for samples to know which configuration is used by a layer.
+This flag shows execution statistics that you can use to get information about layer name, layer type, 
+execution status, execution time, and the type of the execution primitive.
 
 ## Internal CPU Plugin Optimizations
 
-CPU plugin supports several graph optimization algorithms, such as fusing or removing layers.
+The CPU plugin supports several graph optimization algorithms, such as fusing or removing layers.
 Refer to the sections below for details.
 
 > **NOTE**: For layer descriptions, see the [IR Notation Reference](../../ops/opset.md).
 
 ### Lowering Inference Precision
 
-CPU plugin follows default optimization approach. This approach means that inference is made with lower precision if it is possible on a given platform to reach better performance with acceptable range of accuracy.
+The CPU plugin follows a default optimization approach. This approach means that inference is made with lower precision if it is possible on a given platform to reach better performance with an acceptable range of accuracy.
 
 > **NOTE**: For details, see the [Using Bfloat16 Inference](../Bfloat16Inference.md).
 
 ### Fusing Convolution and Simple Layers
 
-Merge of a Convolution layer and any of the simple layers listed below:
+Merge of a convolution layer and any of the simple layers listed below:
 - Activation: ReLU, ELU, Sigmoid, Clamp
 - Depthwise: ScaleShift, PReLU
 - FakeQuantize
 
 > **NOTE**: You can have any number and order of simple layers.
 
-A combination of a Convolution layer and simple layers results in a single fused layer called 
-*Convolution*:    
+A combination of a convolution layer and simple layers results in a single fused layer called 
+*Convolution*:
+
 ![conv_simple_01]
 
 
 ### Fusing Pooling and FakeQuantize Layers
 
 A combination of Pooling and FakeQuantize layers results in a single fused layer called *Pooling*:  
+
 ![pooling_fakequant_01]
 
 ### Fusing FullyConnected and Activation Layers
 
 A combination of FullyConnected and Activation layers results in a single fused layer called 
-*FullyConnected*:    
+*FullyConnected*:
+
 ![fullyconnected_activation_01]
 
 
@@ -76,15 +79,18 @@ layer and simple layers results in a single layer called *Convolution* (or *Bina
 
 ### Fusing Convolution and Sum Layers
 
-A combination of Convolution, Simple, and Eltwise layers with the sum operation results in a single layer called  *Convolution*:  
+A combination of convolution, simple, and Eltwise layers with the sum operation results in a single layer called *Convolution*:  
+
 ![conv_sum_relu_01]
 
 ### Fusing a Group of Convolutions
 
-If a topology contains the following pipeline, a CPU plugin merges Split, Convolution, and Concatenation layers  into a single Convolution layer with the group parameter:   
-> **NOTE**: Parameters of the Convolution layers must coincide.
+If a topology contains the following pipeline, a CPU plugin merges split, convolution, and concatenation layers into a single convolution layer with the group parameter:   
 
 ![group_convolutions_01]
+
+> **NOTE**: Parameters of the convolution layers must coincide.
+
 
 ### Removing a Power Layer
 
@@ -97,7 +103,7 @@ CPU plugin removes a Power layer from a topology if it has the following paramet
 ## Supported Configuration Parameters
 
 The plugin supports the configuration parameters listed below.
-All parameters must be set with the <code>InferenceEngine::Core::LoadNetwork()</code> method.
+All parameters must be set with the ```InferenceEngine::Core::LoadNetwork()``` method.
 When specifying key values as raw strings (that is, when using Python API), omit the `KEY_` prefix.
 Refer to the OpenVINO samples for usage examples: [Benchmark App](../../../inference-engine/samples/benchmark_app/README.md).
 

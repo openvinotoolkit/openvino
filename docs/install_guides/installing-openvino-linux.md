@@ -1,24 +1,22 @@
-# Install and Configure for Linux* {#openvino_docs_install_guides_installing_openvino_linux}
+# Install and Configure Intel® Distribution of OpenVINO™ toolkit for Linux* {#openvino_docs_install_guides_installing_openvino_linux}
 
-> **Applicable Linux Version**:
-> - These steps apply to Ubuntu\* and with some modifications shown below, also Red Hat\* Enterprise Linux\*.
+> **NOTE**: These steps apply to Ubuntu\* and with some modifications shown below, also Red Hat\* Enterprise Linux\*.
 
 ## Introduction
 
 By default, the [OpenVINO™ Toolkit](https://docs.openvinotoolkit.org/latest/index.html) installation on this page installs the following components:
 
-
 | Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | This tool imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine. <br>Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*.                                                                              |
-| [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                |
-| Intel® Media SDK                                                                                    | Offers access to hardware accelerated video codecs and frame processing                                                                                                                                                                                                                                       |
-| [OpenCV](https://docs.opencv.org/master/)                                                           | OpenCV\* community version compiled for Intel® hardware                                                                                                                                                                                                                                                       |
-| [Inference Engine Code Samples](../IE_DG/Samples_Overview.md)           | A set of simple command-line applications demonstrating how to utilize specific OpenVINO capabilities in an application and how to perform specific tasks, such as loading a model, running inference, querying specific device capabilities, and more. |
-| [Demo Applications](@ref omz_demos)           | A set of command-line applications that serve as robust templates to help you implement multi-stage pipelines and specific deep learning scenarios. |
-| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker), [Post-Training Optimization Tool](@ref pot_README), [Model Downloader](@ref omz_tools_downloader) and others  |
-| [Documentation for Pre-Trained Models ](@ref omz_models_group_intel)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/openvinotoolkit/open_model_zoo).  |
-| Deep Learning Streamer (DL Streamer)   | Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Elements), [Tutorial](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/DL-Streamer-Tutorial). |
+| [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | This tool imports, converts, and optimizes models, which were trained in popular frameworks, to a format usable by Intel tools, especially the Inference Engine. <br> Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*. |
+| [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications. |
+| Intel® Media SDK | Offers access to hardware accelerated video codecs and frame processing |
+| [OpenCV\*](https://docs.opencv.org/master/) | OpenCV\* community version compiled for Intel® hardware |
+| [Inference Engine Code Samples](../IE_DG/Samples_Overview.md) | A set of simple command-line applications demonstrating how to utilize specific OpenVINO capabilities in an application and how to perform specific tasks, such as loading a model, running inference, querying specific device capabilities, and more. |
+| [Demo Applications](@ref omz_demos) | A set of command-line applications that serve as robust templates to help you implement multi-stage pipelines and specific deep learning scenarios. |
+| Additional Tools | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader) and others |
+| [Documentation for Pre-Trained Models ](@ref omz_models_group_intel) | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/openvinotoolkit/open_model_zoo). |
+| Deep Learning Streamer (DL Streamer) | Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Elements), [Tutorial](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/DL-Streamer-Tutorial). |
 
 ## System Requirements
 
@@ -45,7 +43,7 @@ Optimized for these processors:
 - Ubuntu 18.04.x long-term support (LTS), 64-bit
 - Ubuntu 20.04.0 long-term support (LTS), 64-bit
 - CentOS 7.6, 64-bit (for deployment only, not development)
-- For deployment on Red Hat* Enterprise Linux* 8.2 (64 bit), you can use the Intel® Distribution of OpenVINO™ toolkit runtime package that includes the Inference Engine core libraries, nGraph, OpenCV, Python bindings, and CPU and GPU plugins. The package is available as: 
+- For deployment on Red Hat* Enterprise Linux* 8.2, 64-bit, you can use the Intel® Distribution of OpenVINO™ toolkit runtime package that includes the Inference Engine core libraries, nGraph, OpenCV, Python bindings, and CPU and GPU plugins. The package is available as: 
    - [Downloadable archive](https://storage.openvinotoolkit.org/repositories/openvino/packages/2021.4.1/l_openvino_toolkit_runtime_rhel8_p_2021.4.689.tgz)
    - [PyPi package](https://pypi.org/project/openvino/)
    - [Docker image](https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3)
@@ -57,12 +55,13 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 1. <a href="#install-openvino">Install the Intel® Distribution of OpenVINO™ Toolkit</a>
 2. <a href="#install-external-dependencies">Install External Software Dependencies</a>
 3. <a href="#set-the-environment-variables">Configure the Environment</a>
-4. Configure inference on non-CPU devices:
-   - <a href="#additional-GPU-steps">Steps for Intel® Processor Graphics (GPU)</a>
-   - <a href="#additional-NCS-steps">Steps for Intel® Neural Compute Stick 2</a>
-   - <a href="#install-VPU">Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPU</a><br>
-   After installing your Intel® Movidius™ VPU, you will return to this guide to complete OpenVINO™ installation.   
-5. <a href="#get-started">Start Using the Toolkit</a>
+4. <a href="#model-optimizer">Configure the Model Optimizer</a>
+5. <a href="#optional-steps">Configure Inference on non-CPU Devices (Optional):</a>
+   - <a href="#install-gpu">Steps for Intel® Processor Graphics (GPU)</a>
+   - <a href="#install-ncs2">Steps for Intel® Neural Compute Stick 2</a>
+   - <a href="#install-vpu">Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPU</a><br>
+   After installing your Intel® Movidius™ VPU, you will return to this guide to complete OpenVINO™ installation.  
+6. <a href="#get-started">Start Using the Toolkit</a>
 
 - [Steps to uninstall the Intel® Distribution of OpenVINO™ Toolkit](uninstalling-openvino.md)
 
@@ -71,7 +70,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 1. Download the Intel® Distribution of OpenVINO™ toolkit package file from [Intel® Distribution of OpenVINO™ toolkit for Linux*](https://software.intel.com/en-us/openvino-toolkit/choose-download).
    Select the Intel® Distribution of OpenVINO™ toolkit for Linux package from the dropdown menu.
 
-2. Open a command prompt terminal window. You can use keyboard shortcut: Ctrl+Alt+T
+2. Open a command prompt terminal window. You can use the keyboard shortcut: Ctrl+Alt+T
 3. Change directories to where you downloaded the Intel Distribution of
 OpenVINO toolkit for Linux\* package file.<br>
    If you downloaded the package file to the current user's `Downloads` directory:
@@ -94,7 +93,7 @@ toolkit installed, rename or delete these two directories:
    - `~/openvino_models`
 
 6. Choose your installation option and run the related script as root to use either a graphical user interface (GUI) installation wizard or command line instructions (CLI).<br>    
-   Screenshots are provided for the GUI, but not for CLI. The following information also applies to CLI and will be helpful to your installation where you will be presented with the same choices and tasks.
+   Screenshots are provided for the GUI, but not for CLI. The following information also applies to CLI and will be helpful to your installation, where you will be presented with the same choices and tasks.
    - **Option 1:** GUI Installation Wizard:
    ```sh
    sudo ./install_GUI.sh
@@ -114,18 +113,18 @@ toolkit installed, rename or delete these two directories:
 
    ![](../img/openvino-install-linux-01.png)
 
-8. By default, the Intel® Distribution of OpenVINO™ is installed to the following directory:
+   By default, the Intel® Distribution of OpenVINO™ is installed to the following directory:
    * For root or administrator: `/opt/intel/openvino_<version>/`
    * For regular users: `/home/<USER>/intel/openvino_<version>/`
 
    For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2021/` or `/home/<USER>/intel/openvino_2021/`
 
-9. **Optional**: You can choose **Customize** to change the installation directory or the components you want to install.
+8. **Optional**: You can choose **Customize** to change the installation directory or the components you want to install.
  
    > **NOTE**: If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for the next installation. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions.
    
    > **NOTE**: The Intel® Media SDK component is always installed in the `/opt/intel/mediasdk` directory regardless of the OpenVINO installation path chosen.
-10. The **Finish** screen indicates that the core components have been installed:
+9. The **Finish** screen indicates that the core components have been installed:
 
    ![](../img/openvino-install-linux-04.png)
 
@@ -182,6 +181,10 @@ You must update several environment variables before you can compile and run Ope
 
 The environment variables are set. Next, you will configure the Model Optimizer.
 
+## <a name="model-optimizer">Step 4: Configure the Model Optimizer
+
+> **NOTE**: Since the TensorFlow framework is not officially supported on CentOS*, the Model Optimizer for TensorFlow can't be configured and run on that operating system.  
+
 The Model Optimizer is a Python\*-based command line tool for importing
 trained models from popular deep learning frameworks such as Caffe\*,
 TensorFlow\*, Apache MXNet\*, ONNX\* and Kaldi\*.
@@ -196,36 +199,34 @@ Representation is a pair of files that describe the whole model:
 
 For more information about the Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). 
 
-### Model Optimizer Configuration Steps
-
-> **NOTE**: Since the TensorFlow framework is not officially supported on CentOS*, the Model Optimizer for TensorFlow can't be configured and run on that operating system.  
-
 1. Go to the Model Optimizer prerequisites directory:
    ```sh
    cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
    ```
 
-2. Run the script to configure the Model Optimizer for Caffe, TensorFlow 2.x, MXNet, Kaldi\*, and ONNX:
+2. Run the script to configure the Model Optimizer for Caffe, TensorFlow 2.x, MXNet, Kaldi, and ONNX:
    ```sh
    sudo ./install_prerequisites.sh
    ```
 
 3. **Optional:** You can choose to configure each framework separately instead. If you see error messages, make sure you installed all dependencies. From the Model Optimizer prerequisites directory, run the scripts for the model frameworks you want support for. You can run more than one script.
    
-   > **NOTE**: You can choose to install Model Optimizer support for only certain frameworks. In the same directory are individual scripts for Caffe, TensorFlow 1.x, TensorFlow 2.x, MXNet, Kaldi*, and ONNX (install_prerequisites_caffe.sh, etc.).
+   > **NOTE**: You can choose to install Model Optimizer support for only certain frameworks. In the same directory are individual scripts for Caffe, TensorFlow 1.x, TensorFlow 2.x, MXNet, Kaldi, and ONNX (install_prerequisites_caffe.sh, etc.).
    
 The Model Optimizer is configured for one or more frameworks.
 
 You have now completed all required installation, configuration, and build steps in this guide to use your CPU to work with your trained models. 
 
 To enable inference on other hardware, see below:
-- <a href="#additional-GPU-steps">Steps for Intel® Processor Graphics (GPU)</a>
-- <a href="#additional-NCS-steps">Steps for Intel® Neural Compute Stick 2</a>
-- <a href="#install-VPU">Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs</a><br>
+- <a href="#install-gpu">Steps for Intel® Processor Graphics (GPU)</a>
+- <a href="#install-ncs2">Steps for Intel® Neural Compute Stick 2</a>
+- <a href="#install-vpu">Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs</a><br>
 
 Or proceed to the <a href="#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
 
-## <a name="additional-GPU-steps"></a>Steps for Intel® Processor Graphics (GPU)
+## <a name="optional-steps"></a>Step 5 (Optional): Configure Inference on non-CPU Devices:
+
+### <a name="install-gpu"></a>Optional: Steps for Intel® Processor Graphics (GPU)
 
 The steps in this section are required only if you want to enable the toolkit components to use processor graphics (GPU) on your system.
 
@@ -257,7 +258,7 @@ not install a new driver. If the version of the driver is lower than the current
 You've completed all required configuration steps to perform inference on processor graphics. 
 Proceed to the <a href="#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
 
-## <a name="additional-NCS-steps"></a>Steps for Intel® Neural Compute Stick 2
+### <a name="install-ncs2"></a>Optional: Steps for Intel® Neural Compute Stick 2
 
 These steps are only required if you want to perform inference on Intel® Movidius™ NCS powered by the Intel® Movidius™ Myriad™ 2 VPU or Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU. For more details, see the [Get Started page for Intel® Neural Compute Stick 2:](https://software.intel.com/en-us/neural-compute-stick/get-started).
 
@@ -274,7 +275,7 @@ These steps are only required if you want to perform inference on Intel® Movidi
 You've completed all required configuration steps to perform inference on Intel® Neural Compute Stick 2. 
 Proceed to the <a href="#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
 
-## <a name="install-VPU"></a>Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+### <a name="install-vpu"></a>Optional: Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 
 To install and configure your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see the [Intel® Vision Accelerator Design with Intel® Movidius™ VPUs Configuration Guide](installing-openvino-linux-ivad-vpu.md).
 
@@ -300,7 +301,7 @@ After configuration is done, you are ready to run the verification scripts with 
 You've completed all required configuration steps to perform inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs. 
 Proceed to the <a href="#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
 
-## <a name="get-started"></a>Start Using the Toolkit
+## <a name="get-started"></a>Step 6: Start Using the Toolkit
 
 Now you are ready to try out the toolkit. To continue, see the [Get Started Guide](../get_started/get_started.md) section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications with pre-trained models on different inference devices.
 
@@ -342,4 +343,5 @@ To learn more about converting models from specific frameworks, go to:
 - [Convert Your Caffe* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Caffe.md)
 - [Convert Your TensorFlow* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
 - [Convert Your MXNet* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_MxNet.md)
+- [Convert Your Kaldi* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md)
 - [Convert Your ONNX* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_ONNX.md)

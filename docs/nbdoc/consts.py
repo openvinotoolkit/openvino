@@ -2,6 +2,8 @@ notebooks_docs = "notebooks.rst"
 
 notebooks_path = "notebooks"
 
+repo_directory = "notebooks"
+
 repo_owner = "openvinotoolkit"
 
 repo_name = "openvino_notebooks"

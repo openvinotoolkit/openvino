@@ -21,18 +21,17 @@ OpenVINO™ Documentation
          </div>
       </div>
       <div style="clear:both;"> </div>
+
       <p>
-         OpenVINO™ toolkit is a comprehensive solution for quick development and deployment of applications based on AI and
-         deep learning. It supports a wide range of tasks such as emulation of human vision, automatic speech recognition,
-         natural language processing, recommendation systems, etc.
-      </p>
-      <ul>
-         <li>Enables optimized deep learning inference from the edge to the cloud</li>
-         <li>Optimized for a range of Intel® platforms: CPUs, Integrated Graphics, Intel® Neural Compute Stick 2, and Intel®
-            Movidius™ VPUs</li>
-         <li>Easy-to-use library of computer vision functions and pre-optimized kernels</li>
-         <li>Optimized calls for computer vision standards, including OpenCV* and OpenCL™</li>
-      </ul>
+         OpenVINO™ Toolkit is an open-source framework for optimizing and deploying AI inference.
+         <ul>
+            <li>Boost deep learning performance in computer vision, automatic speech recognition, natural language processing and other common tasks </li>
+            <li>Use models trained with popular frameworks like TensorFlow, PyTorch and more </li>
+            <li>Reduce resource demands and efficiently deploy on a range of Intel® platforms from edge to cloud </li>
+         </ul>
+     </p>
+      
+      
       <img class="HP_img_chart" src="_static/images/ov_chart.png"
          alt="OpenVINO allows to process models built with Caffe, Keras, mxnet, TensorFlow, ONNX, and PyTorch. They can be easily optimized and deployed on devices running Windows, Linux, or MacOS." />
       <div style="clear:both;"> </div>
