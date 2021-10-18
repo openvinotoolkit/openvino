@@ -23,8 +23,7 @@ public:
     using Ptr = std::shared_ptr<MultiDeviceInferRequest>;
     explicit MultiDeviceInferRequest(const InferenceEngine::InputsDataMap&  networkInputs,
                                      const InferenceEngine::OutputsDataMap& networkOutputs,
-                                     const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with);
-    explicit MultiDeviceInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                      const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                                      const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;

@@ -145,17 +145,13 @@ void TemplatePlugin::ExecutableNetwork::InitExecutor() {
 
 // ! [executable_network:create_infer_request_impl]
 InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequestImpl(
-    InferenceEngine::InputsDataMap networkInputs,
-    InferenceEngine::OutputsDataMap networkOutputs) {
-    return std::make_shared<TemplateInferRequest>(networkInputs,
-                                                  networkOutputs,
-                                                  std::static_pointer_cast<ExecutableNetwork>(shared_from_this()));
-}
-
-InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequestImpl(
+    const InferenceEngine::InputsDataMap& networkInputs,
+    const InferenceEngine::OutputsDataMap& networkOutputs,
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    return std::make_shared<TemplateInferRequest>(inputs,
+    return std::make_shared<TemplateInferRequest>(networkInputs,
+                                                  networkOutputs,
+                                                  inputs,
                                                   outputs,
                                                   std::static_pointer_cast<ExecutableNetwork>(shared_from_this()));
 }
@@ -163,11 +159,7 @@ InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::C
 
 // ! [executable_network:create_infer_request]
 InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
-    InferenceEngine::IInferRequestInternal::Ptr internalRequest;
-    if (!_parameters.empty() || !_results.empty())
-        internalRequest = CreateInferRequestImpl(_parameters, _results);
-    if (!internalRequest)
-        internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
+    auto internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs, _parameters, _results);
     return std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
                                                        _taskExecutor,
                                                        _plugin->_waitExecutor,

@@ -31,15 +31,12 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 InferenceEngine::IInferRequestInternal::Ptr
-MKLDNNExecNetwork::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+MKLDNNExecNetwork::CreateInferRequestImpl(const InferenceEngine::InputsDataMap& networkInputs,
+                                          const InferenceEngine::OutputsDataMap& networkOutputs,
+                                          const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                           const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    return std::make_shared<MKLDNNInferRequest>(inputs, outputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
-}
-
-InferenceEngine::IInferRequestInternal::Ptr
-MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                          InferenceEngine::OutputsDataMap networkOutputs) {
-    return std::make_shared<MKLDNNInferRequest>(networkInputs, networkOutputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
+    return std::make_shared<MKLDNNInferRequest>(networkInputs, networkOutputs, inputs, outputs,
+                                                std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
 }
 
 struct ImmediateSerialExecutor : public ITaskExecutor {

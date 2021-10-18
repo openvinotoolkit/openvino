@@ -59,11 +59,9 @@ protected:
     template <typename AsyncInferRequestType = AsyncInferRequestThreadSafeDefault>
     IInferRequestInternal::Ptr CreateAsyncInferRequestFromSync() {
         InferenceEngine::IInferRequestInternal::Ptr syncRequestImpl;
-        if (!_parameters.empty() || !_results.empty()) {
-            try {
-                syncRequestImpl = this->CreateInferRequestImpl(_parameters, _results);
-            } catch (...) {
-            }
+        try {
+            syncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs, _parameters, _results);
+        } catch (...) {
         }
         if (!syncRequestImpl)
             syncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs);

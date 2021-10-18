@@ -47,15 +47,9 @@ public:
      * @param[in]  networkInputs   The network inputs info
      * @param[in]  networkOutputs  The network outputs data
      */
-    IInferRequestInternal(const InputsDataMap& networkInputs, const OutputsDataMap& networkOutputs);
-
-    /**
-     * @brief      Constructs a new instance.
-     * @param[in]  inputs   The network inputs
-     * @param[in]  outputs  The network outputs
-     */
-    IInferRequestInternal(const std::vector<std::shared_ptr<const ov::Node>>& networkInputs,
-                          const std::vector<std::shared_ptr<const ov::Node>>& networkOutputs);
+    IInferRequestInternal(const InputsDataMap& networkInputs, const OutputsDataMap& networkOutputs,
+                          const std::vector<std::shared_ptr<const ov::Node>>& inputs = {},
+                          const std::vector<std::shared_ptr<const ov::Node>>& outputs = {});
 
     /**
      * @brief Infers specified input(s) in synchronous mode

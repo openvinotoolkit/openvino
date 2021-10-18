@@ -28,8 +28,7 @@ public:
 
     TemplateInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
                          const InferenceEngine::OutputsDataMap& networkOutputs,
-                         const std::shared_ptr<ExecutableNetwork>& executableNetwork);
-    TemplateInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                         const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                          const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                          const std::shared_ptr<ExecutableNetwork>& executableNetwork);
     ~TemplateInferRequest();

@@ -29,11 +29,8 @@ public:
 
     explicit HeteroInferRequest(InferenceEngine::InputsDataMap networkInputs,
                                 InferenceEngine::OutputsDataMap networkOutputs,
-                                const SubRequestsList &inferRequests,
-                                const std::unordered_map<std::string, std::string>& blobNameMap);
-
-    explicit HeteroInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& networkInputs,
-                                const std::vector<std::shared_ptr<const ov::Node>>& networkOutputs,
+                                const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                                 const SubRequestsList &inferRequests,
                                 const std::unordered_map<std::string, std::string>& blobNameMap);
 

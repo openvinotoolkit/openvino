@@ -24,56 +24,12 @@
 #include "utils/cpu_utils.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsDataMap     networkInputs,
-                                                     InferenceEngine::OutputsDataMap    networkOutputs,
-                                                     MKLDNNExecNetwork::Ptr             execNetwork_)
-: IInferRequestInternal(networkInputs, networkOutputs)
-, execNetwork(execNetwork_) {
-    auto id = (execNetwork->_numRequests)++;
-    profilingTask = openvino::itt::handle("MKLDNN_INFER_" + execNetwork->_name + "_" + std::to_string(id));
-
-    if (execNetwork->_graphs.size() == 0)
-        IE_THROW() << "No graph was found";
-    graph = &(execNetwork->GetGraph()._graph);
-
-    // Allocate all input blobs if shape is static, delay allocation otherwise
-    for (const auto& it : _networkInputs) {
-        MKLDNNInferRequest::GetBlob(it.first);
-    }
-    // Allocate all output blobs if shape is static, delay allocation otherwise
-    for (const auto& it : _networkOutputs) {
-        MKLDNNInferRequest::GetBlob(it.first);
-    }
-
-    // Save all MemoryLayer data tensors. Will use insight about mechanics
-    // of MemoryLayer implementation. It uses output edge of MemoryLayer
-    // producer as storage for tensor to keep it between infer calls.
-    IE_SUPPRESS_DEPRECATED_START
-    if (execNetwork->_numRequests > 1 || execNetwork->QueryState().size() == 0) {
-        for (auto &node : graph->GetNodes()) {
-            if (node->getType() == MemoryInput) {
-                auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
-                auto state_store = memoryNode->getStore();
-                auto state_name = memoryNode->getId();
-
-                // Remove suffix with pair ID. Internal information.
-                auto suffix_idx = state_name.find("/id=");
-                if (suffix_idx != std::string::npos)
-                    state_name = state_name.substr(0, suffix_idx);
-
-                memoryStates.emplace_back(new MKLDNNVariableState(state_name, state_store));
-           }
-        }
-    } else {
-        memoryStates = execNetwork->QueryState();
-    }
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(const InferenceEngine::InputsDataMap&     networkInputs,
+                                                     const InferenceEngine::OutputsDataMap&    networkOutputs,
+                                                     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                                      const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                                                      MKLDNNExecNetwork::Ptr             execNetwork_)
-: IInferRequestInternal(inputs, outputs)
+: IInferRequestInternal(networkInputs, networkOutputs, inputs, outputs)
 , execNetwork(execNetwork_) {
     auto id = (execNetwork->_numRequests)++;
     profilingTask = openvino::itt::handle("MKLDNN_INFER_" + execNetwork->_name + "_" + std::to_string(id));

@@ -95,7 +95,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithoutSetShape) {
     ov::runtime::InferRequest req;
     ov::runtime::Tensor tensor;
     ASSERT_NO_THROW(req = execNet.create_infer_request());
-    ASSERT_NO_THROW(tensor = req.get_tensor(function->outputs().back().get_any_name()));
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
 }
 
 TEST_P(InferRequestDynamicTests, InferDynamicNetworkBoundWithoutSetShape) {
@@ -109,7 +109,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkBoundWithoutSetShape) {
     ov::runtime::InferRequest req;
     ov::runtime::Tensor tensor;
     ASSERT_NO_THROW(req = execNet.create_infer_request());
-    ASSERT_NO_THROW(tensor = req.get_tensor(function->outputs().back().get_any_name()));
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
 }
 
 
@@ -128,7 +128,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetTensor) {
     const std::string outputname = function->outputs().back().get_any_name();
     ASSERT_NO_THROW(req = execNet.create_infer_request());
     //ASSERT_NO_THROW(req.SetShape(tensor_name, {1, 4, 20, 20}));
-    ASSERT_NO_THROW(tensor = req.get_tensor(function->outputs().back().get_any_name()));
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
     ASSERT_EQ(tensor.get_shape(), refShape);
     ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
@@ -160,7 +160,7 @@ TEST_P(InferRequestDynamicTests, InferUpperBoundNetworkWithGetTensor) {
     ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
     ASSERT_EQ(0, otensor.get_size()); // output tensor is not allocated
     ASSERT_EQ(function->output().get_element_type(), otensor.get_element_type()); // by it has type
-    ASSERT_NO_THROW(tensor = req.get_tensor(function->outputs().back().get_any_name()));
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
     ASSERT_EQ(tensor.get_shape(), refShape);
     ASSERT_NO_THROW(req.infer());
@@ -184,7 +184,7 @@ TEST_P(InferRequestDynamicTests, InferFullyDynamicNetworkWithGetTensor) {
     const std::string outputName = function->outputs().back().get_any_name();
     ASSERT_NO_THROW(req = execNet.create_infer_request());
     //ASSERT_NO_THROW(req.SetShape(tensor_name, {1, 4, 20, 20}));
-    ASSERT_NO_THROW(tensor = req.get_tensor(function->outputs().back().get_any_name()));
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
     ASSERT_EQ(tensor.get_shape(), refShape);
     ASSERT_NO_THROW(otensor = req.get_tensor(outputName));
@@ -210,7 +210,7 @@ TEST_P(InferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorLower) 
     ov::runtime::InferRequest req;
     ov::runtime::Tensor tensor;
     ASSERT_NO_THROW(req = execNet.create_infer_request());
-    ASSERT_NO_THROW(tensor = req.get_tensor(function->outputs().back().get_any_name()));
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     ASSERT_NO_THROW(tensor.set_shape({1, 4, 20, 20}));
     // Plugin may or may not throw in case if input tensor has dimensions that are out of bounds
     //ASSERT_THROW(req.infer(), ov::Exception);
@@ -229,7 +229,7 @@ TEST_P(InferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorUpper) 
     ov::runtime::InferRequest req;
     ov::runtime::Tensor tensor;
     ASSERT_NO_THROW(req = execNet.create_infer_request());
-    ASSERT_NO_THROW(tensor = req.get_tensor(function->outputs().back().get_any_name()));
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     ASSERT_NO_THROW(tensor.set_shape({3, 4, 20, 20}));
     // Plugin may or may not throw in case if input tensor has dimensions that are out of bounds
     // ASSERT_THROW(req.infer(), ov::Exception);
@@ -250,7 +250,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetTensor2times) {
     ov::runtime::InferRequest req;
     ov::runtime::Tensor tensor;
     ASSERT_NO_THROW(req = execNet.create_infer_request());
-    ASSERT_NO_THROW(tensor = req.get_tensor(function->outputs().back().get_any_name()));
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     ASSERT_NO_THROW(tensor.set_shape(refShape));
     ASSERT_EQ(tensor.get_shape(), refShape);
     ASSERT_NO_THROW(req.infer());
@@ -260,7 +260,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetTensor2times) {
     ASSERT_NO_THROW(tensor = req.get_tensor(outputName));
     ASSERT_EQ(tensor.get_shape(), refOutShape);
 
-    ASSERT_NO_THROW(tensor = req.get_tensor(function->outputs().back().get_any_name()));
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     ASSERT_NO_THROW(tensor.set_shape(refShape2));
     ASSERT_EQ(tensor.get_shape(), refShape2);
     ASSERT_NO_THROW(req.infer());
@@ -283,10 +283,10 @@ TEST_P(InferRequestDynamicTests, GetSameTensor2times) {
     ov::runtime::InferRequest req;
     ov::runtime::Tensor tensor;
     ASSERT_NO_THROW(req = execNet.create_infer_request());
-    ASSERT_NO_THROW(tensor = req.get_tensor(function->outputs().back().get_any_name()));
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     ASSERT_NO_THROW(tensor.set_shape(refShape));
     ASSERT_EQ(tensor.get_shape(), refShape);
-    ASSERT_NO_THROW(tensor = req.get_tensor(function->outputs().back().get_any_name()));
+    ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
     ASSERT_EQ(tensor.get_shape(), refShape);
 }
 
@@ -303,7 +303,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetTensor) {
     ov::runtime::InferRequest req;
     ov::runtime::Tensor tensor(ov::element::f32, refShape);
     ASSERT_NO_THROW(req = execNet.create_infer_request());
-    ASSERT_NO_THROW(req.set_tensor(function->outputs().back().get_any_name(), tensor));
+    ASSERT_NO_THROW(req.set_tensor(function->inputs().back().get_any_name(), tensor));
     ASSERT_EQ(tensor.get_shape(), refShape);
     ASSERT_NO_THROW(req.infer());
     ASSERT_NO_THROW(req.start_async());
@@ -327,7 +327,7 @@ TEST_P(InferRequestDynamicTests, InferFullyDynamicNetworkWithSetTensor) {
     ov::runtime::Tensor tensor(ov::element::f32, refShape), otensor;
     const std::string outputName = function->outputs().back().get_any_name();
     ASSERT_NO_THROW(req = execNet.create_infer_request());
-    ASSERT_NO_THROW(req.set_tensor(function->outputs().back().get_any_name(), tensor));
+    ASSERT_NO_THROW(req.set_tensor(function->inputs().back().get_any_name(), tensor));
     ASSERT_EQ(tensor.get_shape(), refShape);
     ASSERT_NO_THROW(otensor = req.get_tensor(outputName));
     ASSERT_EQ(0, otensor.get_size()); // output tensor is not allocated
@@ -359,7 +359,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetTensor2times) {
     ov::runtime::Tensor tensor(ov::element::f32, refShape);
 
     ASSERT_NO_THROW(req = execNet.create_infer_request());
-    ASSERT_NO_THROW(req.set_tensor(function->outputs().back().get_any_name(), tensor));
+    ASSERT_NO_THROW(req.set_tensor(function->inputs().back().get_any_name(), tensor));
     ASSERT_EQ(tensor.get_shape(), refShape);
     ASSERT_NO_THROW(req.infer());
     ASSERT_NO_THROW(req.start_async());
@@ -368,7 +368,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetTensor2times) {
     ASSERT_EQ(tensor.get_shape(), refOutShape);
 
     tensor = ov::runtime::Tensor(ov::element::f32, refShape2);
-    ASSERT_NO_THROW(req.set_tensor(function->outputs().back().get_any_name(), tensor));
+    ASSERT_NO_THROW(req.set_tensor(function->inputs().back().get_any_name(), tensor));
     ASSERT_EQ(tensor.get_shape(), refShape2);
     ASSERT_NO_THROW(req.infer());
     ASSERT_NO_THROW(req.start_async());

@@ -186,9 +186,13 @@ protected:
      *             plugin-specific implementation.
      * @param[in]  networkInputs   The network inputs
      * @param[in]  networkOutputs  The network outputs
+     * @param[in]  inputs   The function inputs
+     * @param[in]  outputs  The function outputs
      * @return     A shared pointer to inference request object.
      */
     virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(
+        const InputsDataMap& networkInputs,
+        const OutputsDataMap& networkOutputs,
         const std::vector<std::shared_ptr<const ov::Node>>& inputs,
         const std::vector<std::shared_ptr<const ov::Node>>& outputs);
 

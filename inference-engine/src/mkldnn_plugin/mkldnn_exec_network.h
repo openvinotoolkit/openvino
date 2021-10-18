@@ -24,12 +24,10 @@ public:
     typedef std::shared_ptr<MKLDNNExecNetwork> Ptr;
 
     std::shared_ptr<InferenceEngine::IInferRequestInternal>
-    CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+    CreateInferRequestImpl(const InferenceEngine::InputsDataMap& networkInputs,
+                           const InferenceEngine::OutputsDataMap& networkOutputs,
+                           const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                            const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
-
-    std::shared_ptr<InferenceEngine::IInferRequestInternal>
-    CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                           InferenceEngine::OutputsDataMap networkOutputs) override;
 
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
 

@@ -47,9 +47,9 @@ public:
                             const std::map<std::string, std::string>&   config,
                             Engine*                                     plugin);
 
-    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
-    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(const InferenceEngine::InputsDataMap& networkInputs,
+                                                                       const InferenceEngine::OutputsDataMap& networkOutputs,
+                                                                       const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                                                        const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
 
 
