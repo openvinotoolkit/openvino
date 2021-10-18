@@ -5,8 +5,8 @@
 #include "op/conv_integer.hpp"
 
 #include "default_opset.hpp"
-#include "utils/convpool.hpp"
 #include "utils/conv_factory.hpp"
+#include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 
 namespace ngraph {
@@ -52,13 +52,13 @@ OutputVector conv_integer(const Node& node) {
     const auto& padding_above = paddings.second;
 
     const auto conv_node = conv_factory::make_ng_convolution(shifted_input,
-                                                        shifted_filter,
-                                                        strides,
-                                                        dilations,
-                                                        padding_below,
-                                                        padding_above,
-                                                        groups,
-                                                        auto_pad_type);
+                                                             shifted_filter,
+                                                             strides,
+                                                             dilations,
+                                                             padding_below,
+                                                             padding_above,
+                                                             groups,
+                                                             auto_pad_type);
 
     return {conv_node};
 }

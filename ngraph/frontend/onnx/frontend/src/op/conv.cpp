@@ -14,8 +14,8 @@
 #include "ngraph/op/group_conv.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "onnx_import/core/null_node.hpp"
-#include "utils/convpool.hpp"
 #include "utils/conv_factory.hpp"
+#include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 
 namespace ngraph {
@@ -50,13 +50,13 @@ OutputVector conv(const Node& node,
     const auto& padding_above = paddings.second;
 
     const auto conv_node = conv_factory::make_ng_convolution(data,
-                                                        filters,
-                                                        strides,
-                                                        dilations,
-                                                        padding_below,
-                                                        padding_above,
-                                                        groups,
-                                                        auto_pad_type);
+                                                             filters,
+                                                             strides,
+                                                             dilations,
+                                                             padding_below,
+                                                             padding_above,
+                                                             groups,
+                                                             auto_pad_type);
 
     // no bias param
     if (ngraph::op::is_null(bias)) {

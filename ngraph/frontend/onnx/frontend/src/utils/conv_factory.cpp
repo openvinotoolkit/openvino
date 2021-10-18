@@ -10,8 +10,8 @@
 #include "ngraph/op/group_conv.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "onnx_import/core/null_node.hpp"
-#include "utils/convpool.hpp"
 #include "utils/conv_factory.hpp"
+#include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 
 namespace ngraph {
@@ -45,6 +45,6 @@ std::shared_ptr<ov::op::Op> make_ng_convolution(const Output<ngraph::Node>& data
                                                             auto_pad);
     }
 }
-}  // namespace ng_conv
+}  // namespace conv_factory
 }  // namespace onnx_import
 }  // namespace ngraph

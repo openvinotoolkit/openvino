@@ -19,6 +19,6 @@ std::shared_ptr<ov::op::Op> make_ng_convolution(const Output<ngraph::Node>& data
                                                 const ngraph::CoordinateDiff& padding_above,
                                                 int64_t groups,
                                                 const ngraph::op::PadType& auto_pad);
-}  // namespace ng_conv
+}  // namespace conv_factory
 }  // namespace onnx_import
 }  // namespace ngraph
