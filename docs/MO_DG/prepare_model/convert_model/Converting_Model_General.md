@@ -139,7 +139,9 @@ Framework-agnostic parameters:
                         multiline mode.
   --transformations_config TRANSFORMATIONS_CONFIG
                         Use the configuration file with transformations
-                        description.
+                        description. File can be specified as relative path 
+                        from the current directory, as absolute path or as a 
+                        relative path from the mo root directory
 ```
 
 The sections below provide details on using particular parameters and examples of CLI commands.

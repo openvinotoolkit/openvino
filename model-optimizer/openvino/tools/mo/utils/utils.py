@@ -92,7 +92,7 @@ def files_by_pattern(dir: str, pattern: str, files_only=True, add_prefix=False):
 
 def get_mo_root_dir():
     """
-    Return the absolute path to the Model Optimizer root directory (where mo.py file is located)
+    Return the absolute path to the Model Optimizer root directory (where mo folder is located)
     :return: path to the MO root directory
     """
     return os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(os.path.realpath(__file__))), os.pardir,

@@ -7,8 +7,9 @@ import logging as log
 import os
 import re
 from collections import OrderedDict
-from itertools import zip_longest
 from distutils.util import strtobool
+from itertools import zip_longest
+from typing import List, Union
 
 import numpy as np
 
@@ -16,7 +17,7 @@ from openvino.tools.mo.front.extractor import split_node_in_port
 from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.error import Error
-from openvino.tools.mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.utils.utils import refer_to_faq_msg, get_mo_root_dir
 from openvino.tools.mo.utils.version import get_version
 
 
@@ -42,38 +43,72 @@ class IgnoredAction(argparse.Action):
         setattr(namespace, self.dest, True)
 
 
+def canonicalize_and_check_paths(values: Union[str, List[str]], param_name,
+                                 try_mo_root=False, check_existance=True) -> List[str]:
+    if values is not None:
+        list_of_values = list()
+        if isinstance(values, str):
+            if values != "":
+                list_of_values = values.split(',')
+        elif isinstance(values, list):
+            list_of_values = values
+        else:
+            raise Error('Unsupported type of command line parameter "{}" value'.format(param_name))
+
+        if not check_existance:
+            return [get_absolute_path(path) for path in list_of_values]
+
+        for idx, val in enumerate(list_of_values):
+            list_of_values[idx] = val
+
+            error_msg = 'The value for command line parameter "{}" must be existing file/directory, ' \
+                        'but "{}" does not exist.'.format(param_name, val)
+            if os.path.exists(val):
+                continue
+            elif not try_mo_root or val == '':
+                raise Error(error_msg)
+            elif try_mo_root:
+                path_from_mo_root = get_mo_root_dir() + '/mo/' + val
+                list_of_values[idx] = path_from_mo_root
+                if not os.path.exists(path_from_mo_root):
+                    raise Error(error_msg)
+
+        return [get_absolute_path(path) for path in list_of_values]
+
+
 class CanonicalizePathAction(argparse.Action):
     """
     Expand user home directory paths and convert relative-paths to absolute.
     """
 
     def __call__(self, parser, namespace, values, option_string=None):
-        if values is not None:
-            list_of_values = list()
-            if isinstance(values, str):
-                if values != "":
-                    list_of_values = values.split(',')
-            elif isinstance(values, list):
-                list_of_values = values
-            else:
-                raise Error('Unsupported type of command line parameter "{}" value'.format(self.dest))
-            list_of_values = [get_absolute_path(path) for path in list_of_values]
-            setattr(namespace, self.dest, ','.join(list_of_values))
+        list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
+                                                     try_mo_root=False, check_existance=False)
+        setattr(namespace, self.dest, ','.join(list_of_paths))
 
 
-class CanonicalizePathCheckExistenceAction(CanonicalizePathAction):
+class CanonicalizeTransformationPathCheckExistenceAction(argparse.Action):
+    """
+    Convert relative to the current and relative to mo root paths to absolute
+    and check specified file or directory existence.
+    """
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
+                                                     try_mo_root=True, check_existance=True)
+        setattr(namespace, self.dest, ','.join(list_of_paths))
+
+
+class CanonicalizePathCheckExistenceAction(argparse.Action):
     """
     Expand user home directory paths and convert relative-paths to absolute and check specified file or directory
     existence.
     """
 
     def __call__(self, parser, namespace, values, option_string=None):
-        super().__call__(parser, namespace, values, option_string)
-        names = getattr(namespace, self.dest)
-        for name in names.split(','):
-            if name != "" and not os.path.exists(name):
-                raise Error('The value for command line parameter "{}" must be existing file/directory, '
-                            ' but "{}" does not exist.'.format(self.dest, name))
+        list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
+                                                     try_mo_root=False, check_existance=True)
+        setattr(namespace, self.dest, ','.join(list_of_paths))
 
 
 class CanonicalizePathCheckExistenceIfNeededAction(CanonicalizePathCheckExistenceAction):
@@ -354,8 +389,11 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help='Switch model conversion progress display to a multiline mode.',
                               action='store_true', default=False)
     common_group.add_argument('--transformations_config',
-                              help='Use the configuration file with transformations description.',
-                              action=CanonicalizePathCheckExistenceAction)
+                              help='Use the configuration file with transformations '
+                                   'description. File can be specified as relative path '
+                                   'from the current directory, as absolute path or as a'
+                                   'relative path from the mo root directory',
+                              action=CanonicalizeTransformationPathCheckExistenceAction)
     common_group.add_argument('--legacy_ir_generation',
                               help=argparse.SUPPRESS, action=DeprecatedStoreTrue, default=False)
     common_group.add_argument("--use_new_frontend",
@@ -386,6 +424,7 @@ def get_common_cli_options(model_name):
     d['move_to_preprocess'] = '- Move mean values to preprocess section'
     d['reverse_input_channels'] = '- Reverse input channels'
     d['use_legacy_frontend'] = '- Use legacy API for model processing'
+    d['transformations_config'] = '- Use the transformations config file'
     return d
 
 
@@ -423,7 +462,6 @@ def get_mxnet_cli_options():
         'pretrained_model_name': '- Pretrained model to be merged with the .nd files',
         'save_params_from_nd': '- Enable saving built parameters file from .nd files',
         'legacy_mxnet_model': '- Enable MXNet loader for models trained with MXNet version lower than 1.0.0',
-        'transformations_config': '- Use the config file',
     }
 
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
