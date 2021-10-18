@@ -118,8 +118,11 @@ std::vector<std::string> disabledTestPatterns() {
         // CPU does not support dynamic rank
         // Issue: CVS-66778
         R"(.*smoke_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
+        R"(.*smoke_Hetero_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
         R"(.*smoke_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_BehaviorTests.*DynamicInputToDynamicOutput.*)",
+        R"(.*smoke_Hetero_BehaviorTests.*DynamicOutputToDynamicInput.*)",
+        R"(.*smoke_Hetero_BehaviorTests.*DynamicInputToDynamicOutput.*)",
 
         // CPU dynamism: empty tensor returns size() == 1. Looks like layout is SCALAR
         // Issue: CVS-66780
