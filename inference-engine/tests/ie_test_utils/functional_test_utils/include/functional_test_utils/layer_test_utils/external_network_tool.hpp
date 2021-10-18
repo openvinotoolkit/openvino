@@ -37,18 +37,29 @@ enum class ExternalNetworkMode {
     IMPORT,
     EXPORT,
     EXPORT_MODELS_ONLY,
-    EXPORT_ARKS_ONLY
+    EXPORT_INPUTS_ONLY
 };
 
 class ExternalNetworkTool {
 private:
     static ExternalNetworkMode mode;
     static const char *modelsPath;
+    static const char *modelsNamePrefix;
 
     template <typename T>
     static std::vector<std::shared_ptr<ov::Node>> topological_name_sort(T root_nodes);
 
     static void writeToHashMap(const std::string &network_name, const std::string &hash);
+
+    template<typename T = float>
+    static void writeToFile(const std::string &fileName, const T *ptrMemory, uint32_t numRows, uint32_t numColumns, std::string extension) {
+        if (extension == "ark") {
+            writeToArkFile(fileName, ptrMemory, numRows, numColumns);
+        } else {
+            printf("%s extension not supported", extension.c_str());
+            return;
+        }
+    }
 
     template<typename T = float>
     static void writeToArkFile(const std::string &fileName, const T *ptrMemory, uint32_t numRows, uint32_t numColumns) {
@@ -87,12 +98,15 @@ public:
 
     static void updateFunctionNames(std::shared_ptr<ngraph::Function> network);
 
-    static void saveArkFile(const std::string &network_name,
-                            const InferenceEngine::InputInfo::CPtr &input_info,
-                            const InferenceEngine::Blob::Ptr &blob,
-                            uint32_t id);
+    static void saveInputFile(const std::string &network_name,
+                              const InferenceEngine::InputInfo::CPtr &input_info,
+                              const InferenceEngine::Blob::Ptr &blob,
+                              uint32_t id,
+                              std::string extension = "ark");
 
     static std::string getModelsPath() { return std::string(modelsPath); }
+
+    static std::string getModelsNamePrefix() { return std::string(modelsNamePrefix); }
 
     static ExternalNetworkMode getMode() { return mode; }
 
@@ -100,6 +114,10 @@ public:
 
     static void setModelsPath(std::string &val) {
         modelsPath = val.c_str();
+    }
+
+    static void setModelsNamePrefix(std::string &val) {
+        modelsNamePrefix = val.c_str();
     }
 
     static void setMode(ExternalNetworkMode val) { mode = val; }

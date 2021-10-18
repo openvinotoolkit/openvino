@@ -101,7 +101,7 @@ std::vector<std::string> disabledTestPatterns() {
 
     if (LayerTestsUtils::ENT::isMode(LayerTestsUtils::ENTMode::EXPORT) ||
         LayerTestsUtils::ENT::isMode(LayerTestsUtils::ENTMode::EXPORT_MODELS_ONLY) ||
-        LayerTestsUtils::ENT::isMode(LayerTestsUtils::ENTMode::EXPORT_ARKS_ONLY)) {
+        LayerTestsUtils::ENT::isMode(LayerTestsUtils::ENTMode::EXPORT_INPUTS_ONLY)) {
         return serializationPatterns;
     }
 

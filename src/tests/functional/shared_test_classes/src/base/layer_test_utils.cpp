@@ -379,10 +379,10 @@ void LayerTestsCommon::GenerateInputs() {
         InferenceEngine::Blob::Ptr blob = GenerateInput(*info);
 
         if (ENT::isMode(ENTMode::EXPORT) ||
-            ENT::isMode(ENTMode::EXPORT_ARKS_ONLY)) {
+            ENT::isMode(ENTMode::EXPORT_INPUTS_ONLY)) {
             std::string network_name = GetTestCaseName() + "_" + GetTestName();
             uint32_t ir_id = functionParams.size() - 1 - i;  // topological sort dependency!
-            ENT::saveArkFile(network_name, info, blob, ir_id);
+            ENT::saveInputFile(network_name, info, blob, ir_id);
         }
 
         inputs.push_back(blob);

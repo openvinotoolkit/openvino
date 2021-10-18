@@ -10,6 +10,7 @@ using namespace LayerTestsUtils;
 
 ExternalNetworkMode ExternalNetworkTool::mode = ExternalNetworkMode::DISABLED;
 const char *ExternalNetworkTool::modelsPath = "";
+const char *ExternalNetworkTool::modelsNamePrefix = "network_";
 
 void ExternalNetworkTool::writeToHashMap(const std::string &network_name,
                                                 const std::string &hash) {
@@ -60,21 +61,22 @@ void ExternalNetworkTool::updateFunctionNames(std::shared_ptr<ngraph::Function> 
     }
 }
 
-void ExternalNetworkTool::saveArkFile(const std::string &network_name,
-                                      const InferenceEngine::InputInfo::CPtr &input_info,
-                                      const InferenceEngine::Blob::Ptr &blob,
-                                      uint32_t id) {
+void ExternalNetworkTool::saveInputFile(const std::string &network_name,
+                                        const InferenceEngine::InputInfo::CPtr &input_info,
+                                        const InferenceEngine::Blob::Ptr &blob,
+                                        uint32_t id,
+                                        std::string extension) {
         const uint32_t utterance = 1;
         const auto models_path = std::string{modelsPath};
-        const std::string arks_path = models_path.empty() ? "arks" : models_path + "_arks";
-        if (!CommonTestUtils::directoryExists(arks_path)) {
-            CommonTestUtils::createDirectory(arks_path);
+        const std::string inputs_path = models_path.empty() ? "inputs" : models_path + path_delimiter + "inputs";
+        if (!CommonTestUtils::directoryExists(inputs_path)) {
+            CommonTestUtils::createDirectory(inputs_path);
         }
 
-        const std::string hashed_network_name = "network_" + generateHashName(network_name);
-        const std::string model_arks_path = arks_path + path_delimiter + hashed_network_name;
-        if (!CommonTestUtils::directoryExists(model_arks_path)) {
-            CommonTestUtils::createDirectory(model_arks_path);
+        const std::string hashed_network_name = std::string(modelsNamePrefix) + generateHashName(network_name);
+        const std::string model_inputs_path = inputs_path + path_delimiter + hashed_network_name;
+        if (!CommonTestUtils::directoryExists(model_inputs_path)) {
+            CommonTestUtils::createDirectory(model_inputs_path);
         }
 
         const auto& dims = input_info->getTensorDesc().getDims();
@@ -83,26 +85,27 @@ void ExternalNetworkTool::saveArkFile(const std::string &network_name,
             elements_number *= dim;
         }
 
-        // const auto& parameter_name = input_info->name();
         const std::string input_type_name = "Parameter";
-        std::string ark_name = input_type_name + "_"
-                             + std::to_string(id) + "_"
-                             + std::to_string(utterance) + "_"
-                             + std::to_string(elements_number) + ".ark";
+        std::string input_file_name = input_type_name + "_"
+                                    + std::to_string(id) + "_"
+                                    + std::to_string(utterance) + "_"
+                                    + std::to_string(elements_number) + "." + extension;
 
-        std::string file_name = model_arks_path + path_delimiter + ark_name;
+        std::string file_name = model_inputs_path + path_delimiter + input_file_name;
 
         const auto &precision = input_info->getPrecision();
 
         auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
         const auto locked_memory = memory->rmap();
+
+        // cast to precision
         switch (precision) {
         case InferenceEngine::Precision::FP32:
-            writeToArkFile(file_name, locked_memory.as<const float *>(), 1, elements_number);
+            writeToFile(file_name, locked_memory.as<const float *>(), utterance, elements_number, extension);
             break;
         // TODO: add FP16, I16, I8 precisions support
         default:
-            printf("%s precision doesn't supported", precision.name());
+            printf("%s precision not supported", precision.name());
             return;
         }
     }
@@ -110,7 +113,7 @@ void ExternalNetworkTool::saveArkFile(const std::string &network_name,
 void ExternalNetworkTool::dumpNetworkToFile(const std::shared_ptr<ngraph::Function> network,
                                             const std::string &network_name) {
     auto exportPathString = std::string(modelsPath);
-    auto hashed_network_name = "network_" + generateHashName(network_name);
+    auto hashed_network_name = std::string(modelsNamePrefix) + generateHashName(network_name);
 
     std::string out_xml_path = exportPathString
                                 + (exportPathString.empty() ? "" : path_delimiter)
@@ -119,11 +122,9 @@ void ExternalNetworkTool::dumpNetworkToFile(const std::shared_ptr<ngraph::Functi
                                 + (exportPathString.empty() ? "" : path_delimiter)
                                 + hashed_network_name + ".bin";
 
-    // network->set_topological_sort(topological_name_sort<std::vector<std::shared_ptr<ov::Node>>>);
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path);
+    manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path, ngraph::pass::Serialize::Version::IR_V10);
     manager.run_passes(network);
-    // network->set_topological_sort(ngraph::topological_sort<std::vector<std::shared_ptr<ov::Node>>>);
     printf("Network dumped to %s\n", out_xml_path.c_str());
     writeToHashMap(network_name, hashed_network_name);
 }
@@ -135,7 +136,7 @@ static ngraph::frontend::FrontEndManager& get_frontend_manager() {
 
 std::shared_ptr<ngraph::Function> ExternalNetworkTool::loadNetworkFromFile(const std::string &network_name) {
     auto importPathString = std::string(modelsPath);
-    auto hashed_network_name = "network_" + generateHashName(network_name);
+    auto hashed_network_name = std::string(modelsNamePrefix) + generateHashName(network_name);
 
     std::string out_xml_path = importPathString
                                 + (importPathString.empty() ? "" : path_delimiter)
@@ -164,7 +165,7 @@ std::shared_ptr<ngraph::Function> ExternalNetworkTool::loadNetworkFromFile(const
 InferenceEngine::CNNNetwork ExternalNetworkTool::loadNetworkFromFile(const std::shared_ptr<InferenceEngine::Core> core,
                                                                      const std::string &network_name) {
     auto importPathString = std::string(modelsPath);
-    auto hashed_network_name = "network_" + generateHashName(network_name);
+    auto hashed_network_name = std::string(modelsNamePrefix) + generateHashName(network_name);
 
     std::string out_xml_path = importPathString
                                 + (importPathString.empty() ? "" : path_delimiter)
