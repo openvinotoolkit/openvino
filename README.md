@@ -11,7 +11,7 @@ This open source version includes several components: namely [Model Optimizer], 
 [Inference Engine], as well as CPU, GPU, MYRIAD, multi device and heterogeneous plugins to accelerate deep learning inferencing on Intel® CPUs and Intel® Processor Graphics.
 It supports pre-trained models from the [Open Model Zoo], along with 100+ open
 source and public models in popular formats such as Caffe\*, TensorFlow\*,
-MXNet\* and ONNX\*.
+MXNet\*, Kaldi\* and ONNX\*.
 
 ## Repository components:
 * [Inference Engine]
