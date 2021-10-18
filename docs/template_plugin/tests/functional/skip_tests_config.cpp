@@ -8,7 +8,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
-    return {
+    std::vector<std::string> retVector{
         // CVS-66280
         R"(.*canLoadCorrectNetworkAndCheckConfig.*)",
         R"(.*canSetCorrectConfigLoadNetworkAndCheckConfig.*)",
@@ -19,7 +19,16 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-51758
         R"(.*InferRequestPreprocessConversionTest.*oLT=(NHWC|NCHW).*)",
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*)",
+        //Not Implemented
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*(canSetConfigToExecNet|canSetConfigToExecNetAndCheckConfigAndCheck).*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution|CheckExecGraphInfoSerialization).*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*(CanCreateTwoExeNetworksAndCheckFunction).*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
+        R"(.*smoke_BehaviorTests.*OVExecNetwork.ieImportExportedFunction.*)",
 
+        // TODO: Round with f16 is not supported
+        R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
         // TODO: execution graph is not supported
         R"(.*ExecGraph.*)",
 
@@ -29,5 +38,16 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO: Round with f16 is not supported
         R"(.*smoke_Hetero_BehaviorTests.*OVExecNetwork.*readFromV10IR.*)",
+
+        // CVS-64094
+        R"(.*ReferenceLogSoftmaxLayerTest.*4.*iType=f16.*axis=.*1.*)",
+        // CVS-64080
+        R"(.*ReferenceMishLayerTest.*dimensionDynamic.*)",
     };
+
+#ifdef _WIN32
+    // CVS-63989
+     retVector.emplace_back(R"(.*ReferenceSigmoidLayerTest.*u64.*)");
+#endif
+    return retVector;
 }
