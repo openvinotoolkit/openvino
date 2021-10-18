@@ -20,6 +20,7 @@
 
 #include "ngraph/opsets/opset1.hpp"
 #include "transformations/utils/utils.hpp"
+#include "utils/hlog.hpp"
 
 #include "multi_itt.hpp"
 // ------------------------------MultiDeviceExecutableNetwork----------------------------
@@ -167,6 +168,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     _loadContext[ACTUALDEVICE].networkPrecision = GetNetworkPrecision(network);
     _loadContext[ACTUALDEVICE].metaDevices = metaDevices;
     _loadContext[ACTUALDEVICE].deviceInfo = _multiPlugin->SelectDevice(metaDevices, _loadContext[ACTUALDEVICE].networkPrecision);
+    HInfo("AUTO:select device:%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
     bool isActualDevCPU =
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") != std::string::npos;
     // if Actual device is CPU, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
