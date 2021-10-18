@@ -43,9 +43,6 @@ OutputVector random_uniform(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
 }  // namespace onnx_import
-
 }  // namespace ngraph

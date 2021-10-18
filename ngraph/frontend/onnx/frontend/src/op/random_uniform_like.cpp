@@ -18,7 +18,7 @@ namespace set_1 {
 
 OutputVector random_uniform_like(const Node& node) {
     OutputVector inputs{node.get_ng_inputs()};
-    auto input = inputs.at(0);
+    const auto input = inputs.at(0);
 
     ngraph::element::Type target_type;
     if (node.has_attribute("dtype")) {
@@ -49,9 +49,6 @@ OutputVector random_uniform_like(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
 }  // namespace onnx_import
-
 }  // namespace ngraph
