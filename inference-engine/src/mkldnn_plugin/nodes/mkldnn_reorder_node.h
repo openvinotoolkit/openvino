@@ -73,6 +73,7 @@ private:
     bool isOptimized = false;
 
     bool isNspc2NcspCase = false;
+    bool isNcsp2NspcCase = false;
     bool canUseNspc2Ncsp = false;
     bool canUseNcsp2Nspc = false;
 
