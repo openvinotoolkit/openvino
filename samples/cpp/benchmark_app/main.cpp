@@ -134,7 +134,7 @@ static void next_step(const std::string additional_info = "") {
         {7, "Loading the model to the device"},
         {8, "Setting optimal runtime parameters"},
         {9, "Creating infer requests and filling input blobs with data for the first inference"},
-        {10, "Measuring performance for each of tprovided tensor shape"},
+        {10, "Measuring performance for each of provided tensor shape"},
         {11, "Dumping statistics report"}};
 
     step_id++;
@@ -146,12 +146,9 @@ static void next_step(const std::string additional_info = "") {
 }
 
 template <typename T>
-T getMedianValue(const std::vector<std::pair<size_t, T>>& vec, std::size_t percentile) {
-    std::vector<T> sortedVec(vec);
-    std::sort(vec.begin(), vec.end(), [](const std::pair<size_t, double>& a, const std::pair<size_t, double>& b) {
-        return a.second > b.second;
-    });
-    return sortedVec[(sortedVec.size() / 100) * percentile];
+T getMedianValue(std::vector<T>& vec, std::size_t percentile) {
+    std::sort(vec.begin(), vec.end());
+    return vec[(vec.size() / 100) * percentile];
 }
 
 /**
@@ -429,7 +426,6 @@ int main(int argc, char* argv[]) {
         size_t batchSize = FLAGS_b;
         Precision precision = Precision::UNSPECIFIED;
         std::string topology_name = "";
-        // benchmark_app::InputsInfo app_inputs_info;
         std::vector<benchmark_app::InputsInfo> app_inputs_info;
         std::string output_name;
 
@@ -817,8 +813,7 @@ int main(int argc, char* argv[]) {
         for (auto& group : latency_groups) {
             std::sort(group.begin(), group.end());
         }
-        std::sort(latencies.begin(), latencies.end());
-        double medianLatency = latencies[(latencies.size() / 100) * FLAGS_latency_percentile];
+        double medianLatency = getMedianValue(latencies, FLAGS_latency_percentile);
         double meanLatency = std::accumulate(latencies.begin(), latencies.end(), 0.0) / latencies.size();
         double minLatency = latencies[0];
         double maxLatency = latencies.back();
