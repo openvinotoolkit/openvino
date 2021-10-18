@@ -55,7 +55,6 @@ public:
     /**
      * @brief Sets input/output data to infer
      *
-     * @note Memory allocation does not happen
      * @param name Name of input or output tensor.
      * @param tensor Reference to input or output tensor. The type of a tensor must match the network input/output
      * precision and size.
@@ -64,7 +63,6 @@ public:
     /**
      * @brief Sets input/output data to infer
      *
-     * @note Memory allocation does not happen
      * @param port Port of input or output tensor.
      * @param tensor Reference to input or output tensor. The type of a tensor must match the network input/output
      * precision and size.
@@ -73,95 +71,83 @@ public:
     /**
      * @brief Sets input/output data to infer
      *
-     * @note Memory allocation does not happen
      * @param port Port of input or output tensor.
      * @param tensor Reference to input or output tensor. The type of a tensor must match the network input/output
      * precision and size.
      */
     void set_tensor(const ov::Output<ov::Node>& port, const Tensor& tensor);
     /**
-     * @brief Sets input data to infer
+     * @brief Sets input tensor to infer
      *
-     * @note Memory allocation does not happen
      * @param idx Index of input tensor.
      * @param tensor Reference to input tensor. The type of a tensor must match the network input precision and size.
      */
     void set_input_tensor(size_t idx, const Tensor& tensor);
     /**
-     * @brief Sets input data to infer
+     * @brief Sets input tensor to infer models with single input
      *
-     * @note Memory allocation does not happen
      * @param tensor Reference to input tensor. If model has several inputs, an exception is thrown.
      */
     void set_input_tensor(const Tensor& tensor);
     /**
-     * @brief Sets output data to infer
+     * @brief Sets output tensor to infer
      *
-     * @note Memory allocation does not happen
      * @param idx Index of output tensor.
      * @param tensor Reference to output tensor. The type of a tensor must match the network output precision and size.
      */
     void set_output_tensor(size_t idx, const Tensor& tensor);
     /**
-     * @brief Sets output data to infer
+     * @brief Sets output tensor to infer models with single output
      *
-     * @note Memory allocation does not happen
      * @param tensor Reference to output tensor. If model has several outputs, an exception is thrown.
      */
     void set_output_tensor(const Tensor& tensor);
 
     /**
-     * @brief Gets input/output data for inference
+     * @brief Gets input/output tensor for inference
      *
-     * @note Memory allocation does not happen
      * @param name A name of tensor to get
      * @return A Tensor with a name @p name. If a tensor is not found, an exception is thrown.
      */
     Tensor get_tensor(const std::string& name);
     /**
-     * @brief Gets input/output data for inference
+     * @brief Gets input/output tensor for inference
      *
-     * @note Memory allocation does not happen
      * @param port Port of tensor to get
-     * @return A Tensor with a name @p name. If a tensor is not found, an exception is thrown.
+     * @return A Tensor for the port @p port. If a tensor with specified @p port is not found, an exception is thrown.
      */
     Tensor get_tensor(const ov::Output<const ov::Node>& port);
     /**
-     * @brief Gets input/output data for inference
+     * @brief Gets input/output tensor for inference
      *
-     * @note Memory allocation does not happen
      * @param port Port of tensor to get
-     * @return A Tensor with a name @p name. If a tensor is not found, an exception is thrown.
+     * @return A Tensor for the port @p port. If a tensor with specified @p port is not found, an exception is thrown.
      */
     Tensor get_tensor(const ov::Output<ov::Node>& port);
     /**
-     * @brief Gets input data for inference
+     * @brief Gets input tensor for inference
      *
-     * @note Memory allocation does not happen
      * @param idx An index of tensor to get
-     * @return A Tensor with an input index @p idx. If a tensor is not found, an exception is thrown.
+     * @return A Tensor with an input index @p idx. If a tensor with specified @p idx is not found, an exception is thrown.
      */
     Tensor get_input_tensor(size_t idx);
     /**
-     * @brief Gets input data for inference
+     * @brief Gets input tensor for inference
      *
-     * @note Memory allocation does not happen
-     * @return A Tensor with an input index @p idx. If model has several inputs, an exception is thrown.
+     * @return An input Tensor for the model. If model has several inputs, an exception is thrown.
      */
     Tensor get_input_tensor();
     /**
-     * @brief Gets output data for inference
+     * @brief Gets output tensor for inference
      *
-     * @note Memory allocation does not happen
      * @param idx An index of tensor to get
-     * @return A Tensor with an output index @p idx. If a tensor is not found, an exception is thrown.
+     * @return A Tensor with an output index @p idx. If a tensor with specified @p idx is not found, an exception is thrown.
      */
     Tensor get_output_tensor(size_t idx);
     /**
-     * @brief Gets output data for inference
+     * @brief Gets output tensor for inference
      *
-     * @note Memory allocation does not happen
-     * @return A Tensor with an output index @p idx. If model has several outputs, an exception is thrown.
+     * @return An output Tensor for the model. If model has several outputs, an exception is thrown.
      */
     Tensor get_output_tensor();
 
