@@ -120,21 +120,33 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     if (inPrec != outPrec)
         inPrec = outPrec;
 
-    NodeConfig config;
-    config.dynBatchSupport = true;
-    config.inConfs.resize(getParentEdges().size());
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        config.inConfs[i].inPlace = -1;
-        config.inConfs[i].constant = false;
-        config.inConfs[i].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc((i > 0 ? secondInPrc : inPrec), getInputShapeAtPort(i));
+    auto parent = getParentEdgeAt(0)->getParent();
+    auto prDescs = parent->getSupportedPrimitiveDescriptors();
+    for (NodeDesc desc : prDescs) {
+        auto outConfs = desc.getConfig().outConfs;
+        for (PortConfig cfg : outConfs) {
+            MemoryDescPtr desc = cfg.desc;
+
+            NodeConfig config;
+            config.dynBatchSupport = true;
+            config.inConfs.resize(getParentEdges().size());
+            for (size_t i = 0; i < getParentEdges().size(); i++) {
+                config.inConfs[i].inPlace = -1;
+                config.inConfs[i].constant = false;
+                if (i ==0 && desc->hasLayoutType(LayoutType::nspc))
+                    config.inConfs[i].desc = creatorsMap.at(LayoutType::nspc)->createSharedDesc((i > 0 ? secondInPrc : inPrec), getInputShapeAtPort(i));
+                else
+                    config.inConfs[i].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc((i > 0 ? secondInPrc : inPrec), getInputShapeAtPort(i));
+            }
+            config.outConfs.resize(1);
+            // TODO [DS]: inplace
+            config.outConfs[0].inPlace = isDynamicNode() ? -1 : 0;
+            config.outConfs[0].constant = false;
+            config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(outPrec, getOutputShapeAtPort(0));
+            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+        }
     }
-    config.outConfs.resize(1);
-    // TODO [DS]: inplace
-    config.outConfs[0].inPlace = isDynamicNode() ? -1 : 0;
-    config.outConfs[0].constant = false;
-    config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(outPrec, getOutputShapeAtPort(0));
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
 void MKLDNNReshapeNode::createPrimitive() {
