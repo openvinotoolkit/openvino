@@ -167,12 +167,20 @@ void prepare_primitive_fusing::fuse_reorders(program &p) {
 void prepare_primitive_fusing::fuse_activations(program &p) {
     bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
     std::map<primitive_id, std::vector<primitive_id>> fusing_history;
+    bool use_onednn_impls = false;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    auto& engine = p.get_engine();
+    if (engine.get_device_info().supports_immad && engine.configuration().queue_type == queue_types::in_order)
+        use_onednn_impls = true;
+#endif
+
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
         auto& node = (*node_itr);
 
-        program_helpers::do_for_types<activation>(*node, [&p, &is_debug, &fusing_history](activation_node& node) {
+        program_helpers::do_for_types<activation>(*node, [&p, &is_debug, &fusing_history, &use_onednn_impls](activation_node& node) {
             auto& input = node.input();
             auto id = node.id();
             // Restrictions:
@@ -218,6 +226,9 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
                 if (is_quantization)
                     return;
             }
+
+            if (input.is_type<reshape>() && use_onednn_impls)
+                return;
 
             if (input.get_fused_primitives().empty()) {
                 input.add_fused_activation(node.get_primitive()->activation_function, node.get_primitive()->additional_params);

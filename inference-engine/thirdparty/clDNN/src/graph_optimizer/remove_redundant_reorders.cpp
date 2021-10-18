@@ -54,11 +54,6 @@ void remove_redundant_reorders::run(program& p) {
             if (!node.get_fused_activations_funcs().empty())
                 continue;
 
-            // Avoid different data types between input and output
-            auto same_data_type = input.get_output_layout().data_type == output_layout.data_type;
-            if (!same_data_type)
-                continue;
-
             // Avoid optimization of nv12 reorder
             if (node.get_dependencies().size() != 1)
                 continue;
