@@ -17,6 +17,7 @@ from consts import (
     notebooks_path,
     repo_owner,
     repo_name,
+    repo_directory,
     notebooks_docs,
 )
 from notebook import Notebook
@@ -122,7 +123,7 @@ class NbProcessor:
         self.binder_data = {
             "owner": repo_owner,
             "repo": repo_name,
-            "folder": nb_path,
+            "folder": repo_directory,
         }
 
     def fetch_binder_list(self, file_format: str = 'txt') -> list:
