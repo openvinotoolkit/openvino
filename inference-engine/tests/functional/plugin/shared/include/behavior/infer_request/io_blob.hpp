@@ -346,7 +346,7 @@ protected:
 };
 
 
-TEST_P(InferRequestIOBBlobSetPrecisionTest, CanSetInBlobWithDifferentPrecision) {
+TEST_P(InferRequestIOBBlobSetPrecisionTest, DISABLED_CanSetInBlobWithDifferentPrecision) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -361,7 +361,7 @@ TEST_P(InferRequestIOBBlobSetPrecisionTest, CanSetInBlobWithDifferentPrecision) 
     }
 }
 
-TEST_P(InferRequestIOBBlobSetPrecisionTest, CanSetOutBlobWithDifferentPrecision) {
+TEST_P(InferRequestIOBBlobSetPrecisionTest, DISABLED_CanSetOutBlobWithDifferentPrecision) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
