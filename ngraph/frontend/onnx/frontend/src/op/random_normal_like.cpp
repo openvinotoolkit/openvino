@@ -13,8 +13,7 @@ namespace op {
 namespace set_1 {
 
 OutputVector random_normal_like(const Node& node) {
-    OutputVector inputs{node.get_ng_inputs()};
-    auto input = inputs.at(0);
+    const auto& input = node.get_ng_inputs().at(0);
 
     ngraph::element::Type target_type;
     if (node.has_attribute("dtype")) {
@@ -27,9 +26,9 @@ OutputVector random_normal_like(const Node& node) {
     const auto shape = std::make_shared<default_opset::ShapeOf>(input);
     const auto mean = node.get_attribute_value<float>("mean", 0.0f);
     const auto scale = node.get_attribute_value<float>("scale", 1.0f);
-    const auto seed = node.get_attribute_value<float>("seed", 0);
+    const auto seed = node.get_attribute_value<float>("seed", 0.0f);
 
-    return ngraph::onnx_import::detail::make_random_normal(shape, target_type, mean, scale, seed);
+    return detail::make_random_normal(shape, target_type, mean, scale, seed);
 }
 
 }  // namespace set_1
