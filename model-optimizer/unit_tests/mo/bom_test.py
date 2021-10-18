@@ -16,7 +16,7 @@ full_name_patterns_to_skip = ['^openvino/tools/mo/utils/convert.py$',
                               ]
 if platform.system() == 'Windows':
     full_name_patterns_to_skip = [i.replace('/', '\\\\') for i in full_name_patterns_to_skip]
-dirs_to_search = ['mo', 'extensions']
+dirs_to_search = ['openvino/tools/mo']
 
 
 def is_match(name: str, patterns: ()):

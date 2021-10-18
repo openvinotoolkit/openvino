@@ -15,6 +15,7 @@ install_prerequisites/install_prerequisites_tf2.sh
 install_prerequisites/protobuf-3.6.1-py3.5-win-amd64.egg
 install_prerequisites/protobuf-3.6.1-py3.6-win-amd64.egg
 install_prerequisites/protobuf-3.6.1-py3.7-win-amd64.egg
+openvino/tools/mo/__init__.py
 openvino/tools/mo/__main__.py
 openvino/tools/mo/analysis/__init__.py
 openvino/tools/mo/analysis/boolean_input.py
@@ -24,6 +25,7 @@ openvino/tools/mo/analysis/nodes.py
 openvino/tools/mo/analysis/tf_od_api.py
 openvino/tools/mo/analysis/tf_retinanet.py
 openvino/tools/mo/analysis/tf_yolo.py
+openvino/tools/mo/back/__init__.py
 openvino/tools/mo/back/AvgPool.py
 openvino/tools/mo/back/blob_normalizer.py
 openvino/tools/mo/back/CellNormalizer.py
@@ -82,6 +84,7 @@ openvino/tools/mo/back/TopKNormalizer.py
 openvino/tools/mo/back/TransposeDFT.py
 openvino/tools/mo/back/TransposeReduceFusing.py
 openvino/tools/mo/back/UselessConcatRemoval.py
+openvino/tools/mo/front/__init__.py
 openvino/tools/mo/front/ArgOpsSqueeze.py
 openvino/tools/mo/front/ATenToEmbeddingBag.py
 openvino/tools/mo/front/AttributedClampNormalizer.py
@@ -91,6 +94,7 @@ openvino/tools/mo/front/AttributedRandomUniformToRandomUniform.py
 openvino/tools/mo/front/AttributedRollToRoll.py
 openvino/tools/mo/front/binary_quantize_normalization.py
 openvino/tools/mo/front/broadcast_with_range.py
+openvino/tools/mo/front/caffe/__init__.py
 openvino/tools/mo/front/caffe/argmax_ext.py
 openvino/tools/mo/front/caffe/ArgMaxFlatten.py
 openvino/tools/mo/front/caffe/axpy.py
@@ -196,6 +200,7 @@ openvino/tools/mo/front/instance_normalization.py
 openvino/tools/mo/front/interpolate_reshape.py
 openvino/tools/mo/front/InterpolateNormalizer.py
 openvino/tools/mo/front/InterpolateV1ToInterpolate.py
+openvino/tools/mo/front/kaldi/__init__.py
 openvino/tools/mo/front/kaldi/add_permute_after_convolution.py
 openvino/tools/mo/front/kaldi/add_reshape_around_convolution.py
 openvino/tools/mo/front/kaldi/add_reshape_around_pooling.py
@@ -261,6 +266,7 @@ openvino/tools/mo/front/LayerNorm.py
 openvino/tools/mo/front/Log1p.py
 openvino/tools/mo/front/MatMul_normalizer.py
 openvino/tools/mo/front/MoveEmbeddedInputsToInputs.py
+openvino/tools/mo/front/mxnet/__init__.py
 openvino/tools/mo/front/mxnet/activation.py
 openvino/tools/mo/front/mxnet/adaptive_avg_pooling_ext.py
 openvino/tools/mo/front/mxnet/add_input_data_to_prior_boxes.py
@@ -360,6 +366,7 @@ openvino/tools/mo/front/mxnet/zeros_ext.py
 openvino/tools/mo/front/no_op_eraser.py
 openvino/tools/mo/front/non_max_suppression_normalize.py
 openvino/tools/mo/front/OneHotDepthNormalizer.py
+openvino/tools/mo/front/onnx/__init__.py
 openvino/tools/mo/front/onnx/activation_ext.py
 openvino/tools/mo/front/onnx/affine_ext.py
 openvino/tools/mo/front/onnx/argmax_ext.py
@@ -479,6 +486,7 @@ openvino/tools/mo/front/split_normalizer.py
 openvino/tools/mo/front/SqueezeNormalize.py
 openvino/tools/mo/front/sub.py
 openvino/tools/mo/front/subgraph_matcher.py
+openvino/tools/mo/front/tf/__init__.py
 openvino/tools/mo/front/tf/activation_ext.py
 openvino/tools/mo/front/tf/argmax_ext.py
 openvino/tools/mo/front/tf/argmin_ext.py
@@ -695,6 +703,7 @@ openvino/tools/mo/main_mxnet.py
 openvino/tools/mo/main_onnx.py
 openvino/tools/mo/main_paddle.py
 openvino/tools/mo/main_tf.py
+openvino/tools/mo/middle/__init__.py
 openvino/tools/mo/middle/AddFakeQuantizeFuse.py
 openvino/tools/mo/middle/AddIsCyclicAttribute.py
 openvino/tools/mo/middle/AddMeanScaleValues.py
@@ -811,10 +820,18 @@ openvino/tools/mo/middle/UnsqueezeTileReshapeBlockToInterpolate.py
 openvino/tools/mo/middle/UpsampleToResample.py
 openvino/tools/mo/middle/UselessMerge.py
 openvino/tools/mo/middle/UselessSplitEraser.py
+openvino/tools/mo/mo.py
+openvino/tools/mo/mo_caffe.py
+openvino/tools/mo/mo_kaldi.py
+openvino/tools/mo/mo_mxnet.py
+openvino/tools/mo/mo_onnx.py
+openvino/tools/mo/mo_paddle.py
+openvino/tools/mo/mo_tf.py
 openvino/tools/mo/moc_frontend/__init__.py
 openvino/tools/mo/moc_frontend/extractor.py
 openvino/tools/mo/moc_frontend/pipeline.py
 openvino/tools/mo/moc_frontend/serialize.py
+openvino/tools/mo/ops/__init__.py
 openvino/tools/mo/ops/activation.py
 openvino/tools/mo/ops/activation_ops.py
 openvino/tools/mo/ops/adaptive_avg_pooling.py
@@ -1028,6 +1045,7 @@ openvino/tools/mo/utils/ir_reader/extenders/if_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/interpolate_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/loop_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/LSTMCell_extender.py
+openvino/tools/mo/utils/ir_reader/extenders/LSTMSequence_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/non_max_suppression_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/non_zero_extender.py
 openvino/tools/mo/utils/ir_reader/extenders/pad_extender.py
