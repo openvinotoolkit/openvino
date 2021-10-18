@@ -31,10 +31,15 @@ public:
     /// \brief Empty constructor. Should be used only if network will have only one input
     InputInfo();
 
-    /// \brief Information about info for particular input index of model
+    /// \brief Constructor for particular input index of model
     ///
     /// \param input_index Index to address specified input parameter of model
-    InputInfo(size_t input_index);
+    explicit InputInfo(size_t input_index);
+
+    /// \brief Constructor for particular output of model addressed by it's input name
+    ///
+    /// \param input_tensor_name Name of input tensor name
+    explicit InputInfo(const std::string& input_tensor_name);
 
     /// \brief Default move constructor
     InputInfo(InputInfo&&) noexcept;

@@ -48,7 +48,9 @@ public:
     std::shared_ptr<Node> get_default_value() const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 private:
@@ -122,7 +124,9 @@ public:
     }
 
     bool has_evaluate() const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector&, const HostTensorVector&) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
 private:
     Strides m_dilations;

@@ -12,6 +12,7 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
                            "${OpenVINO_SOURCE_DIR}/thirdparty"
                            "${OpenVINO_SOURCE_DIR}/runtime/bindings/python/thirdparty/pybind11"
                            "${IE_MAIN_SOURCE_DIR}/thirdparty"
+                           "${OpenVINO_SOURCE_DIR}/tools/pot/thirdparty"               
                            "${TEMP}"
                            # TODO fix and enable back:
                            "${OpenVINO_SOURCE_DIR}/inference-engine/scripts/dependencies.sh"
