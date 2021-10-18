@@ -32,10 +32,14 @@ public:
     // Overload collision with method on Node
     using Node::set_output_type;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate_lower(const HostTensorVector& output_values) const override;
     bool evaluate_upper(const HostTensorVector& output_values) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool constant_fold(OutputVector& output_values, const OutputVector& input_values) override;
 
 private:
@@ -58,10 +62,14 @@ public:
 
     void validate_and_infer_types() override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate_lower(const HostTensorVector& output_values) const override;
     bool evaluate_upper(const HostTensorVector& output_values) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool constant_fold(OutputVector& output_values, const OutputVector& input_values) override;
 };
 }  // namespace v0
