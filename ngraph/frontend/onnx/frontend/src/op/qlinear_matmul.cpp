@@ -12,6 +12,7 @@
 #include "matmul.hpp"
 #include "ngraph/opsets/opset6.hpp"
 #include "quantize_linear.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -21,11 +22,11 @@ OutputVector qlinear_matmul(const Node& node) {
     const OutputVector& inputs = node.get_ng_inputs();
 
     const auto& a = inputs.at(0);
-    const auto& a_scale = inputs.at(1);
-    const auto& a_zero_point = inputs.at(2);
+    const auto& a_scale = reshape::interpret_as_scalar(inputs.at(1));
+    const auto& a_zero_point = reshape::interpret_as_scalar(inputs.at(2));
     const auto& b = inputs.at(3);
-    const auto& b_scale = inputs.at(4);
-    const auto& b_zero_point = inputs.at(5);
+    const auto& b_scale = reshape::interpret_as_scalar(inputs.at(4));
+    const auto& b_zero_point = reshape::interpret_as_scalar(inputs.at(5));
     const auto& y_scale = inputs.at(6);
     const auto& y_zero_point = inputs.at(7);
 
