@@ -39,8 +39,10 @@ OutputVector conv_integer(const Node& node) {
     const auto& input_rank_scalar = reshape::interpret_as_scalar(input_rank);
 
     const auto& one_node = ngraph::op::Constant::create(ngraph::element::i32, {}, {1});
-    const auto& missing_dimensions = std::make_shared<default_opset::Range>(one_node, input_rank_scalar, one_node, element::i32);
-    const auto& resized_filter_zero_point = std::make_shared<default_opset::Unsqueeze>(converted_filter_zero_point, missing_dimensions);
+    const auto& missing_dimensions =
+        std::make_shared<default_opset::Range>(one_node, input_rank_scalar, one_node, element::i32);
+    const auto& resized_filter_zero_point =
+        std::make_shared<default_opset::Unsqueeze>(converted_filter_zero_point, missing_dimensions);
 
     const auto& shifted_input = std::make_shared<default_opset::Subtract>(converted_input, converted_input_zero_point);
     const auto& shifted_filter = std::make_shared<default_opset::Subtract>(converted_filter, resized_filter_zero_point);
@@ -53,12 +55,18 @@ OutputVector conv_integer(const Node& node) {
     const auto& padding_below = paddings.first;
     const auto& padding_above = paddings.second;
 
-    const auto conv_node =
-        ng_conv::make_ng_convolution(shifted_input, shifted_filter, strides, dilations, padding_below, padding_above, groups, auto_pad_type);
+    const auto conv_node = ng_conv::make_ng_convolution(shifted_input,
+                                                        shifted_filter,
+                                                        strides,
+                                                        dilations,
+                                                        padding_below,
+                                                        padding_above,
+                                                        groups,
+                                                        auto_pad_type);
 
     return {conv_node};
 }
-} // namespace set_1
-} // namespace op
-} // namespace onnx_import
-} // namespace ngraph
+}  // namespace set_1
+}  // namespace op
+}  // namespace onnx_import
+}  // namespace ngraph

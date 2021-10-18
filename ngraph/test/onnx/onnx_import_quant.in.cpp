@@ -776,7 +776,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_int8) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_no_zero_point) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_no_zero_point.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_no_zero_point.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
 
@@ -795,7 +796,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_no_zero_point) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_vector_w_zero_point) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_vector_w_zero_point.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_vector_w_zero_point.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
 
@@ -838,7 +840,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_vector_w_zero_point) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_overload) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_overload.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_overload.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
 

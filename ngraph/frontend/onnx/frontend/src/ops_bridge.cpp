@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ops_bridge.hpp"
+
 #include <functional>
 #include <iterator>
 #include <map>
@@ -155,7 +157,6 @@
 #include "op/upsample.hpp"
 #include "op/where.hpp"
 #include "op/xor.hpp"
-#include "ops_bridge.hpp"
 
 namespace ngraph {
 namespace onnx_import {
