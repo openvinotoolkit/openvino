@@ -34,7 +34,6 @@ class IVariableStateInternal;
  */
 class INFERENCE_ENGINE_API_CLASS(IInferRequestInternal) : public std::enable_shared_from_this<IInferRequestInternal> {
 public:
-    friend class ov::runtime::InferRequest;
     /**
      * @brief A shared pointer to a IInferRequestInternal interface
      */
@@ -199,6 +198,9 @@ public:
      */
     INFERENCE_ENGINE_DEPRECATED("The method will be removed")
     void SetUserData(void* userData) noexcept;
+
+    const std::vector<std::shared_ptr<const ov::Node>>& GetInputs() const;
+    const std::vector<std::shared_ptr<const ov::Node>>& GetOutputs() const;
 
 protected:
     /**

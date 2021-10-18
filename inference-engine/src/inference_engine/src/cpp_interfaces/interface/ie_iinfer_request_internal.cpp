@@ -380,4 +380,12 @@ void* IInferRequestInternal::GetUserData() noexcept {
 void IInferRequestInternal::SetUserData(void* userData) noexcept {
     _userData = userData;
 }
+
+const std::vector<std::shared_ptr<const ov::Node>>& IInferRequestInternal::GetInputs() const {
+    return _parameters;
+}
+
+const std::vector<std::shared_ptr<const ov::Node>>& IInferRequestInternal::GetOutputs() const {
+    return _results;
+}
 }  // namespace InferenceEngine

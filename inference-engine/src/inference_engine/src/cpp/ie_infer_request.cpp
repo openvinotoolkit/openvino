@@ -237,19 +237,19 @@ void InferRequest::set_tensor(const ov::Output<ov::Node>& port, const Tensor& te
 void InferRequest::set_tensor(const std::string& name, const Tensor& tensor) {
     OV_INFER_REQ_CALL_STATEMENT({
         ov::Output<const ov::Node> port;
-        if (!InferenceEngine::details::getPort(port, name, {_impl->_parameters, _impl->_results}))
+        if (!InferenceEngine::details::getPort(port, name, {_impl->GetInputs(), _impl->GetOutputs()}))
             throw ov::Exception("Port for tensor name " + name + " was not found.");
         set_tensor(port, tensor);
     });
 }
 
 void InferRequest::set_input_tensor(size_t idx, const Tensor& tensor) {
-    OV_INFER_REQ_CALL_STATEMENT({ set_tensor(_impl->_parameters.at(idx)->output(0), tensor); });
+    OV_INFER_REQ_CALL_STATEMENT({ set_tensor(_impl->GetInputs().at(idx)->output(0), tensor); });
 }
 
 void InferRequest::set_input_tensor(const Tensor& tensor) {
     OV_INFER_REQ_CALL_STATEMENT({
-        const auto inputs = _impl->_parameters;
+        const auto inputs = _impl->GetInputs();
         if (inputs.size() != 1) {
             throw ov::Exception("set_input_tensor() must be called on a function with exactly one parameter.");
         }
@@ -258,12 +258,12 @@ void InferRequest::set_input_tensor(const Tensor& tensor) {
 }
 
 void InferRequest::set_output_tensor(size_t idx, const Tensor& tensor) {
-    OV_INFER_REQ_CALL_STATEMENT({ set_tensor(_impl->_results.at(idx)->output(0), tensor); });
+    OV_INFER_REQ_CALL_STATEMENT({ set_tensor(_impl->GetOutputs().at(idx)->output(0), tensor); });
 }
 
 void InferRequest::set_output_tensor(const Tensor& tensor) {
     OV_INFER_REQ_CALL_STATEMENT({
-        const auto outputs = _impl->_results;
+        const auto outputs = _impl->GetOutputs();
         if (outputs.size() != 1) {
             throw ov::Exception("set_output_tensor() must be called on a function with exactly one parameter.");
         }
@@ -295,7 +295,7 @@ Tensor InferRequest::get_tensor(const ov::Output<ov::Node>& port) {
 Tensor InferRequest::get_tensor(const std::string& name) {
     OV_INFER_REQ_CALL_STATEMENT({
         ov::Output<const ov::Node> port;
-        if (!InferenceEngine::details::getPort(port, name, {_impl->_parameters, _impl->_results}))
+        if (!InferenceEngine::details::getPort(port, name, {_impl->GetInputs(), _impl->GetOutputs()}))
             throw ov::Exception("Port for tensor name " + name + " was not found.");
 
         return get_tensor(port);
@@ -303,16 +303,16 @@ Tensor InferRequest::get_tensor(const std::string& name) {
 }
 
 Tensor InferRequest::get_input_tensor(size_t idx) {
-    OV_INFER_REQ_CALL_STATEMENT({ return get_tensor(_impl->_parameters.at(idx)->output(0)); });
+    OV_INFER_REQ_CALL_STATEMENT({ return get_tensor(_impl->GetInputs().at(idx)->output(0)); });
 }
 
 Tensor InferRequest::get_output_tensor(size_t idx) {
-    OV_INFER_REQ_CALL_STATEMENT({ return get_tensor(_impl->_results.at(idx)->output(0)); });
+    OV_INFER_REQ_CALL_STATEMENT({ return get_tensor(_impl->GetOutputs().at(idx)->output(0)); });
 }
 
 Tensor InferRequest::get_input_tensor() {
     OV_INFER_REQ_CALL_STATEMENT({
-        const auto inputs = _impl->_parameters;
+        const auto inputs = _impl->GetInputs();
         if (inputs.size() != 1) {
             throw ov::Exception("get_input_tensor() must be called on a function with exactly one parameter.");
         }
@@ -322,7 +322,7 @@ Tensor InferRequest::get_input_tensor() {
 
 Tensor InferRequest::get_output_tensor() {
     OV_INFER_REQ_CALL_STATEMENT({
-        const auto outputs = _impl->_results;
+        const auto outputs = _impl->GetOutputs();
         if (outputs.size() != 1) {
             throw ov::Exception("get_output_tensor() must be called on a function with exactly one parameter.");
         }
