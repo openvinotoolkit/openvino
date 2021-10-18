@@ -45,7 +45,7 @@ private:
     ov::runtime::ExecutableNetwork executableNetwork;
     ov::runtime::InferRequest inferRequest;
 
-    InferenceEngine::Core legacy_core;
+    std::shared_ptr<InferenceEngine::Core> legacy_core;
     InferenceEngine::ExecutableNetwork legacy_exec_network;
     InferenceEngine::InferRequest legacy_infer_request;
 };

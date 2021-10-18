@@ -18,16 +18,8 @@ using namespace ov;
 namespace reference_tests {
 
 ReferenceCNNTest::ReferenceCNNTest(): targetDevice("TEMPLATE") {
-    core = ov::test::PluginCache::get().core(targetDevice);
-
-    // Register template plugin in legacy core.
-    // TODO: consider have 'legacy_core' in plugin cache if number of such tests grows significantly
-    try {
-        std::string pluginName = "templatePlugin";
-        pluginName += IE_BUILD_POSTFIX;
-        legacy_core.RegisterPlugin(pluginName, "TEMPLATE");
-    } catch (...) {
-    }
+    core = test::utils::PluginCache::get().core(targetDevice);
+    legacy_core = PluginCache::get().ie(targetDevice);
 }
 
 void ReferenceCNNTest::Exec() {
@@ -57,13 +49,13 @@ void ReferenceCNNTest::LoadNetworkLegacy() {
         outputInfo[ngraph::op::util::create_ie_output_name(result->input_value(0))]->setPrecision(
                 InferenceEngine::details::convertPrecision(result->get_element_type()));
     }
-    legacy_exec_network = legacy_core.LoadNetwork(legacy_network, targetDevice);
+    legacy_exec_network = legacy_core->LoadNetwork(legacy_network, targetDevice);
 }
 
 void ReferenceCNNTest::FillInputs() {
     const auto& inputInfo = legacy_exec_network.GetInputsInfo();
     const auto& params = function->get_parameters();
-    std::default_random_engine random(0); // hard-coded seed to make results reproducible
+    std::default_random_engine random(0); // hard-coded seed to make test results predictable
     std::uniform_int_distribution<int> distrib(0, 255);
     for (const auto& param : params) {
         auto elem_count = shape_size(param->get_output_tensor(0).get_shape());
@@ -82,8 +74,8 @@ void ReferenceCNNTest::FillInputs() {
 
         for (size_t j = 0; j < elem_count; j++) {
             auto v = distrib(random);
-            buf[j] = v;
-            ov_buf[j] = v;
+            buf[j] = static_cast<float>(v);
+            ov_buf[j] = static_cast<float>(v);
         }
         legacy_input_blobs[param->get_friendly_name()] = blob;
         inputData.push_back(ov_blob);
