@@ -24,7 +24,7 @@
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
 
-typedef std::function<void(size_t id, const double latency)> QueueCallbackFunction;
+typedef std::function<void(size_t id, size_t group_id, const double latency)> QueueCallbackFunction;
 
 /// @brief Wrapper class for InferenceEngine::InferRequest. Handles asynchronous callbacks and calculates execution
 /// time.
@@ -37,10 +37,11 @@ public:
     explicit InferReqWrap(InferenceEngine::ExecutableNetwork& net, size_t id, QueueCallbackFunction callbackQueue)
         : _request(net.CreateInferRequest()),
           _id(id),
+          _lat_group_id(0),
           _callbackQueue(callbackQueue) {
         _request.SetCompletionCallback([&]() {
             _endTime = Time::now();
-            _callbackQueue(_id, getExecutionTimeInMilliseconds());
+            _callbackQueue(_id, _lat_group_id, getExecutionTimeInMilliseconds());
         });
     }
 
@@ -57,7 +58,7 @@ public:
         _startTime = Time::now();
         _request.Infer();
         _endTime = Time::now();
-        _callbackQueue(_id, getExecutionTimeInMilliseconds());
+        _callbackQueue(_id, _lat_group_id, getExecutionTimeInMilliseconds());
     }
 
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getPerformanceCounts() {
@@ -82,24 +83,34 @@ public:
         return static_cast<double>(execTime.count()) * 0.000001;
     }
 
+    void setLatencyGroupId(size_t id) {
+        _lat_group_id = id;
+    }
+
 private:
     InferenceEngine::InferRequest _request;
     Time::time_point _startTime;
     Time::time_point _endTime;
     size_t _id;
+    size_t _lat_group_id;
     QueueCallbackFunction _callbackQueue;
 };
 
 class InferRequestsQueue final {
 public:
-    InferRequestsQueue(InferenceEngine::ExecutableNetwork& net, size_t nireq) {
+    InferRequestsQueue(InferenceEngine::ExecutableNetwork& net, size_t nireq, size_t lat_group_n) {
         for (size_t id = 0; id < nireq; id++) {
             requests.push_back(std::make_shared<InferReqWrap>(
                 net,
                 id,
-                std::bind(&InferRequestsQueue::putIdleRequest, this, std::placeholders::_1, std::placeholders::_2)));
+                std::bind(&InferRequestsQueue::putIdleRequest,
+                        this,
+                        std::placeholders::_1,
+                        std::placeholders::_2,
+                        std::placeholders::_3)));
             _idleIds.push(id);
         }
+        _latency_groups.resize(lat_group_n);
         resetTimes();
     }
     ~InferRequestsQueue() {
@@ -122,12 +133,18 @@ public:
         return std::chrono::duration_cast<ns>(_endTime - _startTime).count() * 0.000001;
     }
 
-    void putIdleRequest(size_t id, const double latency) {
+    void putIdleRequest(size_t id, size_t lat_group_id, const double latency) {
         std::unique_lock<std::mutex> lock(_mutex);
         _latencies.push_back(latency);
+        _latency_groups[lat_group_id].push_back(latency);
         _idleIds.push(id);
         _endTime = std::max(Time::now(), _endTime);
         _cv.notify_one();
+    }
+
+    bool isIdleRequestAvailable() {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return _idleIds.size() > 0;
     }
 
     InferReqWrap::Ptr getIdleRequest() {
@@ -152,6 +169,10 @@ public:
         return _latencies;
     }
 
+    std::vector<std::vector<double>> getLatencyGroups() {
+        return _latency_groups;
+    }
+
     std::vector<InferReqWrap::Ptr> requests;
 
 private:
@@ -161,4 +182,5 @@ private:
     Time::time_point _startTime;
     Time::time_point _endTime;
     std::vector<double> _latencies;
+    std::vector<std::vector<double>> _latency_groups;
 };
