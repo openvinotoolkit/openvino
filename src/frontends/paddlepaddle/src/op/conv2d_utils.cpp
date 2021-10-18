@@ -6,8 +6,8 @@
 
 #include "node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
+#include "transformations/utils/utils.hpp"
 
-#include "transformations/smart_reshape/utils.hpp"
 namespace ov {
 namespace frontend {
 namespace pdpd {
@@ -66,12 +66,10 @@ std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node) {
 }
 std::shared_ptr<Node> get_reshaped_filter(const Output<Node>& filters, const int32_t groups) {
     const std::vector<size_t> num_indices{0};
-    auto num_node = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(filters,
-                                                           num_indices);
+    auto num_node = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(filters, num_indices);
 
     const std::vector<size_t> hw_indices{1, 2, 3};
-    auto filter_hw_node = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(filters,
-                                                           hw_indices);
+    auto filter_hw_node = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(filters, hw_indices);
 
     auto groups_node = opset6::Constant::create(element::i64, Shape{1}, {groups});
     auto grouped_num_node = std::make_shared<opset6::Divide>(num_node, groups_node);

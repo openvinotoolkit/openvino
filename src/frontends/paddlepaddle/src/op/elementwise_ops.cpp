@@ -26,19 +26,15 @@ NamedOutputs elementwise_ops(const NodeContext& node) {
     if ((axis == -1) || (axis == x_rank - 1) || (x_rank == y_rank)) {
         return node.default_single_output_mapping({std::make_shared<T>(x, y)}, {"Out"});
     } else {
-        // This broadcast can be implemented by either ov::Reshape or
-        // ov::Broadcast. Since PDPD implicates y_shape is a subsequence of
-        // x_shape starting from axis, to use ov::Reshape like Paddle2ONNX,
-        // which is more friendly to PnP.
-        auto broadcast_shape = std::vector<int64_t>(x_rank, 1);
-        PartialShape y_shape = y.get_partial_shape();
-        int32_t i = 0;
-        for (auto it = y_shape.begin(); it != y_shape.end(); ++i, ++it)
-            broadcast_shape[axis + i] = (*it).get_length();
+        std::vector<int64_t> indices;
+        for (int64_t i = 0; i < axis; i++)
+            indices.push_back(i);
+        for (int64_t i = y_rank + axis; i < x_rank; i++)
+            indices.push_back(i);
 
-        auto reshape_node =
-            ov::opset6::Constant::create(ov::element::i64, ov::Shape{broadcast_shape.size()}, broadcast_shape);
-        auto y_node = std::make_shared<ov::opset6::Reshape>(y, reshape_node, false);
+        auto indices_node =
+            ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{indices.size()}, indices);
+        auto y_node = std::make_shared<ngraph::opset6::Unsqueeze>(y, indices_node);
         return node.default_single_output_mapping({std::make_shared<T>(x, y_node)}, {"Out"});
     }
 }
