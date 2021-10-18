@@ -4,8 +4,8 @@
 
 #include <openvino/util/common_util.hpp>
 #include <tensorflow_frontend/frontend.hpp>
-#include <tensorflow_frontend/model.hpp>
 
+#include "model.hpp"
 #include "op_table.hpp"
 #include "tf_framework_node.hpp"
 #include "utils.hpp"

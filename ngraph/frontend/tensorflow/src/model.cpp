@@ -7,10 +7,9 @@
 #include <openvino/opsets/opset7.hpp>
 #include <queue>
 #include <tensorflow_frontend/graph_iterator.hpp>
-#include <tensorflow_frontend/model.hpp>
-#include <tensorflow_frontend/place.hpp>
-#include <tensorflow_frontend/utility.hpp>
 
+#include "model.hpp"
+#include "place.hpp"
 #include "graph_iterator_proto.hpp"
 #include "ngraph_conversions.hpp"
 #include "node_context.hpp"

@@ -10,7 +10,6 @@
 #include <map>
 #include <openvino/core/node_vector.hpp>
 #include <openvino/core/variant.hpp>
-#include <tensorflow_frontend/model.hpp>
 #include <tensorflow_frontend/utility.hpp>
 
 namespace ov {
@@ -23,6 +22,8 @@ class NodeContext;
 
 namespace ov {
 namespace frontend {
+class InputModelTF;
+
 class TF_API FrontEndTF : public ngraph::frontend::FrontEnd {
 public:
     using CreatorFunction = std::function<::ov::OutputVector(const ::ov::frontend::tf::NodeContext&)>;

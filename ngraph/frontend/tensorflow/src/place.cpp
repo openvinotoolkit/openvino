@@ -3,8 +3,8 @@
 //
 
 #include <frontend_manager/frontend_exceptions.hpp>
-#include <tensorflow_frontend/place.hpp>
 
+#include "place.hpp"
 #include "node_context.hpp"
 #include "op_def.pb.h"
 #include "tensor.pb.h"

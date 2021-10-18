@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tensorflow_frontend/exceptions.hpp>
-
+#include "exceptions.hpp"
 #include "node_context.hpp"
 
 namespace ov {
