@@ -40,20 +40,7 @@ class ReferenceConstantLayerTest : public testing::TestWithParam<ConstantParams>
 public:
     void SetUp() override {
         auto params = GetParam();
-        if (params.testcaseName == "tensor_constant"                ||
-                params.testcaseName == "scalar_constant_float32"    ||
-                params.testcaseName == "scalar_constant_int64"      ||
-                params.testcaseName == "tensor_constant_float32"    ||
-                params.testcaseName == "tensor_constant_int64"      ||
-                params.testcaseName == "constant_equality_u4_2x2x3" ||
-                params.testcaseName == "constant_equality_u4_1x3"   ||
-                params.testcaseName == "constant_equality_u1_1x10"  ||
-                params.testcaseName == "constant_equality_i4_2x2x3" ||
-                params.testcaseName == "constant_equality_i4_1x3") {
-            function = CreateFunction_Default(params.inputShape, params.inType, params.inputData);
-            inputData = {};
-            refOutData = {params.refData};
-        } else if (params.testcaseName == "tensor_2constant") {
+        if (params.testcaseName == "tensor_2constant") {
             function = CreateFunction_2Constant(params.inputShape, params.inType, params.inputData);
             inputData = {};
             refOutData = {params.refData, params.refData};
@@ -70,7 +57,9 @@ public:
             inputData = {};
             refOutData = {params.refData};
         } else {
-            IE_THROW() << "This test is not supported";
+            function = CreateFunction_Default(params.inputShape, params.inType, params.inputData);
+            inputData = {};
+            refOutData = {params.refData};
         }
     }
 
