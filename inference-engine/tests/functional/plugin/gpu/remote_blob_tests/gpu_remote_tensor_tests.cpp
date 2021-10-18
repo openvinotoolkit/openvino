@@ -7,7 +7,7 @@
 #include <vector>
 #include <memory>
 
-#include "openvino/runtime/gpu/ocl.hpp"
+#include "openvino/runtime/gpu/ocl/ocl.hpp"
 #include "openvino/runtime/core.hpp"
 
 #include <gpu/gpu_config.hpp>
@@ -30,7 +30,7 @@ protected:
     }
 };
 
-TEST_F(OVRemoteTensor_Test, DISABLED_smoke_canInputUserTensor) {
+TEST_F(OVRemoteTensor_Test, smoke_canInputUserTensor) {
 #if defined(ANDROID)
     GTEST_SKIP();
 #endif
@@ -51,14 +51,14 @@ TEST_F(OVRemoteTensor_Test, DISABLED_smoke_canInputUserTensor) {
     auto output = function->get_results().at(0);
     auto fakeImageData = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
 
-    inf_req_regular.set_tensor(input->get_friendly_name(), fakeImageData);
+    inf_req_regular.set_tensor(input, fakeImageData);
 
     inf_req_regular.infer();
-    auto output_tensor_regular = inf_req_regular.get_tensor(ngraph::op::util::create_ie_output_name(output->input_value(0)));
+    auto output_tensor_regular = inf_req_regular.get_tensor(output);
 
     // inference using remote tensor
     auto inf_req_shared = exec_net.create_infer_request();
-    auto cldnn_context = exec_net.get_context().as<ov::runtime::gpu::ClContext>();
+    auto cldnn_context = exec_net.get_context().as<ov::runtime::gpu::ocl::ClContext>();
     cl_context ctx = cldnn_context;
     auto ocl_instance = std::make_shared<OpenCL>(ctx);
     cl_int err;
@@ -72,10 +72,10 @@ TEST_F(OVRemoteTensor_Test, DISABLED_smoke_canInputUserTensor) {
     }
 
     auto cldnn_tensor = cldnn_context.create_tensor(input->get_element_type(), input->get_shape(), shared_buffer);
-    inf_req_shared.set_tensor(input->get_friendly_name(), cldnn_tensor);
+    inf_req_shared.set_tensor(input, cldnn_tensor);
 
     inf_req_shared.infer();
-    auto output_tensor_shared = inf_req_shared.get_tensor(ngraph::op::util::create_ie_output_name(output->input_value(0)));
+    auto output_tensor_shared = inf_req_shared.get_tensor(output);
 
     // compare results
     {
@@ -88,7 +88,7 @@ TEST_F(OVRemoteTensor_Test, DISABLED_smoke_canInputUserTensor) {
     }
 }
 
-TEST_F(OVRemoteTensor_Test, DISABLED_smoke_canInferOnUserContext) {
+TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserContext) {
     auto ie = ov::runtime::Core();
 
     using namespace ov::preprocess;
@@ -105,21 +105,21 @@ TEST_F(OVRemoteTensor_Test, DISABLED_smoke_canInferOnUserContext) {
     // regular inference
     auto inf_req_regular = exec_net_regular.create_infer_request();
     auto fakeImageData = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
-    inf_req_regular.set_tensor(input->get_friendly_name(), fakeImageData);
+    inf_req_regular.set_tensor(input, fakeImageData);
 
     inf_req_regular.infer();
-    auto output_tensor_regular = inf_req_regular.get_tensor(ngraph::op::util::create_ie_output_name(output->input_value(0)));
+    auto output_tensor_regular = inf_req_regular.get_tensor(exec_net_regular.output());
 
     // inference using remote tensor
     auto ocl_instance = std::make_shared<OpenCL>();
 
-    auto remote_context = ov::runtime::gpu::ClContext(ie, ocl_instance->_context.get());
+    auto remote_context = ov::runtime::gpu::ocl::ClContext(ie, ocl_instance->_context.get());
     auto exec_net_shared = ie.compile_model(function, remote_context);
     auto inf_req_shared = exec_net_shared.create_infer_request();
-    inf_req_shared.set_tensor(input->get_friendly_name(), fakeImageData);
+    inf_req_shared.set_tensor(input, fakeImageData);
 
     inf_req_shared.infer();
-    auto output_tensor_shared = inf_req_shared.get_tensor(ngraph::op::util::create_ie_output_name(output->input_value(0)));
+    auto output_tensor_shared = inf_req_shared.get_tensor(output);
 
     // compare results
     {
@@ -169,17 +169,16 @@ TEST_P(OVRemoteTensorBatched_Test, DISABLED_canInputNV12) {
     // inference using remote tensor with batch
     auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({num_batch, 3, height, width});
 
-    // TODO: Add preprocessing!
-    // CNNNetwork net_remote(fn_ptr_remote);
-    // net_remote.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
-    // net_remote.getInputsInfo().begin()->second->setPrecision(Precision::U8);
-    // net_remote.getInputsInfo().begin()->second->getPreProcess().setColorFormat(ColorFormat::NV12);
+    using namespace ov::preprocess;
+    auto function = PrePostProcessor()
+            .input(InputInfo()
+                           .tensor(InputTensorInfo().set_element_type(ov::element::i8).set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES))
+                           .preprocess(PreProcessSteps().convert_element_type(ov::element::f32)))
+            .build(fn_ptr_remote);
 
-    /* XXX: is it correct to set KEY_CLDNN_NV12_TWO_INPUTS in case of remote tensor? */
-    auto exec_net_b = ie.compile_model(fn_ptr_remote, CommonTestUtils::DEVICE_GPU,
-                { { ov::ie::GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS, ov::ie::PluginConfigParams::YES} });
+    auto exec_net_b = ie.compile_model(fn_ptr_remote, CommonTestUtils::DEVICE_GPU);
     auto inf_req_remote = exec_net_b.create_infer_request();
-    auto cldnn_context = exec_net_b.get_context().as<ov::runtime::gpu::ClContext>();
+    auto cldnn_context = exec_net_b.get_context().as<ov::runtime::gpu::ocl::ClContext>();
     cl_context ctx = cldnn_context.get();
     auto ocl_instance = std::make_shared<OpenCL>(ctx);
     cl_int err;
@@ -273,95 +272,3 @@ TEST_P(OVRemoteTensorBatched_Test, DISABLED_canInputNV12) {
 const std::vector<size_t> num_batches{1, 2, 4};
 
 INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensor, OVRemoteTensorBatched_Test, ::testing::ValuesIn(num_batches), OVRemoteTensorBatched_Test::getTestCaseName);
-
-using TwoNetsParams = std::tuple<size_t,   // number of streams
-                                 size_t>;  // number of requests
-
-class OVRemoteTensorTwoNets_Test : public CommonTestUtils::TestsCommon,
-    public testing::WithParamInterface<TwoNetsParams> {
-    void SetUp() override {
-        std::tie(num_streams, num_requests) = this->GetParam();
-        fn_ptrs = {ngraph::builder::subgraph::makeSplitMultiConvConcat(),
-                   ngraph::builder::subgraph::makeMultiSingleConv()};
-    };
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<TwoNetsParams>& obj) {
-        size_t streams, requests;
-        std::tie(streams, requests) = obj.param;
-        return "_num_streams_" + std::to_string(streams) + "_num_req_" +
-            std::to_string(requests);
-    }
-
-protected:
-    size_t num_streams;
-    size_t num_requests;
-    std::vector<std::shared_ptr<ngraph::Function>> fn_ptrs;
-};
-
-TEST_P(OVRemoteTensorTwoNets_Test, DISABLED_canInferTwoExecNets) {
-    auto ie = ov::runtime::Core();
-
-    std::vector<std::string> outputs;
-    std::vector<ov::runtime::InferRequest> irs;
-    std::vector<std::vector<uint8_t>> ref;
-    std::vector<int> outElementsCount;
-
-    for (size_t i = 0; i < fn_ptrs.size(); ++i) {
-        auto fn = fn_ptrs[i];
-
-        auto exec_net = ie.compile_model(fn_ptrs[i], CommonTestUtils::DEVICE_GPU,
-                                         {{ov::ie::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, std::to_string(num_streams)}});
-
-        auto input = fn_ptrs[i]->get_parameters().at(0);
-        auto output = fn_ptrs[i]->get_results().at(0);
-
-        for (int j = 0; j < num_streams * num_requests; j++) {
-            outputs.push_back(ngraph::op::util::create_ie_output_name(output->input_value(0)));
-
-            auto inf_req = exec_net.create_infer_request();
-            irs.push_back(inf_req);
-
-            auto tensor = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
-            inf_req.set_tensor(input->get_friendly_name(), tensor);
-
-            outElementsCount.push_back(
-                    std::accumulate(begin(fn_ptrs[i]->get_output_shape(0)), end(fn_ptrs[i]->get_output_shape(0)), 1,
-                                    std::multiplies<size_t>()));
-            const auto in_tensor = inf_req.get_tensor(input->get_friendly_name());
-            const auto tensorSize = in_tensor.get_byte_size();
-            const auto inBlobBuf = static_cast<uint8_t*>(in_tensor.data());
-            std::vector<uint8_t> inData(inBlobBuf, inBlobBuf + tensorSize);
-            auto reOutData = ngraph::helpers::interpreterFunction(fn_ptrs[i], {inData}).front().second;
-            ref.push_back(reOutData);
-        }
-    }
-
-    const int niter = 10;
-    for (int i = 0; i < niter; i++) {
-        for (auto ir : irs) {
-            ir.start_async();
-        }
-
-        for (auto ir : irs) {
-            ir.wait();
-        }
-    }
-
-    auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
-    for (size_t i = 0; i < irs.size(); ++i) {
-        const auto &refBuffer = ref[i].data();
-        ASSERT_EQ(outElementsCount[i], irs[i].get_tensor(outputs[i]).get_size());
-        FuncTestUtils::compareRawBuffers(irs[i].get_tensor(outputs[i]).data<float>(),
-                                         reinterpret_cast<const float *>(refBuffer), outElementsCount[i],
-                                         outElementsCount[i],
-                                         thr);
-    }
-}
-
-const std::vector<size_t> num_streams{ 1, 2 };
-const std::vector<size_t> num_requests{ 1, 4 };
-
-INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensor, OVRemoteTensorTwoNets_Test,
-    ::testing::Combine(::testing::ValuesIn(num_streams),
-        ::testing::ValuesIn(num_requests)),
-    OVRemoteTensorTwoNets_Test::getTestCaseName);
