@@ -263,6 +263,7 @@ limitations under the License.
                 <tab type="user" title="Sin-1" url="@ref openvino_docs_ops_arithmetic_Sin_1"/>
                 <tab type="user" title="Sinh-1" url="@ref openvino_docs_ops_arithmetic_Sinh_1"/>
                 <tab type="user" title="SoftMax-1" url="@ref openvino_docs_ops_activation_SoftMax_1"/>
+                <tab type="user" title="SoftMax-8" url="@ref openvino_docs_ops_activation_SoftMax_8"/>
                 <tab type="user" title="SoftPlus-4" url="@ref openvino_docs_ops_activation_SoftPlus_4"/>
                 <tab type="user" title="SpaceToBatch-2" url="@ref openvino_docs_ops_movement_SpaceToBatch_2"/>
                 <tab type="user" title="SpaceToDepth-1" url="@ref openvino_docs_ops_movement_SpaceToDepth_1"/>
