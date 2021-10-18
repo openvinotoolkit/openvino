@@ -25,14 +25,15 @@ namespace InferenceEngine {
 
 IInferRequestInternal::~IInferRequestInternal() {}
 
-IInferRequestInternal::IInferRequestInternal(const InputsDataMap& networkInputs, const OutputsDataMap& networkOutputs,
+IInferRequestInternal::IInferRequestInternal(const InputsDataMap& networkInputs,
+                                             const OutputsDataMap& networkOutputs,
                                              const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                              const std::vector<std::shared_ptr<const ov::Node>>& outputs)
     :  // We should copy maps since they can be overriden in SetBlob with preprocess
       _networkInputs{copyInfo(networkInputs)},
       _networkOutputs{copyInfo(networkOutputs)},
-     _parameters(inputs),
-     _results(outputs) {}
+      _parameters(inputs),
+      _results(outputs) {}
 
 void IInferRequestInternal::Infer() {
     checkBlobs();

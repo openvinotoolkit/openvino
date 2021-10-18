@@ -128,7 +128,8 @@ public:
      * @brief Gets input tensor for inference
      *
      * @param idx An index of tensor to get
-     * @return A Tensor with an input index @p idx. If a tensor with specified @p idx is not found, an exception is thrown.
+     * @return A Tensor with an input index @p idx. If a tensor with specified @p idx is not found, an exception is
+     * thrown.
      */
     Tensor get_input_tensor(size_t idx);
     /**
@@ -141,7 +142,8 @@ public:
      * @brief Gets output tensor for inference
      *
      * @param idx An index of tensor to get
-     * @return A Tensor with an output index @p idx. If a tensor with specified @p idx is not found, an exception is thrown.
+     * @return A Tensor with an output index @p idx. If a tensor with specified @p idx is not found, an exception is
+     * thrown.
      */
     Tensor get_output_tensor(size_t idx);
     /**
