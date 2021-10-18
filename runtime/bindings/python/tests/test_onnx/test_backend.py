@@ -26,7 +26,6 @@ from tests import (
     xfail_issue_38713,
     xfail_issue_38722,
     xfail_issue_38724,
-    xfail_issue_38732,
     xfail_issue_38734,
     xfail_issue_38735,
     xfail_issue_39656,

@@ -15,7 +15,7 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "utils/convpool.hpp"
-#include "utils/ng_conv.hpp"
+#include "utils/conv_factory.hpp"
 #include "utils/reshape.hpp"
 
 namespace ngraph {
@@ -49,7 +49,7 @@ OutputVector conv(const Node& node,
     const auto& padding_below = paddings.first;
     const auto& padding_above = paddings.second;
 
-    const auto conv_node = ng_conv::make_ng_convolution(data,
+    const auto conv_node = conv_factory::make_ng_convolution(data,
                                                         filters,
                                                         strides,
                                                         dilations,

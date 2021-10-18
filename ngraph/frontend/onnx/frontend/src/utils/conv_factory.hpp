@@ -10,7 +10,7 @@
 
 namespace ngraph {
 namespace onnx_import {
-namespace ng_conv {
+namespace conv_factory {
 std::shared_ptr<ov::op::Op> make_ng_convolution(const Output<ngraph::Node>& data,
                                                 const Output<ngraph::Node>& filters,
                                                 const ngraph::Strides& strides,

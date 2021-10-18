@@ -746,7 +746,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_simple_zero_point) {
     test_case.add_input(std::vector<uint8_t>{1, 2,
                                              3, 4});                                // w
     test_case.add_input(std::vector<uint8_t>{111});                                 // x_zero_point
-    test_case.add_input(std::vector<uint8_t>{1});                                   // x_zero_point
+    test_case.add_input(std::vector<uint8_t>{1});                                   // w_zero_point
 
     test_case.add_expected_output({1, 1, 2, 2}, std::vector<int32_t>{-391, -325,
                                                                      -193, -127});  // y
@@ -767,7 +767,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_int8) {
     test_case.add_input(std::vector<int8_t>{ 1, -2,
                                              -3,  4});                              // w
     test_case.add_input(std::vector<int8_t>{-5});                                   // x_zero_point
-    test_case.add_input(std::vector<int8_t>{-5});                                   // x_zero_point
+    test_case.add_input(std::vector<int8_t>{-5});                                   // w_zero_point
 
     test_case.add_expected_output({1, 1, 2, 2}, std::vector<int32_t>{-307,  617,
                                                                       837, -747});  // y
@@ -821,7 +821,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_vector_w_zero_point) {
                                             7, 8, 9});                              // w
 
     test_case.add_input(std::vector<uint8_t>{1});                                   // x_zero_point
-    test_case.add_input(std::vector<uint8_t>{1, 2});                                // x_zero_point
+    test_case.add_input(std::vector<uint8_t>{1, 2});                                // w_zero_point
 
     test_case.add_expected_output({2, 2, 2, 2}, std::vector<int32_t>{2702, 2647,
                                                                      2174, 1855,
@@ -853,7 +853,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_overload) {
     test_case.add_input(std::vector<int8_t>{127, -128,
                                             -128, 127});                                // w
     test_case.add_input(std::vector<uint8_t>{255});                                     // x_zero_point
-    test_case.add_input(std::vector<int8_t>{-128});                                     // x_zero_point
+    test_case.add_input(std::vector<int8_t>{-128});                                     // w_zero_point
 
     test_case.add_expected_output({1, 1, 2, 2}, std::vector<int32_t>{-65025, -65025,
                                                                      -65025, -65025});  // y

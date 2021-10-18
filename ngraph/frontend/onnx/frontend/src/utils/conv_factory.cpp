@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "utils/ng_conv.hpp"
+#include "utils/conv_factory.hpp"
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
@@ -11,12 +11,12 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "utils/convpool.hpp"
-#include "utils/ng_conv.hpp"
+#include "utils/conv_factory.hpp"
 #include "utils/reshape.hpp"
 
 namespace ngraph {
 namespace onnx_import {
-namespace ng_conv {
+namespace conv_factory {
 std::shared_ptr<ov::op::Op> make_ng_convolution(const Output<ngraph::Node>& data,
                                                 const Output<ngraph::Node>& filters,
                                                 const ngraph::Strides& strides,
