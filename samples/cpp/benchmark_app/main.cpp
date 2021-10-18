@@ -93,6 +93,35 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     return true;
 }
 
+void parseInputArguments(std::vector<std::string>& files) {
+    std::vector<std::string> args = gflags::GetArgvs();
+    const auto is_image_arg = [](const std::string& s) {
+        return s == "-i" || s == "--images";
+    };
+    const auto is_arg = [](const std::string& s) {
+        return s.front() == '-';
+    };
+    const auto img_start = std::find_if(begin(args), end(args), is_image_arg);
+    if (img_start == end(args)) {
+        return;
+    }
+    const auto img_begin = std::next(img_start);
+    const auto img_end = std::find_if(img_begin, end(args), is_arg);
+    for (auto img = img_begin; img != img_end; ++img) {
+        readInputFilesArguments(files, *img);
+    }
+
+    size_t max_files = 20;
+    if (files.size() < max_files) {
+        slog::info << "Files were added: " << files.size() << slog::endl;
+        for (const auto& filePath : files) {
+            slog::info << "    " << filePath << slog::endl;
+        }
+    } else {
+        slog::info << "Files were added: " << files.size() << ". Too many to display each of them." << slog::endl;
+    }
+}
+
 static void next_step(const std::string additional_info = "") {
     static size_t step_id = 0;
     static const std::map<size_t, std::string> step_names = {
@@ -117,9 +146,10 @@ static void next_step(const std::string additional_info = "") {
 }
 
 template <typename T>
-T getMedianValue(const std::vector<T>& vec, std::size_t percentile) {
+T getMedianValue(const std::vector<std::pair<size_t, T>>& vec, std::size_t percentile) {
     std::vector<T> sortedVec(vec);
-    std::sort(sortedVec.begin(), sortedVec.end());
+    std::sort(vec.begin(), vec.end(), [](const std::pair<size_t, double>& a, const std::pair<size_t, double>& b) {
+        return a.second > b.second;});
     return sortedVec[(sortedVec.size() / 100) * percentile];
 }
 
@@ -587,11 +617,12 @@ int main(int argc, char* argv[]) {
 
         // Iteration limit
         uint32_t niter = FLAGS_niter;
+        size_t shape_options_num = app_inputs_info.size();
         if ((niter > 0) && (FLAGS_api == "async")) {
-            niter = ((niter + nireq - 1) / nireq) * nireq;
+            niter = ((niter + shape_options_num - 1) / shape_options_num) * shape_options_num;
             if (FLAGS_niter != niter) {
-                slog::warn << "Number of iterations was aligned by request number from " << FLAGS_niter << " to "
-                           << niter << " using number of requests " << nireq << slog::endl;
+                slog::warn << "Number of iterations was aligned by shape options number from " << FLAGS_niter << " to "
+                           << niter << " using number of input shapes " << shape_options_num << slog::endl;
             }
         }
 
@@ -633,7 +664,7 @@ int main(int argc, char* argv[]) {
         // ----------------------------------------
         next_step();
 
-        InferRequestsQueue inferRequestsQueue(exeNetwork, nireq);
+        InferRequestsQueue inferRequestsQueue(exeNetwork, nireq, app_inputs_info.size());
         if (isFlagSetInCommandLine("use_device_mem")) {
             if (device_name.find("GPU") == 0)
                 ::gpu::fillRemoteBlobs(inputFiles, batchSize, app_inputs_info[0], inferRequestsQueue.requests, exeNetwork);
@@ -685,7 +716,7 @@ int main(int argc, char* argv[]) {
 
         next_step(ss.str());
 
-        // warming up - out of scope
+        //// warming up - out of scope
         auto inferRequest = inferRequestsQueue.getIdleRequest();
         if (!inferRequest) {
             IE_THROW() << "No idle Infer Requests!";
@@ -710,33 +741,25 @@ int main(int argc, char* argv[]) {
         /** to align number if iterations to guarantee that last infer requests are
             * executed in the same conditions **/
         ProgressBar progressBar(progressBarTotalCount, FLAGS_stream_output, FLAGS_progress);
+        auto inputs_data = prepareRandomInputs(app_inputs_info);
 
         while ((niter != 0LL && iteration < niter) ||
                 (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
                 (FLAGS_api == "async" && iteration % nireq != 0)) {
-            for (size_t id = 0; id < app_inputs_info.size(); ++id) {
-                // filling input blobs for each tensor shape
+            if (inferRequestsQueue.isIdleRequestAvailable()) {
                 inferRequest = inferRequestsQueue.getIdleRequest();
-                if (!inferRequest) {
-                    IE_THROW() << "No idle Infer Requests!";
-                }
-                if (isFlagSetInCommandLine("use_device_mem")) {
-                    if (device_name.find("GPU") == 0)
-                        ::gpu::fillRemoteBlobs(inputFiles,
-                                                batchSize,
-                                                app_inputs_info[id],
-                                                {inferRequest},
-                                                exeNetwork);
-                    else if (device_name.find("CPU") == 0)
-                        fillBlobs(inputFiles, batchSize, app_inputs_info[id], {inferRequest});
-                    else
-                        IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
-                } else {
-                    fillBlobs(inputFiles, batchSize, app_inputs_info[id], {inferRequest}, true);
+                auto input = app_inputs_info[iteration % app_inputs_info.size()];
+                inferRequest->setLatencyGroupId(iteration % app_inputs_info.size());
+                for (auto& item : input) {
+                    if (item.second.partialShape.is_dynamic())
+                        inferRequest->setShape(item.first, item.second.tensorShape);
+                    Blob::Ptr inputBlob = inferRequest->getBlob(item.first);
+                    fillBlob(inputBlob, inputs_data[iteration % inputs_data.size()]);
+
                 }
 
                 if (FLAGS_api == "sync") {
-                    inferRequest->infer();
+                        inferRequest->infer();
                 } else {
                     // As the inference request is currently idle, the wait() adds no
                     // additional overhead (and should return immediately). The primary
@@ -747,23 +770,23 @@ int main(int argc, char* argv[]) {
                     inferRequest->wait();
                     inferRequest->startAsync();
                 }
+                ++iteration;
+
+                if (niter > 0) {
+                    progressBar.addProgress(1);
+                } else {
+                    // calculate how many progress intervals are covered by current
+                    // iteration. depends on the current iteration time and time of each
+                    // progress interval. Previously covered progress intervals must be
+                    // skipped.
+                    auto progressIntervalTime = duration_nanoseconds / progressBarTotalCount;
+                    size_t newProgress = execTime / progressIntervalTime - progressCnt;
+                    progressBar.addProgress(newProgress);
+                    progressCnt += newProgress;
+                }
             }
-            iteration++;
 
             execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
-
-            if (niter > 0) {
-                progressBar.addProgress(1);
-            } else {
-                // calculate how many progress intervals are covered by current
-                // iteration. depends on the current iteration time and time of each
-                // progress interval. Previously covered progress intervals must be
-                // skipped.
-                auto progressIntervalTime = duration_nanoseconds / progressBarTotalCount;
-                size_t newProgress = execTime / progressIntervalTime - progressCnt;
-                progressBar.addProgress(newProgress);
-                progressCnt += newProgress;
-            }
         }
 
         // wait the latest inference executions
@@ -786,10 +809,24 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        double latency = getMedianValue<double>(inferRequestsQueue.getLatencies(), FLAGS_latency_percentile);
+        auto latencies = inferRequestsQueue.getLatencies();
+        auto latency_groups = inferRequestsQueue.getLatencyGroups();
+        for (auto& group : latency_groups) {
+            std::sort(group.begin(), group.end());
+        }
+        std::sort(latencies.begin(), latencies.end());
+        double medianLatency = latencies[(latencies.size() / 100) * FLAGS_latency_percentile];
+        double meanLatency = std::accumulate(latencies.begin(), latencies.end(), 0.0) / latencies.size();
+        double minLatency = latencies[0];
+        double maxLatency = latencies.back();
+
         double totalDuration = inferRequestsQueue.getDurationInMilliseconds();
         double fps =
-            (FLAGS_api == "sync") ? batchSize * 1000.0 / latency : batchSize * 1000.0 * iteration / totalDuration;
+            (FLAGS_api == "sync") ? batchSize * 1000.0 / meanLatency : 1000.0 * iteration / totalDuration;
+
+        std::vector<double> meanLatencies(app_inputs_info.size());
+        std::vector<double> maxLatencies(app_inputs_info.size());
+        std::vector<double> minLatencies(app_inputs_info.size());
 
         if (statistics) {
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
@@ -806,7 +843,7 @@ int main(int argc, char* argv[]) {
                 }
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                             {
-                                                {latency_label, double_to_string(latency)},
+                                                {latency_label, double_to_string(medianLatency)},
                                             });
             }
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
@@ -853,19 +890,36 @@ int main(int argc, char* argv[]) {
         if (statistics)
             statistics->dump();
 
-        //auto totalDuration = 0;
-        //auto latency = 0;
-        //auto fps = 0;
         std::cout << "Count:      " << iteration << " iterations" << std::endl;
         std::cout << "Duration:   " << double_to_string(totalDuration) << " ms" << std::endl;
         if (device_name.find("MULTI") == std::string::npos) {
-            std::cout << "Latency";
+            std::cout << "Latency: " << std::endl;
             if (FLAGS_latency_percentile == 50) {
-                std::cout << ":    ";
+                std::cout << "\tMedian:    ";
             } else {
-                std::cout << " (" << FLAGS_latency_percentile << " percentile):    ";
+                std::cout << "\t" << FLAGS_latency_percentile << " percentile:    ";
             }
-            std::cout << double_to_string(latency) << " ms" << std::endl;
+            std::cout << double_to_string(medianLatency) << " ms" << std::endl;
+            std::cout << "\tAvg:    " << double_to_string(meanLatency) << " ms" << std::endl;
+            std::cout << "\tMax:    " << double_to_string(maxLatency) << " ms" << std::endl;
+            std::cout << "\tMin:    " << double_to_string(minLatency) << " ms" << std::endl;
+            std::cout << "Latency per input shapes:" << std::endl;
+            for (size_t i = 0; i < app_inputs_info.size(); ++i) {
+                for (auto& item : app_inputs_info[i]) {
+                    std::stringstream input_shape;
+                    auto shape = item.second.tensorShape;
+                    std::copy(shape.begin(), shape.end() - 1, std::ostream_iterator<int>(input_shape, ","));
+                    input_shape << shape.back();
+                    std::cout << "  " << item.first << " : " << "[" << input_shape.str() << "] ";
+                }
+                std::cout << std::endl;
+                std::cout << '\t' << "Avg:    "
+                          << std::accumulate(latency_groups[i].begin(), latency_groups[i].end(), 0.0) /
+                                 latency_groups[i].size() <<
+                    " ms" << std::endl;
+                std::cout << '\t' << "Max:    " << latency_groups[i].back() << " ms" <<std::endl;
+                std::cout << '\t' << "Min:    " << latency_groups[i][0] << " ms" << std::endl;
+            }
         }
         std::cout << "Throughput: " << double_to_string(fps) << " FPS" << std::endl;
     } catch (const std::exception& ex) {
