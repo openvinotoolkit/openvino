@@ -16,7 +16,8 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::PullTransposeThroughFQUp, "PullTransposeThr
 
 ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     MATCHER_SCOPE(PullTransposeThroughFQUp);
-    auto m_fq = pattern::wrap_type<opset1::FakeQuantize>({pattern::any_input(pattern::has_static_rank()),
+    const auto weights = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
+    auto m_fq = pattern::wrap_type<opset1::FakeQuantize>({ weights,
                                                           pattern::any_input(pattern::has_static_shape()),
                                                           pattern::any_input(pattern::has_static_shape()),
                                                           pattern::any_input(pattern::has_static_shape()),
