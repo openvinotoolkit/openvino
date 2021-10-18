@@ -56,24 +56,32 @@ class GatherND(Op):
         assert len(indices_shape) > 0, "Indices must not be a scalar"
         assert (batch_dims + indices_shape[-1]) <= len(data_shape), \
             "Length of a tuple with indices must not exceed a rank of data tensor excluding batch dimensions"
+        assert node['version'] in ['opset5', 'opset8'], 'Unsupported version of GatherND operation: {}, operation ' \
+                                                        'name : {}'.format(node['version'], node.soft_get('name'))
 
         # compute output shape
         if batch_dims > 0:
-            if is_fully_defined(indices_shape[:batch_dims]):
-                batch = indices_shape[:batch_dims].tolist()
-                if node['version'] == 'opset5':     # Support old version of gatherND shape inference
+            if node['version'] == 'opset5':  # Support old version of gatherND shape inference
+                if is_fully_defined(data_shape[:batch_dims]):
                     batch = [np.prod(data_shape[:batch_dims]).tolist()]
-            else:
-                batch = []
-                for ind in range(batch_dims):
-                    if indices_shape[ind] != dynamic_dimension_value:
-                        batch.append(indices_shape[ind])
-                    elif data_shape[ind] != dynamic_dimension_value:
-                        batch.append(data_shape[ind])
-                    else:
-                        batch.append(dynamic_dimension_value)
-                    pass
-        else:
+                else:
+                    batch = [dynamic_dimension_value]
+            elif node['version'] == 'opset8':
+                if is_fully_defined(indices_shape[:batch_dims]):
+                    batch = indices_shape[:batch_dims].tolist()
+                elif is_fully_defined(data_shape[:batch_dims]):
+                    batch = data_shape[:batch_dims].tolist()
+                else:
+                    batch = []
+                    for ind in range(batch_dims):
+                        if indices_shape[ind] != dynamic_dimension_value:
+                            batch.append(indices_shape[ind])
+                        elif data_shape[ind] != dynamic_dimension_value:
+                            batch.append(data_shape[ind])
+                        else:
+                            batch.append(dynamic_dimension_value)
+
+        else:   # if batch_dims == 0
             batch = []
 
         slice_shape = list(data_shape[(batch_dims + indices_shape[-1]):])
