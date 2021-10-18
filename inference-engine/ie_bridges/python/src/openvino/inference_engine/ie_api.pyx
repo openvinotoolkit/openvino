@@ -545,9 +545,7 @@ cdef class IECore:
     # If there are more than one device of a specific type, they all are listed followed by a dot and a number.
     @property
     def available_devices(self):
-        cdef vector[string] c_devices
-        with nogil:
-            c_devices = self.impl.getAvailableDevices()
+        cdef vector[string] c_devices = self.impl.getAvailableDevices()
         return [d.decode() for d in c_devices]
 
 ## This structure stores info about pre-processing of network inputs (scale, mean image, ...)
@@ -926,14 +924,11 @@ cdef class ExecutableNetwork:
     ## A tuple of `InferRequest` instances
     @property
     def requests(self):
-        cdef size_t c_infer_requests_size
-        with nogil:
-            c_infer_requests_size = deref(self.impl).infer_requests.size()
+        cdef size_t c_infer_requests_size = deref(self.impl).infer_requests.size()
         if len(self._infer_requests) == 0:
             for i in range(c_infer_requests_size):
                 infer_request = InferRequest()
-                with nogil:
-                    infer_request.impl = &(deref(self.impl).infer_requests[i])
+                infer_request.impl = &(deref(self.impl).infer_requests[i])
                 infer_request._inputs_list = list(self.input_info.keys())
                 infer_request._outputs_list = list(self.outputs.keys())
                 for input_name in infer_request._inputs_list:
@@ -1053,10 +1048,7 @@ cdef class ExecutableNetwork:
     ## Get idle request ID
     #  @return Request index
     cpdef get_idle_request_id(self):
-        cdef int request_id
-        with nogil:
-            request_id = deref(self.impl).getIdleRequestId()
-        return request_id
+        return deref(self.impl).getIdleRequestId()
 
 ctypedef extern void (*cb_type)(void*, int) with gil
 
@@ -1198,8 +1190,7 @@ cdef class InferRequest:
     cpdef infer(self, inputs=None):
         if inputs is not None:
             self._fill_inputs(inputs)
-        with nogil:
-            deref(self.impl).infer()
+        deref(self.impl).infer()
 
     ## Starts asynchronous inference of the infer request and fill outputs array
     #
@@ -1216,8 +1207,7 @@ cdef class InferRequest:
     cpdef async_infer(self, inputs=None):
         if inputs is not None:
             self._fill_inputs(inputs)
-        with nogil:
-            deref(self.impl).infer_async()
+        deref(self.impl).infer_async()
 
     ## Waits for the result to become available. Blocks until specified timeout elapses or the result
     #  becomes available, whichever comes first.
@@ -1338,8 +1328,7 @@ cdef class IENetwork:
     def __cinit__(self, model = None):
         # Try to create Inference Engine network from capsule
         if model is not None:
-            with nogil:
-                self.impl = C.IENetwork(model)
+            self.impl = C.IENetwork(model)
         else:
             with nogil:
                 self.impl = C.IENetwork()
@@ -1353,9 +1342,7 @@ cdef class IENetwork:
     ## A dictionary that maps input layer names to InputInfoPtr objects.
     @property
     def input_info(self):
-        cdef map[string, C.InputInfo.Ptr] c_inputs
-        with nogil:
-            c_inputs = self.impl.getInputsInfo()
+        cdef map[string, C.InputInfo.Ptr] c_inputs = self.impl.getInputsInfo()
         inputs = {}
         cdef InputInfoPtr input_info_ptr
         for input in c_inputs:
@@ -1368,9 +1355,7 @@ cdef class IENetwork:
     ## A dictionary that maps output layer names to DataPtr objects
     @property
     def outputs(self):
-        cdef map[string, C.DataPtr] c_outputs
-        with nogil:
-            c_outputs = self.impl.getOutputs()
+        cdef map[string, C.DataPtr] c_outputs = self.impl.getOutputs()
         outputs = {}
         cdef DataPtr data_ptr
         for output in c_outputs:
