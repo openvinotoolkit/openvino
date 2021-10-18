@@ -1,27 +1,37 @@
-Using Shape Inference {#openvino_docs_IE_DG_ShapeInference}
-==========================================
+# Using the Reshape Inference Feature {#openvino_docs_IE_DG_ShapeInference}
 
-OpenVINO™ provides the following methods for runtime model reshaping:
+## Introduction (C++)
 
-* **Set a new input shape** with the `InferenceEngine::CNNNetwork::reshape` method.<br>
-   The `InferenceEngine::CNNNetwork::reshape` method updates input shapes and propagates them down to the outputs of the model through all intermediate layers. 
+@sphinxdirective
+.. raw:: html
+
+    <div id="switcher-cpp" class="switcher-anchor">C++</div>
+@endsphinxdirective
+
+OpenVINO™ provides two methods for runtime model reshaping: setting a new input shape and setting a new batch dimension value.
+
+## Set a new input shape** with the `InferenceEngine::CNNNetwork::reshape` method
+
+The `InferenceEngine::CNNNetwork::reshape` method updates input shapes and propagates them down to the outputs of the model through all intermediate layers. 
    
 > **NOTES**:
 > - Starting with the 2021.1 release, the Model Optimizer converts topologies keeping shape-calculating sub-graphs by default, which enables correct shape propagation during reshaping in most cases.
 > - Older versions of IRs are not guaranteed to reshape successfully. Please regenerate them with the Model Optimizer of the latest version of OpenVINO™.<br>
 > - If an ONNX model does not have a fully defined input shape and the model was imported with the ONNX importer, reshape the model before loading it to the plugin.
 
-* **Set a new batch dimension value** with the `InferenceEngine::CNNNetwork::setBatchSize` method.<br>     
-   The meaning of a model batch may vary depending on the model design.
-   This method does not deduce batch placement for inputs from the model architecture.
-   It assumes that the batch is placed at the zero index in the shape for all inputs and uses the `InferenceEngine::CNNNetwork::reshape` method to propagate updated shapes through the model.
+## Set a new batch dimension value with the `InferenceEngine::CNNNetwork::setBatchSize` method.
 
-   The method transforms the model before a new shape propagation to relax a hard-coded batch dimension in the model, if any.
+The meaning of a model batch may vary depending on the model design.
+This method does not deduce batch placement for inputs from the model architecture.
+It assumes that the batch is placed at the zero index in the shape for all inputs and uses the `InferenceEngine::CNNNetwork::reshape` method to propagate updated shapes through the model.
 
-   Use `InferenceEngine::CNNNetwork::reshape` instead of `InferenceEngine::CNNNetwork::setBatchSize` to set new input shapes for the model in case the model has:
-   * Multiple inputs with different zero-index dimension meanings
-   * Input without a batch dimension
-   * 0D, 1D, or 3D shape
+The method transforms the model before a new shape propagation to relax a hard-coded batch dimension in the model, if any.
+
+Use `InferenceEngine::CNNNetwork::reshape` instead of `InferenceEngine::CNNNetwork::setBatchSize` to set new input shapes for the model if the model has one of the following:
+
+* Multiple inputs with different zero-index dimension meanings
+* Input without a batch dimension
+* 0D, 1D, or 3D shape
 
    The `InferenceEngine::CNNNetwork::setBatchSize` method is a high-level API method that wraps the `InferenceEngine::CNNNetwork::reshape` method call and works for trivial models from the batch placement standpoint.
    Use `InferenceEngine::CNNNetwork::reshape` for other models.
@@ -37,10 +47,11 @@ Inference Engine takes three kinds of a model description as an input, which are
 3. [nGraph function](../nGraph_DG/nGraph_dg.md) through the constructor of `InferenceEngine::CNNNetwork`
 
 `InferenceEngine::CNNNetwork` keeps an `ngraph::Function` object with the model description internally.
-The object should have fully defined input shapes to be successfully loaded to the Inference Engine plugins.
-To resolve undefined input dimensions of a model, call the `CNNNetwork::reshape` method providing new input shapes before loading to the Inference Engine plugin.
+The object should have fully-defined input shapes to be successfully loaded to Inference Engine plugins.
+To resolve undefined input dimensions of a model, call the `CNNNetwork::reshape` method to provide new input shapes before loading to the Inference Engine plugin.
 
 Run the following code right after `InferenceEngine::CNNNetwork` creation to explicitly check for model input names and shapes:
+
 ```cpp
 CNNNetwork network = ... // read IR / ONNX model or create from nGraph::Function explicitly
 const auto parameters = network.getFunction()->get_parameters();
@@ -58,6 +69,26 @@ Once the input shape of `InferenceEngine::CNNNetwork` is set, call the `Inferenc
 There are other approaches to reshape the model during the stage of <a href="_docs_MO_DG_prepare_model_convert_model_Converting_Model.html#when_to_specify_input_shapes">IR generation</a> or [nGraph::Function creation](../nGraph_DG/build_function.md).
 
 Practically, some models are not ready to be reshaped. In this case, a new input shape cannot be set with the Model Optimizer or the `InferenceEngine::CNNNetwork::reshape` method.
+
+## Usage of Reshape Method <a name="usage_of_reshape_method"></a>
+
+The primary method of the feature is `InferenceEngine::CNNNetwork::reshape`.
+It gets new input shapes and propagates it from input to output for all intermediates layers of the given network.
+The method takes `InferenceEngine::ICNNNetwork::InputShapes` - a map of pairs: name of input data and its dimension.
+
+The algorithm for resizing network is the following:
+
+1) **Collect the map of input names and shapes from Intermediate Representation (IR)** using helper method `InferenceEngine::CNNNetwork::getInputShapes`
+
+2) **Set new input shapes**
+
+3) **Call reshape**
+
+Here is a code example:
+
+@snippet snippets/ShapeInference.cpp part0
+
+The Shape Inference feature is used in [Smart Classroom Demo](@ref omz_demos_smart_classroom_demo_cpp).
 
 ## Troubleshooting Reshape Errors
 
@@ -81,26 +112,6 @@ For example, [publicly available Inception family models from TensorFlow*](https
 For example, Object Detection models from TensorFlow have resizing restrictions by design. 
 To keep the model valid after the reshape, choose a new input shape that satisfies conditions listed in the `pipeline.config` file. 
 For details, refer to the <a href="_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html#tf_od_custom_input_shape">Tensorflow Object Detection API models resizing techniques</a>.
-
-## Usage of Reshape Method <a name="usage_of_reshape_method"></a>
-
-The primary method of the feature is `InferenceEngine::CNNNetwork::reshape`.
-It gets new input shapes and propagates it from input to output for all intermediates layers of the given network.
-The method takes `InferenceEngine::ICNNNetwork::InputShapes` - a map of pairs: name of input data and its dimension.
-
-The algorithm for resizing network is the following:
-
-1) **Collect the map of input names and shapes from Intermediate Representation (IR)** using helper method `InferenceEngine::CNNNetwork::getInputShapes`
-
-2) **Set new input shapes**
-
-3) **Call reshape**
-
-Here is a code example:
-
-@snippet snippets/ShapeInference.cpp part0
-
-Shape Inference feature is used in [Smart Classroom Demo](@ref omz_demos_smart_classroom_demo_cpp).
 
 ## Extensibility
 
