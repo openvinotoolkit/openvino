@@ -469,7 +469,7 @@ class IREngine(object):
         version = float(attr.attrib['version'])
         order = list(map(int, attr.attrib['order'].split(',')))
         element_type = destination_type_to_np_data_type(attr.attrib['element_type'])
-        old_api_map = OldAPIMap()
+        old_api_map = OldAPIMap(version=version)
         old_api_map.old_api_convert(element_type)
         if layer_type == 'Parameter':
             old_api_map.old_api_transpose_parameter(order)

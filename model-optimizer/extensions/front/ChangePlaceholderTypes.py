@@ -22,9 +22,10 @@ class ChangePlaceholderTypes(FrontReplacementPattern):
     @staticmethod
     def update_type(node: Node, new_type: np.array):
         assert node.has_valid('rt_info')
-        if ('old_api_map', 0) not in node.rt_info.info:
-            node.rt_info.info[('old_api_map', 0)] = OldAPIMap()
-        node.rt_info.info[('old_api_map', 0)].old_api_convert(new_type)
+        old_api_map = OldAPIMap(version=0)
+        if ('old_api_map', old_api_map.get_version()) not in node.rt_info.info:
+            node.rt_info.info[('old_api_map', old_api_map.get_version())] = old_api_map
+        node.rt_info.info[('old_api_map', old_api_map.get_version())].old_api_convert(new_type)
 
     def find_and_replace_pattern(self, graph: Graph):
         for op in graph.get_op_nodes(type='Parameter'):
