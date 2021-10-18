@@ -834,7 +834,7 @@ int main(int argc, char* argv[]) {
             std::cout << double_to_string(latency) << " ms" << std::endl;
         }
         std::cout << "Throughput: " << double_to_string(fps) << " FPS" << std::endl;
-        inferRequests.clear(); // Force wait for all inference tasks even if they failed.
+        inferRequests.clear();  // Force wait for all inference tasks even if they failed.
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
 
