@@ -7,6 +7,7 @@
 #include <ie_ngraph_utils.hpp>
 #include <openvino/core/preprocess/pre_post_process.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
+#include <shared_test_classes/single_layer/convert_color_nv12.hpp>
 #include <vector>
 
 #include "base_reference_cnn_test.hpp"
@@ -107,8 +108,6 @@ class ConvertNV12WithLegacyTest: public ReferencePreprocessLegacyTest {
 public:
     // Create OV20 function with pre-processing +  legacy network + reference NV12 inputs
     void SetupAndExec(size_t height, size_t width, std::vector<uint8_t>& ov20_input_yuv) {
-        abs_threshold = 1.f;
-        threshold = 1.f;
         function = create_simple_function_nv12(Shape{1, 3, height, width});
         auto f2 = create_simple_function_nv12(Shape{1, 3, height, width});
         legacy_network = InferenceEngine::CNNNetwork(f2);
@@ -150,39 +149,29 @@ public:
         // Exec now
         Exec();
     }
+
+    void Validate() override {
+        threshold = 1.f;
+        abs_threshold = 1.f;
+        // No pixels with deviation of more than 1 color step
+        ReferencePreprocessLegacyTest::Validate();
+
+        // Less than 2% of deviations with 1 color step. 2% is experimental value
+        // For very precise (acceptable) float calculations - 1.4% deviation with G-API/OpenCV is observed
+        LayerTestsDefinitions::NV12TestUtils::ValidateColors(outputs_legacy[0].data<float>(),
+                                            outputs_ov20[0].data<float>(), outputs_legacy[0].get_size(), 0.02);
+    }
 };
 
 TEST_F(ConvertNV12WithLegacyTest, convert_nv12_full_color_range) {
-    // Try NV12 conversion for all R/G/B combinations
     size_t height = 128;
     size_t width = 128;
-    int b_step = 17;
-    int b_dim = 255 / b_step;
+    int b_step = 5;
+    int b_dim = 255 / b_step + 1;
 
-    // Test all possible r/g/b values within dimensions
-    auto ov20_input_yuv = std::vector<uint8_t>(height * b_dim * width * 3 / 2);
-    for (int b = 0; b <= 255; b += b_step) {
-        for (size_t y = 0; y < height / 2; y++) {
-            for (size_t x = 0; x < width / 2; x++) {
-                int r = static_cast<int>(y) * 512 / static_cast<int>(height);
-                int g = static_cast<int>(x) * 512 / static_cast<int>(width);
-                // Can't use random y/u/v for testing as this can lead to invalid R/G/B values
-                int y_val = ((66 * r + 129 * g + 25 * b + 128) / 256) + 16;
-                int u_val = ((-38 * r - 74 * g + 112 * b + 128) / 256) + 128;
-                int v_val = ((112 * r - 94 * g + 18 * b + 128) / 256) + 128;
+    // Test various possible r/g/b values within dimensions
+    auto ov20_input_yuv = LayerTestsDefinitions::NV12TestUtils::color_test_image(height, width, b_step);
 
-                size_t b_offset = height * width * b / b_step;
-                size_t uv_index = b_offset + height * width + y * width + x * 2;
-                ov20_input_yuv[uv_index] = u_val;
-                ov20_input_yuv[uv_index + 1] = v_val;
-                size_t y_index = b_offset + y * 2 * width + x * 2;
-                ov20_input_yuv[y_index] = y_val;
-                ov20_input_yuv[y_index + 1] = y_val;
-                ov20_input_yuv[y_index + width] = y_val;
-                ov20_input_yuv[y_index + width + 1] = y_val;
-            }
-        }
-    }
     SetupAndExec(height * b_dim, width, ov20_input_yuv);
 }
 

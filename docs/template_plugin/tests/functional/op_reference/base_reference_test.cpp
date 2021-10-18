@@ -64,15 +64,14 @@ void CommonReferenceTest::Infer() {
 
 void CommonReferenceTest::Validate() {
     ASSERT_EQ(executableNetwork.outputs().size(), refOutData.size());
-    std::vector<ov::runtime::Tensor> outputs;
     for (const auto& result : function->get_results()) {
         auto name = ngraph::op::util::create_ie_output_name(result->input_value(0));
-        outputs.emplace_back(inferRequest.get_tensor(name));
+        actualOutData.emplace_back(inferRequest.get_tensor(name));
     }
 
-    ASSERT_EQ(refOutData.size(), outputs.size());
+    ASSERT_EQ(refOutData.size(), actualOutData.size());
     for (size_t i = 0; i < refOutData.size(); i++) {
-        ValidateBlobs(refOutData[i], outputs[i], threshold, abs_threshold);
+        ValidateBlobs(refOutData[i], actualOutData[i], threshold, abs_threshold);
     }
 }
 

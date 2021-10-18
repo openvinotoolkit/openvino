@@ -109,8 +109,6 @@ void ReferenceCNNTest::InferLegacy() {
 
 
 void ReferenceCNNTest::Validate() {
-    std::vector<ov::runtime::Tensor> outputs_ov20;
-    std::vector<ov::runtime::Tensor> outputs_legacy;
     for (const auto& result : function->get_results()) {
         auto name = ngraph::op::util::create_ie_output_name(result->input_value(0));
         outputs_ov20.emplace_back(inferRequest.get_tensor(name));
