@@ -12,6 +12,7 @@
 #include <vector>
 
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
@@ -23,13 +24,29 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ReshapeTransformation, "ReshapeTransformation", 0);
 
 ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::Reshape>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
+    auto input = pattern::any_input();
+    auto mul_const_m = pattern::wrap_type<opset1::Constant>();
+    auto mul_m = pattern::wrap_type<opset1::Multiply>({ input, mul_const_m });
+    auto reshape_pattern_const = pattern::wrap_type<opset1::Constant>();
+    auto reshape_pattern_nonconst = pattern::any_input();
+    auto reshape_pattern = std::make_shared<pattern::op::Or>(OutputVector{ reshape_pattern_const, reshape_pattern_nonconst });
+    auto matcher = pattern::wrap_type<opset1::Reshape>({ mul_m, reshape_pattern });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ngraph::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
         }
+
+        // we can propagate only per-tensor dq through reshape with non-const reshape_pattern
+        const auto& pattern_map = m.get_pattern_value_map();
+        if (pattern_map.count(reshape_pattern_nonconst)) {
+            const auto mul_const = as_type_ptr<opset1::Constant>(pattern_map.at(mul_const_m).get_node_shared_ptr());
+            if (!mul_const || ngraph::shape_size(mul_const->get_shape()) != 1) {
+                return false;
+            }
+        }
+
         return transform(*context, m);
     };
 
