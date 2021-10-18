@@ -585,7 +585,9 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
 
     auto local = GetOptimalLocalWorkGroupSizes({dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]}, params.engineInfo);
 
-    const size_t optimal_lws_values[] = {256, 224, 192, 160, 128, 96, 64, 32, 16};
+    // TODO: can be potentially improved for GPUs with support of LWS > 256
+    const size_t optimal_lws_values[] = { 256, 224, 192, 160, 128, 96, 64, 32, 16 };
+
     if ((params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 ||
          params.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
          params.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 ||
