@@ -57,12 +57,16 @@ void MKLDNNPlugin::FullyConnectedNode::validate_and_infer_types() {
         "Weights pshape must be static");
     const auto weights_shape = weights_pshape.to_shape();
 
+    NODE_VALIDATION_CHECK(this,
+        weights_pshape.size() > 0,
+        "Weights rank must be greater than 0");
+
     const auto o_channels = weights_pshape[0];
     if (input_size == 3) {
         const auto bias_shape = get_input_partial_shape(2);
         const auto expected_bias_shape = ngraph::PartialShape{ o_channels };
         NODE_VALIDATION_CHECK(this,
-            bias_shape == expected_bias_shape,
+            bias_shape.is_static() && bias_shape.compatible(expected_bias_shape),
             "Bias shape is incorrect. Current value is: ",
             bias_shape,
             ", expected: ",
@@ -83,10 +87,12 @@ void MKLDNNPlugin::FullyConnectedNode::validate_and_infer_types() {
         }
         output_pshape.push_back(o_channels);
 
-        if (m_output_rank.is_static()) {
-            while (output_pshape.rank().get_length() < m_output_rank.get_length()) {
-                output_pshape.insert(output_pshape.begin(), 1);
-            }
+        NODE_VALIDATION_CHECK(this,
+            m_output_rank.is_static(),
+            "Output rank must be static if activations rank is static.");
+
+        while (output_pshape.rank().get_length() < m_output_rank.get_length()) {
+            output_pshape.insert(output_pshape.begin(), 1);
         }
     } else {
         output_pshape = ngraph::PartialShape::dynamic();
