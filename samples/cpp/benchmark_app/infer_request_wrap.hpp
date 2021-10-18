@@ -100,14 +100,13 @@ class InferRequestsQueue final {
 public:
     InferRequestsQueue(InferenceEngine::ExecutableNetwork& net, size_t nireq, size_t lat_group_n) {
         for (size_t id = 0; id < nireq; id++) {
-            requests.push_back(std::make_shared<InferReqWrap>(
-                net,
-                id,
-                std::bind(&InferRequestsQueue::putIdleRequest,
-                        this,
-                        std::placeholders::_1,
-                        std::placeholders::_2,
-                        std::placeholders::_3)));
+            requests.push_back(std::make_shared<InferReqWrap>(net,
+                                                              id,
+                                                              std::bind(&InferRequestsQueue::putIdleRequest,
+                                                                        this,
+                                                                        std::placeholders::_1,
+                                                                        std::placeholders::_2,
+                                                                        std::placeholders::_3)));
             _idleIds.push(id);
         }
         _latency_groups.resize(lat_group_n);

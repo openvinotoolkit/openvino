@@ -149,7 +149,8 @@ template <typename T>
 T getMedianValue(const std::vector<std::pair<size_t, T>>& vec, std::size_t percentile) {
     std::vector<T> sortedVec(vec);
     std::sort(vec.begin(), vec.end(), [](const std::pair<size_t, double>& a, const std::pair<size_t, double>& b) {
-        return a.second > b.second;});
+        return a.second > b.second;
+    });
     return sortedVec[(sortedVec.size() / 100) * percentile];
 }
 
@@ -428,7 +429,7 @@ int main(int argc, char* argv[]) {
         size_t batchSize = FLAGS_b;
         Precision precision = Precision::UNSPECIFIED;
         std::string topology_name = "";
-        //benchmark_app::InputsInfo app_inputs_info;
+        // benchmark_app::InputsInfo app_inputs_info;
         std::vector<benchmark_app::InputsInfo> app_inputs_info;
         std::string output_name;
 
@@ -667,7 +668,11 @@ int main(int argc, char* argv[]) {
         InferRequestsQueue inferRequestsQueue(exeNetwork, nireq, app_inputs_info.size());
         if (isFlagSetInCommandLine("use_device_mem")) {
             if (device_name.find("GPU") == 0)
-                ::gpu::fillRemoteBlobs(inputFiles, batchSize, app_inputs_info[0], inferRequestsQueue.requests, exeNetwork);
+                ::gpu::fillRemoteBlobs(inputFiles,
+                                       batchSize,
+                                       app_inputs_info[0],
+                                       inferRequestsQueue.requests,
+                                       exeNetwork);
             else if (device_name.find("CPU") == 0)
                 fillBlobs(inputFiles, batchSize, app_inputs_info[0], inferRequestsQueue.requests);
             else
@@ -739,13 +744,13 @@ int main(int argc, char* argv[]) {
 
         /** Start inference & calculate performance **/
         /** to align number if iterations to guarantee that last infer requests are
-            * executed in the same conditions **/
+         * executed in the same conditions **/
         ProgressBar progressBar(progressBarTotalCount, FLAGS_stream_output, FLAGS_progress);
         auto inputs_data = prepareRandomInputs(app_inputs_info);
 
         while ((niter != 0LL && iteration < niter) ||
-                (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
-                (FLAGS_api == "async" && iteration % nireq != 0)) {
+               (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
+               (FLAGS_api == "async" && iteration % nireq != 0)) {
             if (inferRequestsQueue.isIdleRequestAvailable()) {
                 inferRequest = inferRequestsQueue.getIdleRequest();
                 auto input = app_inputs_info[iteration % app_inputs_info.size()];
@@ -755,11 +760,10 @@ int main(int argc, char* argv[]) {
                         inferRequest->setShape(item.first, item.second.tensorShape);
                     Blob::Ptr inputBlob = inferRequest->getBlob(item.first);
                     fillBlob(inputBlob, inputs_data[iteration % inputs_data.size()]);
-
                 }
 
                 if (FLAGS_api == "sync") {
-                        inferRequest->infer();
+                    inferRequest->infer();
                 } else {
                     // As the inference request is currently idle, the wait() adds no
                     // additional overhead (and should return immediately). The primary
@@ -798,14 +802,13 @@ int main(int argc, char* argv[]) {
             for (auto output : outputs) {
                 auto dims = request->getBlob(output.first)->getTensorDesc().getDims();
                 std::cout << "Acquired output blob " << output.first << " with shape: ["
-                            << std::accumulate(dims.begin(),
-                                                dims.end(),
-                                                std::string(""),
-                                                [](std::string str, size_t x) {
-                                                    return str.empty() ? std::to_string(x)
-                                                                    : str + "," + std::to_string(x);
-                                                })
-                            << "] (dynamic: " << output.second->getPartialShape() << ")" << '\n';
+                          << std::accumulate(dims.begin(),
+                                             dims.end(),
+                                             std::string(""),
+                                             [](std::string str, size_t x) {
+                                                 return str.empty() ? std::to_string(x) : str + "," + std::to_string(x);
+                                             })
+                          << "] (dynamic: " << output.second->getPartialShape() << ")" << '\n';
             }
         }
 
@@ -821,8 +824,7 @@ int main(int argc, char* argv[]) {
         double maxLatency = latencies.back();
 
         double totalDuration = inferRequestsQueue.getDurationInMilliseconds();
-        double fps =
-            (FLAGS_api == "sync") ? batchSize * 1000.0 / meanLatency : 1000.0 * iteration / totalDuration;
+        double fps = (FLAGS_api == "sync") ? batchSize * 1000.0 / meanLatency : 1000.0 * iteration / totalDuration;
 
         std::vector<double> meanLatencies(app_inputs_info.size());
         std::vector<double> maxLatencies(app_inputs_info.size());
@@ -830,10 +832,10 @@ int main(int argc, char* argv[]) {
 
         if (statistics) {
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                        {
-                                            {"total execution time (ms)", double_to_string(totalDuration)},
-                                            {"total number of iterations", std::to_string(iteration)},
-                                        });
+                                      {
+                                          {"total execution time (ms)", double_to_string(totalDuration)},
+                                          {"total number of iterations", std::to_string(iteration)},
+                                      });
             if (device_name.find("MULTI") == std::string::npos) {
                 std::string latency_label;
                 if (FLAGS_latency_percentile == 50) {
@@ -842,12 +844,12 @@ int main(int argc, char* argv[]) {
                     latency_label = "latency (" + std::to_string(FLAGS_latency_percentile) + " percentile) (ms)";
                 }
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                            {
-                                                {latency_label, double_to_string(medianLatency)},
-                                            });
+                                          {
+                                              {latency_label, double_to_string(medianLatency)},
+                                          });
             }
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                        {{"throughput", double_to_string(fps)}});
+                                      {{"throughput", double_to_string(fps)}});
         }
         progressBar.finish();
 
@@ -910,14 +912,15 @@ int main(int argc, char* argv[]) {
                     auto shape = item.second.tensorShape;
                     std::copy(shape.begin(), shape.end() - 1, std::ostream_iterator<int>(input_shape, ","));
                     input_shape << shape.back();
-                    std::cout << "  " << item.first << " : " << "[" << input_shape.str() << "] ";
+                    std::cout << "  " << item.first << " : "
+                              << "[" << input_shape.str() << "] ";
                 }
                 std::cout << std::endl;
                 std::cout << '\t' << "Avg:    "
                           << std::accumulate(latency_groups[i].begin(), latency_groups[i].end(), 0.0) /
-                                 latency_groups[i].size() <<
-                    " ms" << std::endl;
-                std::cout << '\t' << "Max:    " << latency_groups[i].back() << " ms" <<std::endl;
+                                 latency_groups[i].size()
+                          << " ms" << std::endl;
+                std::cout << '\t' << "Max:    " << latency_groups[i].back() << " ms" << std::endl;
                 std::cout << '\t' << "Min:    " << latency_groups[i][0] << " ms" << std::endl;
             }
         }

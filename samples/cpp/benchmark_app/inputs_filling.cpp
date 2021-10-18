@@ -227,7 +227,8 @@ void fillBlobImInfo(Blob::Ptr& inputBlob, const size_t& batchSize, std::pair<siz
 void fillBlobs(const std::vector<std::string>& inputFiles,
                const size_t& batchSize,
                benchmark_app::InputsInfo& app_inputs_info,
-               std::vector<InferReqWrap::Ptr> requests, bool supress) {
+               std::vector<InferReqWrap::Ptr> requests,
+               bool supress) {
     std::vector<std::pair<size_t, size_t>> input_image_sizes;
     for (auto& item : app_inputs_info) {
         if (item.second.partialShape.is_static() && item.second.isImage()) {
@@ -413,7 +414,7 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                     auto image_size = input_image_sizes.at(0);
                     if (!supress)
                         slog::info << "Fill input '" << item.first << "' with image size " << image_size.first << "x"
-                               << image_size.second << slog::endl;
+                                   << image_size.second << slog::endl;
                     if (precision == InferenceEngine::Precision::FP32) {
                         fillBlobImInfo<float>(inputBlob, batchSize, image_size);
                     } else if (precision == InferenceEngine::Precision::FP16) {
@@ -463,9 +464,10 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
 }
 
 template <typename T, typename T2>
-Buffer createRandomBlobs(size_t blobSize, InferenceEngine::Precision precision,
-                    T rand_min = std::numeric_limits<uint8_t>::min(),
-                    T rand_max = std::numeric_limits<uint8_t>::max()) {
+Buffer createRandomBlobs(size_t blobSize,
+                         InferenceEngine::Precision precision,
+                         T rand_min = std::numeric_limits<uint8_t>::min(),
+                         T rand_max = std::numeric_limits<uint8_t>::max()) {
     Buffer buff(blobSize, precision);
     std::mt19937 gen(0);
     auto data = buff.get<T>();
@@ -514,7 +516,6 @@ std::vector<Buffer> prepareRandomInputs(std::vector<benchmark_app::InputsInfo>& 
 
     return inputs_data;
 }
-
 
 void fillBlob(InferenceEngine::Blob::Ptr& inputBlob, Buffer& data) {
     MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
