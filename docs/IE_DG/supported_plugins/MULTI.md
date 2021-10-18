@@ -2,19 +2,26 @@
 
 ## Introducing the Multi-Device Plugin
 
-The Multi-Device plugin automatically assigns inference requests to available computational devices to execute the requests in parallel. Potential gains are as follows:
+@sphinxdirective
+.. raw:: html
+
+    <div id="switcher-cpp" class="switcher-anchor">C++</div>
+@endsphinxdirective
+
+The Multi-Device plugin automatically assigns inference requests to available computational devices to execute the requests in parallel. By contrast, the Heterogeneous plugin can run different layers on different devices but not in parallel. Potential gains with Multi-Device are as follows:
+
 * Improved throughput that multiple devices can deliver (compared to single-device execution)
 * More consistent performance, since the devices can now share the inference burden
 (so that if one device is becoming too busy, another device can take more of the load)
 
-Notice that with multi-device the application logic is left unchanged, so you don't need to explicitly load the network to every device, create and balance the inference requests and so on. From the application point of view, this is just another device that handles the actual machinery. 
-The only thing that is required to leverage performance is to provide the multi-device (and hence the underlying devices) with enough inference requests to crunch.
-For example, if you were processing 4 cameras on the CPU (with 4 inference requests), you may now want to process more cameras (with more requests in flight) to keep CPU+GPU busy via multi-device.
+Notice that with Multi-Device the application logic is left unchanged, so you don't need to explicitly load the network to every device, create and balance the inference requests and so on. From the application point of view, this is just another device that handles the actual machinery. 
+The only thing that is required to leverage performance is to provide the Multi-Device (and hence the underlying devices) with enough inference requests to crunch.
+For example, if you were processing 4 cameras on the CPU (with 4 inference requests), you may now want to process more cameras (with more requests in flight) to keep CPU+GPU busy via Multi-Device.
 
 The "setup" of Multi-Device can be described in three major steps:
-* First is configuration of each device as usual (e.g. via conventional SetConfig method)
-* Second is loading of a network to the Multi-Device plugin created on top of (prioritized) list of the  configured devices. This is the only change that you need in your application.
-* Finally, just like with any other ExecutableNetwork (resulted from LoadNetwork) you just create as many requests as needed to saturate the devices.
+* First, configure of each device as usual (e.g., via conventional SetConfig method).
+* Second, load a network to the Multi-Device plugin created on top of a (prioritized) list of the configured devices. This is the only change that you need in your application.
+* Finally, just as with any other ExecutableNetwork (resulting from LoadNetwork), you create as many requests as needed to saturate the devices.
 These steps are covered below in details.
 
 ## Defining and Configuring the Multi-Device plugin
@@ -35,10 +42,10 @@ Notice that the priorities of the devices can be changed in real time for the ex
 
 @snippet snippets/MULTI1.cpp part1
 
-Finally, there is a way to specify number of requests that the multi-device will internally keep for each device. Suppose your original app was running 4 cameras with 4 inference requests. You would probably want to share these 4 requests between 2 devices used in the MULTI. The easiest way is to specify a number of requests for each device using parentheses: "MULTI:CPU(2),GPU(2)" and use the same 4 requests in your app. However, such an explicit configuration is not performance-portable and hence not recommended. Instead, the better way is to configure the individual devices and query the resulting number of requests to be used at the application level (see [Configuring the Individual Devices and Creating the Multi-Device On Top](#configuring-the-individual-devices-and-creating-the-multi-device-on-top)).
+Finally, there is a way to specify number of requests that the Multi-Device will internally keep for each device. Suppose your original app was running 4 cameras with 4 inference requests. You would probably want to share these 4 requests between 2 devices used in MULTI. The easiest way is to specify a number of requests for each device using parentheses: "MULTI:CPU(2),GPU(2)" and use the same 4 requests in your app. However, such an explicit configuration is not performance-portable and hence not recommended. Instead, the better way is to configure the individual devices and query the resulting number of requests to be used at the application level (see [Configuring the Individual Devices and Creating the Multi-Device On Top](#configuring-the-individual-devices-and-creating-the-multi-device-on-top)).
 
 ## Enumerating Available Devices
-Inference Engine now features a dedicated API to enumerate devices and their capabilities. See [Hello Query Device C++ Sample](../../../inference-engine/samples/hello_query_device/README.md).  This is example output from the sample (truncated to the devices' names only):
+Inference Engine now features a dedicated API to enumerate devices and their capabilities. See [Hello Query Device C++ Sample](../../../inference-engine/samples/hello_query_device/README.md). This is example output from the sample (truncated to the device names only):
 
 ```sh
 ./hello_query_device
@@ -51,11 +58,11 @@ Available devices:
 ...
     Device: HDDL
 ```
-A simple programmatic way to enumerate the devices and use with the multi-device is as follows:
+A simple programmatic way to enumerate the devices and use with the Multi-Device is as follows:
 
 @snippet snippets/MULTI2.cpp part2
 
-Beyond the trivial "CPU", "GPU", "HDDL" and so on, when multiple instances of a device are available the names are more qualified.
+Beyond the trivial "CPU", "GPU" (alias for GPU.0), "HDDL" and so on, when multiple instances of a device are available, the names are more qualified.
 For example, this is how two Intel® Movidius™ Myriad™ X sticks are listed with the hello_query_sample:
 ```
 ...
@@ -76,24 +83,25 @@ As discussed in the first section, you shall configure each individual device as
 
 Alternatively, you can combine all the individual device settings into single config and load that, allowing the Multi-Device plugin to parse and apply that to the right devices. See code example in the next section.
 
-Notice that while the performance of accelerators combines really well with multi-device, the CPU+GPU execution poses some performance caveats, as these devices share the power, bandwidth and other resources. For example it is recommended to enable the GPU throttling hint (which save another CPU thread for the CPU inference).
-See section of the [Using the multi-device with OpenVINO samples and benchmarking the performance](#using-the-multi-device-with-openvino-samples-and-benchmarking-the-performance) below.
+Notice that while the performance of accelerators combines really well with Multi-Device, the CPU+GPU execution poses some performance caveats, as these devices share the power, bandwidth and other resources. For example it is recommended to enable the GPU throttling hint (which save another CPU thread for the CPU inference).
+See the [Using the Multi-Device with OpenVINO samples and benchmarking the performance](#using-the-multi-device-with-openvino-samples-and-benchmarking-the-performance) section below.
 
 ## Querying the Optimal Number of Inference Requests
-Notice that until R2 you had to calculate number of requests in your application for any device, e.g. you had to know that Intel® Vision Accelerator Design with Intel® Movidius™ VPUs required at least 32 inference requests to perform well. Now you can use the new GetMetric API to query the optimal number of requests. Similarly, when using the multi-device you don't need to sum over included devices yourself, you can query metric directly:
+Notice that until R2 you had to calculate number of requests in your application for any device, e.g. you had to know that Intel® Vision Accelerator Design with Intel® Movidius™ VPUs required at least 32 inference requests to perform well. Now you can use the new GetMetric API to query the optimal number of requests. Similarly, when using the Multi-Device you don't need to sum over included devices yourself, you can query metric directly:
 
 @snippet snippets/MULTI5.cpp part5
 
 ## Using the Multi-Device with OpenVINO Samples and Benchmarking the Performance
-Notice that every OpenVINO sample that supports "-d" (which stands for "device") command-line option transparently accepts the multi-device.
-The [Benchmark Application](../../../inference-engine/samples/benchmark_app/README.md) is the best reference to the optimal usage of the multi-device. As discussed multiple times earlier, you don't need to setup number of requests, CPU streams or threads as the application provides optimal out of the box performance.
+Notice that every OpenVINO sample that supports "-d" (which stands for "device") command-line option transparently accepts the Multi-Device.
+The [Benchmark Application](../../../inference-engine/samples/benchmark_app/README.md) is the best reference to the optimal usage of the Multi-Device. As discussed multiple times earlier, you don't need to setup number of requests, CPU streams or threads as the application provides optimal out of the box performance.
 Below is example command-line to evaluate HDDL+GPU performance with that:
 
 ```sh
 ./benchmark_app –d MULTI:HDDL,GPU –m <model> -i <input> -niter 1000
 ```
-Notice that you can use the FP16 IR to work with multi-device (as CPU automatically upconverts it to the fp32) and rest of devices support it naturally. 
-Also notice that no demos are (yet) fully optimized for the multi-device, by means of supporting the OPTIMAL_NUMBER_OF_INFER_REQUESTS metric, using the GPU streams/throttling, and so on.
+
+Notice that you can use the FP16 IR to work with Multi-Device (as CPU automatically upconverts it to the fp32) and rest of devices support it naturally. 
+Also notice that no demos are (yet) fully optimized for the Multi-Device, by means of supporting the OPTIMAL_NUMBER_OF_INFER_REQUESTS metric, using the GPU streams/throttling, and so on.
 
 ## Video: MULTI Plugin
 
@@ -106,5 +114,3 @@ Also notice that no demos are (yet) fully optimized for the multi-device, by mea
 
 ## See Also
 * [Supported Devices](Supported_Devices.md)
-
-
