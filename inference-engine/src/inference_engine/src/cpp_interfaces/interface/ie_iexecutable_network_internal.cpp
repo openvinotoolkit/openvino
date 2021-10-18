@@ -14,7 +14,9 @@
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_icore.hpp"
+#include "ie_ngraph_utils.hpp"
 #include "ie_parameter.hpp"
+#include <openvino/core/node.hpp>
 
 namespace InferenceEngine {
 
@@ -39,38 +41,23 @@ const std::vector<std::shared_ptr<const ov::Node>>& IExecutableNetworkInternal::
     return _results;
 }
 
-bool IExecutableNetworkInternal::getPort(ov::Output<const ov::Node>& port,
-                                         const std::string& name,
-                                         const std::vector<std::vector<std::shared_ptr<const ov::Node>>>& ports) const {
-    for (const auto& nodes : ports) {
-        for (const auto& node : nodes) {
-            const auto& names = node->get_output_tensor(0).get_names();
-            if (names.find(name) != names.end()) {
-                port = node->output(0);
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
 const ov::Output<const ov::Node> IExecutableNetworkInternal::getInput(const std::string& tensor_name) const {
     ov::Output<const ov::Node> port;
-    if (!getPort(port, tensor_name, {getInputs()}))
+    if (!InferenceEngine::details::getPort(port, tensor_name, {getInputs()}))
         throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
     return port;
 }
 
 const ov::Output<const ov::Node> IExecutableNetworkInternal::getOutput(const std::string& tensor_name) const {
     ov::Output<const ov::Node> port;
-    if (!getPort(port, tensor_name, {getOutputs()}))
+    if (!InferenceEngine::details::getPort(port, tensor_name, {getOutputs()}))
         throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
     return port;
 }
 
 const ov::Output<const ov::Node> IExecutableNetworkInternal::getPort(const std::string& tensor_name) const {
     ov::Output<const ov::Node> port;
-    if (!getPort(port, tensor_name, {getInputs(), getOutputs()}))
+    if (!InferenceEngine::details::getPort(port, tensor_name, {getInputs(), getOutputs()}))
         throw ov::Exception("Port for tensor name " + tensor_name + " was not found.");
     return port;
 }
@@ -142,6 +129,11 @@ std::shared_ptr<RemoteContext> IExecutableNetworkInternal::GetContext() const {
 std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRequestImpl(
     InputsDataMap networkInputs,
     OutputsDataMap networkOutputs) {
+    IE_THROW(NotImplemented);
+}
+
+std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+    const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
     IE_THROW(NotImplemented);
 }
 

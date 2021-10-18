@@ -56,6 +56,33 @@ TemplateInferRequest::TemplateInferRequest(const InferenceEngine::InputsDataMap&
     allocateDeviceBuffers();
     allocateBlobs();
 }
+
+TemplateInferRequest::TemplateInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                           const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                                           const std::shared_ptr<TemplatePlugin::ExecutableNetwork>& executableNetwork)
+    : IInferRequestInternal(inputs, outputs),
+      _executableNetwork(executableNetwork) {
+    // TODO: allocate infer request device and host buffers if needed, fill actual list of profiling tasks
+
+    auto requestID = std::to_string(_executableNetwork->_requestId.fetch_add(1));
+
+    std::string name = _executableNetwork->_function->get_friendly_name() + "_Req" + requestID;
+    _profilingTask = {
+        openvino::itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name +
+                              "_Preprocess"),
+        openvino::itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name +
+                              "_Postprocess"),
+        openvino::itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name +
+                              "_StartPipline"),
+        openvino::itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name +
+                              "_WaitPipline"),
+    };
+
+    _executable = _executableNetwork->_plugin->_backend->compile(_executableNetwork->_function);
+
+    allocateDeviceBuffers();
+    allocateBlobs();
+}
 // ! [infer_request:ctor]
 
 // ! [infer_request:dtor]

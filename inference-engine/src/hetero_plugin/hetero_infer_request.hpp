@@ -32,6 +32,11 @@ public:
                                 const SubRequestsList &inferRequests,
                                 const std::unordered_map<std::string, std::string>& blobNameMap);
 
+    explicit HeteroInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& networkInputs,
+                                const std::vector<std::shared_ptr<const ov::Node>>& networkOutputs,
+                                const SubRequestsList &inferRequests,
+                                const std::unordered_map<std::string, std::string>& blobNameMap);
+
     void InferImpl() override;
 
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& blob) override;

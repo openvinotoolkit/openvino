@@ -13,8 +13,14 @@
 #include "ie_common.h"
 #include "ie_input_info.hpp"
 #include "ie_preprocess_data.hpp"
+#include "openvino/core/node_output.hpp"
 #include "so_ptr.hpp"
 
+namespace ov {
+namespace runtime {
+class InferRequest;
+}
+}  // namespace ov
 namespace InferenceEngine {
 
 class IExecutableNetworkInternal;
@@ -28,6 +34,7 @@ class IVariableStateInternal;
  */
 class INFERENCE_ENGINE_API_CLASS(IInferRequestInternal) : public std::enable_shared_from_this<IInferRequestInternal> {
 public:
+    friend class ov::runtime::InferRequest;
     /**
      * @brief A shared pointer to a IInferRequestInternal interface
      */
@@ -41,6 +48,14 @@ public:
      * @param[in]  networkOutputs  The network outputs data
      */
     IInferRequestInternal(const InputsDataMap& networkInputs, const OutputsDataMap& networkOutputs);
+
+    /**
+     * @brief      Constructs a new instance.
+     * @param[in]  inputs   The network inputs
+     * @param[in]  outputs  The network outputs
+     */
+    IInferRequestInternal(const std::vector<std::shared_ptr<const ov::Node>>& networkInputs,
+                          const std::vector<std::shared_ptr<const ov::Node>>& networkOutputs);
 
     /**
      * @brief Infers specified input(s) in synchronous mode
@@ -177,12 +192,6 @@ public:
     void setPointerToExecutableNetworkInternal(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork);
 
     /**
-     * @brief      Returns the pointer to executable network internal.
-     * @return     executable network
-     */
-    const std::shared_ptr<IExecutableNetworkInternal>& getPointerToExecutableNetworkInternal() const;
-
-    /**
      * @brief   Gets the pointer to userData.
      * @return  Pointer to user data
      */
@@ -238,6 +247,8 @@ protected:
     InferenceEngine::BlobMap _inputs;                 //!< A map of user passed blobs for network inputs
     InferenceEngine::BlobMap _deviceInputs;           //!< A map of actual network inputs, in plugin specific format
     InferenceEngine::BlobMap _outputs;                //!< A map of user passed blobs for network outputs
+    std::vector<std::shared_ptr<const ov::Node>> _parameters;
+    std::vector<std::shared_ptr<const ov::Node>> _results;
     std::map<std::string, PreProcessDataPtr> _preProcData;  //!< A map of pre-process data per input
     int m_curBatch = -1;                                    //!< Current batch value used in dynamic batching
 

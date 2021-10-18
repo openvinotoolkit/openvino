@@ -145,6 +145,21 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
     }
 }
 
+inline bool getPort(ov::Output<const ov::Node>& port,
+                    const std::string& name,
+                    const std::vector<std::vector<std::shared_ptr<const ov::Node>>>& ports) {
+    for (const auto& nodes : ports) {
+        for (const auto& node : nodes) {
+            const auto& names = node->get_output_tensor(0).get_names();
+            if (names.find(name) != names.end()) {
+                port = node->output(0);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 /**
  * @brief Clones input network including all layers and internal data objects
  * @note Blobs inside layers are reused

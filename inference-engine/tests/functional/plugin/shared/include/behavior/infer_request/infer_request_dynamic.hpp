@@ -85,7 +85,7 @@ protected:
 };
 
 TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithoutSetShape) {
-    const std::string tensor_name = "Tensor_1";
+    const std::string tensor_name = "input_tensor";
     std::map<std::string, ov::PartialShape> shapes;
     shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
     ASSERT_NO_THROW(function->reshape(shapes));
@@ -99,7 +99,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithoutSetShape) {
 }
 
 TEST_P(InferRequestDynamicTests, InferDynamicNetworkBoundWithoutSetShape) {
-    const std::string tensor_name = "Tensor_1";
+    const std::string tensor_name = "input_tensor";
     std::map<std::string, ov::PartialShape> shapes;
     shapes[tensor_name] = {ov::Dimension(0, 5), 4, 20, 20};
     ASSERT_NO_THROW(function->reshape(shapes));
@@ -114,7 +114,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkBoundWithoutSetShape) {
 
 
 TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetTensor) {
-    const std::string tensor_name = "Tensor_1";
+    const std::string tensor_name = "input_tensor";
     const ov::Shape refShape = inOutShapes[0].first;
     const ov::Shape refOutShape = inOutShapes[0].second;
     std::map<std::string, ov::PartialShape> shapes;
@@ -143,7 +143,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetTensor) {
 }
 
 TEST_P(InferRequestDynamicTests, InferUpperBoundNetworkWithGetTensor) {
-    const std::string tensor_name = "Tensor_1";
+    const std::string tensor_name = "input_tensor";
     const ov::Shape refShape = inOutShapes[0].first;
     const ov::Shape refOutShape = inOutShapes[0].second;
     std::map<std::string, ov::PartialShape> shapes;
@@ -170,7 +170,7 @@ TEST_P(InferRequestDynamicTests, InferUpperBoundNetworkWithGetTensor) {
 }
 
 TEST_P(InferRequestDynamicTests, InferFullyDynamicNetworkWithGetTensor) {
-    const std::string tensor_name = "Tensor_1";
+    const std::string tensor_name = "input_tensor";
     const ov::Shape refShape = inOutShapes[0].first;
     const ov::Shape refOutShape = inOutShapes[0].second;
     std::map<std::string, ov::PartialShape> shapes;
@@ -198,7 +198,7 @@ TEST_P(InferRequestDynamicTests, InferFullyDynamicNetworkWithGetTensor) {
 }
 
 TEST_P(InferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorLower) {
-    const std::string tensor_name = "Tensor_1";
+    const std::string tensor_name = "input_tensor";
     const ov::Shape refShape = inOutShapes[0].first;
     const ov::Shape refOutShape = inOutShapes[0].second;
     std::map<std::string, ov::PartialShape> shapes;
@@ -217,7 +217,7 @@ TEST_P(InferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorLower) 
 }
 
 TEST_P(InferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorUpper) {
-    const std::string tensor_name = "Tensor_1";
+    const std::string tensor_name = "input_tensor";
     const ov::Shape refShape = inOutShapes[0].first;
     const ov::Shape refOutShape = inOutShapes[0].second;
     std::map<std::string, ov::PartialShape> shapes;
@@ -236,7 +236,7 @@ TEST_P(InferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetTensorUpper) 
 }
 
 TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetTensor2times) {
-    const std::string tensor_name = "Tensor_1";
+    const std::string tensor_name = "input_tensor";
     const ov::Shape refShape = inOutShapes[0].first;
     const ov::Shape refShape2 = inOutShapes[1].first;
     const ov::Shape refOutShape = inOutShapes[0].second;
@@ -272,7 +272,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetTensor2times) {
 
 
 TEST_P(InferRequestDynamicTests, GetSameTensor2times) {
-    const std::string tensor_name = "Tensor_1";
+    const std::string tensor_name = "input_tensor";
     const ov::Shape refShape = inOutShapes[0].first;
     std::map<std::string, ov::PartialShape> shapes;
     shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
@@ -291,7 +291,7 @@ TEST_P(InferRequestDynamicTests, GetSameTensor2times) {
 }
 
 TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetTensor) {
-    const std::string tensor_name = "Tensor_1";
+    const std::string tensor_name = "input_tensor";
     const ov::Shape refShape = inOutShapes[0].first;
     const ov::Shape refOutShape = inOutShapes[0].second;
     std::map<std::string, ov::PartialShape> shapes;
@@ -314,7 +314,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetTensor) {
 }
 
 TEST_P(InferRequestDynamicTests, InferFullyDynamicNetworkWithSetTensor) {
-    const std::string tensor_name = "Tensor_1";
+    const std::string tensor_name = "input_tensor";
     const ov::Shape refShape = inOutShapes[0].first;
     const ov::Shape refOutShape = inOutShapes[0].second;
     std::map<std::string, ov::PartialShape> shapes;
@@ -343,7 +343,7 @@ TEST_P(InferRequestDynamicTests, InferFullyDynamicNetworkWithSetTensor) {
 }
 
 TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetTensor2times) {
-    const std::string tensor_name = "Tensor_1";
+    const std::string tensor_name = "input_tensor";
     const ov::Shape refShape = inOutShapes[0].first;
     const ov::Shape refShape2 = inOutShapes[1].first;
     const ov::Shape refOutShape = inOutShapes[0].second;

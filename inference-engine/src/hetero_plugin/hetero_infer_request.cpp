@@ -16,6 +16,58 @@ using namespace HeteroPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
+HeteroInferRequest::HeteroInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                       const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                                       const SubRequestsList& inferRequests,
+                                       const std::unordered_map<std::string, std::string>& subgraphInputToOutputBlobNames) :
+    IInferRequestInternal(inputs, outputs),
+    _inferRequests(inferRequests) {
+    if (_networkOutputs.empty() || _networkInputs.empty()) {
+        IE_THROW() << "Internal error: no information about network's output/input";
+    }
+
+    auto requestBlob([&](const std::string& blobName, InferenceEngine::SoIInferRequestInternal& r) {
+        std::string intermediateBlobName = blobName;
+        auto itName = subgraphInputToOutputBlobNames.find(blobName);
+        if (itName != subgraphInputToOutputBlobNames.end()) {
+            intermediateBlobName = itName->second;
+        }
+        BlobMap::iterator itBlob;
+        bool emplaced = false;
+        std::tie(itBlob, emplaced) = _blobs.emplace(intermediateBlobName, Blob::Ptr{});
+        if (emplaced) {
+            if (InferenceEngine::details::contains(_networkInputs, blobName)) {
+                _subRequestFromBlobName.emplace(blobName, r._ptr.get());
+                _blobs.erase(intermediateBlobName);
+            } else if (InferenceEngine::details::contains(_networkOutputs, blobName)) {
+                _subRequestFromBlobName.emplace(blobName, r._ptr.get());
+                _blobs.erase(intermediateBlobName);
+            } else {
+                itBlob->second = r->GetBlob(blobName);
+            }
+        } else {
+            r->SetBlob(blobName, itBlob->second);
+        }
+    });
+
+    // go over all subnet and create requests
+    for (auto&& desc : _inferRequests) {
+        desc._request = {desc._network._so, desc._network->CreateInferRequest()};
+        // go over all inputs and get blobs from subnet infer requests
+        for (auto&& outputInfo : desc._network->GetOutputsInfo()) {
+            requestBlob(outputInfo.first, desc._request);
+        }
+    }
+
+    // go over all outputs and get blobs from subnet infer requests
+    for (auto&& desc : _inferRequests) {
+        for (auto&& inputInfo : desc._network->GetInputsInfo()) {
+            requestBlob(inputInfo.first, desc._request);
+        }
+    }
+}
+
+
 HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInputs,
                                        InferenceEngine::OutputsDataMap networkOutputs,
                                        const SubRequestsList& inferRequests,

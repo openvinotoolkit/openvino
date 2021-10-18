@@ -2,14 +2,13 @@
 // SPDX-License-Identifcorer: Apache-2.0
 //
 
-#include <fstream>
-
 #include <exec_graph_info.hpp>
+#include <fstream>
 #include <transformations/serialize.hpp>
-#include "base/ov_behavior_test_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "common_test_utils/file_utils.hpp"
 
+#include "base/ov_behavior_test_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 
 namespace ov {
@@ -26,7 +25,7 @@ public:
         std::ostringstream result;
         result << "targetDevice=" << targetDevice << "_";
         if (!configuration.empty()) {
-            for (auto &configItem : configuration) {
+            for (auto& configItem : configuration) {
                 result << "configItem=" << configItem.first << "_" << configItem.second << "_";
             }
         }
@@ -80,7 +79,7 @@ TEST_P(OVExecutableNetworkBaseTest, checkGetMetric) {
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheckConfig) {
     auto execNet = core->compile_model(function, targetDevice, configuration);
-    for (const auto &configItem : configuration) {
+    for (const auto& configItem : configuration) {
         InferenceEngine::Parameter param;
         EXPECT_NO_THROW(param = execNet.get_config(configItem.first));
         EXPECT_FALSE(param.empty());
@@ -91,7 +90,7 @@ TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheck
 TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNet) {
     auto execNet = core->compile_model(function, targetDevice);
     std::map<std::string, InferenceEngine::Parameter> config;
-    for (const auto &confItem : configuration) {
+    for (const auto& confItem : configuration) {
         config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
     }
     EXPECT_NO_THROW(execNet.set_config(config));
@@ -101,7 +100,7 @@ TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetWithIncorrectConfig) {
     auto execNet = core->compile_model(function, targetDevice);
     std::map<std::string, std::string> incorrectConfig = {{"abc", "def"}};
     std::map<std::string, InferenceEngine::Parameter> config;
-    for (const auto &confItem : incorrectConfig) {
+    for (const auto& confItem : incorrectConfig) {
         config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
     }
     EXPECT_ANY_THROW(execNet.set_config(config));
@@ -110,11 +109,11 @@ TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetWithIncorrectConfig) {
 TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetAndCheckConfigAndCheck) {
     auto execNet = core->compile_model(function, targetDevice);
     std::map<std::string, InferenceEngine::Parameter> config;
-    for (const auto &confItem : configuration) {
+    for (const auto& confItem : configuration) {
         config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
     }
     execNet.set_config(config);
-    for (const auto &configItem : configuration) {
+    for (const auto& configItem : configuration) {
         InferenceEngine::Parameter param;
         EXPECT_NO_THROW(param = execNet.get_config(configItem.first));
         EXPECT_FALSE(param.empty());
@@ -157,8 +156,9 @@ TEST_P(OVExecutableNetworkBaseTest, CanGetInputsInfoAndCheck) {
         paramVec.push_back(*input.get_tensor().get_names().begin());
     }
     auto params = function->get_parameters();
-    for (const auto &param : params) {
-        EXPECT_NE(std::find(paramVec.begin(), paramVec.end(), *param->get_output_tensor(0).get_names().begin()), paramVec.end());
+    for (const auto& param : params) {
+        EXPECT_NE(std::find(paramVec.begin(), paramVec.end(), *param->get_output_tensor(0).get_names().begin()),
+                  paramVec.end());
     }
 }
 
@@ -170,8 +170,9 @@ TEST_P(OVExecutableNetworkBaseTest, CanGetOutputsInfoAndCheck) {
         resVec.push_back(*out.get_tensor().get_names().begin());
     }
     auto results = function->get_results();
-    for (const auto &param : results) {
-        EXPECT_NE(std::find(resVec.begin(), resVec.end(), *param->get_output_tensor(0).get_names().begin()), resVec.end());
+    for (const auto& param : results) {
+        EXPECT_NE(std::find(resVec.begin(), resVec.end(), *param->get_output_tensor(0).get_names().begin()),
+                  resVec.end());
     }
 }
 
@@ -181,7 +182,7 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
     auto execNet = core->compile_model(function, targetDevice, configuration);
     EXPECT_NO_THROW(execGraph = execNet.get_runtime_function());
     std::map<std::string, int> originalLayersMap;
-    for (const auto &layer : function->get_ops()) {
+    for (const auto& layer : function->get_ops()) {
         originalLayersMap[layer->get_friendly_name()] = 0;
     }
     int constCnt = 0;
@@ -189,10 +190,10 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
     std::shared_ptr<const ngraph::Function> getFunction = std::dynamic_pointer_cast<const ngraph::Function>(execGraph);
     EXPECT_NE(getFunction, nullptr);
 
-    for (const auto &op : getFunction->get_ops()) {
-        const ov::RTMap &rtInfo = op->get_rt_info();
+    for (const auto& op : getFunction->get_ops()) {
+        const ov::RTMap& rtInfo = op->get_rt_info();
 
-        auto getExecValue = [&rtInfo](const std::string &paramName) -> std::string {
+        auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
             auto it = rtInfo.find(paramName);
             IE_ASSERT(rtInfo.end() != it);
             auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
@@ -210,7 +211,7 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
             constCnt++;
         } else {
             auto origFromExecLayerSep = CommonTestUtils::splitStringByDelimiter(origFromExecLayer);
-            std::for_each(origFromExecLayerSep.begin(), origFromExecLayerSep.end(), [&](const std::string &op) {
+            std::for_each(origFromExecLayerSep.begin(), origFromExecLayerSep.end(), [&](const std::string& op) {
                 auto origLayer = originalLayersMap.find(op);
                 EXPECT_NE(originalLayersMap.end(), origLayer) << op;
                 origLayer->second++;
@@ -219,7 +220,7 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
     }
 
     // All layers from the original IR must be present with in ExecGraphInfo
-    for (auto &layer : originalLayersMap) {
+    for (auto& layer : originalLayersMap) {
         if ((layer.second == 0) && (constCnt > 0)) {
             constCnt--;
         } else {
@@ -234,7 +235,7 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
     auto execNet = core->compile_model(function, targetDevice, configuration);
     EXPECT_NO_THROW(execGraph = execNet.get_runtime_function());
     std::map<std::string, int> originalLayersMap;
-    for (const auto &layer : function->get_ops()) {
+    for (const auto& layer : function->get_ops()) {
         originalLayersMap[layer->get_friendly_name()] = 0;
     }
     int constCnt = 0;
@@ -243,10 +244,10 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
     auto getFunction = std::dynamic_pointer_cast<const ngraph::Function>(execGraph);
     EXPECT_NE(nullptr, getFunction);
 
-    for (const auto &op : getFunction->get_ops()) {
-        const auto &rtInfo = op->get_rt_info();
+    for (const auto& op : getFunction->get_ops()) {
+        const auto& rtInfo = op->get_rt_info();
 
-        auto getExecValue = [&rtInfo](const std::string &paramName) -> std::string {
+        auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
             auto it = rtInfo.find(paramName);
             IE_ASSERT(rtInfo.end() != it);
             auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
@@ -261,7 +262,8 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
             std::cout << "TIME: " << x << std::endl;
             EXPECT_GE(x, 0.0f);
             hasOpWithValidTime = true;
-        } catch (std::exception &) {}
+        } catch (std::exception&) {
+        }
 
         // Parse origin layer names (fused/merged layers) from the executable graph
         // and compare with layers from the original model
@@ -270,7 +272,7 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
         if (origFromExecLayer.empty()) {
             constCnt++;
         } else {
-            std::for_each(origFromExecLayerSep.begin(), origFromExecLayerSep.end(), [&](const std::string &layer) {
+            std::for_each(origFromExecLayerSep.begin(), origFromExecLayerSep.end(), [&](const std::string& layer) {
                 auto origLayer = originalLayersMap.find(layer);
                 EXPECT_NE(originalLayersMap.end(), origLayer) << layer;
                 origLayer->second++;
@@ -281,7 +283,7 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
     EXPECT_TRUE(hasOpWithValidTime);
 
     // All layers from the original IR must be present within ExecGraphInfo
-    for (auto &layer : originalLayersMap) {
+    for (auto& layer : originalLayersMap) {
         if ((layer.second == 0) && (constCnt > 0)) {
             constCnt--;
         } else {
@@ -325,6 +327,9 @@ TEST_P(OVExecutableNetworkBaseTest, getInputFromFunctionWithSingleInput) {
 
     EXPECT_NO_THROW(request.get_tensor(execNet.input()));
     EXPECT_NO_THROW(request.get_tensor(function->input()));
+    EXPECT_NO_THROW(request.get_tensor(execNet.input().get_any_name()));
+    EXPECT_NO_THROW(request.get_tensor(function->input().get_any_name()));
+    EXPECT_NO_THROW(request.get_input_tensor(0));
     // Cannot compare data because first of all we need to fill it
     // EXPECT_TRUE(ov::test::all_close(request.get_tensor(execNet.input()), request.get_tensor(function->input())));
 }

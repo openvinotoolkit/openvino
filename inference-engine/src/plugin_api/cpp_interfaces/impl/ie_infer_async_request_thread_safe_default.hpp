@@ -145,7 +145,7 @@ public:
     AsyncInferRequestThreadSafeDefault(const IInferRequestInternal::Ptr& request,
                                        const ITaskExecutor::Ptr& taskExecutor,
                                        const ITaskExecutor::Ptr& callbackExecutor)
-        : _syncRequest{request},
+        : IInferRequestInternal(*request), _syncRequest{request},
           _requestExecutor{taskExecutor},
           _callbackExecutor{callbackExecutor},
           _pipeline{{taskExecutor,
