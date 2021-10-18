@@ -12,7 +12,7 @@ using namespace std;
 using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
-void static test_normalize_l2_attributes(float eps, op::EpsMode eps_mode) {
+static void test_normalize_l2_attributes(float eps, op::EpsMode eps_mode) {
     NodeBuilder::get_ops().register_factory<opset1::NormalizeL2>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4});
     const auto axes = make_shared<op::Constant>(element::i32, Shape{}, vector<int32_t>{1});

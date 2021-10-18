@@ -16,7 +16,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-void static test_mode(opset5::Round::RoundMode mode) {
+static void test_mode(opset5::Round::RoundMode mode) {
     NodeBuilder::get_ops().register_factory<opset5::Round>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{200});
     auto round = make_shared<opset5::Round>(data, mode);
