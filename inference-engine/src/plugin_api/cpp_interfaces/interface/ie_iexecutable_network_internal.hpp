@@ -74,18 +74,6 @@ public:
      * @brief      Returns the network results
      */
     virtual const std::vector<std::shared_ptr<const ov::Node>>& getOutputs() const;
-    /**
-     * @brief      Returns the network input port
-     */
-    const ov::Output<const ov::Node> getInput(const std::string& tensor_name) const;
-    /**
-     * @brief      Returns the network output port
-     */
-    const ov::Output<const ov::Node> getOutput(const std::string& tensor_name) const;
-    /**
-     * @brief      Returns the network port
-     */
-    const ov::Output<const ov::Node> getPort(const std::string& tensor_name) const;
 
     /**
      * @brief Gets the Executable network output Data node information. The received info is stored in the given Data

@@ -41,27 +41,6 @@ const std::vector<std::shared_ptr<const ov::Node>>& IExecutableNetworkInternal::
     return _results;
 }
 
-const ov::Output<const ov::Node> IExecutableNetworkInternal::getInput(const std::string& tensor_name) const {
-    ov::Output<const ov::Node> port;
-    if (!InferenceEngine::details::getPort(port, tensor_name, {getInputs()}))
-        throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
-    return port;
-}
-
-const ov::Output<const ov::Node> IExecutableNetworkInternal::getOutput(const std::string& tensor_name) const {
-    ov::Output<const ov::Node> port;
-    if (!InferenceEngine::details::getPort(port, tensor_name, {getOutputs()}))
-        throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
-    return port;
-}
-
-const ov::Output<const ov::Node> IExecutableNetworkInternal::getPort(const std::string& tensor_name) const {
-    ov::Output<const ov::Node> port;
-    if (!InferenceEngine::details::getPort(port, tensor_name, {getInputs(), getOutputs()}))
-        throw ov::Exception("Port for tensor name " + tensor_name + " was not found.");
-    return port;
-}
-
 ConstOutputsDataMap IExecutableNetworkInternal::GetOutputsInfo() const {
     ConstOutputsDataMap outputMap;
     for (const auto& output : _networkOutputs) {

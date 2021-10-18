@@ -158,7 +158,14 @@ ov::Output<const ov::Node> ExecutableNetwork::input(size_t i) const {
 }
 
 ov::Output<const ov::Node> ExecutableNetwork::input(const std::string& tensor_name) const {
-    OV_EXEC_NET_CALL_STATEMENT({ return _impl->getInput(tensor_name); });
+    OV_EXEC_NET_CALL_STATEMENT({
+        for (const auto& param : _impl->getInputs()) {
+            if (param->get_output_tensor(0).get_names().count(tensor_name)) {
+                return param;
+            }
+        }
+        throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
+    });
 }
 
 std::vector<ov::Output<const ov::Node>> ExecutableNetwork::outputs() const {
@@ -183,7 +190,14 @@ ov::Output<const ov::Node> ExecutableNetwork::output(size_t i) const {
     OV_EXEC_NET_CALL_STATEMENT(return _impl->getOutputs().at(i));
 }
 ov::Output<const ov::Node> ExecutableNetwork::output(const std::string& tensor_name) const {
-    OV_EXEC_NET_CALL_STATEMENT({ return _impl->getOutput(tensor_name); });
+    OV_EXEC_NET_CALL_STATEMENT({
+        for (const auto& result : _impl->getOutputs()) {
+            if (result->get_output_tensor(0).get_names().count(tensor_name)) {
+                return result;
+            }
+        }
+        throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
+    });
 }
 
 InferRequest ExecutableNetwork::create_infer_request() {
