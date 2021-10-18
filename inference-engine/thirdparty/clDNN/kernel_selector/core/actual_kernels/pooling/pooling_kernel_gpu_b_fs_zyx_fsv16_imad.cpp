@@ -36,6 +36,9 @@ ParamsKey PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetSupportedKey() const {
 
 PoolingKernelBase::DispatchData PoolingKernelGPU_b_fs_zyx_fsv16_imad::SetDefault(const pooling_params& params) const {
     DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
     const auto& out = params.output;
     auto x = out.X().v;
@@ -61,7 +64,10 @@ PoolingKernelBase::DispatchData PoolingKernelGPU_b_fs_zyx_fsv16_imad::SetDefault
         // we got b_fs_yx_fsv16 format, we process 16 features per workitem
         dispatchData.gws[2] = CeilDiv(f, FEATURE_SLICE_SIZE) * b;
 
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+        dims_by_gws = {{Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     }
     return dispatchData;
 }
