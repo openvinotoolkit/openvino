@@ -40,15 +40,26 @@ Tensor::Tensor(const element::Type element_type, const Shape& shape, const Alloc
     _impl->allocate();
 }
 
-Tensor::Tensor(const element::Type element_type, const Shape& shape, void* host_ptr, const Strides& strides) {
+Tensor::Tensor(const element::Type element_type, const Shape& shape, void* host_ptr, const Strides& byte_strides) {
     ie::SizeVector blk_order(shape.size());
     std::iota(blk_order.begin(), blk_order.end(), 0);
     ie::SizeVector dim_offset(shape.size(), 0);
     ie::SizeVector blk_strides;
-    if (strides.empty()) {
+    if (byte_strides.empty()) {
         blk_strides = ov::row_major_strides(shape);
     } else {
-        blk_strides.assign(strides.begin(), strides.end());
+        blk_strides.resize(byte_strides.size());
+        std::transform(byte_strides.begin(),
+                       byte_strides.end(),
+                       blk_strides.begin(),
+                       [&element_type](size_t byte_stride) {
+                           OPENVINO_ASSERT(byte_stride % element_type.size() == 0,
+                                           "Limitation: Stride in bytes ",
+                                           byte_stride,
+                                           " should be divisible by size of element ",
+                                           element_type.size());
+                           return byte_stride / element_type.size();
+                       });
     }
 
     try {
@@ -87,7 +98,19 @@ Shape Tensor::get_shape() const {
 }
 
 Strides Tensor::get_strides() const {
-    OV_TENSOR_STATEMENT(return _impl->getTensorDesc().getBlockingDesc().getStrides(););
+    OV_TENSOR_STATEMENT({
+        const auto& element_strides = _impl->getTensorDesc().getBlockingDesc().getStrides();
+        const size_t elem_size = get_element_type().size();
+        Strides byte_strides;
+        byte_strides.resize(element_strides.size());
+        std::transform(element_strides.begin(),
+                       element_strides.end(),
+                       byte_strides.begin(),
+                       [&elem_size](size_t stride) {
+                           return stride * elem_size;
+                       });
+        return byte_strides;
+    });
 }
 
 size_t Tensor::get_size() const {
@@ -119,8 +142,9 @@ void* Tensor::data(const element::Type element_type) const {
             element::fundamental_type_for(element_type));
     }
     OV_TENSOR_STATEMENT({
-        return _impl->getTensorDesc().getBlockingDesc().getOffsetPadding() * get_element_type().size() +
-               InferenceEngine::as<InferenceEngine::MemoryBlob>(_impl)->rmap().as<uint8_t*>();
+        // since we don't use byte offsets, we need to explicitly multiply by element_size
+        auto byte_offset = _impl->getTensorDesc().getBlockingDesc().getOffsetPadding() * get_element_type().size();
+        return byte_offset + InferenceEngine::as<InferenceEngine::MemoryBlob>(_impl)->rmap().as<uint8_t*>();
     });
 }
 

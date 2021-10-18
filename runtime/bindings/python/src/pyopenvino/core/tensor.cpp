@@ -71,7 +71,7 @@ void regclass_Tensor(py::module m) {
     cls.def_property_readonly("data", [](ov::runtime::Tensor& self) {
         return py::array(Common::ov_type_to_dtype.at(self.get_element_type()),
                          self.get_shape(),
-                         Common::to_numpy_strides(self.get_strides(), self.get_element_type()),
+                         self.get_strides(),
                          self.data(),
                          py::cast(self));
     });

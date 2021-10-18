@@ -11,11 +11,19 @@
 #include <openvino/core/strides.hpp>
 #include <openvino/core/type/element_type.hpp>
 
+#include "ngraph/coordinate_transform.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 using OVTensorTest = ::testing::Test;
+
+inline ov::Strides byteStrides(const ov::Strides& strides, const ov::element::Type& type) {
+    ov::Strides byte_strides(strides.size());
+    for (size_t i = 0; i < strides.size(); ++i)
+        byte_strides[i] = strides[i] * type.size();
+    return byte_strides;
+}
 
 TEST_F(OVTensorTest, canCreateTensor) {
     ov::Shape shape = {4, 3, 2};
@@ -26,7 +34,7 @@ TEST_F(OVTensorTest, canCreateTensor) {
     ASSERT_EQ(ov::element::f32, t.get_element_type());
     ASSERT_EQ(shape, t.get_shape());
     ASSERT_NE(shape, t.get_strides());
-    ASSERT_EQ(ov::Strides({6, 2, 1}), t.get_strides());
+    ASSERT_EQ(byteStrides(ov::Strides({6, 2, 1}), t.get_element_type()), t.get_strides());
     ASSERT_EQ(ov::element::f32.size() * totalSize, t.get_byte_size());
     ASSERT_THROW(t.data(ov::element::i64), ov::Exception);
     ASSERT_THROW(t.data<std::int32_t>(), ov::Exception);
@@ -71,7 +79,7 @@ TEST_F(OVTensorTest, canAccessExternalData) {
         ASSERT_EQ(data, t.data(ov::element::f32));
         ASSERT_EQ(data, ptr);
         ASSERT_THROW(t.data<std::int16_t>(), ov::Exception);
-        ASSERT_EQ(ov::row_major_strides(shape), t.get_strides());
+        ASSERT_EQ(byteStrides(ov::row_major_strides(shape), t.get_element_type()), t.get_strides());
         ASSERT_EQ(ov::shape_size(shape), t.get_size());
         ASSERT_EQ(ov::shape_size(shape) * ov::element::f32.size(), t.get_byte_size());
     }
@@ -80,11 +88,11 @@ TEST_F(OVTensorTest, canAccessExternalData) {
 TEST_F(OVTensorTest, canAccessExternalDataWithStrides) {
     ov::Shape shape = {2, 3};
     float data[] = {5.f, 6.f, 7.f, 0.f, 1.f, 42.f, 3.f, 0.f};
-    ov::runtime::Tensor t{ov::element::f32, shape, data, {4, 1}};
-    ASSERT_EQ(ov::Strides({4, 1}), t.get_strides());
+    ov::runtime::Tensor t{ov::element::f32, shape, data, {16, 4}};
+    ASSERT_EQ(ov::Strides({16, 4}), t.get_strides());
     {
         ASSERT_EQ((ov::Shape{2, 3}), t.get_shape());
-        float* ptr = t.data<float>();
+        const float* ptr = t.data<const float>();
         ASSERT_EQ(ptr[5], 42);
     }
 }
@@ -97,16 +105,23 @@ TEST_F(OVTensorTest, cannotCreateTensorWithExternalNullptr) {
 TEST_F(OVTensorTest, cannotCreateTensorWithWrongStrides) {
     ov::Shape shape = {2, 3};
     float data[] = {5.f, 6.f, 7.f, 0.f, 1.f, 42.f, 3.f, 0.f};
+    const auto el = ov::element::f32;
     {
         // strides.size() != shape.size()
-        EXPECT_THROW(ov::runtime::Tensor(ov::element::f32, shape, data, {6, 3, 1}), ov::Exception);
+        EXPECT_THROW(ov::runtime::Tensor(el, shape, data, byteStrides({6, 3, 1}, el)), ov::Exception);
     }
     {
         // strides values are element-wise >= ov::row_major_strides(shape) values
-        EXPECT_THROW(ov::runtime::Tensor(ov::element::f32, shape, data, {2, 1}), ov::Exception);
-        EXPECT_THROW(ov::runtime::Tensor(ov::element::f32, shape, data, {3, 0}), ov::Exception);
-        EXPECT_THROW(ov::runtime::Tensor(ov::element::f32, shape, data, {3, 2}), ov::Exception);
-        EXPECT_NO_THROW(ov::runtime::Tensor(ov::element::f32, shape, data, {6, 2}));
+        EXPECT_THROW(ov::runtime::Tensor(el, shape, data, byteStrides({2, 1}, el)), ov::Exception);
+        EXPECT_THROW(ov::runtime::Tensor(el, shape, data, byteStrides({3, 0}, el)), ov::Exception);
+        EXPECT_THROW(ov::runtime::Tensor(el, shape, data, byteStrides({3, 2}, el)), ov::Exception);
+        EXPECT_NO_THROW(ov::runtime::Tensor(el, shape, data, byteStrides({6, 2}, el)));
+    }
+    {
+        // strides are not divisible by elem_size
+        EXPECT_THROW(ov::runtime::Tensor(el, shape, data, {7, el.size()}), ov::Exception);
+        EXPECT_THROW(ov::runtime::Tensor(el, shape, data, {3, 0}), ov::Exception);
+        EXPECT_THROW(ov::runtime::Tensor(el, shape, data, {el.size(), 3}), ov::Exception);
     }
 }
 
@@ -118,7 +133,7 @@ TEST_F(OVTensorTest, saveDimsAndSizeAfterMove) {
 
     ASSERT_EQ(shape, new_tensor.get_shape());
     ASSERT_EQ(ov::element::f32, new_tensor.get_element_type());
-    ASSERT_EQ(ov::row_major_strides(shape), new_tensor.get_strides());
+    ASSERT_EQ(byteStrides(ov::row_major_strides(shape), new_tensor.get_element_type()), new_tensor.get_strides());
 
     ASSERT_THROW(t.get_size(), ov::Exception);
     ASSERT_THROW(t.get_element_type(), ov::Exception);
@@ -140,7 +155,7 @@ TEST_F(OVTensorTest, canSetShape) {
     ASSERT_EQ(t.get_shape(), origShape);
     ASSERT_NO_THROW(t.set_shape({4, 5, 6}));
     ASSERT_EQ(newShape, t.get_shape());
-    ASSERT_EQ(ov::row_major_strides(newShape), t.get_strides());
+    ASSERT_EQ(byteStrides(ov::row_major_strides(newShape), t.get_element_type()), t.get_strides());
     ASSERT_NE(orig_data, t.data());
 
     // check that setShape for copy changes original Tensor
@@ -179,7 +194,7 @@ TEST_F(OVTensorTest, makeRangeRoiTensor) {
     ASSERT_EQ(roi_tensor.data<int32_t>() - t.data<int32_t>(), ref_offset_elems);
     ASSERT_EQ(reinterpret_cast<uint8_t*>(roi_tensor.data()) - reinterpret_cast<uint8_t*>(t.data()), ref_offset_bytes);
     ASSERT_EQ(roi_tensor.get_strides(), t.get_strides());
-    ASSERT_EQ(ref_strides, roi_tensor.get_strides());
+    ASSERT_EQ(byteStrides(ref_strides, roi_tensor.get_element_type()), roi_tensor.get_strides());
     ASSERT_EQ(roi_tensor.get_element_type(), t.get_element_type());
 }
 
@@ -223,20 +238,15 @@ TEST_F(OVTensorTest, readRangeRoiBlob) {
     ov::runtime::Tensor roi_tensor{t, {0, 0, 2, 4}, {1, 3, 4, 8}};
     ASSERT_NE(false, static_cast<bool>(roi_tensor));
     {
-        auto roi = roi_tensor.data<int32_t>();
+        const std::uint8_t* roi = reinterpret_cast<const std::uint8_t*>(roi_tensor.data());
         ASSERT_NE(nullptr, roi);
         auto strides = roi_tensor.get_strides();
-        for (size_t n = 0; n < roi_tensor.get_shape()[0]; ++n) {
-            for (size_t c = 0; c < roi_tensor.get_shape()[1]; ++c) {
-                for (size_t h = 0; h < roi_tensor.get_shape()[2]; ++h) {
-                    for (size_t w = 0; w < roi_tensor.get_shape()[3]; ++w) {
-                        auto actual = roi[w * strides[3] + h * strides[2] + c * strides[1] + n * strides[0]];
-                        auto expected = t.data<int32_t>()[(w + 4) * strides[3] + (h + 2) * strides[2] +
-                                                          (c + 0) * strides[1] + (n + 0) * strides[0]];
-                        ASSERT_EQ(expected, actual) << ov::Shape{n, c, h, w};
-                    }
-                }
-            }
+        for (auto&& c : ngraph::CoordinateTransformBasic{roi_tensor.get_shape()}) {
+            auto actual_addr = roi + c[3] * strides[3] + c[2] * strides[2] + c[1] * strides[1] + c[0] * strides[0];
+            auto expected_addr = t.data<int32_t>() + ((c[3] + 4) * strides[3] + (c[2] + 2) * strides[2] +
+                                                      (c[1] + 0) * strides[1] + (c[0] + 0) * strides[0]) /
+                                                         t.get_element_type().size();
+            ASSERT_EQ(actual_addr, reinterpret_cast<const std::uint8_t*>(expected_addr));
         }
     }
 }
