@@ -4,8 +4,8 @@
 import numpy as np
 import pytest
 
-from ngraph.exceptions import UserInputError
-from ngraph.utils.input_validation import (
+from openvino.exceptions import UserInputError
+from openvino.utils.input_validation import (
     _check_value,
     check_valid_attribute,
     check_valid_attributes,

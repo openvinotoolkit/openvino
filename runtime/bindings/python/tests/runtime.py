@@ -7,12 +7,12 @@ import logging
 from typing import Dict, List, Union
 
 import numpy as np
-from openvino.inference_engine import IECore, IENetwork, Blob, DataPtr
+from openvino import Core, IENetwork, Blob, DataPtr
 
-from ngraph.exceptions import UserInputError
-from ngraph.impl import Function, Node, PartialShape, Type
-from ngraph.opset1.ops import result
-from ngraph.utils.types import NumericData, get_shape, get_dtype
+from openvino.exceptions import UserInputError
+from openvino.impl import Function, Node, PartialShape, Type
+from openvino.opset1.ops import result
+from openvino.utils.types import NumericData, get_shape, get_dtype
 
 import tests
 
@@ -36,6 +36,7 @@ def _convert_inputs(cnn_network: IENetwork) -> None:
     """WA converts unsupported input images formats."""
     precision_map = {
         "FP64": "FP32",
+        "I64": "I32",
         "U32": "I32",
     }
 
@@ -45,6 +46,18 @@ def _convert_inputs(cnn_network: IENetwork) -> None:
             cnn_network.input_info[cnn_input].precision = _precision
         except KeyError:
             pass
+
+
+def _convert_val(val):
+    """WA converts unsupported input values."""
+    if type(val) is np.ndarray:
+        if val.dtype == np.float64:
+            return np.array(val, dtype=np.float32)
+        elif val.dtype == np.int64:
+            return np.array(val, dtype=np.int32)
+        return np.array(val)
+
+    return np.array(val, dtype=np.float32)
 
 
 def apply_ng_type(output: DataPtr, ng_type: Type):
@@ -65,7 +78,7 @@ class Runtime(object):
     def __init__(self, backend_name: str) -> None:
         self.backend_name = backend_name
         log.debug("Creating Inference Engine for %s" % backend_name)
-        self.backend = IECore()
+        self.backend = Core()
         assert backend_name in self.backend.available_devices, (
             'The requested device "' + backend_name + '" is not supported!'
         )
@@ -147,14 +160,13 @@ class Computation(object):
         # ignore not needed input values
         input_values = input_values[:len(self.parameters)]
 
-        input_values = [np.array(input_value) for input_value in input_values]
+        input_values = [_convert_val(input_value) for input_value in input_values]
         input_shapes = [get_shape(input_value) for input_value in input_values]
 
         param_names = [param.friendly_name for param in self.parameters]
 
         if self.network_cache.get(str(input_shapes)) is None:
-            capsule = Function.to_capsule(self.function)
-            cnn_network = IENetwork(capsule)
+            cnn_network = IENetwork(self.function)
             if self.function.is_dynamic():
                 cnn_network.reshape(dict(zip(param_names, input_shapes)))
             # Convert unsupported inputs of the network
@@ -180,7 +192,7 @@ class Computation(object):
                     parameter_shape,
                 )
 
-        request = executable_network.requests[0]
+        request = executable_network.create_infer_request()
         request.infer(dict(zip(param_names, input_values)))
 
         # Set order of output blobs compatible with nG Function

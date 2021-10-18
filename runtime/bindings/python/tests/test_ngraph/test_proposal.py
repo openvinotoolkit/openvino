@@ -2,17 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import ngraph as ng
-from ngraph.impl import Shape, Type
+import openvino.opset8 as ov
+from openvino.impl import Shape, Type
 
 
 def test_proposal_props():
     float_dtype = np.float32
     batch_size = 1
     post_nms_topn = 20
-    probs = ng.parameter(Shape([batch_size, 8, 255, 255]), dtype=float_dtype, name="probs")
-    deltas = ng.parameter(Shape([batch_size, 16, 255, 255]), dtype=float_dtype, name="bbox_deltas")
-    im_info = ng.parameter(Shape([4]), dtype=float_dtype, name="im_info")
+    probs = ov.parameter(Shape([batch_size, 8, 255, 255]), dtype=float_dtype, name="probs")
+    deltas = ov.parameter(Shape([batch_size, 16, 255, 255]), dtype=float_dtype, name="bbox_deltas")
+    im_info = ov.parameter(Shape([4]), dtype=float_dtype, name="im_info")
 
     attrs = {
         "base_size": np.uint32(85),
@@ -25,7 +25,7 @@ def test_proposal_props():
         "scale": np.array([2, 3, 3, 4], dtype=np.float32),
     }
 
-    node = ng.proposal(probs, deltas, im_info, attrs)
+    node = ov.proposal(probs, deltas, im_info, attrs)
 
     assert node.get_type_name() == "Proposal"
     assert node.get_output_size() == 2

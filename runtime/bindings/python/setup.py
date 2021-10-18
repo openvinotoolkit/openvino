@@ -17,10 +17,10 @@ from setuptools.command.develop import develop as _develop
 from distutils.command.build import build as _build
 
 __version__ = os.environ.get("NGRAPH_VERSION", "0.0.0.dev0")
-PYNGRAPH_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
-OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYNGRAPH_ROOT_DIR, "../../.."))
+PYTHON_API_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
+OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYTHON_API_ROOT_DIR, "../../.."))
 # Change current working directory to runtime/bindings/python
-os.chdir(PYNGRAPH_ROOT_DIR)
+os.chdir(PYTHON_API_ROOT_DIR)
 
 NGRAPH_LIBS = ["ngraph", "onnx_ngraph_frontend", "openvino"]
 
@@ -40,13 +40,26 @@ packages = [
     "ngraph.impl.op.util",
     "ngraph.impl.passes",
     "ngraph.frontend",
-    "openvino"
+    "openvino",
+    "openvino.opset1",
+    "openvino.opset2",
+    "openvino.opset3",
+    "openvino.opset4",
+    "openvino.opset5",
+    "openvino.opset6",
+    "openvino.opset7",
+    "openvino.opset8",
+    "openvino.utils",
+    "openvino.impl",
+    "openvino.impl.op",
+    "openvino.impl.op.util",
+    "openvino.impl.passes",
 ]
 
 
 data_files = []
 
-with open(os.path.join(PYNGRAPH_ROOT_DIR, "requirements.txt")) as req:
+with open(os.path.join(PYTHON_API_ROOT_DIR, "requirements.txt")) as req:
     requirements = req.read().splitlines()
 
 cmdclass = {}
@@ -143,6 +156,8 @@ class BuildCMakeExt(build_ext):
         build_dir = pathlib.Path(self.build_temp)
 
         extension_path = pathlib.Path(self.get_ext_fullpath(extension.name))
+        if extension.name == "pyopenvino":
+            extension_path = pathlib.Path(os.path.join(extension_path.parent.absolute(), "openvino"))
 
         os.makedirs(build_dir, exist_ok=True)
         os.makedirs(extension_path.parent.absolute(), exist_ok=True)
@@ -152,7 +167,7 @@ class BuildCMakeExt(build_ext):
         root_dir = OPENVINO_ROOT_DIR
         bin_dir = os.path.join(OPENVINO_ROOT_DIR, "bin")
         if os.environ.get("OpenVINO_DIR") is not None:
-            root_dir = PYNGRAPH_ROOT_DIR
+            root_dir = PYTHON_API_ROOT_DIR
             bin_dir = build_dir
 
         self.announce("Configuring cmake project", level=3)
@@ -185,7 +200,7 @@ class InstallCMakeLibs(install_lib):
 
         root_dir = os.path.join(OPENVINO_ROOT_DIR, "bin")
         if os.environ.get("OpenVINO_DIR") is not None:
-            root_dir = pathlib.Path(PYNGRAPH_ROOT_DIR)
+            root_dir = pathlib.Path(PYTHON_API_ROOT_DIR)
 
         lib_ext = ""
         if "linux" in sys.platform:
@@ -214,8 +229,8 @@ cmdclass["build_ext"] = BuildCMakeExt
 cmdclass["install_lib"] = InstallCMakeLibs
 
 setup(
-    name="ngraph-core",
-    description="nGraph - Intel's graph compiler and runtime for Neural Networks",
+    name="openvino",
+    description="OpenVINO - deploying pre-trained deep learning models",
     version=__version__,
     author="Intel Corporation",
     url="https://github.com/openvinotoolkit/openvino",

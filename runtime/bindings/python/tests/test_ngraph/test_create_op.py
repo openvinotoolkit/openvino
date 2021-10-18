@@ -3,12 +3,12 @@
 
 import numpy as np
 import pytest
-from _pyngraph import PartialShape, Dimension
+from openvino.pyopenvino import PartialShape, Dimension
 
-import ngraph as ng
-import ngraph.opset1 as ng_opset1
-import ngraph.opset5 as ng_opset5
-from ngraph.impl import Type
+import openvino.opset8 as ov
+import openvino.opset1 as ov_opset1
+import openvino.opset5 as ov_opset5
+from openvino.impl import Type
 
 np_types = [np.float32, np.int32]
 integral_np_types = [
@@ -25,10 +25,10 @@ integral_np_types = [
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
 def test_adaptive_avg_pool(dtype):
-    data = ng.parameter([2, 24, 34, 62], name="input", dtype=dtype)
-    output_shape = ng.constant(np.array([16, 16], dtype=np.int32))
+    data = ov.parameter([2, 24, 34, 62], name="input", dtype=dtype)
+    output_shape = ov.constant(np.array([16, 16], dtype=np.int32))
 
-    node = ng.adaptive_avg_pool(data, output_shape)
+    node = ov.adaptive_avg_pool(data, output_shape)
 
     assert node.get_type_name() == "AdaptiveAvgPool"
     assert node.get_output_size() == 1
@@ -38,10 +38,10 @@ def test_adaptive_avg_pool(dtype):
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
 @pytest.mark.parametrize("ind_type", ["i32", "i64"])
 def test_adaptive_max_pool(dtype, ind_type):
-    data = ng.parameter([2, 24, 34, 62], name="input", dtype=dtype)
-    output_shape = ng.constant(np.array([16, 16], dtype=np.int32))
+    data = ov.parameter([2, 24, 34, 62], name="input", dtype=dtype)
+    output_shape = ov.constant(np.array([16, 16], dtype=np.int32))
 
-    node = ng.adaptive_max_pool(data, output_shape, ind_type)
+    node = ov.adaptive_max_pool(data, output_shape, ind_type)
 
     assert node.get_type_name() == "AdaptiveMaxPool"
     assert node.get_output_size() == 2
@@ -63,10 +63,10 @@ def test_binary_convolution(dtype):
     input1_shape = [1, 1, 3, 3]
     expected_shape = [1, 1, 7, 7]
 
-    parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=dtype)
-    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=dtype)
+    parameter_input0 = ov.parameter(input0_shape, name="Input0", dtype=dtype)
+    parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=dtype)
 
-    node = ng.binary_convolution(
+    node = ov.binary_convolution(
         parameter_input0, parameter_input1, strides, pads_begin, pads_end, dilations, mode, pad_value,
     )
 
@@ -81,10 +81,10 @@ def test_ctc_greedy_decoder(dtype):
     input1_shape = [20, 8]
     expected_shape = [8, 20, 1, 1]
 
-    parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=dtype)
-    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=dtype)
+    parameter_input0 = ov.parameter(input0_shape, name="Input0", dtype=dtype)
+    parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=dtype)
 
-    node = ng.ctc_greedy_decoder(parameter_input0, parameter_input1)
+    node = ov.ctc_greedy_decoder(parameter_input0, parameter_input1)
 
     assert node.get_type_name() == "CTCGreedyDecoder"
     assert node.get_output_size() == 1
@@ -116,13 +116,13 @@ def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_r
     input2_shape = [1]
     expected_shape = [8, 20]
 
-    parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=fp_dtype)
-    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=int_dtype)
+    parameter_input0 = ov.parameter(input0_shape, name="Input0", dtype=fp_dtype)
+    parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=int_dtype)
     parameter_input2 = None
     if blank_index:
-        parameter_input2 = ng.parameter(input2_shape, name="Input2", dtype=int_dtype)
+        parameter_input2 = ov.parameter(input2_shape, name="Input2", dtype=int_dtype)
 
-    node = ng.ctc_greedy_decoder_seq_len(
+    node = ov.ctc_greedy_decoder_seq_len(
         parameter_input0, parameter_input1, parameter_input2, merge_repeated, int_ci, int_sl
     )
 
@@ -143,11 +143,11 @@ def test_deformable_convolution_opset1(dtype):
     input2_shape = [1, 1, 3, 3]
     expected_shape = [1, 1, 7, 7]
 
-    parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=dtype)
-    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=dtype)
-    parameter_input2 = ng.parameter(input2_shape, name="Input2", dtype=dtype)
+    parameter_input0 = ov.parameter(input0_shape, name="Input0", dtype=dtype)
+    parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=dtype)
+    parameter_input2 = ov.parameter(input2_shape, name="Input2", dtype=dtype)
 
-    node = ng_opset1.deformable_convolution(
+    node = ov_opset1.deformable_convolution(
         parameter_input0, parameter_input1, parameter_input2, strides, pads_begin, pads_end, dilations,
     )
 
@@ -168,11 +168,11 @@ def test_deformable_convolution(dtype):
     input2_shape = [1, 1, 3, 3]
     expected_shape = [1, 1, 7, 7]
 
-    parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=dtype)
-    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=dtype)
-    parameter_input2 = ng.parameter(input2_shape, name="Input2", dtype=dtype)
+    parameter_input0 = ov.parameter(input0_shape, name="Input0", dtype=dtype)
+    parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=dtype)
+    parameter_input2 = ov.parameter(input2_shape, name="Input2", dtype=dtype)
 
-    node = ng.deformable_convolution(
+    node = ov.deformable_convolution(
         parameter_input0, parameter_input1, parameter_input2, strides, pads_begin, pads_end, dilations,
     )
 
@@ -194,12 +194,12 @@ def test_deformable_convolution_mask(dtype):
     input3_shape = [1, 9, 7, 7]
     expected_shape = [1, 1, 7, 7]
 
-    parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=dtype)
-    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=dtype)
-    parameter_input2 = ng.parameter(input2_shape, name="Input2", dtype=dtype)
-    parameter_input3 = ng.parameter(input3_shape, name="Input3", dtype=dtype)
+    parameter_input0 = ov.parameter(input0_shape, name="Input0", dtype=dtype)
+    parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=dtype)
+    parameter_input2 = ov.parameter(input2_shape, name="Input2", dtype=dtype)
+    parameter_input3 = ov.parameter(input3_shape, name="Input3", dtype=dtype)
 
-    node = ng.deformable_convolution(
+    node = ov.deformable_convolution(
         parameter_input0, parameter_input1, parameter_input2, strides,
         pads_begin, pads_end, dilations, parameter_input3
     )
@@ -225,11 +225,11 @@ def test_deformable_psroi_pooling(dtype):
     input2_shape = [300, 2, 7, 7]
     expected_shape = [300, 8, 7, 7]
 
-    parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=dtype)
-    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=dtype)
-    parameter_input2 = ng.parameter(input2_shape, name="Input2", dtype=dtype)
+    parameter_input0 = ov.parameter(input0_shape, name="Input0", dtype=dtype)
+    parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=dtype)
+    parameter_input2 = ov.parameter(input2_shape, name="Input2", dtype=dtype)
 
-    node = ng.deformable_psroi_pooling(
+    node = ov.deformable_psroi_pooling(
         parameter_input0,
         parameter_input1,
         output_dim,
@@ -254,10 +254,10 @@ def test_floor_mod(dtype):
     input1_shape = [7, 1, 5]
     expected_shape = [8, 7, 6, 5]
 
-    parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=dtype)
-    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=dtype)
+    parameter_input0 = ov.parameter(input0_shape, name="Input0", dtype=dtype)
+    parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=dtype)
 
-    node = ng.floor_mod(parameter_input0, parameter_input1)
+    node = ov.floor_mod(parameter_input0, parameter_input1)
 
     assert node.get_type_name() == "FloorMod"
     assert node.get_output_size() == 1
@@ -272,12 +272,12 @@ def test_gather_tree(dtype):
     input3_shape = []
     expected_shape = [100, 1, 10]
 
-    parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=dtype)
-    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=dtype)
-    parameter_input2 = ng.parameter(input2_shape, name="Input2", dtype=dtype)
-    parameter_input3 = ng.parameter(input3_shape, name="Input3", dtype=dtype)
+    parameter_input0 = ov.parameter(input0_shape, name="Input0", dtype=dtype)
+    parameter_input1 = ov.parameter(input1_shape, name="Input1", dtype=dtype)
+    parameter_input2 = ov.parameter(input2_shape, name="Input2", dtype=dtype)
+    parameter_input3 = ov.parameter(input3_shape, name="Input3", dtype=dtype)
 
-    node = ng.gather_tree(parameter_input0, parameter_input1, parameter_input2, parameter_input3)
+    node = ov.gather_tree(parameter_input0, parameter_input1, parameter_input2, parameter_input3)
 
     assert node.get_type_name() == "GatherTree"
     assert node.get_output_size() == 1
@@ -297,16 +297,16 @@ def test_lstm_cell_operator(dtype):
     R_shape = [4 * hidden_size, hidden_size]
     B_shape = [4 * hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_C_t = ng.parameter(C_t_shape, name="C_t", dtype=dtype)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_C_t = ov.parameter(C_t_shape, name="C_t", dtype=dtype)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
 
     expected_shape = [1, 128]
 
-    node_default = ng.lstm_cell(
+    node_default = ov.lstm_cell(
         parameter_X, parameter_H_t, parameter_C_t, parameter_W, parameter_R, parameter_B, hidden_size,
     )
 
@@ -320,7 +320,7 @@ def test_lstm_cell_operator(dtype):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 0.5
 
-    node_param = ng.lstm_cell(
+    node_param = ov.lstm_cell(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -353,16 +353,16 @@ def test_lstm_cell_operator_opset1(dtype):
     R_shape = [4 * hidden_size, hidden_size]
     B_shape = [4 * hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_C_t = ng.parameter(C_t_shape, name="C_t", dtype=dtype)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_C_t = ov.parameter(C_t_shape, name="C_t", dtype=dtype)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
 
     expected_shape = [1, 128]
 
-    node_default = ng_opset1.lstm_cell(
+    node_default = ov_opset1.lstm_cell(
         parameter_X, parameter_H_t, parameter_C_t, parameter_W, parameter_R, parameter_B, hidden_size,
     )
 
@@ -376,7 +376,7 @@ def test_lstm_cell_operator_opset1(dtype):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 0.5
 
-    node_param = ng_opset1.lstm_cell(
+    node_param = ov_opset1.lstm_cell(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -412,16 +412,16 @@ def test_lstm_sequence_operator_bidirectional_opset1(dtype):
     R_shape = [num_directions, 4 * hidden_size, hidden_size]
     B_shape = [num_directions, 4 * hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_C_t = ng.parameter(C_t_shape, name="C_t", dtype=dtype)
-    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_C_t = ov.parameter(C_t_shape, name="C_t", dtype=dtype)
+    parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
 
     direction = "BIDIRECTIONAL"
-    node = ng_opset1.lstm_sequence(
+    node = ov_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -441,7 +441,7 @@ def test_lstm_sequence_operator_bidirectional_opset1(dtype):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 1.22
 
-    node_param = ng_opset1.lstm_sequence(
+    node_param = ov_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -477,17 +477,17 @@ def test_lstm_sequence_operator_reverse_opset1(dtype):
     R_shape = [num_directions, 4 * hidden_size, hidden_size]
     B_shape = [num_directions, 4 * hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_C_t = ng.parameter(C_t_shape, name="C_t", dtype=dtype)
-    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_C_t = ov.parameter(C_t_shape, name="C_t", dtype=dtype)
+    parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
 
     direction = "REVERSE"
 
-    node_default = ng_opset1.lstm_sequence(
+    node_default = ov_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -507,7 +507,7 @@ def test_lstm_sequence_operator_reverse_opset1(dtype):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 1.22
 
-    node_param = ng_opset1.lstm_sequence(
+    node_param = ov_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -543,17 +543,17 @@ def test_lstm_sequence_operator_forward_opset1(dtype):
     R_shape = [num_directions, 4 * hidden_size, hidden_size]
     B_shape = [num_directions, 4 * hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_C_t = ng.parameter(C_t_shape, name="C_t", dtype=dtype)
-    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_C_t = ov.parameter(C_t_shape, name="C_t", dtype=dtype)
+    parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
 
     direction = "forward"
 
-    node_default = ng_opset1.lstm_sequence(
+    node_default = ov_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -573,7 +573,7 @@ def test_lstm_sequence_operator_forward_opset1(dtype):
     activation_beta = [1.0]
     clip = 0.5
 
-    node = ng_opset1.lstm_sequence(
+    node = ov_opset1.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -604,15 +604,15 @@ def test_gru_cell_operator():
     R_shape = [3 * hidden_size, hidden_size]
     B_shape = [3 * hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=np.float32)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=np.float32)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=np.float32)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=np.float32)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=np.float32)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=np.float32)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=np.float32)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=np.float32)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=np.float32)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=np.float32)
 
     expected_shape = [1, 128]
 
-    node_default = ng.gru_cell(parameter_X, parameter_H_t, parameter_W, parameter_R, parameter_B, hidden_size)
+    node_default = ov.gru_cell(parameter_X, parameter_H_t, parameter_W, parameter_R, parameter_B, hidden_size)
 
     assert node_default.get_type_name() == "GRUCell"
     assert node_default.get_output_size() == 1
@@ -626,9 +626,9 @@ def test_gru_cell_operator():
 
     # If *linear_before_reset* is set True, then B tensor shape must be [4 * hidden_size]
     B_shape = [4 * hidden_size]
-    parameter_B = ng.parameter(B_shape, name="B", dtype=np.float32)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=np.float32)
 
-    node_param = ng.gru_cell(
+    node_param = ov.gru_cell(
         parameter_X,
         parameter_H_t,
         parameter_W,
@@ -662,16 +662,16 @@ def test_gru_sequence():
     R_shape = [num_directions, 3 * hidden_size, hidden_size]
     B_shape = [num_directions, 3 * hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=np.float32)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=np.float32)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=np.float32)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=np.float32)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=np.float32)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=np.float32)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=np.float32)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=np.float32)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=np.float32)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=np.float32)
 
     expected_shape_y = [batch_size, num_directions, seq_len, hidden_size]
     expected_shape_h = [batch_size, num_directions, hidden_size]
 
-    node_default = ng.gru_sequence(
+    node_default = ov.gru_sequence(
         parameter_X,
         parameter_H_t,
         seq_lengths,
@@ -695,9 +695,9 @@ def test_gru_sequence():
 
     # If *linear_before_reset* is set True, then B tensor shape must be [4 * hidden_size]
     B_shape = [num_directions, 4 * hidden_size]
-    parameter_B = ng.parameter(B_shape, name="B", dtype=np.float32)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=np.float32)
 
-    node_param = ng.gru_sequence(
+    node_param = ov.gru_sequence(
         parameter_X,
         parameter_H_t,
         seq_lengths,
@@ -734,16 +734,16 @@ def test_rnn_sequence():
     R_shape = [num_directions, hidden_size, hidden_size]
     B_shape = [num_directions, hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=np.float32)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=np.float32)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=np.float32)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=np.float32)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=np.float32)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=np.float32)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=np.float32)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=np.float32)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=np.float32)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=np.float32)
 
     expected_shape_y = [batch_size, num_directions, seq_len, hidden_size]
     expected_shape_h = [batch_size, num_directions, hidden_size]
 
-    node_default = ng.rnn_sequence(
+    node_default = ov.rnn_sequence(
         parameter_X,
         parameter_H_t,
         seq_lengths,
@@ -764,7 +764,7 @@ def test_rnn_sequence():
     activations_beta = [1.0]
     clip = 0.5
 
-    node_param = ng.rnn_sequence(
+    node_param = ov.rnn_sequence(
         parameter_X,
         parameter_H_t,
         seq_lengths,
@@ -786,7 +786,7 @@ def test_rnn_sequence():
 
 
 def test_loop():
-    from ngraph.utils.tensor_iterator_types import (
+    from openvino.utils.tensor_iterator_types import (
         GraphBody,
         TensorIteratorSliceInputDesc,
         TensorIteratorMergedInputDesc,
@@ -795,30 +795,30 @@ def test_loop():
         TensorIteratorConcatOutputDesc,
     )
 
-    condition = ng.constant(True, dtype=np.bool)
-    trip_count = ng.constant(16, dtype=np.int32)
+    condition = ov.constant(True, dtype=np.bool)
+    trip_count = ov.constant(16, dtype=np.int32)
     #  Body parameters
-    body_timestep = ng.parameter([], np.int32, "timestep")
-    body_data_in = ng.parameter([1, 2, 2], np.float32, "body_in")
-    body_prev_cma = ng.parameter([2, 2], np.float32, "body_prev_cma")
-    body_const_one = ng.parameter([], np.int32, "body_const_one")
+    body_timestep = ov.parameter([], np.int32, "timestep")
+    body_data_in = ov.parameter([1, 2, 2], np.float32, "body_in")
+    body_prev_cma = ov.parameter([2, 2], np.float32, "body_prev_cma")
+    body_const_one = ov.parameter([], np.int32, "body_const_one")
 
     # CMA = cumulative moving average
-    prev_cum_sum = ng.multiply(ng.convert(body_timestep, "f32"), body_prev_cma)
-    curr_cum_sum = ng.add(prev_cum_sum, ng.squeeze(body_data_in, [0]))
-    elem_cnt = ng.add(body_const_one, body_timestep)
-    curr_cma = ng.divide(curr_cum_sum, ng.convert(elem_cnt, "f32"))
-    cma_hist = ng.unsqueeze(curr_cma, [0])
+    prev_cum_sum = ov.multiply(ov.convert(body_timestep, "f32"), body_prev_cma)
+    curr_cum_sum = ov.add(prev_cum_sum, ov.squeeze(body_data_in, [0]))
+    elem_cnt = ov.add(body_const_one, body_timestep)
+    curr_cma = ov.divide(curr_cum_sum, ov.convert(elem_cnt, "f32"))
+    cma_hist = ov.unsqueeze(curr_cma, [0])
 
     # TI inputs
-    data = ng.parameter([16, 2, 2], np.float32, "data")
+    data = ov.parameter([16, 2, 2], np.float32, "data")
     # Iterations count
-    zero = ng.constant(0, dtype=np.int32)
-    one = ng.constant(1, dtype=np.int32)
-    initial_cma = ng.constant(np.zeros([2, 2], dtype=np.float32), dtype=np.float32)
-    iter_cnt = ng.range(zero, np.int32(16), np.int32(1))
+    zero = ov.constant(0, dtype=np.int32)
+    one = ov.constant(1, dtype=np.int32)
+    initial_cma = ov.constant(np.zeros([2, 2], dtype=np.float32), dtype=np.float32)
+    iter_cnt = ov.range(zero, np.int32(16), np.int32(1))
     ti_inputs = [iter_cnt, data, initial_cma, one]
-    body_const_condition = ng.constant(True, dtype=np.bool)
+    body_const_condition = ov.constant(True, dtype=np.bool)
 
     graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one],
                            [curr_cma, cma_hist, body_const_condition])
@@ -848,7 +848,7 @@ def test_loop():
         TensorIteratorConcatOutputDesc(1, 1, 0, 1, 1, -1, 0),
     ]
 
-    node = ng.loop(
+    node = ov.loop(
         trip_count,
         condition,
         ti_inputs,
@@ -871,9 +871,9 @@ def test_loop():
 
 
 def test_roi_pooling():
-    inputs = ng.parameter([2, 3, 4, 5], dtype=np.float32)
-    coords = ng.parameter([150, 5], dtype=np.float32)
-    node = ng.roi_pooling(inputs, coords, [6, 6], 0.0625, "Max")
+    inputs = ov.parameter([2, 3, 4, 5], dtype=np.float32)
+    coords = ov.parameter([150, 5], dtype=np.float32)
+    node = ov.roi_pooling(inputs, coords, [6, 6], 0.0625, "Max")
 
     assert node.get_type_name() == "ROIPooling"
     assert node.get_output_size() == [6, 6]
@@ -882,9 +882,9 @@ def test_roi_pooling():
 
 
 def test_psroi_pooling():
-    inputs = ng.parameter([1, 72, 4, 5], dtype=np.float32)
-    coords = ng.parameter([150, 5], dtype=np.float32)
-    node = ng.psroi_pooling(inputs, coords, 2, 6, 0.0625, 0, 0, "average")
+    inputs = ov.parameter([1, 72, 4, 5], dtype=np.float32)
+    coords = ov.parameter([150, 5], dtype=np.float32)
+    node = ov.psroi_pooling(inputs, coords, 2, 6, 0.0625, 0, 0, "average")
 
     assert node.get_type_name() == "PSROIPooling"
     assert node.get_output_size() == 1
@@ -893,10 +893,10 @@ def test_psroi_pooling():
 
 
 def test_convert_like():
-    parameter_data = ng.parameter([1, 2, 3, 4], name="data", dtype=np.float32)
-    like = ng.constant(1, dtype=np.int8)
+    parameter_data = ov.parameter([1, 2, 3, 4], name="data", dtype=np.float32)
+    like = ov.constant(1, dtype=np.int8)
 
-    node = ng.convert_like(parameter_data, like)
+    node = ov.convert_like(parameter_data, like)
 
     assert node.get_type_name() == "ConvertLike"
     assert node.get_output_size() == 1
@@ -905,10 +905,10 @@ def test_convert_like():
 
 
 def test_bucketize():
-    data = ng.parameter([4, 3, 2, 1], name="data", dtype=np.float32)
-    buckets = ng.parameter([5], name="buckets", dtype=np.int64)
+    data = ov.parameter([4, 3, 2, 1], name="data", dtype=np.float32)
+    buckets = ov.parameter([5], name="buckets", dtype=np.int64)
 
-    node = ng.bucketize(data, buckets, "i32")
+    node = ov.bucketize(data, buckets, "i32")
 
     assert node.get_type_name() == "Bucketize"
     assert node.get_output_size() == 1
@@ -917,7 +917,7 @@ def test_bucketize():
 
 
 def test_region_yolo():
-    data = ng.parameter([1, 125, 13, 13], name="input", dtype=np.float32)
+    data = ov.parameter([1, 125, 13, 13], name="input", dtype=np.float32)
     num_coords = 4
     num_classes = 80
     num_regions = 1
@@ -926,7 +926,7 @@ def test_region_yolo():
     end_axis = 3
     do_softmax = False
 
-    node = ng.region_yolo(data, num_coords, num_classes, num_regions, do_softmax, mask, axis, end_axis)
+    node = ov.region_yolo(data, num_coords, num_classes, num_regions, do_softmax, mask, axis, end_axis)
 
     assert node.get_type_name() == "RegionYolo"
     assert node.get_output_size() == 1
@@ -935,10 +935,10 @@ def test_region_yolo():
 
 
 def test_reorg_yolo():
-    data = ng.parameter([2, 24, 34, 62], name="input", dtype=np.int32)
+    data = ov.parameter([2, 24, 34, 62], name="input", dtype=np.int32)
     stride = [2]
 
-    node = ng.reorg_yolo(data, stride)
+    node = ov.reorg_yolo(data, stride)
 
     assert node.get_type_name() == "ReorgYolo"
     assert node.get_output_size() == 1
@@ -947,12 +947,12 @@ def test_reorg_yolo():
 
 
 def test_embedding_bag_offsets_sum_1():
-    emb_table = ng.parameter([5, 2], name="emb_table", dtype=np.float32)
-    indices = ng.parameter([4], name="indices", dtype=np.int64)
-    offsets = ng.parameter([3], name="offsets", dtype=np.int64)
-    default_index = ng.parameter([], name="default_index", dtype=np.int64)
+    emb_table = ov.parameter([5, 2], name="emb_table", dtype=np.float32)
+    indices = ov.parameter([4], name="indices", dtype=np.int64)
+    offsets = ov.parameter([3], name="offsets", dtype=np.int64)
+    default_index = ov.parameter([], name="default_index", dtype=np.int64)
 
-    node = ng.embedding_bag_offsets_sum(emb_table, indices, offsets, default_index)
+    node = ov.embedding_bag_offsets_sum(emb_table, indices, offsets, default_index)
 
     assert node.get_type_name() == "EmbeddingBagOffsetsSum"
     assert node.get_output_size() == 1
@@ -961,14 +961,14 @@ def test_embedding_bag_offsets_sum_1():
 
 
 def test_embedding_segments_sum_all_inputs():
-    emb_table = ng.parameter([5, 2], name="emb_table", dtype=np.float32)
-    indices = ng.parameter([4], name="indices", dtype=np.int64)
-    segment_ids = ng.parameter([4], name="segment_ids", dtype=np.int64)
-    num_segments = ng.parameter([], name="num_segments", dtype=np.int64)
-    default_index = ng.parameter([], name="default_index", dtype=np.int64)
-    per_sample_weights = ng.parameter([4], name="per_sample_weights", dtype=np.float32)
+    emb_table = ov.parameter([5, 2], name="emb_table", dtype=np.float32)
+    indices = ov.parameter([4], name="indices", dtype=np.int64)
+    segment_ids = ov.parameter([4], name="segment_ids", dtype=np.int64)
+    num_segments = ov.parameter([], name="num_segments", dtype=np.int64)
+    default_index = ov.parameter([], name="default_index", dtype=np.int64)
+    per_sample_weights = ov.parameter([4], name="per_sample_weights", dtype=np.float32)
 
-    node = ng.embedding_segments_sum(
+    node = ov.embedding_segments_sum(
         emb_table, indices, segment_ids, num_segments, default_index, per_sample_weights
     )
 
@@ -979,13 +979,13 @@ def test_embedding_segments_sum_all_inputs():
 
 
 def test_embedding_segments_sum_with_some_opt_inputs():
-    emb_table = ng.parameter([5, 2], name="emb_table", dtype=np.float32)
-    indices = ng.parameter([4], name="indices", dtype=np.int64)
-    segment_ids = ng.parameter([4], name="segment_ids", dtype=np.int64)
-    num_segments = ng.parameter([], name="num_segments", dtype=np.int64)
+    emb_table = ov.parameter([5, 2], name="emb_table", dtype=np.float32)
+    indices = ov.parameter([4], name="indices", dtype=np.int64)
+    segment_ids = ov.parameter([4], name="segment_ids", dtype=np.int64)
+    num_segments = ov.parameter([], name="num_segments", dtype=np.int64)
 
     # only 1 out of 3 optional inputs
-    node = ng.embedding_segments_sum(emb_table, indices, segment_ids, num_segments)
+    node = ov.embedding_segments_sum(emb_table, indices, segment_ids, num_segments)
 
     assert node.get_type_name() == "EmbeddingSegmentsSum"
     assert node.get_output_size() == 1
@@ -994,12 +994,12 @@ def test_embedding_segments_sum_with_some_opt_inputs():
 
 
 def test_embedding_bag_packed_sum():
-    emb_table = ng.parameter([5, 2], name="emb_table", dtype=np.float32)
-    indices = ng.parameter([3, 3], name="indices", dtype=np.int64)
-    per_sample_weights = ng.parameter([3, 3], name="per_sample_weights", dtype=np.float32)
+    emb_table = ov.parameter([5, 2], name="emb_table", dtype=np.float32)
+    indices = ov.parameter([3, 3], name="indices", dtype=np.int64)
+    per_sample_weights = ov.parameter([3, 3], name="per_sample_weights", dtype=np.float32)
 
     # only 1 out of 3 optional inputs
-    node = ng.embedding_bag_packed_sum(emb_table, indices, per_sample_weights)
+    node = ov.embedding_bag_packed_sum(emb_table, indices, per_sample_weights)
 
     assert node.get_type_name() == "EmbeddingBagPackedSum"
     assert node.get_output_size() == 1
@@ -1017,9 +1017,9 @@ def test_interpolate(dtype):
         "pads_begin": np.array([2, 2], dtype=dtype),
     }
 
-    image_node = ng.parameter(image_shape, dtype, name="Image")
+    image_node = ov.parameter(image_shape, dtype, name="Image")
 
-    node = ng.interpolate(image_node, output_shape, attributes)
+    node = ov.interpolate(image_node, output_shape, attributes)
     expected_shape = [1, 3, 64, 64]
 
     assert node.get_type_name() == "Interpolate"
@@ -1051,9 +1051,9 @@ def test_prior_box(int_dtype, fp_dtype):
         "scale_all_sizes": False
     }
 
-    layer_shape = ng.constant(np.array([32, 32], dtype=int_dtype), int_dtype)
+    layer_shape = ov.constant(np.array([32, 32], dtype=int_dtype), int_dtype)
 
-    node = ng.prior_box(layer_shape, image_shape, attributes)
+    node = ov.prior_box(layer_shape, image_shape, attributes)
 
     assert node.get_type_name() == "PriorBox"
     assert node.get_output_size() == 1
@@ -1083,9 +1083,9 @@ def test_prior_box_clustered(int_dtype, fp_dtype):
         "height": np.array([1.0, 2.0, 1.0], dtype=fp_dtype),
     }
 
-    output_size = ng.constant(np.array([19, 19], dtype=int_dtype), int_dtype)
+    output_size = ov.constant(np.array([19, 19], dtype=int_dtype), int_dtype)
 
-    node = ng.prior_box_clustered(output_size, image_size, attributes)
+    node = ov.prior_box_clustered(output_size, image_size, attributes)
 
     assert node.get_type_name() == "PriorBoxClustered"
     assert node.get_output_size() == 1
@@ -1114,13 +1114,13 @@ def test_detection_output(int_dtype, fp_dtype):
         "nms_threshold": fp_dtype(0.645),
     }
 
-    box_logits = ng.parameter([4, 8], fp_dtype, "box_logits")
-    class_preds = ng.parameter([4, 170], fp_dtype, "class_preds")
-    proposals = ng.parameter([4, 2, 10], fp_dtype, "proposals")
-    aux_class_preds = ng.parameter([4, 4], fp_dtype, "aux_class_preds")
-    aux_box_preds = ng.parameter([4, 8], fp_dtype, "aux_box_preds")
+    box_logits = ov.parameter([4, 8], fp_dtype, "box_logits")
+    class_preds = ov.parameter([4, 170], fp_dtype, "class_preds")
+    proposals = ov.parameter([4, 2, 10], fp_dtype, "proposals")
+    aux_class_preds = ov.parameter([4, 4], fp_dtype, "aux_class_preds")
+    aux_box_preds = ov.parameter([4, 8], fp_dtype, "aux_box_preds")
 
-    node = ng.detection_output(box_logits, class_preds, proposals, attributes, aux_class_preds, aux_box_preds)
+    node = ov.detection_output(box_logits, class_preds, proposals, attributes, aux_class_preds, aux_box_preds)
 
     assert node.get_type_name() == "DetectionOutput"
     assert node.get_output_size() == 1
@@ -1151,10 +1151,10 @@ def test_proposal(int_dtype, fp_dtype):
     }
     batch_size = 7
 
-    class_probs = ng.parameter([batch_size, 12, 34, 62], fp_dtype, "class_probs")
-    bbox_deltas = ng.parameter([batch_size, 24, 34, 62], fp_dtype, "bbox_deltas")
-    image_shape = ng.parameter([3], fp_dtype, "image_shape")
-    node = ng.proposal(class_probs, bbox_deltas, image_shape, attributes)
+    class_probs = ov.parameter([batch_size, 12, 34, 62], fp_dtype, "class_probs")
+    bbox_deltas = ov.parameter([batch_size, 24, 34, 62], fp_dtype, "bbox_deltas")
+    image_shape = ov.parameter([3], fp_dtype, "image_shape")
+    node = ov.proposal(class_probs, bbox_deltas, image_shape, attributes)
 
     assert node.get_type_name() == "Proposal"
     assert node.get_output_size() == 2
@@ -1162,7 +1162,7 @@ def test_proposal(int_dtype, fp_dtype):
 
 
 def test_tensor_iterator():
-    from ngraph.utils.tensor_iterator_types import (
+    from openvino.utils.tensor_iterator_types import (
         GraphBody,
         TensorIteratorSliceInputDesc,
         TensorIteratorMergedInputDesc,
@@ -1172,25 +1172,25 @@ def test_tensor_iterator():
     )
 
     #  Body parameters
-    body_timestep = ng.parameter([], np.int32, "timestep")
-    body_data_in = ng.parameter([1, 2, 2], np.float32, "body_in")
-    body_prev_cma = ng.parameter([2, 2], np.float32, "body_prev_cma")
-    body_const_one = ng.parameter([], np.int32, "body_const_one")
+    body_timestep = ov.parameter([], np.int32, "timestep")
+    body_data_in = ov.parameter([1, 2, 2], np.float32, "body_in")
+    body_prev_cma = ov.parameter([2, 2], np.float32, "body_prev_cma")
+    body_const_one = ov.parameter([], np.int32, "body_const_one")
 
     # CMA = cumulative moving average
-    prev_cum_sum = ng.multiply(ng.convert(body_timestep, "f32"), body_prev_cma)
-    curr_cum_sum = ng.add(prev_cum_sum, ng.squeeze(body_data_in, [0]))
-    elem_cnt = ng.add(body_const_one, body_timestep)
-    curr_cma = ng.divide(curr_cum_sum, ng.convert(elem_cnt, "f32"))
-    cma_hist = ng.unsqueeze(curr_cma, [0])
+    prev_cum_sum = ov.multiply(ov.convert(body_timestep, "f32"), body_prev_cma)
+    curr_cum_sum = ov.add(prev_cum_sum, ov.squeeze(body_data_in, [0]))
+    elem_cnt = ov.add(body_const_one, body_timestep)
+    curr_cma = ov.divide(curr_cum_sum, ov.convert(elem_cnt, "f32"))
+    cma_hist = ov.unsqueeze(curr_cma, [0])
 
     # TI inputs
-    data = ng.parameter([16, 2, 2], np.float32, "data")
+    data = ov.parameter([16, 2, 2], np.float32, "data")
     # Iterations count
-    zero = ng.constant(0, dtype=np.int32)
-    one = ng.constant(1, dtype=np.int32)
-    initial_cma = ng.constant(np.zeros([2, 2], dtype=np.float32), dtype=np.float32)
-    iter_cnt = ng.range(zero, np.int32(16), np.int32(1))
+    zero = ov.constant(0, dtype=np.int32)
+    one = ov.constant(1, dtype=np.int32)
+    initial_cma = ov.constant(np.zeros([2, 2], dtype=np.float32), dtype=np.float32)
+    iter_cnt = ov.range(zero, np.int32(16), np.int32(1))
     ti_inputs = [iter_cnt, data, initial_cma, one]
 
     graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one], [curr_cma, cma_hist])
@@ -1220,7 +1220,7 @@ def test_tensor_iterator():
         TensorIteratorConcatOutputDesc(1, 1, 0, 1, 1, -1, 0),
     ]
 
-    node = ng.tensor_iterator(
+    node = ov.tensor_iterator(
         ti_inputs,
         graph_body,
         ti_slice_input_desc,
@@ -1239,9 +1239,9 @@ def test_tensor_iterator():
 
 
 def test_read_value_opset5():
-    init_value = ng_opset5.parameter([2, 2], name="init_value", dtype=np.int32)
+    init_value = ov_opset5.parameter([2, 2], name="init_value", dtype=np.int32)
 
-    node = ng_opset5.read_value(init_value, "var_id_667")
+    node = ov_opset5.read_value(init_value, "var_id_667")
 
     assert node.get_type_name() == "ReadValue"
     assert node.get_output_size() == 1
@@ -1250,9 +1250,9 @@ def test_read_value_opset5():
 
 
 def test_assign_opset5():
-    input_data = ng_opset5.parameter([5, 7], name="input_data", dtype=np.int32)
-    rv = ng_opset5.read_value(input_data, "var_id_667")
-    node = ng_opset5.assign(rv, "var_id_667")
+    input_data = ov_opset5.parameter([5, 7], name="input_data", dtype=np.int32)
+    rv = ov_opset5.read_value(input_data, "var_id_667")
+    node = ov_opset5.assign(rv, "var_id_667")
 
     assert node.get_type_name() == "Assign"
     assert node.get_output_size() == 1
@@ -1261,9 +1261,9 @@ def test_assign_opset5():
 
 
 def test_read_value():
-    init_value = ng.parameter([2, 2], name="init_value", dtype=np.int32)
+    init_value = ov.parameter([2, 2], name="init_value", dtype=np.int32)
 
-    node = ng.read_value(init_value, "var_id_667")
+    node = ov.read_value(init_value, "var_id_667")
 
     assert node.get_type_name() == "ReadValue"
     assert node.get_output_size() == 1
@@ -1272,9 +1272,9 @@ def test_read_value():
 
 
 def test_assign():
-    input_data = ng.parameter([5, 7], name="input_data", dtype=np.int32)
-    rv = ng.read_value(input_data, "var_id_667")
-    node = ng.assign(rv, "var_id_667")
+    input_data = ov.parameter([5, 7], name="input_data", dtype=np.int32)
+    rv = ov.read_value(input_data, "var_id_667")
+    node = ov.assign(rv, "var_id_667")
 
     assert node.get_type_name() == "Assign"
     assert node.get_output_size() == 1
@@ -1283,12 +1283,12 @@ def test_assign():
 
 
 def test_extract_image_patches():
-    image = ng.parameter([64, 3, 10, 10], name="image", dtype=np.int32)
+    image = ov.parameter([64, 3, 10, 10], name="image", dtype=np.int32)
     sizes = [3, 3]
     strides = [5, 5]
     rates = [1, 1]
     padding = "VALID"
-    node = ng.extract_image_patches(image, sizes, strides, rates, padding)
+    node = ov.extract_image_patches(image, sizes, strides, rates, padding)
 
     assert node.get_type_name() == "ExtractImagePatches"
     assert node.get_output_size() == 1
@@ -1312,16 +1312,16 @@ def test_lstm_sequence_operator_bidirectional(dtype):
     R_shape = [num_directions, 4 * hidden_size, hidden_size]
     B_shape = [num_directions, 4 * hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_C_t = ng.parameter(C_t_shape, name="C_t", dtype=dtype)
-    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_C_t = ov.parameter(C_t_shape, name="C_t", dtype=dtype)
+    parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
 
     direction = "BIDIRECTIONAL"
-    node = ng.lstm_sequence(
+    node = ov.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -1341,7 +1341,7 @@ def test_lstm_sequence_operator_bidirectional(dtype):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 1.22
 
-    node_param = ng.lstm_sequence(
+    node_param = ov.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -1377,17 +1377,17 @@ def test_lstm_sequence_operator_reverse(dtype):
     R_shape = [num_directions, 4 * hidden_size, hidden_size]
     B_shape = [num_directions, 4 * hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_C_t = ng.parameter(C_t_shape, name="C_t", dtype=dtype)
-    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_C_t = ov.parameter(C_t_shape, name="C_t", dtype=dtype)
+    parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
 
     direction = "REVERSE"
 
-    node_default = ng.lstm_sequence(
+    node_default = ov.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -1407,7 +1407,7 @@ def test_lstm_sequence_operator_reverse(dtype):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 1.22
 
-    node_param = ng.lstm_sequence(
+    node_param = ov.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -1443,17 +1443,17 @@ def test_lstm_sequence_operator_forward(dtype):
     R_shape = [num_directions, 4 * hidden_size, hidden_size]
     B_shape = [num_directions, 4 * hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_C_t = ng.parameter(C_t_shape, name="C_t", dtype=dtype)
-    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_C_t = ov.parameter(C_t_shape, name="C_t", dtype=dtype)
+    parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
 
     direction = "forward"
 
-    node_default = ng.lstm_sequence(
+    node_default = ov.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -1473,7 +1473,7 @@ def test_lstm_sequence_operator_forward(dtype):
     activation_beta = [1.0]
     clip = 0.5
 
-    node = ng.lstm_sequence(
+    node = ov.lstm_sequence(
         parameter_X,
         parameter_H_t,
         parameter_C_t,
@@ -1508,15 +1508,15 @@ def test_gru_sequence_operator_bidirectional(dtype):
     R_shape = [num_directions, 3 * hidden_size, hidden_size]
     B_shape = [num_directions, 3 * hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
 
     direction = "BIDIRECTIONAL"
-    node = ng.gru_sequence(
+    node = ov.gru_sequence(
         parameter_X,
         parameter_H_t,
         parameter_seq_len,
@@ -1536,9 +1536,9 @@ def test_gru_sequence_operator_bidirectional(dtype):
     clip = 1.22
     linear_before_reset = True
     B_shape = [num_directions, 4 * hidden_size]
-    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
 
-    node_param = ng.gru_sequence(
+    node_param = ov.gru_sequence(
         parameter_X,
         parameter_H_t,
         parameter_seq_len,
@@ -1573,16 +1573,16 @@ def test_gru_sequence_operator_reverse(dtype):
     R_shape = [num_directions, 3 * hidden_size, hidden_size]
     B_shape = [num_directions, 3 * hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
 
     direction = "REVERSE"
 
-    node_default = ng.gru_sequence(
+    node_default = ov.gru_sequence(
         parameter_X,
         parameter_H_t,
         parameter_seq_len,
@@ -1602,9 +1602,9 @@ def test_gru_sequence_operator_reverse(dtype):
     clip = 1.22
     linear_before_reset = True
     B_shape = [num_directions, 4 * hidden_size]
-    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
 
-    node_param = ng.gru_sequence(
+    node_param = ov.gru_sequence(
         parameter_X,
         parameter_H_t,
         parameter_seq_len,
@@ -1639,16 +1639,16 @@ def test_gru_sequence_operator_forward(dtype):
     R_shape = [num_directions, 3 * hidden_size, hidden_size]
     B_shape = [num_directions, 3 * hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
 
     direction = "forward"
 
-    node_default = ng.gru_sequence(
+    node_default = ov.gru_sequence(
         parameter_X,
         parameter_H_t,
         parameter_seq_len,
@@ -1668,9 +1668,9 @@ def test_gru_sequence_operator_forward(dtype):
     clip = 0.5
     linear_before_reset = True
     B_shape = [num_directions, 4 * hidden_size]
-    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
 
-    node = ng.gru_sequence(
+    node = ov.gru_sequence(
         parameter_X,
         parameter_H_t,
         parameter_seq_len,
@@ -1705,15 +1705,15 @@ def test_rnn_sequence_operator_bidirectional(dtype):
     R_shape = [num_directions, hidden_size, hidden_size]
     B_shape = [num_directions, hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
 
     direction = "BIDIRECTIONAL"
-    node = ng.rnn_sequence(
+    node = ov.rnn_sequence(
         parameter_X,
         parameter_H_t,
         parameter_seq_len,
@@ -1732,7 +1732,7 @@ def test_rnn_sequence_operator_bidirectional(dtype):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 1.22
 
-    node_param = ng.rnn_sequence(
+    node_param = ov.rnn_sequence(
         parameter_X,
         parameter_H_t,
         parameter_seq_len,
@@ -1766,16 +1766,16 @@ def test_rnn_sequence_operator_reverse(dtype):
     R_shape = [num_directions, hidden_size, hidden_size]
     B_shape = [num_directions, hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
 
     direction = "REVERSE"
 
-    node_default = ng.rnn_sequence(
+    node_default = ov.rnn_sequence(
         parameter_X,
         parameter_H_t,
         parameter_seq_len,
@@ -1794,7 +1794,7 @@ def test_rnn_sequence_operator_reverse(dtype):
     activation_beta = [3.0, 2.0, 1.0]
     clip = 1.22
 
-    node_param = ng.rnn_sequence(
+    node_param = ov.rnn_sequence(
         parameter_X,
         parameter_H_t,
         parameter_seq_len,
@@ -1828,16 +1828,16 @@ def test_rnn_sequence_operator_forward(dtype):
     R_shape = [num_directions, hidden_size, hidden_size]
     B_shape = [num_directions, hidden_size]
 
-    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
-    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
-    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
-    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
-    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
-    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+    parameter_X = ov.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ov.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_seq_len = ov.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ov.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ov.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ov.parameter(B_shape, name="B", dtype=dtype)
 
     direction = "forward"
 
-    node_default = ng.rnn_sequence(
+    node_default = ov.rnn_sequence(
         parameter_X,
         parameter_H_t,
         parameter_seq_len,
@@ -1856,7 +1856,7 @@ def test_rnn_sequence_operator_forward(dtype):
     activation_beta = [1.0]
     clip = 0.5
 
-    node = ng.rnn_sequence(
+    node = ov.rnn_sequence(
         parameter_X,
         parameter_H_t,
         parameter_seq_len,
@@ -1880,13 +1880,13 @@ def test_multiclass_nms():
                            0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
                            0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0], dtype="float32")
     boxes_data = boxes_data.reshape([1, 6, 4])
-    box = ng.constant(boxes_data, dtype=np.float)
+    box = ov.constant(boxes_data, dtype=np.float)
     scores_data = np.array([0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
                             0.95, 0.75, 0.6, 0.80, 0.5, 0.3], dtype="float32")
     scores_data = scores_data.reshape([1, 2, 6])
-    score = ng.constant(scores_data, dtype=np.float)
+    score = ov.constant(scores_data, dtype=np.float)
 
-    nms_node = ng.multiclass_nms(box, score, output_type="i32", nms_top_k=3,
+    nms_node = ov.multiclass_nms(box, score, output_type="i32", nms_top_k=3,
                                  iou_threshold=0.5, score_threshold=0.0, sort_result_type="classid",
                                  nms_eta=1.0)
 
@@ -1905,13 +1905,13 @@ def test_matrix_nms():
                            0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
                            0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0], dtype="float32")
     boxes_data = boxes_data.reshape([1, 6, 4])
-    box = ng.constant(boxes_data, dtype=np.float)
+    box = ov.constant(boxes_data, dtype=np.float)
     scores_data = np.array([0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
                             0.95, 0.75, 0.6, 0.80, 0.5, 0.3], dtype="float32")
     scores_data = scores_data.reshape([1, 2, 6])
-    score = ng.constant(scores_data, dtype=np.float)
+    score = ov.constant(scores_data, dtype=np.float)
 
-    nms_node = ng.matrix_nms(box, score, output_type="i32", nms_top_k=3,
+    nms_node = ov.matrix_nms(box, score, output_type="i32", nms_top_k=3,
                              score_threshold=0.0, sort_result_type="score", background_class=0,
                              decay_function="linear", gaussian_sigma=2.0, post_threshold=0.0)
 
