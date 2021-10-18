@@ -54,9 +54,10 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
                 # rt info update
                 assert op.has('rt_info'), 'Unable to preserve runtime information for node with name={}'.format(op_name)
 
-                if ('old_api_map', 0) not in op.rt_info.info:
-                    op.rt_info.info[('old_api_map', 0)] = OldAPIMap()
-                op.rt_info.info[('old_api_map', 0)].old_api_transpose_parameter(permutation.inv)
+                old_api_map = OldAPIMap(version=0)
+                if ('old_api_map', old_api_map.get_version()) not in op.rt_info.info:
+                    op.rt_info.info[('old_api_map', old_api_map.get_version())] = old_api_map
+                op.rt_info.info[('old_api_map', old_api_map.get_version())].old_api_transpose_parameter(permutation.inv)
 
                 # keep input in the framework format
                 transpose = create_op_node_with_second_input(
@@ -83,9 +84,10 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
 
                     # rt info update
                     assert op.has('rt_info'), 'Unable to preserve runtime information for node with name={}'.format(op)
-                    if ('old_api_map', 0) not in op.rt_info.info:
-                        op.rt_info.info[('old_api_map', 0)] = OldAPIMap()
-                    op.rt_info.info[('old_api_map', 0)].old_api_transpose_result(permutation.perm)
+                    old_api_map = OldAPIMap(version=0)
+                    if ('old_api_map', old_api_map.get_version()) not in op.rt_info.info:
+                        op.rt_info.info[('old_api_map', old_api_map.get_version())] = old_api_map
+                    op.rt_info.info[('old_api_map', old_api_map.get_version())].old_api_transpose_result(permutation.perm)
 
                     if in_data_node.has_valid('permutation'):
                         del in_data_node['permutation']

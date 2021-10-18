@@ -41,6 +41,12 @@ class RTInfoElement:
         Serialize method for RTInfoElement.
         """
 
+    @abc.abstractmethod
+    def get_version(self):
+        """
+        Get version of RTInfoElement.
+        """
+
 
 class OldAPIMap(RTInfoElement):
     """
@@ -48,8 +54,9 @@ class OldAPIMap(RTInfoElement):
     required for obtaining IR in old API.
     """
 
-    def __init__(self):
+    def __init__(self, version=0):
         self.info = defaultdict(dict)
+        self.version = version
 
     def old_api_transpose_parameter(self, inv: int64_array):
         self.info['inverse_order'] = inv
@@ -101,3 +108,6 @@ class OldAPIMap(RTInfoElement):
         elif node.soft_get('type') == 'Result':
             result = self.serialize_old_api_map_for_result(node)
         return result
+
+    def get_version(self):
+        return self.version
