@@ -749,13 +749,13 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         auto node = outputMap.second;
         const MKLDNNMemory& intr_blob = node->getParentEdgeAt(0)->getMemory();
 
-        const auto ext_blob = out.find(name);
+        auto ext_blob = out.find(name);
         if (ext_blob == out.end()) {
             IE_THROW(Unexpected) << "The network outputs do not contain mkldnn graph output node name: \"" << name << "\"";
         }
 
         const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
-        const auto &expectedDesc = ext_blob->second->getTensorDesc();
+        auto &expectedDesc = ext_blob->second->getTensorDesc();
 
         // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
         // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar
@@ -773,6 +773,12 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         if (out[name]->getTensorDesc().getDims() != intr_blob.getStaticDims() && !isScalarOutput) {
             if (!node->isDynamicNode())
                 IE_THROW() << "Output blob and node dims mismatch for node with name: \"" << name << "\"";
+
+            // WA: because input/output info initially contains non empty dims, order etc.
+            // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
+            if (expectedDesc.getLayout() == Layout::BLOCKED) {
+                expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
+            }
             out[name]->setShape(intr_blob.getStaticDims());
         }
 
