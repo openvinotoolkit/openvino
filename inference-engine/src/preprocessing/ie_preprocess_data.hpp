@@ -88,12 +88,12 @@ public:
 using PreProcessDataPtr = InferenceEngine::details::SOPointer<IPreProcessData>;
 
 inline PreProcessDataPtr CreatePreprocDataHelper() {
-    FileUtils::FilePath libraryName = FileUtils::toFilePath(std::string("inference_engine_preproc") + std::string(IE_BUILD_POSTFIX));
-    FileUtils::FilePath preprocLibraryPath = FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
+    ov::util::FilePath libraryName = ov::util::to_file_path(std::string("inference_engine_preproc") + std::string(IE_BUILD_POSTFIX));
+    ov::util::FilePath preprocLibraryPath = FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
     if (!FileUtils::fileExist(preprocLibraryPath)) {
         IE_THROW() << "Please, make sure that pre-processing library "
-            << FileUtils::fromFilePath(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
+            << ov::util::from_file_path(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
             << getIELibraryPath();
     }
     return {preprocLibraryPath};

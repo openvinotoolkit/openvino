@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v3::ScatterNDUpdate, "ScatterNDUpdate", 3, util::ScatterNDBase);
+BWDCMP_RTTI_DEFINITION(op::v3::ScatterNDUpdate);
 
 shared_ptr<Node> op::v3::ScatterNDUpdate::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v3_ScatterNDUpdate_clone_with_new_inputs);
@@ -29,10 +29,10 @@ bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg2,
               const HostTensorPtr& out) {
     using T = typename element_type_traits<ET>::value_type;
-    ov::StaticShape params_shape = arg0->get_shape();
-    ov::StaticShape indices_shape = arg1->get_shape();
-    ov::StaticShape updates_shape = arg1->get_shape();
-    const ov::StaticShape& out_shape(params_shape);
+    ov::Shape params_shape = arg0->get_shape();
+    ov::Shape indices_shape = arg1->get_shape();
+    ov::Shape updates_shape = arg1->get_shape();
+    const ov::Shape& out_shape(params_shape);
     out->set_shape(out_shape);
 
     if (arg1->get_element_type() == element::i64) {

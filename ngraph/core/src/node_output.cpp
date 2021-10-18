@@ -39,10 +39,10 @@ std::shared_ptr<descriptor::Tensor> Output<Node>::get_tensor_ptr() const {
 const element::Type& Output<Node>::get_element_type() const {
     return m_node->get_output_element_type(m_index);
 }
-const StaticShape& Output<Node>::get_shape() const {
+const Shape& Output<Node>::get_shape() const {
     return m_node->get_output_shape(m_index);
 }
-const Shape& Output<Node>::get_partial_shape() const {
+const PartialShape& Output<Node>::get_partial_shape() const {
     return m_node->get_output_partial_shape(m_index);
 }
 
@@ -77,6 +77,30 @@ const RTMap& Output<Node>::get_rt_info() const {
 
 const RTMap& Output<const Node>::get_rt_info() const {
     return m_node->m_outputs.at(m_index).get_rt_info();
+}
+
+const std::unordered_set<std::string>& Output<Node>::get_names() const {
+    return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_names();
+}
+
+std::string Output<Node>::get_any_name() const {
+    return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_any_name();
+}
+
+void Output<Node>::set_names(const std::unordered_set<std::string>& names) {
+    return m_node->m_outputs.at(m_index).get_tensor_ptr()->set_names(names);
+}
+
+void Output<Node>::add_names(const std::unordered_set<std::string>& names) {
+    return m_node->m_outputs.at(m_index).get_tensor_ptr()->add_names(names);
+}
+
+const std::unordered_set<std::string>& Output<const Node>::get_names() const {
+    return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_names();
+}
+
+std::string Output<const Node>::get_any_name() const {
+    return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_any_name();
 }
 
 bool Output<Node>::operator==(const Output& other) const {
@@ -128,10 +152,10 @@ std::shared_ptr<descriptor::Tensor> Output<const Node>::get_tensor_ptr() const {
 const element::Type& Output<const Node>::get_element_type() const {
     return m_node->get_output_element_type(m_index);
 }
-const StaticShape& Output<const Node>::get_shape() const {
+const Shape& Output<const Node>::get_shape() const {
     return m_node->get_output_shape(m_index);
 }
-const Shape& Output<const Node>::get_partial_shape() const {
+const PartialShape& Output<const Node>::get_partial_shape() const {
     return m_node->get_output_partial_shape(m_index);
 }
 

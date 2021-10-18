@@ -15,13 +15,13 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::MaxPool, "MaxPool", 1, op::util::MaxPoolBase);
+BWDCMP_RTTI_DEFINITION(op::v1::MaxPool);
 
 op::v1::MaxPool::MaxPool(const Output<Node>& arg,
                          const Strides& strides,
-                         const ov::StaticShape& pads_begin,
-                         const ov::StaticShape& pads_end,
-                         const ov::StaticShape& kernel,
+                         const ov::Shape& pads_begin,
+                         const ov::Shape& pads_end,
+                         const ov::Shape& kernel,
                          const op::RoundingType rounding_type,
                          const PadType auto_pad)
     : op::util::MaxPoolBase(arg, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad) {
@@ -44,7 +44,7 @@ void op::v1::MaxPool::validate_and_infer_types() {
 
     MaxPoolBase::validate_and_infer_types();
 
-    const ov::Shape output_shape = infer_output_shape(Strides{});  // no dilations of the filter window
+    const ov::PartialShape output_shape = infer_output_shape(Strides{});  // no dilations of the filter window
 
     set_output_type(0, get_input_element_type(0), output_shape);
 }
@@ -69,11 +69,11 @@ namespace maxpool {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg,
                      const HostTensorPtr& out,
-                     const ov::StaticShape& out_shape,
-                     const ov::StaticShape& window_shape,
+                     const ov::Shape& out_shape,
+                     const ov::Shape& window_shape,
                      const Strides& window_movement_strides,
-                     const ov::StaticShape& padding_below,
-                     const ov::StaticShape& padding_above) {
+                     const ov::Shape& padding_below,
+                     const ov::Shape& padding_above) {
     using T = typename element_type_traits<ET>::value_type;
     out->set_shape(out_shape);
     runtime::reference::max_pool<T>(arg->get_data_ptr<ET>(),
@@ -89,11 +89,11 @@ inline bool evaluate(const HostTensorPtr& arg,
 
 bool evaluate_maxpool(const HostTensorPtr& arg,
                       const HostTensorPtr& out,
-                      const ov::StaticShape& out_shape,
-                      const ov::StaticShape& kernel,
+                      const ov::Shape& out_shape,
+                      const ov::Shape& kernel,
                       const Strides& strides,
-                      const ov::StaticShape& pad_begin,
-                      const ov::StaticShape& pad_end) {
+                      const ov::Shape& pad_begin,
+                      const ov::Shape& pad_end) {
     bool rc = true;
     auto arg_shape = arg->get_shape();
 
@@ -165,12 +165,12 @@ template <element::Type_t Values, element::Type_t Indices>
 inline bool evaluate(const HostTensorPtr& data,
                      const HostTensorPtr& values,
                      const HostTensorPtr& indices,
-                     const ov::StaticShape& out_shape,
-                     const ov::StaticShape& kernel,
+                     const ov::Shape& out_shape,
+                     const ov::Shape& kernel,
                      const Strides& strides,
                      const Strides& dilations,
-                     const ov::StaticShape& pads_begin,
-                     const ov::StaticShape& pads_end,
+                     const ov::Shape& pads_begin,
+                     const ov::Shape& pads_end,
                      const int64_t axis) {
     using Values_t = typename element_type_traits<Values>::value_type;
     using Indices_t = typename element_type_traits<Indices>::value_type;
@@ -191,12 +191,12 @@ inline bool evaluate(const HostTensorPtr& data,
 bool evaluate_maxpool(const HostTensorPtr& data,
                       const HostTensorPtr& values,
                       const HostTensorPtr& indices,
-                      const ov::StaticShape& out_shape,
-                      const ov::StaticShape& kernel,
+                      const ov::Shape& out_shape,
+                      const ov::Shape& kernel,
                       const Strides& strides,
                       const Strides& dilations,
-                      const ov::StaticShape& pads_begin,
-                      const ov::StaticShape& pads_end,
+                      const ov::Shape& pads_begin,
+                      const ov::Shape& pads_end,
                       const int64_t axis) {
 #define EVAL_MAX_POOL_8(data_et, index_et)            \
     NGRAPH_2_TYPES_CASE(maxpool_v8::evaluate_maxpool, \
@@ -250,14 +250,12 @@ bool evaluate_maxpool(const HostTensorPtr& data,
 }
 }  // namespace maxpool_v8
 
-OPENVINO_RTTI_DEFINITION(op::v8::MaxPool, "MaxPool", 8, op::util::MaxPoolBase);
-
 op::v8::MaxPool::MaxPool(const Output<Node>& arg,
                          const Strides& strides,
                          const Strides& dilations,
-                         const ov::StaticShape& pads_begin,
-                         const ov::StaticShape& pads_end,
-                         const ov::StaticShape& kernel,
+                         const ov::Shape& pads_begin,
+                         const ov::Shape& pads_end,
+                         const ov::Shape& kernel,
                          const op::RoundingType rounding_type,
                          const PadType auto_pad,
                          const element::Type index_element_type,
@@ -293,7 +291,7 @@ void op::v8::MaxPool::validate_and_infer_types() {
         m_axis = ngraph::normalize_axis(this, m_axis, input_shape.rank());
     }
 
-    const ov::Shape output_shape = infer_output_shape(m_dilations);
+    const ov::PartialShape output_shape = infer_output_shape(m_dilations);
 
     set_output_type(0, get_input_element_type(0), output_shape);
     set_output_type(1, m_index_element_type, output_shape);

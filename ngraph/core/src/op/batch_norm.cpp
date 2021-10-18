@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::BatchNormInference, "batchNormInference", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::BatchNormInference);
 
 op::v0::BatchNormInference::BatchNormInference(const Output<Node>& input,
                                                const Output<Node>& gamma,
@@ -35,8 +35,8 @@ bool op::v0::BatchNormInference::visit_attributes(AttributeVisitor& visitor) {
 void op::v0::BatchNormInference::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_BatchNormInference_validate_and_infer_types);
     element::Type result_et;
-    ov::Shape result_batch_shape;
-    ov::Shape result_channel_shape;  // unused here
+    ov::PartialShape result_batch_shape;
+    ov::PartialShape result_channel_shape;  // unused here
 
     NODE_VALIDATION_CHECK(this,
                           m_epsilon >= 0,
@@ -71,7 +71,7 @@ std::shared_ptr<Node> op::v0::BatchNormInference::clone_with_new_inputs(const Ou
                                                 m_epsilon);
 }
 
-OPENVINO_RTTI_DEFINITION(op::v5::BatchNormInference, "BatchNormInference", 5);
+BWDCMP_RTTI_DEFINITION(op::v5::BatchNormInference);
 
 op::v5::BatchNormInference::BatchNormInference(const Output<Node>& input,
                                                const Output<Node>& gamma,
@@ -93,8 +93,8 @@ bool op::v5::BatchNormInference::visit_attributes(AttributeVisitor& visitor) {
 void op::v5::BatchNormInference::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v5_BatchNormInference_validate_and_infer_types);
     element::Type result_et;
-    ov::Shape result_batch_shape;
-    ov::Shape result_channel_shape;  // unused here
+    ov::PartialShape result_batch_shape;
+    ov::PartialShape result_channel_shape;  // unused here
 
     NODE_VALIDATION_CHECK(this,
                           m_epsilon >= 0,

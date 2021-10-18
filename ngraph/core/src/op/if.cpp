@@ -18,8 +18,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(ngraph::op::v8::If, "If", 8, MultiSubGraphOp);
-
+BWDCMP_RTTI_DEFINITION(op::v8::If);
 op::v8::If::If() : MultiSubGraphOp(2) {}
 
 op::v8::If::If(const Output<Node>& execution_condition) : If() {
@@ -28,7 +27,7 @@ op::v8::If::If(const Output<Node>& execution_condition) : If() {
 
 // This function tries to calculate the output shape of the if operation by two outputs from two
 // subgraphs.
-static ov::Shape resolve_shape(const ov::Shape& then_pshape, const ov::Shape& else_pshape) {
+static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const ov::PartialShape& else_pshape) {
     // then_pshape - shape of output from then_body
     // else_pshape - shape of output from else_body
     auto then_rank = then_pshape.rank();
@@ -37,7 +36,7 @@ static ov::Shape resolve_shape(const ov::Shape& then_pshape, const ov::Shape& el
     // if rangs of shapes are not equal or rang of one of them is dynamic function
     // return shape with dynamic rank
     if (then_rank.is_dynamic() || else_rank.is_dynamic() || then_rank.get_length() != else_rank.get_length()) {
-        return ov::Shape::dynamic(ngraph::Rank::dynamic());
+        return ov::PartialShape::dynamic(ngraph::Rank::dynamic());
     }
     std::vector<Dimension> new_dims;
 
@@ -56,13 +55,11 @@ static ov::Shape resolve_shape(const ov::Shape& then_pshape, const ov::Shape& el
         }
     }
 
-    return ov::Shape(new_dims);
+    return ov::PartialShape(new_dims);
 }
 
 bool op::v8::If::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v8_If_visit_attributes);
-    m_bodies[THEN_BODY_INDEX] = std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{}, "then_branch");
-    m_bodies[ELSE_BODY_INDEX] = std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{}, "else_branch");
     visitor.on_attribute("then_body", m_bodies[THEN_BODY_INDEX]);
     visitor.on_attribute("else_body", m_bodies[ELSE_BODY_INDEX]);
     visitor.on_attribute("then_inputs", m_input_descriptions[THEN_BODY_INDEX]);
@@ -225,7 +222,7 @@ op::v8::If::OutputMap op::v8::If::get_mapping_outputs_on_body_description(
 
 bool op::v8::If::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v8_If_evaluate);
-    runtime::reference::if_reference(m_bodies, m_output_descriptions, m_input_descriptions, outputs, inputs);
+    ngraph::runtime::reference::if_reference(m_bodies, m_output_descriptions, m_input_descriptions, outputs, inputs);
     return true;
 }
 

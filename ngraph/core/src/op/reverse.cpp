@@ -19,7 +19,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::Reverse, "Reverse", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::Reverse);
 
 op::v1::Reverse::Reverse(const Output<Node>& data, const Output<Node>& reversed_axes, const std::string& mode)
     : Op({data, reversed_axes}),
@@ -160,12 +160,12 @@ bool op::v1::Reverse::evaluate_reverse(const HostTensorVector& outputs, const Ho
             }
         }
     }
-    runtime::reference::reverse(inputs[0]->get_data_ptr<const char>(),
-                                outputs[0]->get_data_ptr<char>(),
-                                inputs[0]->get_shape(),
-                                outputs[0]->get_shape(),
-                                axes,
-                                inputs[0]->get_element_type().size());
+    ngraph::runtime::reference::reverse(inputs[0]->get_data_ptr<const char>(),
+                                        outputs[0]->get_data_ptr<char>(),
+                                        inputs[0]->get_shape(),
+                                        outputs[0]->get_shape(),
+                                        axes,
+                                        inputs[0]->get_element_type().size());
     return true;
 }
 
@@ -210,5 +210,5 @@ EnumNames<ngraph::op::v1::Reverse::Mode>& EnumNames<ngraph::op::v1::Reverse::Mod
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v1::Reverse::Mode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::v1::Reverse::Mode>);
 }  // namespace ov

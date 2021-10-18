@@ -42,10 +42,8 @@ elif machine == 'aarch64':
 
 # The following variables can be defined in environment or .env file
 CMAKE_BUILD_DIR = config('CMAKE_BUILD_DIR', '.')
-CORE_LIBS_DIR = config('CORE_LIBS_DIR', f'deployment_tools/inference_engine/{LIBS_DIR}/{ARCH}/{CONFIG}')
-PLUGINS_LIBS_DIR = config('PLUGINS_LIBS_DIR', f'deployment_tools/inference_engine/{LIBS_DIR}/{ARCH}/{CONFIG}')
-NGRAPH_LIBS_DIR = config('NGRAPH_LIBS_DIR', 'deployment_tools/ngraph/lib')
-TBB_LIBS_DIR = config('TBB_LIBS_DIR', f'deployment_tools/inference_engine/external/tbb/{LIBS_DIR}')
+OV_RUNTIME_LIBS_DIR = config('OV_RUNTIME_LIBS_DIR', f'runtime/{LIBS_DIR}/{ARCH}/{CONFIG}')
+TBB_LIBS_DIR = config('TBB_LIBS_DIR', f'runtime/3rdparty/tbb/{LIBS_DIR}')
 PY_PACKAGES_DIR = config('PY_PACKAGES_DIR', f'python/{PYTHON_VERSION}')
 LIBS_RPATH = '$ORIGIN' if sys.platform == 'linux' else '@loader_path'
 
@@ -53,43 +51,43 @@ LIB_INSTALL_CFG = {
     'ie_libs': {
         'name': 'core',
         'prefix': 'libs.core',
-        'install_dir': CORE_LIBS_DIR,
+        'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
     'hetero_plugin': {
         'name': 'hetero',
-        'prefix': 'libs.plugins',
-        'install_dir': PLUGINS_LIBS_DIR,
+        'prefix': 'libs.core',
+        'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
     'gpu_plugin': {
         'name': 'gpu',
-        'prefix': 'libs.plugins',
-        'install_dir': PLUGINS_LIBS_DIR,
+        'prefix': 'libs.core',
+        'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
     'cpu_plugin': {
         'name': 'cpu',
-        'prefix': 'libs.plugins',
-        'install_dir': PLUGINS_LIBS_DIR,
+        'prefix': 'libs.core',
+        'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
     'multi_plugin': {
         'name': 'multi',
-        'prefix': 'libs.plugins',
-        'install_dir': PLUGINS_LIBS_DIR,
+        'prefix': 'libs.core',
+        'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
     'myriad_plugin': {
         'name': 'myriad',
-        'prefix': 'libs.plugins',
-        'install_dir': PLUGINS_LIBS_DIR,
+        'prefix': 'libs.core',
+        'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
     'ngraph_libs': {
         'name': 'ngraph',
-        'prefix': 'libs.ngraph',
-        'install_dir': NGRAPH_LIBS_DIR,
+        'prefix': 'libs.core',
+        'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
     'tbb_libs': {
@@ -448,6 +446,7 @@ ext_modules = find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG)) if pkg_name
 
 setup(
     version=config('WHEEL_VERSION', '0.0.0'),
+    build=config('WHEEL_BUILD', '000'),
     author_email=config('WHEEL_AUTHOR_EMAIL', 'openvino_pushbot@intel.com'),
     name=pkg_name,
     license=config('WHEEL_LICENCE_TYPE', 'OSI Approved :: Apache Software License'),

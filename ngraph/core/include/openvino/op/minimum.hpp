@@ -12,7 +12,8 @@ namespace v1 {
 /// \brief Elementwise minimum operation.
 class OPENVINO_API Minimum : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Minimum", "opset1", op::util::BinaryElementwiseArithmetic, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a minimum operation.
     Minimum() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY) {}
@@ -28,7 +29,9 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
 }  // namespace v1

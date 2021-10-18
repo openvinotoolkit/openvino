@@ -11,17 +11,28 @@ namespace kernel_selector {
 
 ActivationKernelBase::DispatchData ActivationKernelBase::SetDefault(const activation_params& arg) const {
     const auto& out = arg.output;
+    auto in_layout = arg.inputs[0].GetLayout();
+    auto out_layout = arg.output.GetLayout();
 
     DispatchData dispatchData;
-    if (out.GetLayout() == DataLayout::yxfb) {
+    if (out_layout == DataLayout::yxfb) {
         dispatchData.gws = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v};
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
-    } else if (out.GetLayout() == DataLayout::b_fs_yx_fsv16) {
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH},
+                                                                         {Tensor::DataChannelName::X},
+                                                                         {Tensor::DataChannelName::Y}};
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
+    } else if (out_layout == DataLayout::b_fs_yx_fsv16 || out_layout == DataLayout::b_fs_yx_fsv32) {
         dispatchData.gws = {Align(out.Feature().v, 16) * out.Batch().v, out.X().v, out.Y().v};
         dispatchData.lws = {16, 1, 1};
+    } else if (out.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 || out.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32) {
+        dispatchData.gws = {out.X().v * out.Y().v, Align(out.Feature().v, 16), Align(out.Batch().v, 16)};
+        dispatchData.lws = {1, 16, 16};
     } else {
         dispatchData.gws = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X},
+                                                                         {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
+                                                                         {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
     }
 
     return dispatchData;

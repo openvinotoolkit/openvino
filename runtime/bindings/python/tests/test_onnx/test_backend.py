@@ -33,7 +33,6 @@ from tests import (
     xfail_issue_39658,
     xfail_issue_39659,
     xfail_issue_39662,
-    xfail_issue_43742,
     xfail_issue_44848,
     xfail_issue_44851,
     xfail_issue_44854,
@@ -45,7 +44,6 @@ from tests import (
     xfail_issue_44968,
     xfail_issue_45180,
     xfail_issue_45344,
-    xfail_issue_46762,
     xfail_issue_47323,
     xfail_issue_47337,
     xfail_issue_48052,
@@ -184,13 +182,6 @@ tests_expected_to_fail = [
     ),
     (xfail_issue_33633, "OnnxBackendNodeModelTest.test_maxpool_2d_dilations_cpu"),
     (
-        xfail_issue_46762,
-        "OnnxBackendNodeModelTest.test_min_uint8_cpu",
-        "OnnxBackendNodeModelTest.test_min_uint16_cpu",
-        "OnnxBackendNodeModelTest.test_min_uint32_cpu",
-        "OnnxBackendNodeModelTest.test_min_uint64_cpu",
-    ),
-    (
         xfail_issue_55760,
         "OnnxBackendNodeModelTest.test_argmax_negative_axis_keepdims_example_select_last_index_cpu",
         "OnnxBackendNodeModelTest.test_argmin_negative_axis_keepdims_example_select_last_index_cpu",
@@ -229,6 +220,7 @@ tests_expected_to_fail = [
         "OnnxBackendSimpleModelTest.test_sequence_model4_cpu",
         "OnnxBackendSimpleModelTest.test_sequence_model2_cpu",
         "OnnxBackendNodeModelTest.test_identity_sequence_cpu",
+        "OnnxBackendNodeModelTest.test_if_seq_cpu",
     ),
     (
         xfail_issue_38701,
@@ -339,10 +331,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_isinf_negative_cpu",
         "OnnxBackendNodeModelTest.test_isinf_cpu",
     ),
-    (
-        xfail_issue_38722,
-        "OnnxBackendNodeModelTest.test_matmulinteger_cpu",
-    ),
     (xfail_issue_38724, "OnnxBackendNodeModelTest.test_resize_tf_crop_and_resize_cpu"),
     (
         xfail_issue_33606,
@@ -381,11 +369,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reduce_sum_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_negative_axes_keepdims_example_cpu",
-    ),
-    (
-        xfail_issue_43742,
-        "OnnxBackendNodeModelTest.test_if_cpu",
-        "OnnxBackendNodeModelTest.test_if_seq_cpu",
     ),
     (
         xfail_issue_44848,

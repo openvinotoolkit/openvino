@@ -1,14 +1,17 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import logging as log
 from copy import copy
 
+import numpy as np
+
 from extensions.back.ConvolutionNormalizer import ConvolutionNormalizer, ConvolutionWithGroupsResolver
+from extensions.back.MarkNodesWithShapeValues import MarkNodesWithShapeValues
 from extensions.back.PackBinaryWeights import PackBinaryWeights
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement
 from extensions.back.StridedSliceMasksNormalizer import StridedSliceMasksNormalizer
 from extensions.back.blob_normalizer import BlobNormalizer
-from extensions.back.kaldi_remove_memory_output import KaldiRemoveMemoryOutputBackReplacementPattern
 from mo.graph.graph import Graph
 from mo.middle.passes.convert_data_type import data_type_str_to_precision
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
@@ -17,7 +20,6 @@ from mo.utils.class_registration import apply_replacements_list
 from mo.utils.ir_engine.ir_engine import IREngine
 from mo.utils.ir_reader.layer_to_class import copy_graph_with_ops, collect_extenders, collect_ops
 from mo.utils.utils import get_mo_root_dir
-from extensions.back.MarkNodesWithShapeValues import MarkNodesWithShapeValues
 
 
 def restore_graph_from_ir(path_to_xml: str, path_to_bin: str = None) -> (Graph, dict):
@@ -54,8 +56,20 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
     if name is None:
         name = graph.name
 
-    precision = data_type_str_to_precision(graph.graph['cmd_params'].data_type)
-    assert precision in ['FP16', 'FP32'], 'Cannot define precision for restored model!'
+    if 'data_type' not in meta_data:
+        log.debug('Provided `meta_data` does not contain `data_type` parameter. Set `data_type`'
+                  ' parameter value to `FP32`.')
+        # Set data_type to FP32. All restored constants will be saved in provided data type.
+        data_type = 'FP32'
+
+        # We need to specify this attribute to pass graph transformations. This information will not be saved into IR.
+        # All constants and placeholders will be saved with same types as restored from IR
+        graph.graph['cmd_params'].data_type = data_type
+    else:
+        data_type = data_type_str_to_precision(graph.graph['cmd_params'].data_type)
+
+    assert data_type in ['FP16', 'FP32'], '`data_type` value {} is not supported by MO,' \
+                                          ' cannot save graph'.format(data_type)
 
     # List items order matters, do not change it.
     transformation_list = [
@@ -64,7 +78,6 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
         PackBinaryWeights,
         BlobNormalizer,
         ConvolutionNormalizer,
-        KaldiRemoveMemoryOutputBackReplacementPattern,
         MarkNodesWithShapeValues,
     ]
 
@@ -75,4 +88,4 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
 
-    prepare_emit_ir(graph, precision, path, name, meta_info=meta_data)
+    prepare_emit_ir(graph, data_type, path, name, meta_info=meta_data)

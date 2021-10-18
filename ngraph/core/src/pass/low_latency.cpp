@@ -12,8 +12,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/variant.hpp>
 
-NGRAPH_RTTI_DEFINITION(ov::pass::LowLatency2, "LowLatency2", 0);
-
 NGRAPH_SUPPRESS_DEPRECATED_START
 NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency, "LowLatency", 0);
 
@@ -62,8 +60,8 @@ ngraph::pass::LowLatency::LowLatency() {
                     sub_graph_op->get_friendly_name(),
                     func->get_parameters().at(merged_in->m_body_parameter_index)->get_friendly_name(),
                     variable_id));
-                auto variable =
-                    std::make_shared<Variable>(VariableInfo{ov::Shape::dynamic(), element::dynamic, variable_name});
+                auto variable = std::make_shared<Variable>(
+                    VariableInfo{ov::PartialShape::dynamic(), element::dynamic, variable_name});
                 auto read_value =
                     std::make_shared<opset6::ReadValue>(func->get_parameters().at(merged_in->m_body_parameter_index),
                                                         variable);
@@ -120,7 +118,7 @@ void UnrollSingleIteration(const shared_ptr<ngraph::op::util::SubGraphOp>& sub_g
 
             // IECompatibility: insert identity (Unsqueeze + Squeeze) to store the TensorIterator
             // output names
-            auto axis_1 = Constant::create(ov::element::i64, ngraph::Shape{1}, {1});
+            auto axis_1 = Constant::create(ov::element::i64, ov::Shape{1}, {1});
             auto identity_1 = std::make_shared<Unsqueeze>(connect_to, axis_1);
             auto identity_2 = std::make_shared<Squeeze>(identity_1, axis_1);
             identity_2->set_friendly_name(out_name);
@@ -139,7 +137,7 @@ ngraph::Output<ngraph::Node> create_init_subgraph(const shared_ptr<ngraph::op::u
                                                   const ngraph::Output<ngraph::Node>& in_node) {
     using namespace ngraph::opset7;
 
-    auto const_zero = make_shared<Constant>(in_node.get_element_type(), ngraph::Shape{1}, 0);
+    auto const_zero = make_shared<Constant>(in_node.get_element_type(), ov::Shape{1}, 0);
     auto shape_of = make_shared<ShapeOf>(in_node);
     auto broadcast = make_shared<Broadcast>(const_zero, shape_of);
     copy_runtime_info(sub_graph_op, {const_zero, shape_of, broadcast});
@@ -186,7 +184,7 @@ bool ov::pass::LowLatency2::run_on_function(shared_ptr<Function> f) {
                         }
                     }
 
-                    ngraph::VariableInfo var_info{Shape::dynamic(), element::dynamic, var_name};
+                    ngraph::VariableInfo var_info{PartialShape::dynamic(), element::dynamic, var_name};
                     auto variable = make_shared<ngraph::Variable>(var_info);
 
                     // insert ReadValue

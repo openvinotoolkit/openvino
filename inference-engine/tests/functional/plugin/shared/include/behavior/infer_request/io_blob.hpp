@@ -168,6 +168,7 @@ TEST_P(InferRequestIOBBlobTest, canProcessDeallocatedInputBlobAfterGetAndSetBlob
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob;
+    req = execNet.CreateInferRequest();
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
@@ -330,30 +331,6 @@ TEST_P(InferRequestIOBBlobTest, canInferWithGetOut) {
     ASSERT_NO_THROW(InferenceEngine::Blob::Ptr outputBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
 }
 
-TEST_P(InferRequestIOBBlobTest, OutOfFirstOutIsInputForSecondNetwork) {
-    auto params = ngraph::builder::makeParams(function->get_results().front()->get_element_type(),
-                                              {function->get_results().front()->get_shape()});
-
-    auto const1 = ngraph::opset1::Constant::create(function->get_results().front()->get_element_type(),
-                                                   ngraph::Shape{1},
-                                                   {1});
-    auto const2 = ngraph::opset1::Constant::create(ngraph::element::i64,
-                                                   ngraph::Shape{function->get_results().front()->get_shape().size()},
-                                                   function->get_results().front()->get_shape());
-    auto broadcast = std::make_shared<ngraph::opset1::Broadcast>(const1, const2);
-    auto add = std::make_shared<ngraph::opset1::Add>(params.front(), broadcast);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(add)};
-    std::shared_ptr<ngraph::Function> secondFunction = std::make_shared<ngraph::Function>(results, params);
-
-    InferenceEngine::CNNNetwork secondCNNNetwork(secondFunction);
-    InferenceEngine::ExecutableNetwork secondExecNetwork = ie->LoadNetwork(secondCNNNetwork, targetDevice, configuration);
-    auto req1 = execNet.CreateInferRequest();
-    auto req2 = secondExecNetwork.CreateInferRequest();
-    auto outBlob = req1.GetBlob(cnnNet.getOutputsInfo().begin()->first);
-    auto inBlob = req2.GetBlob(secondCNNNetwork.getInputsInfo().begin()->first);
-    ASSERT_EQ(&outBlob, &inBlob);
-}
-
 class InferRequestIOBBlobSetPrecisionTest : public BehaviorTestsUtils::BehaviorTestsBasic {
 public:
     void SetUp() override {
@@ -435,7 +412,6 @@ public:
         if (!configuration.empty()) {
             PluginCache::get().reset();
         }
-        function.reset();
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();

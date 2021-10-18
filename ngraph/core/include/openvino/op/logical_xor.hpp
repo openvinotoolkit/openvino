@@ -15,7 +15,8 @@ namespace v1 {
 ///
 class OPENVINO_API LogicalXor : public util::BinaryElementwiseLogical {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("LogicalXor", "opset2", util::BinaryElementwiseLogical, 1);
+    BWDCMP_RTTI_DECLARATION;
     LogicalXor() = default;
     /// \brief Constructs a logical-xor operation.
     ///
@@ -33,7 +34,9 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
 }  // namespace v1

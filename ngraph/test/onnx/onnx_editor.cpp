@@ -7,14 +7,14 @@
 
 #include "default_opset.hpp"
 #include "editor.hpp"
+#include "engines_util/interpreter_engine.hpp"
+#include "engines_util/test_case.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "onnx_import/onnx.hpp"
-#include "util/engine/interpreter_engine.hpp"
-#include "util/onnx_test_util.hpp"
-#include "util/test_case.hpp"
+#include "onnx_test_util.hpp"
 #include "util/test_control.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -693,6 +693,26 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_ind
     EXPECT_EQ(edge2.m_new_input_name, "custom_input_name_2");
 }
 
+NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_index) {
+    ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+
+    const InputEdge edge = editor.find_input_edge(EditorNode{0}, EditorInput{0, "custom_input_name_1"});
+    EXPECT_EQ(edge.m_node_idx, 0);
+    EXPECT_EQ(edge.m_port_idx, 0);
+    EXPECT_EQ(edge.m_new_input_name, "custom_input_name_1");
+
+    const InputEdge edge2 = editor.find_input_edge(EditorNode{5}, EditorInput{0});
+    EXPECT_EQ(edge2.m_node_idx, 5);
+    EXPECT_EQ(edge2.m_port_idx, 0);
+
+    try {
+        editor.find_input_edge(EditorNode{99}, EditorInput{"conv1/7x7_s2_1"});
+    } catch (const std::exception& e) {
+        std::string msg{e.what()};
+        EXPECT_TRUE(msg.find("Provided node index: 99 is out of scope") != std::string::npos);
+    }
+}
+
 NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_empty_node_name) {
     ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
@@ -765,6 +785,21 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_node_name_and_output_i
     const OutputEdge edge2 = editor.find_output_edge(EditorNode{"split_name"}, EditorOutput{1});
     EXPECT_EQ(edge2.m_node_idx, 5);
     EXPECT_EQ(edge2.m_port_idx, 1);
+}
+
+NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_node_index) {
+    ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+
+    const OutputEdge edge = editor.find_output_edge(EditorNode{5}, EditorOutput{1});
+    EXPECT_EQ(edge.m_node_idx, 5);
+    EXPECT_EQ(edge.m_port_idx, 1);
+
+    try {
+        editor.find_output_edge(EditorNode{99}, EditorOutput{"conv1/7x7_s2_1"});
+    } catch (const std::exception& e) {
+        std::string msg{e.what()};
+        EXPECT_TRUE(msg.find("Provided node index: 99 is out of scope") != std::string::npos);
+    }
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_edge_const_network) {
@@ -1044,6 +1079,12 @@ NGRAPH_TEST(onnx_editor, editor_api_is_correct_and_unambiguous_node) {
     is_correct_node = editor.is_correct_and_unambiguous_node(EditorNode{"relu1_name"});
     EXPECT_EQ(is_correct_node, true);
 
+    is_correct_node = editor.is_correct_and_unambiguous_node(EditorNode{2});
+    EXPECT_EQ(is_correct_node, true);
+
+    is_correct_node = editor.is_correct_and_unambiguous_node(EditorNode{99});
+    EXPECT_EQ(is_correct_node, false);
+
     is_correct_node = editor.is_correct_and_unambiguous_node(EditorNode{EditorOutput{"in3"}});
     EXPECT_EQ(is_correct_node, false);
 
@@ -1052,6 +1093,32 @@ NGRAPH_TEST(onnx_editor, editor_api_is_correct_and_unambiguous_node) {
 
     is_correct_node = editor.is_correct_and_unambiguous_node(EditorNode{"not_exist"});
     EXPECT_EQ(is_correct_node, false);
+}
+
+NGRAPH_TEST(onnx_editor, editor_api_get_node_index) {
+    ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+
+    EXPECT_EQ(editor.get_node_index(EditorNode{2}), 2);
+    EXPECT_EQ(editor.get_node_index(EditorNode{EditorOutput{"relu1"}}), 0);
+    EXPECT_EQ(editor.get_node_index(EditorNode{EditorOutput{"split2"}}), 5);
+    EXPECT_EQ(editor.get_node_index(EditorNode{"relu1_name"}), 0);
+
+    try {
+        editor.get_node_index(EditorNode{99});
+    } catch (const std::exception& e) {
+        std::string msg{e.what()};
+        EXPECT_TRUE(msg.find("Provided node index: 99 is out of scope") != std::string::npos);
+    }
+
+    try {
+        editor.get_node_index(EditorNode{"add_ambiguous_name"});
+    } catch (const std::exception& e) {
+        std::string msg{e.what()};
+        EXPECT_TRUE(
+            msg.find(
+                "The node with name: add_ambiguous_name, output_name: not_given, node_index: not_given is ambiguous") !=
+            std::string::npos);
+    }
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_input_edge_from_tensor_with_single_consumer) {
@@ -1346,4 +1413,67 @@ NGRAPH_TEST(onnx_editor, is_correct_tensor_name) {
     EXPECT_FALSE(editor.is_correct_tensor_name("relu1_name"));
     EXPECT_FALSE(editor.is_correct_tensor_name("not_existed"));
     EXPECT_FALSE(editor.is_correct_tensor_name(""));
+}
+
+NGRAPH_TEST(onnx_editor, get_input_ports) {
+    ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+
+    const auto ports_1 = editor.get_input_ports(EditorNode{"relu1_name"});
+    EXPECT_EQ(ports_1.size(), 1);
+    EXPECT_EQ(ports_1[0], "in1");
+    const auto ports_2 = editor.get_input_ports(EditorNode{"split_name"});
+    EXPECT_EQ(ports_2.size(), 1);
+    EXPECT_EQ(ports_2[0], "add2");
+    const auto ports_3 = editor.get_input_ports(EditorNode{EditorOutput{"add2"}});
+    EXPECT_EQ(ports_3.size(), 2);
+    EXPECT_EQ(ports_3[0], "relu1");
+    EXPECT_EQ(ports_3[1], "add1");
+    try {
+        editor.get_input_ports(EditorNode{"add_ambiguous_name"});
+    } catch (const std::exception& e) {
+        std::string msg{e.what()};
+        EXPECT_TRUE(
+            msg.find(
+                "The node with name: add_ambiguous_name, output_name: not_given, node_index: not_given is ambiguous") !=
+            std::string::npos);
+    }
+    try {
+        editor.get_input_ports(EditorNode{""});
+    } catch (const std::exception& e) {
+        std::string msg{e.what()};
+        EXPECT_TRUE(
+            msg.find("The node with name: not_given, output_name: not_given, node_index: not_given is ambiguous") !=
+            std::string::npos);
+    }
+}
+NGRAPH_TEST(onnx_editor, get_output_ports) {
+    ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+
+    const auto ports_1 = editor.get_output_ports(EditorNode{"relu1_name"});
+    EXPECT_EQ(ports_1.size(), 1);
+    EXPECT_EQ(ports_1[0], "relu1");
+    const auto ports_2 = editor.get_output_ports(EditorNode{"split_name"});
+    EXPECT_EQ(ports_2.size(), 2);
+    EXPECT_EQ(ports_2[0], "split1");
+    EXPECT_EQ(ports_2[1], "split2");
+    const auto ports_3 = editor.get_output_ports(EditorNode{EditorOutput{"add2"}});
+    EXPECT_EQ(ports_3.size(), 1);
+    EXPECT_EQ(ports_3[0], "add2");
+    try {
+        editor.get_output_ports(EditorNode{"add_ambiguous_name"});
+    } catch (const std::exception& e) {
+        std::string msg{e.what()};
+        EXPECT_TRUE(
+            msg.find(
+                "The node with name: add_ambiguous_name, output_name: not_given, node_index: not_given is ambiguous") !=
+            std::string::npos);
+    }
+    try {
+        editor.get_output_ports(EditorNode{""});
+    } catch (const std::exception& e) {
+        std::string msg{e.what()};
+        EXPECT_TRUE(
+            msg.find("The node with name: not_given, output_name: not_given, node_index: not_given is ambiguous") !=
+            std::string::npos);
+    }
 }

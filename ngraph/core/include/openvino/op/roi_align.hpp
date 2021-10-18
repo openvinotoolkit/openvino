@@ -11,7 +11,8 @@ namespace op {
 namespace v3 {
 class OPENVINO_API ROIAlign : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ROIAlign", "opset3", op::Op, 3);
+    BWDCMP_RTTI_DECLARATION;
     enum class PoolingMode { AVG, MAX };
 
     ROIAlign() = default;
@@ -64,7 +65,9 @@ public:
     PoolingMode get_mode() const {
         return m_mode;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 private:
@@ -89,10 +92,8 @@ public:
     AttributeAdapter(op::v3::ROIAlign::PoolingMode& value)
         : EnumAttributeAdapterBase<op::v3::ROIAlign::PoolingMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v3::ROIAlign::PoolingMode>", 3};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v3::ROIAlign::PoolingMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

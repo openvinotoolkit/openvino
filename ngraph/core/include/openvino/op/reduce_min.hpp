@@ -11,7 +11,8 @@ namespace op {
 namespace v1 {
 class OPENVINO_API ReduceMin : public util::ArithmeticReductionKeepDims {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ReduceMin", "opset1", util::ArithmeticReductionKeepDims, 1);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a summation operation.
     ReduceMin() = default;
     /// \brief Constructs a summation operation.
@@ -23,10 +24,14 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate_lower(const HostTensorVector& outputs) const override;
     bool evaluate_upper(const HostTensorVector& outputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 }  // namespace v1
 }  // namespace op

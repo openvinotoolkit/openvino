@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Proposal, "Proposal", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::Proposal);
 
 op::v0::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& bbox_deltas,
@@ -100,7 +100,7 @@ void op::v0::Proposal::validate_and_infer_types() {
     }
 
     // intersect the batch size
-    set_output_type(0, get_input_element_type(0), ov::Shape{out_dim * m_attrs.post_nms_topn, 5});
+    set_output_type(0, get_input_element_type(0), ov::PartialShape{out_dim * m_attrs.post_nms_topn, 5});
 }
 
 shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -128,7 +128,7 @@ bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-OPENVINO_RTTI_DEFINITION(op::v4::Proposal, "Proposal", 4);
+BWDCMP_RTTI_DEFINITION(op::v4::Proposal);
 
 op::v4::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& class_bbox_deltas,
@@ -143,9 +143,9 @@ void op::v4::Proposal::validate_and_infer_types() {
     v0::Proposal::validate_and_infer_types();
     // Output shape was inferred in v0's validate_and_infer_types
     const auto proposals_ps = get_output_partial_shape(0);
-    auto out_ps = ov::Shape{Dimension::dynamic()};
+    auto out_ps = ov::PartialShape{Dimension::dynamic()};
     if (proposals_ps.rank().is_static() && proposals_ps.rank().compatible(2)) {
-        out_ps = ov::Shape{proposals_ps[0]};
+        out_ps = ov::PartialShape{proposals_ps[0]};
     }
     set_output_type(1, get_input_element_type(0), out_ps);
 }

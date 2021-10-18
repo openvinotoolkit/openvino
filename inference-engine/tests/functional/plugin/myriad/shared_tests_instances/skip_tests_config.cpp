@@ -33,13 +33,10 @@ std::vector<std::string> disabledTestPatterns() {
         ".*ProposalLayerTest.*",
         // TODO: Issue 51804
         ".*InferRequestPreprocessConversionTest.*oPRC=U8.*",
-        // TODO: Issue: 56556
-        R"(.*(PreprocessTest).*(SetScalePreProcessSetBlob).*)",
-        R"(.*(PreprocessTest).*(SetScalePreProcessGetBlob).*)",
         // TODO: Issue 54163
         R"(.*ActivationLayerTest.*SoftPlus.*)",
         // TODO: Issue 54722
-        R"(.*IS=\(16\.16\.96\)\(96\)_eltwiseOpType=FloorMod_secondaryInputType=PARAMETER_opType=VECTOR_netPRC=FP32.*)",
+        R"(.*TS=\(\(16\.16\.96\)_\(96\)_\).*eltwiseOpType=FloorMod_secondaryInputType=PARAMETER_opType=VECTOR_netPRC=FP32.*)",
         // TODO: Issue 57108
         R"(.*QueryNetworkHETEROWithMULTINoThrow_V10.*)",
         R"(.*QueryNetworkMULTIWithHETERONoThrow_V10.*)",
@@ -48,9 +45,16 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 58621
         R"(.*IEClassNetworkTestP\.LoadNetworkActualNoThrow.*)",
         R"(.*IEClassNetworkTestP\.LoadNetworkActualHeteroDeviceNoThrow.*)",
-        // CVS-58963: Not implemented yet
-        R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
+        // Not implemented yet:
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
         // TODO: CVS-65013
         R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
+        // Not expected behavior
+        R"(.*Behavior.*ExecNetSetPrecision.*canSetOutputPrecisionForNetwork.*U8.*)",
+        R"(.*CoreThreadingTestsWithIterations.*)",
+        R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
+        R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
+        R"(.*OVClassNetworkTestP.*(SetAffinityWithConstantBranches|SetAffinityWithKSO).*)",
     };
 }

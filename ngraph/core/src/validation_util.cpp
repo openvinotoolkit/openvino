@@ -297,14 +297,14 @@ PartialShape ngraph::validate_and_infer_convolution_forward_output_shape(const N
 //
 // Infers the output batch shape and element type for convolution fprop.
 //
-PartialShape ngraph::infer_convolution_forward(const Node* node,
-                                               const PartialShape& data_batch_shape,
-                                               const Strides& data_dilation,
-                                               const CoordinateDiff& data_padding_below,
-                                               const CoordinateDiff& data_padding_above,
-                                               const PartialShape& filters_shape,
-                                               const Strides& filter_strides,
-                                               const Strides& filter_dilation) {
+PartialShape ov::infer_convolution_forward(const Node* node,
+                                           const PartialShape& data_batch_shape,
+                                           const Strides& data_dilation,
+                                           const CoordinateDiff& data_padding_below,
+                                           const CoordinateDiff& data_padding_above,
+                                           const PartialShape& filters_shape,
+                                           const Strides& filter_strides,
+                                           const Strides& filter_dilation) {
     Rank data_batch_filters_rank{Rank::dynamic()};
 
     NODE_VALIDATION_CHECK(node,
@@ -643,13 +643,13 @@ std::tuple<element::Type, PartialShape, PartialShape> ngraph::infer_batch_norm_f
         {{gamma_element_type, gamma_shape, "gamma"}, {beta_element_type, beta_shape, "beta"}});
 }
 
-void ngraph::infer_auto_padding(const Shape& image_shape,
-                                const Shape& filter_shape,
-                                const Strides& filter_strides,
-                                const Strides& filter_dilations,
-                                const op::PadType pad_type,
-                                CoordinateDiff& padding_above,
-                                CoordinateDiff& padding_below) {
+void ov::infer_auto_padding(const Shape& image_shape,
+                            const Shape& filter_shape,
+                            const Strides& filter_strides,
+                            const Strides& filter_dilations,
+                            const op::PadType pad_type,
+                            CoordinateDiff& padding_above,
+                            CoordinateDiff& padding_below) {
     const auto image_dims = std::vector<Dimension>(std::begin(image_shape), std::end(image_shape));
     // because image_shape is fully known result of try_apply_infer_auto_padding is ignored
     try_apply_auto_padding(image_dims,
@@ -676,9 +676,9 @@ bool ngraph::try_apply_auto_padding(const PartialShape& image_shape,
     const auto image_dims = static_cast<std::vector<Dimension>>(image_shape);
     for (size_t i = 0; i < static_cast<size_t>(filter_shape.size()); i++) {
         if (image_dims[i + 2].is_static()) {
-            int64_t image_size = static_cast<int64_t>(image_dims[i + 2].get_length());
+            auto image_size = static_cast<int64_t>(image_dims[i + 2].get_length());
             int64_t filter_size = (static_cast<int64_t>(filter_shape[i]) - 1) * filter_dilations[i] + 1;
-            int64_t filter_stride = static_cast<int64_t>(filter_strides[i]);
+            auto filter_stride = static_cast<int64_t>(filter_strides[i]);
             auto output_size = (image_size + filter_stride - 1) / filter_stride;
 
             auto padding_needed = std::max(int64_t(0), (output_size - 1) * filter_stride + filter_size - image_size);
@@ -847,9 +847,9 @@ PartialShape ngraph::infer_slice_shape(const Node* node,
     return dim;
 }
 
-std::vector<size_t> ngraph::normalize_axes(const std::string& node_description,
-                                           const std::vector<int64_t>& axes,
-                                           const Rank& tensor_rank) {
+std::vector<size_t> ov::normalize_axes(const std::string& node_description,
+                                       const std::vector<int64_t>& axes,
+                                       const Rank& tensor_rank) {
     std::vector<size_t> new_axes;
 
     for (const auto& axis : axes) {
@@ -859,11 +859,11 @@ std::vector<size_t> ngraph::normalize_axes(const std::string& node_description,
     return new_axes;
 }
 
-int64_t ngraph::normalize_axis(const Node* node, std::int64_t axis, const Rank& tensor_rank) {
+int64_t ov::normalize_axis(const Node* node, std::int64_t axis, const Rank& tensor_rank) {
     return normalize_axis(node->description(), axis, tensor_rank);
 }
 
-int64_t ngraph::normalize_axis(const std::string& node_description, std::int64_t axis, const Rank& tensor_rank) {
+int64_t ov::normalize_axis(const std::string& node_description, std::int64_t axis, const Rank& tensor_rank) {
     if (axis < 0) {
         // Handling negative axis requires static tensor rank
         NGRAPH_CHECK(tensor_rank.is_static(),
@@ -883,19 +883,19 @@ int64_t ngraph::normalize_axis(const std::string& node_description, std::int64_t
                           tensor_rank_value ? (tensor_rank_value - 1) : 0);
 }
 
-int64_t ngraph::normalize_axis(const Node* node,
-                               std::int64_t axis,
-                               std::uint64_t tensor_rank,
-                               std::int64_t axis_range_min,
-                               std::int64_t axis_range_max) {
+int64_t ov::normalize_axis(const Node* node,
+                           std::int64_t axis,
+                           std::uint64_t tensor_rank,
+                           std::int64_t axis_range_min,
+                           std::int64_t axis_range_max) {
     return ngraph::normalize_axis(node->description(), axis, tensor_rank, axis_range_min, axis_range_max);
 }
 
-int64_t ngraph::normalize_axis(const std::string& node_description,
-                               std::int64_t axis,
-                               std::uint64_t tensor_rank,
-                               std::int64_t axis_range_min,
-                               std::int64_t axis_range_max) {
+int64_t ov::normalize_axis(const std::string& node_description,
+                           std::int64_t axis,
+                           std::uint64_t tensor_rank,
+                           std::int64_t axis_range_min,
+                           std::int64_t axis_range_max) {
     // Accepted range of value for axis is [axis_range_min, axis_range_max].
     NGRAPH_CHECK(((axis >= axis_range_min) && (axis <= axis_range_max)),
                  node_description,
@@ -954,7 +954,7 @@ namespace {
 /// For tensor values, we use the maximum value in the tensor
 struct MaxValue {
     /// \brief No information known about the output
-    MaxValue() {}
+    MaxValue() = default;
     /// \brief uint64_t assoiated with the output
     MaxValue(uint64_t value) : m_value(value) {}
     MaxValue(const vector<uint64_t>& slices, int64_t slice_axis) : m_slices(slices), m_slice_axis(slice_axis) {
@@ -1027,7 +1027,7 @@ vector<MaxValue> exec_minimum(Node* node, vector<MaxValue>& inputs) {
 vector<MaxValue> exec_concat(Node* node, vector<MaxValue>& inputs) {
     auto op = ov::as_type<op::v0::Concat>(node);
     vector<uint64_t> slice_maxen;
-    for (auto input : inputs) {
+    for (const auto& input : inputs) {
         slice_maxen.push_back(input.m_value);
     }
     auto axis = op->get_concatenation_axis();
@@ -1039,7 +1039,7 @@ vector<MaxValue> exec_reduce_min(Node* node, vector<MaxValue>& inputs) {
     if (data.m_slice_axis >= 0 && data.m_slices.size() > 1) {
         if (auto indices_const = ov::as_type<op::v0::Constant>(node->get_input_node_ptr(1))) {
             if (indices_const->get_output_element_type(0).is_integral()) {
-                auto indices_shape = indices_const->get_output_shape(0);
+                const auto& indices_shape = indices_const->get_output_shape(0);
                 if (indices_shape == Shape{1}) {
                     auto indices = indices_const->cast_vector<int64_t>();
                     auto axis = indices.at(0);
@@ -1096,16 +1096,16 @@ vector<MaxValue> exec_nop(Node* node, vector<MaxValue>& inputs) {
 }  // namespace
 
 pair<bool, uint64_t> ngraph::maximum_value(const Output<Node>& value) {
-    static Evaluator<MaxValue>::op_handler_map handlers = {{op::v0::Concat::type_info, exec_concat},
-                                                           {op::v0::Constant::type_info, exec_constant},
-                                                           {op::v0::Convert::type_info, exec_nop},
-                                                           {op::v1::Gather::type_info, exec_gather},
-                                                           {op::v1::Minimum::type_info, exec_minimum},
-                                                           {op::v1::ReduceMin::type_info, exec_reduce_min},
-                                                           {op::v1::Reshape::type_info, exec_nop},
-                                                           {op::v3::ShapeOf::type_info, exec_shape_of},
-                                                           {op::v0::Squeeze::type_info, exec_nop},
-                                                           {op::v0::Unsqueeze::type_info, exec_nop}};
+    static Evaluator<MaxValue>::op_handler_map handlers = {{op::v0::Concat::get_type_info_static(), exec_concat},
+                                                           {op::v0::Constant::get_type_info_static(), exec_constant},
+                                                           {op::v0::Convert::get_type_info_static(), exec_nop},
+                                                           {op::v1::Gather::get_type_info_static(), exec_gather},
+                                                           {op::v1::Minimum::get_type_info_static(), exec_minimum},
+                                                           {op::v1::ReduceMin::get_type_info_static(), exec_reduce_min},
+                                                           {op::v1::Reshape::get_type_info_static(), exec_nop},
+                                                           {op::v3::ShapeOf::get_type_info_static(), exec_shape_of},
+                                                           {op::v0::Squeeze::get_type_info_static(), exec_nop},
+                                                           {op::v0::Unsqueeze::get_type_info_static(), exec_nop}};
     Evaluator<MaxValue>::value_map value_map;
     Evaluator<MaxValue> evaluator(handlers, value_map);
     auto val = evaluator.evaluate(value);
@@ -1117,7 +1117,7 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                             const OutputVector& outputs,
                             const EvaluationContext& evaluation_context) {
     Evaluator<HostTensorPtr> evaluator({}, value_map);
-    evaluator.set_univeral_handler(
+    evaluator.set_universal_handler(
         [&output_tensor_map, &evaluation_context](Node* node,
                                                   const HostTensorVector& input_tensors) -> HostTensorVector {
             HostTensorVector output_tensors;
@@ -1254,13 +1254,13 @@ pair<HostTensorPtr, HostTensorPtr> ngraph::evaluate_both_bounds(const Output<Nod
     return {evaluate_lower_bound(output), evaluate_upper_bound(output)};
 }
 
-bool ngraph::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {
+bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {
     HostTensorPtr lb, ub;
     std::tie(lb, ub) = evaluate_both_bounds(output);
     bool shape_defined = false;
     if (lb && ub) {
-        const auto lower_bound = std::make_shared<op::Constant>(lb)->cast_vector<int64_t>();
-        const auto upper_bound = std::make_shared<op::Constant>(ub)->cast_vector<int64_t>();
+        const auto lower_bound = std::make_shared<op::v0::Constant>(lb)->cast_vector<int64_t>();
+        const auto upper_bound = std::make_shared<op::v0::Constant>(ub)->cast_vector<int64_t>();
         NGRAPH_CHECK(lower_bound.size() == upper_bound.size());
         vector<Dimension> resulting_pshape(lower_bound.size());
         for (size_t i = 0; i < lower_bound.size(); ++i) {
@@ -1497,12 +1497,12 @@ bool ngraph::has_and_set_equal_bounds(const Output<Node>& source) {
     return lb && lb == ub;
 }
 
-shared_ptr<op::Constant> ngraph::get_constant_from_source(const Output<Node>& source) {
+shared_ptr<op::Constant> ov::get_constant_from_source(const Output<Node>& source) {
     if (!has_and_set_equal_bounds(source))
         return nullptr;
-    if (const auto& c = ov::as_type_ptr<op::Constant>(source.get_node_shared_ptr()))
+    if (const auto& c = ov::as_type_ptr<op::v0::Constant>(source.get_node_shared_ptr()))
         return c;
-    return std::make_shared<op::Constant>(source.get_tensor().get_upper_value());
+    return std::make_shared<op::v0::Constant>(source.get_tensor().get_upper_value());
 }
 
 bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size) {

@@ -9,6 +9,7 @@
 
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/rtti.hpp"
 #include "openvino/core/type.hpp"
 
 namespace ov {
@@ -205,10 +206,8 @@ class OPENVINO_API AttributeAdapter<op::PadMode> : public EnumAttributeAdapterBa
 public:
     AttributeAdapter(op::PadMode& value) : EnumAttributeAdapterBase<op::PadMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::PadMode>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<PadMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -216,10 +215,8 @@ class OPENVINO_API AttributeAdapter<op::PadType> : public EnumAttributeAdapterBa
 public:
     AttributeAdapter(op::PadType& value) : EnumAttributeAdapterBase<op::PadType>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::PadType>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<PadType>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -227,10 +224,8 @@ class OPENVINO_API AttributeAdapter<op::RoundingType> : public EnumAttributeAdap
 public:
     AttributeAdapter(op::RoundingType& value) : EnumAttributeAdapterBase<op::RoundingType>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::RoundingType>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<RoundingType>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -238,10 +233,8 @@ class OPENVINO_API AttributeAdapter<op::AutoBroadcastType> : public EnumAttribut
 public:
     AttributeAdapter(op::AutoBroadcastType& value) : EnumAttributeAdapterBase<op::AutoBroadcastType>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::AutoBroadcastType>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<AutoBroadcastType>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -249,10 +242,8 @@ class OPENVINO_API AttributeAdapter<op::BroadcastType> : public EnumAttributeAda
 public:
     AttributeAdapter(op::BroadcastType& value) : EnumAttributeAdapterBase<op::BroadcastType>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::BroadcastType>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<BroadcastType>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -260,10 +251,8 @@ class OPENVINO_API AttributeAdapter<op::EpsMode> : public EnumAttributeAdapterBa
 public:
     AttributeAdapter(op::EpsMode& value) : EnumAttributeAdapterBase<op::EpsMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::EpsMode>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<EpsMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -271,10 +260,8 @@ class OPENVINO_API AttributeAdapter<op::TopKSortType> : public EnumAttributeAdap
 public:
     AttributeAdapter(op::TopKSortType& value) : EnumAttributeAdapterBase<op::TopKSortType>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::TopKSortType>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<TopKSortType>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -282,37 +269,31 @@ class OPENVINO_API AttributeAdapter<op::TopKMode> : public EnumAttributeAdapterB
 public:
     AttributeAdapter(op::TopKMode& value) : EnumAttributeAdapterBase<op::TopKMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::TopKMode>", 1};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<TopKMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
-class AttributeAdapter<op::AutoBroadcastSpec> : public VisitorAdapter {
+class OPENVINO_API AttributeAdapter<op::AutoBroadcastSpec> : public VisitorAdapter {
 public:
     AttributeAdapter(op::AutoBroadcastSpec& value) : m_ref(value) {}
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::AutoBroadcastSpec>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<AutoBroadcastSpec>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     op::AutoBroadcastSpec& m_ref;
 };
 
 template <>
-class AttributeAdapter<op::BroadcastModeSpec> : public VisitorAdapter {
+class OPENVINO_API AttributeAdapter<op::BroadcastModeSpec> : public VisitorAdapter {
 public:
     AttributeAdapter(op::BroadcastModeSpec& value) : m_ref(value) {}
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::BroadcastModeSpec>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<BroadcastModeSpec>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     op::BroadcastModeSpec& m_ref;
@@ -325,9 +306,7 @@ public:
     AttributeAdapter(op::RecurrentSequenceDirection& value)
         : EnumAttributeAdapterBase<op::RecurrentSequenceDirection>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::RecurrentSequenceDirection>", 1};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<RecurrentSequenceDirection>");
+    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

@@ -1,0 +1,7 @@
+{
+  "name": "3_inputs_model",
+  "framework": "onnx",
+  "mo_args": {
+    "input_model": "$model_dir/first_convs_test_nets/3_inputs_model.onnx"
+  }
+}

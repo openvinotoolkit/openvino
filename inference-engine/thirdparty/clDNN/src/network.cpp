@@ -112,7 +112,7 @@ static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
     file_stream << "shape: " << size.to_string() << " ";
     file_stream << "(count: " << size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")" << std::endl;
 
-    mem_lock<T> lock(mem, stream);
+    mem_lock<T, mem_lock_type::read> lock(mem, stream);
     auto mem_ptr = lock.data();
     auto x_pitch = get_x_pitch(mem->get_layout());
     std::stringstream buffer;
@@ -148,7 +148,7 @@ void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream)
     file_stream << size.spatial[0] << " ";
     file_stream << "(" << size.batch[0] * size.feature[0] * size.spatial[1] * size.spatial[0] << ")" << std::endl;
 
-    mem_lock<uint32_t> lock(mem, stream);
+    mem_lock<uint32_t, mem_lock_type::read> lock(mem, stream);
     auto mem_ptr = lock.data();
 
     for (cldnn::tensor::value_type b = 0; b < size.batch[0]; ++b) {
@@ -418,8 +418,10 @@ void network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
 
     for (auto& prim : o_iter->second) {
         prim->set_output_memory(eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout()), false);
-        if (!_reset_arguments)
+        if (!_reset_arguments &&
+            (!prim->get_node().is_type<data>() && !(prim->get_node().is_type<mutable_data>() && prim->get_node().get_dependencies().empty()))) {
             prim->set_arguments();
+        }
     }
 }
 
@@ -470,14 +472,61 @@ void network::allocate_primitives() {
     for (auto node : _program->get_processing_order()) {
         nodes_to_allocate.push_back(_program->get_node_ptr(node->id()));
     }
-    std::sort(nodes_to_allocate.begin(),
-              nodes_to_allocate.end(),
-              [](std::shared_ptr<program_node> const& lhs, std::shared_ptr<program_node> const& rhs) {
-                  return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
-              });
-
     for (auto const& node : nodes_to_allocate) {
         allocate_primitive_instance(*node);
+    }
+
+    for (auto const& node : _program->get_processing_order()) {
+        if (node->get_preferred_impl_type() == impl_types::onednn) {
+            bool can_reuse_eltwise_mem = false;
+            size_t eltw_dep = 0;
+
+            for (auto& fused_op : node->get_fused_primitives()) {
+                if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
+                    auto& eltw_in = node->get_dependency(fused_op.dep_start_idx);
+                    auto eltw_in_layout = eltw_in.get_output_layout();
+                    auto out_layout = node->get_output_layout();
+
+                    if (eltw_in_layout.size == out_layout.size &&
+                        eltw_in_layout.format == out_layout.format &&
+                        eltw_in_layout.data_padding == out_layout.data_padding &&
+                        data_type_traits::size_of(eltw_in_layout.data_type) == data_type_traits::size_of(out_layout.data_type)) {
+                        if (eltw_dep > 0) {
+                            throw std::runtime_error("Unsupported multiple full size tensors.");
+                        }
+                        eltw_dep = fused_op.dep_start_idx;
+                        can_reuse_eltwise_mem = true;
+                    }
+
+                    if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
+                        auto& eltw_inst = _primitives.at(eltw_in.id());
+                        auto& prim_inst = _primitives.at(node->id());
+                        auto eltw_mem_type = eltw_inst->output_memory().get_allocation_type();
+                        auto prim_mem_type = prim_inst->output_memory().get_allocation_type();
+
+                        // Keep lockable memory type for `prim_inst` output if needed
+                        if (eltw_mem_type != prim_mem_type && eltw_mem_type != allocation_type::cl_mem && eltw_mem_type != allocation_type::usm_host)
+                            can_reuse_eltwise_mem = false;
+                    }
+
+                    if (fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout) && !can_reuse_eltwise_mem) {
+                        throw std::runtime_error("Buffer reuse is required for onednn sum post operation.");
+                    }
+                }
+            }
+
+            if (can_reuse_eltwise_mem) {
+                auto& eltw_in = node->get_dependency(eltw_dep);
+                if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
+                    auto& eltw_inst = _primitives.at(eltw_in.id());
+                    auto& prim_inst = _primitives.at(node->id());
+                    auto& eltw_mem = eltw_inst->output_memory();
+                    auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node->get_output_layout());
+
+                    prim_inst->set_output_memory(new_mem);
+                }
+            }
+        }
     }
 }
 
@@ -660,6 +709,21 @@ const program::primitives_info& network::get_primitives_info() const {
 
 const program::graph_optimizer_info& network::get_optimizer_passes_info() const {
     return _program->get_optimizer_passes_info();
+}
+
+std::map<primitive_id, primitive_id> network::get_ext_id_mapping() const {
+    std::map<primitive_id, primitive_id> result;
+    for (auto& prim : _primitives) {
+        result.emplace(prim.first, prim.second->get_ext_prim_id());
+    }
+    for (auto& opt_id : _program->get_optimized_out()) {
+        std::string ext_id = opt_id;
+        if (opt_id.find(":") != std::string::npos) {
+            ext_id = opt_id.substr(opt_id.find(":") + 1, opt_id.length());
+        }
+        result.emplace(opt_id, ext_id);
+    }
+    return result;
 }
 
 std::shared_ptr<primitive_inst> network::get_primitive(const primitive_id& id) {

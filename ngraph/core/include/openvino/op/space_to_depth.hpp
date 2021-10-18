@@ -18,7 +18,8 @@ namespace v0 {
 ///        [N, C * blocksize * blocksize, H / blocksize, W / blocksize]
 class OPENVINO_API SpaceToDepth : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("SpaceToDepth", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     enum class SpaceToDepthMode {
         // The output depth is gathered from [block_size, ..., block_size, C]
@@ -48,7 +49,9 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 protected:
@@ -68,10 +71,8 @@ public:
     AttributeAdapter(op::v0::SpaceToDepth::SpaceToDepthMode& value)
         : EnumAttributeAdapterBase<op::v0::SpaceToDepth::SpaceToDepthMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v0::SpaceToDepth::SpaceToDepthMode>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::v0::SpaceToDepth::SpaceToDepthMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov
