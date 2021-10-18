@@ -103,12 +103,17 @@ function initViewerJS() {
 function init_col_sections() {
     var collapsible_sections = $('div.collapsible-section');
     collapsible_sections.each(function() {
-        var title = $(this).data('title') || 'Click to expand';
-        var summary = $('<summary>' + title + '</summary>');
-        // summary.html(title);
-        var details = $('<details class="col-sect-details"></details>');
-        $(this).wrap(details);
-        summary.insertBefore($(this));
+        try {
+            var title = $(this).data('title') || 'Click to expand';
+            var summary = $('<summary>' + title + '</summary>');
+            // summary.html(title);
+            var details = $('<details class="col-sect-details"></details>');
+            $(this).wrap(details);
+            summary.insertBefore($(this));
+        }
+        catch(err) {
+            console.log(err);
+        }
     });
 }
 
@@ -123,8 +128,8 @@ function handleSwitcherParam() {
     }
     $('.reference.internal.nav-link[href="#' + section_id + '"]').parent('li').css('display', 'block');
     $('#' + section_id).css('display', 'block');
-    $('#button-' + section_id).removeClass('spark-button-secondary')
-    $('#button-' + section_id).addClass('spark-button-action');
+    $('#button-' + section_id).removeClass('bttn-prm')
+    $('#button-' + section_id).addClass('bttn-act');
     $('#button-' + section_id).attr('style', 'color: #fff !important');
 }
 
@@ -142,7 +147,7 @@ function init_switchers() {
         var link = $('<a></a>');
         link.text(option);
         link.attr('href', '?sw_type=' + id);
-        link.addClass('spark-button spark-button-secondary spark-button-size-l');
+        link.addClass('button bttn-prm button-size-m');
         switcherPanel.append(link);
         var section = $(anchor).parent('div.section');
         section.css('display', 'none');

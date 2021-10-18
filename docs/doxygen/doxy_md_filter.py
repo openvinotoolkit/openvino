@@ -96,8 +96,8 @@ def process(input_dir, output_dir, exclude_dirs):
 
         inline_links = set(re.findall(r'!?\[.*?\]\(([\w\/\-\.]+\.md)\)', content))
         reference_links = set(re.findall(r'\[.+\]\:\s*?([\w\/\-\.]+\.md)', content))
-        inline_images = set(re.findall(r'!?\[.*?\]\(([\w\/\-\.]+\.(?:png|jpg|gif|svg))\)', content))
-        reference_images = set(re.findall(r'\[.+\]\:\s*?([\w\/\-\.]+\.(?:png|jpg|gif|svg))', content))
+        inline_images = set(re.findall(r'!?\[.*?\]\(([\w\/\-\.]+\.(?:png|jpg|gif|svg))\)', content, flags=re.IGNORECASE))
+        reference_images = set(re.findall(r'\[.+\]\:\s*?([\w\/\-\.]+\.(?:png|jpg|gif|svg))', content, flags=re.IGNORECASE))
 
         images = inline_images
         images.update(reference_images)
