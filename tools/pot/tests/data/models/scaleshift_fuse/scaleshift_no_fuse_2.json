@@ -1,0 +1,8 @@
+{
+  "name": "scaleshift_no_fuse_2",
+  "framework": "dldt",
+  "mo_args": {
+    "model": "$model_dir/scaleshift_fuse/scaleshift_no_fuse_2.xml",
+    "weights": "$model_dir/scaleshift_fuse/scaleshift_no_fuse_2.bin"
+  }
+}
