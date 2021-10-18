@@ -461,3 +461,98 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
         }
     }
 }
+
+template <typename T, typename T2>
+Buffer createRandomBlobs(size_t blobSize, InferenceEngine::Precision precision,
+                    T rand_min = std::numeric_limits<uint8_t>::min(),
+                    T rand_max = std::numeric_limits<uint8_t>::max()) {
+    Buffer buff(blobSize, precision);
+    std::mt19937 gen(0);
+    auto data = buff.get<T>();
+    uniformDistribution<T2> distribution(rand_min, rand_max);
+    for (size_t i = 0; i < blobSize; i++) {
+        data[i] = static_cast<T>(distribution(gen));
+    }
+
+    return buff;
+}
+
+std::vector<Buffer> prepareRandomInputs(std::vector<benchmark_app::InputsInfo>& app_inputs_info) {
+    std::vector<Buffer> inputs_data;
+    for (auto& input : app_inputs_info) {
+        for (auto& item : input) {
+            auto precision = item.second.precision;
+            auto tensor_shape = item.second.tensorShape;
+            size_t blob_size = std::accumulate(tensor_shape.begin(), tensor_shape.end(), 1, std::multiplies<int>());
+            if (precision == InferenceEngine::Precision::FP32) {
+                inputs_data.push_back(createRandomBlobs<float, float>(blob_size, precision));
+            } else if (precision == InferenceEngine::Precision::FP16) {
+                inputs_data.push_back(createRandomBlobs<short, short>(blob_size, precision));
+            } else if (precision == InferenceEngine::Precision::I32) {
+                inputs_data.push_back(createRandomBlobs<int32_t, int32_t>(blob_size, precision));
+            } else if (precision == InferenceEngine::Precision::I64) {
+                inputs_data.push_back(createRandomBlobs<int64_t, int64_t>(blob_size, precision));
+            } else if (precision == InferenceEngine::Precision::U8) {
+                // uniform_int_distribution<uint8_t> is not allowed in the C++17
+                // standard and vs2017/19
+                inputs_data.push_back(createRandomBlobs<uint8_t, uint32_t>(blob_size, precision));
+            } else if (precision == InferenceEngine::Precision::I8) {
+                // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
+                // and vs2017/19
+                inputs_data.push_back(createRandomBlobs<int8_t, int32_t>(blob_size, precision));
+            } else if (precision == InferenceEngine::Precision::U16) {
+                inputs_data.push_back(createRandomBlobs<uint16_t, uint16_t>(blob_size, precision));
+            } else if (precision == InferenceEngine::Precision::I16) {
+                inputs_data.push_back(createRandomBlobs<int16_t, int16_t>(blob_size, precision));
+            } else if (precision == InferenceEngine::Precision::BOOL) {
+                inputs_data.push_back(createRandomBlobs<uint8_t, uint32_t>(blob_size, precision, 0, 1));
+            } else {
+                IE_THROW() << "Input precision is not supported for " << item.first;
+            }
+        }
+    }
+
+    return inputs_data;
+}
+
+
+void fillBlob(InferenceEngine::Blob::Ptr& inputBlob, Buffer& data) {
+    MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
+    if (!minput) {
+        IE_THROW() << "We expect inputBlob to be inherited from MemoryBlob in "
+                      "fillBlobRandom, "
+                   << "but by fact we were not able to cast inputBlob to MemoryBlob";
+    }
+    // locked memory holder should be alive all time while access to its buffer
+    // happens
+    auto minputHolder = minput->wmap();
+    auto precision = data.precision;
+    auto size = data.size;
+    if (precision == InferenceEngine::Precision::FP32) {
+        auto inputBlobData = minputHolder.as<float*>();
+        memcpy(inputBlobData, data.get<float>(), data.total_size);
+    } else if (precision == InferenceEngine::Precision::FP16) {
+        auto inputBlobData = minputHolder.as<short*>();
+        memcpy(inputBlobData, data.get<short>(), data.total_size);
+    } else if (precision == InferenceEngine::Precision::I32) {
+        auto inputBlobData = minputHolder.as<int32_t*>();
+        memcpy(inputBlobData, data.get<int32_t>(), data.total_size);
+    } else if (precision == InferenceEngine::Precision::I64) {
+        auto inputBlobData = minputHolder.as<int64_t*>();
+        memcpy(inputBlobData, data.get<int64_t>(), data.total_size);
+    } else if (precision == InferenceEngine::Precision::U8 || precision == InferenceEngine::Precision::BOOL) {
+        auto inputBlobData = minputHolder.as<uint8_t*>();
+        memcpy(inputBlobData, data.get<uint8_t>(), data.total_size);
+    } else if (precision == InferenceEngine::Precision::I8) {
+        auto inputBlobData = minputHolder.as<int8_t*>();
+        memcpy(inputBlobData, data.get<int8_t>(), data.total_size);
+    } else if (precision == InferenceEngine::Precision::U16) {
+        auto inputBlobData = minputHolder.as<uint16_t*>();
+        memcpy(inputBlobData, data.get<uint16_t>(), data.total_size);
+    } else if (precision == InferenceEngine::Precision::I16) {
+        auto inputBlobData = minputHolder.as<int16_t*>();
+        memcpy(inputBlobData, data.get<int16_t>(), data.total_size);
+    } else {
+        IE_THROW() << "Input precision is not supported: " << precision;
+    }
+}
