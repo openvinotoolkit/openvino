@@ -67,9 +67,11 @@ using EvaluationContext = std::map<std::string, std::shared_ptr<Variant>>;
 using ResultVector = std::vector<std::shared_ptr<ngraph::op::v0::Result>>;
 
 const auto node_validation_failure_loc_string = ov::node_validation_failure_loc_string;
-const auto check_single_output_arg = ov::check_single_output_arg;
 
-const auto check_single_output_args = ov::check_single_output_args;
+NGRAPH_API
+const std::shared_ptr<Node>& check_single_output_arg(const std::shared_ptr<Node>& node, size_t i);
+NGRAPH_API
+const NodeVector& check_single_output_args(const NodeVector& args);
 
 const auto as_output_vector = ov::as_output_vector;
 const auto as_node_vector = ov::as_node_vector;
