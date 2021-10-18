@@ -121,6 +121,8 @@ You must update several environment variables before you can compile and run Ope
 
 The environment variables are set. Next, you will configure the Model Optimizer.
 
+## <a name="model-optimizer">Step 4: Configure the Model Optimizer
+
 The Model Optimizer is a Python\*-based command line tool for importing
 trained models from popular deep learning frameworks such as Caffe\*,
 TensorFlow\*, Apache MXNet\*, ONNX\* and Kaldi\*.
@@ -134,8 +136,6 @@ Representation is a pair of files that describe the whole model:
 - `.bin`: Contains the weights and biases binary data
 
 For more information about the Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). 
-
-## <a name="model-optimizer">Step 4: Configure the Model Optimizer
 
 If you see error messages, make sure you installed all dependencies. These steps use a command prompt to make sure you see error messages.
 

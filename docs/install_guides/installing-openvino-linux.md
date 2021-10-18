@@ -182,6 +182,10 @@ You must update several environment variables before you can compile and run Ope
 
 The environment variables are set. Next, you will configure the Model Optimizer.
 
+## <a name="model-optimizer">Step 4: Configure the Model Optimizer
+
+> **NOTE**: Since the TensorFlow framework is not officially supported on CentOS*, the Model Optimizer for TensorFlow can't be configured and run on that operating system.  
+
 The Model Optimizer is a Python\*-based command line tool for importing
 trained models from popular deep learning frameworks such as Caffe\*,
 TensorFlow\*, Apache MXNet\*, ONNX\* and Kaldi\*.
@@ -195,10 +199,6 @@ Representation is a pair of files that describe the whole model:
 - `.bin`: Contains the weights and biases binary data
 
 For more information about the Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). 
-
-## <a name="model-optimizer">Step 4: Configure the Model Optimizer
-
-> **NOTE**: Since the TensorFlow framework is not officially supported on CentOS*, the Model Optimizer for TensorFlow can't be configured and run on that operating system.  
 
 1. Go to the Model Optimizer prerequisites directory:
    ```sh
