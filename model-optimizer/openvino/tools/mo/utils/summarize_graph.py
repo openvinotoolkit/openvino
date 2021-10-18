@@ -44,7 +44,7 @@ def summarize_graph(graph_def):
     return result
 
 
-if __name__ == "__main__":  # pragma: no cover
+def main():
     sys.path.append(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
     from openvino.tools.mo.front.tf.loader import load_tf_graph_def
 
@@ -81,3 +81,7 @@ if __name__ == "__main__":  # pragma: no cover
                                                      summary['inputs'][input]['shape']))
     print("{} output(s) detected:".format(len(summary['outputs'])))
     print(*summary['outputs'], sep="\n")
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main()
