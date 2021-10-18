@@ -21,7 +21,7 @@ import openvino as ov
     (ov.impl.Type.i64, np.int64),
     (ov.impl.Type.u64, np.uint64),
     (ov.impl.Type.boolean, np.bool),
-    (ov.impl.Type.u1, np.uint8),
+    # (ov.impl.Type.u1, np.uint8),
 ])
 def test_init_with_ngraph(ov_type, numpy_dtype):
     ov_tensors = []
@@ -94,7 +94,7 @@ def test_init_with_roi_tensor():
     (ov.impl.Type.i64, np.int64),
     (ov.impl.Type.u64, np.uint64),
     (ov.impl.Type.boolean, np.bool),
-    (ov.impl.Type.u1, np.uint8),
+    # (ov.impl.Type.u1, np.uint8),
 ])
 def test_write_to_buffer(ov_type, numpy_dtype):
     ov_tensor = Tensor(ov_type, ov.impl.Shape([1, 3, 32, 32]))
@@ -117,7 +117,7 @@ def test_write_to_buffer(ov_type, numpy_dtype):
     (ov.impl.Type.i64, np.int64),
     (ov.impl.Type.u64, np.uint64),
     (ov.impl.Type.boolean, np.bool),
-    (ov.impl.Type.u1, np.uint8),
+    # (ov.impl.Type.u1, np.uint8),
 ])
 def test_set_shape(ov_type, numpy_dtype):
     shape = ov.impl.Shape([1, 3, 32, 32])

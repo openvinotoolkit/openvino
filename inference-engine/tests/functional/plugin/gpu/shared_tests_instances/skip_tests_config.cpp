@@ -83,5 +83,10 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
             // TODO: Issue 67910
             R"(.*smoke_PrePostProcess_GPU.*two_inputs_trivial.*)",
+            // TODO: CVS-68525
+            R"(.*CanSetInBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
+            R"(.*CanSetInBlobWithDifferentPrecision/netPRC=BIN.*)",
+            R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
+            R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=BIN.*)",
     };
 }
