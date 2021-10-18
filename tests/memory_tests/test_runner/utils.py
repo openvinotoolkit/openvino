@@ -10,7 +10,7 @@ from pymongo import MongoClient
 
 # constants
 REFS_FACTOR = 1.2  # 120%
-TIMELINE_SIMILARITY = ('model', 'test_exe', 'os', 'device', 'cpu_info', 'target_branch')
+TIMELINE_SIMILARITY = ('model', 'device', 'test_exe', 'os', 'cpu_info', 'target_branch')
 
 
 def _transpose_dicts(items, template=None):
