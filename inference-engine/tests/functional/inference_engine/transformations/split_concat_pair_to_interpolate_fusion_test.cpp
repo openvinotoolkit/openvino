@@ -43,7 +43,7 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D1) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
+        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>(false);
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -66,13 +66,9 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D1) {
 
         auto sslice_begin = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{axis});
         auto sslice_end = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{axis + 1});
-        std::vector<int64_t> begin_mask = {1};
-        std::vector<int64_t> end_mask = {1};
-        std::vector<int64_t> new_axis_mask = {0};
-        std::vector<int64_t> shrink_axis_mask = {0};
-        std::vector<int64_t> ellipsis_mask = {0};
-        auto strided_slice_node = std::make_shared<ngraph::opset8::StridedSlice>(shape_node, sslice_begin, sslice_end, begin_mask,
-                                                                                 end_mask, new_axis_mask, shrink_axis_mask, ellipsis_mask);
+        std::vector<int64_t> begin_mask = {0};
+        std::vector<int64_t> end_mask = {0};
+        auto strided_slice_node = std::make_shared<ngraph::opset8::StridedSlice>(shape_node, sslice_begin, sslice_end, begin_mask, end_mask);
 
         auto cast_shape_to_float = std::make_shared<ngraph::opset8::Convert>(strided_slice_node, ngraph::element::f32);
         auto mul_node = std::make_shared<ngraph::opset8::Multiply>(cast_shape_to_float, scales_node);
@@ -111,7 +107,7 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D2) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
+        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>(false);
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -134,13 +130,9 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D2) {
 
         auto sslice_begin = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{axis});
         auto sslice_end = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{axis + 1});
-        std::vector<int64_t> begin_mask = {1};
-        std::vector<int64_t> end_mask = {1};
-        std::vector<int64_t> new_axis_mask = {0};
-        std::vector<int64_t> shrink_axis_mask = {0};
-        std::vector<int64_t> ellipsis_mask = {0};
-        auto strided_slice_node = std::make_shared<ngraph::opset8::StridedSlice>(shape_node, sslice_begin, sslice_end, begin_mask,
-                                                                                 end_mask, new_axis_mask, shrink_axis_mask, ellipsis_mask);
+        std::vector<int64_t> begin_mask = {0};
+        std::vector<int64_t> end_mask = {0};
+        auto strided_slice_node = std::make_shared<ngraph::opset8::StridedSlice>(shape_node, sslice_begin, sslice_end, begin_mask, end_mask);
 
         auto cast_shape_to_float = std::make_shared<ngraph::opset8::Convert>(strided_slice_node, ngraph::element::f32);
         auto mul_node = std::make_shared<ngraph::opset8::Multiply>(cast_shape_to_float, scales_node);
@@ -179,7 +171,7 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial3D1) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
+        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>(false);
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -202,13 +194,9 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial3D1) {
 
         auto sslice_begin = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{axis});
         auto sslice_end = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{axis + 1});
-        std::vector<int64_t> begin_mask = {1};
-        std::vector<int64_t> end_mask = {1};
-        std::vector<int64_t> new_axis_mask = {0};
-        std::vector<int64_t> shrink_axis_mask = {0};
-        std::vector<int64_t> ellipsis_mask = {0};
-        auto strided_slice_node = std::make_shared<ngraph::opset8::StridedSlice>(shape_node, sslice_begin, sslice_end, begin_mask,
-                                                                                 end_mask, new_axis_mask, shrink_axis_mask, ellipsis_mask);
+        std::vector<int64_t> begin_mask = {0};
+        std::vector<int64_t> end_mask = {0};
+        auto strided_slice_node = std::make_shared<ngraph::opset8::StridedSlice>(shape_node, sslice_begin, sslice_end, begin_mask, end_mask);
 
         auto cast_shape_to_float = std::make_shared<ngraph::opset8::Convert>(strided_slice_node, ngraph::element::f32);
         auto mul_node = std::make_shared<ngraph::opset8::Multiply>(cast_shape_to_float, scales_node);
@@ -247,7 +235,7 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial3D2) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
+        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>(false);
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -270,13 +258,9 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial3D2) {
 
         auto sslice_begin = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{axis});
         auto sslice_end = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{axis + 1});
-        std::vector<int64_t> begin_mask = {1};
-        std::vector<int64_t> end_mask = {1};
-        std::vector<int64_t> new_axis_mask = {0};
-        std::vector<int64_t> shrink_axis_mask = {0};
-        std::vector<int64_t> ellipsis_mask = {0};
-        auto strided_slice_node = std::make_shared<ngraph::opset8::StridedSlice>(shape_node, sslice_begin, sslice_end, begin_mask,
-                                                                                 end_mask, new_axis_mask, shrink_axis_mask, ellipsis_mask);
+        std::vector<int64_t> begin_mask = {0};
+        std::vector<int64_t> end_mask = {0};
+        auto strided_slice_node = std::make_shared<ngraph::opset8::StridedSlice>(shape_node, sslice_begin, sslice_end, begin_mask, end_mask);
 
         auto cast_shape_to_float = std::make_shared<ngraph::opset8::Convert>(strided_slice_node, ngraph::element::f32);
         auto mul_node = std::make_shared<ngraph::opset8::Multiply>(cast_shape_to_float, scales_node);
@@ -332,6 +316,230 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionTwoSplitsOneConcat) 
         auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input1, input2 });
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D1WithConstantFolding) {
+    size_t num_splits = 3;
+    size_t scale_factor = 2;
+    size_t num_of_concat_inputs = num_splits * scale_factor;
+    int64_t axis = 3;
+    ngraph::Shape input_shape { 1, 100, 120, 150 };
+    int64_t target_size = static_cast<int64_t>(input_shape[axis]) * scale_factor;
+
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
+        auto split_axis = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, { axis });
+        auto split = std::make_shared<ngraph::opset8::Split>(input, split_axis, num_splits);
+
+        ngraph::OutputVector concat_inputs_vec(num_of_concat_inputs);
+        for (size_t split_output_port = 0; split_output_port < num_splits; ++split_output_port) {
+            for (size_t j = 0; j < scale_factor; ++j) {
+                concat_inputs_vec[split_output_port * scale_factor + j] = split->output(split_output_port);
+            }
+        }
+
+        auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    {
+        ngraph::opset8::Interpolate::InterpolateAttrs attrs;
+
+        attrs.mode = ngraph::opset8::Interpolate::InterpolateMode::NEAREST;
+        attrs.shape_calculation_mode = ngraph::opset8::Interpolate::ShapeCalcMode::SCALES;
+        attrs.nearest_mode = ngraph::opset8::Interpolate::NearestMode::ROUND_PREFER_FLOOR;
+        attrs.pads_begin = std::vector<size_t>{0};
+        attrs.pads_end = std::vector<size_t>{0};
+        attrs.antialias = false;
+        attrs.coordinate_transformation_mode = ngraph::opset8::Interpolate::CoordinateTransformMode::HALF_PIXEL;
+        attrs.cube_coeff = -0.75f;
+
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
+        auto scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, {1}, std::vector<float>{static_cast<float>(scale_factor)});
+        auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{axis});
+        auto sizes_node = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{target_size});
+
+        auto interpolate = std::make_shared<ngraph::opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ interpolate }, ngraph::ParameterVector{ input });
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D2WithConstantFolding) {
+    size_t num_splits = 3;
+    size_t scale_factor = 2;
+    size_t num_of_concat_inputs = num_splits * scale_factor;
+    int64_t axis = 2;
+    ngraph::Shape input_shape { 1, 100, 120, 150 };
+    int64_t target_size = static_cast<int64_t>(input_shape[axis]) * scale_factor;
+
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
+        auto split_axis = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, { axis });
+        auto split = std::make_shared<ngraph::opset8::Split>(input, split_axis, num_splits);
+
+        ngraph::OutputVector concat_inputs_vec(num_of_concat_inputs);
+        for (size_t split_output_port = 0; split_output_port < num_splits; ++split_output_port) {
+            for (size_t j = 0; j < scale_factor; ++j) {
+                concat_inputs_vec[split_output_port * scale_factor + j] = split->output(split_output_port);
+            }
+        }
+
+        auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    {
+        ngraph::opset8::Interpolate::InterpolateAttrs attrs;
+
+        attrs.mode = ngraph::opset8::Interpolate::InterpolateMode::NEAREST;
+        attrs.shape_calculation_mode = ngraph::opset8::Interpolate::ShapeCalcMode::SCALES;
+        attrs.nearest_mode = ngraph::opset8::Interpolate::NearestMode::ROUND_PREFER_FLOOR;
+        attrs.pads_begin = std::vector<size_t>{0};
+        attrs.pads_end = std::vector<size_t>{0};
+        attrs.antialias = false;
+        attrs.coordinate_transformation_mode = ngraph::opset8::Interpolate::CoordinateTransformMode::HALF_PIXEL;
+        attrs.cube_coeff = -0.75f;
+
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
+        auto scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, {1}, std::vector<float>{static_cast<float>(scale_factor)});
+        auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{axis});
+        auto sizes_node = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{target_size});
+
+        auto interpolate = std::make_shared<ngraph::opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ interpolate }, ngraph::ParameterVector{ input });
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial3D1WithConstantFolding) {
+    size_t num_splits = 3;
+    size_t scale_factor = 2;
+    size_t num_of_concat_inputs = num_splits * scale_factor;
+    int64_t axis = 4;
+    ngraph::Shape input_shape { 1, 3, 100, 120, 150 };
+    int64_t target_size = static_cast<int64_t>(input_shape[axis]) * scale_factor;
+
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
+        auto split_axis = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, { axis });
+        auto split = std::make_shared<ngraph::opset8::Split>(input, split_axis, num_splits);
+
+        ngraph::OutputVector concat_inputs_vec(num_of_concat_inputs);
+        for (size_t split_output_port = 0; split_output_port < num_splits; ++split_output_port) {
+            for (size_t j = 0; j < scale_factor; ++j) {
+                concat_inputs_vec[split_output_port * scale_factor + j] = split->output(split_output_port);
+            }
+        }
+
+        auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    {
+        ngraph::opset8::Interpolate::InterpolateAttrs attrs;
+
+        attrs.mode = ngraph::opset8::Interpolate::InterpolateMode::NEAREST;
+        attrs.shape_calculation_mode = ngraph::opset8::Interpolate::ShapeCalcMode::SCALES;
+        attrs.nearest_mode = ngraph::opset8::Interpolate::NearestMode::ROUND_PREFER_FLOOR;
+        attrs.pads_begin = std::vector<size_t>{0};
+        attrs.pads_end = std::vector<size_t>{0};
+        attrs.antialias = false;
+        attrs.coordinate_transformation_mode = ngraph::opset8::Interpolate::CoordinateTransformMode::HALF_PIXEL;
+        attrs.cube_coeff = -0.75f;
+
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
+        auto scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, {1}, std::vector<float>{static_cast<float>(scale_factor)});
+        auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{axis});
+        auto sizes_node = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{target_size});
+
+        auto interpolate = std::make_shared<ngraph::opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ interpolate }, ngraph::ParameterVector{ input });
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial3D2WithConstantFolding) {
+    size_t num_splits = 3;
+    size_t scale_factor = 2;
+    size_t num_of_concat_inputs = num_splits * scale_factor;
+    int64_t axis = 3;
+    ngraph::Shape input_shape { 1, 3, 100, 120, 150 };
+    int64_t target_size = static_cast<int64_t>(input_shape[axis]) * scale_factor;
+
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
+        auto split_axis = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, { axis });
+        auto split = std::make_shared<ngraph::opset8::Split>(input, split_axis, num_splits);
+
+        ngraph::OutputVector concat_inputs_vec(num_of_concat_inputs);
+        for (size_t split_output_port = 0; split_output_port < num_splits; ++split_output_port) {
+            for (size_t j = 0; j < scale_factor; ++j) {
+                concat_inputs_vec[split_output_port * scale_factor + j] = split->output(split_output_port);
+            }
+        }
+
+        auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    {
+        ngraph::opset8::Interpolate::InterpolateAttrs attrs;
+
+        attrs.mode = ngraph::opset8::Interpolate::InterpolateMode::NEAREST;
+        attrs.shape_calculation_mode = ngraph::opset8::Interpolate::ShapeCalcMode::SCALES;
+        attrs.nearest_mode = ngraph::opset8::Interpolate::NearestMode::ROUND_PREFER_FLOOR;
+        attrs.pads_begin = std::vector<size_t>{0};
+        attrs.pads_end = std::vector<size_t>{0};
+        attrs.antialias = false;
+        attrs.coordinate_transformation_mode = ngraph::opset8::Interpolate::CoordinateTransformMode::HALF_PIXEL;
+        attrs.cube_coeff = -0.75f;
+
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
+        auto scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, {1}, std::vector<float>{static_cast<float>(scale_factor)});
+        auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{axis});
+        auto sizes_node = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{target_size});
+
+        auto interpolate = std::make_shared<ngraph::opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ interpolate }, ngraph::ParameterVector{ input });
     }
 
     auto res = compare_functions(f, f_ref);

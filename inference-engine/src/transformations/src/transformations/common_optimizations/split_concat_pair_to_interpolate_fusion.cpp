@@ -93,7 +93,7 @@ std::pair<std::shared_ptr<ngraph::opset8::Split>, uint64_t> get_split_before_con
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SplitConcatPairToInterpolateFusion, "SplitConcatPairToInterpolateFusion", 0);
 
-ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion() {
+ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion(bool use_shape_for_elimination) {
     MATCHER_SCOPE(SplitConcatPairToInterpolateFusion);
     // This transformation looks for Interpolate layer implemented using simple operations, namely Split and Concat,
     // and replaces found pattern with a sequence of Shape, StridedSlice, Const, Mul, Interpolate.
@@ -166,24 +166,28 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
 
         auto sslice_begin = opset8::Constant::create(element::i64, {1}, std::vector<int64_t>{axis});
         auto sslice_end = opset8::Constant::create(element::i64, {1}, std::vector<int64_t>{axis + 1});
-        std::vector<int64_t> begin_mask = {1};
-        std::vector<int64_t> end_mask = {1};
-        std::vector<int64_t> new_axis_mask = {0};
-        std::vector<int64_t> shrink_axis_mask = {0};
-        std::vector<int64_t> ellipsis_mask = {0};
-        auto strided_slice_node = std::make_shared<opset8::StridedSlice>(shape_node, sslice_begin, sslice_end, begin_mask,
-                                                                         end_mask, new_axis_mask, shrink_axis_mask, ellipsis_mask);
+        std::vector<int64_t> begin_mask = {0};
+        std::vector<int64_t> end_mask = {0};
+        auto strided_slice_node = std::make_shared<opset8::StridedSlice>(shape_node, sslice_begin, sslice_end, begin_mask, end_mask);
 
         auto cast_shape_to_float = std::make_shared<opset8::Convert>(strided_slice_node, element::f32);
         auto mul_node = std::make_shared<opset8::Multiply>(cast_shape_to_float, scales_node);
         auto floor_node = std::make_shared<opset8::Floor>(mul_node);
         auto cast_mul_result_to_int = std::make_shared<opset8::Convert>(floor_node, element::i64);
 
-        auto interpolate = register_new_node<opset8::Interpolate>(split->input_value(0), cast_mul_result_to_int, scales_node, axis_node, attrs);
+        std::shared_ptr<Node> sizes_node;
+
+        if (use_shape_for_elimination)
+            sizes_node = get_constant_from_source(cast_mul_result_to_int);
+
+        if (!sizes_node)
+            sizes_node = cast_mul_result_to_int;
+
+        auto interpolate = register_new_node<opset8::Interpolate>(split->input_value(0), sizes_node, scales_node, axis_node, attrs);
 
         interpolate->set_friendly_name(concat->get_friendly_name());
         copy_runtime_info(concat, {scales_node, axis_node, shape_node, sslice_begin, sslice_end, strided_slice_node, cast_shape_to_float, mul_node,
-                                   floor_node, cast_mul_result_to_int, interpolate});
+                                   floor_node, sizes_node, interpolate});
         replace_node(concat, interpolate);
 
         return true;

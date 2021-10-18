@@ -29,5 +29,5 @@ class TRANSFORMATIONS_API SplitConcatPairToInterpolateFusion;
 class ngraph::pass::SplitConcatPairToInterpolateFusion : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    SplitConcatPairToInterpolateFusion();
+    SplitConcatPairToInterpolateFusion(bool use_shape_for_elimination = true);
 };
