@@ -11,7 +11,7 @@ These instructions are applicable only to the [Mask R-CNN model](https://onnxzoo
 --input "0:2" \
 --input_shape [1,3,800,800] \
 --mean_values [102.9801,115.9465,122.7717] \
---transformations_config ./extensions/front/onnx/mask_rcnn.json 
+--transformations_config front/onnx/mask_rcnn.json 
 ```
 
 Note that the height and width specified with the `input_shape` command line parameter could be different. Refer to the [documentation](https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/mask-rcnn) for more information about supported input image dimensions and required pre- and post-processing steps.

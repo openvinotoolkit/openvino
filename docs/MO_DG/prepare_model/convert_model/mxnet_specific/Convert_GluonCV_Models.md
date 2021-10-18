@@ -22,5 +22,5 @@ As a result, you will get an MXNet model representation in `ssd_512_mobilenet1.0
    ```
    * To convert the model with replacing the subgraph with RegionYolo layers:
    ```sh
-    mo --input_model <model_directory>/models/yolo3_mobilenet1.0_voc-0000.params  --input_shape [1,255,255,3] --transformations_config "mo/extensions/front/mxnet/yolo_v3_mobilenet1_voc.json" --output_dir <OUTPUT_MODEL_DIR>
+    mo --input_model <model_directory>/models/yolo3_mobilenet1.0_voc-0000.params  --input_shape [1,255,255,3] --transformations_config "front/mxnet/yolo_v3_mobilenet1_voc.json" --output_dir <OUTPUT_MODEL_DIR>
    ```

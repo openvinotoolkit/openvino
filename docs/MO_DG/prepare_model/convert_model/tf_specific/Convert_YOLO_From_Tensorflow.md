@@ -126,7 +126,7 @@ To generate an IR of the YOLOv3 TensorFlow model, run:<br>
 ```sh
  mo                                                   \
 --input_model /path/to/yolo_v3.pb                                  \
---transformations_config $MO_ROOT/extensions/front/tf/yolo_v3.json \
+--transformations_config front/tf/yolo_v3.json \
 --batch 1                                                          \
 --output_dir <OUTPUT_MODEL_DIR>
 ```
@@ -135,7 +135,7 @@ To generate an IR of the YOLOv3-tiny TensorFlow model, run:<br>
 ```sh
  mo                                                        \
 --input_model /path/to/yolo_v3_tiny.pb                                  \
---transformations_config $MO_ROOT/extensions/front/tf/yolo_v3_tiny.json \
+--transformations_config front/tf/yolo_v3_tiny.json \
 --batch 1                                                               \
 --output_dir <OUTPUT_MODEL_DIR>
 ```
@@ -217,7 +217,7 @@ To generate the IR of the YOLOv1 model, provide TensorFlow YOLOv1 or YOLOv2 mode
 --input_model <path_to_model>/<model_name>.pb       \
 --batch 1                                       \
 --scale 255 \
---transformations_config <OPENVINO_INSTALL_DIR>/tools/model_optimizer/extensions/front/tf/<yolo_config>.json
+--transformations_config front/tf/<yolo_config>.json
 ```
 where:
 
