@@ -40,8 +40,7 @@ protected:
             args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dst_desc())});
         }
 
-        // TODO post operation
-        // configure_post_ops_arguments(instance, args);
+        configure_post_ops_arguments(instance, args);
 
         return args;
     }
