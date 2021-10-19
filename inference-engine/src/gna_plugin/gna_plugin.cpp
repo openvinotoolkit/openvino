@@ -1139,7 +1139,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
                 {TranspositionInfo{dnn->do_rotate_input, dnn->num_rotate_rows, dnn->num_rotate_columns}}});
         }
     }
-
+#if GNA_LIB_VER == 2
+    if (gnadevice) {
+        gnadevice->AppendOperationMode(config.gnaPrecision.name());
+    }
+#endif
     DumpXNNToFile();
 
 #ifdef PLOT

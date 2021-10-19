@@ -12,6 +12,7 @@
 #include <set>
 #include <vector>
 #include <thread>
+#include <list>
 
 #include <ie_common.h>
 
@@ -24,6 +25,7 @@
 
 #include "gna2-memory-api.h"
 #include "gna2-model-api.h"
+#include "gna2-model-export-api.h"
 #include "gna2-model-suecreek-header.h"
 #else
 #include <gna-api.h>
@@ -36,6 +38,49 @@ enum GnaWaitStatus : int {
     GNA_REQUEST_ABORTED = 1,    // for QoS purposes
     GNA_REQUEST_PENDING = 2     // for device busy purposes
 };
+
+#if GNA_LIB_VER == 2
+struct GnaAllocation {
+    void* ptr = nullptr;
+    size_t sizeRequested = 0;
+    size_t sizeGranted = 0;
+    void SetTag(Gna2MemoryTag in) {
+        isTagSet = true;
+        tag = in;
+    }
+    std::string GetTagName() const {
+        static const std::map< Gna2MemoryTag, std::string > tm = {
+                { Gna2MemoryTagReadWrite, "Gna2MemoryTagReadWrite" },
+                { Gna2MemoryTagInput, "Gna2MemoryTagInput" },
+                { Gna2MemoryTagOutput, "Gna2MemoryTagOutput" },
+                { Gna2MemoryTagReadOnly, "Gna2MemoryTagReadOnly" },
+                { Gna2MemoryTagExternalBufferInput, "Gna2MemoryTagExternalBufferInput" },
+                { Gna2MemoryTagExternalBufferOutput, "Gna2MemoryTagExternalBufferOutput" },
+                { Gna2MemoryTagScratch, "Gna2MemoryTagScratch" },
+                { Gna2MemoryTagState, "Gna2MemoryTagState" },
+        };
+        if (!isTagSet) {
+            return "Gna2MemoryTag(NotSet)";
+        }
+        auto f = tm.find(tag);
+        if (f != tm.end()) {
+            return f->second;
+        }
+        return "Gna2MemoryTag(" + std::to_string(tag) + ")";
+    }
+    std::pair<bool, size_t> getOffset(void* offset) const {
+        std::pair<bool, size_t> v;
+        v.first = offset >= ptr && offset < static_cast<uint8_t*>(ptr) + sizeGranted;
+        v.second = v.first ? static_cast<uint8_t*>(offset) - static_cast<uint8_t*>(ptr) : 0;
+        return v;
+    }
+
+private:
+    Gna2MemoryTag tag;
+    bool isTagSet = false;
+};
+typedef std::list<GnaAllocation> GnaAllAllocations;
+#endif
 
 /**
  * holds gna - style handle in RAII way
@@ -52,6 +97,8 @@ class GNADeviceHelper {
     intel_gna_perf_t nGNAPerfResults;
     intel_gna_perf_t nGNAPerfResultsTotal;
 #else
+    std::string modeOfOperation = "default";
+    GnaAllAllocations allAllocations;
     uint32_t nGnaDeviceIndex = 0;
     bool swExactMode = false;
     Gna2DeviceVersion detectedGnaDevVersion = Gna2DeviceVersionSoftwareEmulation;
@@ -187,6 +234,9 @@ public:
     static std::string GetGnaLibraryVersion();
 
     std::string GetCompileTarget() const;
+    void AppendOperationMode(std::string in) {
+        modeOfOperation += in;
+    }
 
  private:
     void open(uint8_t const n_threads);
