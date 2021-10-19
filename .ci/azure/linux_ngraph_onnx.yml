@@ -4,11 +4,15 @@ jobs:
     matrix:
       Release:
         BUILD_TYPE: 'Release'
+        PROTOBUF_LITE: 'OFF'
+        TOX_COMMAND: 'tox && tox -e zoo_models'
+      Release-Lite:
+        BUILD_TYPE: 'Release'
         PROTOBUF_LITE: 'ON'
         TOX_COMMAND: 'tox && tox -e zoo_models'
       Debug:
         BUILD_TYPE: 'Debug'
-        PROTOBUF_LITE: 'ON'
+        PROTOBUF_LITE: 'OFF'
         TOX_COMMAND: 'tox'
     maxParallel: 2
 
