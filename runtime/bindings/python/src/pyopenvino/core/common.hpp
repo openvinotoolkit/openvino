@@ -14,7 +14,6 @@
 #include <string>
 #include "Python.h"
 #include "ie_common.h"
-#include "openvino/runtime/infer_request.hpp"
 
 namespace py = pybind11;
 using output_tensor = std::map<std::string, ov::runtime::Tensor>;
@@ -55,10 +54,6 @@ namespace Common
     void blob_from_numpy(const py::handle& _arr, InferenceEngine::Blob::Ptr &blob);
 
     void set_request_blobs(InferenceEngine::InferRequest& request, const py::dict& dictonary);
-
-    void set_request_tensors(ov::runtime::InferRequest& request, const py::dict& dictonary);
-
-    output_tensor get_request_tensors(ov::runtime::InferRequest& request, const py::dict& dictonary);
 
     uint32_t get_optimal_number_of_requests(const InferenceEngine::ExecutableNetwork& actual);
 }; // namespace Common
