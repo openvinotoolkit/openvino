@@ -11,6 +11,7 @@ namespace op {
 OP_CONVERTER(argmax);
 OP_CONVERTER(assign_value);
 OP_CONVERTER(batch_norm);
+OP_CONVERTER(bicubic_interp_v2);
 OP_CONVERTER(bilinear_interp_v2);
 OP_CONVERTER(cast);
 OP_CONVERTER(clip);
@@ -41,6 +42,7 @@ OP_CONVERTER(hard_sigmoid);
 OP_CONVERTER(hard_swish);
 OP_CONVERTER(layer_norm);
 OP_CONVERTER(leaky_relu);
+OP_CONVERTER(linear_interp_v2);
 OP_CONVERTER(log);
 OP_CONVERTER(logical_not);
 OP_CONVERTER(matmul);
@@ -68,6 +70,7 @@ OP_CONVERTER(squeeze);
 OP_CONVERTER(stack);
 OP_CONVERTER(tanh);
 OP_CONVERTER(transpose2);
+OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
 OP_CONVERTER(yolo_box);
 }  // namespace op
@@ -82,6 +85,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
     return {{"arg_max", op::argmax},
             {"assign_value", op::assign_value},
             {"batch_norm", op::batch_norm},
+            {"bicubic_interp_v2", op::bicubic_interp_v2},
             {"bilinear_interp_v2", op::bilinear_interp_v2},
             {"bilinear_interp", op::bilinear_interp_v2},
             {"bmm", op::matmul},
@@ -116,6 +120,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"hard_swish", op::hard_swish},
             {"layer_norm", op::layer_norm},
             {"leaky_relu", op::leaky_relu},
+            {"linear_interp_v2", op::linear_interp_v2},
             {"log", op::log},
             {"logical_not", op::logical_not},
             {"lookup_table_v2", op::embedding},
@@ -147,6 +152,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"sync_batch_norm", op::batch_norm},
             {"tanh", op::tanh},
             {"transpose2", op::transpose2},
+            {"trilinear_interp_v2", op::trilinear_interp_v2},
             {"unsqueeze2", op::unsqueeze},
             {"yolo_box", op::yolo_box}};
 };
