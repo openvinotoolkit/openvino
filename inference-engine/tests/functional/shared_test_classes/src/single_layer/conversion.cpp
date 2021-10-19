@@ -38,13 +38,13 @@ void ConversionLayerTest::SetUp() {
     auto targetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(targetPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, inputShape);
     std::shared_ptr<ngraph::Node> out;
-    if (inputPrecision.is_float()) {
+    if (inputPrecision.is_float() && targetPrc.is_integral_number()) {
         // Add float number for float inputs
         auto add_constant = ov::op::v0::Constant::create(ngPrc, {1}, {0.9});
         auto add = std::make_shared<ov::op::v1::Add>(params.front(), add_constant);
         auto conversion = ngraph::builder::makeConversion(add, targetPrc, conversionOpType);
         // Add some operation after conversion to avoid unintentional conversion to float on legacy IE
-        auto add_constant2 = ov::op::v0::Constant::create(targetPrc, {1}, {3});
+        auto add_constant2 = ov::op::v0::Constant::create(targetPrc, {1}, {1});
         out = std::make_shared<ov::op::v1::Add>(conversion, add_constant2);
     } else {
         out = ngraph::builder::makeConversion(params.front(), targetPrc, conversionOpType);
