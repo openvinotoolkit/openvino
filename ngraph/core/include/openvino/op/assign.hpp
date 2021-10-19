@@ -34,6 +34,8 @@ public:
 
 private:
     std::string m_variable_id;
+    template <class T>
+    friend void shape_infer(Assign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
 }  // namespace v3
 

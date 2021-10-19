@@ -7,6 +7,8 @@
 #include <openvino/op/convolution.hpp>
 #include <openvino/op/parameter.hpp>
 #include <convolution_shape_inference.hpp>
+#include <assign_shape_inference.hpp>
+#include <read_value_shape_inference.hpp>
 #include <openvino/op/ops.hpp>
 #include "utils/shape_inference/static_shape.hpp"
 
@@ -38,6 +40,37 @@ TEST(StaticShapeInferenceTest, ConvolutionTest) {
     ASSERT_EQ(static_output_shapes[0], StaticShape({3, 7, 5, 5}));
     ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{1, 1}));
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{1, 1}));
+}
+
+TEST(StaticShapeInferenceTest, AssignTest) {
+  auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 64, 64});
+  auto read_value = std::make_shared<op::v3::ReadValue>(input, "variable_id");
+  auto assign = std::make_shared<op::v3::Assign>(read_value, "variable_id");
+  //Test PartialShape
+  std::vector<PartialShape> input_shapes = {PartialShape{1, 2, 64, 64}},
+                            output_shapes = {PartialShape{}};
+  shape_infer(assign.get(), input_shapes, output_shapes);
+  ASSERT_EQ(output_shapes[0], (PartialShape{1, 2, 64, 64}));
+  //Test StaticShape
+  std::vector<StaticShape> static_input_shapes = {StaticShape{1, 2, 64, 64}},
+                           static_output_shapes = {StaticShape{}};
+  shape_infer(assign.get(), static_input_shapes, static_output_shapes);
+  ASSERT_EQ(static_input_shapes[0], (StaticShape{1, 2, 64, 64}));
+}
+
+TEST(StaticShapeInferenceTest, ReadValueTest) {
+  auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 64, 64});
+  auto read_value = std::make_shared<op::v3::ReadValue>(input, "variable_id");
+  //Test PartialShape
+  std::vector<PartialShape> input_shapes = {PartialShape{1, 2, 64, 64}},
+                            output_shapes = {PartialShape{}};
+  shape_infer(read_value.get(), input_shapes, output_shapes);
+  ASSERT_EQ(output_shapes[0], (PartialShape{1, 2, 64, 64}));
+  //Test StaticShape
+  std::vector<StaticShape> static_input_shapes = {StaticShape{1, 2, 64, 64}},
+                           static_output_shapes = {StaticShape{}};
+  shape_infer(read_value.get(), static_input_shapes, static_output_shapes);
+  ASSERT_EQ(static_output_shapes[0], (StaticShape{1, 2, 64, 64}));
 }
 
 #if 0
