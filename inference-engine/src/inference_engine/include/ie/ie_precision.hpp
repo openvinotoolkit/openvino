@@ -258,10 +258,18 @@ public:
      * @returns Number of bytes per element
      */
     size_t size() const {
+        return (bitsSize() + 7) >> 3;
+    }
+
+    /**
+     * @brief Returns size of single element of that precision in bits
+     * @returns Number of bits per element
+     */
+    size_t bitsSize() const {
         if (precisionInfo.bitsSize == 0) {
             IE_THROW() << " cannot estimate element if precision is " << precisionInfo.name;
         }
-        return (precisionInfo.bitsSize + 7) / 8;
+        return precisionInfo.bitsSize;
     }
 
     /**
