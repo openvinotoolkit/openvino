@@ -17,6 +17,24 @@
 #include "openvino/runtime/infer_request.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace {
+
+inline bool getPort(ov::Output<const ov::Node>& port,
+                    const std::string& name,
+                    const std::vector<std::vector<std::shared_ptr<const ov::Node>>>& ports) {
+    for (const auto& nodes : ports) {
+        for (const auto& node : nodes) {
+            const auto& names = node->get_output_tensor(0).get_names();
+            if (names.find(name) != names.end()) {
+                port = node->output(0);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+}  // namespace
 namespace InferenceEngine {
 
 #define INFER_REQ_CALL_STATEMENT(...)                                     \
@@ -237,36 +255,52 @@ void InferRequest::set_tensor(const ov::Output<ov::Node>& port, const Tensor& te
 void InferRequest::set_tensor(const std::string& name, const Tensor& tensor) {
     OV_INFER_REQ_CALL_STATEMENT({
         ov::Output<const ov::Node> port;
-        if (!InferenceEngine::details::getPort(port, name, {_impl->GetInputs(), _impl->GetOutputs()}))
-            throw ov::Exception("Port for tensor name " + name + " was not found.");
+        OPENVINO_ASSERT(::getPort(port, name, {_impl->GetInputs(), _impl->GetOutputs()}),
+                        "Port for tensor name " + name + " was not found.");
         set_tensor(port, tensor);
     });
 }
 
 void InferRequest::set_input_tensor(size_t idx, const Tensor& tensor) {
-    OV_INFER_REQ_CALL_STATEMENT({ set_tensor(_impl->GetInputs().at(idx)->output(0), tensor); });
+    OV_INFER_REQ_CALL_STATEMENT({
+        const auto& inputs = _impl->GetInputs();
+        OPENVINO_ASSERT(inputs.size() > idx,
+                        "Input port for index ",
+                        idx,
+                        " was not found! The model has only ",
+                        inputs.size(),
+                        " inputs.");
+        set_tensor(inputs.at(idx)->output(0), tensor);
+    });
 }
 
 void InferRequest::set_input_tensor(const Tensor& tensor) {
     OV_INFER_REQ_CALL_STATEMENT({
         const auto inputs = _impl->GetInputs();
-        if (inputs.size() != 1) {
-            throw ov::Exception("set_input_tensor() must be called on a function with exactly one parameter.");
-        }
+        OPENVINO_ASSERT(inputs.size() == 1,
+                        "set_input_tensor() must be called on a function with exactly one parameter.");
         set_tensor(inputs.at(0)->output(0), tensor);
     });
 }
 
 void InferRequest::set_output_tensor(size_t idx, const Tensor& tensor) {
-    OV_INFER_REQ_CALL_STATEMENT({ set_tensor(_impl->GetOutputs().at(idx)->output(0), tensor); });
+    OV_INFER_REQ_CALL_STATEMENT({
+        const auto& outputs = _impl->GetOutputs();
+        OPENVINO_ASSERT(outputs.size() > idx,
+                        "Output port for index ",
+                        idx,
+                        " was not found! The model has only ",
+                        outputs.size(),
+                        " outputs.");
+        set_tensor(outputs.at(idx)->output(0), tensor);
+    });
 }
 
 void InferRequest::set_output_tensor(const Tensor& tensor) {
     OV_INFER_REQ_CALL_STATEMENT({
         const auto outputs = _impl->GetOutputs();
-        if (outputs.size() != 1) {
-            throw ov::Exception("set_output_tensor() must be called on a function with exactly one parameter.");
-        }
+        OPENVINO_ASSERT(outputs.size() == 1,
+                        "set_output_tensor() must be called on a function with exactly one parameter.");
         set_tensor(outputs.at(0)->output(0), tensor);
     });
 }
@@ -275,15 +309,6 @@ Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
     OV_INFER_REQ_CALL_STATEMENT({
         const auto& name = get_legacy_name_from_port(port);
         auto blob = _impl->GetBlob(name);
-        const bool remoteBlobPassed = blob->is<ie::RemoteBlob>();
-        if (blob == nullptr) {
-            IE_THROW(NotAllocated) << "Internal tensor implementation with name `" << name << "` is not allocated!";
-        }
-        if (!remoteBlobPassed && blob->buffer() == nullptr) {
-            IE_THROW(NotAllocated) << "Internal tensor implementation with name `" << name << "` is not allocated!";
-        }
-        auto tensorDesc = blob->getTensorDesc();
-        auto dims = tensorDesc.getDims();
         return {_so, blob};
     });
 }
@@ -295,9 +320,8 @@ Tensor InferRequest::get_tensor(const ov::Output<ov::Node>& port) {
 Tensor InferRequest::get_tensor(const std::string& name) {
     OV_INFER_REQ_CALL_STATEMENT({
         ov::Output<const ov::Node> port;
-        if (!InferenceEngine::details::getPort(port, name, {_impl->GetInputs(), _impl->GetOutputs()}))
-            throw ov::Exception("Port for tensor name " + name + " was not found.");
-
+        OPENVINO_ASSERT(::getPort(port, name, {_impl->GetInputs(), _impl->GetOutputs()}),
+                        "Port for tensor name " + name + " was not found.");
         return get_tensor(port);
     });
 }
