@@ -307,11 +307,11 @@ endif()
 
 # Install cmake scripts
 
-# install(EXPORT OpenVINOTargets
-#         FILE OpenVINOTargets.cmake
-#         NAMESPACE openvino::
-#         DESTINATION runtime/cmake
-#         COMPONENT core_dev)
+install(EXPORT OpenVINOTargets
+        FILE OpenVINOTargets.cmake
+        NAMESPACE openvino::
+        DESTINATION runtime/cmake
+        COMPONENT core_dev)
 
 set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/ngraph")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
