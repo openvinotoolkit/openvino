@@ -8,7 +8,6 @@
 
 #include "exceptions.hpp"
 #include "place.hpp"
-
 #include "tensor.pb.h"
 #include "types.pb.h"
 

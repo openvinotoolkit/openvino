@@ -3,6 +3,7 @@
 //
 
 #include "exceptions.hpp"
+
 #include "node_context.hpp"
 
 namespace ov {

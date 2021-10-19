@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "place.hpp"
+
 #include <frontend_manager/frontend_exceptions.hpp>
 
-#include "place.hpp"
 #include "node_context.hpp"
 #include "op_def.pb.h"
 #include "tensor.pb.h"

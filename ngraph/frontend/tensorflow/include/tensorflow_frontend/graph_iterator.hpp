@@ -40,7 +40,8 @@ namespace ov {
 /// Keep GraphIterator::Ptr object and type information for for type-safe
 /// dynamic conversions without using C++ RTTI
 template <>
-class TF_API VariantWrapper<::ov::frontend::GraphIterator::Ptr> : public VariantImpl<::ov::frontend::GraphIterator::Ptr> {
+class TF_API VariantWrapper<::ov::frontend::GraphIterator::Ptr>
+    : public VariantImpl<::ov::frontend::GraphIterator::Ptr> {
 public:
     OPENVINO_RTTI("Variant::GraphIterator::Ptr");
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
