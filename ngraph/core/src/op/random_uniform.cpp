@@ -180,15 +180,15 @@ bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs, const Host
         throw ngraph_error("Unsupported type of RandomUniform: " + get_out_type().get_type_name());
     }
 
-    auto state = runtime::reference::random_uniform(out_shape,
-                                                    inputs[1]->get_data_ptr<const char>(),
-                                                    inputs[2]->get_data_ptr<const char>(),
-                                                    out,
-                                                    inputs[0]->get_shape(),
-                                                    get_out_type(),
-                                                    get_global_seed(),
-                                                    get_op_seed(),
-                                                    m_state);
+    auto state = ngraph::runtime::reference::random_uniform(out_shape,
+                                                            inputs[1]->get_data_ptr<const char>(),
+                                                            inputs[2]->get_data_ptr<const char>(),
+                                                            out,
+                                                            inputs[0]->get_shape(),
+                                                            get_out_type(),
+                                                            get_global_seed(),
+                                                            get_op_seed(),
+                                                            m_state);
 
     // Update RandomUniform state
     std::lock_guard<std::mutex> guard(m_state_mutex);

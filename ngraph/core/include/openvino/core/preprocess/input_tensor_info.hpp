@@ -6,6 +6,7 @@
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/layout.hpp"
+#include "openvino/core/preprocess/color_format.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov {
@@ -117,6 +118,46 @@ public:
     ///
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
     InputTensorInfo&& set_spatial_static_shape(size_t height, size_t width) &&;
+
+    /// \brief Set color format for user's input tensor.
+    ///
+    /// In general way, some formats support multi-plane input, e.g. NV12 image can be represented as 2 separate tensors
+    /// (planes): Y plane and UV plane. set_color_format API also allows to set sub_names for such parameters for
+    /// convenient usage of plane parameters. During build stage, new parameters for each plane will be inserted to the
+    /// place of original parameter. This means that all parameters located after will shift their positions accordingly
+    /// (e.g. {param1, param2} will become {param1/Y, param1/UV, param2})
+    ///
+    /// This version allows chaining for Lvalue objects.
+    ///
+    /// \param format Color format of input image.
+    ///
+    /// \param sub_names Optional list of sub-names assigned for each plane (e.g. {"Y", "UV"}). If specified, number of
+    /// sub-names shall match with number of planes. If not specified, friendly name and tensor name for plane
+    /// parameters will be empty. It is not allowed to specify sub-names for single-plane inputs.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    InputTensorInfo& set_color_format(const ov::preprocess::ColorFormat& format,
+                                      const std::vector<std::string>& sub_names = {}) &;
+
+    /// \brief Set color format for user's input tensor.
+    ///
+    /// In general way, some formats support multi-plane input, e.g. NV12 image can be represented as 2 separate tensors
+    /// (planes): Y plane and UV plane. set_color_format API also allows to set sub_names for such parameters for
+    /// convenient usage of plane parameters. During build stage, new parameters for each plane will be inserted to the
+    /// place of original parameter. This means that all parameters located after will shift their positions accordingly
+    /// (e.g. {param1, param2} will become {param1/Y, param1/UV, param2})
+    ///
+    /// This version allows chaining for Rvalue objects.
+    ///
+    /// \param format Color format of input image.
+    ///
+    /// \param sub_names Optional list of sub-names assigned for each plane (e.g. {"Y", "UV"}). If specified, number of
+    /// sub-names shall match with number of planes. If not specified, friendly name and tensor name for plane
+    /// parameters will be empty. It is not allowed to specify sub-names for single-plane inputs.
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
+    InputTensorInfo&& set_color_format(const ov::preprocess::ColorFormat& format,
+                                       const std::vector<std::string>& sub_names = {}) &&;
 };
 
 }  // namespace preprocess

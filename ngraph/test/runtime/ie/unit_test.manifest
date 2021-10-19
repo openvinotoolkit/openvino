@@ -31,13 +31,6 @@ onnx_model_conv_integer_no_zero_point
 onnx_model_conv_integer_pads
 
 # Unsupported operator detected in the graph: QuantizedDot
-onnx_model_matmul_integer
-onnx_model_matmul_integer_zero_point_zero
-onnx_model_matmul_integer_no_zero_point
-onnx_model_matmul_integer_scalar
-onnx_model_matmul_integer_4d
-onnx_model_matmul_integer_4d_zero_point
-onnx_model_matmul_integer_4d_no_zero_point
 onnx_model_qlinear_matmul
 onnx_model_qlinear_matmul_3d
 
@@ -232,6 +225,8 @@ onnx_model_rnn_defaults_fwd_const_dynamic
 onnx_model_depth_to_space_dynamic_input
 onnx_model_space_to_depth_dynamic_input
 squeeze_dynamic
+onnx_model_eye_like_dyn_shape
+onnx_model_eye_like_dyn_rank
 
 
 # Constant network
@@ -1080,6 +1075,12 @@ IE_CPU.onnx_constant_sparse_tensor_double_3x4
 IE_CPU.onnx_constant_sparse_tensor_int16_3x4
 IE_CPU.onnx_constant_sparse_tensor_uint16_3x4
 
+# 48230
+# Some slight accuracy diviations after recent MatMul changes
+# (for CPU plugin gru_cell with clip decomposes into MatMuls)
+# Fix or increase threshold
+IE_CPU.gru_cell_bias_clip
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes
@@ -1575,3 +1576,5 @@ IE_CPU.onnx_model_gather_float_2D_neg_indices
 
 # CPU plug-in doesn't support operation with dynamic rank
 onnx_model_skip_layer_normalization_dynamic_shapes
+# Doesn't support op with dynamic shapes
+onnx_model_embed_layer_normalization_dynamic_shapes

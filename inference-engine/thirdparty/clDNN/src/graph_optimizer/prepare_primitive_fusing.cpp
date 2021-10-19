@@ -295,10 +295,56 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             new_node.recalc_output_layout();
         };
 
+        auto recalculate_biases = [&](data_node& original_node, data_node& new_node) -> bool {
+            auto original_mem = original_node.get_attached_memory_ptr();
+            auto new_mem = new_node.get_attached_memory_ptr();
+            if (original_mem->count() != new_mem->count() || original_mem->get_layout().data_type != new_mem->get_layout().data_type)
+                return false;
+
+            switch (original_mem->get_layout().data_type) {
+                case data_types::f32: {
+                    mem_lock<float, mem_lock_type::write> original_bias_mem(original_mem, p.get_stream());
+                    mem_lock<float, mem_lock_type::read> new_bias_mem(new_mem, p.get_stream());
+                    float* original_data = original_bias_mem.data();
+                    float* new_data = new_bias_mem.data();
+                    for (size_t i = 0; i < original_bias_mem.size(); i++)
+                        original_data[i] += new_data[i];
+                    break;
+                }
+                case data_types::f16: {
+                    mem_lock<uint16_t, mem_lock_type::write> original_bias_mem(original_mem, p.get_stream());
+                    mem_lock<uint16_t, mem_lock_type::read> new_bias_mem(new_mem, p.get_stream());
+                    uint16_t* original_data = original_bias_mem.data();
+                    uint16_t* new_data = new_bias_mem.data();
+                    for (size_t i = 0; i < original_bias_mem.size(); i++) {
+                        float new_val = half_to_float(original_data[i]) + half_to_float(new_data[i]);
+                        original_data[i] = float_to_half(new_val);
+                    }
+                    break;
+                }
+                default:
+                    return false;
+            }
+            return true;
+        };
+
         if (replace_candidate.is_type<convolution>()) {
             auto& conv = replace_candidate.as<convolution>();
             auto desc = conv.get_primitive();
             std::vector<primitive_id> biases = {bias_name};
+
+            // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
+            if (conv.bias_term()) {
+                if (conv.bias().is_type<data>() && bias_node.is_type<data>()) {
+                    if (recalculate_biases(conv.bias().as<data>(), bias_node.as<data>())) {
+                        p.replace_all_usages(eltw_node, conv);
+                        p.add_optimized_primitive_info(eltw_node.id(), {conv.id()});
+                        p.remove_all_connections(eltw_node);
+                        p.remove_if_dangling(eltw_node);
+                    }
+                }
+                continue;
+            }
 
             auto conv_with_bias_prim = std::make_shared<convolution>(desc->id + "_tmp",
                                                                      desc->input[0],
@@ -325,6 +371,19 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             auto desc = deconv.get_primitive();
             std::vector<primitive_id> biases = {bias_name};
 
+            // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
+            if (deconv.bias_term()) {
+                if (deconv.bias().is_type<data>() && bias_node.is_type<data>()) {
+                    if (recalculate_biases(deconv.bias().as<data>(), bias_node.as<data>())) {
+                        p.replace_all_usages(eltw_node, deconv);
+                        p.add_optimized_primitive_info(eltw_node.id(), {deconv.id()});
+                        p.remove_all_connections(eltw_node);
+                        p.remove_if_dangling(eltw_node);
+                    }
+                }
+                continue;
+            }
+
             auto deconv_with_bias_prim = std::make_shared<deconvolution>(desc->id + "_tmp",
                                                                          desc->input[0],
                                                                          desc->weights,
@@ -340,6 +399,20 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         } else if (replace_candidate.is_type<fully_connected>()) {
             auto& fc = replace_candidate.as<fully_connected>();
             auto desc = fc.get_primitive();
+
+            // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
+            if (fc.bias_term()) {
+                if (fc.bias().is_type<data>() && bias_node.is_type<data>()) {
+                    if (recalculate_biases(fc.bias().as<data>(), bias_node.as<data>())) {
+                        p.replace_all_usages(eltw_node, fc);
+                        p.add_optimized_primitive_info(eltw_node.id(), {fc.id()});
+                        p.remove_all_connections(eltw_node);
+                        p.remove_if_dangling(eltw_node);
+                    }
+                }
+                continue;
+            }
+
             auto fc_with_bias_prim = std::make_shared<fully_connected>(desc->id + "_tmp",
                                                                        desc->input[0],
                                                                        desc->weights,
@@ -585,6 +658,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
 
             if (!input_data_supports_fusings(input_data, activation_node.id()))
+                return;
+
+            if ((input_data.get_users().size() != 1 || activation_node.get_dependencies().size() != 1) &&
+                _lo.get_optimization_attributes().use_onednn_impls == 1)
                 return;
 
             bool should_fuse = input_data.is_type<binary_convolution>();

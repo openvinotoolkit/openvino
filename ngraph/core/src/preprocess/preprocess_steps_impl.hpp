@@ -6,9 +6,14 @@
 
 #include <list>
 
+#include "ngraph/rt_info.hpp"
 #include "openvino/core/layout.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/preprocess/color_format.hpp"
+#include "openvino/core/preprocess/postprocess_steps.hpp"
 #include "openvino/core/preprocess/preprocess_steps.hpp"
+#include "tensor_name_util.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -55,11 +60,11 @@ inline size_t get_and_check_channels_idx(const Layout& layout, const PartialShap
     return idx;
 }
 
-/// \brief Preprocessing context passed to each preprocessing operation.
+/// \brief Context passed to each pre/post-processing operation.
 /// This is internal structure which is not shared to custom operations yet.
-class PreprocessingContext {
+class PrePostProcessingContextBase {
 public:
-    explicit PreprocessingContext(const Layout& layout) : m_layout(layout) {}
+    explicit PrePostProcessingContextBase(Layout layout) : m_layout(std::move(layout)) {}
 
     const Layout& layout() const {
         return m_layout;
@@ -69,6 +74,37 @@ public:
         return m_layout;
     }
 
+    // Final layout. Needed if user specified convert_layout without arguments
+    // For preprocessing it is parameter's network layout
+    // For post-processing it is result's tensor layout
+    const Layout& target_layout() const {
+        return m_target_layout;
+    }
+
+    Layout& target_layout() {
+        return m_target_layout;
+    }
+
+    element::Type target_element_type() const {
+        return m_target_element_type;
+    }
+
+    element::Type& target_element_type() {
+        return m_target_element_type;
+    }
+
+protected:
+    Layout m_layout;
+    Layout m_target_layout;
+    element::Type m_target_element_type;
+};
+
+/// \brief Preprocessing context passed to each preprocessing operation.
+/// This is internal structure which is not shared to custom operations yet.
+class PreprocessingContext : public PrePostProcessingContextBase {
+public:
+    explicit PreprocessingContext(const Layout& layout) : PrePostProcessingContextBase(layout) {}
+
     const PartialShape& network_shape() const {
         return m_network_shape;
     }
@@ -77,57 +113,89 @@ public:
         return m_network_shape;
     }
 
-    const Layout& network_layout() const {
-        return m_network_layout;
-    }
-
-    Layout& network_layout() {
-        return m_network_layout;
-    }
-
     size_t get_network_height_for_resize() const {
-        auto network_height_idx = get_and_check_height_idx(network_layout(), network_shape());
+        auto network_height_idx = get_and_check_height_idx(target_layout(), network_shape());
         OPENVINO_ASSERT(network_shape()[network_height_idx].is_static(),
                         "Dynamic resize: Network height dimension shall be static");
         return network_shape()[network_height_idx].get_length();
     }
 
     size_t get_network_width_for_resize() const {
-        auto network_width_idx = get_and_check_width_idx(network_layout(), network_shape());
+        auto network_width_idx = get_and_check_width_idx(target_layout(), network_shape());
         OPENVINO_ASSERT(network_shape()[network_width_idx].is_static(),
                         "Dynamic resize: Network width dimension shall be static");
         return network_shape()[network_width_idx].get_length();
     }
 
+    const ColorFormat& color_format() const {
+        return m_color_format;
+    }
+
+    ColorFormat& color_format() {
+        return m_color_format;
+    }
+
 private:
-    Layout m_layout;
     PartialShape m_network_shape;
     Layout m_network_layout;
+    ColorFormat m_color_format = ColorFormat::UNDEFINED;
 };
 
 using InternalPreprocessOp =
-    std::function<std::shared_ptr<ov::Node>(const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                                            PreprocessingContext& context)>;
+    std::function<std::tuple<std::vector<Output<Node>>, bool>(const std::vector<Output<Node>>& nodes,
+                                                              const std::shared_ptr<Function>& function,
+                                                              PreprocessingContext& context)>;
 
 /// \brief PreProcessStepsImpl - internal data structure
-class PreProcessSteps::PreProcessStepsImpl {
+class PreStepsList {
 public:
     void add_scale_impl(const std::vector<float>& values);
     void add_mean_impl(const std::vector<float>& values);
     void add_convert_impl(const element::Type& type);
     void add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_width);
     void add_convert_layout_impl(const Layout& layout);
+    void add_convert_color_impl(const ColorFormat& dst_format);
 
-    const std::list<std::tuple<InternalPreprocessOp, bool>>& actions() const {
+    const std::list<InternalPreprocessOp>& actions() const {
         return m_actions;
     }
-    std::list<std::tuple<InternalPreprocessOp, bool>>& actions() {
+    std::list<InternalPreprocessOp>& actions() {
         return m_actions;
     }
 
 private:
-    std::list<std::tuple<InternalPreprocessOp, bool>> m_actions;
+    std::list<InternalPreprocessOp> m_actions;
 };
+
+class PreProcessSteps::PreProcessStepsImpl : public PreStepsList {};
+
+//------ Post process -----
+class PostprocessingContext : public PrePostProcessingContextBase {
+public:
+    explicit PostprocessingContext(const Layout& layout) : PrePostProcessingContextBase(layout) {}
+};
+
+using InternalPostprocessOp = std::function<std::tuple<ov::Output<ov::Node>, bool>(const ov::Output<ov::Node>& node,
+                                                                                   PostprocessingContext& context)>;
+
+/// \brief PostProcessStepsImpl - internal data structure
+class PostStepsList {
+public:
+    void add_convert_impl(const element::Type& type);
+    void add_convert_layout_impl(const Layout& layout);
+
+    const std::list<InternalPostprocessOp>& actions() const {
+        return m_actions;
+    }
+    std::list<InternalPostprocessOp>& actions() {
+        return m_actions;
+    }
+
+private:
+    std::list<InternalPostprocessOp> m_actions;
+};
+
+class PostProcessSteps::PostProcessStepsImpl : public PostStepsList {};
 
 }  // namespace preprocess
 }  // namespace ov

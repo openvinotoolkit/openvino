@@ -4,9 +4,11 @@
 
 #pragma once
 
-#include <cassert>
 #include <inference_engine.hpp>
 #include "cpu_shape.h"
+
+#include <algorithm>
+#include <cassert>
 
 namespace MKLDNNPlugin {
 
@@ -101,11 +103,10 @@ inline bool dimsEqualWeak(const std::vector<size_t>& lhs, const std::vector<size
 
 inline InferenceEngine::Precision getMaxPrecision(std::vector<InferenceEngine::Precision> precisions) {
     if (!precisions.empty()) {
-        std::sort(precisions.begin(), precisions.end(),
-                  [](const InferenceEngine::Precision &lhs, const InferenceEngine::Precision &rhs) {
-                      return lhs.size() > rhs.size();
-                  });
-        return precisions[0];
+        return *std::max_element(precisions.begin(), precisions.end(),
+                                 [](const InferenceEngine::Precision &lhs, const InferenceEngine::Precision &rhs) {
+                                     return lhs.size() > rhs.size();
+                                 });
     }
 
     return InferenceEngine::Precision::UNSPECIFIED;

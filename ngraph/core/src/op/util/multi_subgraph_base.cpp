@@ -135,6 +135,7 @@ void ov::op::util::MultiSubGraphOp::set_invariant_inputs(const Output<Node>& val
             }
         }
     }
+    validate_and_infer_types();
 }
 
 ov::Output<ov::Node> ov::op::util::MultiSubGraphOp::set_body_outputs(const ResultVector& bodies_results) {
@@ -149,6 +150,7 @@ ov::Output<ov::Node> ov::op::util::MultiSubGraphOp::set_body_outputs(const Resul
         }
     }
     set_output_size(output_index + 1);
+    validate_and_infer_types();
     return Output<Node>(shared_from_this(), output_index);
 }
 
