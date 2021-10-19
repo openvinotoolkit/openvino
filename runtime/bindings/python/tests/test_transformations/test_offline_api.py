@@ -4,14 +4,14 @@
 from openvino.offline_transformations import apply_moc_transformations, apply_pot_transformations, \
     apply_low_latency_transformation, apply_pruning_transformation, apply_make_stateful_transformation
 
-from ngraph.impl import Function, Shape
-import ngraph as ng
+from openvino import Function, PartialShape
+import openvino as ov
 
 
 def get_test_function():
-    param = ng.parameter(Shape([1, 3, 22, 22]), name="parameter")
-    relu = ng.relu(param)
-    res = ng.result(relu, name="result")
+    param = ov.opset8.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
+    relu = ov.opset8.relu(param)
+    res = ov.opset8.result(relu, name="result")
     return Function([res], [param], "test")
 
 
