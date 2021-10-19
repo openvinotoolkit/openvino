@@ -306,7 +306,7 @@ jobs:
     continueOnError: false
 
   - script: |  
-      python3 -m pip install -r $(REPO_DIR)/tests/samples_smoke_tests/requirements.txt 
+      python3 -m pip install -r $(REPO_DIR)/tests/samples_smoke_tests/smoke_tests/requirements.txt 
     workingDirectory: $(REPO_DIR)
     displayName: 'Install  dependencies for samples smoke tests'
     continueOnError: false
@@ -319,7 +319,7 @@ jobs:
       export SHARE=$(REPO_DIR)/tests/samples_smoke_tests/smoke_tests/samples_smoke_tests_data/
       export WORKSPACE=$(REPO_DIR)
       export IE_APP_PYTHON_TOOL_PATH=$(REPO_DIR)/tools/
-      python3 -m pytest $(REPO_DIR)/tests/samples_smoke_tests/  --env_conf $(REPO_DIR)/tests/samples_smoke_tests/env_config.yml -s --junitxml=$(BUILD_DIR)/TEST-SamplesSmokeTests.xml
+      python3 -m pytest $(REPO_DIR)/tests/samples_smoke_tests/smoke_tests/  --env_conf $(REPO_DIR)/tests/samples_smoke_tests/smoke_tests/env_config.yml -s --junitxml=$(BUILD_DIR)/TEST-SamplesSmokeTests.xml
     workingDirectory: $(REPO_DIR)
     displayName: 'Samples Smoke Tests'
     continueOnError: false

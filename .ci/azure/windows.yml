@@ -182,7 +182,7 @@ jobs:
     condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: |
-      python3 -m pip install -r $(REPO_DIR)/tests/samples_smoke_tests/requirements.txt
+      python -m pip install -r $(REPO_DIR)/tests/samples_smoke_tests/smoke_tests/requirements.txt
     workingDirectory: $(REPO_DIR)
     displayName: 'Install  dependencies for samples smoke tests'
     continueOnError: false
@@ -195,7 +195,7 @@ jobs:
       set WORKSPACE=$(REPO_DIR)
       set IE_APP_PYTHON_TOOL_PATH=$(REPO_DIR)\inference-engine\tools\
 
-      python -m pytest $(REPO_DIR)\tests\samples_smoke_tests\  --env_conf $(REPO_DIR)\tests\samples_smoke_tests\env_config.yml -s --junitxml=TEST-SamplesSmokeTests.xml
+      python -m pytest $(REPO_DIR)\tests\samples_smoke_tests\smoke_tests\  --env_conf $(REPO_DIR)\tests\samples_smoke_tests\smoke_tests\env_config.yml -s --junitxml=TEST-SamplesSmokeTests.xml
     workingDirectory: $(REPO_DIR)
     displayName: 'Samples Smoke Tests'
     continueOnError: false

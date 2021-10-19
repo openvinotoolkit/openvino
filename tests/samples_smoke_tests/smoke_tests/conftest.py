@@ -43,7 +43,7 @@ def pytest_configure(config):
     # Setting common environment:
     with open(config.getoption('env_conf'), "r") as env_conf:
         try:
-            Environment.env = fix_env_conf(yaml.load(env_conf))
+            Environment.env = fix_env_conf(yaml.safe_load(env_conf))
             # Check mandatory env variables:
             mandatory_env_varibales = ['out_directory', 'public_models', 'icv_model_zoo_models', 'test_data', 'samples_data_zip', 'samples_path']
             missing_variables = []
