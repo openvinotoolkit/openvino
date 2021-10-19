@@ -172,8 +172,6 @@ protected:
      * @brief      Creates an inference request internal implementation.
      * @note       The method is called by IExecutableNetworkInternal::CreateInferRequest as
      *             plugin-specific implementation.
-     * @param[in]  networkInputs   The network inputs
-     * @param[in]  networkOutputs  The network outputs
      * @param[in]  inputs   The function inputs
      * @param[in]  outputs  The function outputs
      * @return     A shared pointer to inference request object.

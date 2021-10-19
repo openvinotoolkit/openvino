@@ -27,15 +27,15 @@ public:
     };
     using SubRequestsList = std::vector<SubRequestDesc>;
 
-    explicit HeteroInferRequest(InferenceEngine::InputsDataMap networkInputs,
-                                InferenceEngine::OutputsDataMap networkOutputs,
-                                const SubRequestsList &inferRequests,
-                                const std::unordered_map<std::string, std::string>& blobNameMap);
+    HeteroInferRequest(InferenceEngine::InputsDataMap networkInputs,
+                       InferenceEngine::OutputsDataMap networkOutputs,
+                       const SubRequestsList &inferRequests,
+                       const std::unordered_map<std::string, std::string>& blobNameMap);
 
-    explicit HeteroInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& networkInputs,
-                                const std::vector<std::shared_ptr<const ov::Node>>& networkOutputs,
-                                const SubRequestsList &inferRequests,
-                                const std::unordered_map<std::string, std::string>& blobNameMap);
+    HeteroInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& networkInputs,
+                       const std::vector<std::shared_ptr<const ov::Node>>& networkOutputs,
+                       const SubRequestsList &inferRequests,
+                       const std::unordered_map<std::string, std::string>& blobNameMap);
 
     void InferImpl() override;
 

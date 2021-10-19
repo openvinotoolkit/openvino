@@ -38,13 +38,17 @@ IInferRequestInternal::IInferRequestInternal(const std::vector<std::shared_ptr<c
         auto name = ngraph::op::util::get_ie_output_name(output);
         auto shape = output.get_partial_shape();
         auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
-        for (const auto& dim : shape) {
-            if (dim.is_static() && dim.get_length() == 0)
-                IE_THROW() << name << " has zero dimension which is not allowed";
-        }
+        SizeVector dims;
+        if (shape.is_static())
+            dims = shape.to_shape();
+        else if (rank >= 0)
+            dims = SizeVector(rank, 0);
+        else
+            dims = {0};
         const Layout rankLayout = rank < 0 ? Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
         const auto precision = InferenceEngine::details::convertPrecision(output.get_element_type());
-        return std::make_shared<Data>(name, precision, shape, rankLayout);
+        TensorDesc desc(precision, dims, rankLayout);
+        return std::make_shared<Data>(name, desc);
     };
     const auto& create_old_input_data =
         [create_old_data](const ov::Output<const ov::Node>& output) -> InferenceEngine::InputInfo::Ptr {

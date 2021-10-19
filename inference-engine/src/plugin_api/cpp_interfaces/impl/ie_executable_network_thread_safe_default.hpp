@@ -61,7 +61,7 @@ protected:
         InferenceEngine::IInferRequestInternal::Ptr syncRequestImpl;
         try {
             syncRequestImpl = this->CreateInferRequestImpl(_parameters, _results);
-        } catch (...) {
+        } catch (const NotImplemented&) {
         }
         if (!syncRequestImpl)
             syncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs);

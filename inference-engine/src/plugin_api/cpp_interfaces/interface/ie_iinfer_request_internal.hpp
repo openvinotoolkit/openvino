@@ -16,11 +16,6 @@
 #include "openvino/core/node_output.hpp"
 #include "so_ptr.hpp"
 
-namespace ov {
-namespace runtime {
-class InferRequest;
-}
-}  // namespace ov
 namespace InferenceEngine {
 
 class IExecutableNetworkInternal;
