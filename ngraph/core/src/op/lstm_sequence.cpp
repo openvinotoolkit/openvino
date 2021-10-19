@@ -540,9 +540,9 @@ void op::v5::LSTMSequence::validate_and_infer_types() {
 
     auto check_direction_valid = [](const ov::PartialShape& pshape, size_t index) -> bool {
         if (pshape[index].is_static())
-            return (direction)pshape[index].get_length() == direction::FORWARD ||
-                   (direction)pshape[index].get_length() == direction::REVERSE ||
-                   (direction)pshape[index].get_length() == direction::BIDIRECTIONAL;
+            return static_cast<direction>(pshape[index].get_length()) == direction::FORWARD ||
+                   static_cast<direction>(pshape[index].get_length()) == direction::REVERSE ||
+                   static_cast<direction>(pshape[index].get_length()) == direction::BIDIRECTIONAL;
         return true;
     };
 
