@@ -51,7 +51,7 @@ struct ElementTypes {
 const ElementTypes::ElementsMap& get_type_info_map() {
     static const ElementTypes::ElementsMap elements_map{
         {ov::element::Type_t::undefined,
-        TypeInfo(std::numeric_limits<size_t>::max(), false, false, false, "undefined", "undefined")},
+         TypeInfo(std::numeric_limits<size_t>::max(), false, false, false, "undefined", "undefined")},
         {ov::element::Type_t::dynamic, TypeInfo(0, false, false, false, "dynamic", "dynamic")},
         {ov::element::Type_t::boolean, TypeInfo(8, false, true, false, "char", "boolean")},
         {ov::element::Type_t::bf16, TypeInfo(16, true, true, false, "bfloat16", "bf16")},

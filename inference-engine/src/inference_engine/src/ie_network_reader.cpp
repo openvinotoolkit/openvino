@@ -169,11 +169,11 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
                               const std::string& binPath,
                               const std::vector<IExtensionPtr>& exts) {
     // Fix unicode name
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#    if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring model_path = ov::util::string_to_wstring(modelPath.c_str());
-#else
+#    else
     std::string model_path = modelPath;
-#endif
+#    endif
 
     // Try to open model file
     std::ifstream modelStream(model_path, std::ios::binary);
@@ -205,11 +205,11 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
             }
             if (!bPath.empty()) {
                 // Open weights file
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#    if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
                 std::wstring weights_path = ov::util::string_to_wstring(bPath.c_str());
-#else
+#    else
                 std::string weights_path = bPath;
-#endif
+#    endif
                 std::ifstream binStream;
                 binStream.open(weights_path, std::ios::binary);
                 if (!binStream.is_open())
@@ -243,7 +243,7 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
 
 }  // namespace
 
-#endif // OPENVINO_STATIC_LIBRARY
+#endif  // OPENVINO_STATIC_LIBRARY
 
 namespace {
 
@@ -437,7 +437,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
         }
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
-#endif // OPENVINO_STATIC_LIBRARY
+#endif  // OPENVINO_STATIC_LIBRARY
 
     // Fix unicode name
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -505,7 +505,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
             }
         }
     }
-#endif // OPENVINO_STATIC_LIBRARY
+#endif  // OPENVINO_STATIC_LIBRARY
 
     // Try to load with FrontEndManager
     auto& manager = get_frontend_manager();
