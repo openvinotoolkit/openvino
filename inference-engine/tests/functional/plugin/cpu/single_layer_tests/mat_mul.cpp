@@ -94,7 +94,6 @@ protected:
         if (transpA) transpose(inShapeA);
         if (transpB) transpose(inShapeB);
 
-        auto ngPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto elemTypeA = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
         auto elemTypeB = (elemTypeA == element::u8) ? element::i8 : elemTypeA;
 
