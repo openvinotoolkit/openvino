@@ -11,7 +11,7 @@ graph {
       type: INT
     }
   }
-  name: "hardmax_graph"
+  name: "test_graph"
   input {
     name: "x"
     type {
