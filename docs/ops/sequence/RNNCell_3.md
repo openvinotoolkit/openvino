@@ -6,6 +6,12 @@
 
 **Short description**: *RNNCell* represents a single RNN cell that computes the output using the formula described in the [article](https://hackernoon.com/understanding-architecture-of-lstm-cell-from-scratch-with-code-8da40f0b71f4).
 
+**Detailed description**:
+
+*RNNCell* represents a single RNN cell and is part of [RNNSequence](RNNSequence_5.md) operation.
+
+Ho = f(clip(X*(W^T) + H*(R^T) + B)) is a formula for the operation, where * is matrix multiplication, ^T is a matrix transpose operation and explanations for X, H, W, B, Ho, clip, and f are given in Attributes and Inputs sections.
+
 **Attributes**
 
 * *hidden_size*
@@ -43,7 +49,7 @@
 
 * **1**: `X` - 2D tensor of type *T* `[batch_size, input_size]`, input data. **Required.**
 
-* **2**: `initial_hidden_state` - 2D tensor of type *T* `[batch_size, hidden_size]`. **Required.**
+* **2**: `H` - 2D tensor of type *T* `[batch_size, hidden_size]`, initial hidden state. **Required.**
 
 * **3**: `W` - 2D tensor tensor of type *T* `[hidden_size, input_size]`, the weights for matrix multiplication. **Required.**
 
