@@ -86,12 +86,14 @@ Before running the Model Optimizer, you must install the Model Optimizer pre-req
          .. tab:: Install globally
 
             .. code-block:: sh
+               
                cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
                install_prerequisites_tf.sh
          
          .. tab:: Install to virtualenv
 
             .. code-block:: sh
+               
                cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
                virtualenv --system-site-packages -p python3 ./venv
                source ./venv/bin/activate  # sh, bash, ksh, or zsh
@@ -102,12 +104,14 @@ Before running the Model Optimizer, you must install the Model Optimizer pre-req
          .. tab:: Install globally
 
             .. code-block:: sh
+               
                cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
                install_prerequisites_tf2.sh
          
          .. tab:: Install to virtualenv
 
             .. code-block:: sh
+               
                cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
                virtualenv --system-site-packages -p python3 ./venv
                source ./venv/bin/activate  # sh, bash, ksh, or zsh
@@ -118,12 +122,14 @@ Before running the Model Optimizer, you must install the Model Optimizer pre-req
          .. tab:: Install globally
 
             .. code-block:: sh
+               
                cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
                install_prerequisites_mxnet.sh
          
          .. tab:: Install to virtualenv
 
             .. code-block:: sh
+               
                cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
                virtualenv --system-site-packages -p python3 ./venv
                source ./venv/bin/activate  # sh, bash, ksh, or zsh
@@ -134,12 +140,14 @@ Before running the Model Optimizer, you must install the Model Optimizer pre-req
          .. tab:: Install globally
 
             .. code-block:: sh
+               
                cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
                install_prerequisites_onnx.sh
          
          .. tab:: Install to virtualenv
 
             .. code-block:: sh
+               
                cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
                virtualenv --system-site-packages -p python3 ./venv
                source ./venv/bin/activate  # sh, bash, ksh, or zsh
@@ -150,12 +158,14 @@ Before running the Model Optimizer, you must install the Model Optimizer pre-req
          .. tab:: Install globally
 
             .. code-block:: sh
+               
                cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
                install_prerequisites_kaldi.sh
          
          .. tab:: Install to virtualenv
 
             .. code-block:: sh
+               
                cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
                virtualenv --system-site-packages -p python3 ./venv
                source ./venv/bin/activate  # sh, bash, ksh, or zsh
@@ -168,85 +178,126 @@ Before running the Model Optimizer, you must install the Model Optimizer pre-req
          .. tab:: Install globally
 
             .. code-block:: sh
+               
                cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
                install_prerequisites.bat
          
          .. tab:: Install to virtualenv
 
             .. code-block:: sh
-               TBD
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites.bat
 
       .. tab:: Caffe
       
          .. tab:: Install globally
 
             .. code-block:: sh
+               
                cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
                install_prerequisites_caffe.bat
          
          .. tab:: Install to virtualenv
 
-            TBD
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites_caffe.bat
 
       .. tab:: Tensorflow 1.x
       
          .. tab:: Install globally
 
             .. code-block:: sh
+               
                cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
                install_prerequisites_tf.bat
          
          .. tab:: Install to virtualenv
 
-            TBD
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites_tf.bat
 
       .. tab:: Tensorflow 2.x
       
          .. tab:: Install globally
 
             .. code-block:: sh
+               
                cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
                install_prerequisites_tf2.bat
          
          .. tab:: Install to virtualenv
 
-            TBDs
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites_tf2.bat
 
       .. tab:: MXNet
       
          .. tab:: Install globally
 
             .. code-block:: sh
+               
                cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
                install_prerequisites_mxnet.bat
          
          .. tab:: Install to virtualenv
 
-            TBD
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites_mxnet.bat
 
       .. tab:: ONNX
       
          .. tab:: Install globally
 
             .. code-block:: sh
+               
                cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
                install_prerequisites_onnx.bat
          
          .. tab:: Install to virtualenv
 
-            TBD
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites_onnx.bat
 
       .. tab:: Kaldi
       
          .. tab:: Install globally
 
             .. code-block:: sh
+               
                cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
                install_prerequisites_kaldi.bat
          
          .. tab:: Install to virtualenv
 
-            TBD
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites_kaldi.bat
 
    .. tab:: macOS
 
