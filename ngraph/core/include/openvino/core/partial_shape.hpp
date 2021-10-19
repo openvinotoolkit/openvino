@@ -304,6 +304,35 @@ public:
         OPENVINO_ASSERT(rank().is_static());
         return m_dimensions.size();
     }
+    /// \brief Returns a read/write iterator that points to the inserted element in the shape.
+    iterator insert(iterator position, const Dimension& val) {
+        m_rank_is_static = true;
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+        return m_dimensions.insert(position, val);
+    }
+    /// \brief Inserts count copies of the value before position
+    void insert(iterator position, size_t n, const Dimension& val) {
+        m_dimensions.insert(position, n, val);
+        m_rank_is_static = true;
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+    }
+    /// \brief Inserts elements from range [first, last) before position
+    template <class InputIterator>
+    void insert(iterator position, InputIterator first, InputIterator last) {
+        m_dimensions.insert(position, first, last);
+        m_rank_is_static = true;
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+    }
+    /// \brief Requests that the dimensions vector capacity be enough to contain n elements
+    void reserve(size_t n) {
+        m_dimensions.reserve(n);
+    }
+    /// \brief push element to the end of partial shape
+    void push_back(const Dimension& val) {
+        m_dimensions.push_back(val);
+        m_rank_is_static = true;
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+    }
 
 private:
     // Private constructor for PartialShape::dynamic().
