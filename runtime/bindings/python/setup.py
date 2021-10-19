@@ -41,7 +41,7 @@ packages = [
     "ngraph.impl.passes",
     "ngraph.frontend",
     "openvino",
-    "openvino.offline_transformations"
+    "openvino.offline_transformations",
     "openvino.opset1",
     "openvino.opset2",
     "openvino.opset3",
@@ -168,7 +168,7 @@ class BuildCMakeExt(build_ext):
         root_dir = OPENVINO_ROOT_DIR
         bin_dir = os.path.join(OPENVINO_ROOT_DIR, "bin")
         if os.environ.get("OpenVINO_DIR") is not None:
-            root_dir = PYNGRAPH_ROOT_DIR
+            root_dir = PYTHON_API_ROOT_DIR
 
         self.announce("Configuring cmake project", level=3)
         ext_args = self.cmake_args.split() if self.cmake_args else []
