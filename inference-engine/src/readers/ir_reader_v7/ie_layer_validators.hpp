@@ -10,17 +10,28 @@
 #include <vector>
 
 #include "caseless.hpp"
+#include "ie_common.h"
 #include <legacy/ie_layers.h>
 
 namespace InferenceEngine {
 namespace details {
 
+void validateLayer(const CNNLayer * layer);
+
+}  // namespace details
+}  // namespace InferenceEngine
+
+namespace {
+
+using InferenceEngine::CNNLayer;
+using InferenceEngine::SizeVector;
+using InferenceEngine::Blob;
+using InferenceEngine::RNNSequenceLayer;
+
 struct InOutDims {
     std::vector<std::vector<size_t>> inDims;
     std::vector<std::vector<size_t>> outDims;
 };
-
-void validateLayer(const CNNLayer * layer);
 
 /**
  * @brief Contains methods to validate layer of specific type
@@ -870,5 +881,4 @@ public:
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
-}  // namespace details
-}  // namespace InferenceEngine
+}  // namespace

@@ -15,9 +15,9 @@ set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
-# Create shared library
+# Create library
 
-add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(${TARGET_NAME} ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 ie_faster_build(${TARGET_NAME}
     UNITY

@@ -9,7 +9,7 @@ file(GLOB HEADERS ${InferenceEngine_C_API_SOURCE_DIR}/include/*.h)
 
 # create library
 
-add_library(${TARGET_NAME} SHARED ${HEADERS} ${SOURCES})
+add_library(${TARGET_NAME} ${HEADERS} ${SOURCES})
 add_library(openvino::runtime::c ALIAS ${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)

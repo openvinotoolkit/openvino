@@ -142,9 +142,9 @@ if (TBBBIND_2_4_FOUND)
     target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
 endif()
 
-# Create shared library file from object library
+# Create library file from object library
 
-add_library(${TARGET_NAME} SHARED
+add_library(${TARGET_NAME}
             ${IE_STATIC_DEPENDENT_FILES}
             ${LEGACY_LIBRARY_SHARED_SRCS}
             ${vs_version_file}
