@@ -4,6 +4,8 @@
 
 #include <fstream>
 #include <signal.h>
+#include <transformations/utils/utils.hpp>
+
 #ifdef _WIN32
 #include <process.h>
 #endif
@@ -39,22 +41,22 @@ void SubgraphBaseTest::run() {
     summary.updateOPsStats(function, status);
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    OPENVINO_ASSERT(!targetStaticShapes.empty(), "Target Static Shape is empty!!!");
+    ASSERT_FALSE(targetStaticShapes.empty()) << "Target Static Shape is empty!!!";
     std::string errorMessage;
     try {
         compile_model();
         for (const auto& targetStaticShapeVec : targetStaticShapes) {
-            try {
+//            try {
                 if (!inputDynamicShapes.empty()) {
                     // resize ngraph function according new target shape
-                    ngraph::helpers::resize_function(targetStaticShapeVec, functionRefs);
+                    ngraph::helpers::resize_function(functionRefs, targetStaticShapeVec);
                 }
                 generate_inputs(targetStaticShapeVec);
                 infer();
                 validate();
-            } catch (const std::exception &ex) {
-                OPENVINO_ASSERT("Incorrect target static shape: ", ex.what());
-            }
+//            } catch (const std::exception &ex) {
+//                throw std::runtime_error("Incorrect target static shape: " + CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
+//            }
         }
         status = LayerTestsUtils::PassRate::Statuses::PASSED;
     } catch (const std::exception &ex) {
@@ -150,19 +152,14 @@ void SubgraphBaseTest::infer() {
 }
 
 std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
-    // nGraph interpreter does not support f16/bf16
-    ngraph::pass::ConvertPrecision<element::Type_t::f16, element::Type_t::f32>().run_on_function(functionRefs);
-    ngraph::pass::ConvertPrecision<element::Type_t::bf16, element::Type_t::f32>().run_on_function(functionRefs);
-
     functionRefs->validate_nodes_and_infer_types();
-
-    return ngraph::helpers::interpreterFunction(functionRefs, inputs);
+    return ngraph::helpers::interpretFunction(functionRefs, inputs);
 }
 
 std::vector<ov::runtime::Tensor> SubgraphBaseTest::get_plugin_outputs() {
     auto outputs = std::vector<ov::runtime::Tensor>{};
-    for (const auto& output : executableNetwork.outputs()) {
-        const auto& name = output.get_tensor().get_any_name();
+    for (const auto& output : function->get_results()) {
+        const std::string name = ngraph::op::util::create_ie_output_name(output->input_value(0));
         outputs.push_back(inferRequest.get_tensor(name));
     }
     return outputs;
@@ -176,8 +173,8 @@ void SubgraphBaseTest::validate() {
         return;
     }
 
-    OPENVINO_ASSERT(actualOutputs.size() == expectedOutputs.size(),
-                    "nGraph interpreter has ", expectedOutputs.size(), " outputs, while IE ", actualOutputs.size());
+    ASSERT_EQ(actualOutputs.size(), expectedOutputs.size()) << "nGraph interpreter has "
+        << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
 
     compare(expectedOutputs, actualOutputs);
 }
@@ -198,10 +195,13 @@ void SubgraphBaseTest::init_input_shapes(const InputShape& shapes) {
     std::pair<std::vector<ov::PartialShape>, std::vector<std::vector<ov::Shape>>> tmpShapeObj;
     if (shapes.first.rank() != 0) {
         tmpShapeObj.first = {shapes.first};
+        for (const auto& staticShape : shapes.second) {
+            tmpShapeObj.second.push_back({staticShape});
+        }
     } else {
         tmpShapeObj.first = {};
+        tmpShapeObj.second = {shapes.second};
     }
-    tmpShapeObj.second = {shapes.second};
     init_input_shapes(tmpShapeObj);
 }
 

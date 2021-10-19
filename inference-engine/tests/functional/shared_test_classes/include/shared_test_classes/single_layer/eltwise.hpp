@@ -29,6 +29,9 @@ protected:
 
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<EltwiseTestParams>& obj);
+
+private:
+    void transformInputShapesAccordingEltwise(const ov::PartialShape& secondInputShape);
 };
 } // namespace subgraph
 } // namespace test

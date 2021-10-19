@@ -75,18 +75,18 @@ void compare(const ov::runtime::Tensor& expected,
             std::sort(abs_values.begin(), abs_values.end());
             double abs_median;
             if (abs_values.size() % 2 == 0) {
-                abs_median = (abs_values.at(abs_values.size()/2) + abs_values.at(abs_values.size()/2 + 1))/2.;
+                abs_median = abs_values.size() > 2 ?
+                        (abs_values.at(abs_values.size()/2) + abs_values.at(abs_values.size()/2 + 1))/2 : (abs_values.front() + abs_values.back())/2;
             } else {
                 abs_median = abs_values.at(abs_values.size()/2);
             }
-            abs_threshold = 0.05 * abs_median;
+            abs_threshold = abs_median == 0.f ? 1e-5 : 0.05 * abs_median;
             if (std::is_integral<ExpectedT>::value) {
                 abs_threshold = std::ceil(abs_threshold);
             }
         }
     }
-    OPENVINO_ASSERT((!std::isnan(abs_threshold) && !std::isnan(rel_threshold)),
-                    "abs_threshold: ", abs_threshold, " rel_threshold: ", rel_threshold);
+    ASSERT_TRUE((!std::isnan(abs_threshold) && !std::isnan(rel_threshold))) << "abs_threshold: " << abs_threshold << " rel_threshold: " << rel_threshold;
     struct Error {
         double max = 0.;
         double mean = 0.;
@@ -108,8 +108,8 @@ void compare(const ov::runtime::Tensor& expected,
             err.mean += val;
             err.count += less(threshold, val);
         };
-        OPENVINO_ASSERT(!std::isnan(expected_value), "Expected value is NAN on coordinate: ", c);
-        OPENVINO_ASSERT(!std::isnan(actual_value), "Actual value is NAN on coordinate: ", c);
+        ASSERT_FALSE(std::isnan(expected_value)) << "Expected value is NAN on coordinate: " << c;
+        ASSERT_FALSE(std::isnan(actual_value)) << "Actual value is NAN on coordinate: " << c;
         auto abs = std::fabs(expected_value - actual_value);
         auto rel = expected_value ? (abs/std::fabs(expected_value)) : abs;
         error(abs_error, abs, abs_threshold);
@@ -117,16 +117,16 @@ void compare(const ov::runtime::Tensor& expected,
     }
     abs_error.mean /= shape_size(expected_shape);
     rel_error.mean /= shape_size(expected_shape);
-    OPENVINO_ASSERT((less(abs_error.max, abs_threshold) && less(rel_error.max, rel_threshold)),
-                    "abs_max < abs_threshold && rel_max < rel_threshold",
-                    "\n\t abs_max: " , abs_error.max,
-                    "\n\t\t coordinate " , abs_error.max_coordinate,
-                    "; abs errors count " , abs_error.count , "; abs mean ",
-                    abs_error.mean , "; abs threshold " , abs_threshold,
-                    "\n\t rel_max: " , rel_error.max,
-                    "\n\t\t coordinate " , rel_error.max_coordinate,
-                    "; rel errors count " , rel_error.count , "; rel mean ",
-                    rel_error.mean , "; rel threshold " , rel_threshold);
+    ASSERT_TRUE((less(abs_error.max, abs_threshold) && less(rel_error.max, rel_threshold))) <<
+                    "abs_max < abs_threshold && rel_max < rel_threshold" <<
+                    "\n\t abs_max: " << abs_error.max <<
+                    "\n\t\t coordinate " << abs_error.max_coordinate<<
+                    "; abs errors count "  << abs_error.count  << "; abs mean " <<
+                    abs_error.mean  << "; abs threshold "  << abs_threshold <<
+                    "\n\t rel_max: "  << rel_error.max <<
+                    "\n\t\t coordinate "  << rel_error.max_coordinate <<
+                    "; rel errors count "  << rel_error.count  << "; rel mean " <<
+                    rel_error.mean  << "; rel threshold "  << rel_threshold;
 }
 
 void compare(

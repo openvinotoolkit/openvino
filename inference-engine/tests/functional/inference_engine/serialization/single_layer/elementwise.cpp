@@ -59,8 +59,6 @@ const auto elementiwiseParams = ::testing::Combine(
         ::testing::ValuesIn(secondaryInputTypes),
         ::testing::ValuesIn(opTypes),
         ::testing::ValuesIn(inputPrecisions),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additionalConfig));
 
@@ -70,8 +68,6 @@ const auto elementiwiseParamsDyn = ::testing::Combine(
         ::testing::ValuesIn(secondaryInputTypes),
         ::testing::ValuesIn(opTypes),
         ::testing::ValuesIn(inputPrecisions),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additionalConfig));
 

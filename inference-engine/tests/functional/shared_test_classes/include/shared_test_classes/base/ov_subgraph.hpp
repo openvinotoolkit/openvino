@@ -43,6 +43,8 @@ protected:
 
     void init_input_shapes(const InputShapes& shapes);
     void init_input_shapes(const InputShape& shapes);
+//    void propagate_shape_to_all_inputs(bool proragate_first_shape = true,
+//                                       const InputShape& targetShape = InputShape());
 
     std::shared_ptr<ov::runtime::Core> core = ov::test::utils::PluginCache::get().core();
     std::string targetDevice;
@@ -59,7 +61,6 @@ protected:
     constexpr static const double disable_threshold = std::numeric_limits<double>::max();
     double abs_threshold = disable_threshold, rel_threshold = disable_threshold;
 
-    // TODO: iefode: change namespace names a bit later
     LayerTestsUtils::Summary& summary = LayerTestsUtils::Summary::getInstance();;
 
 private:
@@ -67,6 +68,17 @@ private:
     std::vector<ov::runtime::Tensor> get_plugin_outputs();
 };
 
+//inline std::vector<std::vector<InputShape>> static_shapes_to_test_representation(const std::vector<std::vector<ov::Shape>>& shapes) {
+//    std::vector<std::vector<InputShape>> result;
+//    for (const auto& staticShapes : shapes) {
+//        std::vector<InputShape> tmp;
+//        for (const auto& staticShape : staticShapes) {
+//            tmp.push_back({{}, {staticShape}});
+//        }
+//        result.push_back(tmp);
+//    }
+//    return result;
+//}
 inline std::vector<InputShape> static_shapes_to_test_representation(const std::vector<ov::Shape>& staticShapes) {
     std::vector<InputShape> result;
     for (const auto& staticShape : staticShapes) {

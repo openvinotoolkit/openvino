@@ -144,9 +144,8 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
     return outputs;
 }
 
-std::vector<ov::runtime::Tensor>
-        interpreterFunction(const std::shared_ptr<Function> &function,
-                            const std::map<std::string, ov::runtime::Tensor>& inputs) {
+std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Function> &function,
+                                                   const std::map<std::string, ov::runtime::Tensor>& inputs) {
     runtime::Backend::set_backend_shared_library_search_directory("");
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -172,7 +171,7 @@ std::vector<ov::runtime::Tensor>
         }
         auto input = inputIt->second;
 
-        const auto &inputSize = input.get_size();
+        const auto &inputSize = input.get_byte_size();
         NGRAPH_CHECK(parameterSize == inputSize,
                      "Got parameter (", parameter->get_friendly_name(), ") of size ", parameterSize,
                      " bytes, but corresponding input with index ", parameterIndex,
@@ -903,9 +902,14 @@ std::ostream& operator<<(std::ostream & os, MemoryTransformation type) {
     return os;
 }
 
-void resize_function(const std::vector<ov::Shape>& targetInputStaticShapes, std::shared_ptr<ov::Function> function) {
+void resize_function(std::shared_ptr<ov::Function> function,
+                     const std::vector<ov::Shape>& targetInputStaticShapes) {
     auto params = function->get_parameters();
     std::map<std::string, ov::PartialShape> shapes;
+    if (params.size() > targetInputStaticShapes.size()) {
+        throw std::runtime_error("targetInputStaticShapes.size() = " + std::to_string(targetInputStaticShapes.size()) + " != params.size() = "
+            + std::to_string(params.size()));
+    }
     for (size_t i = 0; i < params.size(); i++) {
         shapes.insert({params[i]->get_output_tensor(0).get_any_name(), targetInputStaticShapes[i]});
     }

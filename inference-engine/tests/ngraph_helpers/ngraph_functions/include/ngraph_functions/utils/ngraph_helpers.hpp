@@ -270,7 +270,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
                             const std::vector<ngraph::element::Type> &inputTypes = {});
 
 std::vector<ov::runtime::Tensor>
-interpreterFunction(const std::shared_ptr<Function> &function,
+interpretFunction(const std::shared_ptr<Function> &function,
                     const std::map<std::string, ov::runtime::Tensor>& inputs);
 
 //
@@ -320,7 +320,7 @@ std::ostream& operator<<(std::ostream & os, SequenceTestsMode type);
 
 std::ostream& operator<<(std::ostream & os, MemoryTransformation type);
 
-void resize_function(const std::vector<ov::Shape>& targetInputStaticShapes, std::shared_ptr<ov::Function> function);
+void resize_function(std::shared_ptr<ov::Function> function, const std::vector<ov::Shape>& targetInputStaticShapes);
 
 }  // namespace helpers
 }  // namespace ngraph

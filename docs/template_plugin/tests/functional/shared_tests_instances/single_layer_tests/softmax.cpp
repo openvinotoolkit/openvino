@@ -13,6 +13,7 @@ namespace {
 
 const std::vector<ov::test::ElementType> netPrecisions = {
         ov::element::f32,
+        ov::element::f16,
 };
 
 const std::vector<ov::Shape> inputStaticShape2D = {
