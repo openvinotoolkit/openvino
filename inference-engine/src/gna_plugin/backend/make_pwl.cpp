@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <iostream>
+#include <iomanip>
 #include <cmath>
 
 #include "runtime/pwl.h"
@@ -58,23 +59,34 @@ static void insert_extra_pwl_segments(std::vector<gna_pwl_segment_t>& gna_pwl,
     }
 }
 
-static void create_multisegment_gna_pwl(const std::vector<pwl_t>& pwl,
-                                        double in_scale,
-                                        double out_scale,
-                                        double min_x_val,
-                                        double max_x_val,
-                                        double min_y_val,
-                                        double max_y_val,
-                                        bool fake_quantize,
-                                        bool add_last_seg,
-                                        std::vector<gna_pwl_segment_t> &gna_pwl) {
-    gna_pwl.resize(0);
+static void print_segments_header(const DnnActivation&  fun) {
+    gnalog() <<  "=========================== " << intel_dnn_activation_name[fun] <<
+                 " segments ===========================\n";
+    gnalog() << std::setw(12) << std::setfill(' ') << "x" << std::setw(12) << std::setfill(' ') <<
+                "y" << std::setw(12) << std::setfill(' ') << "slope" << std::endl;
+}
+
+static void print_segment(double x, double y, double slope) {
+    gnalog() << std::setw(12) << std::setfill(' ') << x << std::setw(12) << std::setfill(' ') <<
+                y << std::setw(12) << std::setfill(' ') << slope << std::endl;
+}
+
+static std::vector<gna_pwl_segment_t> create_multisegment_gna_pwl(const std::vector<pwl_t>& pwl,
+                                                                  double in_scale,
+                                                                  double out_scale,
+                                                                  double min_x_val,
+                                                                  double max_x_val,
+                                                                  double min_y_val,
+                                                                  double max_y_val,
+                                                                  bool fake_quantize,
+                                                                  bool add_last_seg) {
+    std::vector<gna_pwl_segment_t> gna_pwl;
 
     int32_t xbase = static_cast<int32_t> (INT32_MIN & XBASEMASK);  // zero out the 2 lsb
     int16_t ybase = FLOAT_TO_INT16(min_y_val * out_scale);
     int16_t slope = 0;
     gna_pwl.push_back({xbase, ybase, slope});
-    gnalog() << xbase / in_scale << " " << min_y_val << " " << slope << "\n";
+    print_segment(xbase / in_scale, min_y_val, slope);
 
     if (!fake_quantize && min_x_val > INT32_MIN / in_scale) {
         auto s = gna_slope(pwl[0].m, in_scale, out_scale);
@@ -82,7 +94,7 @@ static void create_multisegment_gna_pwl(const std::vector<pwl_t>& pwl,
         xbase = (static_cast<int32_t>(min_x_val * in_scale) & XBASEMASK) | s.slope_scale_index;
         ybase = FLOAT_TO_INT16(min_y_val * out_scale);
         gna_pwl.push_back({xbase, ybase, slope});
-        gnalog() << min_x_val << " " << min_y_val << " " << pwl[0].m << "\n";
+        print_segment(min_x_val, min_y_val, pwl[0].m);
     }
 
     for (uint32_t i = 0; i < pwl.size(); ++i) {
@@ -97,8 +109,7 @@ static void create_multisegment_gna_pwl(const std::vector<pwl_t>& pwl,
         ybase = FLOAT_TO_INT16(pwl[i].beta * out_scale);
         slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
         gna_pwl.push_back({xbase, ybase, slope});
-
-        gnalog() << pwl[i].alpha << " " << pwl[i].beta << " " << pwl[i].m << "\n";
+        print_segment(pwl[i].alpha, pwl[i].beta, pwl[i].m);
     }
 
     if (!fake_quantize && add_last_seg) {
@@ -107,12 +118,13 @@ static void create_multisegment_gna_pwl(const std::vector<pwl_t>& pwl,
         ybase = FLOAT_TO_INT16(max_y_val * out_scale);
         slope = 0;
         gna_pwl.push_back({xbase, ybase, slope});
-
-        gnalog() << max_x_val << " " << max_y_val << " " << slope << "\n";
+        print_segment(max_x_val, max_y_val, slope);
     }
+
+    return gna_pwl;
 }
 
-void make_gna_pwl(const DnnActivation  fun,
+void make_gna_pwl(const DnnActivation&  fun,
                   const std::vector<pwl_t>& pwl,
                   const double l_bound,
                   const double u_bound,
@@ -127,6 +139,7 @@ void make_gna_pwl(const DnnActivation  fun,
     gnalog() << "make_gna_pwl\n";
     gnalog() << "   in_scale  " << in_scale << "\n";
     gnalog() << "   out_scale " << out_scale << "\n";
+    print_segments_header(fun);
     switch (fun) {
         case kActSigmoid:
         case kActTanh:
@@ -135,22 +148,19 @@ void make_gna_pwl(const DnnActivation  fun,
             double min_x_val;
             double min_y_val;
             if (fun == kActSigmoid) {
-                gnalog() <<  "=========================== Sigmoid Segments ===========================\n";
                 min_y_val = fun.fqParams.set ? pwl[0].beta : 0;
                 min_x_val = -pwl[0].b / pwl[0].m;
             } else if (fun == kActTanh) {
-                gnalog() <<  "=========================== Tanh Segments ===========================\n";
                 min_y_val = fun.fqParams.set ? pwl[0].beta : -1.0;
                 min_x_val = (-1.0 - pwl[0].b) / pwl[0].m;
             } else {
-                gnalog() << "=========================== SoftSign Segments ===========================\n";
                 min_y_val = fun.fqParams.set ? pwl[0].beta : -1.0;
                 min_x_val = (-1.0 - pwl[0].b) / pwl[0].m;
             }
             double max_y_val = fun.fqParams.set ? pwl.back().beta : 1.0;
             double max_x_val = fun.srcFQParams.set ? u_bound : (1.0 - pwl[pwl_size - 2].b) / pwl[pwl_size - 2].m;
-            create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
-                fun.fqParams.set, true, gna_pwl);
+            gna_pwl = create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
+                fun.fqParams.set, true);
             break;
         }
         case kActExp: {
@@ -158,9 +168,8 @@ void make_gna_pwl(const DnnActivation  fun,
             double max_x_val = (y_max/out_scale - pwl[pwl_size - 2].b) / pwl[pwl_size - 2].m;
             double min_y_val = fun.fqParams.set ? pwl[0].beta : 0;
             double max_y_val = fun.fqParams.set ? pwl.front().beta : y_max / out_scale;
-            gnalog() << "=========================== Exp Segments ===========================\n";
-            create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
-                fun.fqParams.set, true, gna_pwl);
+            gna_pwl = create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
+                fun.fqParams.set, true);
             break;
         }
         case kActLog: {
@@ -168,9 +177,8 @@ void make_gna_pwl(const DnnActivation  fun,
             double max_x_val = INT32_MAX / in_scale;
             double min_y_val = y_min / out_scale;
             double max_y_val = y_max / out_scale;
-            gnalog() << "=========================== Log Segments ===========================\n";
-            create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
-                fun.fqParams.set, false, gna_pwl);
+            gna_pwl = create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
+                fun.fqParams.set, false);
             break;
         }
         case kActNegLog:
@@ -179,12 +187,8 @@ void make_gna_pwl(const DnnActivation  fun,
             double max_x_val = INT32_MAX / in_scale;
             double min_y_val = y_max / out_scale;
             double max_y_val = y_min / out_scale;
-            if (fun == kActNegHalfLog)
-                gnalog() << "=========================== NegHalfLog Segments ===========================\n";
-            else
-                gnalog() << "=========================== NegLog Segments ===========================\n";
-            create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
-                fun.fqParams.set, false, gna_pwl);
+            gna_pwl = create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
+                fun.fqParams.set, false);
             break;
         }
         case kActRelu:
@@ -192,10 +196,6 @@ void make_gna_pwl(const DnnActivation  fun,
             auto n_segments = 2;
             gna_pwl.resize(n_segments);
 
-            if (fun == kActRelu)
-                gnalog() << "=========================== ReLU Segments ===========================\n";
-            else
-                gnalog() << "=========================== LeakyReLU Segments ======================\n";
             int32_t x_lower = INT32_MIN;
             int32_t x_upper = INT32_MAX;
             int32_t y_lower = y_min;
@@ -216,19 +216,16 @@ void make_gna_pwl(const DnnActivation  fun,
             gna_pwl[0].xBase = (x_lower & XBASEMASK) | s.slope_scale_index;  // zero out the 2 lsb
             gna_pwl[0].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
 
-            gnalog() << (int32_t)(gna_pwl[0].xBase & XBASEMASK) / in_scale
-                    << " " << gna_pwl[0].yBase / out_scale
-                    << " " << (gna_pwl[0].slope * in_scale) / (out_scale*s.slope_scale)
-                    << "\n";
+            print_segment((int32_t)(gna_pwl[0].xBase & XBASEMASK) / in_scale,
+                          gna_pwl[0].yBase / out_scale,
+                          (gna_pwl[0].slope * in_scale) / (out_scale*s.slope_scale));
+
             gna_pwl[1].xBase = 0;
             gna_pwl[1].yBase = 0;
             s = gna_slope(1.0, in_scale, out_scale);
             gna_pwl[1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
             gna_pwl[1].xBase = gna_pwl[1].xBase | s.slope_scale_index;
-            gnalog() << 0.0
-                    << " " << 0.0
-                    << " " << (gna_pwl[1].slope * in_scale) / (out_scale*s.slope_scale)
-                    << "\n";
+            print_segment(0.0, 0.0, (gna_pwl[1].slope * in_scale) / (out_scale*s.slope_scale));
 
             if (fun.fqParams.set) {  // need a right segment
                 gna_pwl.push_back({
@@ -236,10 +233,7 @@ void make_gna_pwl(const DnnActivation  fun,
                     y_upper,
                     0 });
 
-                gnalog() << (x_upper & XBASEMASK) / in_scale
-                    << " " << gna_pwl[n_segments].yBase / out_scale
-                    << " " << 0
-                    << "\n";
+                print_segment((x_upper & XBASEMASK) / in_scale, gna_pwl[n_segments].yBase / out_scale, 0.0);
             }
             break;
         }
@@ -247,34 +241,28 @@ void make_gna_pwl(const DnnActivation  fun,
             auto n_segments = 3;
             gna_pwl.resize(n_segments);
 
-            gnalog() << "=========================== Sign Segments ===========================\n";
             int32_t x_lower = INT32_MIN;
             int16_t y_lower = static_cast<int16_t>(-1.0 * out_scale);
             gna_pwl[0].yBase = y_lower;
             gna_pwl[0].xBase = (x_lower & XBASEMASK);  // zero out the 2 lsb
             gna_pwl[0].slope = 0;
 
-            gnalog() << gna_pwl[0].xBase / in_scale
-                << " " << gna_pwl[0].yBase / out_scale
-                << " " << (gna_pwl[0].slope * in_scale) / (out_scale*s.slope_scale)
-                << "\n";
+            print_segment(gna_pwl[0].xBase / in_scale, gna_pwl[0].yBase / out_scale,
+                (gna_pwl[0].slope * in_scale) / (out_scale*s.slope_scale));
             gna_pwl[1].xBase = -1;
             gna_pwl[1].yBase = 0;
             gna_pwl[1].slope = 0;
             gna_pwl[1].xBase = gna_pwl[1].xBase  & XBASEMASK;
-            gnalog() << gna_pwl[1].xBase / in_scale
-                << " " << gna_pwl[1].yBase / out_scale
-                << " " << (gna_pwl[1].slope * in_scale) / (out_scale*s.slope_scale)
-                << "\n";
+            print_segment(gna_pwl[1].xBase / in_scale, gna_pwl[1].yBase / out_scale,
+                (gna_pwl[1].slope * in_scale) / (out_scale*s.slope_scale));
+
             gna_pwl[2].xBase = 1 + ~XBASEMASK;  // smallest representable positive number
             gna_pwl[2].yBase = static_cast<int16_t>(1.0 * out_scale);
             s = gna_slope(1.0, in_scale, out_scale);
             gna_pwl[2].slope = 0;
             gna_pwl[2].xBase = gna_pwl[2].xBase & XBASEMASK;
-            gnalog() << gna_pwl[2].xBase / in_scale
-                << " " << gna_pwl[2].yBase / out_scale
-                << " " << (gna_pwl[2].slope * in_scale) / (out_scale*s.slope_scale)
-                << "\n";
+            print_segment(gna_pwl[2].xBase / in_scale, gna_pwl[2].yBase / out_scale,
+                (gna_pwl[2].slope * in_scale) / (out_scale*s.slope_scale));
             break;
         }
         case kActIdentity:
@@ -292,7 +280,6 @@ void make_gna_pwl(const DnnActivation  fun,
             }
             auto n_segments = 2;
             if (fun == kActKaldiLstmClipping) {
-                gnalog()  << "=========================== Clipping Segments ===========================\n";
                 if (x_lower < l_bound * in_scale) {
                     if (y_lower < l_bound * out_scale) {
                         x_lower = FLOAT_TO_INT32(l_bound * in_scale);
@@ -310,42 +297,32 @@ void make_gna_pwl(const DnnActivation  fun,
                     }
                 }
             } else if (fun == kActIdentity) {
-                gnalog() << "=========================== Identity Segments ===========================\n";
                 if (x_lower < y_lower * in_scale / out_scale) x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
                 if (x_upper > y_upper * in_scale / out_scale) x_upper = FLOAT_TO_INT32(y_upper * in_scale / out_scale);
                 if (y_lower < x_lower * out_scale / in_scale) y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);
                 if (y_upper > x_upper * out_scale / in_scale) y_upper = FLOAT_TO_INT16(x_upper * out_scale / in_scale);
-            } else if (fun == kActFakeQuantize) {
-                gnalog() << "=========================== Fake Quantize Segments ===========================\n";
             }
+
             gna_pwl.resize(n_segments);
             gna_pwl[0].xBase = INT32_MIN & XBASEMASK;  // zero out the 2 lsb
             gna_pwl[0].yBase = y_lower;
             gna_pwl[0].slope = 0;
-            gnalog() << gna_pwl[0].xBase / in_scale
-                    << " " << gna_pwl[0].yBase / out_scale
-                    << " " << 0
-                    << "\n";
+            print_segment(gna_pwl[0].xBase / in_scale, gna_pwl[0].yBase / out_scale, 0.0);
 
             gna_pwl[1].xBase = x_lower & XBASEMASK;  // zero out the 2 lsb
             gna_pwl[1].yBase = y_lower;
             s = gna_slope(1.0, in_scale, out_scale);
             gna_pwl[1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
             gna_pwl[1].xBase = gna_pwl[1].xBase | s.slope_scale_index;
-            gnalog() << (int32_t)(gna_pwl[1].xBase & XBASEMASK) / in_scale
-                    << " " << gna_pwl[1].yBase / out_scale
-                    << " " << 1.0
-                    << "\n";
+            print_segment((int32_t)(gna_pwl[1].xBase & XBASEMASK) / in_scale, gna_pwl[1].yBase / out_scale, 1.0);
+
             if (INT32_MAX > x_upper) {  // need a right segment
                 gna_pwl.push_back({
                     static_cast<int32_t>(x_upper & XBASEMASK),  // zero out the 2 lsb
                     y_upper,
                     0 });
 
-                gnalog() << (x_upper & XBASEMASK) / in_scale
-                    << " " << gna_pwl[n_segments].yBase / out_scale
-                    << " " << 0
-                    << "\n";
+                print_segment((x_upper & XBASEMASK) / in_scale, gna_pwl[n_segments].yBase / out_scale, 0.0);
             }
             break;
         }
@@ -359,7 +336,6 @@ void make_gna_pwl(const DnnActivation  fun,
             if (y_upper > x_upper * out_scale / in_scale) y_upper = FLOAT_TO_INT16(x_upper * out_scale / in_scale);
             if (x_upper > y_upper * in_scale / out_scale) x_upper = FLOAT_TO_INT32(y_upper * in_scale / out_scale);
 
-            gnalog() << "=========================== Abs Segments ===========================\n";
             if (y_upper == y_max) {  // saturation at ends - need one more segment
                 n_segments += 1;
                 gna_pwl.resize(n_segments);
@@ -376,19 +352,14 @@ void make_gna_pwl(const DnnActivation  fun,
             s = gna_slope(-1.0, in_scale, out_scale);
             gna_pwl[i].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
             gna_pwl[i].xBase = gna_pwl[i].xBase | s.slope_scale_index;
-            gnalog() << (int32_t)(gna_pwl[i].xBase & XBASEMASK) / in_scale
-                << " " << gna_pwl[i].yBase / out_scale
-                << " " << -1.0
-                << "\n";
+            print_segment((int32_t)(gna_pwl[i].xBase & XBASEMASK) / in_scale, gna_pwl[i].yBase / out_scale, -1.0);
+
             gna_pwl[i + 1].xBase = 0;
             gna_pwl[i + 1].yBase = 0;
             s = gna_slope(1.0, in_scale, out_scale);
             gna_pwl[i + 1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
             gna_pwl[i + 1].xBase = gna_pwl[i + 1].xBase | s.slope_scale_index;
-            gnalog() << (int32_t)(gna_pwl[i + 1].xBase & XBASEMASK) / in_scale
-                << " " << gna_pwl[i + 1].yBase / out_scale
-                << " " << 1.0
-                << "\n";
+            print_segment((int32_t)(gna_pwl[i + 1].xBase & XBASEMASK) / in_scale, gna_pwl[i + 1].yBase / out_scale, 1.0);
             break;
         }
         case kActPow: {
@@ -470,11 +441,7 @@ void make_gna_pwl(const DnnActivation  fun,
                 gna_pwl[0].xBase = INT32_MIN & XBASEMASK;  // zero out the 2 lsb
                 gna_pwl[0].yBase = y_lower;
                 gna_pwl[0].slope = 0;
-                gnalog() << gna_pwl[0].xBase / in_scale
-                    << " " << gna_pwl[0].yBase / out_scale
-                    << " " << 0
-                    << "\n";
-
+                print_segment(gna_pwl[0].xBase / in_scale, gna_pwl[0].yBase / out_scale, 0.0);
 
                 gna_pwl[1].xBase = x_lower & XBASEMASK;  // zero out the 2 lsb
                 gna_pwl[1].yBase = y_lower;
@@ -482,73 +449,27 @@ void make_gna_pwl(const DnnActivation  fun,
                 s = gna_slope(slope, in_scale, out_scale);
                 gna_pwl[1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
                 gna_pwl[1].xBase = gna_pwl[1].xBase | s.slope_scale_index;
-                gnalog() << (int32_t)(gna_pwl[1].xBase & XBASEMASK) / in_scale
-                    << " " << gna_pwl[1].yBase / out_scale
-                    << " " << 1.0
-                    << "\n";
+                print_segment((int32_t)(gna_pwl[1].xBase & XBASEMASK) / in_scale, gna_pwl[1].yBase / out_scale, 1.0);
                 if (INT32_MAX > x_upper) {  // need a right segment
                     gna_pwl.push_back({
                         static_cast<int32_t>(x_upper & XBASEMASK),  // zero out the 2 lsb
                         y_upper,
                         0 });
 
-                    gnalog() << (x_upper & XBASEMASK) / in_scale
-                        << " " << gna_pwl[2].yBase / out_scale
-                        << " " << 0
-                        << "\n";
+                    print_segment((x_upper & XBASEMASK) / in_scale, gna_pwl[2].yBase / out_scale, 0.0);
                 }
             } else {
-                auto n_segments = static_cast<int32_t> (pwl_size) + 1;
-                gna_pwl.resize(n_segments);
-                // insert extra segment for x values < l_bound
-                gna_pwl[0].xBase = static_cast<int32_t> (INT32_MIN & XBASEMASK);  // zero out the 2 lsb
-                gnalog() << "=========================== Exp Segments ===========================\n";
-                gna_pwl[0].yBase = gna_pwl[1].yBase = 0;
-                gna_pwl[1].xBase = (static_cast<int32_t> (in_scale * (-pwl[0].b / pwl[0].m))) & XBASEMASK;
-                gna_pwl[0].slope = 0;
-
-                gnalog() << (gna_pwl[0].xBase) / in_scale
-                    << " " << (gna_pwl[0].yBase) / out_scale
-                    << " " << 0.0
-                    << "\n";
-
-                s = gna_slope(pwl[0].m, in_scale, out_scale);
-                gna_pwl[1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
-                gna_pwl[1].xBase = gna_pwl[1].xBase | s.slope_scale_index;
-
-                gnalog() << ((int32_t)(gna_pwl[1].xBase & XBASEMASK) / in_scale)
-                    << " " << (gna_pwl[1].yBase) / out_scale
-                    << " " << pwl[0].m
-                    << "\n";
-
-                for (uint32_t i = 1; i < pwl_size - 1; ++i) {
-                    s = gna_slope(pwl[i].m, in_scale, out_scale);
-                    gna_pwl[i + 1].xBase = (static_cast<int32_t> (in_scale * pwl[i].alpha)) & XBASEMASK;
-                    gna_pwl[i + 1].yBase = FLOAT_TO_INT16(pwl[i].beta * out_scale);
-                    gna_pwl[i + 1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
-                    gna_pwl[i + 1].xBase = gna_pwl[i + 1].xBase | s.slope_scale_index;
-
-                    gnalog() << (pwl[i].alpha)
-                        << " " << pwl[i].beta
-                        << " " << pwl[i].m
-                        << "\n";
-                }
-                // insert extra segment for xvalues > u_bound
-                gna_pwl[n_segments - 1].xBase =
-                    ((uint32_t)(in_scale * (y_max / out_scale - pwl[pwl_size - 2].b) / pwl[pwl_size - 2].m)) & XBASEMASK;
-                gna_pwl[n_segments - 1].yBase = y_max;
-                gna_pwl[n_segments - 1].slope = 0;
-
-                gnalog() << (gna_pwl[n_segments - 1].xBase / in_scale)
-                    << " " << 1.0
-                    << " " << 0.0
-                    << "\n";
+                double min_x_val = -pwl[0].b / pwl[0].m;
+                double max_x_val = (y_max/out_scale - pwl[pwl_size - 2].b) / pwl[pwl_size - 2].m;
+                double min_y_val = fun.fqParams.set ? pwl[0].beta : 0;
+                double max_y_val = fun.fqParams.set ? pwl.front().beta : y_max / out_scale;
+                gna_pwl = create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
+                    fun.fqParams.set, true);
                 break;
             }
             break;
         }
         default:
-            gnalog() << "Unexpected function activation!\n";
             THROW_GNA_EXCEPTION << "Unexpected function activation!" << fun;
     }
     insert_extra_pwl_segments(gna_pwl, y_min, y_max);
