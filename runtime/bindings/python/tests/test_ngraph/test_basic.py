@@ -487,14 +487,14 @@ def test_layout():
     assert scalar == scalar2
     assert scalar2 != layout2
 
-    assert scalar.to_string() == "**SCALAR**"
+    assert str(scalar) == str(scalar2)
     assert not(scalar.has_name("N"))
     assert not(scalar.has_name("C"))
     assert not(scalar.has_name("W"))
     assert not(scalar.has_name("H"))
     assert not(scalar.has_name("D"))
 
-    assert layout.to_string() == "[N,C,W,H]"
+    assert layout.to_string() == layout2.to_string()
     assert layout.has_name("N")
     assert layout.has_name("C")
     assert layout.has_name("W")
@@ -506,7 +506,9 @@ def test_layout():
     assert layout.get_index_by_name("H") == 3
 
     layout = ov.Layout("NC?")
-    assert layout.to_string() == "[N,C,?]"
+    layout2 = ov.Layout("N")
+    assert layout != layout2
+    assert str(layout) != str(layout2)
     assert layout.has_name("N")
     assert layout.has_name("C")
     assert not(layout.has_name("W"))
@@ -516,7 +518,6 @@ def test_layout():
     assert layout.get_index_by_name("C") == 1
 
     layout = ov.Layout("N...C")
-    assert layout.to_string() == "[N,...,C]"
     assert layout.has_name("N")
     assert not(layout.has_name("W"))
     assert not(layout.has_name("H"))
@@ -525,7 +526,6 @@ def test_layout():
     assert layout.get_index_by_name("C") == -1
 
     layout = ov.Layout()
-    assert layout.to_string() == "[...]"
     assert not(layout.has_name("W"))
     assert not(layout.has_name("H"))
     assert not(layout.has_name("D"))
