@@ -7,10 +7,10 @@ import os
 from sys import platform
 from pathlib import Path
 
-import ngraph as ng
-import openvino as ov
-from ngraph.impl import Function, Shape, Type
-from ngraph.impl.op import Parameter
+import openvino.opset8 as ov
+from openvino import Core, IENetwork, ExecutableNetwork, blob_from_file
+from openvino.impl import Function, Shape, Type
+from openvino.impl.op import Parameter
 from openvino import TensorDesc, Blob
 
 from ..conftest import model_path, model_onnx_path, plugins_path
@@ -42,14 +42,14 @@ def test_blobs():
 @pytest.mark.skip(reason="Fix")
 def test_ie_core_class():
     input_shape = [1, 3, 4, 4]
-    param = ng.parameter(input_shape, np.float32, name="parameter")
-    relu = ng.relu(param, name="relu")
+    param = ov.parameter(input_shape, np.float32, name="parameter")
+    relu = ov.relu(param, name="relu")
     func = Function([relu], [param], "test")
     func.get_ordered_ops()[2].friendly_name = "friendly"
 
-    cnn_network = ov.IENetwork(func)
+    cnn_network = IENetwork(func)
 
-    ie_core = ov.Core()
+    ie_core = Core()
     ie_core.set_config({}, device_name="CPU")
     executable_network = ie_core.compile_model(cnn_network, "CPU", {})
 
@@ -73,99 +73,99 @@ def test_ie_core_class():
 
 
 def test_compile_model(device):
-    ie = ov.Core()
-    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie.compile_model(func, device)
-    assert isinstance(exec_net, ov.ExecutableNetwork)
+    ie = Core()
+    net = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    exec_net = ie.compile_model(net, device)
+    assert isinstance(exec_net, ExecutableNetwork)
 
 
 def test_read_model():
-    ie_core = ov.Core()
-    func = ie_core.read_model(model=test_net_xml, weights=test_net_bin)
-    assert isinstance(func, ov.IENetwork)
+    ie_core = Core()
+    net = ie_core.read_model(model=test_net_xml, weights=test_net_bin)
+    assert isinstance(net, IENetwork)
 
-    func = ie_core.read_model(model=test_net_xml)
-    assert isinstance(func, ov.IENetwork)
+    net = ie_core.read_model(model=test_net_xml)
+    assert isinstance(net, IENetwork)
 
 
 def test_read_model_from_blob():
-    ie_core = ov.Core()
+    ie_core = Core()
     model = open(test_net_xml).read()
-    blob = ov.blob_from_file(test_net_bin)
-    func = ie_core.read_model(model=model, blob=blob)
-    assert isinstance(func, ov.IENetwork)
+    blob = blob_from_file(test_net_bin)
+    net = ie_core.read_model(model=model, blob=blob)
+    assert isinstance(net, IENetwork)
 
 
 def test_read_model_from_blob_valid():
-    ie_core = ov.Core()
+    ie_core = Core()
     model = open(test_net_xml).read()
-    blob = ov.blob_from_file(test_net_bin)
-    func = ie_core.read_model(model=model, blob=blob)
-    ref_func = ie_core.read_model(model=test_net_xml, weights=test_net_bin)
-    assert func.name == ref_func.name
-    assert func.batch_size == ref_func.batch_size
-    ii_func = func.input_info
-    ii_func2 = ref_func.input_info
-    o_func = func.outputs
-    o_func2 = ref_func.outputs
-    assert ii_func.keys() == ii_func2.keys()
-    assert o_func.keys() == o_func2.keys()
+    blob = blob_from_file(test_net_bin)
+    net = ie_core.read_model(model=model, blob=blob)
+    ref_net = ie_core.read_model(model=test_net_xml, weights=test_net_bin)
+    assert net.name == ref_net.name
+    assert net.batch_size == ref_net.batch_size
+    ii_net = net.input_info
+    ii_net2 = ref_net.input_info
+    o_net = net.outputs
+    o_net2 = ref_net.outputs
+    assert ii_net.keys() == ii_net2.keys()
+    assert o_net.keys() == o_net2.keys()
 
 
 def test_read_model_as_path():
-    ie_core = ov.Core()
-    func = ie_core.read_model(model=Path(test_net_xml), weights=Path(test_net_bin))
-    assert isinstance(func, ov.IENetwork)
+    ie_core = Core()
+    net = ie_core.read_model(model=Path(test_net_xml), weights=Path(test_net_bin))
+    assert isinstance(net, IENetwork)
 
-    func = ie_core.read_model(model=test_net_xml, weights=Path(test_net_bin))
-    assert isinstance(func, ov.IENetwork)
+    net = ie_core.read_model(model=test_net_xml, weights=Path(test_net_bin))
+    assert isinstance(net, IENetwork)
 
-    func = ie_core.read_model(model=Path(test_net_xml))
-    assert isinstance(func, ov.IENetwork)
+    net = ie_core.read_model(model=Path(test_net_xml))
+    assert isinstance(net, IENetwork)
 
 
 def test_read_model_from_onnx():
-    ie_core = ov.Core()
-    func = ie_core.read_model(model=test_net_onnx)
-    assert isinstance(func, ov.IENetwork)
+    ie_core = Core()
+    net = ie_core.read_model(model=test_net_onnx)
+    assert isinstance(net, IENetwork)
 
 
 def test_read_model_from_onnx_as_path():
-    ie_core = ov.Core()
-    func = ie_core.read_model(model=Path(test_net_onnx))
-    assert isinstance(func, ov.IENetwork)
+    ie_core = Core()
+    net = ie_core.read_model(model=Path(test_net_onnx))
+    assert isinstance(net, IENetwork)
 
 
 def test_read_net_from_buffer():
-    ie_core = ov.Core()
+    ie_core = Core()
     with open(test_net_bin, "rb") as f:
         bin = f.read()
     with open(model_path()[0], "rb") as f:
         xml = f.read()
-    func = ie_core.read_model(model=xml, weights=bin)
-    assert isinstance(func, ov.IENetwork)
+    net = ie_core.read_model(model=xml, weights=bin)
+    assert isinstance(net, IENetwork)
 
 
 def test_net_from_buffer_valid():
-    ie_core = ov.Core()
+    ie_core = Core()
     with open(test_net_bin, "rb") as f:
         bin = f.read()
     with open(model_path()[0], "rb") as f:
         xml = f.read()
-    func = ie_core.read_model(model=xml, weights=bin)
-    ref_func = ie_core.read_model(model=test_net_xml, weights=test_net_bin)
-    assert func.name == ref_func.name
-    assert func.batch_size == ref_func.batch_size
-    ii_func = func.input_info
-    ii_func2 = ref_func.input_info
-    o_func = func.outputs
-    o_func2 = ref_func.outputs
-    assert ii_func.keys() == ii_func2.keys()
-    assert o_func.keys() == o_func2.keys()
+    net = ie_core.read_model(model=xml, weights=bin)
+    ref_net = ie_core.read_model(model=test_net_xml, weights=test_net_bin)
+    assert net.name == ref_net.name
+    assert net.batch_size == ref_net.batch_size
+    ii_net = net.input_info
+    ii_net2 = ref_net.input_info
+    o_net = net.outputs
+    o_net2 = ref_net.outputs
+    assert ii_net.keys() == ii_net2.keys()
+    assert o_net.keys() == o_net2.keys()
 
 
 def test_get_version(device):
-    ie = ov.Core()
+    ie = Core()
     version = ie.get_versions(device)
     assert isinstance(version, dict), "Returned version must be a dictionary"
     assert device in version, "{} plugin version wasn't found in versions"
@@ -176,14 +176,14 @@ def test_get_version(device):
 
 
 def test_available_devices(device):
-    ie = ov.Core()
+    ie = Core()
     devices = ie.available_devices
     assert device in devices, f"Current device '{device}' is not listed in " \
                               f"available devices '{', '.join(devices)}'"
 
 
 def test_get_config():
-    ie = ov.Core()
+    ie = Core()
     conf = ie.get_config("CPU", "CPU_BIND_THREAD")
     assert conf == "YES"
 
@@ -191,7 +191,7 @@ def test_get_config():
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_list_of_str():
-    ie = ov.Core()
+    ie = Core()
     param = ie.get_metric("CPU", "OPTIMIZATION_CAPABILITIES")
     assert isinstance(param, list), "Parameter value for 'OPTIMIZATION_CAPABILITIES' " \
                                     f"metric must be a list but {type(param)} is returned"
@@ -202,7 +202,7 @@ def test_get_metric_list_of_str():
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_tuple_of_two_ints():
-    ie = ov.Core()
+    ie = Core()
     param = ie.get_metric("CPU", "RANGE_FOR_STREAMS")
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_STREAMS' " \
                                      f"metric must be tuple but {type(param)} is returned"
@@ -213,7 +213,7 @@ def test_get_metric_tuple_of_two_ints():
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_tuple_of_three_ints():
-    ie = ov.Core()
+    ie = Core()
     param = ie.get_metric("CPU", "RANGE_FOR_ASYNC_INFER_REQUESTS")
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_ASYNC_INFER_REQUESTS' " \
                                      f"metric must be tuple but {type(param)} is returned"
@@ -224,36 +224,37 @@ def test_get_metric_tuple_of_three_ints():
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_str():
-    ie = ov.Core()
+    ie = Core()
     param = ie.get_metric("CPU", "FULL_DEVICE_NAME")
     assert isinstance(param, str), "Parameter value for 'FULL_DEVICE_NAME' " \
                                    f"metric must be string but {type(param)} is returned"
 
 
-def test_query_model(device):
-    ie = ov.Core()
-    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
-    query_res = ie.query_model(model=func, device_name=device)
-    ops_net = func.get_ordered_ops()
+def test_query_network(device):
+    ie = Core()
+    net = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    query_res = ie.query_network(network=net, device_name=device)
+    func_net = net.get_function()
+    ops_net = func_net.get_ordered_ops()
     ops_net_names = [op.friendly_name for op in ops_net]
     assert [key for key in query_res.keys() if key not in ops_net_names] == [], \
-        "Not all network layers present in query_model results"
+        "Not all network layers present in query_network results"
     assert next(iter(set(query_res.values()))) == device, "Wrong device for some layers"
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_register_plugin():
-    ie = ov.Core()
+    ie = Core()
     ie.register_plugin("MKLDNNPlugin", "BLA")
     net = ie.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.compile_model(net, "BLA")
-    assert isinstance(exec_net, ov.ExecutableNetwork), \
+    assert isinstance(exec_net, ExecutableNetwork), \
         "Cannot load the network to the registered plugin with name 'BLA'"
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_register_plugins():
-    ie = ov.Core()
+    ie = Core()
     if platform == "linux" or platform == "linux2":
         ie.register_plugins(plugins_xml)
     elif platform == "darwin":
@@ -264,17 +265,17 @@ def test_register_plugins():
     net = ie.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.compile_model(net, "CUSTOM")
     assert isinstance(exec_net,
-                      ov.ExecutableNetwork), "Cannot load the network to " \
-                                             "the registered plugin with name 'CUSTOM' " \
-                                             "registred in the XML file"
+                      ExecutableNetwork), "Cannot load the network to " \
+                                          "the registered plugin with name 'CUSTOM' " \
+                                          "registred in the XML file"
 
 
 def test_create_IENetwork_from_nGraph():
     element_type = Type.f32
     param = Parameter(element_type, Shape([1, 3, 22, 22]))
-    relu = ng.relu(param)
+    relu = ov.relu(param)
     func = Function([relu], [param], "test")
-    cnnNetwork = ov.IENetwork(func)
+    cnnNetwork = IENetwork(func)
     assert cnnNetwork is not None
     func2 = cnnNetwork.get_function()
     assert func2 is not None

@@ -17,7 +17,7 @@ using namespace ov;
 namespace reference_tests {
 
 CommonReferenceTest::CommonReferenceTest(): targetDevice("TEMPLATE") {
-    core = ov::test::PluginCache::get().core(targetDevice);
+    core = test::utils::PluginCache::get().core(targetDevice);
 }
 
 void CommonReferenceTest::Exec() {
@@ -151,12 +151,12 @@ void CommonReferenceTest::ValidateBlobs(const ov::runtime::Tensor& refBlob, cons
     case ov::element::i4:
     case ov::element::u4:
         LayerTestsUtils::LayerTestsCommon::Compare<int8_t, int8_t>(
-            refBlob.data<const int8_t>(), outBlob.data<const int8_t>(),
+            static_cast<const int8_t*>(refBlob.data()), static_cast<const int8_t*>(outBlob.data()),
             refBlob.get_size() / 2, threshold, abs_threshold);
         break;
     case ov::element::u1:
         LayerTestsUtils::LayerTestsCommon::Compare<int8_t, int8_t>(
-            refBlob.data<const int8_t>(), outBlob.data<const int8_t>(),
+            static_cast<const int8_t*>(refBlob.data()), static_cast<const int8_t*>(outBlob.data()),
             refBlob.get_size() / 8, threshold, abs_threshold);
         break;
     default:
