@@ -73,12 +73,13 @@ def assert_that_is_castable_to_fp16(node: Node):
         val = node.in_port(i).data.get_value()
         if val is None:
             return
-
         if np.any(val > np.finfo(np.float16).max) or np.any(val < np.finfo(np.float16).min):
-            raise Error("Try to convert with --data_type=FP32 argument. "
-                        "This model can not be converted to FP16 precision, since "
-                        "'{}' node value {} exceeds FP16 allowed limits: [{}, {}]"
-                        .format(node_name, val, np.finfo(np.float16).min, np.finfo(np.float16).max))
+            # some models have -Inf values but nevertheless are correctly inferred in FP16
+            # we should not raise an Error here but instead show a warning
+            log.error("value '{}' of '{}' node exceeds FP16 limits: [{}, {}]. "
+                      "This may lead to incorrect results of inference or may not be a problem, "
+                      "depending on the model.".format(
+                val, node_name, np.finfo(np.float16).min, np.finfo(np.float16).max), extra={'is_warning': True})
         # further this input values will be rewritten since force_shape_inference=True
         node.in_port(i).data.set_value(val.astype(np.float16))
 
