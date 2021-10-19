@@ -8,20 +8,45 @@
 #include <ie_version.hpp>
 #include <string>
 
-#include "core/containers.hpp"
-#include "core/ie_blob.hpp"
-#include "core/ie_core.hpp"
-#include "core/ie_data.hpp"
-#include "core/ie_executable_network.hpp"
-#include "core/ie_infer_queue.hpp"
-#include "core/ie_infer_request.hpp"
-#include "core/ie_input_info.hpp"
-#include "core/ie_network.hpp"
-#include "core/ie_parameter.hpp"
-#include "core/ie_preprocess_info.hpp"
-#include "core/ie_version.hpp"
-#include "core/tensor.hpp"
-#include "core/tensor_description.hpp"
+#include "pyopenvino/graph/axis_set.hpp"
+#include "pyopenvino/graph/axis_vector.hpp"
+#include "pyopenvino/graph/coordinate.hpp"
+#include "pyopenvino/graph/coordinate_diff.hpp"
+#include "pyopenvino/graph/function.hpp"
+#include "pyopenvino/graph/node.hpp"
+#include "pyopenvino/graph/node_factory.hpp"
+#include "pyopenvino/graph/node_input.hpp"
+#include "pyopenvino/graph/node_output.hpp"
+#if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
+#    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
+#endif
+#include "pyopenvino/core/containers.hpp"
+#include "pyopenvino/core/ie_blob.hpp"
+#include "pyopenvino/core/ie_core.hpp"
+#include "pyopenvino/core/ie_data.hpp"
+#include "pyopenvino/core/ie_executable_network.hpp"
+#include "pyopenvino/core/ie_infer_queue.hpp"
+#include "pyopenvino/core/ie_infer_request.hpp"
+#include "pyopenvino/core/ie_input_info.hpp"
+#include "pyopenvino/core/ie_network.hpp"
+#include "pyopenvino/core/ie_parameter.hpp"
+#include "pyopenvino/core/ie_preprocess_info.hpp"
+#include "pyopenvino/core/ie_version.hpp"
+#include "pyopenvino/core/tensor.hpp"
+#include "pyopenvino/core/tensor_description.hpp"
+#include "pyopenvino/graph/dimension.hpp"
+#include "pyopenvino/graph/ops/constant.hpp"
+#include "pyopenvino/graph/ops/parameter.hpp"
+#include "pyopenvino/graph/ops/result.hpp"
+#include "pyopenvino/graph/ops/util/regmodule_graph_op_util.hpp"
+#include "pyopenvino/graph/partial_shape.hpp"
+#include "pyopenvino/graph/passes/regmodule_graph_passes.hpp"
+#include "pyopenvino/graph/rt_map.hpp"
+#include "pyopenvino/graph/shape.hpp"
+#include "pyopenvino/graph/strides.hpp"
+#include "pyopenvino/graph/types/regmodule_graph_types.hpp"
+#include "pyopenvino/graph/util.hpp"
+#include "pyopenvino/graph/variant.hpp"
 
 namespace py = pybind11;
 
@@ -57,6 +82,35 @@ PYBIND11_MODULE(pyopenvino, m) {
         .value("STATUS_ONLY", InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY)
         .export_values();
 
+    regclass_graph_PyRTMap(m);
+    regmodule_graph_types(m);
+    regclass_graph_Dimension(m);  // Dimension must be registered before PartialShape
+    regclass_graph_Shape(m);
+    regclass_graph_PartialShape(m);
+    regclass_graph_Node(m);
+    regclass_graph_Input(m);
+    regclass_graph_Output(m);
+    regclass_graph_NodeFactory(m);
+    regclass_graph_Strides(m);
+    regclass_graph_CoordinateDiff(m);
+    regclass_graph_AxisSet(m);
+    regclass_graph_AxisVector(m);
+    regclass_graph_Coordinate(m);
+    py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ov::op");  // TODO(!)
+    regclass_graph_op_Constant(m_op);
+    regclass_graph_op_Parameter(m_op);
+    regclass_graph_op_Result(m_op);
+#if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
+    regmodule_graph_onnx_import(m);
+#endif
+    regmodule_graph_op_util(m_op);
+    regclass_graph_Function(m);
+    regmodule_graph_passes(m);
+    regmodule_graph_util(m);
+    regclass_graph_Variant(m);
+    regclass_graph_VariantWrapper<std::string>(m, std::string("String"));
+    regclass_graph_VariantWrapper<int64_t>(m, std::string("Int"));
+
     regclass_Core(m);
     regclass_IENetwork(m);
 
@@ -81,6 +135,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_Tensor(m);
 
     // Registering specific types of containers
+    Containers::regclass_PyInputsDataMap(m);
     Containers::regclass_PyConstInputsDataMap(m);
     Containers::regclass_PyOutputsDataMap(m);
     Containers::regclass_PyResults(m);
