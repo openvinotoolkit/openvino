@@ -22,7 +22,6 @@
 #include "pyngraph/frontend/frontend_manager.hpp"
 #include "pyngraph/frontend/inputmodel.hpp"
 #include "pyngraph/frontend/place.hpp"
-#include "pyngraph/layout.hpp"
 #include "pyngraph/ops/constant.hpp"
 #include "pyngraph/ops/parameter.hpp"
 #include "pyngraph/ops/result.hpp"
@@ -54,7 +53,6 @@ PYBIND11_MODULE(_pyngraph, m) {
     regclass_pyngraph_NotImplementedFailureFrontEnd(m);
     regclass_pyngraph_FrontEndManager(m);
     regclass_pyngraph_FrontEnd(m);
-    regclass_pyngraph_Layout(m);
     regclass_pyngraph_InputModel(m);
     regclass_pyngraph_Input(m);
     regclass_pyngraph_Output(m);

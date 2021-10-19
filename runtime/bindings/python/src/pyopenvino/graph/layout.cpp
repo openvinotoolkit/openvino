@@ -3,13 +3,12 @@
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 
-#include "pyngraph/layout.hpp"
+#include "pyopenvino/graph/layout.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_Layout(py::module m) {
+void regclass_graph_Layout(py::module m) {
     py::class_<ov::Layout, std::shared_ptr<ov::Layout>> layout(m, "Layout");
-    layout.doc() = "ngraph.impl.Layout wraps ov::Layout";
 
     layout.def(py::init<>());
     layout.def(py::init<const std::string&>());
