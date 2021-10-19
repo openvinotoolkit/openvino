@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <ngraph/opsets/opset7.hpp>
+
 namespace GNAPluginNS {
 
 struct ConvData {
@@ -56,7 +58,7 @@ bool TransposeOrderMatches(std::shared_ptr<ngraph::opset7::Transpose> transpose,
 /**
  * @brief performs a crop of a flattened input tensor
  * @param input input layer
- * @param offset offset to start the crop at* 
+ * @param offset offset to start the crop at*
  * @param size size of the crop
  * @return pointer to the newly created slice
  */

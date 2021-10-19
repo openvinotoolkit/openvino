@@ -824,6 +824,30 @@ void InsertIdentityLayerPass::run() {
 
 void InsertCopyLayerPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InsertCopyLayerPass");
+    using FuncChildrenInfo = std::tuple<
+        CNNLayerPtr,   // parent layer
+        CNNLayerPtr,   // child layer
+        int32_t        // input index
+    >;
+    // recursively searches for children functional layers skipping non-functional ones
+    std::function<std::vector<FuncChildrenInfo>(CNNLayerPtr, CNNLayerPtr, int32_t)> find_func_layers =
+        [&find_func_layers](CNNLayerPtr currentLayer, CNNLayerPtr parentLayer, int32_t input_idx) {
+        if (!LayerInfo(currentLayer).isNonFunctional() ||
+            currentLayer->outData.size() == 0 ||
+            getInputTo(currentLayer->outData[0]).size() == 0) {
+            return std::vector<FuncChildrenInfo>{std::make_tuple(parentLayer, currentLayer, input_idx)};
+        }
+        std::vector<FuncChildrenInfo> results;
+        for (size_t i = 0; i < getInputTo(currentLayer->outData[0]).size(); ++i) {
+            auto next_layer = CNNNetGetNextLayerSkipCertain(currentLayer, 0, i,
+                [](CNNLayerPtr origin) {return false; }).first;
+            auto result = find_func_layers(next_layer, currentLayer,
+                CNNLayerFindInsDataIdxes(currentLayer->outData[0], next_layer)[0]);
+            results.insert(std::end(results), std::begin(result), std::end(result));
+        }
+        return results;
+    };
+
     // Copy layer insertion happens in few cases:
     // Crop output goes to concat layer -> copy layer insertion
     // Splitted part of input goes to concat layer -> copy layer insertion
@@ -854,37 +878,24 @@ void InsertCopyLayerPass::run() {
 
         // Crop -> Concat, Input -> Split -> Concat and Concat -> Memory cases
         if ((LayerInfo(l).isCrop() && !LayerInfo(l).isCropAffined()) || LayerInfo(l).isConcat() || LayerInfo(l).isSplit()) {
-            std::vector<std::tuple<CNNLayerPtr, CNNLayerPtr, size_t>> copy_insertion_tuples;
-            std::vector<std::tuple<CNNLayerPtr, CNNLayerPtr, size_t>> delayed_copy_insertion_tuples;
+            std::vector<FuncChildrenInfo> copy_insertion_tuples;
+            std::vector<FuncChildrenInfo> delayed_copy_insertion_tuples;
             for (auto output : l->outData) {
                 auto& inputTo = getInputTo(output);
                 for (auto& childLayer : inputTo) {
-                    auto original_child = childLayer.second;
-                    auto original_parent = l;
-                    auto current_layer = original_child;
-                    std::vector<int> connections = CNNLayerFindInsDataIdxes(output, original_child);
-
+                    std::vector<int> connections = CNNLayerFindInsDataIdxes(output, childLayer.second);
                     for (auto input_idx : connections) {
-                        while (LayerInfo(current_layer).isNonFunctional()) {
-                            if (current_layer->outData.size() == 0) break;
-                            if (getInputTo(current_layer->outData[0]).size() == 0) break;
-
-                            auto next_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, 0, [](CNNLayerPtr origin) {return false; }).first;
-                            if (current_layer->outData.size() == 1 && getInputTo(current_layer->outData[0]).size() == 1 && original_child == current_layer) {
-                                original_child = next_layer;
-                                original_parent = current_layer;
-                                input_idx = CNNLayerFindInsDataIdxes(original_parent->outData[0], original_child)[0];
+                        auto children_info = find_func_layers(childLayer.second, l, input_idx);
+                        for (const auto &child_info : children_info) {
+                            CNNLayerPtr child = std::get<1>(child_info);
+                            if ((LayerInfo(l).isConcat() || LayerInfo(l).isCrop() || LayerInfo(l).isSplit()) && LayerInfo(child).isMemory()) {
+                                // Concat|Split|Crop -> Memory case
+                                delayed_copy_insertion_tuples.push_back(child_info);
+                            } else if ((LayerInfo(l).isSplit() || LayerInfo(l).isCrop()) && LayerInfo(child).isConcat()) {
+                                // Split|Crop -> Concat case
+                                // concat may be connected to previous layer with multiple connections
+                                copy_insertion_tuples.push_back(child_info);
                             }
-                            current_layer = next_layer;
-                        }
-
-                        if ((LayerInfo(l).isConcat() || LayerInfo(l).isCrop() || LayerInfo(l).isSplit()) && LayerInfo(current_layer).isMemory()) {
-                            // Concat|Split|Crop -> Memory case
-                            delayed_copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
-                        } else if ((LayerInfo(l).isSplit() || LayerInfo(l).isCrop()) && LayerInfo(current_layer).isConcat()) {
-                            // Split|Crop -> Concat case
-                            // concat may be connected to previous layer with multiple connections
-                            copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
                         }
                     }
                 }
