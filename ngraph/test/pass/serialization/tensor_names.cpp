@@ -42,7 +42,7 @@ TEST_F(TensorNameSerializationTest, SerializeFunctionWithTensorNames) {
     }
 
     ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_function(function);
-    auto result = ov::test::readIR(m_out_xml_path, m_out_bin_path);
+    auto result = ov::test::readModel(m_out_xml_path, m_out_bin_path);
 
     const auto fc = FunctionsComparator::with_default()
                         .enable(FunctionsComparator::ATTRIBUTES)

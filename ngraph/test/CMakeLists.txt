@@ -659,6 +659,10 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
     endif()
 endif()
 
+if(NGRAPH_IR_FRONTEND_ENABLE)
+    add_dependencies(unit-test ir_ngraph_frontend)
+endif()
+
 install(TARGETS unit-test
         RUNTIME DESTINATION tests
         COMPONENT tests

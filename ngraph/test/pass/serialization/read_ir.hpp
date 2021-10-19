@@ -5,12 +5,13 @@
 #pragma once
 
 #include "frontend_manager/frontend_manager.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/function.hpp"
 
 namespace ov {
 namespace test {
 
-inline std::shared_ptr<ov::Function> readIR(const std::string& model_path, const std::string& weights_path) {
+inline std::shared_ptr<ov::Function> readModel(const std::string& model_path, const std::string& weights_path) {
     static ngraph::frontend::FrontEndManager manager;
     ngraph::frontend::FrontEnd::Ptr FE;
     ngraph::frontend::InputModel::Ptr inputModel;
@@ -26,10 +27,10 @@ inline std::shared_ptr<ov::Function> readIR(const std::string& model_path, const
     if (inputModel)
         return FE->convert(inputModel);
 
-    return nullptr;
+    OPENVINO_ASSERT(false, "Failed to read the model");
 }
 
-inline std::shared_ptr<ov::Function> readIR(const std::string& model) {
+inline std::shared_ptr<ov::Function> readModel(const std::string& model) {
     static ngraph::frontend::FrontEndManager manager;
     ngraph::frontend::FrontEnd::Ptr FE;
     ngraph::frontend::InputModel::Ptr inputModel;
