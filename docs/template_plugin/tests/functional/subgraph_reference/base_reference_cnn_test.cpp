@@ -53,7 +53,6 @@ void ReferenceCNNTest::LoadNetworkLegacy() {
 }
 
 void ReferenceCNNTest::FillInputs() {
-    const auto& inputInfo = legacy_exec_network.GetInputsInfo();
     const auto& params = function->get_parameters();
     std::default_random_engine random(0); // hard-coded seed to make test results predictable
     std::uniform_int_distribution<int> distrib(0, 255);
