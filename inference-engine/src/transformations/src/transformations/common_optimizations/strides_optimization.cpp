@@ -90,7 +90,15 @@ static void handle_not_equal_stride_props(std::vector<ngraph::Input<ngraph::Node
 
 ngraph::pass::ConvStridesPropagation::ConvStridesPropagation() {
     MATCHER_SCOPE(ConvStridesPropagation);
-    auto data = pattern::any_input();
+    auto data = pattern::any_input([] (const Output<Node>& node) -> bool {
+                                          const auto& shape = node.get_partial_shape();
+                                          const auto& rank = shape.rank();
+                                          if (rank.is_dynamic())
+                                              return false;
+                                          return std::all_of(shape.begin() + 2, shape.end(), [] (const Dimension& dim) -> bool {
+                                                                                                    return dim.is_static();
+                                                                                                });
+                                      });
     auto weights = pattern::any_input(pattern::has_static_shape());
     auto conv_pattern = pattern::wrap_type<opset7::Convolution>({data, weights});
 
