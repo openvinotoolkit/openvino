@@ -157,21 +157,21 @@ def test_async_infer_many_req_get_idle(device):
 
 
 def test_wait_before_start(device):
-    ie_core = ie.IECore()
-    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
-    num_requests = 5
-    exec_net = ie_core.load_network(net, device, num_requests=num_requests)
-    img = read_image()
-    requests = exec_net.requests
-    for id in range(num_requests):
-        status = requests[id].wait()
-        assert status == ie.StatusCode.INFER_NOT_STARTED
-        request_handler = exec_net.start_async(request_id=id, inputs={'data': img})
-        status = requests[id].wait()
-        assert status == ie.StatusCode.OK
-        assert np.argmax(request_handler.output_blobs['fc_out'].buffer) == 2
-    del exec_net
-    del ie_core
+  ie_core = ie.IECore()
+  net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+  num_requests = 5
+  exec_net = ie_core.load_network(net, device, num_requests=num_requests)
+  img = read_image()
+  requests = exec_net.requests
+  for id in range(num_requests):
+      status = requests[id].wait()
+      assert status == ie.StatusCode.INFER_NOT_STARTED
+      request_handler = exec_net.start_async(request_id=id, inputs={'data': img})
+      status = requests[id].wait()
+      assert status == ie.StatusCode.OK
+      assert np.argmax(request_handler.output_blobs['fc_out'].buffer) == 2
+  del exec_net
+  del ie_core
 
 
 def test_wait_for_callback(device):

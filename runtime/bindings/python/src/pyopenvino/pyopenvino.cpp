@@ -10,6 +10,7 @@
 
 #include "pyopenvino/graph/axis_set.hpp"
 #include "pyopenvino/graph/axis_vector.hpp"
+#include "pyopenvino/graph/const_node_output.hpp"
 #include "pyopenvino/graph/coordinate.hpp"
 #include "pyopenvino/graph/coordinate_diff.hpp"
 #include "pyopenvino/graph/function.hpp"
@@ -90,6 +91,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_Node(m);
     regclass_graph_Input(m);
     regclass_graph_Output(m);
+    regclass_graph_ConstOutput(m);
     regclass_graph_NodeFactory(m);
     regclass_graph_Strides(m);
     regclass_graph_CoordinateDiff(m);

@@ -116,4 +116,5 @@ def blob_from_file(path_to_bin_file: str) -> BlobWrapper:
 
 # flake8: noqa: D102
 def tensor_from_file(path: str) -> Tensor:
+    """The data will be read with dtype of unit8"""
     return Tensor(np.fromfile(path, dtype=np.uint8))
