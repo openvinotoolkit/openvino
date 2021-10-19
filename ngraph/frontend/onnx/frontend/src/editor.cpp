@@ -282,12 +282,17 @@ void onnx_editor::ONNXModelEditor::set_input_shapes(const std::map<std::string, 
 
 PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& tensor_name) const {
     const ValueInfoProto* value_info = nullptr;
-    auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
+    const TensorProto* tensor = nullptr;
+    const auto onnx_graph = m_pimpl->m_model_proto->mutable_graph();
     InferShapesAutoRelease onnx_shapes(m_pimpl->m_model_proto);
-    if (const auto* input = find_graph_input(*onnx_graph, tensor_name)) {
+    if (const auto input = find_graph_input(*onnx_graph, tensor_name)) {
         value_info = input;
-    } else if (const auto* output = find_graph_output(*onnx_graph, tensor_name)) {
+    } else if (const auto output = find_graph_output(*onnx_graph, tensor_name)) {
         value_info = output;
+    } else if (const auto val_info = find_graph_value_info(*onnx_graph, tensor_name)) {
+        value_info = val_info;
+    } else if (const auto initializer = find_graph_initializer(*onnx_graph, tensor_name)) {
+        tensor = initializer;
     } else {
         try {
             onnx_shapes.infer_shapes();
@@ -311,6 +316,8 @@ PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& t
         } else {
             return PartialShape::dynamic();
         }
+    } else if (tensor) {
+        return PartialShape{Shape{tensor->dims().cbegin(), tensor->dims().cend()}};
     } else {
         throw ngraph_error("The tensor: " + tensor_name + " was not found in the graph");
     }
@@ -425,7 +432,7 @@ void onnx_editor::ONNXModelEditor::set_input_values(
 void onnx_editor::ONNXModelEditor::set_tensor_name(const std::string& current_name, const std::string& new_name) {
     OPENVINO_ASSERT(!new_name.empty(), "New name must not be empty.");
 
-    auto graph = m_pimpl->m_model_proto->mutable_graph();
+    const auto graph = m_pimpl->m_model_proto->mutable_graph();
 
     OPENVINO_ASSERT(!(find_graph_input(*graph, new_name) || find_graph_output(*graph, new_name) ||
                       find_graph_initializer(*graph, new_name) || find_graph_value_info(*graph, new_name) ||
@@ -436,17 +443,18 @@ void onnx_editor::ONNXModelEditor::set_tensor_name(const std::string& current_na
 
     m_pimpl->m_is_mapper_updated = false;
 
-    if (auto input = find_graph_input(*graph, current_name))
-        *input->mutable_name() = new_name;
-    if (auto output = find_graph_output(*graph, current_name))
-        *output->mutable_name() = new_name;
-    if (auto initializer = find_graph_initializer(*graph, current_name))
+    // the same tensor can be multiplied in any or all of below arrays
+    if (const auto initializer = find_graph_initializer(*graph, current_name))
         *initializer->mutable_name() = new_name;
-    if (auto value_info = find_graph_value_info(*graph, current_name))
+    if (const auto input = find_graph_input(*graph, current_name))
+        *input->mutable_name() = new_name;
+    if (const auto output = find_graph_output(*graph, current_name))
+        *output->mutable_name() = new_name;
+    if (const auto value_info = find_graph_value_info(*graph, current_name))
         *value_info->mutable_name() = new_name;
 
     for (size_t i = 0; i < graph->node().size(); ++i) {
-        auto node = graph->mutable_node(i);
+        const auto node = graph->mutable_node(i);
         for (size_t j = 0; j < node->input().size(); ++j)
             if (node->input(j) == current_name)
                 *node->mutable_input(j) = new_name;
@@ -461,7 +469,7 @@ void onnx_editor::ONNXModelEditor::set_tensor_name(const std::string& current_na
 
 void onnx_editor::ONNXModelEditor::set_node_name(const EditorNode& node, const std::string& new_name) {
     const auto node_idx = m_pimpl->m_edge_mapper.get_node_index(node);
-    auto graph = m_pimpl->m_model_proto->mutable_graph();
+    const auto graph = m_pimpl->m_model_proto->mutable_graph();
 
     m_pimpl->m_is_mapper_updated = false;
 
@@ -469,15 +477,53 @@ void onnx_editor::ONNXModelEditor::set_node_name(const EditorNode& node, const s
 }
 
 void onnx_editor::ONNXModelEditor::clear_nodes_name(const std::string& name) {
-    auto graph = m_pimpl->m_model_proto->mutable_graph();
+    const auto graph = m_pimpl->m_model_proto->mutable_graph();
 
     m_pimpl->m_is_mapper_updated = false;
 
     for (size_t i = 0; i < graph->node().size(); ++i) {
-        auto node = graph->mutable_node(i);
+        const auto node = graph->mutable_node(i);
         if (node->has_name() && node->name() == name)
             node->clear_name();
     }
+}
+
+void onnx_editor::ONNXModelEditor::set_name_for_dimension(const std::string& node_name,
+                                                          size_t shape_dim_index,
+                                                          const std::string& dim_name) {
+    OPENVINO_ASSERT(!dim_name.empty(), "Dimension name must not be empty.");
+
+    const auto graph = m_pimpl->m_model_proto->mutable_graph();
+
+    OPENVINO_ASSERT(!find_graph_initializer(*graph, node_name), "ONNX initializer shape dimension cannot be dynamic.");
+
+    // the same tensor can be multiplied in any or all of below arrays
+    const auto input = find_graph_input(*graph, node_name);
+    const auto output = find_graph_output(*graph, node_name);
+    const auto value_info = find_graph_value_info(*graph, node_name);
+    OPENVINO_ASSERT(input || output || value_info,
+                    "There is no tensor named '",
+                    node_name,
+                    "' in the graph.");
+
+    const auto set_dim_param = [&shape_dim_index, &dim_name](ValueInfoProto* tensor) {
+        const auto shape = tensor->mutable_type()->mutable_tensor_type()->mutable_shape();
+        auto shape_dim_size = shape->dim_size();
+
+        for (; shape_dim_size <= shape_dim_index; ++shape_dim_size)
+            add_dim_to_onnx_shape(Dimension::dynamic(), *shape);
+
+        shape->mutable_dim(shape_dim_index)->set_dim_param(dim_name.c_str());
+    };
+
+    m_pimpl->m_is_mapper_updated = false;
+
+    if (input)
+        set_dim_param(input);
+    if (output)
+        set_dim_param(output);
+    if (value_info)
+        set_dim_param(value_info);
 }
 
 void onnx_editor::ONNXModelEditor::update_mapper_if_needed() const {

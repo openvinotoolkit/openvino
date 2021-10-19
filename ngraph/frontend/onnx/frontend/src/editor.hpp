@@ -96,6 +96,8 @@ public:
     void set_node_name(const EditorNode& node, const std::string& new_name);
     // TODO add descr
     void clear_nodes_name(const std::string& name);
+    // TODO add descr
+    void set_name_for_dimension(const std::string& node_name, size_t shape_dim_index, const std::string& dim_name);
 
     /// \brief Returns a serialized ONNX model, possibly modified by the editor.
     std::string model_string() const;

@@ -74,6 +74,7 @@ public:
     std::vector<Place::Ptr> get_consuming_operations() const override;
 
     void set_name(const std::string& new_name);
+    void set_name_for_dimension(size_t shape_dim_index, const std::string& dim_name);
 
 private:
     std::string m_name;
@@ -125,5 +126,4 @@ private:
     std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
 };
 }  // namespace frontend
-
 }  // namespace ngraph

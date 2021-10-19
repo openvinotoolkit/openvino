@@ -224,6 +224,33 @@ def create_test_onnx_models():
     models["test_partial_shape.onnx"] = make_model(graph, producer_name="ONNX Importer",
                                                    opset_imports=[onnx.helper.make_opsetid("", 13)])
 
+    # test place names model
+    add = onnx.helper.make_node("Add", inputs=["in1", "in2"], outputs=["add_out"])
+    sub = onnx.helper.make_node("Sub", inputs=["in1", "in2"], outputs=["sub_out"])
+    split = onnx.helper.make_node("Split", inputs=["add_out"], outputs=["out1", "out2"],
+                                  name="split1", axis=0)
+    mul = onnx.helper.make_node("Mul", inputs=["one_const", "sub_out"], outputs=["out3"])
+
+    input_tensors = [
+        make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("in2", onnx.TensorProto.FLOAT, (2, 2)),
+    ]
+    output_tensors = [
+        make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (1, 2)),
+        make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (1, 2)),
+        make_tensor_value_info("out3", onnx.TensorProto.FLOAT, (2, 2)),
+    ]
+    value_infos = [
+        make_tensor_value_info("sub_out", onnx.TensorProto.FLOAT, (2, 2)),
+    ]
+    initializers = [
+        onnx.helper.make_tensor("one_const", 1, [1], [1])
+    ]
+    graph = make_graph([add, sub, split, mul], "test_graph", input_tensors, output_tensors,
+                       value_info=value_infos, initializer=initializers)
+    models["test_place_names.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                                 opset_imports=[onnx.helper.make_opsetid("", 13)])
+
     return models
 
 
@@ -1038,7 +1065,7 @@ def test_get_place_by_operation_name_and_output_port():
 def test_not_supported_methods():
     skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
-    model = fe.load("input_model.onnx")
+    model = fe.load("test_place_names.onnx")
     tensor = model.get_place_by_tensor_name(tensorName="add_out")
 
     with pytest.raises(Exception) as e:
@@ -1053,7 +1080,7 @@ def test_not_supported_methods():
 def test_set_name_for_tensor():
     skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
-    model = fe.load("input_model_2.onnx")
+    model = fe.load("test_place_names.onnx")
     old_name = "add_out"
     new_name = "add_out_new"
 
@@ -1066,8 +1093,15 @@ def test_set_name_for_tensor():
         model.set_name_for_tensor(tensor=tensor, newName="")
     assert "New name must not be empty" in str(e)
 
+    # ONNX model stores tensor info separately for inputs, outputs and between nodes tensors
     with pytest.raises(Exception) as e:
-        model.set_name_for_tensor(tensor=tensor, newName="sp_out1")
+        model.set_name_for_tensor(tensor=tensor, newName="in1")
+    assert "already used by another tensor" in str(e)
+    with pytest.raises(Exception) as e:
+        model.set_name_for_tensor(tensor=tensor, newName="out1")
+    assert "already used by another tensor" in str(e)
+    with pytest.raises(Exception) as e:
+        model.set_name_for_tensor(tensor=tensor, newName="sub_out")
     assert "already used by another tensor" in str(e)
 
     # actual rename
@@ -1084,7 +1118,7 @@ def test_set_name_for_tensor():
 def test_set_name_for_operation_with_name():
     skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
-    model = fe.load("input_model.onnx")
+    model = fe.load("test_place_names.onnx")
     old_name = "split1"
     new_name = "split1_new"
 
@@ -1100,6 +1134,8 @@ def test_set_name_for_operation_with_name():
     assert new_operation
     assert new_operation.is_equal(operation)  # previous Place object holds the handle
 
+    # Below test passes for models with unique operation names, # what is not required by ONNX standard
+    # If there were more that one nodes with "split1" name, this test would fail.
     old_operation = model.get_place_by_operation_name(operationName=old_name)
     assert old_operation is None
 
@@ -1107,7 +1143,7 @@ def test_set_name_for_operation_with_name():
 def test_set_name_for_operation_without_name():
     skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
-    model = fe.load("input_model.onnx")
+    model = fe.load("test_place_names.onnx")
     output_name = "add_out"
     new_name = "Add_new"
 
@@ -1126,7 +1162,7 @@ def test_set_name_for_operation_without_name():
 def test_free_name_for_operation():
     skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
-    model = fe.load("input_model.onnx")
+    model = fe.load("test_place_names.onnx")
     name = "split1"
 
     # assure non existent names are ignored (expect no exception)
@@ -1140,3 +1176,28 @@ def test_free_name_for_operation():
 
     new_split1 = model.get_place_by_tensor_name(tensorName="out1").get_producing_operation()
     assert split1.is_equal(new_split1)
+
+
+def test_set_name_for_dimension():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("test_place_names.onnx")
+    dim_name = "batch_size"
+
+    input1 = model.get_place_by_tensor_name(tensorName="in1")
+    model.set_name_for_dimension(input1, 0, dim_name)
+    assert model.get_partial_shape(input1) == PartialShape([-1, 2])
+
+    output1 = model.get_place_by_tensor_name(tensorName="out1")
+    model.set_name_for_dimension(output1, 1, dim_name)
+    assert model.get_partial_shape(output1) == PartialShape([1, -1])
+
+    # sub_output rank is 2 so setting dim_name at index 3 extends its rank to 4
+    sub_output = model.get_place_by_tensor_name(tensorName="sub_out")
+    model.set_name_for_dimension(sub_output, 3, dim_name)
+    assert model.get_partial_shape(sub_output) == PartialShape([2, 2, -1, -1])
+
+    one_const = model.get_place_by_tensor_name(tensorName="one_const")
+    with pytest.raises(Exception) as e:
+        model.set_name_for_dimension(one_const, 0, dim_name)
+    assert "ONNX initializer shape dimension cannot be dynamic." in str(e)

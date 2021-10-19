@@ -100,7 +100,11 @@ void InputModelONNX::free_name_for_operation(const std::string& name) {
     m_editor->clear_nodes_name(name);
 }
 
-void InputModelONNX::set_name_for_dimension(Place::Ptr place, size_t shape_dim_index, const std::string& dim_name) {}
+void InputModelONNX::set_name_for_dimension(Place::Ptr tensor, size_t shape_dim_index, const std::string& dim_name) {
+    const auto onnx_tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(tensor);
+    FRONT_END_GENERAL_CHECK(onnx_tensor, __FUNCTION__, " expects a pointer to place of ONNX tensor type.");
+    onnx_tensor->set_name_for_dimension(shape_dim_index, dim_name);
+}
 
 // TODO consider moving to class definition
 void InputModelONNX::add_name_for_tensor(Place::Ptr, const std::string&) {

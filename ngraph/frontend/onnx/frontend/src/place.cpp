@@ -188,6 +188,10 @@ void PlaceTensorONNX::set_name(const std::string& new_name) {
     m_name = new_name;
 }
 
+void PlaceTensorONNX::set_name_for_dimension(size_t shape_dim_index, const std::string& dim_name) {
+    m_editor->set_name_for_dimension(m_name, shape_dim_index, dim_name);
+}
+
 PlaceOpONNX::PlaceOpONNX(const onnx_editor::EditorNode& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_node{node},
       m_editor{std::move(editor)} {}

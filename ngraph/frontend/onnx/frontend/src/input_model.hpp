@@ -55,7 +55,5 @@ public:
 private:
     std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
 };
-
 }  // namespace frontend
-
 }  // namespace ngraph
