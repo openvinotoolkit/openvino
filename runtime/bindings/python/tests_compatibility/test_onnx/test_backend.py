@@ -14,7 +14,6 @@ from tests_compatibility import (
     xfail_issue_33595,
     xfail_issue_33596,
     xfail_issue_33606,
-    xfail_issue_33633,
     xfail_issue_33651,
     xfail_issue_38091,
     xfail_issue_38699,
@@ -178,7 +177,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_top_k_negative_axis_cpu",
         "OnnxBackendNodeModelTest.test_top_k_smallest_cpu",
     ),
-    (xfail_issue_33633, "OnnxBackendNodeModelTest.test_maxpool_2d_dilations_cpu"),
     (
         xfail_issue_55760,
         "OnnxBackendNodeModelTest.test_argmax_negative_axis_keepdims_example_select_last_index_cpu",
