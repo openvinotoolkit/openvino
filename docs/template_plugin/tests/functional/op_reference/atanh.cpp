@@ -62,87 +62,34 @@ INSTANTIATE_TEST_SUITE_P(
     ReferenceAtanhLayerTest,
     ::testing::Values(
         Builder{}
-            .input({{8},
-                    element::f16,
-                    std::vector<ngraph::float16>{-INFINITY, -2.0f, -1.0f, -0.5f, 0.0f, 0.8f, 1.0f, INFINITY}})
+            .input({{5}, element::f16, std::vector<ngraph::float16>{-1.0f, -0.5f, 0.0f, 0.8f, 1.0f}})
+            .expected({{5},
+                       element::f16,
+                       std::vector<ngraph::float16>{-INFINITY, -0.54930614f, 0.00000000f, 1.0986123f, INFINITY}}),
+        Builder{}
+            .input({{5}, element::f32, std::vector<float>{-1.0f, -0.5f, 0.0f, 0.8f, 1.0f}})
             .expected(
-                {{8},
-                 element::f16,
-                 std::vector<
-                     ngraph::float16>{NAN, NAN, -INFINITY, -0.54930614f, 0.00000000f, 1.0986123f, INFINITY, NAN}}),
+                {{5}, element::f32, std::vector<float>{-INFINITY, -0.54930614f, 0.00000000f, 1.0986123f, INFINITY}}),
         Builder{}
-            .input(
-                {{2, 4}, element::f32, std::vector<float>{-INFINITY, -2.0f, -1.0f, -0.5f, 0.0f, 0.8f, 1.0f, INFINITY}})
-            .expected({{2, 4},
-                       element::f32,
-                       std::vector<float>{NAN, NAN, -INFINITY, -0.54930614f, 0.00000000f, 1.0986123f, INFINITY, NAN}}),
+            .input({{3}, element::i32, std::vector<int32_t>{-1, 0, 1}})
+            .expected(
+                {{3},
+                 element::i32,
+                 std::vector<int32_t>{std::numeric_limits<int32_t>::min(), 0, std::numeric_limits<int32_t>::max()}}),
         Builder{}
-            .input({{6},
-                    element::i32,
-                    std::vector<int32_t>{std::numeric_limits<int32_t>::min(),
-                                         -2,
-                                         -1,
-                                         1,
-                                         2,
-                                         std::numeric_limits<int32_t>::max()}})
-            .expected({{6},
-                       element::i32,
-                       std::vector<int32_t>{std::numeric_limits<int32_t>::min(),
-                                            std::numeric_limits<int32_t>::min(),
-                                            std::numeric_limits<int32_t>::min(),
-                                            std::numeric_limits<int32_t>::max(),
-                                            std::numeric_limits<int32_t>::max(),
-                                            std::numeric_limits<int32_t>::max()}}),
+            .input({{2}, element::u32, std::vector<uint32_t>{0, 1}})
+            .expected({{2}, element::u32, std::vector<uint32_t>{0, std::numeric_limits<uint32_t>::max()}}),
         Builder{}
-            .input({{2, 3},
-                    element::u32,
-                    std::vector<uint32_t>{std::numeric_limits<uint32_t>::min(),
-                                          0,
-                                          1,
-                                          2,
-                                          3,
-                                          std::numeric_limits<uint32_t>::max()}})
-            .expected({{2, 3},
-                       element::u32,
-                       std::vector<uint32_t>{std::numeric_limits<uint32_t>::min(),
-                                             0,
-                                             std::numeric_limits<uint32_t>::max(),
-                                             std::numeric_limits<uint32_t>::max(),
-                                             std::numeric_limits<uint32_t>::max(),
-                                             std::numeric_limits<uint32_t>::max()}}),
-        Builder{}
-            .input({{2, 3},
-                    element::i64,
-                    std::vector<int64_t>{std::numeric_limits<int64_t>::min(),
-                                         -2,
-                                         -1,
-                                         1,
-                                         2,
-                                         std::numeric_limits<int64_t>::max()}})
-            .expected({{2, 3},
+            .input({{3}, element::i64, std::vector<int64_t>{-1, 0, 1}})
+            .expected({{3},
                        element::i64,
-                       std::vector<int64_t>{std::numeric_limits<int64_t>::min(),
-                                            std::numeric_limits<int64_t>::min(),
-                                            std::numeric_limits<int64_t>::min(),
-                                            std::numeric_limits<int64_t>::max(),
-                                            std::numeric_limits<int64_t>::max(),
-                                            std::numeric_limits<int64_t>::max()}}),
+                       std::vector<int64_t>{
+                           std::numeric_limits<int64_t>::min(),
+                           0,
+                           std::numeric_limits<int64_t>::max(),
+                       }}),
         Builder{}
-            .input({{2, 3},
-                    element::u64,
-                    std::vector<uint64_t>{std::numeric_limits<uint64_t>::min(),
-                                          0,
-                                          1,
-                                          2,
-                                          3,
-                                          std::numeric_limits<uint64_t>::max()}})
-            .expected({{2, 3},
-                       element::u64,
-                       std::vector<uint64_t>{std::numeric_limits<uint64_t>::min(),
-                                             0,
-                                             std::numeric_limits<uint64_t>::max(),
-                                             std::numeric_limits<uint64_t>::max(),
-                                             std::numeric_limits<uint64_t>::max(),
-                                             std::numeric_limits<uint64_t>::max()}})),
+            .input({{2}, element::u64, std::vector<uint64_t>{0, 1}})
+            .expected({{2}, element::u64, std::vector<uint64_t>{0, std::numeric_limits<uint64_t>::max()}})),
     ReferenceAtanhLayerTest::getTestCaseName);
 }  // namespace reference_tests
