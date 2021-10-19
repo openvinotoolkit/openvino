@@ -142,6 +142,12 @@ Output<Node> eltwise_fold(const Output<Node> & input0, const Output<Node> & inpu
 }
 
 TRANSFORMATIONS_API std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& node);
+
+TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_node(
+        const std::shared_ptr<ngraph::Node>& shape_node, const std::vector<size_t>& indices);
+
+TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_source(
+        const ngraph::Output<ngraph::Node>& shape_source, const std::vector<size_t>& indices);
 }  // namespace util
 }  // namespace op
 }  // namespace ngraph
