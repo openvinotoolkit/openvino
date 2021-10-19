@@ -5,6 +5,8 @@ import os
 import pytest
 import numpy as np
 
+import ngraph as ng
+
 
 def model_path(is_myriad=False):
     path_to_repo = os.environ["MODELS_PATH"]
@@ -44,15 +46,11 @@ def device():
 def pytest_configure(config):
     # register an additional markers
     config.addinivalue_line(
-        "markers", "ngraph_dependent_test"
-    )
-    config.addinivalue_line(
         "markers", "template_plugin"
     )
 
 
 def create_encoder(input_shape, levels = 4):
-    import ngraph as ng
     # input
     input_node = ng.parameter(input_shape, np.float32, name="data")
 
@@ -86,7 +84,6 @@ def create_encoder(input_shape, levels = 4):
 
 
 def create_relu(input_shape):
-    import ngraph as ng
     input_shape = ng.impl.PartialShape(input_shape)
     param = ng.parameter(input_shape, dtype=np.float32, name="data")
     result = ng.relu(param, name="out")
