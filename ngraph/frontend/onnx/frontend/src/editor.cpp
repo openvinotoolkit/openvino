@@ -501,10 +501,7 @@ void onnx_editor::ONNXModelEditor::set_name_for_dimension(const std::string& nod
     const auto input = find_graph_input(*graph, node_name);
     const auto output = find_graph_output(*graph, node_name);
     const auto value_info = find_graph_value_info(*graph, node_name);
-    OPENVINO_ASSERT(input || output || value_info,
-                    "There is no tensor named '",
-                    node_name,
-                    "' in the graph.");
+    OPENVINO_ASSERT(input || output || value_info, "There is no tensor named '", node_name, "' in the graph.");
 
     const auto set_dim_param = [&shape_dim_index, &dim_name](ValueInfoProto* tensor) {
         const auto shape = tensor->mutable_type()->mutable_tensor_type()->mutable_shape();

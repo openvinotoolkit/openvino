@@ -1091,7 +1091,7 @@ def test_set_name_for_tensor():
 
     with pytest.raises(Exception) as e:
         model.set_name_for_tensor(tensor=tensor, newName="")
-    assert "New name must not be empty" in str(e)
+    assert "name must not be empty" in str(e)
 
     # ONNX model stores tensor info separately for inputs, outputs and between nodes tensors
     with pytest.raises(Exception) as e:
@@ -1134,7 +1134,7 @@ def test_set_name_for_operation_with_name():
     assert new_operation
     assert new_operation.is_equal(operation)  # previous Place object holds the handle
 
-    # Below test passes for models with unique operation names, # what is not required by ONNX standard
+    # Below test passes for models with unique operation names, what is not required by ONNX standard
     # If there were more that one nodes with "split1" name, this test would fail.
     old_operation = model.get_place_by_operation_name(operationName=old_name)
     assert old_operation is None
@@ -1196,6 +1196,10 @@ def test_set_name_for_dimension():
     sub_output = model.get_place_by_tensor_name(tensorName="sub_out")
     model.set_name_for_dimension(sub_output, 3, dim_name)
     assert model.get_partial_shape(sub_output) == PartialShape([2, 2, -1, -1])
+
+    with pytest.raises(Exception) as e:
+        model.set_name_for_dimension(input1, 0, "")
+    assert "name must not be empty" in str(e)
 
     one_const = model.get_place_by_tensor_name(tensorName="one_const")
     with pytest.raises(Exception) as e:
