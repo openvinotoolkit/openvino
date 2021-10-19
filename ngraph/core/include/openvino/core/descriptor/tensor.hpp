@@ -36,11 +36,12 @@ public:
     Tensor(const Tensor&) = delete;
     Tensor& operator=(const Tensor&) = delete;
 
-    NGRAPH_DEPRECATED("get_name() is deprecated! Please use get_names() instead.")
+    OPENVINO_DEPRECATED("get_name() is deprecated! Please use get_names() instead.")
     const std::string& get_name() const;
-    NGRAPH_DEPRECATED("set_name() is deprecated! Please use set_names() instead.")
+    OPENVINO_DEPRECATED("set_name() is deprecated! Please use set_names() instead.")
     void set_name(const std::string& name);
 
+    std::string get_any_name() const;
     const std::unordered_set<std::string>& get_names() const;
     void set_names(const std::unordered_set<std::string>& names);
     void add_names(const std::unordered_set<std::string>& names);
@@ -91,7 +92,7 @@ protected:
     // Support for dynamic shapes required transition to ov::PartialShape.
     // To smoothly transition to ov::PartialShape we introduced m_partial_shape
     // and kept m_shape in sync with m_partial_shape. Synchronization point was placed
-    // in set_partial_shape which dramatically affected performance of ngraph::Function
+    // in set_partial_shape which dramatically affected performance of ov::Function
     // validation. Since we have started the transition to ov::PartialShape and reduced
     // Shape usage the only user of m_shape was get_shape method with signature:
     // const PartialShape& descriptor::Tensor::get_shape() const

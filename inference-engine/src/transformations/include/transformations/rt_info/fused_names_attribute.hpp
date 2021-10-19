@@ -7,6 +7,8 @@
  * @file fused_names_attribute.hpp
  */
 
+#pragma once
+
 #include <assert.h>
 #include <functional>
 #include <memory>
@@ -15,8 +17,8 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include "openvino/core/rtti.hpp"
-#include <transformations_visibility.hpp>
+#include <openvino/core/rtti.hpp>
+#include <ngraph/attribute_visitor.hpp>
 
 
 namespace ngraph {
@@ -26,11 +28,13 @@ namespace ngraph {
  * @brief FusedName class represents runtime info attribute that stores
  * all operation names that was fully or partially fused into node
  */
-class TRANSFORMATIONS_API FusedNames {
+class NGRAPH_API FusedNames {
 private:
     std::set<std::string> fused_names;
 
 public:
+    friend class VariantWrapper<FusedNames>;
+
     /**
      * A default constructor
      */
@@ -67,7 +71,7 @@ public:
  * @brief getFusedNames return string with operation names separated by coma in alphabetical order
  * @param[in] node The node will be used to get FusedNames attribute
  */
-TRANSFORMATIONS_API std::string getFusedNames(const std::shared_ptr<ngraph::Node> & node);
+NGRAPH_API std::string getFusedNames(const std::shared_ptr<ngraph::Node> & node);
 
 /**
  * @ingroup ie_runtime_attr_api
@@ -75,24 +79,27 @@ TRANSFORMATIONS_API std::string getFusedNames(const std::shared_ptr<ngraph::Node
  * @param[in] node The node will be used to get FusedNames attribute
  * @return vector of strings
  */
-TRANSFORMATIONS_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ngraph::Node> & node);
+NGRAPH_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ngraph::Node> & node);
 
 }  // namespace ngraph
 
 namespace ov {
 
-extern template class TRANSFORMATIONS_API VariantImpl<ngraph::FusedNames>;
+extern template class NGRAPH_API VariantImpl<ngraph::FusedNames>;
 
 template<>
-class TRANSFORMATIONS_API VariantWrapper<ngraph::FusedNames> : public VariantImpl<ngraph::FusedNames> {
+class NGRAPH_API VariantWrapper<ngraph::FusedNames> : public VariantImpl<ngraph::FusedNames> {
 public:
-    OPENVINO_RTTI("Variant::RuntimeAttribute::FusedNames");
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_RTTI("fused_names", "0");
+
+    VariantWrapper() = default;
 
     VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
 
     std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector & nodes) override;
 
     std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
+
+    bool visit_attributes(AttributeVisitor & visitor) override;
 };
 }  // namespace ov

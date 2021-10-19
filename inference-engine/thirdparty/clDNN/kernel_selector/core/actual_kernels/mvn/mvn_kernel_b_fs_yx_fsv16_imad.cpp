@@ -82,16 +82,32 @@ MVNKernelBase::DispatchData MVNKernel_b_fs_yx_fsv16_imad::SetDefault(const mvn_p
     return dispatchData;
 }
 
+Datatype MVNKernel_b_fs_yx_fsv16_imad::GetAccumulatorType(const mvn_params& params) const {
+    const auto& input_dt = params.inputs[0].GetDType();
+
+    switch (input_dt) {
+        case Datatype::F32:
+        case Datatype::F16:
+            return Datatype::F32;
+        case Datatype::INT8:
+        case Datatype::UINT8:
+            return Datatype::INT32;
+        default: return Datatype::F32;
+    }
+}
+
 JitConstants MVNKernel_b_fs_yx_fsv16_imad::GetJitConstants(const mvn_params& params, DispatchData dispatchData) const {
     auto jits = Parent::GetJitConstants(params, dispatchData);
 
     auto activation_dt = GetActivationType(params);
+    jits.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
     jits.Merge(MakeTypeJitConstants(activation_dt, "MEAN"));
+    jits.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
     jits.AddConstant(MakeJitConstant("SIMD", simd));
     jits.AddConstant(MakeJitConstant("LWS", dispatchData.lws[0]));
     jits.AddConstant(MakeJitConstant("GWS", dispatchData.gws[0]));
     jits.AddConstant(MakeJitConstant("ITEM_GROUPS", dispatchData.itemsNum));
-
+    jits.AddConstant(MakeJitConstant("INPUT_SLICE_PITCH", 16));
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
 

@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
@@ -15,6 +16,8 @@
 
 using namespace std;
 using namespace ngraph;
+
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 TEST(op_eval, softplus_4D) {
     auto p = make_shared<op::Parameter>(element::f32, Shape{4});

@@ -193,20 +193,16 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
         auto& current_bucket = program_buckets[key];
         if (current_bucket.empty()) { // new bucket
-            const auto& bucket_id = program_buckets.size() - 1;
-            current_bucket.push_back(batch_program());
-            current_bucket.back().bucket_id = static_cast<int32_t>(bucket_id);
-            current_bucket.back().batch_id = 0;
-            current_bucket.back().options = options;
+            const auto& batch_id = 0;
+            const auto& bucket_id = static_cast<int32_t>(program_buckets.size() - 1);
+            current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
         }
 
         // Create new kernels batch when the limit is reached
         if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()) {
-            const auto& batch_id = current_bucket.size();
-            current_bucket.push_back(batch_program());
-            current_bucket.back().bucket_id = static_cast<int32_t>(program_buckets.size());
-            current_bucket.back().batch_id = static_cast<int32_t>(batch_id);
-            current_bucket.back().options = options;
+            const auto& bucket_id =  static_cast<int32_t>(program_buckets.size());
+            const auto& batch_id = static_cast<int32_t>(current_bucket.size());
+            current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
         }
 
         auto& current_batch = current_bucket.back();
@@ -381,8 +377,24 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
     if (!err_log.empty()) {
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->verbose) {
+            std::cout << "-------- OpenCL build error" << std::endl;
             std::cout << err_log << std::endl;
+            std::cout << "-------- End of OpenCL build error" << std::endl;
         }
+        std::stringstream err_ss(err_log);
+        std::string line;
+        int cnt = 0;
+
+        while (std::getline(err_ss, line, '\n')) {
+            if (line.find("error") != std::string::npos)
+                cnt = 5;
+            cnt--;
+            if (cnt > 0)
+                std::cout << line << std::endl;
+            else if (cnt == 0)
+                std::cout << "...." << std::endl;
+        }
+
         throw std::runtime_error("Program build failed. You may enable OCL source dump to see the error log.\n");
     }
 }

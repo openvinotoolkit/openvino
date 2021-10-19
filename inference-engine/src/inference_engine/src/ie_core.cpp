@@ -24,6 +24,7 @@
 #include "ie_icore.hpp"
 #include "ie_itt.hpp"
 #include "ie_network_reader.hpp"
+#include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_remote_context.hpp"
 #include "ngraph/graph_util.hpp"
@@ -31,6 +32,8 @@
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/executable_network.hpp"
 #include "openvino/util/file_util.hpp"
@@ -41,6 +44,8 @@ using namespace std::placeholders;
 
 namespace ov {
 namespace runtime {
+
+namespace {
 
 template <typename T>
 struct Parsed {
@@ -126,6 +131,8 @@ void allowNotImplemented(F&& f) {
     }
 }
 
+}  // namespace
+
 class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore> {
     mutable std::map<std::string, ov::runtime::InferencePlugin> plugins;
 
@@ -179,6 +186,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
+
+    const bool newAPI;
 
     bool DeviceSupportsImportExport(const std::string& deviceName) const override {
         auto parsed = parseDeviceNameIntoConfig(deviceName);
@@ -345,7 +354,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     }
 
 public:
-    CoreImpl() {
+    CoreImpl(bool _newAPI) : newAPI(_newAPI) {
         opsetNames.insert("opset1");
         opsetNames.insert("opset2");
         opsetNames.insert("opset3");
@@ -437,12 +446,16 @@ public:
 
     ie::CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from file");
-        return ie::details::ReadNetwork(modelPath, binPath, extensions);
+        return InferenceEngine::details::ReadNetwork(modelPath, binPath, extensions, newAPI);
     }
 
     ie::CNNNetwork ReadNetwork(const std::string& model, const ie::Blob::CPtr& weights) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from memory");
-        return ie::details::ReadNetwork(model, weights, extensions);
+        return InferenceEngine::details::ReadNetwork(model, weights, extensions, newAPI);
+    }
+
+    bool isNewAPI() const override {
+        return newAPI;
     }
 
     // TODO: In future this method can be added to ICore interface
@@ -980,7 +993,10 @@ std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList
     return deviceNames;
 }
 
-class Core::Impl : public ov::runtime::CoreImpl {};
+class Core::Impl : public ov::runtime::CoreImpl {
+public:
+    Impl() : ov::runtime::CoreImpl(false) {}
+};
 
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
@@ -1012,7 +1028,7 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
     auto exec = _impl->LoadNetwork(network, deviceName, config);
-    return {exec, exec};
+    return {exec._so, exec._ptr};
 }
 
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
@@ -1026,7 +1042,7 @@ ExecutableNetwork Core::LoadNetwork(const std::string& modelPath,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
     auto exec = _impl->LoadNetwork(modelPath, deviceName, config);
-    return {exec, exec};
+    return {exec._so, exec._ptr};
 }
 
 RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const ParamMap& params) {
@@ -1091,7 +1107,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
                                       const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
     auto exec = _impl->ImportNetwork(networkModel, deviceName, config);
-    return {exec, exec};
+    return {exec._so, exec._ptr};
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
@@ -1244,7 +1260,10 @@ namespace runtime {
         OPENVINO_ASSERT(false, "Unexpected exception"); \
     }
 
-class Core::Impl : public CoreImpl {};
+class Core::Impl : public CoreImpl {
+public:
+    Impl() : ov::runtime::CoreImpl(true) {}
+};
 
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
@@ -1263,19 +1282,23 @@ std::map<std::string, Version> Core::get_versions(const std::string& deviceName)
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-std::shared_ptr<ngraph::Function> Core::read_model(const std::wstring& modelPath, const std::wstring& binPath) const {
+std::shared_ptr<ov::Function> Core::read_model(const std::wstring& modelPath, const std::wstring& binPath) const {
     OV_CORE_CALL_STATEMENT(
         return _impl->ReadNetwork(ov::util::wstring_to_string(modelPath), ov::util::wstring_to_string(binPath))
             .getFunction(););
 }
 #endif
 
-std::shared_ptr<ngraph::Function> Core::read_model(const std::string& modelPath, const std::string& binPath) const {
+std::shared_ptr<ov::Function> Core::read_model(const std::string& modelPath, const std::string& binPath) const {
     OV_CORE_CALL_STATEMENT(return _impl->ReadNetwork(modelPath, binPath).getFunction(););
 }
 
-std::shared_ptr<ngraph::Function> Core::read_model(const std::string& model, const ie::Blob::CPtr& weights) const {
-    OV_CORE_CALL_STATEMENT(return _impl->ReadNetwork(model, weights).getFunction(););
+std::shared_ptr<ov::Function> Core::read_model(const std::string& model, const ov::runtime::Tensor& weights) const {
+    InferenceEngine::Blob::Ptr blob;
+    if (weights) {
+        blob = weights._impl;
+    }
+    OV_CORE_CALL_STATEMENT(return _impl->ReadNetwork(model, blob).getFunction(););
 }
 
 namespace {
@@ -1289,13 +1312,12 @@ ie::CNNNetwork toCNN(const std::shared_ptr<const ngraph::Function>& model) {
 
 }  // namespace
 
-ExecutableNetwork Core::compile_model(const std::shared_ptr<const ngraph::Function>& model,
+ExecutableNetwork Core::compile_model(const std::shared_ptr<const ov::Function>& model,
                                       const std::string& deviceName,
                                       const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->LoadNetwork(toCNN(model), deviceName, config);
-        return {exec.operator const InferenceEngine::details::SharedObjectLoader&().get(),
-                exec.operator std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>&()};
+        return {exec._so, exec._ptr};
     });
 }
 
@@ -1303,14 +1325,12 @@ ExecutableNetwork Core::compile_model(const std::string& modelPath,
                                       const std::string& deviceName,
                                       const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
-        // TODO: need to pass newAPI flag to preserve conversions of precisions
         auto exec = _impl->LoadNetwork(modelPath, deviceName, config);
-        return {exec.operator const InferenceEngine::details::SharedObjectLoader&().get(),
-                exec.operator std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>&()};
+        return {exec._so, exec._ptr};
     });
 }
 
-ExecutableNetwork Core::compile_model(const std::shared_ptr<const ngraph::Function>& model,
+ExecutableNetwork Core::compile_model(const std::shared_ptr<const ov::Function>& model,
                                       const RemoteContext& context,
                                       const ConfigMap& config) {
     OV_CORE_CALL_STATEMENT({
@@ -1329,8 +1349,51 @@ ExecutableNetwork Core::import_model(std::istream& modelStream,
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->ImportNetwork(modelStream, deviceName, config);
-        return {exec.operator const InferenceEngine::details::SharedObjectLoader&().get(),
-                exec.operator std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>&()};
+
+        // create getInputs() based on GetInputsInfo()
+        using namespace InferenceEngine::details;
+
+        if (exec->getInputs().empty()) {
+            const auto& inputsInfo = exec->GetInputsInfo();
+            OPENVINO_ASSERT(!inputsInfo.empty(), "inputsInfo is empty after network import");
+
+            std::vector<std::shared_ptr<const ov::Node>> params;
+            params.reserve(inputsInfo.size());
+            for (auto&& input : inputsInfo) {
+                auto param =
+                    std::make_shared<ov::op::v0::Parameter>(convertPrecision(input.second->getPrecision()),
+                                                            ov::PartialShape(input.second->getTensorDesc().getDims()));
+                param->get_output_tensor(0).add_names({input.first});
+                params.emplace_back(std::move(param));
+            }
+
+            exec->setInputs(params);
+        }
+
+        if (exec->getOutputs().empty()) {
+            const auto& outputsInfo = exec->GetOutputsInfo();
+            OPENVINO_ASSERT(!outputsInfo.empty(), "outputsInfo is empty after network import");
+
+            std::vector<std::shared_ptr<const ov::Node>> results;
+            results.reserve(outputsInfo.size());
+            for (auto&& output : outputsInfo) {
+                auto fake_param =
+                    std::make_shared<ov::op::v0::Parameter>(convertPrecision(output.second->getPrecision()),
+                                                            ov::PartialShape(output.second->getTensorDesc().getDims()));
+                auto result = std::make_shared<ov::op::v0::Result>(fake_param);
+                result->get_output_tensor(0).add_names({output.first});
+                results.emplace_back(std::move(result));
+            }
+            exec->setOutputs(results);
+        }
+
+        // but for true support plugins need:
+        // 1. ensure order or parameters and results as in ov::Function
+        // 2. provide tensor names for inputs and outputs
+        // 3. precisions for getInputs and getOutputs should be taken from GetInputsInfo / GetOutputsInfo
+        //    not from ngraph. Plugins should use SetExeNetworkInfo
+
+        return {exec._so, exec._ptr};
     });
 }
 
@@ -1359,7 +1422,7 @@ ExecutableNetwork Core::import_model(std::istream& modelStream, const RemoteCont
     });
 }
 
-SupportedOpsMap Core::query_model(const std::shared_ptr<const ngraph::Function>& model,
+SupportedOpsMap Core::query_model(const std::shared_ptr<const ov::Function>& model,
                                   const std::string& deviceName,
                                   const ConfigMap& config) const {
     OV_CORE_CALL_STATEMENT({

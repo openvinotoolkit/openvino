@@ -71,7 +71,6 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
 
     if (isDynamic && (config.inConfs[0].desc->getShape().getRank() != config.outConfs[0].desc->getShape().getRank()))
         IE_THROW() << "Reorder node doesn't support case when input and output shapes have different rank and dynamic";
-
     if (!isOptimized) {
         const auto &inShape = getInputShapeAtPort(0);
         if (MKLDNNPlugin::one_of(inShape.getRank(), 4, 5) &&
@@ -88,7 +87,7 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
                    config.inConfs[0].desc->getPrecision() == config.outConfs[0].desc->getPrecision() &&
                    config.inConfs[0].desc->getPrecision().size() == 1) {
             // oneDNN doesn't provide JIT reorder impl for non-avx2 targets so we fallback on simple c++ implementation which shows better perf
-            canUseNcsp2Nspc = true;
+            isNcsp2NspcCase = true;
         }
     }
 }
@@ -116,14 +115,46 @@ void MKLDNNReorderNode::prepareParams() {
         if (getSelectedPrimitiveDescriptor() == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set.";
 
-        if (isNspc2NcspCase) {
+        auto isSupportedDesc = [](const MemoryDesc& desc) {
+            if (!desc.isDefined()) {
+                return false;
+            }
+            if (!(desc.getType() & MemoryDescType::Blocked)) {
+                return false;
+            }
+            if ((desc.getType() & MemoryDescType::Mkldnn) && !desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData()) {
+                return false;
+            }
+            return true;
+        };
+
+        const auto&  parentDesc = srcMemPtr->getDesc();
+        const auto&  childDesc = dstMemPtr->getDesc();
+        if ((isNspc2NcspCase || isNcsp2NspcCase) && isSupportedDesc(childDesc) && isSupportedDesc(parentDesc)) {
             const auto &inDims = srcMemPtr->getStaticDims();
-            canUseNspc2Ncsp = inDims[1] <= 64 && inDims[1] >= 16 &&
-                              (srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount() / inDims[1]) >= 128;
+            // Check that child strides are consistent with parent dims if the child is inplace.
+            // The strides must be dense except for the channel one (since the child num channels might differ)
+            const auto childSubBlocksAreDense = [&]() {
+                const auto& dstStrides = childDesc.as<BlockedMemoryDesc>()->getStrides();
+                const auto& dstOrder = childDesc.as<BlockedMemoryDesc>()->getOrder();
+                const size_t channelDim = 1;
+                if (dstStrides.back() != 1)
+                    return false;
+                for (int i = inDims.size() - 1; i > 0; i--) {
+                    if (dstStrides[i-1] != dstStrides[i] * inDims[dstOrder[i]] && dstOrder[i] != channelDim)
+                        return false;
+                }
+                return true;
+            };
+            if (isNspc2NcspCase) {
+                canUseNspc2Ncsp = inDims[1] <= 64 && inDims[1] >= 16 &&
+                                  (parentDesc.as<BlockedMemoryDesc>()->getPaddedElementsCount() / inDims[1]) >= 128 &&
+                                  childSubBlocksAreDense();
+            } else if (isNcsp2NspcCase) {
+                canUseNcsp2Nspc = childSubBlocksAreDense();
+            }
         }
         if (!canUseNcsp2Nspc && !canUseNspc2Ncsp) {
-            auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-            auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
             if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
                 IE_THROW() << "Destination memory didn't allocate.";
             if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
@@ -207,6 +238,7 @@ void MKLDNNReorderNode::optimizedNcsp2Nspc() {
     auto childEdge = getChildEdgeAt(0);
 
     auto inDims = parentEdge->getMemory().GetShape().getStaticDims();
+    const auto dstStrides = childEdge->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getStrides();
     const size_t ndims = inDims.size();
     const size_t DIM0 = inDims[0];
     const size_t DIM1 = inDims[1];
@@ -217,18 +249,20 @@ void MKLDNNReorderNode::optimizedNcsp2Nspc() {
     auto src_data = reinterpret_cast<const uint8_t *>(parentEdge->getMemoryPtr()->GetPtr());
     auto dst_data = reinterpret_cast<uint8_t *>(childEdge->getMemoryPtr()->GetPtr());
 
-    const size_t stride0 = DIM1 * DIM2 * DIM3 * DIM4;
+    const size_t src_batch_stride = DIM1 * DIM2 * DIM3 * DIM4;
+    const size_t dst_batch_stride = dstStrides[0];
+    const size_t dst_channel_stride = dstStrides[ndims-2];
     const size_t stride1 = DIM2 * DIM3 * DIM4;
     const size_t stride2 = DIM2 * DIM3;
 
     parallel_for3d(DIM0, DIM1, stride2, [&](size_t dim0, size_t dim1, size_t j) {
-        size_t src_off = dim0 * stride0 + j * DIM4 + dim1 * stride1;
-        size_t dst_off = dim0 * stride0 + j * DIM4 * DIM1 + dim1;
+        size_t src_off = dim0 * src_batch_stride + j * DIM4 + dim1 * stride1;
+        size_t dst_off = dim0 * dst_batch_stride + j * DIM4 * dst_channel_stride + dim1;
 
         for (size_t dim4 = 0; dim4 < DIM4; ++dim4) {
             dst_data[dst_off] = src_data[src_off];
             src_off++;
-            dst_off += DIM1;
+            dst_off += dst_channel_stride;
         }
     });
 }
@@ -248,15 +282,17 @@ void MKLDNNReorderNode::optimizedNspc2Ncsp() {
     auto src_data = reinterpret_cast<const float *>(parentEdge->getMemoryPtr()->GetPtr());
     auto dst_data = reinterpret_cast<float *>(childEdge->getMemoryPtr()->GetPtr());
 
-    const size_t stride1 = DIM2 * DIM3 * DIM4;
-    const size_t stride0 = stride1 * DIM1;
-    parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
-        auto src_off = b*stride0 + j*DIM1;
-        auto dst_off = b*stride0 + j;
+    const auto dstStrides = childEdge->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    const size_t block_size = DIM2 * DIM3 * DIM4;
+    const size_t src_batch_stride = block_size * DIM1;
+    const size_t dst_batch_stride = dstStrides[0];
+    parallel_for2d(DIM0, block_size, [&](size_t b, size_t j) {
+        auto src_off = b * src_batch_stride + j * DIM1;
+        auto dst_off = b * dst_batch_stride + j;
         for (size_t dim1 = 0; dim1 < DIM1; ++dim1) {
             dst_data[dst_off] = src_data[src_off];
             src_off++;
-            dst_off += stride1;
+            dst_off += block_size;
         }
     });
 }
@@ -356,7 +392,7 @@ void MKLDNNReorderNode::reorderData(const MKLDNNMemory &input, const MKLDNNMemor
             }
         }
         if (pReorder) {
-            mkldnn::stream loc_stream(output.getEngine(), mkldnn::stream::flags::default_order);
+            mkldnn::stream loc_stream(output.getEngine(), mkldnn::stream::flags::in_order);
             pReorder->execute(loc_stream, *srcMemoryPtr, *output.GetPrimitivePtr());
         } else {
             IE_THROW() << "Could not make mkldnn reorder.";

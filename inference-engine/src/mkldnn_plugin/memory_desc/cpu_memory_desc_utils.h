@@ -21,6 +21,8 @@ class MKLDNNMemory;
 
 class MemoryDescUtils {
 public:
+    MemoryDescUtils() = delete;
+
     /**
      * @brief Converts MemoryDesc to DnnlMemoryDesc
      * @param desc MemoryDesc to be converted

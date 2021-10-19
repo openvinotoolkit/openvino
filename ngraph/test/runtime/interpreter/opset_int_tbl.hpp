@@ -3,8 +3,8 @@
 //
 
 #ifndef NGRAPH_OP
-#warning "NGRAPH_OP not defined"
-#define NGRAPH_OP(x, y)
+#    warning "NGRAPH_OP not defined"
+#    define NGRAPH_OP(x, y)
 #endif
 
 NGRAPH_OP(Abs, op::v0)
@@ -103,3 +103,4 @@ NGRAPH_OP(AdaptiveMaxPool, ngraph::op::v8)
 NGRAPH_OP(Gather, op::v8)
 NGRAPH_OP(MatrixNms, op::v8)
 NGRAPH_OP(MulticlassNms, op::v8)
+NGRAPH_OP(Slice, op::v8)

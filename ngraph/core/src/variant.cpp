@@ -5,6 +5,7 @@
 #include "ngraph/variant.hpp"
 
 #include "ngraph/node.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 
 using namespace ngraph;
 
@@ -24,3 +25,4 @@ bool Variant::is_copyable() const {
 
 template class ngraph::VariantImpl<std::string>;
 template class ngraph::VariantImpl<int64_t>;
+template class ngraph::VariantImpl<bool>;

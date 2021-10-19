@@ -16,7 +16,8 @@ namespace py = pybind11;
 void regclass_pyngraph_FrontEnd(py::module m) {
     py::class_<ngraph::frontend::FrontEnd, std::shared_ptr<ngraph::frontend::FrontEnd>> fem(m,
                                                                                             "FrontEnd",
-                                                                                            py::dynamic_attr());
+                                                                                            py::dynamic_attr(),
+                                                                                            py::module_local());
     fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::FrontEnd";
 
     fem.def(
@@ -136,4 +137,8 @@ void regclass_pyngraph_FrontEnd(py::module m) {
                 get_name : str
                     Current frontend name. Empty string if not implemented.
             )");
+
+    fem.def("__repr__", [](const ngraph::frontend::FrontEnd& self) -> std::string {
+        return "<FrontEnd '" + self.get_name() + "'>";
+    });
 }

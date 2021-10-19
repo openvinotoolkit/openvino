@@ -17,7 +17,8 @@ void regclass_pyngraph_FrontEndManager(py::module m) {
     py::class_<ngraph::frontend::FrontEndManager, std::shared_ptr<ngraph::frontend::FrontEndManager>> fem(
         m,
         "FrontEndManager",
-        py::dynamic_attr());
+        py::dynamic_attr(),
+        py::module_local());
     fem.doc() = "ngraph.impl.FrontEndManager wraps ngraph::frontend::FrontEndManager";
 
     fem.def(py::init<>());
@@ -78,6 +79,10 @@ void regclass_pyngraph_FrontEndManager(py::module m) {
                 load_by_model : FrontEnd
                     Frontend interface for further loading of models. 'None' if no suitable frontend is found
             )");
+
+    fem.def("__repr__", [](const ngraph::frontend::FrontEndManager& self) -> std::string {
+        return "<FrontEndManager>";
+    });
 }
 
 void regclass_pyngraph_GeneralFailureFrontEnd(py::module m) {
