@@ -1,7 +1,7 @@
 /* overrides */
 .switcher-set {display: none;}
 
-#openvino-documentation ~ h1 {
+#openvino-documentation > h1 {
 	display: none;
 }
 
@@ -118,24 +118,6 @@ img.HP_img_chart ~ p {
 	font-size: 0.7em;
 }
 
-/* === OPTIMIZED FOR ===================================================== */
-#HP_optimized_for {
-	display: table;
-	text-align: center;
-	margin-bottom: 30px;
-}
-#HP_optimized_for p {
-	display: table-cell;
-	width: 60%;
-	vertical-align: middle;
-	margin: 0;
-}
-#HP_optimized_for img {
-	display: table-cell;
-	width: 100%;
-	vertical-align: middle;
-	margin: 0;	
-}
 
 /* === INFORMATION BOXES ================================================= */
 .HP_infoboxes {
@@ -177,21 +159,23 @@ img.HP_img_chart ~ p {
 	margin-bottom: 5px;
 }
 .HP_infoboxes a p {
-	font-size: 0.8em;
+	font-size: 0.9em;
 	line-height: 1.5em;
 	    margin-top: 5px;
 }
 
 .HP_infoboxes a:hover h3 {
 	font-size: 1.1em;
+	text-decoration:none !important;
 }
 .HP_infoboxes a:hover p {
-	    margin-top: 10px;
+	margin-top: 10px;
+	text-decoration:none !important;
 }
 
 /* === screen wide =================================================== */
 /* =================================================================== */
-@media only screen and (min-width: 801px) {
+@media only screen and (min-width: 901px) {
 	.HP_infoboxes a {
 		width: 32%;
 	}	
@@ -208,7 +192,7 @@ img.HP_img_chart ~ p {
 }
 /* === screen narrow =================================================== */
 /* =================================================================== */
-@media only screen and (max-width: 800px) {
+@media only screen and (max-width: 900px) {
 	.HP_infoboxes a {
 		width: 48%;
 		margin-left: 0;
@@ -219,3 +203,5 @@ img.HP_img_chart ~ p {
 		margin-right: 0;
 	}	
 }
+
+

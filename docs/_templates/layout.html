@@ -9,3 +9,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-deferred@1"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.1/papaparse.min.js"></script>
 {% endblock %}
+
+{%- block extrahead %}
+    {{ super() }}
+    {% if pagename == 'index'%}
+        <meta name="google-site-verification" content="_YqumYQ98cmXUTwtzM_0WIIadtDc6r_TMYGbmGgNvrk" />
+    {% endif %}
+{%- endblock %}

@@ -64,10 +64,10 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
     
    Install these dependencies:
    1. [Microsoft Visual Studio* 2019 with MSBuild](http://visualstudio.microsoft.com/downloads/)
-        > **NOTE**: You can choose Community version to download. Use [Microsoft Visual Studio installation guide](https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019) to walk you through the installation. During installation choose `Desktop development with C++` in Worloads tab in installation wizard.
+        > **NOTE**: You can choose to download Community version. Use [Microsoft Visual Studio installation guide](https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019) to walk you through the installation. During installation in the **Workloads** tab, choose **Desktop development with C++**.
    
    2. [CMake 3.14 or higher 64-bit](https://cmake.org/download/)
-        > **NOTE**: You can either use Cmake<version>.msi which is the installation wizard or Cmake<version>.zip where you go into the bin folder and then manually add the path to environmental variables.
+        > **NOTE**: You can either use `cmake<version>.msi` which is the installation wizard or `cmake<version>.zip` where you have to go into the `bin` folder and then manually add the path to environmental variables.
    
    3. [Python **3.6** - **3.8** 64-bit](https://www.python.org/downloads/windows/)
         > **IMPORTANT**: As part of this installation, make sure you click the option **[Add Python 3.x to PATH](https://docs.python.org/3/using/windows.html#installation-steps)** to add Python to your `PATH` environment variable.
@@ -179,14 +179,14 @@ Or proceed to the <a href="#get-started">Start Using the Toolkit</a> section to 
 > **NOTE**: These steps are required only if you want to use an Intel® integrated GPU.
 > **NOTE**: This section will help you check if you require driver installation. Install indicated version or higher.
 
-If your applications offload computation to **Intel® Integrated Graphics**, you must have the Intel Graphics Driver for Windows installed for your hardware. 
+If your applications offload computation to **Intel® Integrated Graphics**, you must have the Intel Graphics Driver for Windows installed on your hardware.
 [Download and install the recommended version](https://downloadcenter.intel.com/download/30079/Intel-Graphics-Windows-10-DCH-Drivers). 
 
 To check if you have this driver installed:
 
 1. Type **device manager** in your **Search Windows** box and press Enter. The **Device Manager** opens.
 
-2. Click the drop-down arrow to view the **Display adapters**. You see the adapter that is installed in your computer:
+2. Click the drop-down arrow to view the **Display adapters**. You can see the adapter that is installed in your computer:
 
    ![](../img/DeviceManager.PNG)
 
