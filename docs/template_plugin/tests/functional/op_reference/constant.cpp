@@ -39,28 +39,7 @@ struct ConstantParams {
 class ReferenceConstantLayerTest : public testing::TestWithParam<ConstantParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
-        if (params.testcaseName == "tensor_2constant") {
-            function = CreateFunction_2Constant(params.inputShape, params.inType, params.inputData);
-            inputData = {};
-            refOutData = {params.refData, params.refData};
-        } else if (params.testcaseName == "tensor_constant_with_op") {
-            function = CreateFunction_With_Op(params.inputShape, params.inType, params.inputData);
-            inputData = {};
-            refOutData = {params.refData};
-        } else if (params.testcaseName == "constant_multi_use") {
-            function = CreateFunction_Multi_Use(params.inputShape, params.inType, params.inputData);
-            inputData = {};
-            refOutData = {params.refData};
-        } else if (params.testcaseName == "constant_equality_bool") {
-            function = CreateFunction_Equality_Bool(params.inputShape, params.inType, params.inputData);
-            inputData = {};
-            refOutData = {params.refData};
-        } else {
-            function = CreateFunction_Default(params.inputShape, params.inType, params.inputData);
-            inputData = {};
-            refOutData = {params.refData};
-        }
+        std::tie(function, inputData, refOutData) = CreateFunction(GetParam());
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<ConstantParams>& obj) {
@@ -78,39 +57,36 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction_Default(const PartialShape& input_shape, const element::Type& input_type,
-                                                    const runtime::Tensor& constant_tensor) {
-        auto A = op::v0::Constant::create(input_type, input_shape.to_shape(), constant_tensor.data());
-        return std::make_shared<Function>(A, ParameterVector{});
-    }
-
-    static std::shared_ptr<Function> CreateFunction_2Constant(const PartialShape& input_shape, const element::Type& input_type,
-                                                    const runtime::Tensor& constant_tensor) {
-        auto A = op::v0::Constant::create(input_type, input_shape.to_shape(), constant_tensor.data());
-        auto B = op::v0::Constant::create(input_type, input_shape.to_shape(), constant_tensor.data());
-        return std::make_shared<Function>(NodeVector{A, B}, ParameterVector{});
-    }
-
-    static std::shared_ptr<Function> CreateFunction_With_Op(const PartialShape& input_shape, const element::Type& input_type,
-                                                    const runtime::Tensor& constant_tensor) {
-        auto A = op::v0::Constant::create(input_type, input_shape.to_shape(), constant_tensor.data());
-        return std::make_shared<Function>(std::make_shared<op::v0::Abs>(A), ParameterVector{});
-    }
-
-    static std::shared_ptr<Function> CreateFunction_Multi_Use(const PartialShape& input_shape, const element::Type& input_type,
-                                                    const runtime::Tensor& constant_tensor) {
-        const auto A = std::make_shared<op::v0::Constant>(
-            input_type,
-            input_shape.to_shape(),
-            std::vector<std::string>{std::to_string(*reinterpret_cast<int*>(constant_tensor.data()))});
-        return std::make_shared<Function>(A, ParameterVector {});
-    }
-
-    static std::shared_ptr<Function> CreateFunction_Equality_Bool(const PartialShape& input_shape, const element::Type& input_type,
-                                                    const runtime::Tensor& constant_tensor) {
-        auto A = op::v0::Constant::create(input_type, input_shape.to_shape(), constant_tensor.data());
-        auto B = op::v0::Constant::create(input_type, input_shape.to_shape(), {true, true, true, true});
-        return std::make_shared<Function>(std::make_shared<op::v1::Equal>(A, B), ParameterVector{});
+    using ReferenceType = std::tuple<std::shared_ptr<Function>, std::vector<ov::runtime::Tensor>, std::vector<ov::runtime::Tensor>>;
+    ReferenceType CreateFunction(const ParamType& params) {
+        ReferenceType reference;
+        if (params.testcaseName == "tensor_2constant") {
+            auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
+            auto B = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
+            auto function = std::make_shared<Function>(NodeVector{A, B}, ParameterVector{});
+            reference = {function, {}, {params.refData, params.refData}};
+        } else if (params.testcaseName == "tensor_constant_with_op") {
+            auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
+            auto function = std::make_shared<Function>(std::make_shared<op::v0::Abs>(A), ParameterVector{});
+            reference = {function, {}, {params.refData}};
+        } else if (params.testcaseName == "constant_multi_use") {
+            const auto A = std::make_shared<op::v0::Constant>(
+                params.inType,
+                params.inputShape.to_shape(),
+                std::vector<std::string>{std::to_string(*reinterpret_cast<int*>(params.inputData.data()))});
+            auto function = std::make_shared<Function>(A, ParameterVector {});
+            reference = {function, {}, {params.refData}};
+        } else if (params.testcaseName == "constant_equality_bool") {
+            auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
+            auto B = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), {true, true, true, true});
+            auto function = std::make_shared<Function>(std::make_shared<op::v1::Equal>(A, B), ParameterVector{});
+            reference = {function, {}, {params.refData}};
+        } else {
+            auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
+            auto function = std::make_shared<Function>(A, ParameterVector{});
+            reference = {function, {}, {params.refData}};
+        }
+        return reference;
     }
 };
 
