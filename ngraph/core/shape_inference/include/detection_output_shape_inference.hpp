@@ -10,7 +10,7 @@ namespace v0 {
 
 template <class T>
 void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    using dim_t = typename std::decay<decltype((input_shapes[0])[0])>::type;
+    using dim_t = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 5) && output_shapes.size() == 1);
 
     auto& ret_output_shape = output_shapes[0];
