@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_SAMPLES)
-    add_subdirectory(c)
+add_subdirectory(c)
 
 # install C samples
 
@@ -37,5 +36,3 @@ install(DIRECTORY python/
         DESTINATION samples/python
         USE_SOURCE_PERMISSIONS
         COMPONENT python_samples)
-
-endif() # if(ENABLE_SAMPLES)
