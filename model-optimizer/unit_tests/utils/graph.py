@@ -134,7 +134,7 @@ def build_graph_with_attrs(nodes_with_attrs: list, edges_with_attrs: list, new_n
 
 
 def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, nodes_with_edges_only: bool = False,
-                cli: Namespace = Namespace(static_shape=False, data_type='FP32')):
+                cli: Namespace = None):
     """
     Build the Graph with specific nodes and edges.
     :param nodes_attrs: dictionary where key is the node name and the value is the dictionary with node attributes.
@@ -145,6 +145,8 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
     :param cli: Namespace with cli keys to associate with the graph
     :return: generated graph.
     """
+    # no mutable values must be set as default function argument
+    cli = Namespace(static_shape=False, data_type='FP32') if cli is None else cli
     graph = Graph()
 
     for node_name, attrs in nodes_attrs.items():
@@ -270,11 +272,29 @@ class FakeNode:
         return getattr(self, item)
 
 
-# regular units
+def const(name, value, shape=None, kwargs=None):
+    # no mutable default arguments must be passed
+    kwargs = {} if kwargs is None else kwargs
+    if value is not None:
+        shape = int64_array(value.shape)
+    elif value is None and shape is not None:
+        shape = shape_array(shape)
+    res = {name: {'kind': 'op', 'type': 'Const', 'op': 'Const',
+                  'value': value, 'shape': shape,
+                  'infer': Const.infer, 'type_infer': Const.type_infer, **kwargs}}
+    return res
+
+
+def valued_data(name, value, shape=None):
+    if value is not None:
+        shape = int64_array(value.shape)
+    elif value is None and shape is not None:
+        shape = shape_array(shape)
+    return {name: {'kind': 'data', 'value': value, 'shape': shape}}
+
+
 regular_op = lambda name, kwargs: {name: {'kind': 'op', 'type': 'NoType', **kwargs}}
 
-valued_data = lambda name, value: {name: {'kind': 'data', 'value': value,
-                                          'shape': int64_array(value.shape) if value is not None else None}}
 shaped_data = lambda name, shape: {name: {'kind': 'data', 'value': None,
                                           'shape': shape_array(shape) if shape is not None else None}}
 empty_data = lambda name: valued_data(name, None)
@@ -290,11 +310,6 @@ regular_op_with_shaped_data = lambda name, shape, kwargs: {**regular_op(name, kw
                                                            **shaped_data(name + '_d', shape)}
 regular_op_with_empty_data = lambda name, kwargs: {**regular_op(name, kwargs), **empty_data(name + '_d')}
 
-# constants
-const = lambda name, value, kwargs={}: {name: {'kind': 'op', 'type': 'Const', 'op': 'Const',
-                                               'value': value, 'shape': int64_array(value.shape),
-                                               'infer': Const.infer, 'type_infer': Const.type_infer, **kwargs}}
-
 fake_const = lambda name, shape, kwargs={}: {name: {'kind': 'op', 'op': 'Const', 'type': 'Const',
                                                     'value': None, 'infer': Const.infer, **kwargs,
                                                     'shape': shape_array(shape) if shape is not None else None}}
@@ -302,8 +317,8 @@ fake_const = lambda name, shape, kwargs={}: {name: {'kind': 'op', 'op': 'Const',
 shaped_const_with_data = lambda name, shape, kwargs={}: {**fake_const(name, shape, kwargs),
                                                          **shaped_data(name + '_d', shape)}
 
-valued_const_with_data = lambda name, value, kwargs={}: {**const(name, value, kwargs),
-                                                         **valued_data(name + '_d', value)}
+valued_const_with_data = lambda name, value, shape=None, kwargs={}: {**const(name, value, shape, kwargs),
+                                                                     **valued_data(name + '_d', value, shape)}
 
 
 def extract_port_from_string(node_name: str):

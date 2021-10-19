@@ -4,10 +4,9 @@
 import os
 
 import numpy as np
-import ngraph as ng
 import onnx
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
-from openvino.inference_engine import IECore
+from openvino import Core
 
 from tests.runtime import get_runtime
 from tests.test_onnx.utils.onnx_helpers import import_onnx_model
@@ -15,10 +14,10 @@ from tests.test_onnx.utils.onnx_helpers import import_onnx_model
 
 def test_import_onnx_function():
     model_path = os.path.join(os.path.dirname(__file__), "models/add_abc.onnx")
-    ie = IECore()
-    ie_network = ie.read_network(model=model_path)
+    ie = Core()
+    network = ie.read_network(model=model_path)
 
-    ng_function = ng.function_from_cnn(ie_network)
+    ng_function = network.get_function()
 
     dtype = np.float32
     value_a = np.array([1.0], dtype=dtype)
