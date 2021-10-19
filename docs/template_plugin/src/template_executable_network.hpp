@@ -35,8 +35,9 @@ public:
 
     void Export(std::ostream& model) override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
-        const InferenceEngine::InputsDataMap& networkInputs,
-        const InferenceEngine::OutputsDataMap& networkOutputs,
+        InferenceEngine::InputsDataMap networkInputs,
+        InferenceEngine::OutputsDataMap networkOutputs) override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
         const std::vector<std::shared_ptr<const ov::Node>>& inputs,
         const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;

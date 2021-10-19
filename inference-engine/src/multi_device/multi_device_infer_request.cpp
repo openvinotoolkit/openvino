@@ -14,12 +14,21 @@ namespace MultiDevicePlugin {
 using namespace InferenceEngine;
 
 // ------------------------------MultiDeviceInferRequest----------------------------
+MultiDeviceInferRequest::MultiDeviceInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                                 const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                                                 const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with)
+        : IInferRequestInternal(inputs, outputs) {
+    CreateInferRequest(request_to_share_blobs_with);
+}
+
 MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkInputs,
                                                  const OutputsDataMap&  networkOutputs,
-                                                 const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                                                 const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                                                  const SoIInferRequestInternal & request_to_share_blobs_with)
-        : IInferRequestInternal(networkInputs, networkOutputs, inputs, outputs) {
+        : IInferRequestInternal(networkInputs, networkOutputs) {
+    CreateInferRequest(request_to_share_blobs_with);
+}
+
+void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with) {
     if (request_to_share_blobs_with) {
         // borrow device-friendly blobs from the request
         for (const auto &it : _networkInputs)
@@ -29,7 +38,7 @@ MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkI
         return;
     }
     // Allocate all input blobs
-    for (const auto &it : networkInputs) {
+    for (const auto &it : _networkInputs) {
         Layout l = it.second->getLayout();
         Precision p = it.second->getPrecision();
         SizeVector dims = it.second->getTensorDesc().getDims();
@@ -39,7 +48,7 @@ MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkI
         _inputs[it.first]->allocate();
     }
     // Allocate all output blobs
-    for (const auto &it : networkOutputs) {
+    for (const auto &it : _networkOutputs) {
         Layout l = it.second->getLayout();
         Precision p = it.second->getPrecision();
         SizeVector dims = it.second->getTensorDesc().getDims();
@@ -49,7 +58,6 @@ MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkI
         _outputs[it.first]->allocate();
     }
 }
-
 void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInternal& req) {
     for (const auto &it : _networkInputs) {
         auto &name = it.first;

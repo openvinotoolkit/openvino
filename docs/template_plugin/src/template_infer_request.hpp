@@ -28,7 +28,8 @@ public:
 
     TemplateInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
                          const InferenceEngine::OutputsDataMap& networkOutputs,
-                         const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                         const std::shared_ptr<ExecutableNetwork>& executableNetwork);
+    TemplateInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                          const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                          const std::shared_ptr<ExecutableNetwork>& executableNetwork);
     ~TemplateInferRequest();
@@ -46,6 +47,7 @@ public:
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& userBlob) override;
 
 private:
+    void createInferRequest();
     void allocateDeviceBuffers();
     void allocateBlobs();
 

@@ -179,8 +179,6 @@ protected:
      * @return     A shared pointer to inference request object.
      */
     virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(
-        const InputsDataMap& networkInputs,
-        const OutputsDataMap& networkOutputs,
         const std::vector<std::shared_ptr<const ov::Node>>& inputs,
         const std::vector<std::shared_ptr<const ov::Node>>& outputs);
 

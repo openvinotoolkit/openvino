@@ -32,11 +32,21 @@ using Time = std::chrono::high_resolution_clock;
 // ! [infer_request:ctor]
 TemplateInferRequest::TemplateInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
                                            const InferenceEngine::OutputsDataMap& networkOutputs,
-                                           const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                           const std::shared_ptr<TemplatePlugin::ExecutableNetwork>& executableNetwork)
+    : IInferRequestInternal(networkInputs, networkOutputs),
+      _executableNetwork(executableNetwork) {
+    createInferRequest();
+}
+
+TemplateInferRequest::TemplateInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                            const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                                            const std::shared_ptr<TemplatePlugin::ExecutableNetwork>& executableNetwork)
-    : IInferRequestInternal(networkInputs, networkOutputs, inputs, outputs),
+    : IInferRequestInternal(inputs, outputs),
       _executableNetwork(executableNetwork) {
+    createInferRequest();
+}
+
+void TemplateInferRequest::createInferRequest() {
     // TODO: allocate infer request device and host buffers if needed, fill actual list of profiling tasks
 
     auto requestID = std::to_string(_executableNetwork->_requestId.fetch_add(1));

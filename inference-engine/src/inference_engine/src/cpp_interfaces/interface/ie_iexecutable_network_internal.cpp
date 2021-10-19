@@ -112,8 +112,6 @@ std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRe
 }
 
 std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRequestImpl(
-    const InputsDataMap& networkInputs,
-    const OutputsDataMap& networkOutputs,
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
     IE_THROW(NotImplemented);

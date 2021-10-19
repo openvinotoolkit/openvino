@@ -60,7 +60,7 @@ protected:
     IInferRequestInternal::Ptr CreateAsyncInferRequestFromSync() {
         InferenceEngine::IInferRequestInternal::Ptr syncRequestImpl;
         try {
-            syncRequestImpl = this->CreateInferRequestImpl(_networkInputs, _networkOutputs, _parameters, _results);
+            syncRequestImpl = this->CreateInferRequestImpl(_parameters, _results);
         } catch (...) {
         }
         if (!syncRequestImpl)

@@ -24,13 +24,23 @@
 #include "utils/cpu_utils.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(const InferenceEngine::InputsDataMap&     networkInputs,
-                                                     const InferenceEngine::OutputsDataMap&    networkOutputs,
-                                                     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsDataMap     networkInputs,
+                                                     InferenceEngine::OutputsDataMap    networkOutputs,
+                                                     MKLDNNExecNetwork::Ptr             execNetwork_)
+: IInferRequestInternal(networkInputs, networkOutputs)
+, execNetwork(execNetwork_) {
+    CreateInferRequest();
+}
+
+MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                                      const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                                                      MKLDNNExecNetwork::Ptr             execNetwork_)
-: IInferRequestInternal(networkInputs, networkOutputs, inputs, outputs)
+: IInferRequestInternal(inputs, outputs)
 , execNetwork(execNetwork_) {
+    CreateInferRequest();
+}
+
+void MKLDNNPlugin::MKLDNNInferRequest::CreateInferRequest() {
     auto id = (execNetwork->_numRequests)++;
     profilingTask = openvino::itt::handle("MKLDNN_INFER_" + execNetwork->_name + "_" + std::to_string(id));
 

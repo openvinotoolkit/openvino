@@ -733,10 +733,27 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
 }
 
 IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
-    const InputsDataMap& networkInputs,
-    const OutputsDataMap& networkOutputs,
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
+    if (!this->_plugin->GetCore()->isNewAPI())
+        return nullptr;
+    HeteroInferRequest::SubRequestsList inferRequests;
+    int index = 0;
+    for (auto&& subnetwork : _networks) {
+        HeteroInferRequest::SubRequestDesc desc;
+        desc._network = subnetwork._network;
+        desc._profilingTask = openvino::itt::handle("Infer" + std::to_string(index++));
+        inferRequests.push_back(desc);
+    }
+    return std::make_shared<HeteroInferRequest>(inputs,
+                                                outputs,
+                                                inferRequests,
+                                                _blobNameMap);
+}
+
+IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
+        InputsDataMap networkInputs,
+        OutputsDataMap networkOutputs) {
     HeteroInferRequest::SubRequestsList inferRequests;
     int index = 0;
     for (auto&& subnetwork : _networks) {
@@ -747,8 +764,6 @@ IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
     }
     return std::make_shared<HeteroInferRequest>(networkInputs,
                                                 networkOutputs,
-                                                inputs,
-                                                outputs,
                                                 inferRequests,
                                                 _blobNameMap);
 }
