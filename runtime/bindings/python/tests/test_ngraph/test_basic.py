@@ -522,10 +522,10 @@ def test_layout():
     assert not(layout.has_name("H"))
     assert not(layout.has_name("D"))
     assert layout.has_name("C")
+    assert layout.get_index_by_name("C") == -1
 
     layout = ov.Layout()
     assert layout.to_string() == "[...]"
-    assert not(layout.has_name("W"))
     assert not(layout.has_name("W"))
     assert not(layout.has_name("H"))
     assert not(layout.has_name("D"))
