@@ -638,6 +638,8 @@ public:
                 // plugin is not created by e.g. invalid env
             } catch (ov::Exception&) {
                 // plugin is not created by e.g. invalid env
+            } catch (std::runtime_error&) {
+                // plugin is not created by e.g. invalid env
             } catch (const std::exception& ex) {
                 IE_THROW() << "An exception is thrown while trying to create the " << deviceName
                            << " device and call GetMetric: " << ex.what();
