@@ -26,7 +26,7 @@
     #define INFERENCE_ENGINE_C_API_EXTERN
 #endif
 
-#if defined(__GNUC__) && (__GNUC__ < 4)
+#if defined(OPENVINO_STATIC_LIBRARY) || defined(__GNUC__) && (__GNUC__ < 4)
     #define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__
     #define IE_NODISCARD
 #else

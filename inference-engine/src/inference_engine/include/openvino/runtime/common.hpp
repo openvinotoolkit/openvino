@@ -29,7 +29,7 @@
 #endif      // OPENVINO_STATIC_LIBRARY
 
 /**
- * @def OPENVINO_PLUGIN_API(type)
+ * @def OPENVINO_PLUGIN_API
  * @brief Defines OpenVINO Runtime Plugin API method
  */
 
