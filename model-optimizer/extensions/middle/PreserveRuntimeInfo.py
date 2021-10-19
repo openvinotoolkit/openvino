@@ -66,6 +66,8 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
                 # source mode is used to keep tensor names at Parameter node
                 op.out_port(0).get_connection().insert_node(transpose, "source")
 
+                transpose.infer(transpose)
+
                 if op.has_valid('permute_attrs'):
                     del op['permute_attrs']
                 if op.out_node(0).has_valid('permutation'):
@@ -99,3 +101,5 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
                     in_node.name += "/prev"
 
                     prev_node_out_port.get_connection().insert_node(transpose)
+                    in_node.infer(in_node)
+                    transpose.infer(transpose)
