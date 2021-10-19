@@ -43,7 +43,7 @@ void shape_infer(ExperimentalDetectronTopKROIs* op, const std::vector<T>& input_
 
     output_shape.resize(2);
     output_shape[0] = max_rois;
-    output_shape[1] = input_rois_shape[1];
+    output_shape[1] = 4;
 }
 
 }  // namespace v6
