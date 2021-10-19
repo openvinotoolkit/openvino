@@ -404,7 +404,7 @@ NodeTuple get_attention_mask(const OutputVector& op_inputs, bool unidirectional)
     auto input_shape = std::make_shared<default_opset::ShapeOf>(op_inputs[0]);
     auto seq_len = get_dimensions(input_shape, {1});
     auto all_seq_len = std::make_shared<default_opset::Add>(seq_len, past_seq_len);
-    const auto type = op_inputs[0].get_element_type();
+    const auto& type = op_inputs[0].get_element_type();
     std::shared_ptr<ngraph::Node> attention_mask = nullptr;
     std::shared_ptr<ngraph::Node> bin_mask = nullptr;
     if (unidirectional) {
