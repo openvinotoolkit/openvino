@@ -15,6 +15,7 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ConvolutionKernel_b_fs_yx_fsv_16_32
     std::vector<size_t> simd_sizes = { 8, 16 };
     std::vector<std::string> exe_modes = ConvolutionKernelBase::autoTuneOptions;
 
+    // TODO: can be potentially improved for GPUs with support of LWS > 256
     constexpr size_t max_block_size = 32 * 8;
     constexpr size_t max_lws_size = 256;
 

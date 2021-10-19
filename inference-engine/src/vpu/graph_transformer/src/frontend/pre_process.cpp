@@ -111,12 +111,13 @@ void FrontEnd::addPreProcessStages(const Model& model) {
                 "@after-std-scale");
 
             bindData(newInput, ieData);
+            auto scale = 1 / preProcess[0]->stdScale;
 
             _stageBuilder->addPowerStage(
                 model,
                 input->name() + "@stdScale=" + InferenceEngine::CNNLayer::ie_serialize_float(preProcess[0]->stdScale),
                 nullptr,
-                preProcess[0]->stdScale,
+                scale,
                 1.0f,
                 0.0f,
                 input,
