@@ -206,18 +206,12 @@ TEST_F(OVTensorTest, cannotSetShapeOnRoiTensor) {
     ASSERT_THROW(roi_tensor.set_shape(newShape), ov::Exception);
 }
 
-TEST_F(OVTensorTest, makeRangeRoiTensorInt4) {
+TEST_F(OVTensorTest, tensorInt4DataAccess) {
     ov::runtime::Tensor t{ov::element::i4, {1, 6, 5, 3}};  // RGB picture of size (WxH) = 5x6
-    ov::runtime::Tensor roi_tensor{t, {0, 1, 2, 0}, {1, 5, 4, 3}};
-    ov::Shape ref_shape = {1, 4, 2, 3};
-    ptrdiff_t ref_offset = 21;
-    ov::Strides ref_strides = {90, 15, 3, 1};
-    ASSERT_EQ(roi_tensor.get_shape(), ref_shape);
-    ASSERT_EQ(roi_tensor.data<int8_t>() - t.data<int8_t>(), ref_offset);
-    ASSERT_EQ(roi_tensor.get_strides(), ref_strides);
-    ASSERT_EQ(roi_tensor.get_strides(), t.get_strides());
-    ASSERT_EQ(ref_strides, roi_tensor.get_strides());
-    ASSERT_EQ(roi_tensor.get_element_type(), t.get_element_type());
+    ASSERT_THROW((ov::runtime::Tensor{t, {0, 1, 2, 0}, {1, 5, 4, 3}}), ov::Exception);
+    ASSERT_THROW(t.get_strides(), ov::Exception);
+    ASSERT_THROW(t.data<int8_t>(), ov::Exception);
+    ASSERT_NO_THROW(t.data());
 }
 
 TEST_F(OVTensorTest, makeRangeRoiBlobWrongSize) {
