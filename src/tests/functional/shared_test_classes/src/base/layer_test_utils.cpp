@@ -357,6 +357,7 @@ void LayerTestsCommon::LoadNetwork() {
     if (ENT::isMode(ENTMode::IMPORT)) {
         std::string testName = GetTestCaseName() + "_" + GetTestName();
         function = ENT::loadNetworkFromFile(testName);
+        functionRefs = ngraph::clone_function(*function);
     }
 
     cnnNetwork = InferenceEngine::CNNNetwork{function};
