@@ -12,7 +12,7 @@ template <class T>
 void shape_infer(const ExperimentalDetectronDetectionOutput* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes) {
-    using DimType = typename std::decay<decltype((output_shapes[0])[0])>::type;
+    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4 && output_shapes.size() == 3);
 
     const auto& rois_shape = input_shapes[0];
