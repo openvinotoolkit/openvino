@@ -20,7 +20,7 @@ double getWeightsReducer(InferenceEngine::ConvolutionLayer& conv);
 
 uint32_t outputFromConv(const uint32_t in, const uint32_t flt, const uint32_t stride);
 
-uint32_t outputFromPooling(const uint32_t in, const uint32_t window, const uint32_t stride);
+uint32_t outputFromPooling(const uint32_t in, const uint32_t window, const uint32_t stride, bool legacy = false);
 
 uint32_t outputFromPoolingLegacy(const uint32_t in, const uint32_t stride);
 
