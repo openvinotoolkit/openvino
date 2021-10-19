@@ -26,7 +26,6 @@ from tests_compatibility import (
     xfail_issue_38713,
     xfail_issue_38722,
     xfail_issue_38724,
-    xfail_issue_38732,
     xfail_issue_38734,
     xfail_issue_38735,
     xfail_issue_39656,
@@ -341,12 +340,6 @@ tests_expected_to_fail = [
         xfail_issue_33606,
         "OnnxBackendNodeModelTest.test_det_2d_cpu",
         "OnnxBackendNodeModelTest.test_det_nd_cpu",
-    ),
-    (
-        xfail_issue_38732,
-        "OnnxBackendNodeModelTest.test_convinteger_without_padding_cpu",
-        "OnnxBackendNodeModelTest.test_convinteger_with_padding_cpu",
-        "OnnxBackendNodeModelTest.test_basic_convinteger_cpu",
     ),
     (
         xfail_issue_38734,
