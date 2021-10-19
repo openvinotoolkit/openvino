@@ -12,7 +12,7 @@ import openvino as ov
 from openvino.pyopenvino import VariantInt, VariantString
 
 from openvino.exceptions import UserInputError
-from openvino.impl import Function, PartialShape, Shape, Type, Layout
+from openvino.impl import Function, PartialShape, Shape, Type
 from openvino.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
