@@ -5,7 +5,7 @@ import os
 import pytest
 from sys import platform
 from pathlib import Path
-from threading import Thread
+from threading import Event, Thread
 from time import sleep, time
 from queue import Queue
 
@@ -275,3 +275,52 @@ def test_load_network_release_gil(device):
     # Assert there were never any long gil locks
     assert message_queue.qsize() == 0, \
         f"More than 0 GIL locks occured! Latency: {message_queue.get()})"
+
+
+def test_nogil_safe(device):
+    call_thread_func = Event()
+    core = IECore()
+    net = core.read_network(model=test_net_xml, weights=test_net_bin)
+
+    def thread_target(thread_func, thread_args):
+        call_thread_func.wait()
+        call_thread_func.clear()
+        thread_func(*thread_args)
+
+    def main_thread_target(gil_release_func, args):
+        call_thread_func.set()
+        gil_release_func(*args)
+        assert not call_thread_func.is_set()
+
+    def test_run_parallel(gil_release_func, args, thread_func, thread_args):
+        thread = Thread(target=thread_target, args=[thread_func, thread_args])
+        thread.start()
+        main_thread_target(gil_release_func, args)
+        thread.join()
+
+    main_targets = [{
+                     core.read_network: [test_net_xml, test_net_bin],
+                     core.load_network: [net, device],
+                    },
+                    {
+                     core.load_network: [net, device],
+                    }]
+
+    thread_targets = [{
+                       core.get_versions: [device,],
+                       core.read_network: [test_net_xml, test_net_bin],
+                       core.load_network: [net, device],
+                       core.query_network: [net, device],
+                       getattr: [core, "available_devices"],
+                      },
+                      {
+                       getattr: [net, "name"],
+                       getattr: [net, "input_info"],
+                       getattr: [net, "outputs"],
+                       getattr: [net, "batch_size"],
+                      }]
+
+    for main_target, custom_target in zip(main_targets, thread_targets):
+        for nogil_func, args in main_target.items():
+            for thread_func, thread_args in custom_target.items():
+                test_run_parallel(nogil_func, args, thread_func, thread_args)
