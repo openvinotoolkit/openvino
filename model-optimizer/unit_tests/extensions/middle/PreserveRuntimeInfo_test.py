@@ -7,18 +7,21 @@ import numpy as np
 from generator import generator, generate
 
 from extensions.middle.PreserveRuntimeInfo import PreserveRuntimeInfo
+from extensions.ops.transpose import Transpose
+from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Node
 from mo.ops.op import PermuteAttrs
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.runtime_info import RTInfo
-from unit_tests.utils.graph import build_graph, connect, valued_const_with_data, regular_op_with_empty_data
+from unit_tests.utils.graph import build_graph, connect, valued_const_with_data, regular_op_with_empty_data, \
+    regular_op_with_shaped_data
 
 nodes = {
     **regular_op_with_empty_data('placeholder2', {'type': 'Parameter'}),
-    **regular_op_with_empty_data('add', {'type': 'Add', 'op': 'Add'}),
-
-    **regular_op_with_empty_data('transpose_parameter', {'type': 'Transpose', 'op': 'Transpose'}),
-    **regular_op_with_empty_data('transpose_result', {'type': 'Transpose', 'op': 'Transpose'}),
+    **regular_op_with_empty_data('transpose_parameter',
+                                 {'type': 'Transpose', 'op': 'Transpose', 'infer': Transpose.infer}),
+    **regular_op_with_empty_data('transpose_result',
+                                 {'type': 'Transpose', 'op': 'Transpose', 'infer': Transpose.infer}),
 }
 
 edges = [*connect('placeholder1', '0:add'), *connect('placeholder2', '1:add'), *connect('add', 'result')]
@@ -45,10 +48,15 @@ class PreserveRuntimeInfoTest(unittest.TestCase):
         }
         graph_nodes.update(nodes)
         shape_len = len(nhwc_to_nchw_order) if add_permutation_attrs else 3
+        shape = np.array(range(shape_len))
+        add_shape = shape if nhwc_to_nchw_order is None else shape[nhwc_to_nchw_order]
         graph_nodes.update(
             {
-                **regular_op_with_empty_data('placeholder1', {'type': 'Parameter', 'rt_info': RTInfo(), 'shape': list(range(shape_len))}),
-                **regular_op_with_empty_data('result', {'type': 'Result', 'rt_info': RTInfo(), 'shape': list(range(shape_len))})
+                **regular_op_with_shaped_data('placeholder1', shape,
+                                              {'type': 'Parameter', 'rt_info': RTInfo(), 'shape': shape}),
+                **regular_op_with_shaped_data('result', shape, {'type': 'Result', 'rt_info': RTInfo(), 'shape': shape}),
+                **regular_op_with_shaped_data('add', add_shape,
+                                              {'type': 'Add', 'op': 'Add', 'infer': copy_shape_infer}),
             }
         )
 
