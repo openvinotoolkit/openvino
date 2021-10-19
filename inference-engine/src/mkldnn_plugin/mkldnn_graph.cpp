@@ -19,7 +19,7 @@
 #include "mkldnn_graph_optimizer.h"
 #include "mkldnn_extension_utils.h"
 #include "mkldnn_extension_mngr.h"
-#include "mkldnn_memory_solver.hpp"
+#include "memory_solver.hpp"
 #include "mkldnn_itt.h"
 #include "mkldnn_infer_request.h"
 #include <nodes/mkldnn_input_node.h>
@@ -228,12 +228,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
         if (op->get_type_info() == ngraph::op::v0::Result::type_info) {
             const auto &input = op->input_value(0);
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            auto name = input.get_tensor().get_name();
-            NGRAPH_SUPPRESS_DEPRECATED_END
-            if (name.empty()) {
-                name = ngraph::op::util::create_ie_output_name(input);
-            }
+            auto name = ngraph::op::util::get_ie_output_name(input);
 
             if (outputsInfo.count(name) != 0) {
                 outputNodesMap[name] = node;
