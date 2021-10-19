@@ -76,7 +76,8 @@ Options:
                         value is CPU. Use '-d HETERO:<comma separated devices
                         list>' format to specify HETERO plugin. Use '-d
                         MULTI:<comma separated devices list>' format to
-                        specify MULTI plugin. The application looks for a
+                        specify MULTI plugin. Use "-d GPU.X" format to specify
+                        device id for GPU devices. The application looks for a
                         suitable plugin for the specified device.
   -l PATH_TO_EXTENSION, --path_to_extension PATH_TO_EXTENSION
                         Optional. Required for CPU custom layers. Absolute

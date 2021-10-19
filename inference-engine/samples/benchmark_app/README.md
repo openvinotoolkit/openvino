@@ -7,7 +7,7 @@ Performance can be measured for two inference modes: latency- and throughput-ori
 
 > **TIP**: You can quick start with the Benchmark Tool inside the OpenVINO™ [Deep Learning Workbench](@ref openvino_docs_get_started_get_started_dl_workbench) (DL Workbench).
 > [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is the OpenVINO™ toolkit UI you to
-> import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for 
+> import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for
 > deployment on various Intel® platforms.
 
 
@@ -82,6 +82,7 @@ Options:
     -d "<device>"               Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU.
                                 Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin.
                                 Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin.
+                                Use "-d GPU.X" format to specify device id for GPU devices.
     The application looks for a suitable plugin for the specified device.
     -l "<absolute_path>"        Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
           Or
@@ -116,9 +117,9 @@ Options:
     -enforcebf16="<true/false>" Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform.
     -pin "YES"/"HYBRID_AWARE"/"NUMA"/"NO"
                                 Optional. Explicit inference threads binding options (leave empty to let the OpenVINO to make a choice):
-					            enabling threads->cores pinning ("YES", which is already default for a conventional CPU),  
+					            enabling threads->cores pinning ("YES", which is already default for a conventional CPU),
 			                    letting the runtime to decide on the threads->different core types ("HYBRID_AWARE", which is default on the hybrid CPUs)
-			                    threads->(NUMA)nodes ("NUMA") or 
+			                    threads->(NUMA)nodes ("NUMA") or
 			      	            completely disable ("NO") CPU inference threads pinning.
     -ip "U8"/"FP16"/"FP32"      Optional. Specifies precision for all input layers of the network.
     -op "U8"/"FP16"/"FP32"      Optional. Specifies precision for all output layers of the network.
