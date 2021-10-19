@@ -8,7 +8,6 @@
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/filter_fused.hpp"
 #include "snippets/op/subgraph.hpp"
-#include "transformations/rt_info/fused_names_attribute.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
@@ -292,6 +291,7 @@ ngraph::snippets::pass::StartSubgraph::StartSubgraph() : MatcherPass() {
                   << " Creating new snippet - no input subgraphs found" << std::endl;
 
         auto subgraph = op::Subgraph::wrap_node_as_subgraph(node);
+        subgraph->get_rt_info()["originalLayersNames"] = ov::make_variant(node->get_friendly_name());
         ngraph::replace_node(node, subgraph);
         update_out_tensor_name(subgraph);
 
@@ -357,6 +357,17 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
             return false;
         };
 
+        std::string fusedNames;
+        auto getFusedNames = [](const std::shared_ptr<Node> n) -> std::string {
+            auto rt_info = n->get_rt_info();
+            auto it = rt_info.find("originalLayersNames");
+            if (it != rt_info.end()) {
+                auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
+                return value->get() + ",";
+            } else {
+                return "";
+            }
+        };
         for (auto input : inputs) {
             auto input_node = input.get_source_output().get_node_shared_ptr();
 
@@ -365,9 +376,11 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
                     auto f = ngraph::clone_function(*subgraph->get_body().get());
                     f->set_friendly_name(subgraph->get_body()->get_friendly_name());
                     clones[input_node] = f;
+                    fusedNames += getFusedNames(subgraph);
                 }
             }
         }
+        fusedNames += node->get_friendly_name();
 
         for (auto input : inputs) {
             auto input_node = input.get_source_output().get_node_shared_ptr();
@@ -459,7 +472,16 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
             }
         }
         size_t num_result_children = get_num_result_children(node);
-        std::string newSubgraphName = num_result_children <= 1 ? node->get_friendly_name() : "";
+        std::string newSubgraphName;
+        if (num_result_children == 0) {
+            for (const auto& n : as_node_vector(node->input_values()))
+                if (ov::is_type<op::Subgraph>(n)) {
+                    newSubgraphName = n->get_friendly_name();
+                    break;
+                }
+        } else {
+            newSubgraphName = node->get_friendly_name();
+        }
         for (const auto& subgraph : input_subgraphs) {
             if (has_result_child(subgraph)) {
                 num_result_children++;
@@ -563,22 +585,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
         for (size_t i = 0; i < act_body1->get_parameters().size(); i++) {
             act_body1->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
-        const std::string& fused_names_key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
-        auto get_node_fused_names = [fused_names_key](std::shared_ptr<Node> n) {
-            const auto& rt_info = n->get_rt_info();
-            // todo: Do we really need to check that fused_names_key is in the map?
-            auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(rt_info.at(fused_names_key));
-            return ov::as_type_ptr<ngraph::VariantWrapper<FusedNames>>(fused_names_attr)->get();
-        };
-
-        FusedNames fusedNames = get_node_fused_names(node);
-        for (const auto& input_node : as_node_vector(node->input_values())) {
-            if (ov::is_type<op::Subgraph>(input_node)) {
-                fusedNames.fuseWith(get_node_fused_names(input_node));
-            }
-        }
-        auto& rt_info = subgraph->get_rt_info();
-        rt_info[fused_names_key] = std::make_shared<ngraph::VariantWrapper<FusedNames>>(fusedNames);
+        subgraph->get_rt_info()["originalLayersNames"] = ov::make_variant(fusedNames);
 
         remark(1) << "Replacement (merge) done for: "
                     << subgraph->get_friendly_name()
