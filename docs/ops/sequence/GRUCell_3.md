@@ -10,8 +10,8 @@
 
 ```
 Formula:
-  *  - matrix mult
- (.) - eltwise mult
+  *  - matrix multiplication
+ (.) - eltwise multiplication
  [,] - concatenation
   f, g - are activation functions.
    zt = f(Xt*(Wz^T) + Ht-1*(Rz^T) + Wbz + Rbz)
