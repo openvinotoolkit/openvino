@@ -22,9 +22,6 @@ end -- if
 .. index:: pair: page; $(page.title)
 .. _doxid-$(page.id):
 
-.. |br| raw:: html
-
-	<br>
 
 $(getTitle(page.title, 1))
 

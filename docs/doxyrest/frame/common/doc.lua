@@ -444,18 +444,17 @@ end
 
 function formatDocBlock_blockquote(block, context)
 	local text = getDocBlockText(block, context)
-	local test
 	if text.find(text,'**NOTE**') then
 		text = string.gsub(text, '^%s*%*%*NOTE%*%*%s*:%s*', '')
-		return ".. note:: " .. text
+		return "\n\n.. note:: " .. text .. "\n\n"
 	end
 	if text.find(text,'**IMPORTANT**') then
 		text = string.gsub(text, '^%s*%*%*IMPORTANT%*%*%s*:%s*', '')
-		return ".. warning:: " .. text
+		return "\n\n.. warning:: " .. text .. "\n\n"
 	end
 	if text.find(text,'**TIP**') then
 		text = string.gsub(text, '^%s*%*%*TIP%*%*%s*:%s*', '')
-		return ".. tip:: " .. text
+		return "\n\n.. tip:: " .. text .. "\n\n"
 	end
 	return "\t" .. text
 end
@@ -477,7 +476,7 @@ g_blockKindFormatMap =
 	["itemizedlist"]         = function(b, c) return formatDocBlock_list(b, c, "*") end,
 	["orderedlist"]          = function(b, c) return formatDocBlock_list(b, c, "#.") end,
 	["variablelist"]         = formatDocBlock_variablelist,
-	["linebreak"]            = function(b, c) return "|br|" end,
+	["linebreak"]            = function(b, c) return "\n\n" end,
 	["ref"]                  = formatDocBlock_ref,
 	["anchor"]               = formatDocBlock_anchor,
 	["image"]                = formatDocBlock_image,

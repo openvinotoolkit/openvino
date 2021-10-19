@@ -110,7 +110,6 @@ toolkit installed, rename or delete these two directories:
    In Option 3 you can select which OpenVINO components will be installed by modifying the `COMPONENTS` parameter in the `silent.cfg` file. For example, to install only CPU runtime for the Inference Engine, set `COMPONENTS=intel-openvino-ie-rt-cpu__x86_64` in `silent.cfg`. To get a full list of available components for installation, run the `./install.sh --list_components` command from the unpacked OpenVINO™ toolkit package.
 
 7. Follow the instructions on your screen. Watch for informational messages such as the following in case you must complete additional steps:
-
    ![](../img/openvino-install-linux-01.png)
 
    By default, the Intel® Distribution of OpenVINO™ is installed to the following directory:
@@ -120,12 +119,11 @@ toolkit installed, rename or delete these two directories:
    For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2021/` or `/home/<USER>/intel/openvino_2021/`
 
 8. **Optional**: You can choose **Customize** to change the installation directory or the components you want to install.
- 
    > **NOTE**: If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for the next installation. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions.
    
    > **NOTE**: The Intel® Media SDK component is always installed in the `/opt/intel/mediasdk` directory regardless of the OpenVINO installation path chosen.
-9. The **Finish** screen indicates that the core components have been installed:
 
+9. The **Finish** screen indicates that the core components have been installed:
    ![](../img/openvino-install-linux-04.png)
 
    Once you click **Finish** to close the installation wizard, a new browser window will open with this documentation. It jumps to the section with your next installation steps.
