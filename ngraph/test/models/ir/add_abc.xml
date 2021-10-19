@@ -18,7 +18,6 @@
 			</output>
 		</layer>
 		<layer id="2" name="add_node1" type="Add" version="opset1">
-			<data auto_broadcast="numpy"/>
 			<input>
 				<port id="0">
 					<dim>1</dim>
@@ -42,7 +41,6 @@
 			</output>
 		</layer>
 		<layer id="4" name="Y" type="Add" version="opset1">
-			<data auto_broadcast="numpy"/>
 			<input>
 				<port id="0">
 					<dim>1</dim>
