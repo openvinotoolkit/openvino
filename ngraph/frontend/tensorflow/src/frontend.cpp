@@ -3,6 +3,7 @@
 //
 
 #include <openvino/util/common_util.hpp>
+#include <tensorflow_frontend/graph_iterator.hpp>
 #include <tensorflow_frontend/frontend.hpp>
 
 #include "model.hpp"
@@ -281,6 +282,8 @@ bool FrontEndTF::supported_impl(const std::vector<std::shared_ptr<ov::Variant>>&
         if (ov::util::ends_with(model_path, suffix.c_str())) {
             return true;
         }
+    } else if (ov::is_type<VariantWrapper<GraphIterator::Ptr>>(variants[0])) {
+        return true;
     }
     return false;
 }
@@ -297,6 +300,9 @@ ngraph::frontend::InputModel::Ptr FrontEndTF::load_impl(
                 return std::make_shared<InputModelTF>(
                     std::make_shared<::ov::frontend::tf::GraphIteratorProto>(model_path));
             }
+        } else if (ov::is_type<VariantWrapper<GraphIterator::Ptr>>(variants[0])) {
+            auto graph_iterator = ov::as_type_ptr<VariantWrapper<GraphIterator::Ptr>>(variants[0])->get();
+            return std::make_shared<InputModelTF>(graph_iterator);
         }
     }
     return nullptr;

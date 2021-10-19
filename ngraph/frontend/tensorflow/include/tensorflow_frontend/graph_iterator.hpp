@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <openvino/core/variant.hpp>
 #include <tensorflow_frontend/decoder.hpp>
 #include <tensorflow_frontend/utility.hpp>
 
@@ -33,4 +34,15 @@ public:
     virtual ~GraphIterator() = default;
 };
 }  // namespace frontend
+}  // namespace ov
+
+namespace ov {
+/// Keep GraphIterator::Ptr object and type information for for type-safe
+/// dynamic conversions without using C++ RTTI
+template <>
+class TF_API VariantWrapper<::ov::frontend::GraphIterator::Ptr> : public VariantImpl<::ov::frontend::GraphIterator::Ptr> {
+public:
+    OPENVINO_RTTI("Variant::GraphIterator::Ptr");
+    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
+};
 }  // namespace ov
