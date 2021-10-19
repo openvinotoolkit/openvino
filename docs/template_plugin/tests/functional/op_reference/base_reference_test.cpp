@@ -17,10 +17,11 @@ using namespace ov;
 namespace reference_tests {
 
 CommonReferenceTest::CommonReferenceTest(): targetDevice("TEMPLATE") {
-    core = ov::test::PluginCache::get().core(targetDevice);
+    core = test::utils::PluginCache::get().core(targetDevice);
 }
 
 void CommonReferenceTest::Exec() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     LoadNetwork();
     FillInputs();
     Infer();
@@ -97,6 +98,11 @@ void CommonReferenceTest::ValidateBlobs(const ov::runtime::Tensor& refBlob, cons
             refBlob.data<const float>(), outBlob.data<const float>(),
             refBlob.get_size(), threshold, abs_threshold);
         break;
+    case ov::element::f64:
+        LayerTestsUtils::LayerTestsCommon::Compare<double, double>(
+            refBlob.data<const double>(), outBlob.data<const double>(),
+            refBlob.get_size(), threshold, abs_threshold);
+        break;
     case ov::element::i8:
         LayerTestsUtils::LayerTestsCommon::Compare<int8_t, int8_t>(
             refBlob.data<const int8_t>(), outBlob.data<const int8_t>(),
@@ -145,12 +151,12 @@ void CommonReferenceTest::ValidateBlobs(const ov::runtime::Tensor& refBlob, cons
     case ov::element::i4:
     case ov::element::u4:
         LayerTestsUtils::LayerTestsCommon::Compare<int8_t, int8_t>(
-            refBlob.data<const int8_t>(), outBlob.data<const int8_t>(),
+            static_cast<const int8_t*>(refBlob.data()), static_cast<const int8_t*>(outBlob.data()),
             refBlob.get_size() / 2, threshold, abs_threshold);
         break;
     case ov::element::u1:
         LayerTestsUtils::LayerTestsCommon::Compare<int8_t, int8_t>(
-            refBlob.data<const int8_t>(), outBlob.data<const int8_t>(),
+            static_cast<const int8_t*>(refBlob.data()), static_cast<const int8_t*>(outBlob.data()),
             refBlob.get_size() / 8, threshold, abs_threshold);
         break;
     default:
