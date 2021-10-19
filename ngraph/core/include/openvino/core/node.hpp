@@ -75,26 +75,8 @@ class Node;
 /// environment) for evaluating ov::Function.
 using EvaluationContext = std::map<std::string, std::shared_ptr<Variant>>;
 
-using ResultVector = std::vector<std::shared_ptr<ov::op::v0::Result>>;
-
 OPENVINO_API
 std::string node_validation_failure_loc_string(const Node* node);
-
-OPENVINO_API
-const std::shared_ptr<Node>& check_single_output_arg(const std::shared_ptr<Node>& node, size_t i);
-OPENVINO_API
-const NodeVector& check_single_output_args(const NodeVector& args);
-
-OPENVINO_API
-OutputVector as_output_vector(const NodeVector& args);
-OPENVINO_API
-NodeVector as_node_vector(const OutputVector& values);
-/// Returns a ResultVector referencing values.
-OPENVINO_API
-ResultVector as_result_vector(const OutputVector& values);
-
-/// Alias useful for cloning
-using NodeMap = std::unordered_map<Node*, std::shared_ptr<Node>>;
 
 /// \brief Used in evaluator switch statement so that the case type and evaluate call
 /// are guaranteed to have the types match.

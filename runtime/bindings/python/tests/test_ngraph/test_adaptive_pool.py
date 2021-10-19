@@ -1,4 +1,7 @@
-import ngraph as ng
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+import openvino.opset8 as ov
 import numpy as np
 from tests.runtime import get_runtime
 
@@ -12,10 +15,10 @@ def test_adaptive_avg_pool():
                         -1, -2, 3, 4, -3, -4, 1,
                         2, 0, -4, -5, -2, -2, -3,
                         2, 3, 1, -5, 2, -4, -2], (2, 3, 7))
-    input_tensor = ng.constant(input)
-    output_shape = ng.constant(np.array([3], dtype=np.int32))
+    input_tensor = ov.constant(input)
+    output_shape = ov.constant(np.array([3], dtype=np.int32))
 
-    adaptive_pool_node = ng.adaptive_avg_pool(input_tensor, output_shape)
+    adaptive_pool_node = ov.adaptive_avg_pool(input_tensor, output_shape)
     computation = runtime.computation(adaptive_pool_node)
     adaptive_pool_results = computation()
     expected_results = np.reshape([1.66666663, 0.66666669, -3.,
@@ -38,10 +41,10 @@ def test_adaptive_max_pool():
                         -1, -2, 3, 4, -3, -4, 1,
                         2, 0, -4, -5, -2, -2, -3,
                         2, 3, 1, -5, 2, -4, -2], (2, 3, 7))
-    input_tensor = ng.constant(input)
-    output_shape = ng.constant(np.array([3], dtype=np.int32))
+    input_tensor = ov.constant(input)
+    output_shape = ov.constant(np.array([3], dtype=np.int32))
 
-    adaptive_pool_node = ng.adaptive_max_pool(input_tensor, output_shape)
+    adaptive_pool_node = ov.adaptive_max_pool(input_tensor, output_shape)
     computation = runtime.computation(adaptive_pool_node)
     adaptive_pool_results = computation()
     expected_results = np.reshape([4, 3, -2,
