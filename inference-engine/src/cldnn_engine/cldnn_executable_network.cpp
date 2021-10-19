@@ -26,6 +26,7 @@
 #include "cldnn_executable_network.h"
 #include "threading/ie_cpu_streams_executor.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
+#include "ie_icore.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -66,6 +67,36 @@ CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, std::sh
 IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                     OutputsDataMap networkOutputs) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::CreateInferRequestImpl");
+    auto ptr = std::make_shared<CLDNNInferRequest>(networkInputs, networkOutputs,
+                                                   std::static_pointer_cast<CLDNNExecNetwork>(shared_from_this()));
+    if (m_config.throughput_streams > 1) {
+        ptr->EnableStreams();
+    }
+    if (m_config.useProfiling)
+        ptr->EnableProfiling();
+    ptr->SetGraph(m_graphs.front());
+
+    return ptr;
+}
+
+IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                                                    const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::CreateInferRequestImpl");
+    auto ptr = std::make_shared<CLDNNInferRequest>(inputs, outputs,
+                                                   std::static_pointer_cast<CLDNNExecNetwork>(shared_from_this()));
+    if (m_config.throughput_streams > 1) {
+        ptr->EnableStreams();
+    }
+    if (m_config.useProfiling)
+        ptr->EnableProfiling();
+    ptr->SetGraph(m_graphs.front());
+
+    return ptr;
+}
+
+IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequest() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::CreateInferRequest");
+    InferenceEngine::IInferRequestInternal::Ptr internalRequest;
     if (m_graphs.empty()) {
         IE_THROW(NetworkNotLoaded);
     }
@@ -80,21 +111,10 @@ IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMa
         }
     }
 
-    auto ptr = std::make_shared<CLDNNInferRequest>(networkInputs, networkOutputs,
-                                                   std::static_pointer_cast<CLDNNExecNetwork>(shared_from_this()));
-    if (m_config.throughput_streams > 1) {
-        ptr->EnableStreams();
-    }
-    if (m_config.useProfiling)
-        ptr->EnableProfiling();
-    ptr->SetGraph(m_graphs.front());
-
-    return ptr;
-}
-
-IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequest() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::CreateInferRequest");
-    auto internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
+    if (this->_plugin->GetCore() && this->_plugin->GetCore()->isNewAPI())
+        internalRequest = CreateInferRequestImpl(_parameters, _results);
+    if (!internalRequest)
+        internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     internalRequest->setPointerToExecutableNetworkInternal(shared_from_this());
     return std::make_shared<CLDNNAsyncInferRequest>(std::static_pointer_cast<CLDNNInferRequest>(internalRequest),
                                                     m_taskExecutor,
