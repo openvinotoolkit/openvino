@@ -17,7 +17,7 @@ def create_content(template: str, notebooks_data: dict, file_name: str):
 
     """
     template = Template(template)
-    notebooks_data["notebook"] = file_name
+    notebooks_data["notebook"] = "-".join(file_name.split("-")[:-2])
     return template.render(notebooks_data)
 
 
