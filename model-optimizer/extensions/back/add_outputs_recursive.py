@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
 
+from extensions.ops.If import If
 from extensions.ops.loop import Loop
 from extensions.ops.tensor_iterator import TensorIterator
 from mo.back.replacement import BackReplacementPattern
@@ -44,7 +45,6 @@ def ti_find_iterations_count_for_output(step_node, output_rec):
 # copy shapes from internal nodes + insert correct iterations count where needed
 def ti_infer(step_node, port_num):
     out_port_map = step_node.output_port_map
-    int_layer_id = None
     port_num = port_num + len(step_node.in_ports())
     # find out which internal layer maps to port_num
     found_rec = None
@@ -99,6 +99,32 @@ def max_internal_layer_id(graph):
     return max_int_layer_id
 
 
+# Add Result (and Unsqueeze is add_unsqueeze=True) to node port port_num in graph cur_graph.
+# New nodes will have internal id equal to cur_max_layer_id + 1 (and cur_max_layer_id + 2 if 2 nodes were added)
+# New nodes will be inserted in tracks on position i.
+def add_output_in_body(node, port_num, cur_graph, cur_max_layer_id, tracks, track_index, add_unsqueeze=True):
+    port = node.out_port(port_num)
+    if add_unsqueeze:
+        unsq_name = port.node.soft_get('name', port.node.id) + "/Unsqueeze"
+        unsq_node = create_op_node_with_second_input(cur_graph, Unsqueeze,
+                                                     int64_array([0]),
+                                                     {'name': unsq_name})
+        port.connect(unsq_node.in_port(0))
+        unsq_node['internal_layer_id'] = cur_max_layer_id + 1
+        cur_max_layer_id += 1
+        tracks.insert(track_index, {'node': unsq_node, 'graph': cur_graph})
+        port = unsq_node.out_port(0)
+
+    out_name = port.node.soft_get('name', port.node.id) + ":" + str(port_num)
+    res_node = Result(cur_graph, {'name': out_name}).create_node()
+    port.connect(res_node.in_port(0))
+    res_node['internal_layer_id'] = cur_max_layer_id + 1
+    cur_max_layer_id += 1
+    tracks.insert(track_index, {'node': res_node, 'graph': cur_graph})
+
+    return res_node
+
+
 class AddOutputRecursive(BackReplacementPattern):
     """
     Add output to node inside loops. Path to node set in 'additional_outputs' attribute of graph.
@@ -110,64 +136,44 @@ class AddOutputRecursive(BackReplacementPattern):
     run_not_recursively = True
 
     @staticmethod
-    def add_output_for_path(nodes_path, graphs_path):
+    def add_output_for_path(graphs_nodes_path):
         # add output to nodes according to path
-        step_node = nodes_path[-1]
-        cur_graph = graphs_path[-1]
+        step_node = graphs_nodes_path[-1]['node']
+        cur_graph = graphs_nodes_path[-1]['graph']
 
         ports_to_add_nodes = []
         for o_p in step_node.out_ports():
             ports_to_add_nodes.append(o_p)
 
         # update internal_layer_id for new Results
-        for i in range(len(nodes_path)-1, 0, -1):
+        for i in range(len(graphs_nodes_path)-1, 0, -1):
             cur_max_layer_id = max_internal_layer_id(cur_graph) + 1
-            cur_loop_node = nodes_path[i-1]
+            cur_loop_node = graphs_nodes_path[i-1]['node']
             new_out_ports = []
             if cur_loop_node.op is not 'If':
                 # add Unsqueeze and Result for TensorIterator and Loop and update output_port_map
                 for p_num in ports_to_add_nodes:
-                    port = step_node.out_port(p_num)
-                    unsq_name = port.node.soft_get('name', port.node.id) + "/Unsqueeze"
-                    unsq_node = create_op_node_with_second_input(cur_graph, Unsqueeze,
-                                                                 int64_array([0]),
-                                                                 {'name': unsq_name})
-                    port.connect(unsq_node.in_port(0))
-                    out_name = unsq_name + ":" + str(p_num)
-                    res_node = Result(cur_graph, {'name': out_name}).create_node()
-                    unsq_node.out_port(0).connect(res_node.in_port(0))
-                    unsq_node['internal_layer_id'] = cur_max_layer_id + 1
-                    res_node['internal_layer_id'] = cur_max_layer_id + 2
-                    cur_max_layer_id += 2
-                    nodes_path.insert(i, unsq_node)
-                    nodes_path.insert(i, res_node)
-                    graphs_path.insert(i, cur_graph)
-                    graphs_path.insert(i, cur_graph)
+                    res_node = add_output_in_body(step_node, p_num, cur_graph, cur_max_layer_id,
+                                                  graphs_nodes_path, i)
+
                     # IR reader fix output port map for Loop, but have not change for TensorIterator
+                    new_port_id = len(cur_loop_node.out_ports())
                     if cur_loop_node.op == 'TensorIterator':
-                        new_port_id = len(cur_loop_node.out_ports()) + len(cur_loop_node.in_ports())
-                    else:
-                        new_port_id = len(cur_loop_node.out_ports())
+                        new_port_id = new_port_id + len(cur_loop_node.in_ports())
                     cur_loop_node.output_port_map.append({'axis': 0, 'stride': 1, 'part_size': 1, 'start': 0,
                                                           'end': -1, 'external_port_id': new_port_id,
                                                           'internal_layer_id': res_node['internal_layer_id']})
+                    port_id = new_port_id
                     if cur_loop_node.op == 'TensorIterator':
-                        port_id = new_port_id - len(cur_loop_node.in_ports())
-                    else:
-                        port_id = new_port_id
+                        port_id = port_id - len(cur_loop_node.in_ports())
+
                     new_out_ports.append(port_id)
                     cur_loop_node.add_output_port(port_id)
             else:
                 # add Result nodes for If and update output_id
                 for p_num in ports_to_add_nodes:
-                    port = step_node.out_port(p_num)
-                    out_name = step_node.soft_get('name', step_node.id) + "." + str(p_num)
-                    res_node = Result(cur_graph, {'name': out_name}).create_node()
-                    port.connect(res_node.in_port(0))
-                    res_node['internal_layer_id'] = cur_max_layer_id + 1
-                    cur_max_layer_id += 1
-                    nodes_path.insert(i, res_node)
-                    graphs_path.insert(i, cur_graph)
+                    res_node = add_output_in_body(step_node, p_num, cur_graph, cur_max_layer_id, graphs_nodes_path, i,
+                                                  add_unsqueeze=False)
 
                     if cur_loop_node.then_graph == cur_graph:
                         new_port_id = len(cur_loop_node.out_ports())
@@ -178,7 +184,7 @@ class AddOutputRecursive(BackReplacementPattern):
                         res_node['output_id'] = list(cur_loop_node.out_ports().keys())[-1]
             ports_to_add_nodes = new_out_ports
             step_node = cur_loop_node
-            cur_graph = graphs_path[i-1]
+            cur_graph = graphs_nodes_path[i-1]['graph']
 
         i = 0
         for p_num in ports_to_add_nodes:
@@ -194,29 +200,38 @@ class AddOutputRecursive(BackReplacementPattern):
             if step_node.op == 'TensorIterator':
                 step_node.out_edges()[len(step_node.out_edges())-1]['external_port_id'] = p_num + \
                                                                                           len(step_node.in_ports())
-            nodes_path.insert(0, res_node)
-            graphs_path.insert(0, cur_graph)
+            graphs_nodes_path.insert(0, {'node': res_node, 'graph': cur_graph})
             i += 1
-        return nodes_path, graphs_path
+        return graphs_nodes_path
 
     @staticmethod
-    def infer_shapes_of_nodes_in_path(nodes_path):
+    def infer_shapes_of_nodes_in_path(graphs_nodes_path):
         # update shape for new or updated nodes
-        for i in range(len(nodes_path)-1, -1, -1):
-            step_node = nodes_path[i]
-            # infer shapes for new nodes
+        for i in range(len(graphs_nodes_path) - 1, -1, -1):
+            step_node = graphs_nodes_path[i]['node']
+            # update shapes for Loop, TI, If, Unsqueeze
+            # Result to end node in path added to existing port with already calculated shapes
             for p_num in step_node.out_ports():
                 if not step_node.out_port(p_num).disconnected():
                     if step_node.op == 'TensorIterator':
                         ti_infer(step_node, p_num)
                     elif step_node.op == 'Loop':
                         loop_infer(step_node, p_num)
-            else:
-                step_node.infer(step_node)
+                    elif step_node.op == 'Unsqueeze':
+                        assert step_node.in_port(1).get_source().node.has('value')
+                        axis = step_node.in_port(1).get_source().node.value[0]
+                        out_shape = list(step_node.in_port(0).get_source().data.get_shape())
+                        out_shape.insert(axis, 1)
+                        step_node.out_port(p_num).data.set_shape(out_shape)
+                    elif step_node.op == 'If':
+                        If.update_if_output_ports_shape(step_node)
 
     @staticmethod
     def split_path_to_simple_tracks(graph, path):
         # Split complex path into simple linear tracks.
+        # In path after If node list with 2 sub-lists should be. In this function such path is split into 2 tracks:
+        # one for each sublist with linear structure.
+        # Number of tracks got from path is 2 * number of If operations in path.
         # Track is looks like list of paths with 2 fields : list of nodes on current path and list of according graphs
         # Example:
         # input path : [loop_1, loop_2, if_1, [[loop3_1, node_1], [node_2]]]
@@ -224,52 +239,58 @@ class AddOutputRecursive(BackReplacementPattern):
         #                 'graphs':[graph, loop_1.body, loop_2.body, if.then_graph, loop3_1.body]},
         #                {'nodes': [loop_1, loop_2, if_1, node_2],
         #                 'graphs':[graph, loop_1.body, loop_2.body, if.else_graph]}]
-        paths_nodes_graphs = []
-        cur_graph = [graph]
-        path_idx = 0
-        graph_idx = 0
-        i = 0
-        lists_stack = []
-        cur_list = path
-        paths_nodes_graphs.append({'nodes': [], 'graphs': []})
-        is_finished = False
-        switch_path = False
-        while not is_finished:
-            while i < len(cur_list):
-                el = cur_list[i]
+
+        # structure to save tracks
+        # list with tracks, each track is list of pairs {'node', 'graph'}
+        paths_nodes_graphs = list()
+        paths_nodes_graphs.append([])
+        # stack for sub-graphs that will be traversed in future
+        future_graphs_stack = [graph]
+        # index for track that we currently fill
+        track_idx = 0
+        # save lists that were started but not finished during processing
+        lists_stack = [{'list': path, 'pos': -1}]
+        while len(lists_stack) != 0:
+            cur_list_pos = lists_stack.pop(-1)
+            # current list to process
+            cur_list = cur_list_pos['list']
+            # index in current list/sub-list
+            list_idx = cur_list_pos['pos'] + 1
+            while list_idx < len(cur_list):
+                el = cur_list[list_idx]
                 if isinstance(el, (list, np.ndarray)):
-                    lists_stack.append({'list': cur_list, 'pos': i})
+                    lists_stack.append({'list': cur_list, 'pos': list_idx})
+                    # if we have previous node non-list then current sublist is for If node
+                    # and new tracks should be added for sub-graphs (the first subgraph will continue current track)
+                    if list_idx != 0 and isinstance(cur_list[list_idx - 1], str):
+                        for i in range(len(el) - 1):
+                            # copy all nodes from existing track to new one
+                            paths_nodes_graphs.append(paths_nodes_graphs[-1][:])
+                    # new sublist started, so reset index
                     cur_list = el
-                    if i != 0:
-                        paths_nodes_graphs.append({'nodes': [], 'graphs': []})
-                        paths_nodes_graphs[-1]['nodes'] = paths_nodes_graphs[-2]['nodes'].copy()
-                        paths_nodes_graphs[-1]['graphs'] = paths_nodes_graphs[-2]['graphs'].copy()
-                        switch_path = True
-                    i = 0
+                    list_idx = 0
                 else:
                     assert isinstance(el, str)
-                    step_node = Node(cur_graph[graph_idx], el)
-                    paths_nodes_graphs[path_idx]['nodes'].append(step_node)
-                    paths_nodes_graphs[path_idx]['graphs'].append(cur_graph[graph_idx])
-                    if step_node.has_and_set('sub_graphs'):
-                        for sub_graphs_name in step_node['sub_graphs']:
-                            cur_graph.append(step_node[sub_graphs_name])
-                    else:
-                        if not switch_path:
-                            assert i == len(cur_list) - 1, "Not last node in list of nodes is not Loop/If/TI"
-                    if switch_path:
-                        path_idx += 1
-                        switch_path = False
-                    i += 1
-                    graph_idx += 1
-            if len(lists_stack) != 0:
-                cur_list_pos = lists_stack.pop(-1)
-                cur_list = cur_list_pos['list']
-                i = cur_list_pos['pos'] + 1
-                path_idx -= 1
-                graph_idx -= 1  # should check
-            else:
-                is_finished = True
+                    cur_graph = future_graphs_stack.pop(-1)
+                    step_node = Node(cur_graph, el)
+                    paths_nodes_graphs[track_idx].append({'node': step_node, 'graph': cur_graph})
+
+                    # if node is not last, check that next node will be on current track or not
+                    if list_idx != len(cur_list) - 1:
+                        # so detect if we are in sublist with branches for If
+                        # then in stack sublist is not the first node of list
+                        # and have previous node with If operation name
+                        if len(lists_stack) != 0 and lists_stack[-1]['pos'] != 0 and \
+                                isinstance(lists_stack[-1]['list'][lists_stack[-1]['pos']-1], str):
+                            # switch to next track
+                            if list_idx != len(cur_list) - 1:
+                                track_idx += 1
+                        else:
+                            assert step_node.has_and_set('sub_graphs'), "Node without sub-graphs is not last in path"
+                            # the first graph should be first in traverse
+                            for sub_graphs_name in reversed(step_node['sub_graphs']):
+                                future_graphs_stack.append(step_node[sub_graphs_name])
+                    list_idx += 1
 
         return paths_nodes_graphs
 
@@ -283,19 +304,16 @@ class AddOutputRecursive(BackReplacementPattern):
 
         paths_nodes_graphs_old = []
         for i in range(len(paths_nodes_graphs)):
-            paths_nodes_graphs_old.append({'nodes': [], 'graphs': []})
-            paths_nodes_graphs_old[i]['nodes'] = paths_nodes_graphs[i]['nodes'][:]
-            paths_nodes_graphs_old[i]['graphs'] = paths_nodes_graphs[i]['graphs'][:]
-            paths_nodes_graphs[i]['nodes'], paths_nodes_graphs[i]['graphs'] = self.add_output_for_path(
-                paths_nodes_graphs[i]['nodes'], paths_nodes_graphs[i]['graphs'])
+            paths_nodes_graphs_old.append(paths_nodes_graphs[i][:])
+            paths_nodes_graphs[i] = self.add_output_for_path(paths_nodes_graphs[i])
 
         for i in range(len(paths_nodes_graphs)):
-            self.infer_shapes_of_nodes_in_path(paths_nodes_graphs[i]['nodes'])
+            self.infer_shapes_of_nodes_in_path(paths_nodes_graphs[i])
 
         new_nodes = []
         for i in range(len(paths_nodes_graphs)):
             # new Result added to main graph should be on last place
-            if paths_nodes_graphs_old[i]['nodes'][0] != paths_nodes_graphs[i]['nodes'][0]:
-                new_nodes.append(paths_nodes_graphs[i]['nodes'][0])
+            if paths_nodes_graphs_old[i][0]['node'] != paths_nodes_graphs[i][0]['node']:
+                new_nodes.append(paths_nodes_graphs[i][0]['node'])
 
         return new_nodes

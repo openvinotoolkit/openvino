@@ -63,5 +63,5 @@ class Extender(object):
             if i in node.ports:
                 node.out_port(num).data.set_shape(int64_array(node.ports[i][0]))
             else:
-                assert node.out_port(num).data.get_shape() is not None, "New added port have not set shape"
+                assert node.out_port(num).data.get_shape() is not None, "Newly added port does not have set shape"
             i += 1
