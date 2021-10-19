@@ -149,7 +149,7 @@ These dependencies are required for:
    sudo -E ./install_openvino_dependencies.sh
    ```
    
-   Once the dependencies are installed, continue to the next section. You will set your environment variables and configure the Model Optimizer utility.
+   Once the dependencies are installed, continue to the next section to set your environment variables.
 
 ## <a name="set-the-environment-variables"></a>Step 3: Configure the Environment
 
