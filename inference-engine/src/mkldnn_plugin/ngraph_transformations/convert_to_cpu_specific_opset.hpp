@@ -34,9 +34,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<ConvertToLeakyRelu>();
     manager.register_pass<ReshapePRelu>();
     manager.register_pass<ConvertToSwishCPU>();
-    manager.register_pass<OptimizeGRUSequenceTransposes>();
-    manager.register_pass<OptimizeLSTMSequenceTransposes>();
-    manager.register_pass<OptimizeRNNSequenceTransposes>();
+    manager.register_pass<OptimizeSequenceTransposes>();
     if (!ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc)) {
         manager.register_pass<ReshapeFullyConnectedFusion>();
     }
