@@ -19,6 +19,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 #include <ngraph/rt_info.hpp>
+#include "transformations/rt_info/fused_names_attribute.hpp"
 
 #include <snippets/op/subgraph.hpp>
 #include "emitters/cpu_generator.hpp"
@@ -38,6 +39,14 @@ MKLDNNSnippetNode::MKLDNNSnippetNode(const std::shared_ptr<ngraph::Node>& op, co
         }
         auto new_body = ngraph::clone_function(*snippet_ref->get_body().get());
         snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
+        const auto &fused_names = ngraph::getFusedNamesVector(op);
+        if (fused_names.size() > 1) {
+            const std::string original_name = getOriginalLayers();
+            for (const auto& name : fused_names) {
+                if (name != original_name)
+                    addOriginalLayer(name);
+            }
+        }
         ngraph::copy_runtime_info(snippet_ref, snippet);
         snippet->set_friendly_name(snippet_ref->get_friendly_name());
         snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));

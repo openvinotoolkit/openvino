@@ -8,6 +8,7 @@
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/filter_fused.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "transformations/rt_info/fused_names_attribute.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
@@ -562,6 +563,22 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
         for (size_t i = 0; i < act_body1->get_parameters().size(); i++) {
             act_body1->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
+        const std::string& fused_names_key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
+        auto get_node_fused_names = [fused_names_key](std::shared_ptr<Node> n) {
+            const auto& rt_info = n->get_rt_info();
+            // todo: Do we really need to check that fused_names_key is in the map?
+            auto fused_names_attr = std::dynamic_pointer_cast<VariantWrapper<ngraph::FusedNames>>(rt_info.at(fused_names_key));
+            return ov::as_type_ptr<ngraph::VariantWrapper<FusedNames>>(fused_names_attr)->get();
+        };
+
+        FusedNames fusedNames = get_node_fused_names(node);
+        for (const auto& input_node : as_node_vector(node->input_values())) {
+            if (ov::is_type<op::Subgraph>(input_node)) {
+                fusedNames.fuseWith(get_node_fused_names(input_node));
+            }
+        }
+        auto& rt_info = subgraph->get_rt_info();
+        rt_info[fused_names_key] = std::make_shared<ngraph::VariantWrapper<FusedNames>>(fusedNames);
 
         remark(1) << "Replacement (merge) done for: "
                     << subgraph->get_friendly_name()
