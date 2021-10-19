@@ -31,13 +31,14 @@ public:
     Place::Ptr get_place_by_operation_name_and_output_port(const std::string& operation_name,
                                                            int output_port_index) override;
 
-    // Naming and annotation
     void set_name_for_tensor(Place::Ptr tensor, const std::string& new_name) override;
     void set_name_for_operation(Place::Ptr operation, const std::string& new_name) override;
     void free_name_for_operation(const std::string& name) override;
     void set_name_for_dimension(Place::Ptr place, size_t shape_dim_index, const std::string& dim_name) override;
-    // TODO add descr -> not applicable & throws
+
+    /// \brief  Not applicable for ONNX model. Throws immediately
     void add_name_for_tensor(Place::Ptr tensor, const std::string& new_name) override;
+    /// \brief  Not applicable for ONNX model. Throws immediately
     void free_name_for_tensor(const std::string& name) override;
 
     void set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape) override;

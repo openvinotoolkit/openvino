@@ -106,12 +106,10 @@ void InputModelONNX::set_name_for_dimension(Place::Ptr tensor, size_t shape_dim_
     onnx_tensor->set_name_for_dimension(shape_dim_index, dim_name);
 }
 
-// TODO consider moving to class definition
 void InputModelONNX::add_name_for_tensor(Place::Ptr, const std::string&) {
     FRONT_END_THROW("Method add_name_for_tensor is not applicable for ONNX model. ONNX tensor has just one name.");
 }
 
-// TODO consider moving to class definition
 void InputModelONNX::free_name_for_tensor(const std::string&) {
     FRONT_END_THROW("Method free_name_for_tensor is not applicable for ONNX model. ONNX tensor name is an identifier.");
 }

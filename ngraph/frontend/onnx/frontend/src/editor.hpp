@@ -69,7 +69,7 @@ public:
     ///        the underlying ModelProto is modified - obsolete inputs, initializers, nodes
     ///        and outputs are removed from the in-memory model.
     ///
-    /// \node Please look at the declaration of InputEdge and OutputEdge for explanation
+    /// \note Please look at the declaration of InputEdge and OutputEdge for explanation
     ///       how those objects can be created. If the outputs parameter is empty
     ///       this method keeps all of the original outputs of the model.
     ///
@@ -90,13 +90,39 @@ public:
     ///                     overwritten.
     void set_input_values(const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values);
 
-    // TODO add descr
+    /// \brief Changes the name of given tensor.
+    ///
+    /// \note It changes input, output, initializer and value_info proto repeated fields as well as
+    ///       all nodes which refer to the tensor.
+    ///
+    /// \param current_name Name of tensor to be changed.
+    /// \param new_name New name of tensor. Must not be empty nor point to existing tensor (including self).
     void set_tensor_name(const std::string& current_name, const std::string& new_name);
-    // TODO add descr
+
+    /// \brief Sets node's name.
+    ///
+    /// \note Empty name is accepted.
+    ///
+    /// \param node Handle to node.
+    /// \param new_name New name of the node.
     void set_node_name(const EditorNode& node, const std::string& new_name);
-    // TODO add descr
+
+    /// \brief Removes node name for all nodes with given name.
+    ///
+    /// \note Empty and not present names are accepted.
+    ///
+    /// \param name Name to clear
     void clear_nodes_name(const std::string& name);
-    // TODO add descr
+
+    /// \brief Overrides or creates name for tensor shape dimension (numeric dimension is erased).
+    ///
+    /// \note It changes input, output and value_info proto repeated fields.
+    ///       If rank of the tensor is too low the shape is expanded with dynamic dimensions so
+    ///       the name can be set at specified position.
+    ///
+    /// \param node_name Tensor name to change its shape. Must not point to initializer.
+    /// \param shape_dim_index Index of dimension to change.
+    /// \param dim_name New name of the dimension. Must not be empty.
     void set_name_for_dimension(const std::string& node_name, size_t shape_dim_index, const std::string& dim_name);
 
     /// \brief Returns a serialized ONNX model, possibly modified by the editor.
