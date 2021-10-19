@@ -1,0 +1,42 @@
+{
+    "model": {
+        "model_name": "ssd_resnet34_1200",
+        "model": "<MODEL_PATH>",
+        "weights": "<PATH_TO_WEIGHTS>"
+    },
+    "engine": {
+        "config": "./configs/examples/accuracy_checker/ssd_resnet34.yaml"
+    },
+    "compression": {
+        "algorithms": [
+            {
+                "name": "DefaultQuantization",
+                "params": {
+                    "stat_subset_size": 300,
+                    "preset": "performance",
+                    "ignored":{
+                        "scope": [
+                            "Mul_490",
+                            "Mul_509",
+                            "Add_511",
+                            "Mul_507",
+                            "Exp_512",
+                            "Mul_514",
+                            "Mul_548/Fused_Mul_",
+                            "Mul_583/Fused_Mul_",
+                            "Mul_618",
+                            "Mul_653",
+                            "Sub_549/add_",
+                            "Sub_584/add_",
+                            "Add_619",
+                            "Add_654",
+                            "Mul_703",
+                            "Add_704",
+                            "Add_labels"
+                        ]
+                    }
+                }
+            }
+        ]
+    }
+}

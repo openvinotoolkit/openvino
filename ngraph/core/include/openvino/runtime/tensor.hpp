@@ -12,6 +12,7 @@
 #include <type_traits>
 
 #include "openvino/core/coordinate.hpp"
+#include "openvino/core/rtti.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/allocator.hpp"
@@ -52,6 +53,13 @@ protected:
     friend class ov::runtime::VariableState;
 
 public:
+    /**
+     * @brief Checks openvino tensor type
+     * @param tensor a tensor which type will be checked
+     * @throw Exception if type check with specified tensor is not pass
+     */
+    static void type_check(const Tensor& tensor);
+
     /**
      * @brief Default constructor
      */
@@ -150,6 +158,47 @@ public:
      * @return `true` if current Tensor object is initialized, `false` - otherwise
      */
     explicit operator bool() const noexcept;
+
+    /**
+     * @brief Checks if the Tensor object can be cast to the type T
+     *
+     * @tparam T Type to be checked. Must represent a class derived from the Tensor
+     * @return true if this object can be dynamically cast to the type const T*. Otherwise, false
+     */
+    template <typename T>
+    bool is() const noexcept {
+        static_assert(std::is_base_of<Tensor, T>::value, "Could not check type that is not inherited from Tensor");
+        try {
+            T::type_check(*this);
+        } catch (...) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * @brief Casts this Tensor object to the type T.
+     *
+     * @tparam T Type to cast to. Must represent a class derived from the Tensor
+     * @return T object
+     */
+    template <typename T>
+    const T as() const {
+        static_assert(std::is_base_of<Tensor, T>::value, "Could not check type that is not inherited from Tensor");
+        T::type_check(*this);
+        return *static_cast<const T*>(this);
+    }
+
+    /**
+     * @brief Casts this Tensor object to the type T.
+     *
+     * @tparam T Type to cast to. Must represent a class derived from the Tensor
+     * @return T object
+     */
+    template <typename T>
+    operator T() const {
+        return as<T>();
+    }
 };
 
 using TensorVector = std::vector<Tensor>;
