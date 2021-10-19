@@ -17,11 +17,11 @@ Inference Engine sample applications include the following:
    - [Benchmark Python Tool](../../tools/benchmark_tool/README.md)
 - **Hello Classification Sample** – Inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API. Input of any size and layout can be set to an infer request which will be pre-processed automatically during inference (the sample supports only images as inputs and supports Unicode paths).
    - [Hello Classification C++ Sample](../../inference-engine/samples/hello_classification/README.md)
-   - [Hello Classification C Sample](../../samples/C/hello_classification/README.md)
+   - [Hello Classification C Sample](../../samples/c/hello_classification/README.md)
    - [Hello Classification Python Sample](../../samples/python/hello_classification/README.md)
 - **Hello NV12 Input Classification Sample** – Input of any size and layout can be provided to an infer request. The sample transforms the input to the NV12 color format and pre-process it automatically during inference. The sample supports only images as inputs.
    - [Hello NV12 Input Classification C++ Sample](../../inference-engine/samples/hello_nv12_input_classification/README.md)
-   - [Hello NV12 Input Classification C Sample](../../samples/C/hello_nv12_input_classification/README.md)
+   - [Hello NV12 Input Classification C Sample](../../samples/c/hello_nv12_input_classification/README.md)
 - **Hello Query Device Sample** – Query of available Inference Engine devices and their metrics, configuration values.
    - [Hello Query Device C++ Sample](../../inference-engine/samples/hello_query_device/README.md)
    - [Hello Query Device Python* Sample](../../samples/python/hello_query_device/README.md)
