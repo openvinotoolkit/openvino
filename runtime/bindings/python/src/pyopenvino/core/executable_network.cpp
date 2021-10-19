@@ -1,10 +1,11 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+#include "openvino/runtime/executable_network.hpp"
+
 #include <ie_input_info.hpp>
 
 #include "common.hpp"
-#include "openvino/runtime/executable_network.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/ie_infer_request.hpp"
 #include "pyopenvino/core/ie_input_info.hpp"

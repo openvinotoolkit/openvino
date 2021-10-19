@@ -21,10 +21,10 @@
 #    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
 #endif
 #include "pyopenvino/core/containers.hpp"
-#include "pyopenvino/core/ie_blob.hpp"
 #include "pyopenvino/core/core.hpp"
-#include "pyopenvino/core/ie_data.hpp"
 #include "pyopenvino/core/executable_network.hpp"
+#include "pyopenvino/core/ie_blob.hpp"
+#include "pyopenvino/core/ie_data.hpp"
 #include "pyopenvino/core/ie_infer_queue.hpp"
 #include "pyopenvino/core/ie_infer_request.hpp"
 #include "pyopenvino/core/ie_input_info.hpp"
