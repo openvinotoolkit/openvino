@@ -35,20 +35,18 @@ IInferRequestInternal::IInferRequestInternal(const std::vector<std::shared_ptr<c
     : _parameters(inputs),
       _results(outputs) {
     const auto& create_old_data = [](const ov::Output<const ov::Node>& output) -> InferenceEngine::DataPtr {
+        IE_SUPPRESS_DEPRECATED_START
         auto name = ngraph::op::util::get_ie_output_name(output);
         auto shape = output.get_partial_shape();
         auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
-        SizeVector dims;
-        if (shape.is_static())
-            dims = shape.to_shape();
-        else if (rank >= 0)
-            dims = SizeVector(rank, 0);
-        else
-            dims = {0};
+        for (const auto& dim : shape) {
+            if (dim.is_static() && dim.get_length() == 0)
+                IE_THROW() << name << " has zero dimension which is not allowed";
+        }
         const Layout rankLayout = rank < 0 ? Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
         const auto precision = InferenceEngine::details::convertPrecision(output.get_element_type());
-        TensorDesc desc(precision, dims, rankLayout);
-        return std::make_shared<Data>(name, desc);
+        return std::make_shared<Data>(name, precision, shape, rankLayout);
+        IE_SUPPRESS_DEPRECATED_END
     };
     const auto& create_old_input_data =
         [create_old_data](const ov::Output<const ov::Node>& output) -> InferenceEngine::InputInfo::Ptr {
