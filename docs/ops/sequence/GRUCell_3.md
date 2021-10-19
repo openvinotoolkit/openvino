@@ -11,7 +11,7 @@
 ```
 Formula:
   *  - matrix multiplication
- (.) - eltwise multiplication
+ (.) - Hadamard product(element-wise)
  [,] - concatenation
   f, g - are activation functions.
    zt = f(Xt*(Wz^T) + Ht-1*(Rz^T) + Wbz + Rbz)
