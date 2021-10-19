@@ -37,6 +37,8 @@
 
 namespace InferenceEngine {
 
+#ifndef OPENVINO_STATIC_LIBRARY
+
 namespace details {
 
 /**
@@ -115,11 +117,6 @@ namespace {
 // Extension to plugins creator
 std::multimap<std::string, Reader::Ptr> readers;
 
-static ngraph::frontend::FrontEndManager& get_frontend_manager() {
-    static ngraph::frontend::FrontEndManager manager;
-    return manager;
-}
-
 void registerReaders() {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "registerReaders");
     static bool initialized = false;
@@ -166,19 +163,6 @@ void assertIfIRv7LikeModel(std::istream& modelStream) {
                << " has been removed from the product. "
                   "Please, convert the original model using the Model Optimizer which comes with this "
                   "version of the OpenVINO to generate supported IR version.";
-}
-
-ov::Extensions get_extensions_map(const std::vector<InferenceEngine::IExtensionPtr>& exts) {
-    ov::Extensions extensions;
-    for (const auto& ext : exts) {
-        for (const auto& item : ext->getOpSets()) {
-            if (extensions.count(item.first)) {
-                IE_THROW() << "Extension with " << item.first << " name already exists";
-            }
-            extensions[item.first] = item.second;
-        }
-    }
-    return extensions;
 }
 
 CNNNetwork load_ir_v7_network(const std::string& modelPath,
@@ -256,6 +240,12 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
 
     return {};
 }
+
+}  // namespace
+
+#endif // OPENVINO_STATIC_LIBRARY
+
+namespace {
 
 CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                                  const std::vector<IExtensionPtr>& exts,
@@ -409,12 +399,31 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
+ngraph::frontend::FrontEndManager& get_frontend_manager() {
+    static ngraph::frontend::FrontEndManager manager;
+    return manager;
+}
+
+ov::Extensions get_extensions_map(const std::vector<InferenceEngine::IExtensionPtr>& exts) {
+    ov::Extensions extensions;
+    for (const auto& ext : exts) {
+        for (const auto& item : ext->getOpSets()) {
+            if (extensions.count(item.first)) {
+                IE_THROW() << "Extension with " << item.first << " name already exists";
+            }
+            extensions[item.first] = item.second;
+        }
+    }
+    return extensions;
+}
+
 }  // namespace
 
 CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::string& binPath,
                                 const std::vector<IExtensionPtr>& exts,
                                 bool newAPI) {
+#ifndef OPENVINO_STATIC_LIBRARY
     // IR v7 obsolete code
     {
         // Register readers if it is needed
@@ -428,6 +437,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
         }
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
+#endif // OPENVINO_STATIC_LIBRARY
 
     // Fix unicode name
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -477,6 +487,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     std::istringstream modelStringStream(model);
     std::istream& modelStream = modelStringStream;
 
+#ifndef OPENVINO_STATIC_LIBRARY
     // IR v7 obsolete code
     {
         // Register readers if it is needed
@@ -494,6 +505,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
             }
         }
     }
+#endif // OPENVINO_STATIC_LIBRARY
 
     // Try to load with FrontEndManager
     auto& manager = get_frontend_manager();
