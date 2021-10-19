@@ -55,6 +55,15 @@
 
 void prepare_primitive_fusing::run(program& p) {
     fuse_reorders(p);
+    remove_redundant_reshape(p);
+    fuse_sigmoid_mul_to_swish(p);
+    fuse_bias(p);
+    fuse_simple_primitives(p);
+    fuse_activations(p);
+    optimize_fused_ops(p);
+}
+
+void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
     auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
         auto node = (*node_itr++);
@@ -71,11 +80,6 @@ void prepare_primitive_fusing::run(program& p) {
             }
         });
     }
-    fuse_sigmoid_mul_to_swish(p);
-    fuse_bias(p);
-    fuse_simple_primitives(p);
-    fuse_activations(p);
-    optimize_fused_ops(p);
 }
 
 void prepare_primitive_fusing::fuse_sigmoid_mul_to_swish(program &p) {
@@ -207,9 +211,11 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
                 // TODO: new api needs to be created to read such caps
                 // right now use whitelist so no new primitives will be affected in case of lack of fused activation
                 // support
-                (!input.is_type<crop>() && !input.is_type<deconvolution>() && !input.is_type<eltwise>() &&
+                (!input.is_type<concatenation>() && !input.is_type<convolution>() &&
+                 !input.is_type<crop>() && !input.is_type<deconvolution>() && !input.is_type<eltwise>() &&
                  !input.is_type<fully_connected>() && !input.is_type<lrn>() && !input.is_type<normalize>() &&
-                 !input.is_type<permute>() && !input.is_type<roi_pooling>() && !input.is_type<scale>() &&
+                 !input.is_type<permute>() && !input.is_type<pooling>() && !input.is_type<reorder>() &&
+                 !input.is_type<reshape>() && !input.is_type<roi_pooling>() && !input.is_type<scale>() &&
                  !input.is_type<softmax>() && !input.is_type<resample>() && !input.is_type<mvn>() &&
                  !input.is_type<depth_to_space>() && !input.is_type<batch_to_space>() &&
                  !input.is_type<space_to_batch>() && !input.is_type<gather>() && !input.is_type<scatter_update>() && !input.is_type<shuffle_channels>() &&
