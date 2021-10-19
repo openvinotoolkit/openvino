@@ -40,6 +40,8 @@ protected:
     MockInferencePluginInternal2 engine;
 };
 
+#ifndef OPENVINO_STATIC_LIBRARY
+
 TEST_F(PluginTest, canCreatePluginUsingSmartPtr) {
     ASSERT_NO_THROW(InferenceEngine::details::SOPointer<InferenceEngine::IInferencePlugin> ptr(get_mock_engine_name()));
 }
@@ -65,3 +67,5 @@ TEST_F(PluginTest, canSetConfiguration) {
 
     ASSERT_STREQ(dynamic_cast<MockPlugin*>(ptr.operator->())->config["key"].c_str(), "value");
 }
+
+#endif // OPENVINO_STATIC_LIBRARY
