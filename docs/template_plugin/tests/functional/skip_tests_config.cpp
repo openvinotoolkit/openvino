@@ -49,6 +49,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceDeformableConvolutionV8LayerTest.*f16.*real_offset_padding_stride_dialation.*)",
         R"(.*ReferenceDeformableConvolutionV8LayerTest.*bf16.*)",
         R"(.*ReferenceDeformableConvolutionV8LayerTest.*f64.*mask.*)",
+        // CVS-64056
+        R"(.*ReferenceVariadicSplitTest.*_variadic_split_2d.*_dynamic)",
+        R"(.*ReferenceVariadicSplitTest.*_variadic_split_4d.*_dynamic)",
     };
 
 #ifdef _WIN32
