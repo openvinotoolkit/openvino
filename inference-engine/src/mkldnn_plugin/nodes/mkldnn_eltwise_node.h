@@ -75,7 +75,7 @@ public:
     bool created() const override;
     bool canBeInPlace() const override;
     bool canFuse(const MKLDNNNodePtr& node) const override;
-    void appendPostOps(mkldnn::post_ops& ops, bool initAsBinary = false, bool initBinaryMemory = false) override;
+    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, bool initAsBinary = false, bool initBinaryMemory = false) override;
     void fuseInto(MKLDNNNodePtr& parentNode) override;
     InferenceEngine::Precision getRuntimePrecision() const override;
 
@@ -97,18 +97,11 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
-    bool mustReallocInternalBuffers() const override;
     // TODO [mandrono]: place outside of the node API
     void fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align = -1);
-    void alignScalesAndShifts(const MKLDNNNode *parentNode);
 
 protected:
-    void alignScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts);
-
-    valueWithStatus ssAlign;
-    valueWithStatus constPort;
-    valueWithStatus initScalesSize;
-    valueWithStatus initShiftsSize;
+    void alignScalesAndShifts(const VectorDims &postOpDims, std::vector<float> &scales, std::vector<float> &shifts);
 
 private:
     struct EltwiseExecutor {
@@ -142,6 +135,10 @@ private:
     };
 
     mkldnn::algorithm mkldnnAlgorithm = mkldnn::algorithm::undef;
+
+    int postOpAlign = -1; 
+    size_t initScalesSize = 0;
+    size_t initShiftsSize = 0;
 
     static const int optimalTensorRank = 6;
     bool canUseOptimizedImpl = false;

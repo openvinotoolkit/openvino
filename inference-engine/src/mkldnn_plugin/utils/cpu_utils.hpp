@@ -90,4 +90,11 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
     return precision;
 }
 
+inline VectorDims getPerChannelBroadcasted(const VectorDims &dims) {
+    VectorDims result(dims.size(), 1);
+    const auto axis = dims.size() > 1 ? 1 : 0;
+    result[axis] = dims[axis];
+    return result;
+}
+
 }  // namespace MKLDNNPlugin

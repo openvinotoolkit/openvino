@@ -19,6 +19,7 @@
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "utils/general_utils.h"
 #include <ngraph/opsets/opset1.hpp>
+#include "utils/cpu_utils.hpp"
 
 // WA for xbyak.h
 #ifdef _WIN32
@@ -964,9 +965,7 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    if (!fusedWithNeededReallocNode()) {
-        setPostOps(attr);
-    }
+    setPostOps(attr);
 
     NodeConfig config;
     config.dynBatchSupport = false;
@@ -1021,10 +1020,6 @@ void MKLDNNBinaryConvolutionNode::createPrimitive() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU binary convolution with name '" << getName() << "' doesn't have primitive descriptors.";
-
-    if (fusedWithNeededReallocNode()) {
-        setPostOps(attr);
-    }
 
     auto srcDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
     auto weiDims = getParentEdgesAtPort(1)[0]->getMemory().getStaticDims();
@@ -1133,19 +1128,18 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
     for (auto &node : fusedWith) {
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            if (eltwiseNode->isSpecialConvolutionAddFusing())
+            if (eltwiseNode->isSpecialConvolutionAddFusing()) {
                 ops.append_sum(1.0);
-            else
-                eltwiseNode->appendPostOps(ops);
+            } else {
+                // TODO [DS]: change to shape from memory
+                eltwiseNode->appendPostOps(ops, getPerChannelBroadcasted(getOutputShapeAtPort(0).getStaticDims()));
+            }                
             continue;
         }
 
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
-            if (fakeQuantizeNode->mustReallocInternalBuffers()) {
-                fakeQuantizeNode->setCurrentAxis(getChildEdgesAtPort(0)[0]->getMemory().getStaticDims()[fakeQuantizeNode->getAxis()]);
-            }
-            fakeQuantizeNode->appendPostOps(ops);
+            fakeQuantizeNode->appendPostOps(ops, getPerChannelBroadcasted(getOutputShapeAtPort(0).getStaticDims()));
             continue;
         }
 

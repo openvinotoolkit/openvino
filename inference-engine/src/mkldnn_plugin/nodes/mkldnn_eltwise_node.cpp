@@ -1683,33 +1683,6 @@ bool MKLDNNEltwiseNode::canBeInPlace() const {
     return getInputShapeAtPort(0) == getOutputShapeAtPort(0);
 }
 
-// TODO [DS]: maybe cache result?
-bool MKLDNNEltwiseNode::mustReallocInternalBuffers() const {
-    if (!isDynamicNode()) {
-        return false;
-    }
-    if (getAlgorithm() == EltwisePowerStatic) {
-        return true;
-    }
-    if (one_of(getAlgorithm(), EltwiseMultiply, EltwiseDivide, EltwisePrelu, EltwiseAdd, EltwiseSubtract)) {
-        if (!constPort.isInit()) {
-            IE_THROW() << "Can't check that node must reallocate internal buffers, becuase const port value is not init";
-        }
-        const auto &dims = getInputShapeAtPort(constPort.getValue()).getStaticDims();
-        return dims[dims.size() > 1 ? 1 : 0] == 1;
-    } else if (getAlgorithm() == EltwiseMulAdd) {
-        const auto &scaleDims = getInputShapeAtPort(1).getStaticDims();
-        const auto &shiftDims = getInputShapeAtPort(2).getStaticDims();
-        return scaleDims[scaleDims.size() > 1 ? 1 : 0] == 1 && shiftDims[shiftDims.size() > 1 ? 1 : 0] == 1;
-    } else {
-        return false;
-    }
-}
-
-void MKLDNNEltwiseNode::alignScalesAndShifts(const MKLDNNNode *parentNode) {
-    alignScalesAndShifts(parentNode, scales, shifts);
-}
-
 void MKLDNNEltwiseNode::fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align) {
     scales.clear();
     shifts.clear();
@@ -1725,12 +1698,12 @@ void MKLDNNEltwiseNode::fillScalesAndShifts(const MKLDNNNode *parentNode, std::v
                     elementsCount);
     };
 
-    constPort = getParentEdgesAtPort(0)[0]->getParent().get() == parentNode ? 1 : 0;
+    const auto constPort = getParentEdgesAtPort(0)[0]->getParent().get() == parentNode ? 1 : 0;
 
     if (one_of(getAlgorithm(), EltwiseMultiply, EltwiseDivide, EltwisePrelu)) {
-        fillValuesFrom(getParentEdgesAtPort(constPort.getValue())[0]->getParent(), scales);
+        fillValuesFrom(getParentEdgesAtPort(constPort)[0]->getParent(), scales);
     } else if (one_of(getAlgorithm(), EltwiseAdd, EltwiseSubtract)) {
-        fillValuesFrom(getParentEdgesAtPort(constPort.getValue())[0]->getParent(), shifts);
+        fillValuesFrom(getParentEdgesAtPort(constPort)[0]->getParent(), shifts);
     } else if (one_of(getAlgorithm(), EltwiseMulAdd)) {
         fillValuesFrom(getParentEdgesAtPort(1)[0]->getParent(), scales);
         fillValuesFrom(getParentEdgesAtPort(2)[0]->getParent(), shifts);
@@ -1746,67 +1719,38 @@ void MKLDNNEltwiseNode::fillScalesAndShifts(const MKLDNNNode *parentNode, std::v
     }
 
     if (align != -1) {
-        ssAlign = align;
+        postOpAlign = align;
     }
 
     initScalesSize = scales.size();
     initShiftsSize = shifts.size();
-
-    if (mustReallocInternalBuffers()) {
-        return;
-    }
-
-    alignScalesAndShifts(parentNode, scales, shifts);
 }
 
-void MKLDNNEltwiseNode::alignScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts) {
+void MKLDNNEltwiseNode::alignScalesAndShifts(const VectorDims &postOpDims, std::vector<float> &scales, std::vector<float> &shifts) {
     if (scales.empty() && shifts.empty()) {
         IE_THROW() << "Can't align scales and shifts, becuase both buffers empty";
     }
 
-    if (!initScalesSize.isInit() || !initShiftsSize.isInit() || !constPort.isInit()) {
-        IE_THROW() << "Can't align scales and shifts, because alignment or init scales/shifts size or const port value is not init";
+    const size_t bufferSize = static_cast<size_t>(postOpDims[postOpDims.size() > 1 ? 1 : 0]);
+    size_t align = bufferSize;
+    if (postOpAlign != -1) {
+        align = postOpAlign;
     }
+    const size_t bufferSizeAligned = rnd_up(bufferSize, align);
 
-    size_t bufferSize;
-    if (!isDynamicNode()) {
-        bufferSize = static_cast<size_t>(outputShapes[0].getStaticDims()[outputShapes[0].getRank() > 1 ? 1 : 0]);
-    } else {
-        VectorDims dims;
-        if (mustReallocInternalBuffers()) {
-            const auto dataMemPtr = parentNode->getChildEdgesAtPort(0)[0]->getMemoryPtr();
-            if (dataMemPtr == nullptr) {
-                IE_THROW() << "Can't align scales and shifts, because output memory is not allocated";
-            }
-            dims = dataMemPtr->getStaticDims();
-        } else if (getAlgorithm() == EltwiseMulAdd) {
-            dims  = getInputShapeAtPort(1).getStaticDims();
-            if (std::all_of(dims.begin(), dims.end(), [](Dim dim) { return dim == 1; })) {
-                dims  = getInputShapeAtPort(2).getStaticDims();
-            }
-            bufferSize = static_cast<size_t>(dims[dims.size() > 1 ? 1 : 0]);
-        } else {
-            dims = getInputShapeAtPort(constPort.getValue()).getStaticDims();
-        }
-        bufferSize = static_cast<size_t>(dims[dims.size() > 1 ? 1 : 0]);
-    }
-
-    if (!ssAlign.isInit()) {
-        ssAlign = bufferSize;
-    }
-    const size_t bufferSizeAligned = rnd_up(bufferSize, ssAlign.getValue());
-
-    if (initScalesSize.getValue() > 0) {
+    if (initScalesSize > 0) {
         scales.resize(bufferSizeAligned, 0);
-        if (initScalesSize.getValue() == 1) {
+        if (initScalesSize == 1) {
             std::fill(scales.begin() + 1, scales.begin() + bufferSize, scales[0]);
+            std::fill(scales.begin() + bufferSize, scales.end(), 0);
         }
     }
 
-    if (initShiftsSize.getValue() > 0) {
+    if (initShiftsSize > 0) {
         shifts.resize(bufferSizeAligned, 0);
-        if (initShiftsSize.getValue() == 1) {
+        if (initShiftsSize == 1) {
             std::fill(shifts.begin() + 1, shifts.begin() + bufferSize, shifts[0]);
+            std::fill(shifts.begin() + bufferSize, shifts.end(), 0);
         }
     }
 
@@ -1849,8 +1793,13 @@ void MKLDNNEltwiseNode::fuseInto(MKLDNNNodePtr& parentNode) {
     MKLDNNNode::fuseInto(parentNode);
 }
 
-void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, bool initAsBinary, bool initBinaryMemory) {
+void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, bool initAsBinary, bool initBinaryMemory) {
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' ";
+
+    if (getMKLDNNAlgorithm() == mkldnn::algorithm::undef) {
+        alignScalesAndShifts(postOpDims, scales, shifts);
+    }
+
     if (getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
         switch (getMKLDNNAlgorithm()) {
             case mkldnn::algorithm::eltwise_relu:

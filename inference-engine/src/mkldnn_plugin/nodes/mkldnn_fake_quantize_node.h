@@ -120,9 +120,7 @@ public:
     InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
     InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
 
-    bool mustReallocInternalBuffers() const override;
-    void appendPostOps(mkldnn::post_ops& ops, bool initAsBinary = false, bool initBinaryMemory = false) override;
-    void setCurrentAxis(size_t axis) { currentAxisSize = axis; }
+    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims = {}, bool initAsBinary = false, bool initBinaryMemory = false) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -191,7 +189,7 @@ private:
     bool isOutputHighBroadcasted = false;
 
     VectorDims currentInBlkDims;
-    valueWithStatus currentAxisSize;
+    size_t currentAxisSize = 0;
     size_t axis = 0;
 
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;

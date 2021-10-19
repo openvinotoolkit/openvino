@@ -1118,10 +1118,6 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
 
             algorithm = quantizationOnly ? FQQuantization : FQCommon;
         }
-
-        if (axisSize != -1) {
-            currentAxisSize = static_cast<Dim>(axisSize);
-        }
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
@@ -1254,21 +1250,17 @@ bool MKLDNNFakeQuantizeNode::needPrepareParams() const {
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
 
-    if (internalBlobMemory.empty() || !currentAxisSize.isInit()) {
+    if (internalBlobMemory.empty() || selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref &&
+            getParentEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims() != currentInBlkDims) {
         return true;
     }
 
     const auto axisSize = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()[getAxis()];
     const auto newPaddedSize = rnd_up(axisSize, 16);
-    const auto currPaddedSize = rnd_up(currentAxisSize.getValue(), 16);
+    const auto currPaddedSize = rnd_up(currentAxisSize, 16);
 
-    bool ret = false || newPaddedSize != currPaddedSize || (isBinarization() && axisSize != currentAxisSize.getValue() &&
-               (isInputLowBroadcasted || isOutputHighBroadcasted));
-
-    if (selectedPrimitiveDescriptor->getImplementationType() == impl_desc_type::ref) {
-        return ret;
-    }
-    return ret || getParentEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims() != currentInBlkDims;
+    return newPaddedSize != currPaddedSize || (isBinarization() && (isInputLowBroadcasted || isOutputHighBroadcasted) &&
+                                                 axisSize != currentAxisSize);
 }
 
 void MKLDNNFakeQuantizeNode::prepareParams() {
@@ -1278,25 +1270,28 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
 
     currentInBlkDims = getParentEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
-    size_t axisSize = getParentEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims()[getAxis()];
-    size_t newPaddedSize = rnd_up(axisSize, 16);
+    const size_t axisSize = getParentEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims()[getAxis()];
+    const size_t newPaddedSize = rnd_up(axisSize, 16);
+    IE_ASSERT(newPaddedSize != 0);
 
-    if (internalBlobMemory.empty() || !currentAxisSize.isInit() || newPaddedSize != rnd_up(currentAxisSize.getValue(), 16) ||
-            (isBinarization() && axisSize != currentAxisSize.getValue() && (isInputLowBroadcasted || isOutputHighBroadcasted))) {
+    if (internalBlobMemory.empty() || newPaddedSize != rnd_up(currentAxisSize, 16) ||
+            (isBinarization() && (isInputLowBroadcasted || isOutputHighBroadcasted) && axisSize != currentAxisSize)) {
         DnnlBlockedMemoryDesc weightsDataDesc(Shape(InferenceEngine::SizeVector{newPaddedSize}), memory::data_type::f32, memory::format_tag::x);
 
         if (isBinarization()) {
             constexpr size_t numBinFqIntBlob = 2;
             bool needUpdThr = false, needUpdMask = false;
-            if (isInputLowBroadcasted && binarizationThresholds.size() != newPaddedSize) {
+            if (isInputLowBroadcasted && axisSize != currentAxisSize) {
                 binarizationThresholds.resize(newPaddedSize);
-                std::fill(binarizationThresholds.begin() + 1, binarizationThresholds.end(), binarizationThresholds[0]);
+                std::fill(binarizationThresholds.begin() + 1, binarizationThresholds.begin() + axisSize, binarizationThresholds[0]);
+                std::fill(binarizationThresholds.begin() + axisSize, binarizationThresholds.end(), 0);
                 needUpdThr = true;
             }
 
-            if (isOutputHighBroadcasted && binarizationOutputMask.size() != newPaddedSize) {
+            if (isOutputHighBroadcasted && axisSize != currentAxisSize) {
                 binarizationOutputMask.resize(newPaddedSize);
-                std::fill(binarizationOutputMask.begin() + 1, binarizationOutputMask.end(), binarizationOutputMask[0]);
+                std::fill(binarizationOutputMask.begin() + 1, binarizationOutputMask.begin() + axisSize, binarizationOutputMask[0]);
+                std::fill(binarizationOutputMask.begin() + axisSize, binarizationOutputMask.end(), 0);
                 needUpdMask = true;
             }
 
@@ -1351,10 +1346,11 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
             pushInternalBlob(inputShift, 3);
             pushInternalBlob(outputScale, 4);
             pushInternalBlob(outputShift, 5);
+        } else {
+            IE_THROW() << "Can't fill internal blob for FakeQuantize node with name: " << getName();
         }
-
-        currentAxisSize = axisSize;
     }
+    currentAxisSize = axisSize;
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
@@ -1662,34 +1658,32 @@ void MKLDNNFakeQuantizeNode::execute(mkldnn::stream strm) {
     }
 }
 
-bool MKLDNNFakeQuantizeNode::mustReallocInternalBuffers() const {
-    return isDynamicNode() && isBinarization() && (isInputLowBroadcasted || isOutputHighBroadcasted) &&
-           getInputShapeAtPort(0).getDims()[getAxis()] == Shape::UNDEFINED_DIM;
-}
-
-void MKLDNNFakeQuantizeNode::appendPostOps(mkldnn::post_ops& ops, bool initAsBinary, bool initBinaryMemory) {
+void MKLDNNFakeQuantizeNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, bool initAsBinary, bool initBinaryMemory) {
     // MKLDNN quantization_injectors assumes that quantization data memory is always aligned on 16
     // by length of AVX512 vector register which is also enough for AVX2 and SSE42 implementations.
     // Otherwise it can lead to buffer over-read and performance penalties due to denormals.
     const size_t bufferAlignment = 16;
 
     if (getAlgorithm() == FQBinarization) {
-        const auto axisPaddedSize = rnd_up(currentAxisSize.getValue(), bufferAlignment);
+        const auto realAxisSize = postOpDims[postOpDims.size() > 1 ? 1 : 0];
+        const auto axisPaddedSize = rnd_up(realAxisSize, bufferAlignment);
         if (!isPostOpDataInitialized) {
             binarizationThresholds.resize(axisPaddedSize, 0);
             binarizationOutputMask.resize(axisPaddedSize, 0);
 
             if (isInputLowBroadcasted) {
-                std::fill(binarizationThresholds.begin() + 1, binarizationThresholds.end(), binarizationThresholds[0]);
+                std::fill(binarizationThresholds.begin() + 1, binarizationThresholds.begin() + realAxisSize, binarizationThresholds[0]);
+                std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0);
             }
             if (isOutputHighBroadcasted) {
-                std::fill(binarizationOutputMask.begin() + 1, binarizationOutputMask.end(), binarizationOutputMask[0]);
+                std::fill(binarizationOutputMask.begin() + 1, binarizationOutputMask.begin() + realAxisSize, binarizationOutputMask[0]);
+                std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0);
             }
         }
 
         ops.append_binarization(mkldnn::algorithm::binarization_depthwise, (const float*)&binarizationThresholds[0], (const float*)&binarizationOutputMask[0]);
 
-        if (!mustReallocInternalBuffers()) {
+        if (!isInputLowBroadcasted && !isOutputHighBroadcasted) {
             isPostOpDataInitialized = true;
         }
     } else {

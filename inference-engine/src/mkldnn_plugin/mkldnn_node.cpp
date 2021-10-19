@@ -1045,7 +1045,7 @@ Layout MKLDNNNode::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
     }
 }
 
-void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops, bool initAsBinary, bool initBinaryMemory) {
+void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, bool initAsBinary, bool initBinaryMemory) {
     IE_THROW() << "Fusing of " << this->getType() << " operation is not implemented";
 }
 
@@ -1303,16 +1303,6 @@ bool MKLDNNNode::canFuseSimpleOperation(const MKLDNNNodePtr& node) const {
                                             EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
                                             EltwiseRoundHalfAwayFromZero, EltwiseAbs, EltwiseSqrt, EltwiseSoftRelu) ||
                       node->canBePerformedAsScaleShift(this);
-    }
-    return false;
-}
-
-// TODO [DS]: maybe cache result?
-bool MKLDNNNode::fusedWithNeededReallocNode() const {
-    for (auto &node : fusedWith) {
-        if (node->mustReallocInternalBuffers()) {
-            return true;
-        }
     }
     return false;
 }

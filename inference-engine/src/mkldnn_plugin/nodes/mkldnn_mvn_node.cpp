@@ -24,6 +24,7 @@
 
 #include <ngraph/opsets/opset6.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "utils/cpu_utils.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -702,10 +703,6 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    if (!fusedWithNeededReallocNode()) {
-        setPostOps(attr, true);
-    }
-
     Precision inputPrecision = getOriginalInputPrecisionAtPort(0);
     Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
     if (!mayiuse(avx512_core)) {
@@ -790,10 +787,6 @@ void MKLDNNMVNNode::prepareParams() {
         IE_THROW() << "Can't prepare params for eltwise node with name: " << getName();
     }
 
-    if (fusedWithNeededReallocNode()) {
-        setPostOps(attr, true);
-    }
-
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
@@ -805,6 +798,8 @@ void MKLDNNMVNNode::prepareParams() {
 
     const SizeVector in_dims = srcMemPtr->getStaticDims();
     transformTo5DCase(in_dims);
+
+    setPostOps(attr, true);
 
     if (mayiuse(cpu::x64::sse41)) {
         auto selectedPD = getSelectedPrimitiveDescriptor();
@@ -868,6 +863,8 @@ void MKLDNNMVNNode::transformTo5DCase(const SizeVector& shape) {
 
 void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
     mkldnn::post_ops ops;
+    VectorDims postOpDims(5);
+    std::tie(postOpDims[0], postOpDims[1], postOpDims[2], postOpDims[3], postOpDims[4]) = shape5D;
     for (auto &node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
@@ -877,10 +874,8 @@ void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            if (eltwiseNode->mustReallocInternalBuffers()) {
-                eltwiseNode->alignScalesAndShifts(this);
-            }
-            eltwiseNode->appendPostOps(ops);
+            
+            eltwiseNode->appendPostOps(ops, getPerChannelBroadcasted(postOpDims));
             continue;
         }
         IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";

@@ -556,30 +556,8 @@ public:
         return outputShapes[port];
     }
 
-    virtual bool mustReallocInternalBuffers() const {
-        return false;
-    }
-
 protected:
-    struct valueWithStatus {
-        valueWithStatus() : status(false) {}
-        valueWithStatus(size_t _value) : value(_value), status(true) {}
-
-        bool isInit() const { return status; }
-        size_t getValue() const {
-            if (!status) {
-                IE_THROW() << "Can't get value, because value is not initialized";
-            }
-            return value;
-        }
-
-        private:
-            size_t value;
-            bool status;     // false - unknown, true - initialized
-    };
-
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
-    bool fusedWithNeededReallocNode() const;
 
     void setType(Type type) {
         this->type = type;
@@ -598,7 +576,7 @@ protected:
      * Seed node should call this routine and pass its post operations list as parameter.
      * @param ops List of fused post operations
      */
-    virtual void appendPostOps(mkldnn::post_ops& ops, bool initAsBinary = false, bool initBinaryMemory = false);
+    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, bool initAsBinary = false, bool initBinaryMemory = false);
     virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() const { return nullptr; }
 
     typedef std::function<DnnlMemoryDescPtr (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>

@@ -24,6 +24,7 @@
 #include "utils/general_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "mkldnn_extension_utils.h"
+#include "utils/cpu_utils.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -89,7 +90,8 @@ void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights
 
     for (auto &node : fusedWith) {
         if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
-            eltwiseNode->appendPostOps(ops);
+            // TODO [DS]: change to shape from memory
+            eltwiseNode->appendPostOps(ops, getPerChannelBroadcasted(getOutputShapeAtPort(0).getStaticDims()));
             continue;
         }
 
