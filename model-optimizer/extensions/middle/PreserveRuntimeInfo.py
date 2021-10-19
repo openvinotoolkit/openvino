@@ -66,8 +66,6 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
                 # source mode is used to keep tensor names at Parameter node
                 op.out_port(0).get_connection().insert_node(transpose, "source")
 
-                transpose.infer(transpose)
-
                 if op.has_valid('permute_attrs'):
                     del op['permute_attrs']
                 if op.out_node(0).has_valid('permutation'):
@@ -91,9 +89,6 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
                         op.rt_info.info[('old_api_map', old_api_map.get_version())] = old_api_map
                     op.rt_info.info[('old_api_map', old_api_map.get_version())].old_api_transpose_result(permutation.perm)
 
-                    if in_data_node.has_valid('permutation'):
-                        del in_data_node['permutation']
-
                     # keep result in the framework format
                     transpose = create_op_node_with_second_input(graph, Transpose, permutation.inv)
                     # preserve output node name as it is used as output name in legacy IE API
@@ -101,5 +96,3 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
                     in_node.name += "/prev"
 
                     prev_node_out_port.get_connection().insert_node(transpose)
-                    in_node.infer(in_node)
-                    transpose.infer(transpose)
