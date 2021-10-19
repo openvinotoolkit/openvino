@@ -5,6 +5,9 @@
 	display: none;
 }
 
+img {
+	cursor: default;
+}
 
 /* === SEPARATOR HEADERS ================================================= */
 .HP_separator-header { 

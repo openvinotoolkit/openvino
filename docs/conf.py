@@ -78,7 +78,7 @@ html_theme_options = {
 html_context = {
     'current_version': 'Latest',
     'current_language': 'English',
-    'languages': (('English', '/en/latest'), ('Chinese', '/cn/latest')),
+    'languages': (('English', '/latest'), ('Chinese', '/cn/latest')),
     'versions': (('Latest', '/latest'), ('2021.4', '/2021.4'),
                 ('2021.3', '/2021.3'), ('2021.2', '/2021.2'), ('2021.1', '/2021.1'),
                  ('2020.4', '/2020.4'), ('2020.3', '/2020.3'), ('2020.2', '/2020.1'),
