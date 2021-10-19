@@ -4,19 +4,19 @@
 
 **Category**: *Data movement*
 
-**Short description**: *GatherND* gathers slices from input tensor into a tensor of a shape specified by indices.
+**Short description**: *GatherND* gathers slices from input tensor into a tensor of the shape specified by indices.
 
-**Detailed description**: *GatherND* gathers slices from `data` by `indices` and forms a tensor of a shape specified by `indices`.
+**Detailed description**: *GatherND* gathers slices from `data` by `indices` and forms a tensor of the shape specified by `indices`.
 
 `indices` is `K`-dimensional integer tensor or `K-1`-dimensional tensor of tuples with indices by which the operation
 gathers elements or slices from `data` tensor. A position `i_0, ..., i_{K-2}` in the `indices` tensor corresponds to
 a tuple with indices `indices[i_0, ..., i_{K-2}]` of a length equal to `indices.shape[-1]`. By this tuple with indices
-the operation gathers a slice or an element from `data` tensor and insert it into the output at position
-`i_0, ..., i_{K-2}` as the following formula:
+the operation gathers a slice or an element from `data` tensor and inserts it into the output at the position
+`i_0, ..., i_{K-2}` as described in the following formula:
 
 `output[i_0, ..., i_{K-2},:,...,:] = data[indices[i_0, ..., i_{K-2}],:,...,:]`
 
-The last dimension of `indices` tensor must be not greater than a rank of `data` tensor, i.e.
+The last dimension of `indices` tensor must be not greater than a rank of `data` tensor, meaning
 `indices.shape[-1] <= data.rank`.
 
 The shape of the output is calculated as `indices.shape[:batch_dims] + indices.shape[batch_dims:-1]`
@@ -30,7 +30,7 @@ if `indices.shape[-1] == data.rank - batch_dims` else
   * **Description**: *batch_dims* (denoted as `b`) is a leading number of dimensions of `data` tensor and `indices`
     representing the batches, and *GatherND* starts to gather from the `b+1` dimension. It requires the first `b`
     dimensions in `data` and `indices` tensors to be equal.
-  * **Range of values**: integer number and belongs to `[0; min(data.rank, indices.rank))`
+  * **Range of values**: integer number that belongs to `[0; min(data.rank, indices.rank))`
   * **Type**: int
   * **Default value**: 0
   * **Required**: *no*
@@ -38,10 +38,10 @@ if `indices.shape[-1] == data.rank - batch_dims` else
 
 **Inputs**:
 
-* **1**: `data` tensor of type *T*. This is a tensor of a rank not less than 1. **Required.**
+* **1**: `data` tensor of type *T*. A tensor of a rank not less than 1. **Required.**
 
-* **2**: `indices` tensor of type *T_IND*. This is a tensor of a rank not less than 1.
-It requires that all indices from this tensor will be in a range `[0, s-1]` where `s` is corresponding dimension to 
+* **2**: `indices` tensor of type *T_IND*. A tensor of a rank not less than 1.
+It requires all indices from this tensor to be in the range `[0, s-1]` where `s` is the corresponding dimension to 
 which this index is applied.
 **Required.**
 
