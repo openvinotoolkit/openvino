@@ -77,57 +77,99 @@ Before running the Model Optimizer, you must install the Model Optimizer pre-req
             .. code-block:: sh
 
                cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
                install_prerequisites_caffe.shs
 
       .. tab:: Tensorflow 1.x
       
          .. tab:: Install globally
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_tf.sh
          
          .. tab:: Install to virtualenv
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_tf.sh
 
       .. tab:: Tensorflow 2.x
       
          .. tab:: Install globally
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_tf2.sh
          
          .. tab:: Install to virtualenv
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_tf2.sh
 
       .. tab:: MXNet
       
          .. tab:: Install globally
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_mxnet.sh
          
          .. tab:: Install to virtualenv
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_mxnet.sh
 
       .. tab:: ONNX
       
          .. tab:: Install globally
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_onnx.sh
          
          .. tab:: Install to virtualenv
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_onnx.sh
 
       .. tab:: Kaldi
       
          .. tab:: Install globally
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_kaldi.sh
          
          .. tab:: Install to virtualenv
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_kaldi.sh
 
    .. tab:: Windows
 
@@ -135,71 +177,127 @@ Before running the Model Optimizer, you must install the Model Optimizer pre-req
       
          .. tab:: Install globally
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
+               install_prerequisites.bat
          
          .. tab:: Install to virtualenv
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites.bat
 
       .. tab:: Caffe
       
          .. tab:: Install globally
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
+               install_prerequisites_caffe.bat
          
          .. tab:: Install to virtualenv
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites_caffe.bat
 
       .. tab:: Tensorflow 1.x
       
          .. tab:: Install globally
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
+               install_prerequisites_tf.bat
          
          .. tab:: Install to virtualenv
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites_tf.bat
 
       .. tab:: Tensorflow 2.x
       
          .. tab:: Install globally
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
+               install_prerequisites_tf2.bat
          
          .. tab:: Install to virtualenv
 
-            tests
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites_tf2.bat
 
       .. tab:: MXNet
       
          .. tab:: Install globally
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
+               install_prerequisites_mxnet.bat
          
          .. tab:: Install to virtualenv
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites_mxnet.bat
 
       .. tab:: ONNX
       
          .. tab:: Install globally
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
+               install_prerequisites_onnx.bat
          
          .. tab:: Install to virtualenv
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites_onnx.bat
 
       .. tab:: Kaldi
       
          .. tab:: Install globally
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites\
+               install_prerequisites_kaldi.bat
          
          .. tab:: Install to virtualenv
 
-            test
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>\deployment_tools\model_optimizer\install_prerequisites
+               virtualenv --system-site-packages -p python .\env
+               env\Scripts\activate.bat
+               install_prerequisites_kaldi.bat
 
    .. tab:: macOS
 
@@ -207,71 +305,71 @@ Before running the Model Optimizer, you must install the Model Optimizer pre-req
       
          .. tab:: Install globally
 
-            test
+            TBD
          
          .. tab:: Install to virtualenv
 
-            test
+            TBD
 
       .. tab:: Caffe
       
          .. tab:: Install globally
 
-            test
+            TBD
          
          .. tab:: Install to virtualenv
 
-            test
+            TBD
 
       .. tab:: Tensorflow 1.x
       
          .. tab:: Install globally
 
-            test
+            TBD
          
          .. tab:: Install to virtualenv
 
-            test
+            TBD
 
       .. tab:: Tensorflow 2.x
       
          .. tab:: Install globally
 
-            test
+            TBD
          
          .. tab:: Install to virtualenv
 
-            tests
+            TBDs
 
       .. tab:: MXNet
       
          .. tab:: Install globally
 
-            test
+            TBD
          
          .. tab:: Install to virtualenv
 
-            test
+            TBD
 
       .. tab:: ONNX
       
          .. tab:: Install globally
 
-            test
+            TBD
          
          .. tab:: Install to virtualenv
 
-            test
+            TBD
 
       .. tab:: Kaldi
       
          .. tab:: Install globally
 
-            test
+            TBD
          
          .. tab:: Install to virtualenv
 
-            test
+            TBD
 
 .. tab:: Using manual configuration process
 
@@ -279,92 +377,92 @@ Before running the Model Optimizer, you must install the Model Optimizer pre-req
 
       .. tab:: All frameworks
       
-         test
+         TBD
 
       .. tab:: Caffe
       
-         test
+         TBD
 
       .. tab:: Tensorflow 1.x
       
-         test
+         TBD
 
       .. tab:: Tensorflow 2.x
       
-         test
+         TBD
 
       .. tab:: MXNet
       
-         test
+         TBD
 
       .. tab:: ONNX
       
-         test
+         TBD
 
       .. tab:: Kaldi
       
-         test
+         TBD
 
 
    .. tab:: Windows
 
       .. tab:: All frameworks
       
-         test
+         TBD
 
       .. tab:: Caffe
       
-         test
+         TBD
 
       .. tab:: Tensorflow 1.x
       
-         test
+         TBD
 
       .. tab:: Tensorflow 2.x
       
-         test
+         TBD
 
       .. tab:: MXNet
       
-         test
+         TBD
 
       .. tab:: ONNX
       
-         test
+         TBD
 
       .. tab:: Kaldi
       
-         test
+         TBD
 
    .. tab:: macOS
 
       .. tab:: All frameworks
       
-         test
+         TBD
 
       .. tab:: Caffe
       
-         test
+         TBD
 
       .. tab:: Tensorflow 1.x
       
-         test
+         TBD
 
       .. tab:: Tensorflow 2.x
       
-         test
+         TBD
 
       .. tab:: MXNet
       
-         test
+         TBD
 
       .. tab:: ONNX
       
-         test
+         TBD
 
       .. tab:: Kaldi
       
-         test
+         TBD
 
 @endsphinxdirective
 
