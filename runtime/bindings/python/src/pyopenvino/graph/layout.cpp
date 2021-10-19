@@ -22,4 +22,5 @@ void regclass_graph_Layout(py::module m) {
     layout.def("has_name", &ov::Layout::has_name, py::arg("dimension_name"));
     layout.def("get_index_by_name", &ov::Layout::get_index_by_name, py::arg("dimension_name"));
     layout.def("to_string", &ov::Layout::to_string);
+    layout.def("__str__", [](const ov::Layout& self) { return self.to_string(); });
 }
