@@ -79,6 +79,7 @@ public:
         int                             _batchSize;
         std::atomic_int                 _numRequestsReady = {0};
         ThreadSafeQueue<std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task>> _tasks;
+        std::vector<InferenceEngine::Task> _completionTasks;
         std::thread                     _thread;
         std::condition_variable         _cond;
         std::mutex                      _mutex;
