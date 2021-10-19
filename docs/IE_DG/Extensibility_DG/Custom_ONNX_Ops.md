@@ -26,7 +26,18 @@ New operator registration must happen before an ONNX model is read. For example,
 Reregistering ONNX operators within the same process is supported. If you register an existing operator, you get a warning.
 
 The example below demonstrates an exemplary model that requires a previously created `CustomRelu` operator:
-@snippet onnx_custom_op/onnx_custom_op.cpp onnx_custom_op:model
+@include onnx_custom_op/custom_relu_model.prototxt
+This model is in text format, so before it can be passed to Inference Engine, it has to be converted to binary using:
+```py
+from google.protobuf import text_format
+import onnx
+
+with open("custom_relu_model.prototxt") as in_file:
+    proto = onnx.ModelProto()
+    text_format.Parse(in_file.read(), proto, allow_field_number=True)
+    s = onnx._serialize(proto)
+    onnx._save_bytes(s, "custom_relu_model.onnx")
+```
 
 
 To create a graph with nGraph operations, visit [Custom nGraph Operations](AddingNGraphOps.md).
