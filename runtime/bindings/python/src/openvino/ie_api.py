@@ -13,6 +13,7 @@ from openvino.pyopenvino import TBlobInt8
 from openvino.pyopenvino import TBlobUint8
 from openvino.pyopenvino import TensorDesc
 from openvino.pyopenvino import InferRequest
+from openvino.pyopenvino import Tensor
 
 import numpy as np
 
@@ -112,3 +113,7 @@ def blob_from_file(path_to_bin_file: str) -> BlobWrapper:
     array = np.fromfile(path_to_bin_file, dtype=np.uint8)
     tensor_desc = TensorDesc("U8", array.shape, "C")
     return BlobWrapper(tensor_desc, array)
+
+# flake8: noqa: D102
+def tensor_from_file(path: str) -> Tensor:
+    return Tensor(np.fromfile(path, dtype=np.uint8))

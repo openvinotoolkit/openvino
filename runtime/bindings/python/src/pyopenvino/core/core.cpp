@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pyopenvino/core/ie_core.hpp"
+#include "pyopenvino/core/core.hpp"
 
 #include <pybind11/stl.h>
 
 #include <ie_core.hpp>
 #include <openvino/runtime/core.hpp>
+#include <pyopenvino/core/tensor.hpp>
 
 #include "common.hpp"
 
@@ -49,26 +50,6 @@ void regclass_Core(py::module m) {
 
     cls.def("get_versions", &ov::runtime::Core::get_versions);
 
-    cls.def(
-        "read_model",
-        [](ov::runtime::Core& self, py::bytes model, py::bytes weights) {
-            InferenceEngine::MemoryBlob::Ptr weights_blob;
-            if (weights) {
-                std::string weights_bytes = weights;
-                uint8_t* bin = (uint8_t*)weights_bytes.c_str();
-                size_t bin_size = weights_bytes.length();
-                InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8,
-                                                       {bin_size},
-                                                       InferenceEngine::Layout::C);
-                weights_blob = InferenceEngine::make_shared_blob<uint8_t>(tensorDesc);
-                weights_blob->allocate();
-                memcpy(weights_blob->rwmap().as<uint8_t*>(), bin, bin_size);
-            }
-            return self.read_model(model, weights_blob);
-        },
-        py::arg("model"),
-        py::arg("weights"));
-
     cls.def("read_model",
             (std::shared_ptr<ov::Function>(ov::runtime::Core::*)(const std::string&, const std::string&) const) &
                 ov::runtime::Core::read_model,
@@ -77,11 +58,10 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "read_model",
-        [](ov::runtime::Core& self, const std::string& model, py::handle blob) {
-            return self.read_model(model, Common::cast_to_blob(blob));
-        },
+        (std::shared_ptr<ov::Function>(ov::runtime::Core::*)(const std::string&, const ov::runtime::Tensor&) const) &
+            ov::runtime::Core::read_model,
         py::arg("model"),
-        py::arg("blob"));
+        py::arg("weights"));
 
     cls.def(
         "read_model",
