@@ -11,7 +11,6 @@ from tests_compatibility import (
     xfail_issue_33538,
     xfail_issue_33581,
     xfail_issue_33589,
-    xfail_issue_33593,
     xfail_issue_33595,
     xfail_issue_33596,
     xfail_issue_33606,
@@ -60,7 +59,6 @@ from tests_compatibility import (
     xfail_issue_63039,
     xfail_issue_63043,
     xfail_issue_63044,
-    xfail_issue_63045,
     xfail_issue_63136,
     xfail_issue_63137,
     xfail_issue_63138,
@@ -431,11 +429,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_squeeze_cpu",
         "OnnxBackendNodeModelTest.test_squeeze_negative_axes_cpu",
     ),
-    (
-        xfail_issue_33593,
-        "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_strides_cpu",
-        "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_pads_cpu",
-    ),
     (xfail_issue_58033, "OnnxBackendNodeModelTest.test_einsum_batch_diagonal_cpu"),
     (
         xfail_issue_63033,
@@ -479,11 +472,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_triu_square_cpu",
         "OnnxBackendNodeModelTest.test_triu_square_neg_cpu",
         "OnnxBackendNodeModelTest.test_triu_zero_cpu",
-    ),
-    (
-        xfail_issue_63045,
-        "OnnxBackendPyTorchConvertedModelTest.test_MaxPool1d_stride_padding_dilation_cpu",
-        "OnnxBackendPyTorchConvertedModelTest.test_MaxPool2d_stride_padding_dilation_cpu",
     ),
     (
         skip_rng_tests,
