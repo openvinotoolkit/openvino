@@ -90,7 +90,13 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
     return precision;
 }
 
-inline VectorDims getPerChannelBroadcasted(const VectorDims &dims) {
+/**
+* @brief Extract channel dim from dims passed as argument and create dims [1, C, 1, ... 1] or [C] for 1D
+* @param dims
+* dims used for creation per channel broadcasted dims 
+* @return per channel broadcasted dims 
+*/
+inline VectorDims getPerChannelBroadcastedDims(const VectorDims &dims) {
     VectorDims result(dims.size(), 1);
     const auto axis = dims.size() > 1 ? 1 : 0;
     result[axis] = dims[axis];

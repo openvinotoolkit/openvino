@@ -121,7 +121,7 @@ const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngrap
         { {}, {{16}}},
         {
             // dynamic
-            {{ngraph::Dimension(-1, -1)}},
+            {{-1}},
             // target
             {
                 {2},
@@ -131,7 +131,7 @@ const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngrap
         },
         {
             // dynamic
-            {{ngraph::Dimension(1, 20)}},
+            {{1, 20}},
             // target
             {
                 {1},
@@ -146,7 +146,7 @@ const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngrap
         { {}, {{16, 64}}},
         {
             // dynamic
-            {{ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)}},
+            {{-1, -1}},
             // target
             {
                 {2, 16},
@@ -156,7 +156,7 @@ const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngrap
         },
         {
             // dynamic
-            {{ngraph::Dimension(1, 5), ngraph::Dimension(1, 20)}},
+            {{{1, 5}, {1, 20}}},
             // target
             {
                 {1, 1},
@@ -172,7 +172,7 @@ const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngrap
         { {}, {{1, 16, 4}}},
         {
             // dynamic
-            {{ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)}},
+            {{-1, -1, -1}},
             // target
             {
                 {2, 16, 6},
@@ -182,7 +182,7 @@ const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngrap
         },
         {
             // dynamic
-            {{ngraph::Dimension(1, 5), ngraph::Dimension(1, 20), ngraph::Dimension(1, 7)}},
+            {{{1, 5}, {1, 20}, {1, 7}}},
             // target
             {
                 {1, 1, 1},
@@ -204,7 +204,7 @@ const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngrap
         { {}, {{4, 41, 6, 9}}},
         {
             // dynamic
-            {{ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)}},
+            {{-1, -1, -1, -1}},
             // target
             {
                 {2, 16, 10, 6},
@@ -214,7 +214,7 @@ const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngrap
         },
         {
             // dynamic
-            {{ngraph::Dimension(1, 5), ngraph::Dimension(1, 20), ngraph::Dimension(1, 10), ngraph::Dimension(1, 7)}},
+            {{{1, 5}, {1, 20}, {1, 10}, {1, 7}}},
             // target
             {
                 {1, 1, 1, 1},
@@ -232,7 +232,7 @@ const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngrap
         { {}, {{10, 16, 5, 10, 6}}},
         {
             // dynamic
-            {{ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1), ngraph::Dimension(-1, -1)}},
+            {{-1, -1, -1, -1, -1}},
             // target
             {
                 {2, 16, 5, 10, 6},
@@ -242,7 +242,7 @@ const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngrap
         },
         {
             // dynamic
-            {{ngraph::Dimension(1, 5), ngraph::Dimension(1, 20), ngraph::Dimension(1, 7), ngraph::Dimension(1, 10), ngraph::Dimension(1, 7)}},
+            {{{1, 5}, {1, 20}, {1, 7}, {1, 10}, {1, 7}}},
             // target
             {
                 {1, 1, 1, 1, 1},

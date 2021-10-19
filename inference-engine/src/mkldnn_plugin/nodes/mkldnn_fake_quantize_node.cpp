@@ -1125,8 +1125,8 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
 
 std::vector<LayoutType> MKLDNNFakeQuantizeNode::getDataFormats() const {
     // Special case for first FQ in the network
-    const auto dims = getInputShapeAtPort(0).getDims();
-    if (dims[getAxis()] != Shape::UNDEFINED_DIM && dims[getAxis()] == 3) {
+    const auto &dims = getInputShapeAtPort(0).getDims();
+    if (dims[getAxis()] == 3) {
         return { LayoutType::ncsp };
     } else {
         if (isBinarization()) {

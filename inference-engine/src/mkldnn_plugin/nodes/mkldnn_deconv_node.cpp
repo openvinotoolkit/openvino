@@ -275,7 +275,7 @@ void MKLDNNDeconvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
             // TODO [DS]: change to shape from memory
-            eltwiseNode->appendPostOps(ops, getPerChannelBroadcasted(getOutputShapeAtPort(0).getStaticDims()));
+            eltwiseNode->appendPostOps(ops, getPerChannelBroadcastedDims(getOutputShapeAtPort(0).getStaticDims()));
             continue;
         }
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());

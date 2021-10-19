@@ -91,7 +91,7 @@ void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights
     for (auto &node : fusedWith) {
         if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
             // TODO [DS]: change to shape from memory
-            eltwiseNode->appendPostOps(ops, getPerChannelBroadcasted(getOutputShapeAtPort(0).getStaticDims()));
+            eltwiseNode->appendPostOps(ops, getPerChannelBroadcastedDims(getOutputShapeAtPort(0).getStaticDims()));
             continue;
         }
 

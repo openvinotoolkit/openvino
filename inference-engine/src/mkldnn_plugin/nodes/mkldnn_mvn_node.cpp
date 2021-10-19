@@ -874,8 +874,7 @@ void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            
-            eltwiseNode->appendPostOps(ops, getPerChannelBroadcasted(postOpDims));
+            eltwiseNode->appendPostOps(ops, getPerChannelBroadcastedDims(postOpDims));
             continue;
         }
         IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";

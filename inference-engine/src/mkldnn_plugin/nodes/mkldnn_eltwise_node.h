@@ -97,7 +97,6 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
-    // TODO [mandrono]: place outside of the node API
     void fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align = -1);
 
 protected:
@@ -136,7 +135,7 @@ private:
 
     mkldnn::algorithm mkldnnAlgorithm = mkldnn::algorithm::undef;
 
-    int postOpAlign = -1; 
+    int postOpAlign = -1;
     size_t initScalesSize = 0;
     size_t initShiftsSize = 0;
 

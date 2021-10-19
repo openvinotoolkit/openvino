@@ -212,7 +212,7 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
             // TODO [DS]: change to shape from memory
-            eltwiseNode->appendPostOps(ops, getPerChannelBroadcasted(getOutputShapeAtPort(0).getStaticDims()), initAsBinary, initBinaryMemory);
+            eltwiseNode->appendPostOps(ops, getPerChannelBroadcastedDims(getOutputShapeAtPort(0).getStaticDims()), initAsBinary, initBinaryMemory);
             if (initBinaryMemory) {
                 if (eltwiseNode->scalesMemory)
                     binaryPostOpsArgs.push_back(eltwiseNode->scalesMemory->GetPrimitive());
