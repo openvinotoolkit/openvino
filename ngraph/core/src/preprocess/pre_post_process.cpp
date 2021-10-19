@@ -790,6 +790,16 @@ PreProcessSteps&& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_c
     return std::move(*this);
 }
 
+PreProcessSteps& PreProcessSteps::reverse_channels() & {
+    m_impl->add_reverse_channels();
+    return *this;
+}
+
+PreProcessSteps&& PreProcessSteps::reverse_channels() && {
+    m_impl->add_reverse_channels();
+    return std::move(*this);
+}
+
 // --------------------- OutputTensorInfo ------------------
 OutputTensorInfo::OutputTensorInfo() : m_impl(std::unique_ptr<OutputTensorInfoImpl>(new OutputTensorInfoImpl())) {}
 OutputTensorInfo::OutputTensorInfo(OutputTensorInfo&&) noexcept = default;

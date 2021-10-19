@@ -228,6 +228,27 @@ public:
     ///
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
     PreProcessSteps&& convert_layout(const Layout& dst_layout = {}) &&;
+
+    /// \brief Reverse channels operation - Lvalue version.
+    ///
+    /// \details Adds appropriate operation which reverses channels layout. Operation requires layout having 'C'
+    /// dimension Operation convert_color (RGB<->BGR) does reversing of channels also, but only for NHWC layout
+    ///
+    /// \example Example: when user data has 'NCHW' layout (example is [1, 3, 224, 224] RGB order) but network expects
+    /// BGR planes order. Preprocessing may look like this:
+    ///
+    /// \code{.cpp} auto proc =
+    /// PrePostProcessor()
+    ///     .input(InputInfo()
+    ///            .tensor(InputTensorInfo().set_layout("NCHW")) // User data is NCHW
+    ///            .preprocess(PreProcessSteps()
+    ///                        .reverse_channels()
+    ///     );
+    /// \endcode
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps& reverse_channels() &;
+    PreProcessSteps&& reverse_channels() &&;
 };
 
 }  // namespace preprocess
