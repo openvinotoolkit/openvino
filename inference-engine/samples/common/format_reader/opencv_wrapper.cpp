@@ -39,8 +39,8 @@ std::shared_ptr<unsigned char> OCVReader::getData(size_t width = 0, size_t heigh
     cv::Mat resized(width, height, img.type(), _data.get());
 
     if (width != img.cols || height != img.rows) {
-        slog::warn << "Image is resized from (" << img.cols << ", " << img.rows << ") to (" << width << ", " << height << ")"
-                   << slog::endl;
+        slog::warn << "Image is resized from (" << img.cols << ", " << img.rows << ") to (" << width << ", " << height
+                   << ")" << slog::endl;
     }
     // cv::resize() just copy data to output image if sizes are the same
     cv::resize(img, resized, cv::Size(width, height));
