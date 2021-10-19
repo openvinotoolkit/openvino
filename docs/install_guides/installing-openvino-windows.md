@@ -6,12 +6,12 @@ By default, the [OpenVINO™ Toolkit](https://docs.openvinotoolkit.org/latest/in
 
 | Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | This tool imports, converts, and optimizes models, which were trained in popular frameworks, to a format usable by Intel tools, especially the Inference Engine. <br> Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*. |
+| [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | This tool imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine. <br> Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*. |
 | [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications. |
 | [OpenCV\*](https://docs.opencv.org/master/) | OpenCV\* community version compiled for Intel® hardware |
 | [Inference Engine Code Samples](../IE_DG/Samples_Overview.md) | A set of simple command-line applications demonstrating how to utilize specific OpenVINO capabilities in an application and how to perform specific tasks, such as loading a model, running inference, querying specific device capabilities, and more. |
 | [Demo Applications](@ref omz_demos) | A set of command-line applications that serve as robust templates to help you implement multi-stage pipelines and specific deep learning scenarios. |
-| Additional Tools | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader) and others |
+| Additional Tools | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker), [Post-Training Optimization Tool](@ref pot_README), [Model Downloader](@ref omz_tools_downloader) and others |
 | [Documentation for Pre-Trained Models ](@ref omz_models_group_intel) | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/openvinotoolkit/open_model_zoo). |
 
 ## System Requirements
@@ -64,10 +64,10 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
     
    Install these dependencies:
    1. [Microsoft Visual Studio* 2019 with MSBuild](http://visualstudio.microsoft.com/downloads/)
-        > **NOTE**: You can choose Community version to download. Use [Microsoft Visual Studio installation guide](https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019) to walk you through the installation. During installation choose `Desktop development with C++` in Worloads tab in installation wizard.
+        > **NOTE**: You can choose to download Community version. Use [Microsoft Visual Studio installation guide](https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019) to walk you through the installation. During installation in the **Workloads** tab, choose **Desktop development with C++**.
    
    2. [CMake 3.14 or higher 64-bit](https://cmake.org/download/)
-        > **NOTE**: You can either use Cmake<version>.msi which is the installation wizard or Cmake<version>.zip where you go into the bin folder and then manually add the path to environmental variables.
+        > **NOTE**: You can either use `cmake<version>.msi` which is the installation wizard or `cmake<version>.zip` where you have to go into the `bin` folder and then manually add the path to environmental variables.
    
    3. [Python **3.6** - **3.8** 64-bit](https://www.python.org/downloads/windows/)
         > **IMPORTANT**: As part of this installation, make sure you click the option **[Add Python 3.x to PATH](https://docs.python.org/3/using/windows.html#installation-steps)** to add Python to your `PATH` environment variable.
@@ -179,14 +179,14 @@ Or proceed to the <a href="#get-started">Start Using the Toolkit</a> section to 
 > **NOTE**: These steps are required only if you want to use an Intel® integrated GPU.
 > **NOTE**: This section will help you check if you require driver installation. Install indicated version or higher.
 
-If your applications offload computation to **Intel® Integrated Graphics**, you must have the Intel Graphics Driver for Windows installed for your hardware. 
+If your applications offload computation to **Intel® Integrated Graphics**, you must have the Intel Graphics Driver for Windows installed on your hardware.
 [Download and install the recommended version](https://downloadcenter.intel.com/download/30079/Intel-Graphics-Windows-10-DCH-Drivers). 
 
 To check if you have this driver installed:
 
 1. Type **device manager** in your **Search Windows** box and press Enter. The **Device Manager** opens.
 
-2. Click the drop-down arrow to view the **Display adapters**. You see the adapter that is installed in your computer:
+2. Click the drop-down arrow to view the **Display adapters**. You can see the adapter that is installed in your computer:
 
    ![](../img/DeviceManager.PNG)
 
