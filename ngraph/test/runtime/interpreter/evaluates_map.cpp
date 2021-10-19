@@ -45,11 +45,8 @@
 #include <ngraph/runtime/reference/group_convolution_backprop_data.hpp>
 #include <ngraph/runtime/reference/gru_cell.hpp>
 #include <ngraph/runtime/reference/hard_sigmoid.hpp>
-<<<<<<< HEAD
 #include <ngraph/runtime/reference/if.hpp>
-=======
 #include <ngraph/runtime/reference/log.hpp>
->>>>>>> [GNA] ActivationLayer tests in integer precision enabled
 #include <ngraph/runtime/reference/log_softmax.hpp>
 #include <ngraph/runtime/reference/lrn.hpp>
 #include <ngraph/runtime/reference/lstm_cell.hpp>

@@ -75,5 +75,8 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: CVS-69639
         R"(.*EltwiseLayerTest.*OpType=Prod.*)",
         R"(.*EltwiseLayerTest.*OpType=Sum.*PARAMETER.*VECTOR.*)",
+        // TODO: Issue:27391
+        // TODO: Issue:28036
+        R"(.*ActivationLayerTest.*(Log|Exp).*netPRC=(FP16|FP32).*)",
     };
 }

@@ -38,10 +38,8 @@ const std::vector<InferenceEngine::Precision> netPrecisionsIntegers = {
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        // TODO: Issue:27391
-        // InferenceEngine::Precision::FP32,
-        // TODO: Issue:28036
-        // InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::FP16,
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {

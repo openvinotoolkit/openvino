@@ -148,6 +148,13 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
             data_start_from = 0;
         }
     }
+    // To avoid extremely small input values which lose sign during quantization
+    if (activationType == ngraph::helpers::ActivationTypes::Sign
+        && targetDevice == CommonTestUtils::DEVICE_GNA
+        && (info.getPrecision() == InferenceEngine::Precision::FP16 ||
+            info.getPrecision() == InferenceEngine::Precision::FP32)) {
+        resolution = 3072;
+    }
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_range,
                                             data_start_from,
                                             resolution);
