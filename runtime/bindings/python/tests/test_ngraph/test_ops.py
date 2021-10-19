@@ -5,10 +5,12 @@
 
 import numpy as np
 
-import ngraph as ng
-from ngraph.impl import AxisSet, Function, Shape, Type
-from ngraph.impl.op import Constant, Parameter
+import openvino.opset8 as ov
+from openvino.impl import AxisSet, Function, Shape, Type
+from openvino.impl.op import Constant, Parameter
 from tests.runtime import get_runtime
+
+from tests import xfail_issue_67415
 
 
 def binary_op(op_str, a, b):
@@ -16,37 +18,37 @@ def binary_op(op_str, a, b):
     if op_str == "+":
         return a + b
     elif op_str == "Add":
-        return ng.add(a, b)
+        return ov.add(a, b)
     elif op_str == "-":
         return a - b
     elif op_str == "Sub":
-        return ng.subtract(a, b)
+        return ov.subtract(a, b)
     elif op_str == "*":
         return a * b
     elif op_str == "Mul":
-        return ng.multiply(a, b)
+        return ov.multiply(a, b)
     elif op_str == "/":
         return a / b
     elif op_str == "Div":
-        return ng.divide(a, b)
+        return ov.divide(a, b)
     elif op_str == "Equal":
-        return ng.equal(a, b)
+        return ov.equal(a, b)
     elif op_str == "Greater":
-        return ng.greater(a, b)
+        return ov.greater(a, b)
     elif op_str == "GreaterEq":
-        return ng.greater_equal(a, b)
+        return ov.greater_equal(a, b)
     elif op_str == "Less":
-        return ng.less(a, b)
+        return ov.less(a, b)
     elif op_str == "LessEq":
-        return ng.less_equal(a, b)
+        return ov.less_equal(a, b)
     elif op_str == "Maximum":
-        return ng.maximum(a, b)
+        return ov.maximum(a, b)
     elif op_str == "Minimum":
-        return ng.minimum(a, b)
+        return ov.minimum(a, b)
     elif op_str == "NotEqual":
-        return ng.not_equal(a, b)
+        return ov.not_equal(a, b)
     elif op_str == "Power":
-        return ng.power(a, b)
+        return ov.power(a, b)
 
 
 def binary_op_ref(op_str, a, b):
@@ -192,7 +194,7 @@ def test_add_with_mul():
     B = Parameter(element_type, shape)
     C = Parameter(element_type, shape)
     parameter_list = [A, B, C]
-    function = Function([ng.multiply(ng.add(A, B), C)], parameter_list, "test")
+    function = Function([ov.multiply(ov.add(A, B), C)], parameter_list, "test")
 
     runtime = get_runtime()
     computation = runtime.computation(function, A, B, C)
@@ -212,45 +214,45 @@ def test_add_with_mul():
 
 def unary_op(op_str, a):
     if op_str == "Abs":
-        return ng.abs(a)
+        return ov.abs(a)
     elif op_str == "Acos":
-        return ng.acos(a)
+        return ov.acos(a)
     elif op_str == "Acosh":
-        return ng.acosh(a)
+        return ov.acosh(a)
     elif op_str == "Asin":
-        return ng.asin(a)
+        return ov.asin(a)
     elif op_str == "Asinh":
-        return ng.asinh(a)
+        return ov.asinh(a)
     elif op_str == "Atan":
-        return ng.atan(a)
+        return ov.atan(a)
     elif op_str == "Atanh":
-        return ng.atanh(a)
+        return ov.atanh(a)
     elif op_str == "Ceiling":
-        return ng.ceiling(a)
+        return ov.ceiling(a)
     elif op_str == "Cos":
-        return ng.cos(a)
+        return ov.cos(a)
     elif op_str == "Cosh":
-        return ng.cosh(a)
+        return ov.cosh(a)
     elif op_str == "Floor":
-        return ng.floor(a)
+        return ov.floor(a)
     elif op_str == "log":
-        return ng.log(a)
+        return ov.log(a)
     elif op_str == "exp":
-        return ng.exp(a)
+        return ov.exp(a)
     elif op_str == "negative":
-        return ng.negative(a)
+        return ov.negative(a)
     elif op_str == "Sign":
-        return ng.sign(a)
+        return ov.sign(a)
     elif op_str == "Sin":
-        return ng.sin(a)
+        return ov.sin(a)
     elif op_str == "Sinh":
-        return ng.sinh(a)
+        return ov.sinh(a)
     elif op_str == "Sqrt":
-        return ng.sqrt(a)
+        return ov.sqrt(a)
     elif op_str == "Tan":
-        return ng.tan(a)
+        return ov.tan(a)
     elif op_str == "Tanh":
-        return ng.tanh(a)
+        return ov.tanh(a)
 
 
 def unary_op_ref(op_str, a):
@@ -442,7 +444,7 @@ def test_reshape():
     shape = Shape([2, 3])
     A = Parameter(element_type, shape)
     parameter_list = [A]
-    function = Function([ng.reshape(A, Shape([3, 2]), special_zero=False)], parameter_list, "test")
+    function = Function([ov.reshape(A, Shape([3, 2]), special_zero=False)], parameter_list, "test")
 
     runtime = get_runtime()
     computation = runtime.computation(function, *parameter_list)
@@ -457,7 +459,7 @@ def test_broadcast():
     element_type = Type.f32
     A = Parameter(element_type, Shape([3]))
     parameter_list = [A]
-    function = Function([ng.broadcast(A, [3, 3])], parameter_list, "test")
+    function = Function([ov.broadcast(A, [3, 3])], parameter_list, "test")
 
     runtime = get_runtime()
     computation = runtime.computation(function, *parameter_list)
@@ -490,7 +492,7 @@ def test_concat():
     C = Parameter(element_type, Shape([1, 2]))
     parameter_list = [A, B, C]
     axis = 0
-    function = Function([ng.concat([A, B, C], axis)], parameter_list, "test")
+    function = Function([ov.concat([A, B, C], axis)], parameter_list, "test")
 
     a_arr = np.array([[1, 2]], dtype=np.float32)
     b_arr = np.array([[5, 6]], dtype=np.float32)
@@ -520,6 +522,7 @@ def test_axisset():
     assert set(tuple_axisset) == set(set_axisset)
 
 
+@xfail_issue_67415
 def test_select():
     element_type = Type.f32
     A = Parameter(Type.boolean, Shape([1, 2]))
@@ -527,7 +530,7 @@ def test_select():
     C = Parameter(element_type, Shape([1, 2]))
     parameter_list = [A, B, C]
 
-    function = Function([ng.select(A, B, C)], parameter_list, "test")
+    function = Function([ov.select(A, B, C)], parameter_list, "test")
 
     runtime = get_runtime()
     computation = runtime.computation(function, *parameter_list)
@@ -559,7 +562,7 @@ def test_max_pool():
     auto_pad = "explicit"
     idx_elem_type = "i32"
 
-    model = ng.max_pool(
+    model = ov.max_pool(
         A,
         strides,
         dilations,
@@ -584,7 +587,7 @@ def test_max_pool():
     pads_begin = [0] * len(window_shape)
     pads_end = [0] * len(window_shape)
 
-    model = ng.max_pool(
+    model = ov.max_pool(
         A,
         strides,
         dilations,
@@ -618,7 +621,7 @@ def test_max_pool():
     pads_begin = [0, 0]
     pads_end = [0, 0]
 
-    model = ng.max_pool(
+    model = ov.max_pool(
         A,
         strides,
         dilations,
@@ -643,7 +646,7 @@ def test_max_pool():
     pads_begin = [0, 0]
     pads_end = [0, 0]
 
-    model = ng.max_pool(
+    model = ov.max_pool(
         A,
         strides,
         dilations,
@@ -731,7 +734,7 @@ def test_convolution_simple():
     pads_end = [0, 0]
     dilations = [1, 1]
 
-    model = ng.convolution(data, filters, strides, pads_begin, pads_end, dilations)
+    model = ov.convolution(data, filters, strides, pads_begin, pads_end, dilations)
     function = Function([model], parameter_list, "test")
 
     runtime = get_runtime()
@@ -759,7 +762,7 @@ def test_convolution_with_strides():
     pads_end = [0, 0]
     dilations = [1, 1]
 
-    model = ng.convolution(data, filters, strides, pads_begin, pads_end, dilations)
+    model = ov.convolution(data, filters, strides, pads_begin, pads_end, dilations)
     function = Function([model], parameter_list, "test")
 
     runtime = get_runtime()
@@ -786,7 +789,7 @@ def test_convolution_with_filter_dilation():
     pads_end = [0, 0]
     dilations = [2, 2]
 
-    model = ng.convolution(data, filters, strides, pads_begin, pads_end, dilations)
+    model = ov.convolution(data, filters, strides, pads_begin, pads_end, dilations)
     function = Function([model], parameter_list, "test")
 
     runtime = get_runtime()
@@ -814,7 +817,7 @@ def test_convolution_with_padding():
     pads_begin = [0, 0]
     pads_end = [0, 0]
 
-    model = ng.convolution(data, filters, strides, pads_begin, pads_end, dilations)
+    model = ov.convolution(data, filters, strides, pads_begin, pads_end, dilations)
     function = Function([model], parameter_list, "test")
 
     runtime = get_runtime()
@@ -843,7 +846,7 @@ def test_convolution_with_non_zero_padding():
     pads_begin = [2, 1]
     pads_end = [1, 2]
 
-    model = ng.convolution(data, filters, strides, pads_begin, pads_end, dilations)
+    model = ov.convolution(data, filters, strides, pads_begin, pads_end, dilations)
     function = Function([model], parameter_list, "test")
 
     runtime = get_runtime()
