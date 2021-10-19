@@ -9,7 +9,7 @@
  */
 #pragma once
 
-#if defined(USE_STATIC_IE) || (defined(__GNUC__) && (__GNUC__ < 4))
+#if defined(OPENVINO_STATIC_LIBRARY) || (defined(__GNUC__) && (__GNUC__ < 4))
 #    define INFERENCE_ENGINE_API(...)       extern "C" __VA_ARGS__
 #    define INFERENCE_ENGINE_API_CPP(...)   __VA_ARGS__
 #    define INFERENCE_ENGINE_API_CLASS(...) __VA_ARGS__

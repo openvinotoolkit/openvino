@@ -7,9 +7,9 @@
 #include <frontend_manager/frontend.hpp>
 
 #ifdef onnx_ngraph_frontend_EXPORTS
-#    define ONNX_FRONTEND_API NGRAPH_HELPER_DLL_EXPORT
+#    define ONNX_FRONTEND_API OPENVINO_CORE_EXPORTS
 #else
-#    define ONNX_FRONTEND_API NGRAPH_HELPER_DLL_IMPORT
+#    define ONNX_FRONTEND_API OPENVINO_CORE_IMPORTS
 #endif
 
 namespace ngraph {

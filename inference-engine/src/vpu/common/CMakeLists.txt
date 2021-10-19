@@ -26,7 +26,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
         # static linkage to inference_engine library
         target_compile_definitions(${TARGET_NAME}
             PUBLIC
-                USE_STATIC_IE)
+                OPENVINO_STATIC_LIBRARY)
         set_target_properties(${TARGET_NAME} PROPERTIES EXCLUDE_FROM_ALL ON)
     endif()
     target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)

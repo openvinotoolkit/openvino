@@ -28,7 +28,7 @@ set(LEGACY_LIBRARY_SHARED_SRCS
     "${LEGACY_SRC_ROOT}/ngraph_ops/onehot_ie.cpp")
 
 set_source_files_properties(${LEGACY_LIBRARY_SHARED_SRCS} PROPERTIES
-    COMPILE_DEFINITIONS "USE_STATIC_IE")
+    COMPILE_DEFINITIONS "OPENVINO_STATIC_LIBRARY")
 
 set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
@@ -168,7 +168,7 @@ if (TBBBIND_2_4_FOUND)
 endif()
 
 if(NOT BUILD_SHARED_LIBS)
-    set_source_files_properties(${IE_STATIC_DEPENDENT_FILES} PROPERTIES COMPILE_DEFINITIONS USE_STATIC_IE)
+    set_source_files_properties(${IE_STATIC_DEPENDENT_FILES} PROPERTIES COMPILE_DEFINITIONS OPENVINO_STATIC_LIBRARY)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt openvino::util ${CMAKE_DL_LIBS} Threads::Threads
@@ -216,7 +216,7 @@ endif()
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph frontend_manager::static
                                                inference_engine_transformations pugixml::static)
 
-target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
+target_compile_definitions(${TARGET_NAME}_s PUBLIC OPENVINO_STATIC_LIBRARY)
 
 set_target_properties(${TARGET_NAME}_s PROPERTIES EXCLUDE_FROM_ALL ON)
 

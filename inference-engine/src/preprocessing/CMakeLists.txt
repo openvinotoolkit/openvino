@@ -156,7 +156,7 @@ endif()
 target_link_libraries(${TARGET_NAME}_s PRIVATE fluid openvino::itt
                                        INTERFACE inference_engine_s)
 
-target_compile_definitions(${TARGET_NAME}_s INTERFACE USE_STATIC_IE)
+target_compile_definitions(${TARGET_NAME}_s INTERFACE OPENVINO_STATIC_LIBRARY)
 
 set_target_properties(${TARGET_NAME}_s PROPERTIES EXCLUDE_FROM_ALL ON)
 

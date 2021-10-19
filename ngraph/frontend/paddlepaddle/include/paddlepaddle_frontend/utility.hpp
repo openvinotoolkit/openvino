@@ -8,9 +8,9 @@
 
 // Defined if we are building the plugin DLL (instead of using it)
 #ifdef paddlepaddle_ngraph_frontend_EXPORTS
-#    define PDPD_API NGRAPH_HELPER_DLL_EXPORT
+#    define PDPD_API OPENVINO_CORE_EXPORTS
 #else
-#    define PDPD_API NGRAPH_HELPER_DLL_IMPORT
+#    define PDPD_API OPENVINO_CORE_IMPORTS
 #endif  // paddlepaddle_ngraph_frontend_EXPORTS
 
 #define PDPD_ASSERT(ex, msg)               \

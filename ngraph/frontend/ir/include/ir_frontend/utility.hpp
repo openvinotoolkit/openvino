@@ -6,9 +6,9 @@
 
 // Defined if we are building the plugin DLL (instead of using it)
 #ifdef ir_ngraph_frontend_EXPORTS
-#    define IR_API NGRAPH_HELPER_DLL_EXPORT
+#    define IR_API OPENVINO_CORE_EXPORTS
 #else
-#    define IR_API NGRAPH_HELPER_DLL_IMPORT
+#    define IR_API OPENVINO_CORE_IMPORTS
 #endif  // ir_ngraph_frontend_EXPORTS
 
 #define IR_ASSERT(ex, msg)                 \

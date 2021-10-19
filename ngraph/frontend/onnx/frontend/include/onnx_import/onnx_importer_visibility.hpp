@@ -5,7 +5,7 @@
 #include "ngraph/visibility.hpp"
 
 #ifdef onnx_ngraph_frontend_EXPORTS
-#    define ONNX_IMPORTER_API NGRAPH_HELPER_DLL_EXPORT
+#    define ONNX_IMPORTER_API OPENVINO_CORE_EXPORTS
 #else
-#    define ONNX_IMPORTER_API NGRAPH_HELPER_DLL_IMPORT
+#    define ONNX_IMPORTER_API OPENVINO_CORE_IMPORTS
 #endif

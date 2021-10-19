@@ -119,7 +119,7 @@ endif ()
 
 target_link_libraries(${TARGET_NAME} PRIVATE
     # static libraries
-    inference_engine_s # need to have this explicitly for USE_STATIC_IE
+    inference_engine_s # need to have this explicitly for OPENVINO_STATIC_LIBRARY
     unitTestUtils
     ieTestHelpers_s
     ${TEST_DEPS}

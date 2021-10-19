@@ -36,7 +36,7 @@ add_helpers(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PUBLIC commonTestUtils)
 
-add_helpers(${TARGET_NAME}_s USE_STATIC_IE)
+add_helpers(${TARGET_NAME}_s OPENVINO_STATIC_LIBRARY)
 
 target_link_libraries(${TARGET_NAME}_s PUBLIC commonTestUtils_s)
 

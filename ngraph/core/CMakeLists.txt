@@ -71,7 +71,7 @@ ov_ncc_naming_style(FOR_TARGET ngraph
 add_clang_format_target(ngraph_clang FOR_TARGETS ngraph)
 
 if(NOT BUILD_SHARED_LIBS)
-    target_compile_definitions(ngraph PUBLIC NGRAPH_STATIC_LIBRARY)
+    target_compile_definitions(ngraph PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")

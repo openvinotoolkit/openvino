@@ -24,7 +24,7 @@ function(add_common_utils ADD_TARGET_NAME)
                     openvino::util
     )
 
-    # USE_STATIC_IE is passed
+    # OPENVINO_STATIC_LIBRARY is passed
     if(ARGN)
         target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_s)
     else()
@@ -68,4 +68,4 @@ endfunction()
 set(TARGET_NAME commonTestUtils)
 
 add_common_utils(${TARGET_NAME})
-add_common_utils(${TARGET_NAME}_s USE_STATIC_IE)
+add_common_utils(${TARGET_NAME}_s OPENVINO_STATIC_LIBRARY)
