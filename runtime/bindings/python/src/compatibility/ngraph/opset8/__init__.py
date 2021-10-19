@@ -140,7 +140,6 @@ from ngraph.opset1.ops import sigmoid
 from ngraph.opset1.ops import sign
 from ngraph.opset1.ops import sin
 from ngraph.opset1.ops import sinh
-from ngraph.opset8.ops import slice
 from ngraph.opset1.ops import softmax
 from ngraph.opset4.ops import softplus
 from ngraph.opset2.ops import space_to_batch
