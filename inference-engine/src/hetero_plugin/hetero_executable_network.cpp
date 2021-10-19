@@ -735,7 +735,7 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
 IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    if (!this->_plugin->GetCore()->isNewAPI())
+    if (!this->_plugin->GetCore() || !this->_plugin->GetCore()->isNewAPI())
         return nullptr;
     HeteroInferRequest::SubRequestsList inferRequests;
     int index = 0;
