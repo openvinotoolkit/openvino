@@ -7,14 +7,14 @@ from copy import deepcopy
 from mo.graph.graph import Graph
 from mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
 from mo.utils.logger import init_logger
-from openvino import Core
-from openvino.offline_transformations import apply_pot_transformations  # pylint: disable=import-error,no-name-in-module
+from openvino.inference_engine import IECore  # pylint: disable=E0611
+from openvino.offline_transformations import ApplyPOTTransformations  # pylint: disable=import-error,no-name-in-module
 
 from ..graph.passes import ModelPreprocessor
 from ..utils.logger import stdout_redirect
 
 init_logger('ERROR', False)
-core = Core()
+ie = IECore()
 
 
 def load_graph(model_config, target_device='ANY'):
@@ -28,8 +28,8 @@ def load_graph(model_config, target_device='ANY'):
     xml_path = model_config.model
 
     if target_device in special_transform_devices:
-        network = core.read_network(model=xml_path, weights=bin_path)
-        apply_pot_transformations(network.get_function(), target_device.encode('utf-8'))
+        network = ie.read_network(model=xml_path, weights=bin_path)
+        ApplyPOTTransformations(network, target_device.encode('utf-8'))
         bin_path = serialized_bin_path
         xml_path = serialized_xml_path
         network.serialize(xml_path, bin_path)
