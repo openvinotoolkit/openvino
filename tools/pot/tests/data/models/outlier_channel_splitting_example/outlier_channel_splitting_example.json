@@ -1,0 +1,7 @@
+{
+  "name": "outlier_channel_splitting_example",
+  "framework": "onnx",
+  "mo_args": {
+    "input_model": "$model_dir/outlier_channel_splitting_example/outlier_channel_splitting_example.onnx"
+  }
+}
