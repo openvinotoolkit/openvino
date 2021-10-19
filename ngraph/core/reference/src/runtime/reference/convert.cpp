@@ -55,7 +55,6 @@ void jit_convert_vec_prepare<float, int8_t>(jit::Generator& gen) {
 
 template <>
 void jit_convert_vec<float, int8_t>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
-    std::cout << "Issue 66520: fix for jit_convert_vec float->int8 HIT" << std::endl;
     auto order = gen.ymm1;
     auto p32vec = gen.ymm2;
     auto p32vec_lo = gen.xmm2;
@@ -75,7 +74,6 @@ void jit_convert_vec_prepare<float16, int8_t>(jit::Generator& gen) {
 
 template <>
 void jit_convert_vec<float16, int8_t>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
-    std::cout << "Issue 66520: fix for jit_convert_vec float16->int8 HIT" << std::endl;
     auto order = gen.ymm1;
     auto p32vec = gen.ymm2;
     auto p32vec_lo = gen.xmm2;
