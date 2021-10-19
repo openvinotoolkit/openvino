@@ -57,10 +57,12 @@ class TestSliceOp(unittest.TestCase):
             # steps are non-constant
             ([[4, 5, 6, 7], [2, 3, 5, 6], [5, 6, 8, 9], [5, 6, 8, 9]], [4, 4], [0, 1], [3, -2], [0, 1], None, None,
              [dynamic_dimension_value, dynamic_dimension_value]),
-            # 1D input with negative starts
+            # negative steps and since after normalization starts < ends output shape has 0-size dimension
             (None, [20], [1], [-1], [0], [-2], None, [0]),
-            # case when output shape has zero elements
-            (None, [4], [1], [1], [0], [1], None, [0])
+            # since starts == ends output shape has 0-size dimension
+            (None, [4], [1], [1], [0], [1], None, [0]),
+            # since starts > ends output shape has 0-size dimension
+            (None, [4], [2], [1], [0], [1], None, [0])
         ])
         def test_slice_infer(self, inp_value, inp_shape, starts, ends, axes, steps, expected_value, expected_shape):
             if inp_value is None:
