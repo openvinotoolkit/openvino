@@ -113,11 +113,16 @@ private:
 };
 
 TEST_P(ConvFusionTests, CompareFunctions) {
-    ngraph::pass::InitNodeInfo().run_on_function(f);
-    ngraph::pass::ConvFusion().run_on_function(f);
-    ngraph::pass::ConstantFolding().run_on_function(f);
-    f->validate_nodes_and_infer_types();
-    // ASSERT_NO_THROW(check_rt_info(f));
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::ConvFusion>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    manager.run_passes(f);
+
+    ASSERT_NO_THROW(check_rt_info(f));
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
@@ -210,51 +215,38 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_ConvMulFusionNegative, ConvFusionTests,
                                         mul::get_type_info_static(), EltwiseShape{9, 1, 1, 1, 1}, true)));
 
 
-TEST(GroupConvMulFusion, WeightsWithReshape) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, WeightsWithReshape) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4, 7, 7});
         auto weights = opset5::Constant::create(element::f32, Shape{4, 1, 3, 3}, std::vector<float>(36, 1));
         auto reshape = std::make_shared<opset5::Reshape>(weights, opset5::Constant::create(element::i64, Shape{5}, Shape{4, 1, 1, 3, 3}), false);
         auto conv = std::make_shared<opset5::GroupConvolution>(data, reshape, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
         auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{4, 1, 1}, std::vector<float>(4, 2)));
-        f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::GroupConvolutionMultiplyFusion>();
-        m.register_pass<pass::ConstantFolding>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::GroupConvolutionMultiplyFusion>();
+        manager.register_pass<pass::ConstantFolding>();
     }
 
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4, 7, 7});
         auto weights = opset5::Constant::create(element::f32, Shape{4, 1, 1, 3, 3}, std::vector<float>(36, 2));
         auto conv = std::make_shared<opset5::GroupConvolution>(data, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
-        f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
 
-TEST(GroupConvMulFusion, NegativeWeightsWithReshape) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, NegativeWeightsWithReshape) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4, 7, 7});
         auto weights = opset5::Constant::create(element::f32, Shape{36}, std::vector<float>(36, 1));
         auto reshape = std::make_shared<opset5::Reshape>(weights, opset5::Constant::create(element::i64, Shape{5}, Shape{4, 1, 1, 3, 3}), false);
         auto conv = std::make_shared<opset5::GroupConvolution>(data, reshape, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
         auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{4, 1, 1}, std::vector<float>(4, 2)));
-        f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::GroupConvolutionMultiplyFusion>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::GroupConvolutionMultiplyFusion>();
     }
 
     {
@@ -263,75 +255,55 @@ TEST(GroupConvMulFusion, NegativeWeightsWithReshape) {
         auto reshape = std::make_shared<opset5::Reshape>(weights, opset5::Constant::create(element::i64, Shape{5}, Shape{4, 1, 1, 3, 3}), false);
         auto conv = std::make_shared<opset5::GroupConvolution>(data, reshape, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
         auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{4, 1, 1}, std::vector<float>(4, 2)));
-        f_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
 
-TEST(GroupConvMulFusion, WeightsWithReshapeScalarMultiplier) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, WeightsWithReshapeScalarMultiplier) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4, 7, 7});
         auto weights = opset5::Constant::create(element::f32, Shape{36}, std::vector<float>(36, 1));
         auto reshape = std::make_shared<opset5::Reshape>(weights, opset5::Constant::create(element::i64, Shape{5}, Shape{4, 1, 1, 3, 3}), false);
         auto conv = std::make_shared<opset5::GroupConvolution>(data, reshape, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
         auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{1}, {2.0f}));
-        f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::GroupConvolutionMultiplyFusion>();
-        m.register_pass<pass::ConstantFolding>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::GroupConvolutionMultiplyFusion>();
+        manager.register_pass<pass::ConstantFolding>();
     }
 
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4, 7, 7});
         auto weights = opset5::Constant::create(element::f32, Shape{4, 1, 1, 3, 3}, std::vector<float>(36, 2));
         auto conv = std::make_shared<opset5::GroupConvolution>(data, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
-        f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
 
-TEST(GroupConvMulFusion, WeightsWithoutReshape) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, WeightsWithoutReshape) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4, 7, 7});
         auto weights = opset5::Constant::create(element::f32, Shape{4, 1, 1, 3, 3}, std::vector<float>(36, 1));
         auto conv = std::make_shared<opset5::GroupConvolution>(data, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
         auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{4, 1, 1}, std::vector<float>(4, 2)));
-        f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::GroupConvolutionMultiplyFusion>();
-        m.register_pass<pass::ConstantFolding>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::GroupConvolutionMultiplyFusion>();
+        manager.register_pass<pass::ConstantFolding>();
     }
 
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4, 7, 7});
         auto weights = opset5::Constant::create(element::f32, Shape{4, 1, 1, 3, 3}, std::vector<float>(36, 2));
         auto conv = std::make_shared<opset5::GroupConvolution>(data, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
-        f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
 
-TEST(GroupConvMulFusion, WeightsWithFakeQuantizeAndReshape) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, WeightsWithFakeQuantizeAndReshape) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4, 7, 7});
         auto weights = opset5::Constant::create(element::f32, Shape{6, 2, 3, 3}, std::vector<float>(108, 1));
@@ -343,14 +315,10 @@ TEST(GroupConvMulFusion, WeightsWithFakeQuantizeAndReshape) {
         auto reshape = std::make_shared<opset5::Reshape>(fq, opset5::Constant::create(element::i64, Shape{5}, Shape{2, 3, 2, 3, 3}), false);
         auto conv = std::make_shared<opset5::GroupConvolution>(data, reshape, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
         auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{6, 1, 1}, std::vector<float>(6, 2)));
-        f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::GroupConvolutionMultiplyFusion>();
-        m.register_pass<pass::ConstantFolding>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::GroupConvolutionMultiplyFusion>();
+        manager.register_pass<pass::ConstantFolding>();
     }
 
     {
@@ -364,9 +332,6 @@ TEST(GroupConvMulFusion, WeightsWithFakeQuantizeAndReshape) {
         auto mul = std::make_shared<opset5::Multiply>(fq, opset5::Constant::create(element::f32, Shape{6, 1, 1, 1}, std::vector<float>(6, 2)));
         auto reshape = std::make_shared<opset5::Reshape>(mul, opset5::Constant::create(element::i64, Shape{5}, Shape{2, 3, 2, 3, 3}), false);
         auto conv = std::make_shared<opset5::GroupConvolution>(data, reshape, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
-        f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }

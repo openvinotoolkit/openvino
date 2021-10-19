@@ -59,7 +59,7 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
                     if (new_limit_shape == limit_input.get_shape())
                         renewed_inputs.push_back(limit_input);
                     else
-                        renewed_inputs.push_back(reshape_node->copy_with_new_inputs(
+                        renewed_inputs.push_back(reshape_node->clone_with_new_inputs(
                                 {limit_input, opset4::Constant::create(element::i64, {new_limit_shape.size()}, new_limit_shape)}));
                     continue;
                 }

@@ -18,8 +18,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, GatherNegativeIndicesNormalize) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize) {
     {
         auto data = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{1, 15, 128});
         auto indices = ngraph::opset7::Constant::create(ngraph::element::i32, ngraph::Shape{}, {-1});
@@ -27,13 +26,9 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize) {
 
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, indices, axis, 0);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -52,15 +47,11 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize) {
             throw ngraph::ngraph_error("indices should've been constant folded");
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, const_add, axis);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, GatherNegativeIndicesNormalize_neg_axis) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_neg_axis) {
     {
         auto data = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{1, 15, 128});
         auto indices = ngraph::opset7::Constant::create(ngraph::element::i32, ngraph::Shape{}, {-1});
@@ -68,13 +59,9 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize_neg_axis) {
 
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, indices, axis, 0);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -93,15 +80,11 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize_neg_axis) {
             throw ngraph::ngraph_error("indices should've been constant folded");
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, const_add, axis);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, GatherNegativeIndicesNormalize_dif_input_types) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_dif_input_types) {
     {
         auto data = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{1, 15, 128});
         auto indices = ngraph::opset7::Constant::create(ngraph::element::i32, ngraph::Shape{}, {-1});
@@ -109,13 +92,9 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize_dif_input_types) {
 
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, indices, axis, 0);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -134,15 +113,11 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize_dif_input_types) {
             throw ngraph::ngraph_error("indices should've been constant folded");
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, const_add, axis);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, GatherNegativeIndicesNormalize_static_axis_dim) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_static_axis_dim) {
     {
         auto data = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::PartialShape{DYN, 15, DYN});
         auto indices = ngraph::opset7::Constant::create(ngraph::element::i32, ngraph::Shape{}, {-1});
@@ -150,13 +125,9 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize_static_axis_dim) {
 
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, indices, axis, 0);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -172,15 +143,11 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize_static_axis_dim) {
         auto add = std::make_shared<ngraph::opset7::Add>(input_gather, indices);
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, add, axis);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, GatherNegativeIndicesNormalize_static_axis_dim_neg_axis) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_static_axis_dim_neg_axis) {
     {
         auto data = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::PartialShape{DYN, 15, DYN});
         auto indices = ngraph::opset7::Constant::create(ngraph::element::i32, ngraph::Shape{}, {-1});
@@ -188,13 +155,9 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize_static_axis_dim_neg_axi
 
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, indices, axis, 0);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -210,15 +173,11 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize_static_axis_dim_neg_axi
         auto add = std::make_shared<ngraph::opset7::Add>(input_gather, indices);
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, add, axis);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, GatherNegativeIndicesNormalize_non_static_axis_dim) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_non_static_axis_dim) {
     {
         auto data = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::PartialShape{DYN, DYN, DYN});
         auto indices = ngraph::opset7::Constant::create(ngraph::element::i32, ngraph::Shape{}, {-1});
@@ -226,13 +185,9 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize_non_static_axis_dim) {
 
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, indices, axis, 0);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -244,15 +199,11 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize_non_static_axis_dim) {
 
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, indices, axis);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, GatherNegativeIndicesNormalize_positive_ind) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_positive_ind) {
     {
         auto data = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
         auto indices = ngraph::opset7::Constant::create(ngraph::element::i32, ngraph::Shape{}, {1});
@@ -260,13 +211,9 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize_positive_ind) {
 
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, indices, axis, 0);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -276,15 +223,11 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize_positive_ind) {
 
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, indices, axis);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, GatherNegativeIndicesNormalize_non_static_rank) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_non_static_rank) {
     {
         auto data = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(ngraph::Rank::dynamic()));
         auto indices = ngraph::opset7::Constant::create(ngraph::element::i32, ngraph::Shape{}, {-1});
@@ -292,13 +235,9 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize_non_static_rank) {
 
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, indices, axis, 0);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -308,9 +247,6 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize_non_static_rank) {
 
         auto gather = std::make_shared<ngraph::opset7::Gather>(data, indices, axis);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }

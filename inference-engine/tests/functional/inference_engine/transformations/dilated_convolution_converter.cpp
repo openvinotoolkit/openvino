@@ -22,8 +22,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, DilatedConvolutionConverter) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, DilatedConvolutionConverter) {
     {
         auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
         auto filters = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 3, 3});
@@ -37,28 +36,20 @@ TEST(TransformationTests, DilatedConvolutionConverter) {
                 op::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                 op::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0}),
                 op::Constant::create(element::i64, Shape{4}, {0, 0, 2, 3}));
-        f = std::make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data, filters});
+        function = std::make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data, filters});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::DilatedConvolutionConverter>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::DilatedConvolutionConverter>();
     }
     {
         auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
         auto filters = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 3, 3});
         auto conv = std::make_shared<opset6::Convolution>(data, filters,
                 Strides{1, 1}, CoordinateDiff{1, 1}, CoordinateDiff{-1, -2}, Strides{2, 2}, op::PadType::EXPLICIT);
-        f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
+        function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
     }
-
-    auto res = compare_functions(f, f_ref, true);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, NegativeDilatedConvolutionConverterNonZeroPadsForNC) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, NegativeDilatedConvolutionConverterNonZeroPadsForNC) {
     {
         auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
         auto filters = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 5, 3, 3});
@@ -72,13 +63,9 @@ TEST(TransformationTests, NegativeDilatedConvolutionConverterNonZeroPadsForNC) {
                 op::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                 op::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0}),
                 op::Constant::create(element::i64, Shape{4}, {0, 0, 2, 3}));
-        f = std::make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data, filters});
+        function = std::make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data, filters});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::DilatedConvolutionConverter>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::DilatedConvolutionConverter>();
     }
     {
         auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
@@ -93,9 +80,6 @@ TEST(TransformationTests, NegativeDilatedConvolutionConverterNonZeroPadsForNC) {
                 op::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                 op::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0}),
                 op::Constant::create(element::i64, Shape{4}, {0, 0, 2, 3}));
-        f_ref = std::make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data, filters});
+        function_ref = std::make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data, filters});
     }
-
-    auto res = compare_functions(f, f_ref, true);
-    ASSERT_TRUE(res.first) << res.second;
 }

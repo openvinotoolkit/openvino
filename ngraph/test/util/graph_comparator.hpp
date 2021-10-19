@@ -24,6 +24,7 @@ public:
         RUNTIME_KEYS = 1 << 2,
         PRECISIONS = 1 << 3,
         ATTRIBUTES = 1 << 4,
+        TENSOR_NAMES = 1 << 5,
     };
 
     struct Result {
@@ -72,7 +73,8 @@ inline std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngra
                                                       const bool compareNames = false,
                                                       const bool compareRuntimeKeys = false,
                                                       const bool comparePrecisions = true,
-                                                      const bool compareAttributes = false) {
+                                                      const bool compareAttributes = false,
+                                                      const bool compareTensorNames = false) {
     auto fc = FunctionsComparator::no_default();
 
     using Cmp = FunctionsComparator::CmpValues;
@@ -86,6 +88,8 @@ inline std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngra
         fc.enable(Cmp::PRECISIONS);
     if (compareAttributes)
         fc.enable(Cmp::ATTRIBUTES);
+    if (compareTensorNames)
+        fc.enable(Cmp::TENSOR_NAMES);
 
     const auto r = fc(f1, f2);
     return {r.valid, r.message};
@@ -116,28 +120,45 @@ private:
 
 class UniqueNamesHolder {
     using names_t = std::unordered_set<std::string>;
-    std::unordered_map<Node *, names_t> m_result_tensor_names;
-    std::unordered_map<Node *, names_t> m_result_node_names;
+    std::unordered_map<Node*, names_t> m_result_tensor_names;
+    std::unordered_map<Node*, names_t> m_result_node_names;
 
     size_t m_index{0};
 
-    std::string generate_name() {
+    std::string generate_tensor_name() {
         return "tensor_" + std::to_string(m_index++);
     }
+
+    std::string generate_friendly_name() {
+        return "node_" + std::to_string(m_index++);
+    }
+
 public:
     using Ptr = std::shared_ptr<UniqueNamesHolder>;
 
     UniqueNamesHolder() = default;
 
     void init_names(std::shared_ptr<Function> f) {
-        for (auto r : f->get_results()) {
-            const auto & tensor_name = generate_name();
-            m_result_tensor_names[r.get()].insert(tensor_name);
-            r->input_value(0).set_names({tensor_name});
+        // initialize function with unique friendly and tensor names
+        for (auto node : f->get_ordered_ops()) {
+            const auto& node_name = generate_friendly_name();
+            node->set_friendly_name(node_name);
 
-            const auto & node_name = generate_name();
-            m_result_node_names[r.get()].insert(node_name);
-            r->input_value(0).get_node()->set_friendly_name(node_name);
+            for (auto output : node->outputs()) {
+                const auto& tensor_name = generate_tensor_name();
+                output.set_names({tensor_name});
+            }
+        }
+
+        // save result input tensor names and friendly name for future comparison
+        for (auto r : f->get_results()) {
+            const auto& tensor_names = r->input_value(0).get_names();
+            m_result_tensor_names[r.get()].insert(tensor_names.begin(), tensor_names.end());
+            m_result_node_names[r.get()].insert(r->input_value(0).get_node()->get_friendly_name());
+            // As get_ordered_ops doesn't guaranty that the order of Result ops is the same
+            // we explicitly update Result names to have them in increasing order that
+            // helps FunctionComparator to compare Functions with multiple Results.
+            r->set_friendly_name(generate_friendly_name());
         }
     }
 
@@ -145,19 +166,6 @@ public:
         // Check that all tensor names and friendly names are unique
         names_t unique_tensor_names, unique_friendly_names;
         for (auto node : f->get_ordered_ops()) {
-            for (auto output : node->outputs()) {
-                const auto & tensor_names = output.get_names();
-                if (std::any_of(tensor_names.begin(), tensor_names.end(), [&](const std::string & name) {
-                    return unique_tensor_names.count(name);
-                })) {
-                    std::stringstream ss;
-                    ss << "Node: " << node->get_type_info() << " with name " << node->get_friendly_name() << " ";
-                    ss << "has non unique tensor name.";
-                    throw ngraph_error(ss.str());
-                }
-                unique_tensor_names.insert(tensor_names.begin(), tensor_names.end());
-            }
-
             if (unique_friendly_names.count(node->get_friendly_name())) {
                 std::stringstream ss;
                 ss << "Node: " << node->get_type_info() << " with name " << node->get_friendly_name() << " ";
@@ -165,13 +173,28 @@ public:
                 throw ngraph_error(ss.str());
             }
             unique_friendly_names.insert(node->get_friendly_name());
+
+            if (as_type_ptr<op::Result>(node))
+                continue;
+            for (auto output : node->outputs()) {
+                const auto& tensor_names = output.get_names();
+                if (std::any_of(tensor_names.begin(), tensor_names.end(), [&](const std::string& name) {
+                        return unique_tensor_names.count(name);
+                    })) {
+                    std::stringstream ss;
+                    ss << "Node: " << node->get_type_info() << " with name " << node->get_friendly_name() << " ";
+                    ss << "has non unique tensor name.";
+                    throw ngraph_error(ss.str());
+                }
+                unique_tensor_names.insert(tensor_names.begin(), tensor_names.end());
+            }
         }
 
         // Check that old tensor names for results were preserved
         for (auto r : f->get_results()) {
-            const auto & ref_names = m_result_tensor_names.at(r.get());
-            const auto & cur_names = r->input_value(0).get_names();
-            for (const auto & ref_name : ref_names) {
+            const auto& ref_names = m_result_tensor_names.at(r.get());
+            const auto& cur_names = r->input_value(0).get_names();
+            for (const auto& ref_name : ref_names) {
                 if (cur_names.count(ref_name) == 0) {
                     std::stringstream ss;
                     auto node = r->input_value(0).get_node();
@@ -186,8 +209,9 @@ public:
     }
 };
 
-class InitUniqueNames : public ngraph::pass::FunctionPass {
+class InitUniqueNames : public ov::pass::FunctionPass {
     UniqueNamesHolder::Ptr m_unh;
+
 public:
     InitUniqueNames(UniqueNamesHolder::Ptr unh) : m_unh(unh) {}
     bool run_on_function(std::shared_ptr<Function> f) override {
@@ -196,8 +220,9 @@ public:
     }
 };
 
-class CheckUniqueNames : public ngraph::pass::FunctionPass {
+class CheckUniqueNames : public ov::pass::FunctionPass {
     UniqueNamesHolder::Ptr m_unh;
+
 public:
     CheckUniqueNames(UniqueNamesHolder::Ptr unh) : m_unh(unh) {}
     bool run_on_function(std::shared_ptr<Function> f) override {

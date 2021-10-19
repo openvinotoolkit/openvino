@@ -23,75 +23,54 @@ using namespace testing;
 using namespace ngraph;
 
 
-TEST(TransformationTests, ClampFusion) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ClampFusion) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{2, 2});
         auto min_const = opset5::Constant::create(element::f32, Shape{1}, {0.1});
         auto max_const = opset5::Constant::create(element::f32, Shape{1}, {5});
         auto max = std::make_shared<opset5::Maximum>(data, min_const);
         auto min = std::make_shared<opset5::Minimum>(max, max_const);
-        f = std::make_shared<Function>(NodeVector{min}, ParameterVector{data});
+        function = std::make_shared<Function>(NodeVector{min}, ParameterVector{data});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ClampFusion>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::ClampFusion>();
     }
 
     {
         auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
-        f_ref = std::make_shared<Function>(NodeVector{clamp}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{clamp}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ClampFusionScalars) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ClampFusionScalars) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{2, 2});
         auto min_const = opset5::Constant::create(element::f32, Shape{}, {0.1});
         auto max_const = opset5::Constant::create(element::f32, Shape{}, {5});
         auto max = std::make_shared<opset5::Maximum>(data, min_const);
         auto min = std::make_shared<opset5::Minimum>(max, max_const);
-        f = std::make_shared<Function>(NodeVector{min}, ParameterVector{data});
+        function = std::make_shared<Function>(NodeVector{min}, ParameterVector{data});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ClampFusion>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::ClampFusion>();
     }
 
     {
         auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
-        f_ref = std::make_shared<Function>(NodeVector{clamp}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{clamp}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ClampFusionNonConstMin) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ClampFusionNonConstMin) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{2, 2});
         auto min_val = std::make_shared<opset5::Parameter>(element::f32, Shape{});
         auto max_const = opset5::Constant::create(element::f32, Shape{}, {5});
         auto max = std::make_shared<opset5::Maximum>(data, min_val);
         auto min = std::make_shared<opset5::Minimum>(max, max_const);
-        f = std::make_shared<Function>(NodeVector{min}, ParameterVector{data, min_val});
+        function = std::make_shared<Function>(NodeVector{min}, ParameterVector{data, min_val});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ClampFusion>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::ClampFusion>();
     }
 
     {
@@ -100,9 +79,6 @@ TEST(TransformationTests, ClampFusionNonConstMin) {
         auto max_const = opset5::Constant::create(element::f32, Shape{}, {5});
         auto max = std::make_shared<opset5::Maximum>(data, min_val);
         auto min = std::make_shared<opset5::Minimum>(max, max_const);
-        f_ref = std::make_shared<Function>(NodeVector{min}, ParameterVector{data, min_val});
+        function_ref = std::make_shared<Function>(NodeVector{min}, ParameterVector{data, min_val});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }

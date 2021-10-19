@@ -26,8 +26,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, GRUCellConversionTest) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, GRUCellConversionTest) {
     std::shared_ptr<ngraph::opset3::GRUCell> cell;
 
     const size_t batch_size = 2;
@@ -45,12 +44,8 @@ TEST(TransformationTests, GRUCellConversionTest) {
         cell = std::make_shared<ngraph::opset3::GRUCell>(X, H_t, W, R, B, hidden_size);
         cell->set_friendly_name("test_cell");
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell}, ngraph::ParameterVector{X, H_t});
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell}, ngraph::ParameterVector{X, H_t});
         manager.register_pass<ngraph::pass::ConvertGRUCellMatcher>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -71,19 +66,12 @@ TEST(TransformationTests, GRUCellConversionTest) {
                                                                cell->get_linear_before_reset());
         cell_ie->set_friendly_name("test_cell");
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell_ie}, ngraph::ParameterVector{X, H_t});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell_ie}, ngraph::ParameterVector{X, H_t});
     }
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-
-    auto result_node_of_converted_f = f->get_output_op(0);
-    auto cell_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    ASSERT_TRUE(cell_node->get_friendly_name() == "test_cell") << "Transformation ConvertGRUCellToGRUCellIE should keep output names.\n";
 }
 
-TEST(TransformationTests, RNNCellConversionTest) {
+TEST_F(TransformationTestsF, RNNCellConversionTest) {
     const size_t hidden_size = 3;
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     std::shared_ptr<ngraph::opset3::RNNCell> cell;
 
     {
@@ -96,12 +84,8 @@ TEST(TransformationTests, RNNCellConversionTest) {
         cell = std::make_shared<ngraph::opset3::RNNCell>(X, H, W, R, B, hidden_size);
         cell->set_friendly_name("test_cell");
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell}, ngraph::ParameterVector{X, H});
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell}, ngraph::ParameterVector{X, H});
         manager.register_pass<ngraph::pass::ConvertRNNCellMatcher>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -119,24 +103,16 @@ TEST(TransformationTests, RNNCellConversionTest) {
                                                                cell->get_clip());
 
         cell_ie->set_friendly_name("test_cell");
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell_ie}, ngraph::ParameterVector{X, H});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell_ie}, ngraph::ParameterVector{X, H});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-
-    auto result_node_of_converted_f = f->get_output_op(0);
-    auto cell_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    ASSERT_TRUE(cell_node->get_friendly_name() == "test_cell") << "Transformation ConvertRNNCellToRNNCellIE should keep output names.\n";
 }
 
-TEST(TransformationTests, LSTMCellConversionTest_opset3) {
+TEST_F(TransformationTestsF, LSTMCellConversionTest_opset3) {
     const size_t batch_size = 2;
     const size_t input_size = 3;
     const size_t hidden_size = 3;
     const size_t gates_count = 4;
 
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     std::shared_ptr<ngraph::opset3::LSTMCell> cell;
     {
         const auto X = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, input_size});
@@ -151,12 +127,8 @@ TEST(TransformationTests, LSTMCellConversionTest_opset3) {
         cell = std::make_shared<ngraph::opset3::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
         cell->set_friendly_name("test_cell");
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell}, ngraph::ParameterVector{X, H_t, C_t});
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell}, ngraph::ParameterVector{X, H_t, C_t});
         manager.register_pass<ngraph::pass::ConvertLSTMCellMatcher>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -178,24 +150,16 @@ TEST(TransformationTests, LSTMCellConversionTest_opset3) {
                                                                 cell->get_clip());
         cell_ie->set_friendly_name("test_cell");
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell_ie}, ngraph::ParameterVector{X, H_t, C_t});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell_ie}, ngraph::ParameterVector{X, H_t, C_t});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-
-    auto result_node_of_converted_f = f->get_output_op(0);
-    auto cell_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    ASSERT_TRUE(cell_node->get_friendly_name() == "test_cell") << "Transformation ConvertLSTMCellToLSTMCellIE should keep output names.\n";
 }
 
-TEST(TransformationTests, LSTMCellConversionTest_opset4) {
+TEST_F(TransformationTestsF, LSTMCellConversionTest_opset4) {
     const size_t batch_size = 2;
     const size_t input_size = 3;
     const size_t hidden_size = 3;
     const size_t gates_count = 4;
 
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     std::shared_ptr<ngraph::opset4::LSTMCell> cell;
     {
         const auto X = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32,
@@ -214,14 +178,9 @@ TEST(TransformationTests, LSTMCellConversionTest_opset4) {
                                                                   ngraph::Shape{gates_count * hidden_size});
 
         cell = std::make_shared<ngraph::opset4::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
-        cell->set_friendly_name("test_cell");
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell}, ngraph::ParameterVector{X, H_t, C_t});
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell}, ngraph::ParameterVector{X, H_t, C_t});
         manager.register_pass<ngraph::pass::ConvertLSTMCellMatcher>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -247,16 +206,6 @@ TEST(TransformationTests, LSTMCellConversionTest_opset4) {
                                                                 cell->get_activations_alpha(),
                                                                 cell->get_activations_beta(),
                                                                 cell->get_clip());
-        cell_ie->set_friendly_name("test_cell");
-
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell_ie}, ngraph::ParameterVector{X, H_t, C_t});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell_ie}, ngraph::ParameterVector{X, H_t, C_t});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-
-    auto result_node_of_converted_f = f->get_output_op(0);
-    auto cell_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    ASSERT_TRUE(cell_node->get_friendly_name() == "test_cell")
-                                << "Transformation ConvertLSTMCellToLSTMCellIE should keep output names.\n";
 }

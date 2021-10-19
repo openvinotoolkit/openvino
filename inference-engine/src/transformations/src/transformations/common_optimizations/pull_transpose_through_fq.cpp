@@ -59,12 +59,12 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
                                                                        opset1::Constant::create(element::i64, Shape{unsqueeze_axes.size()}, unsqueeze_axes));
                 new_ops.push_back(fq_input.get_node_shared_ptr());
             }
-            fq_input = transpose->copy_with_new_inputs({fq_input, transpose->input_value(1)});
+            fq_input = transpose->clone_with_new_inputs({fq_input, transpose->input_value(1)});
             ngraph::copy_runtime_info(transpose, fq_input.get_node_shared_ptr());
             fq_inputs.push_back(fq_input);
         }
 
-        auto new_fq = fq->copy_with_new_inputs(fq_inputs);
+        auto new_fq = fq->clone_with_new_inputs(fq_inputs);
         new_ops.push_back(new_fq);
         new_fq->set_friendly_name(fq->get_friendly_name());
         ngraph::copy_runtime_info({fq, transpose}, new_ops);

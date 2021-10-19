@@ -231,7 +231,7 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
             new_ops.push_back(fc_input_b.get_node_shared_ptr());
         }
 
-        auto gemm = matmul->copy_with_new_inputs({ fc_input_a, fc_input_b });
+        auto gemm = matmul->clone_with_new_inputs({ fc_input_a, fc_input_b });
         new_ops.push_back(gemm);
 
         if (gemm->get_shape() != output_shape) {

@@ -25,23 +25,17 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, ConvertMatrixNmsToMatrixNmsIE) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertMatrixNmsToMatrixNmsIE) {
     {
         auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
 
         auto nms = std::make_shared<opset8::MatrixNms>(boxes, scores, opset8::MatrixNms::Attributes());
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
-        ASSERT_TRUE(f->get_output_partial_shape(0).is_static()) << "Shape " << f->get_output_partial_shape(0) << " should be static";
     }
 
     {
@@ -49,10 +43,6 @@ TEST(TransformationTests, ConvertMatrixNmsToMatrixNmsIE) {
         auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
         auto nms = std::make_shared<op::internal::NmsStaticShapeIE<ngraph::opset8::MatrixNms>>(boxes, scores, opset8::MatrixNms::Attributes());
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
-        ASSERT_TRUE(f_ref->get_output_partial_shape(0).is_static()) << "Shape " << f_ref->get_output_partial_shape(0) << " should be static";
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }

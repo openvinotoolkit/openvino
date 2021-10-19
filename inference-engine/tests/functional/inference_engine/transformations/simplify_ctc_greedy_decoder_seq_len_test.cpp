@@ -19,8 +19,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenTest) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenTest) {
     {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 7 });
         auto seq_len = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i64, ngraph::Shape{ 1 });
@@ -29,13 +28,9 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenTest) {
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -104,15 +99,11 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenTest) {
         auto output_seq_len = std::make_shared<ngraph::opset6::ReduceSum>(output_seq_mask, seq_mask_axis);
         auto output_seq_len_i = std::make_shared<ngraph::opset6::Convert>(output_seq_len->output(0), sl_type);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len_i }, ngraph::ParameterVector{ data1, seq_len1 });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len_i }, ngraph::ParameterVector{ data1, seq_len1 });
     }
-
-    auto res = compare_functions(f, f_ref, true, false, false, true, true);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicInputShapeTest) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicInputShapeTest) {
     {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic());
         auto seq_len = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::Shape{ 1 });
@@ -121,13 +112,9 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicInputShapeTest) {
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -196,15 +183,11 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicInputShapeTest) {
         auto output_seq_len = std::make_shared<ngraph::opset6::ReduceSum>(output_seq_mask, seq_mask_axis);
         auto output_seq_len_i = std::make_shared<ngraph::opset6::Convert>(output_seq_len->output(0), sl_type);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len_i }, ngraph::ParameterVector{ data1, seq_len1 });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len_i }, ngraph::ParameterVector{ data1, seq_len1 });
     }
-
-    auto res = compare_functions(f, f_ref, true, false, false, true, true);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicBatchTest) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicBatchTest) {
     {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::PartialShape{Dimension::dynamic(), 3, 7});
         auto seq_len = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::PartialShape{Dimension::dynamic()});
@@ -213,13 +196,9 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicBatchTest) {
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -288,15 +267,11 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicBatchTest) {
         auto output_seq_len = std::make_shared<ngraph::opset6::ReduceSum>(output_seq_mask, seq_mask_axis);
         auto output_seq_len_i = std::make_shared<ngraph::opset6::Convert>(output_seq_len->output(0), sl_type);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len_i }, ngraph::ParameterVector{ data1, seq_len1 });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len_i }, ngraph::ParameterVector{ data1, seq_len1 });
     }
-
-    auto res = compare_functions(f, f_ref, true, false, false, true, true);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenTest) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenTest) {
     {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::PartialShape{2, Dimension::dynamic(), 7});
         auto seq_len = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::PartialShape{2});
@@ -305,13 +280,9 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenTest) {
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -380,16 +351,12 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenTest) {
         auto output_seq_len = std::make_shared<ngraph::opset6::ReduceSum>(output_seq_mask, seq_mask_axis);
         auto output_seq_len_i = std::make_shared<ngraph::opset6::Convert>(output_seq_len->output(0), sl_type);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len_i },
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len_i },
                                                    ngraph::ParameterVector{ data1, seq_len1 });
     }
-
-    auto res = compare_functions(f, f_ref, true, false, false, true, true);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenWrongBlankIndexTest) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenWrongBlankIndexTest) {
     {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::PartialShape{2, Dimension::dynamic(), 7});
         auto seq_len = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::PartialShape{2});
@@ -400,13 +367,9 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenWrongBlankIndexTest) {
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -419,15 +382,11 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenWrongBlankIndexTest) {
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data1, seq_len1 });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data1, seq_len1 });
     }
-
-    auto res = compare_functions(f, f_ref, true, false, false, true, true);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenWithBlankIndexTest) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenWithBlankIndexTest) {
     {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::PartialShape{2, Dimension::dynamic(), 7});
         auto seq_len = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::PartialShape{2});
@@ -438,13 +397,9 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenWithBlankIn
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -513,16 +468,12 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenWithBlankIn
         auto output_seq_len = std::make_shared<ngraph::opset6::ReduceSum>(output_seq_mask, seq_mask_axis);
         auto output_seq_len_i = std::make_shared<ngraph::opset6::Convert>(output_seq_len->output(0), sl_type);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len_i },
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len_i },
                                                    ngraph::ParameterVector{ data1, seq_len1 });
     }
-
-    auto res = compare_functions(f, f_ref, true, false, false, true, true);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenParamWithBlankIndexTest) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenParamWithBlankIndexTest) {
     {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::PartialShape{2, Dimension::dynamic(), 7});
         auto seq_len = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::PartialShape{2});
@@ -533,13 +484,9 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenParamWithBl
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len, blank_index });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len, blank_index });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -552,9 +499,6 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenParamWithBl
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data1, seq_len1, blank_index1 });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data1, seq_len1, blank_index1 });
     }
-
-    auto res = compare_functions(f, f_ref, true, false, false, true, true);
-    ASSERT_TRUE(res.first) << res.second;
 }

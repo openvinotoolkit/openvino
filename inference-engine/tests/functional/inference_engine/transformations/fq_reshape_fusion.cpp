@@ -103,9 +103,12 @@ private:
 };
 
 TEST_P(nGraphFQReshapeFusionTests, ReshapeMatMul) {
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
     ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::FakeQuantizeReshapeFusion>();
+    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
 
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
@@ -123,7 +126,7 @@ INSTANTIATE_TEST_SUITE_P(NGraph, nGraphFQReshapeFusionTests, testing::Values(
     FQReshapeFusionTestCase{{1, 2, 1, 3}, {2, 1, 1}, {1}, {1, 1}, {1, 2, 1, 1}, {6}, {}, {},  {}, {}, true}));
 }  // namespace
 
-TEST(nGraphFQReshapeFusionTests, FQReshapeGroupConvolution) {
+TEST_F(TransformationTestsF, FQReshapeGroupConvolution) {
     auto get_function = [](const FQReshapeFusionTestCase & test_case) {
         const auto & data =  std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, test_case.data_shape, 0);
         auto il = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.il_shape);
@@ -156,15 +159,9 @@ TEST(nGraphFQReshapeFusionTests, FQReshapeGroupConvolution) {
     params.oh_shape = {1, 2, 1, 1};
     params.reshape_pattern = {2, 3, 1, 1, 1};
 
-    auto f = get_function(params);
+    function = get_function(params);
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::FakeQuantizeReshapeFusion>();
-    manager.run_passes(f);
-
-    ASSERT_NO_THROW(check_rt_info(f));
-
-    auto res = compare_functions(f, get_function(params));
-    ASSERT_TRUE(res.first) << res.second;
 }

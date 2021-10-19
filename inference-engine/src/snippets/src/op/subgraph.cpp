@@ -88,7 +88,7 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ngraph:
         }
     }
 
-    auto body_node = node->copy_with_new_inputs(body_inputs);
+    auto body_node = node->clone_with_new_inputs(body_inputs);
     body_node->set_friendly_name(node->get_friendly_name());
 
     if (node->get_output_size() != body_node->get_output_size()) {

@@ -19,8 +19,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, ConvertGather7toGather1) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertGather7toGather1) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
         auto indices = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i32, ngraph::Shape{2, 2});
@@ -28,13 +27,8 @@ TEST(TransformationTests, ConvertGather7toGather1) {
 
         auto gather_v7 = std::make_shared<ngraph::opset7::Gather>(data, indices, axis, 0);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_v7}, ngraph::ParameterVector{data, indices});
-
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_v7}, ngraph::ParameterVector{data, indices});
         manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -44,15 +38,11 @@ TEST(TransformationTests, ConvertGather7toGather1) {
 
         auto gather_v1 = std::make_shared<ngraph::opset1::Gather>(data, indices, axis);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_v1}, ngraph::ParameterVector{data, indices});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_v1}, ngraph::ParameterVector{data, indices});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertGather7toGather1_nonzero_batch_dims) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertGather7toGather1_nonzero_batch_dims) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
         auto indices = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i32, ngraph::Shape{2, 2});
@@ -60,22 +50,12 @@ TEST(TransformationTests, ConvertGather7toGather1_nonzero_batch_dims) {
 
         auto gather_v7 = std::make_shared<ngraph::opset7::Gather>(data, indices, axis, -1);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_v7}, ngraph::ParameterVector{data, indices});
-
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_v7}, ngraph::ParameterVector{data, indices});
         manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
-
-    // if batch_dims != 0 Gather-7 must remain
-    ASSERT_EQ(count_ops_of_type<ngraph::opset1::Gather>(f), 0);
-    ASSERT_EQ(count_ops_of_type<ngraph::opset7::Gather>(f), 1);
 }
 
-TEST(TransformationTests, ConvertGather8toGather7) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertGather8toGather7) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
         auto indices = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i32, ngraph::Shape{2, 2});
@@ -84,13 +64,9 @@ TEST(TransformationTests, ConvertGather8toGather7) {
 
         auto gather_v8 = std::make_shared<ngraph::opset8::Gather>(data, indices, axis, batch_dims);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_v8}, ngraph::ParameterVector{data, indices});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_v8}, ngraph::ParameterVector{data, indices});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConvertGather8ToGather7>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -101,9 +77,6 @@ TEST(TransformationTests, ConvertGather8toGather7) {
 
         auto gather_v7 = std::make_shared<ngraph::opset7::Gather>(data, indices, axis, batch_dims);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_v7}, ngraph::ParameterVector{data, indices});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_v7}, ngraph::ParameterVector{data, indices});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
