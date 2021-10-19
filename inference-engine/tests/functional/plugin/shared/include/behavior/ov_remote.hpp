@@ -34,7 +34,7 @@ protected:
     runtime::ParamMap context_parameters;
     runtime::ParamMap tensor_parameters;
     std::shared_ptr<Function> function;
-    runtime::Core core = *PluginCache::get().core();
+    runtime::Core core = *ov::test::utils::PluginCache::get().core();
     runtime::ExecutableNetwork exec_network;
     runtime::InferRequest infer_request;
     std::shared_ptr<op::v0::Parameter> input;

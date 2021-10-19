@@ -268,6 +268,7 @@ set(SRC
     visitors/op/atanh.cpp
     visitors/op/batch_norm.cpp
     visitors/op/batch_to_space.cpp
+    visitors/op/binary_convolution.cpp
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
     visitors/op/ceiling.cpp
@@ -459,13 +460,10 @@ set(MULTI_TEST_SRC
     backend/batch_norm.in.cpp
     backend/batch_to_space.in.cpp
     backend/broadcast.in.cpp
-    backend/bucketize.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
     backend/ceiling.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
-    backend/convolution_backprop.in.cpp
-    backend/binary_convolution.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/deformable_psroi_pooling.in.cpp
@@ -508,7 +506,6 @@ set(MULTI_TEST_SRC
     backend/node_name.in.cpp
     backend/normalize_l2.in.cpp
     backend/non_max_suppression.in.cpp
-    backend/non_zero.in.cpp
     backend/one_hot.in.cpp
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
@@ -564,7 +561,8 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND SRC
             onnx/onnx_import_exceptions.cpp
             onnx/onnx_import_library.cpp
-            onnx/onnx_tensor_names.cpp)
+            onnx/onnx_tensor_names.cpp
+            onnx/onnx_transformations.cpp)
 endif()
 
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
