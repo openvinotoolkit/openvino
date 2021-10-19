@@ -79,7 +79,6 @@ class PreserveRuntimeInfoTest(unittest.TestCase):
 
         self.assertFalse(param_node.has_valid('permute_attrs'))
         self.assertFalse(param_node.out_node(0).has_valid('permutation'))
-        self.assertFalse(result_node.in_node(0).has_valid('permutation'))
 
         if add_permutation_attrs:
             rt_info = param_node.rt_info.info
