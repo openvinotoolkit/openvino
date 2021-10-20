@@ -196,6 +196,7 @@ private:
     void fuse_activations(program& p);
     void fuse_simple_primitives(program &p);
     void optimize_fused_ops(program &p);
+    void remove_redundant_reshape(program &p);
     layout_optimizer& _lo;
 };
 

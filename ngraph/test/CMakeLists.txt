@@ -89,7 +89,6 @@ set(SRC
     pass/serialization/serialize.cpp
     pattern.cpp
     preprocess.cpp
-    provenance.cpp
     replace_node.cpp
     reshape_opt_kernel.cpp
     shape.cpp
@@ -554,7 +553,6 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
             onnx/onnx_import_dyn_shapes.in.cpp
             onnx/onnx_import_external_data.in.cpp
             onnx/onnx_import_org_openvino.in.cpp
-            onnx/onnx_import_provenance.in.cpp
             onnx/onnx_import_reshape.in.cpp
             onnx/onnx_import_rnn.in.cpp
             onnx/onnx_import_quant.in.cpp)
