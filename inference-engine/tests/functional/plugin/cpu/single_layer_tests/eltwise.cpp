@@ -141,6 +141,17 @@
 //
 //std::vector<Precision> netPrc = {Precision::BF16, Precision::FP32};
 //
+//std::vector<CPUSpecificParams> cpuParams_4D = {
+//        CPUSpecificParams({nChw16c, nChw16c}, {nChw16c}, {}, {}),
+//        CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, {}),
+//        CPUSpecificParams({nchw, nchw}, {nchw}, {}, {})
+//};
+//
+//std::vector<CPUSpecificParams> cpuParams_5D = {
+//        CPUSpecificParams({nCdhw16c, nCdhw16c}, {nCdhw16c}, {}, {}),
+//        CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
+//        CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
+//};
 //
 //std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes_4D = {
 //        {{}, {{{2, 4, 4, 1}}}},
@@ -149,24 +160,18 @@
 //        {{}, {{{2, 17, 5, 1}, {1, 17, 1, 4}}}},
 //};
 //
-//std::vector<CPUSpecificParams> cpuParams_4D = {
-//        CPUSpecificParams({nChw16c, nChw16c}, {nChw16c}, {}, {}),
-//        CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, {}),
-//        CPUSpecificParams({nchw, nchw}, {nchw}, {}, {})
-//};
-//
 //const auto params_4D = ::testing::Combine(
 //        ::testing::Combine(
-//            ::testing::ValuesIn(inShapes_4D),
-//            ::testing::ValuesIn(eltwiseOpTypesBinInp),
-//            ::testing::ValuesIn(secondaryInputTypes),
-//            ::testing::ValuesIn(opTypes),
-//            ::testing::ValuesIn(netPrc),
-//            ::testing::Values(InferenceEngine::Precision::FP32),
-//            ::testing::Values(InferenceEngine::Precision::FP32),
-//            ::testing::Values(InferenceEngine::Layout::ANY),
-//            ::testing::Values(CommonTestUtils::DEVICE_CPU),
-//            ::testing::Values(additional_config)),
+//                ::testing::ValuesIn(inShapes_4D),
+//                ::testing::ValuesIn(eltwiseOpTypesBinInp),
+//                ::testing::ValuesIn(secondaryInputTypes),
+//                ::testing::ValuesIn(opTypes),
+//                ::testing::ValuesIn(netPrc),
+//                ::testing::Values(InferenceEngine::Precision::FP32),
+//                ::testing::Values(InferenceEngine::Precision::FP32),
+//                ::testing::Values(InferenceEngine::Layout::ANY),
+//                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+//                ::testing::Values(additional_config)),
 //        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)));
 //
 //INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder, EltwiseLayerCPUTest, params_4D, EltwiseLayerCPUTest::getTestCaseName);
@@ -194,24 +199,18 @@
 //        {{}, {{{2, 17, 6, 5, 1}, {1, 17, 1, 1, 4}}}},
 //};
 //
-//std::vector<CPUSpecificParams> cpuParams_5D = {
-//        CPUSpecificParams({nCdhw16c, nCdhw16c}, {nCdhw16c}, {}, {}),
-//        CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
-//        CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
-//};
-//
 //const auto params_5D = ::testing::Combine(
 //        ::testing::Combine(
-//            ::testing::ValuesIn(inShapes_5D),
-//            ::testing::ValuesIn(eltwiseOpTypesBinInp),
-//            ::testing::ValuesIn(secondaryInputTypes),
-//            ::testing::ValuesIn(opTypes),
-//            ::testing::ValuesIn(netPrc),
-//            ::testing::Values(InferenceEngine::Precision::FP32),
-//            ::testing::Values(InferenceEngine::Precision::FP32),
-//            ::testing::Values(InferenceEngine::Layout::ANY),
-//            ::testing::Values(CommonTestUtils::DEVICE_CPU),
-//            ::testing::Values(additional_config)),
+//                ::testing::ValuesIn(inShapes_5D),
+//                ::testing::ValuesIn(eltwiseOpTypesBinInp),
+//                ::testing::ValuesIn(secondaryInputTypes),
+//                ::testing::ValuesIn(opTypes),
+//                ::testing::ValuesIn(netPrc),
+//                ::testing::Values(InferenceEngine::Precision::FP32),
+//                ::testing::Values(InferenceEngine::Precision::FP32),
+//                ::testing::Values(InferenceEngine::Layout::ANY),
+//                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+//                ::testing::Values(additional_config)),
 //        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)));
 //
 //INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder, EltwiseLayerCPUTest, params_5D, EltwiseLayerCPUTest::getTestCaseName);
@@ -243,16 +242,16 @@
 //
 //const auto params_4D_Blocked_Planar = ::testing::Combine(
 //        ::testing::Combine(
-//            ::testing::ValuesIn(inShapes_4D_Blocked_Planar),
-//            ::testing::ValuesIn(eltwiseOpTypesBinInp),
-//            ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
-//            ::testing::ValuesIn(opTypes),
-//            ::testing::ValuesIn(netPrc),
-//            ::testing::Values(InferenceEngine::Precision::FP32),
-//            ::testing::Values(InferenceEngine::Precision::FP32),
-//            ::testing::Values(InferenceEngine::Layout::ANY),
-//            ::testing::Values(CommonTestUtils::DEVICE_CPU),
-//            ::testing::Values(additional_config)),
+//                ::testing::ValuesIn(inShapes_4D_Blocked_Planar),
+//                ::testing::ValuesIn(eltwiseOpTypesBinInp),
+//                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+//                ::testing::ValuesIn(opTypes),
+//                ::testing::ValuesIn(netPrc),
+//                ::testing::Values(InferenceEngine::Precision::FP32),
+//                ::testing::Values(InferenceEngine::Precision::FP32),
+//                ::testing::Values(InferenceEngine::Layout::ANY),
+//                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+//                ::testing::Values(additional_config)),
 //        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Planar)));
 //
 //INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Blocked_Planar, EltwiseLayerCPUTest, params_4D_Blocked_Planar, EltwiseLayerCPUTest::getTestCaseName);
@@ -269,16 +268,16 @@
 //
 //const auto params_4D_Planar_Blocked = ::testing::Combine(
 //        ::testing::Combine(
-//            ::testing::ValuesIn(inShapes_4D_Planar_Blocked),
-//            ::testing::ValuesIn(eltwiseOpTypesBinInp),
-//            ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
-//            ::testing::ValuesIn(opTypes),
-//            ::testing::ValuesIn(netPrc),
-//            ::testing::Values(InferenceEngine::Precision::FP32),
-//            ::testing::Values(InferenceEngine::Precision::FP32),
-//            ::testing::Values(InferenceEngine::Layout::ANY),
-//            ::testing::Values(CommonTestUtils::DEVICE_CPU),
-//            ::testing::Values(additional_config)),
+//                ::testing::ValuesIn(inShapes_4D_Planar_Blocked),
+//                ::testing::ValuesIn(eltwiseOpTypesBinInp),
+//                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+//                ::testing::ValuesIn(opTypes),
+//                ::testing::ValuesIn(netPrc),
+//                ::testing::Values(InferenceEngine::Precision::FP32),
+//                ::testing::Values(InferenceEngine::Precision::FP32),
+//                ::testing::Values(InferenceEngine::Layout::ANY),
+//                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+//                ::testing::Values(additional_config)),
 //        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Planar_Blocked)));
 //
 //INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Planar_Blocked, EltwiseLayerCPUTest, params_4D_Planar_Blocked, EltwiseLayerCPUTest::getTestCaseName);
@@ -295,16 +294,16 @@
 //
 //const auto params_5D_Blocked_Planar = ::testing::Combine(
 //        ::testing::Combine(
-//            ::testing::ValuesIn(inShapes_5D_Blocked_Planar),
-//            ::testing::ValuesIn(eltwiseOpTypesBinInp),
-//            ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
-//            ::testing::ValuesIn(opTypes),
-//            ::testing::ValuesIn(netPrc),
-//            ::testing::Values(InferenceEngine::Precision::FP32),
-//            ::testing::Values(InferenceEngine::Precision::FP32),
-//            ::testing::Values(InferenceEngine::Layout::ANY),
-//            ::testing::Values(CommonTestUtils::DEVICE_CPU),
-//            ::testing::Values(additional_config)),
+//                ::testing::ValuesIn(inShapes_5D_Blocked_Planar),
+//                ::testing::ValuesIn(eltwiseOpTypesBinInp),
+//                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+//                ::testing::ValuesIn(opTypes),
+//                ::testing::ValuesIn(netPrc),
+//                ::testing::Values(InferenceEngine::Precision::FP32),
+//                ::testing::Values(InferenceEngine::Precision::FP32),
+//                ::testing::Values(InferenceEngine::Layout::ANY),
+//                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+//                ::testing::Values(additional_config)),
 //        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_Blocked_Planar)));
 //
 //INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_Blocked_Planar, EltwiseLayerCPUTest, params_5D_Blocked_Planar, EltwiseLayerCPUTest::getTestCaseName);
@@ -390,6 +389,136 @@
 //
 //INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_1D, EltwiseLayerCPUTest, params_5D_1D, EltwiseLayerCPUTest::getTestCaseName);
 //
+//
+//std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesBinDyn = {
+//        ngraph::helpers::EltwiseTypes::ADD,
+//        ngraph::helpers::EltwiseTypes::MULTIPLY,
+//        ngraph::helpers::EltwiseTypes::SUBTRACT,
+//        ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
+//};
+//
+//// ============================================ 4D ============================================
+//std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes_4D_dyn_const = {
+//        {
+//                // dynamic
+//                {{-1, {2, -1}, -1, -1}},
+//                // target
+//                {
+//                        {{3, 2, 1, 1}},
+//                        {{3, 2, 5, 1}},
+//                        {{3, 2, 1, 6}},
+//                        {{3, 2, 4, 11}},
+//                }
+//        },
+//};
+//
+//const auto params_4D_dyn_const = ::testing::Combine(
+//        ::testing::Combine(
+//                ::testing::ValuesIn(inShapes_4D_dyn_const),
+//                ::testing::ValuesIn(eltwiseOpTypesBinInp),
+//                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+//                ::testing::ValuesIn(opTypes),
+//                ::testing::ValuesIn(netPrc),
+//                ::testing::Values(InferenceEngine::Precision::FP32),
+//                ::testing::Values(InferenceEngine::Precision::FP32),
+//                ::testing::Values(InferenceEngine::Layout::ANY),
+//                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+//                ::testing::Values(additional_config)),
+//        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)));
+//
+//INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder_dyn_const, EltwiseLayerCPUTest, params_4D_dyn_const, EltwiseLayerCPUTest::getTestCaseName);
+//
+//std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes_4D_dyn_param = {
+//        {
+//                // dynamic
+//                {{-1, {2, -1}, -1, -1},
+//                 {-1, {2, -1}, -1, -1}},
+//                // target
+//                {
+//                        {{3, 2, 1, 1}, {1, 2, 5, 1}},
+//                        {{1, 7, 5, 1}, {3, 7, 1, 10}},
+//                        {{3, 3, 4, 11}, {3, 3, 4, 11}},
+//                }
+//        },
+//};
+//
+//const auto params_4D_dyn_param = ::testing::Combine(
+//        ::testing::Combine(
+//                ::testing::ValuesIn(inShapes_4D_dyn_param),
+//                ::testing::ValuesIn(eltwiseOpTypesBinDyn),
+//                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+//                ::testing::ValuesIn(opTypes),
+//                ::testing::ValuesIn(netPrc),
+//                ::testing::Values(InferenceEngine::Precision::FP32),
+//                ::testing::Values(InferenceEngine::Precision::FP32),
+//                ::testing::Values(InferenceEngine::Layout::ANY),
+//                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+//                ::testing::Values(additional_config)),
+//        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)));
+//
+//INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder_dyn_param, EltwiseLayerCPUTest, params_4D_dyn_param, EltwiseLayerCPUTest::getTestCaseName);
+//
+//
+//// ============================================ 5D ============================================
+//std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes_5D_dyn_const = {
+//        {
+//                // dynamic
+//                {{-1, {2, -1}, -1, -1, -1}},
+//                // target
+//                {
+//                        {{3, 2, 1, 1, 1}},
+//                        {{3, 2, 5, 1, 7}},
+//                        {{3, 2, 1, 6, 1}},
+//                        {{3, 2, 4, 11, 2}},
+//                }
+//        },
+//};
+//
+//const auto params_5D_dyn_const = ::testing::Combine(
+//        ::testing::Combine(
+//                ::testing::ValuesIn(inShapes_5D_dyn_const),
+//                ::testing::ValuesIn(eltwiseOpTypesBinInp),
+//                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+//                ::testing::ValuesIn(opTypes),
+//                ::testing::ValuesIn(netPrc),
+//                ::testing::Values(InferenceEngine::Precision::FP32),
+//                ::testing::Values(InferenceEngine::Precision::FP32),
+//                ::testing::Values(InferenceEngine::Layout::ANY),
+//                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+//                ::testing::Values(additional_config)),
+//        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)));
+//
+//INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder_dyn_const, EltwiseLayerCPUTest, params_5D_dyn_const, EltwiseLayerCPUTest::getTestCaseName);
+//
+//std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes_5D_dyn_param = {
+//        {
+//                // dynamic
+//                {{-1, {2, -1}, -1, -1, -1},
+//                 {-1, {2, -1}, -1, -1, -1}},
+//                // target
+//                {
+//                        {{3, 2, 1, 1, 1}, {1, 2, 5, 1, 5}},
+//                        {{1, 7, 5, 1, 12}, {3, 7, 1, 10, 1}},
+//                        {{3, 3, 4, 11, 6}, {3, 3, 4, 11, 6}},
+//                }
+//        },
+//};
+//
+//const auto params_5D_dyn_param = ::testing::Combine(
+//        ::testing::Combine(
+//                ::testing::ValuesIn(inShapes_5D_dyn_param),
+//                ::testing::ValuesIn(eltwiseOpTypesBinDyn),
+//                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+//                ::testing::ValuesIn(opTypes),
+//                ::testing::ValuesIn(netPrc),
+//                ::testing::Values(InferenceEngine::Precision::FP32),
+//                ::testing::Values(InferenceEngine::Precision::FP32),
+//                ::testing::Values(InferenceEngine::Layout::ANY),
+//                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+//                ::testing::Values(additional_config)),
+//        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)));
+//
+//INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder_dyn_param, EltwiseLayerCPUTest, params_5D_dyn_param, EltwiseLayerCPUTest::getTestCaseName);
 //
 //} // namespace
 //} // namespace CPULayerTestsDefinitions
