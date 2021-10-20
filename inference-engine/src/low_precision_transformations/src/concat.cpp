@@ -185,10 +185,6 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
 
     const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, outRank);
 
-    if (normalizedAxis != 1ul) {
-        return false;
-    }
-
     if (outPShape[normalizedAxis].is_dynamic()) {
         return false;
     }

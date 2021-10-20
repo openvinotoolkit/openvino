@@ -53,6 +53,14 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
         if (rank.is_dynamic() || rank.get_length() < 2) {
             return false;
         }
+        /*if (rank.get_length() < 2 || rank.get_length() > 5) {
+            if (!is_type<opset1::Transpose>(layer)) {
+                if (rank.get_length() > 5) {
+                    std::cout << layer->get_friendly_name() << std::endl;
+                }
+                return false;
+            }
+        }*/
     }
 
     const auto dequantization = NetworkHelper::getDequantization(layer);
