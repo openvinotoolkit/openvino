@@ -93,7 +93,7 @@ TEST_P(OVClassImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
     ASSERT_NO_THROW(executableNetwork = ie.compile_model(actualNetwork, deviceName));
     ASSERT_NO_THROW(executableNetwork.export_model(strm));
     ASSERT_NO_THROW(executableNetwork = ie.import_model(strm, deviceName));
-    executableNetwork.create_infer_request();
+    ASSERT_NO_THROW(executableNetwork.create_infer_request());
 }
 
 //
