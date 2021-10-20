@@ -213,8 +213,10 @@ std::vector<ConstantParams> generateConstantCombinedParams() {
         generateConstantParams<element::Type_t::u16>(),
         generateConstantParams<element::Type_t::u32>(),
         generateConstantParams<element::Type_t::u64>(),
+        generateConstantParams<element::Type_t::bf16>(),
         generateConstantParams<element::Type_t::f16>(),
         generateConstantParams<element::Type_t::f32>(),
+        generateConstantParams<element::Type_t::f64>(),
         generateConstantDefinedTypeParams(),
     };
     std::vector<ConstantParams> combinedParams;
@@ -235,8 +237,10 @@ std::vector<ConstantParams> generateConstant2ConstantCombinedParams() {
         generateConstantParams<element::Type_t::u16>(),
         generateConstantParams<element::Type_t::u32>(),
         generateConstantParams<element::Type_t::u64>(),
+        generateConstantParams<element::Type_t::bf16>(),
         generateConstantParams<element::Type_t::f16>(),
         generateConstantParams<element::Type_t::f32>(),
+        generateConstantParams<element::Type_t::f64>(),
     };
     std::vector<ConstantParams> combinedParams;
 
@@ -265,8 +269,10 @@ std::vector<ConstantParams> generateConstantWithOpCombinedParams() {
         generateConstantWithOpParams<element::Type_t::i16>(),
         generateConstantWithOpParams<element::Type_t::i32>(),
         generateConstantWithOpParams<element::Type_t::i64>(),
+        generateConstantWithOpParams<element::Type_t::bf16>(),
         generateConstantWithOpParams<element::Type_t::f16>(),
         generateConstantWithOpParams<element::Type_t::f32>(),
+        generateConstantWithOpParams<element::Type_t::f64>(),
     };
     std::vector<ConstantParams> combinedParams;
 
