@@ -21,7 +21,7 @@ cmake .. && make memory_tests
 
 2. Install tests:
 ``` bash
-make install tests
+сmake install
 ```
 
 3. Run test:
