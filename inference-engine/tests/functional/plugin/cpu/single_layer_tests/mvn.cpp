@@ -131,7 +131,7 @@ const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngrap
         },
         {
             // dynamic
-            {{1, 20}},
+            {{{1, 20}}},
             // target
             {
                 {1},
