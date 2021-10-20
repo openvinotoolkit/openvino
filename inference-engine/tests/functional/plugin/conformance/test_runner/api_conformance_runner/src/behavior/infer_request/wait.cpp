@@ -17,13 +17,9 @@ const std::vector<std::map<std::string, std::string>> configsWait = {
         {},
 };
 
-const std::vector<std::map<std::string, std::string>> MulticonfigsWait = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , targetDevice}}
-};
-
-const std::vector<std::map<std::string, std::string>> AutoconfigsWait = {
-        {{ AUTO_CONFIG_KEY(DEVICE_LIST) , targetDevice}}
-};
+const std::vector<std::map<std::string, std::string>> generateMulticonfigsWait() {
+        return {{{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , targetDevice}}};
+}
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestWaitTests,
                         ::testing::Combine(
@@ -34,13 +30,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestWaitTests,
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestWaitTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                ::testing::ValuesIn(MulticonfigsWait)),
+                                ::testing::ValuesIn(generateMulticonfigsWait())),
                          InferRequestWaitTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestWaitTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(AutoconfigsWait)),
+                                ::testing::ValuesIn(generateMulticonfigsWait())),
                          InferRequestWaitTests::getTestCaseName);
 
 }  // namespace

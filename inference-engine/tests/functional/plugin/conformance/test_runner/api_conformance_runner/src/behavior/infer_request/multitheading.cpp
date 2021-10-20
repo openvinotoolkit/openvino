@@ -18,13 +18,13 @@ const std::vector<std::map<std::string, std::string>> configsMultithreading = {
         {},
 };
 
-const std::vector<std::map<std::string, std::string>> MulticonfigsMultithreading = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES), targetDevice }}
-};
+const std::vector<std::map<std::string, std::string>> generateMulticonfigsMultithreading() {
+        return {{{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES), targetDevice }}};
+}
 
-const std::vector<std::map<std::string, std::string>> AutoconfigsMultithreading = {
-        {{ AUTO_CONFIG_KEY(DEVICE_LIST), targetDevice}}
-};
+const std::vector<std::map<std::string, std::string>> AutoconfigsMultithreading() {
+        return {{{ AUTO_CONFIG_KEY(DEVICE_LIST), targetDevice}}};
+}
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestMultithreadingTests,
                         ::testing::Combine(
@@ -35,13 +35,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestMultithreadingTests,
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestMultithreadingTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                ::testing::ValuesIn(MulticonfigsMultithreading)),
+                                ::testing::ValuesIn(generateMulticonfigsMultithreading())),
                          InferRequestMultithreadingTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestMultithreadingTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(AutoconfigsMultithreading)),
+                                ::testing::ValuesIn(generateMulticonfigsMultithreading())),
                          InferRequestMultithreadingTests::getTestCaseName);
 
 }  // namespace

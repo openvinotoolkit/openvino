@@ -16,13 +16,13 @@ const std::vector<std::map<std::string, std::string>> configsIOBlob = {
         {},
 };
 
-const std::vector<std::map<std::string, std::string>> MulticonfigsIOBlob = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES), targetDevice }}
-};
+const std::vector<std::map<std::string, std::string>> generateMulticonfigsIOBlob() {
+        return {{{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES), targetDevice }}};
+}
 
-const std::vector<std::map<std::string, std::string>> AutoconfigsIOBlob = {
-        {{ AUTO_CONFIG_KEY(DEVICE_LIST), targetDevice}}
-};
+const std::vector<std::map<std::string, std::string>> generateAutoconfigsIOBlob() {
+        return {{{ AUTO_CONFIG_KEY(DEVICE_LIST), targetDevice}}};
+}
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestIOBBlobTest,
                         ::testing::Combine(
@@ -33,12 +33,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestIOBBlobTest,
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestIOBBlobTest,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                ::testing::ValuesIn(MulticonfigsIOBlob)),
+                                ::testing::ValuesIn(generateMulticonfigsIOBlob())),
                          InferRequestIOBBlobTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestIOBBlobTest,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(AutoconfigsIOBlob)),
+                                ::testing::ValuesIn(generateAutoconfigsIOBlob())),
                          InferRequestIOBBlobTest::getTestCaseName);
 }  // namespace
