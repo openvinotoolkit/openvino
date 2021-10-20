@@ -233,9 +233,6 @@ def omz_models_conversion(instance, request):
             return_code, _ = cmd_exec(cmd, log=logging)
             assert return_code == 0, "Converting OMZ models has failed!"
 
-            instance["orig_instance"]["model"]["framework"] = model_info["framework"]
-            instance["orig_instance"]["model"]["path"] = sub_model_path
-
             instance["instance"]["model"]["cache_path"] = model_out_path
             instance["instance"]["model"]["irs_out_path"] = model_irs_out_path
 
