@@ -16,12 +16,26 @@ using namespace HeteroPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
+HeteroInferRequest::HeteroInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                       const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                                       const SubRequestsList& inferRequests,
+                                       const std::unordered_map<std::string, std::string>& subgraphInputToOutputBlobNames) :
+    IInferRequestInternal(inputs, outputs),
+    _inferRequests(inferRequests) {
+    CreateInferRequest(subgraphInputToOutputBlobNames);
+}
+
+
 HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInputs,
                                        InferenceEngine::OutputsDataMap networkOutputs,
                                        const SubRequestsList& inferRequests,
                                        const std::unordered_map<std::string, std::string>& subgraphInputToOutputBlobNames) :
     IInferRequestInternal(networkInputs, networkOutputs),
     _inferRequests(inferRequests) {
+    CreateInferRequest(subgraphInputToOutputBlobNames);
+}
+
+void HeteroInferRequest::CreateInferRequest(const std::unordered_map<std::string, std::string>& subgraphInputToOutputBlobNames) {
     if (_networkOutputs.empty() || _networkInputs.empty()) {
         IE_THROW() << "Internal error: no information about network's output/input";
     }

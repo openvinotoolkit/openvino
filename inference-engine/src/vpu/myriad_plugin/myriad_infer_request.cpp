@@ -29,6 +29,24 @@ using namespace InferenceEngine;
 #define MEMCPY(dst, src, bytes) std::copy_n((src), (bytes), (dst))
 
 MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
+                                       const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                       const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                                       DataInfo& compilerInputsInfo,
+                                       DataInfo& compilerOutputsInfo,
+                                       const std::vector<StageMetaInfo> &blobMetaData,
+                                       const PluginConfiguration& myriadConfig,
+                                       const Logger::Ptr &log,
+                                       const MyriadExecutorPtr &executor,
+                                       std::map<std::string, ie::Blob::Ptr> constDatas,
+                                       bool isNetworkConstant = true) :
+        IInferRequestInternal(inputs, outputs), _executor(executor),
+        _log(log), _stagesMetaData(blobMetaData), _config(myriadConfig),
+        _inputInfo(compilerInputsInfo), _outputInfo(compilerOutputsInfo),
+        _graphDesc(graphDesc), _constDatas(constDatas), _isNetworkConstant(isNetworkConstant) {
+    CreateInferRequest();
+}
+
+MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
                                        InferenceEngine::InputsDataMap networkInputs,
                                        InferenceEngine::OutputsDataMap networkOutputs,
                                        DataInfo& compilerInputsInfo,
@@ -43,6 +61,10 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
         _log(log), _stagesMetaData(blobMetaData), _config(myriadConfig),
         _inputInfo(compilerInputsInfo), _outputInfo(compilerOutputsInfo),
         _graphDesc(graphDesc), _constDatas(constDatas), _isNetworkConstant(isNetworkConstant) {
+    CreateInferRequest();
+}
+
+void MyriadInferRequest::CreateInferRequest() {
     VPU_PROFILE(MyriadInferRequest);
 
     const auto& ioStrides = _config.get<TensorStridesOption>();
@@ -84,8 +106,8 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
         _outputs[networkOutput.first] = outputBlob;
     }
 
-    inputBuffer .resize(compilerInputsInfo.totalSize);
-    resultBuffer.resize(compilerOutputsInfo.totalSize);
+    inputBuffer .resize(_inputInfo.totalSize);
+    resultBuffer.resize(_outputInfo.totalSize);
 
     VPU_THROW_UNLESS(
         !_networkOutputs.empty() && !(_networkInputs.empty() && !_isNetworkConstant),

@@ -168,6 +168,17 @@ protected:
      */
     virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                           OutputsDataMap networkOutputs);
+    /**
+     * @brief      Creates an inference request internal implementation.
+     * @note       The method is called by IExecutableNetworkInternal::CreateInferRequest as
+     *             plugin-specific implementation.
+     * @param[in]  inputs   The function inputs
+     * @param[in]  outputs  The function outputs
+     * @return     A shared pointer to inference request object.
+     */
+    virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(
+        const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+        const std::vector<std::shared_ptr<const ov::Node>>& outputs);
 
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data

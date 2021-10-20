@@ -51,7 +51,7 @@ inline std::shared_ptr<ngraph::Function> makeSplitConvConcat(std::vector<size_t>
                                                             ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     params.front()->set_friendly_name("Param_1");
-    params.front()->get_output_tensor(0).set_names({"Tensor_1"});
+    params.front()->get_output_tensor(0).set_names({"input_tensor"});
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
 
     auto conv1 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
@@ -63,6 +63,7 @@ inline std::shared_ptr<ngraph::Function> makeSplitConvConcat(std::vector<size_t>
     auto relu2 = std::make_shared<ngraph::opset1::Relu>(conv2);
 
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0), relu2->output(0)}, 1);
+    concat->get_output_tensor(0).set_names({"concat_tensor"});
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
     std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
     fnPtr->set_friendly_name("SplitConvConcat");

@@ -33,6 +33,9 @@ public:
 
     CLDNNInferRequest(InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs,
                       const std::shared_ptr<CLDNNExecNetwork>& execNetwork);
+    CLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                      const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                      const std::shared_ptr<CLDNNExecNetwork>& execNetwork);
 
     CLDNNInferRequest(const CLDNNInferRequest &) = delete;
 
