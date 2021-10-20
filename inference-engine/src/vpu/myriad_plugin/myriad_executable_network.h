@@ -22,6 +22,8 @@
 #include "myriad_executor.h"
 #include "myriad_infer_request.h"
 #include "myriad_async_infer_request.h"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "ie_icore.hpp"
 
 namespace vpu {
 namespace MyriadPlugin {
@@ -67,8 +69,14 @@ public:
         if (!_isNetworkConstant && (_device == nullptr || !_device->isBooted())) {
             IE_THROW() << "Can not create infer request: there is no available devices with platform ";
         }
-
-        auto syncRequestImpl = std::make_shared<MyriadInferRequest>(_graphDesc, _networkInputs, _networkOutputs,
+        std::shared_ptr<MyriadInferRequest> syncRequestImpl;
+        if (this->_plugin && this->_plugin->GetCore() && this->_plugin->GetCore()->isNewAPI())
+            syncRequestImpl = std::make_shared<MyriadInferRequest>(_graphDesc, _parameters, _results,
+                                                                    _inputInfo, _outputInfo,
+                                                                    _graphMetaData.stagesMeta, _config, _log,
+                                                                    _executor, _constDatas, _isNetworkConstant);
+        if (!syncRequestImpl)
+            syncRequestImpl = std::make_shared<MyriadInferRequest>(_graphDesc, _networkInputs, _networkOutputs,
                                                                     _inputInfo, _outputInfo,
                                                                     _graphMetaData.stagesMeta, _config, _log,
                                                                     _executor, _constDatas, _isNetworkConstant);
