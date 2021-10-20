@@ -206,7 +206,7 @@ jobs:
     displayName: 'PaddlePaddle Frontend UT'
     continueOnError: false
 
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-Tensorflow.xml
+  - script: . $(SETUPVARS) && $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)/tensorflow_tests --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-Tensorflow.xml
     displayName: 'Tensorflow Frontend UT'
     continueOnError: false
 
