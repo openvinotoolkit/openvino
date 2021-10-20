@@ -48,7 +48,7 @@ public:
             function_ref = ngraph::clone_function(*function);
         }
 
-        manager.register_pass<ngraph::pass::CheckUniqueNames>(m_unh);
+        manager.register_pass<ngraph::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison);
         manager.run_passes(function);
         if (!m_disable_rt_info_check) {
             ASSERT_NO_THROW(check_rt_info(function));
@@ -58,8 +58,14 @@ public:
         ASSERT_TRUE(res.valid) << res.message;
     }
 
+    // TODO: this is temporary solution to disable rt info checks that must be applied by default
+    // first tests must be fixed then this method must be removed XXX-68696
     void disable_rt_info_check() {
         m_disable_rt_info_check = true;
+    }
+
+    void enable_soft_names_comparison() {
+        m_soft_names_comparison = true;
     }
 
     std::shared_ptr<ngraph::Function> function, function_ref;
@@ -69,4 +75,5 @@ public:
 private:
     std::shared_ptr<ngraph::pass::UniqueNamesHolder> m_unh;
     bool m_disable_rt_info_check{false};
+    bool m_soft_names_comparison{true};
 };

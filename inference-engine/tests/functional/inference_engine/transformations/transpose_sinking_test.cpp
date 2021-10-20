@@ -92,8 +92,11 @@ TEST_P(TransposeSinkingFQ, TransposeFQReduce) {
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 
-    auto res = compare_functions(f, f_ref, true);
-    ASSERT_TRUE(res.first) << res.second;
+    auto fc = FunctionsComparator::no_default()
+            .enable(FunctionsComparator::PRECISIONS)
+            .enable(FunctionsComparator::CONST_VALUES);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 
@@ -175,9 +178,12 @@ TEST_P(TransposeSinking, TransposeReduction) {
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 
-    auto res = compare_functions(f, f_ref, true);
+    auto fc = FunctionsComparator::no_default()
+            .enable(FunctionsComparator::PRECISIONS)
+            .enable(FunctionsComparator::CONST_VALUES);
 
-ASSERT_TRUE(res.first) << res.second;
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 

@@ -656,7 +656,7 @@ Comparator::Result Comparator::compare(ngraph::Node* node1, ngraph::Node* node2,
     }
 
     if (should_compare(CmpValues::ATTRIBUTES)) {
-        const auto result = attributes::compare(node1, node2, m_comparition_flags);
+        const auto result = attributes::compare(node1, node2, m_comparison_flags);
         if (!result.valid) {
             return result;
         }
@@ -750,7 +750,7 @@ void Comparator::add_nodes_inputs_to_queue(ngraph::Node* node1, ngraph::Node* no
 
 FunctionsComparator::Result FunctionsComparator::compare(const std::shared_ptr<ngraph::Function>& f1,
                                                          const std::shared_ptr<ngraph::Function>& f2) const {
-    return Comparator(m_comparition_flags).compare(f1, f2);
+    return Comparator(m_comparison_flags).compare(f1, f2);
 }
 
 void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {

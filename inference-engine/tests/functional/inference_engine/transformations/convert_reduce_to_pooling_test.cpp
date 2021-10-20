@@ -123,8 +123,10 @@ TEST_P(ConvertReduceToPoolingTests, CompareFunctions) {
     m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 #define MAX std::make_shared<ngraph::opset1::ReduceMax>()

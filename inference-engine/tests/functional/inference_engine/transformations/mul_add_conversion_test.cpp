@@ -152,8 +152,10 @@ TEST_P(MulAddConversionTests, CompareFunctions) {
     ASSERT_NO_THROW(check_rt_info(f));
     ngraph::pass::ConstantFolding().run_on_function(f);
     f->validate_nodes_and_infer_types();
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST_P(MulOrAddConversionTests, CompareFunctions) {
@@ -168,8 +170,10 @@ TEST_P(MulOrAddConversionTests, CompareFunctions) {
     ASSERT_NO_THROW(check_rt_info(f));
     ngraph::pass::ConstantFolding().run_on_function(f);
     f->validate_nodes_and_infer_types();
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 #define CONST(A, B) ConstantParams(A, B)

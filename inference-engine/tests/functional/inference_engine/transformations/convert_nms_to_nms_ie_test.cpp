@@ -37,6 +37,10 @@ TEST_F(TransformationTestsF, ConvertNMSToNMSIEStatic) {
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ngraph::pass::ConvertNMSToNMSIEMatcher>();
+
+        // as inside test infrastructure we can not predict output names for given Function
+        // we have to enable soft names comparison manually
+        enable_soft_names_comparison();
     }
 
     {

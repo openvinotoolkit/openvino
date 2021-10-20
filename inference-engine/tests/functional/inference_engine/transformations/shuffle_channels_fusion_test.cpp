@@ -101,8 +101,9 @@ protected:
 };
 
 TEST_P(ShuffleChannelsFusion, CompareFunctions) {
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 const std::vector<ShuffleChannelsFusionTestValues> testValues = {

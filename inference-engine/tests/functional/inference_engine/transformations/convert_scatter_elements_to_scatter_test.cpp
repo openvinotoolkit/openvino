@@ -86,8 +86,9 @@ void test(std::shared_ptr<ngraph::Function> f, std::shared_ptr<ngraph::Function>
     ASSERT_NO_THROW(check_rt_info(f));
     ngraph::pass::ConstantFolding().run_on_function(f);
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 void test(std::shared_ptr<ngraph::Function> f) {

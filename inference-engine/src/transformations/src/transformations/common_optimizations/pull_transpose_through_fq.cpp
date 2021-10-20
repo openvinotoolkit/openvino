@@ -66,7 +66,7 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
 
         auto new_fq = fq->clone_with_new_inputs(fq_inputs);
         new_ops.push_back(new_fq);
-        new_fq->set_friendly_name(fq->get_friendly_name());
+        new_fq->set_friendly_name(transpose->get_friendly_name());
         ngraph::copy_runtime_info({fq, transpose}, new_ops);
         ngraph::replace_node(transpose, new_fq);
 

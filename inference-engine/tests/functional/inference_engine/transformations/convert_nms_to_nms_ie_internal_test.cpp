@@ -40,6 +40,10 @@ TEST_F(TransformationTestsF, ConvertNMS1ToNMSIEInternal) {
         manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
         manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
+
+        // as inside test infrastructure we can not predict output names for given Function
+        // we have to enable soft names comparison manually
+        enable_soft_names_comparison();
     }
 
     {
