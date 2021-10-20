@@ -16,6 +16,8 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/variant.hpp>
 #include <transformations/utils/utils.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <transformations/init_node_info.hpp>
 #include <cpp/ie_cnn_network.h>
 #include <ie_ngraph_utils.hpp>
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
@@ -38,8 +40,11 @@ TEST(TransformationTests, ConvBiasFusion) {
         add->set_friendly_name("add");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
-    }
 
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.run_passes(f);
+    }
 
     InferenceEngine::CNNNetwork network(f);
 
@@ -56,9 +61,9 @@ TEST(TransformationTests, ConvBiasFusion) {
     auto clonedNetwork = InferenceEngine::details::cloneNetwork(network);
     auto funcs = clonedNetwork.getFunction();
 
-    for (const auto & op : funcs->get_ops()) {
+    for (auto & op : funcs->get_ops()) {
         if (op->get_friendly_name() == "add") {
-            auto pp = getPrimitivesPriority(op);
+            auto pp = ov::getPrimitivesPriority(op);
             ASSERT_EQ(pp, "test");
         }
     }
