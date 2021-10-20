@@ -139,7 +139,11 @@ void LayerTestsCommon::QueryNetwork() {
 }
 
 InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo& info) const {
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
+    if (info.getPrecision().is_float()) {
+        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 1, 0, 1000);
+    } else {
+        return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
+    }
 }
 
 void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
