@@ -120,9 +120,14 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
             resolution = 32768;
             break;
         }
+        /*
+         * Tensorflow document:  https://www.tensorflow.org/api_docs/python/tf/keras/activations/softplus
+         * shows the SoftPlus test cases' range=[-20,20], but OpenVINO SoftPlus test cases' input range=[-100,100]
+         * which is inconsistent with tensorflow.
+         */
         case ngraph::helpers::ActivationTypes::SoftPlus: {
-            data_start_from = -100;
-            data_range = 200;
+            data_start_from = -20;
+            data_range = 40;
             resolution = 32768;
             break;
         }
