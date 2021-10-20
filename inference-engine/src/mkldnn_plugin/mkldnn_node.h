@@ -200,7 +200,7 @@ public:
         return true;
     }
 
-    bool isConstant();
+    virtual bool isConstant();
 
     bool isInplace() const;
 

@@ -17,6 +17,7 @@ public:
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
+    bool isConstant() override;
 
     std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override { return false; }

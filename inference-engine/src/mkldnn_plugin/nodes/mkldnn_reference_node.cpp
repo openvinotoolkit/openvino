@@ -24,6 +24,14 @@ MKLDNNReferenceNode::MKLDNNReferenceNode(const std::shared_ptr<ngraph::Node>& op
     setTypeStr("Reference");
 }
 
+bool MKLDNNReferenceNode::isConstant() {
+    if (ov::is_type<ngraph::op::v8::RandomUniform>(ngraphOp)) {
+        constant = ConstantType::NoConst;
+    }
+
+    return MKLDNNNode::isConstant();
+}
+
 void MKLDNNReferenceNode::getSupportedDescriptors() {}
 
 void MKLDNNReferenceNode::initSupportedPrimitiveDescriptors() {
