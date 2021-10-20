@@ -11,6 +11,7 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
+#include <ops/softsign.hpp>
 
 using namespace GNAPluginNS;
 
