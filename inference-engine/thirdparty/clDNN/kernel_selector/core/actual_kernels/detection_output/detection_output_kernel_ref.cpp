@@ -123,7 +123,7 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
             dispatchData.lws = {1, 1, 1};
         } else {
             dispatchData.gws = {input.Batch().v, 1, 1};
-            dispatchData.lws = {1, 1, 1};
+            dispatchData.lws = {input.Batch().v, 1, 1};
         }
     } else {
         dispatchData.gws = {1, 1, 1};
@@ -196,7 +196,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
     constexpr size_t buffer_bytes = 10;  // The size of struct Scores in detection_output_gpu_ref.cl
     size_t buffer_stride = num_prior_boxes * buffer_bytes;
     size_t buffer_size = num_of_images * num_classes * buffer_stride;
-    size_t num_scores_size = num_of_images * (num_classes + 1) * sizeof(int);
+    size_t num_scores_size = num_of_images * (num_classes + 2) * sizeof(int);
 
     kd.internalBufferSizes.push_back(buffer_size);
     if (detectOutParams.detectOutParams.decrease_label_id) {
