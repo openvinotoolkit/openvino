@@ -47,12 +47,26 @@ public:
     }
 
     bool compareTensors(const ov::runtime::Tensor& t1, const ov::runtime::Tensor& t2) {
+        void* data1;
+        void* data2;
+        try {
+            data1 = t1.data();
+        } catch (const ov::Exception&) {
+            // Remote tensor
+            data1 = nullptr;
+        }
+        try {
+            data2 = t2.data();
+        } catch (const ov::Exception&) {
+            // Remote tensor
+            data2 = nullptr;
+        }
         return t1.get_element_type() == t2.get_element_type() &&
             t1.get_shape() == t2.get_shape() &&
             t1.get_byte_size() == t2.get_byte_size() &&
             t1.get_size() == t2.get_size() &&
             t1.get_strides() == t2.get_strides() &&
-            t1.data() == t2.data();
+            data1 == data2;
     }
 
 protected:
@@ -422,21 +436,26 @@ TEST_P(OVExecutableNetworkBaseTest, getInputsFromFunctionWithSeveralInputs) {
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input(0)));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.input(0).get_any_name()));
-    compareTensors(tensor1, tensor2);
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input(0).get_any_name()));
-    compareTensors(tensor1, tensor2);
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_input_tensor(0));
-    compareTensors(tensor1, tensor2);
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.input(1)));
-    EXPECT_FALSE(compareTensors(tensor1, tensor2));
+    try {
+        // To avoid case with remote tensors
+        tensor1.data();
+        EXPECT_FALSE(compareTensors(tensor1, tensor2));
+    } catch (const ov::Exception&) {
+    }
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input(1)));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.input(1).get_any_name()));
-    compareTensors(tensor1, tensor2);
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->input(1).get_any_name()));
-    compareTensors(tensor1, tensor2);
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_input_tensor(1));
-    compareTensors(tensor1, tensor2);
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
@@ -488,21 +507,26 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromFunctionWithSeveralOutputs) {
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(0)));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output(0).get_any_name()));
-    compareTensors(tensor1, tensor2);
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(0).get_any_name()));
-    compareTensors(tensor1, tensor2);
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_output_tensor(0));
-    compareTensors(tensor1, tensor2);
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.output(1)));
-    EXPECT_FALSE(compareTensors(tensor1, tensor2));
+    try {
+        // To avoid case with remote tensors
+        tensor1.data();
+        EXPECT_FALSE(compareTensors(tensor1, tensor2));
+    } catch (const ov::Exception&) {
+    }
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(1)));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output(1).get_any_name()));
-    compareTensors(tensor1, tensor2);
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(1).get_any_name()));
-    compareTensors(tensor1, tensor2);
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_output_tensor(1));
-    compareTensors(tensor1, tensor2);
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutputs) {
@@ -550,21 +574,26 @@ TEST_P(OVExecutableNetworkBaseTest, getOutputsFromSplitFunctionWithSeveralOutput
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(0)));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output(0).get_any_name()));
-    compareTensors(tensor1, tensor2);
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(0).get_any_name()));
-    compareTensors(tensor1, tensor2);
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_output_tensor(0));
-    compareTensors(tensor1, tensor2);
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor1 = request.get_tensor(execNet.output(1)));
-    EXPECT_FALSE(compareTensors(tensor1, tensor2));
+    try {
+        // To avoid case with remote tensors
+        tensor1.data();
+        EXPECT_FALSE(compareTensors(tensor1, tensor2));
+    } catch (const ov::Exception&) {
+    }
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(1)));
     EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(execNet.output(1).get_any_name()));
-    compareTensors(tensor1, tensor2);
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_tensor(function->output(1).get_any_name()));
-    compareTensors(tensor1, tensor2);
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
     EXPECT_NO_THROW(tensor2 = request.get_output_tensor(1));
-    compareTensors(tensor1, tensor2);
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
 }
 
 // Load correct network to Plugin to get executable network
