@@ -283,7 +283,6 @@ set(SRC
     visitors/op/ctc_loss.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_convolution.cpp
-    visitors/op/deformable_convolution_opset8.cpp
     visitors/op/deformable_psroi_pooling.cpp
     visitors/op/depth_to_space.cpp
     visitors/op/detection_output.cpp
