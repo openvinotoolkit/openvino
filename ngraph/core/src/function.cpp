@@ -205,8 +205,6 @@ void ov::Function::validate_nodes_and_infer_types() const {
     std::map<ov::op::util::Variable*, Counter> pair_checker;
     std::stringstream unregistered_parameters;
     std::stringstream unregistered_variables;
-    // TODO: enable tensor names check after fixes in transformations
-    // std::unordered_set<std::string> tensor_names;
     std::unordered_set<const ov::descriptor::Tensor*> tensors;
     for (auto& node : get_ordered_ops()) {
         node->revalidate_and_infer_types();
@@ -216,12 +214,6 @@ void ov::Function::validate_nodes_and_infer_types() const {
             if (tensors.count(&tensor))
                 continue;
             tensors.insert(&tensor);
-            // for (const auto& name : output.get_tensor().get_names()) {
-            //     if (tensor_names.count(name))
-            //         throw ov::Exception("Function is incorrect. All Tensors should have unique names. " + name +
-            //                             " is not unique.");
-            //     tensor_names.insert(name);
-            // }
         }
         if (op::util::is_parameter(node) &&
             std::find(m_parameters.begin(), m_parameters.end(), node) == m_parameters.end())
@@ -738,13 +730,43 @@ ov::Output<ov::Node> ov::Function::input(const std::string& tensor_name) {
     throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
 }
 
+void ov::Function::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes) {
+    std::map<ov::Output<const ov::Node>, ov::PartialShape> const_pshape;
+    for (const auto& it : partial_shapes) {
+        const_pshape[ov::Output<const ov::Node>(it.first.get_node(), it.first.get_index())] = it.second;
+    }
+    reshape(const_pshape);
+}
 void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partial_shapes) {
+    std::map<ov::Output<const ov::Node>, ov::PartialShape> const_pshape;
+    std::unordered_map<const ov::Node*, std::string> port_tensor_map;
+    const ov::Function* const_this = this;
+    for (const auto& it : partial_shapes) {
+        const auto port = const_this->output(it.first);
+        if (port_tensor_map.find(port.get_node()) != port_tensor_map.end()) {
+            OPENVINO_ASSERT(it.second == const_pshape.at(port),
+                            "Tensor with names {'",
+                            it.first,
+                            "', '",
+                            port_tensor_map[port.get_node()],
+                            "'} has "
+                            "conflicting shapes ",
+                            it.second,
+                            " and ",
+                            const_pshape.at(port),
+                            ", but they define the same tensor");
+        }
+        port_tensor_map[port.get_node()] = it.first;
+        const_pshape[const_this->output(it.first)] = it.second;
+    }
+    reshape(const_pshape);
+}
+void ov::Function::reshape(const std::map<ov::Output<const ov::Node>, ov::PartialShape>& partial_shapes) {
     if (partial_shapes.empty())
         return;
 
     const auto& params = get_parameters();
-    std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Parameter>> tensor_param_map;
-    std::unordered_map<std::shared_ptr<ov::op::v0::Parameter>, std::string> param_tensor_map;
+    std::unordered_map<ov::op::v0::Parameter*, ov::PartialShape> new_param_shapes;
 
     // Check that we need to do reshape only if input shapes will be changed
     bool need_reshape = false;
@@ -752,39 +774,22 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
         bool shape_is_used = false;
 
         for (const auto& param : params) {
-            const auto& tensor_names = param->get_output_tensor(0).get_names();
-
-            if (tensor_names.count(partial_shape.first)) {
+            const ov::Output<const ov::Node> port(param->output(0).get_node(), param->output(0).get_index());
+            if (port == partial_shape.first) {
                 shape_is_used = true;
-                tensor_param_map[partial_shape.first] = param;
-                auto it = param_tensor_map.find(param);
-                if (it != param_tensor_map.end()) {
-                    OPENVINO_ASSERT(partial_shape.second == partial_shapes.at(it->second),
-                                    "Tensor with names {'",
-                                    partial_shape.first,
-                                    "', '",
-                                    it->second,
-                                    "'} has "
-                                    "conflicting shapes ",
-                                    partial_shape.second,
-                                    " and ",
-                                    partial_shapes.at(it->second),
-                                    ", but they define the same tensor");
-                } else {
-                    param_tensor_map[param] = partial_shape.first;
-                }
 
                 if (param->get_output_partial_shape(0).is_dynamic() ||
                     param->get_output_partial_shape(0) != partial_shape.second) {
                     need_reshape = true;
+                    new_param_shapes[param.get()] = partial_shape.second;
                 }
                 break;
             }
         }
 
         OPENVINO_ASSERT(shape_is_used,
-                        "PartialShape for tensor with name '",
-                        partial_shape.first,
+                        "PartialShape for port '",
+                        *partial_shape.first.get_node(),
                         "' is not used in ov::Function::reshape");
     }
 
@@ -792,15 +797,14 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
         return;
 
     // save original parameters shape
-    std::map<std::string, ov::PartialShape> original_input_shapes;
+    std::unordered_map<ov::op::v0::Parameter*, ov::PartialShape> original_input_shapes;
     for (const auto& param : params) {
-        std::string any_tensor_name = *param->get_output_tensor(0).get_names().begin();
-        original_input_shapes[any_tensor_name] = param->get_output_partial_shape(0);
+        original_input_shapes[param.get()] = param->get_output_partial_shape(0);
     }
 
-    auto reshape_only = [&](const std::map<std::string, ov::PartialShape>& pshapes) {
+    auto reshape_only = [&](const std::unordered_map<ov::op::v0::Parameter*, ov::PartialShape>& pshapes) {
         for (const auto& pshape : pshapes) {
-            tensor_param_map[pshape.first]->set_partial_shape(pshape.second);
+            pshape.first->set_partial_shape(pshape.second);
         }
 
         validate_nodes_and_infer_types();
@@ -811,7 +815,7 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
         ssr_manager.register_pass<ngraph::pass::SmartReshape>();
         ssr_manager.run_passes(shared_from_this());
 
-        reshape_only(partial_shapes);
+        reshape_only(new_param_shapes);
     } catch (std::exception& ex) {
         // restore shapes to original ones
         reshape_only(original_input_shapes);
