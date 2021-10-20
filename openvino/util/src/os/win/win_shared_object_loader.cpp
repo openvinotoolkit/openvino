@@ -6,7 +6,6 @@
 
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "openvino/util/so_loader.hpp"
 
 //
 // LoadLibraryA, LoadLibraryW:
