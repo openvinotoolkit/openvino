@@ -96,10 +96,9 @@ class NonMaxSuppression(Op):
         node.out_port(0).data.set_shape(shape_array([max_number_of_boxes, 3]))
 
         if opset == 'opset5':
-            node.out_port(0).data.set_shape(shape_array([dynamic_dimension_value, 3]))
             num_of_outputs = len([port for port in node.out_ports().values() if not port.disconnected()])
             if num_of_outputs >= 2 and node.has_port('out', 1):
-                node.out_port(1).data.set_shape(shape_array([dynamic_dimension_value, 3]))
+                node.out_port(1).data.set_shape(shape_array([max_number_of_boxes, 3]))
             if num_of_outputs >= 3 and node.has_port('out', 2):
                 node.out_port(2).data.set_shape(shape_array([1]))
 
