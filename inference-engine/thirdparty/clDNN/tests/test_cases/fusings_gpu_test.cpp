@@ -704,6 +704,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_fsv16_to_bfyx_conv, ::te
     bc_test_params{ CASE_CONV_FP16_13, 3, 4 },
 }));
 
+
 class conv_fp32_activation : public ConvFusingTest {};
 TEST_P(conv_fp32_activation, basic) {
     auto p = GetParam();
@@ -9341,3 +9342,146 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_shift_swish_onednn,
                                 bc_test_params{CASE_CONV_S8S8_15, 2, 7},
                         }));
 #endif
+
+
+// reorder(bfyx to fs_b_yx_fsv32) + conv
+#define FSV32_CASE_CONV_FP32_1 {1, 32, 4, 5}, {1, 32, 2, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
+
+class conv_fp32_reorder_bfyx_to_fsv32_conv_basic : public ConvFusingTest {};
+TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_basic, basic) {
+    auto p = GetParam();
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p), -127, 127)),
+        reorder("reorder_fsv32", "input", format::fs_b_yx_fsv32, data_types::f32),
+        convolution("conv_output", "reorder_fsv32", { "weights" }, 1, tensor{ 0, 0, 1, 1 }, p.pad, p.dilation),
+        activation("activation", "conv_output", activation_func::abs)
+    );
+
+    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
+    bo_fused.set_option(build_option::force_implementations({ {"conv_output", conv_impl} }));
+
+    execute(p);
+}
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_basic, ::testing::ValuesIn(std::vector<bc_test_params>{
+    bc_test_params{ FSV32_CASE_CONV_FP32_1,  3, 3 }
+}));
+
+
+class conv_fp32_reorder_bfyx_to_fsv32_conv_mean : public ConvFusingTest {};
+TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_mean, have_mean) {
+    auto p = GetParam();
+    memory::ptr mul = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 3, 1, 2 } });
+    set_values<float>(mul, { 0.5f, 2.5f, -5.0f, 4.3f, 1.2f, -3.5f });
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("mul", mul),
+        data("weights", get_mem(get_weights_layout(p), -127, 127)),
+        reorder("reorder_fsv32", "input", format::fs_b_yx_fsv32, data_types::f32, "mul", reorder_mean_mode::mul),
+        convolution("conv_output", "reorder_fsv32", { "weights" }, 1, tensor{ 0, 0, 1, 1 }, p.pad, p.dilation),
+        activation("activation", "conv_output", activation_func::abs)
+    );
+
+    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
+    bo_fused.set_option(build_option::force_implementations({ {"conv_output", conv_impl} }));
+
+    execute(p);
+}
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_mean, ::testing::ValuesIn(std::vector<bc_test_params>{
+    bc_test_params{ FSV32_CASE_CONV_FP32_1,  3, 3 }
+}));
+
+
+class conv_fp32_reorder_bfyx_to_fsv32_conv_subtract : public ConvFusingTest {};
+TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_subtract, have_subtract_per_feature) {
+    auto p = GetParam();
+    const std::vector<float>& values_to_subtract = {
+        0.1f, 0.2f, 0.1f, 0.1f, 0.1f, 0.2f, 0.1f, 0.1f,
+        0.1f, 0.2f, 0.1f, 0.1f, 0.1f, 0.2f, 0.1f, 0.1f,
+        0.1f, 0.2f, 0.1f, 0.1f, 0.1f, 0.2f, 0.1f, 0.1f,
+        0.1f, 0.2f, 0.1f, 0.1f, 0.1f, 0.2f, 0.1f, 0.1f
+    };
+
+    auto dw_tensor = cldnn::tensor(group(p.out_shape.feature[0]), batch(1), feature(1), spatial(3, 3));
+    auto dw_weights_layout = layout{ p.default_type, format::goiyx, dw_tensor };
+    auto dw_stride = tensor{ 0, 0, 1, 1 };
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p), -127, 127)),
+        data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
+        convolution("conv_prim", "input", { "weights" }, p.groups, p.stride, p.pad, p.dilation),
+        reorder("reorder_fsv32", "conv_prim", format::fs_b_yx_fsv32, data_types::f32, values_to_subtract),
+        convolution("conv_output", "reorder_fsv32", { "weights_dw" }, 1, dw_stride, p.pad, p.dilation),
+        activation("activation", "conv_output", activation_func::abs)
+    );
+
+    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
+    bo_fused.set_option(build_option::force_implementations({ {"conv_output", conv_impl} }));
+
+    execute(p);
+}
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_subtract, ::testing::ValuesIn(std::vector<bc_test_params>{
+    bc_test_params{ FSV32_CASE_CONV_FP32_1,  4, 4 }
+}));
+
+
+class conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation : public ConvFusingTest {};
+TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, have_fused_activation) {
+    auto p = GetParam();
+
+    auto dw_tensor = cldnn::tensor(group(p.out_shape.feature[0]), batch(1), feature(1), spatial(3, 3));
+    auto dw_weights_layout = layout{ p.default_type, format::goiyx, dw_tensor };
+    auto dw_stride = tensor{ 0, 0, 1, 1 };
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p), -127, 127)),
+        data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
+        convolution("conv_prim", "input", { "weights" }, p.groups, p.stride, p.pad, p.dilation),
+        reorder("reorder_fsv32", "conv_prim", format::fs_b_yx_fsv32, data_types::f32),
+        activation("activation_quantize", "reorder_fsv32", activation_func::relu),
+        convolution("conv_output", "activation_quantize", { "weights_dw" }, 1, dw_stride, p.pad, p.dilation),
+        activation("activation", "conv_output", activation_func::abs)
+    );
+
+    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
+    bo_fused.set_option(build_option::force_implementations({ {"conv_output", conv_impl} }));
+
+    execute(p);
+}
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, ::testing::ValuesIn(std::vector<bc_test_params>{
+    bc_test_params{ FSV32_CASE_CONV_FP32_1,  4, 5 }
+}));
+
+
+class conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding : public ConvFusingTest {};
+TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, have_data_padding) {
+    auto p = GetParam();
+
+    auto dw_tensor = cldnn::tensor(group(p.out_shape.feature[0]), batch(1), feature(1), spatial(3, 3));
+    auto dw_weights_layout = layout{ p.default_type, format::goiyx, dw_tensor };
+    auto dw_stride = tensor{ 0, 0, 1, 1 };
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p), -127, 127)),
+        data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
+        convolution("conv_prim", "input", { "weights" }, p.groups, p.stride, p.pad, p.dilation),
+        reorder("reorder_fsv32", "conv_prim", layout(data_types::f32, format::fs_b_yx_fsv32, dw_tensor, padding{ {0, 0, 1, 1}, 0 })),
+        convolution("conv_output", "reorder_fsv32", { "weights_dw" }, 1, dw_stride, p.pad, p.dilation),
+        activation("activation", "conv_output", activation_func::abs),
+        activation("activation2", "conv_prim", activation_func::abs),
+        eltwise("add_bias", { "activation", "activation2" }, eltwise_mode::sum)
+    );
+
+    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
+    bo_fused.set_option(build_option::force_implementations({ {"conv_output", conv_impl} }));
+
+    execute(p);
+}
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, ::testing::ValuesIn(std::vector<bc_test_params>{
+    bc_test_params{ FSV32_CASE_CONV_FP32_1,  5, 6 }
+}));
