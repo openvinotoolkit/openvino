@@ -13,7 +13,7 @@
 
 namespace py = pybind11;
 
-void regclass_pyngraph_FrontEndManager(py::module m) {
+void regclass_frontend_FrontEndManager(py::module m) {
     py::class_<ngraph::frontend::FrontEndManager, std::shared_ptr<ngraph::frontend::FrontEndManager>> fem(
         m,
         "FrontEndManager",
@@ -85,7 +85,7 @@ void regclass_pyngraph_FrontEndManager(py::module m) {
     });
 }
 
-void regclass_pyngraph_GeneralFailureFrontEnd(py::module m) {
+void regclass_frontend_GeneralFailureFrontEnd(py::module m) {
     static py::exception<ngraph::frontend::GeneralFailure> exc(std::move(m), "GeneralFailure");
     py::register_exception_translator([](std::exception_ptr p) {
         try {
@@ -97,7 +97,7 @@ void regclass_pyngraph_GeneralFailureFrontEnd(py::module m) {
     });
 }
 
-void regclass_pyngraph_OpValidationFailureFrontEnd(py::module m) {
+void regclass_frontend_OpValidationFailureFrontEnd(py::module m) {
     static py::exception<ngraph::frontend::OpValidationFailure> exc(std::move(m), "OpValidationFailure");
     py::register_exception_translator([](std::exception_ptr p) {
         try {
@@ -109,7 +109,7 @@ void regclass_pyngraph_OpValidationFailureFrontEnd(py::module m) {
     });
 }
 
-void regclass_pyngraph_OpConversionFailureFrontEnd(py::module m) {
+void regclass_frontend_OpConversionFailureFrontEnd(py::module m) {
     static py::exception<ngraph::frontend::OpConversionFailure> exc(std::move(m), "OpConversionFailure");
     py::register_exception_translator([](std::exception_ptr p) {
         try {
@@ -121,7 +121,7 @@ void regclass_pyngraph_OpConversionFailureFrontEnd(py::module m) {
     });
 }
 
-void regclass_pyngraph_InitializationFailureFrontEnd(py::module m) {
+void regclass_frontend_InitializationFailureFrontEnd(py::module m) {
     static py::exception<ngraph::frontend::InitializationFailure> exc(std::move(m), "InitializationFailure");
     py::register_exception_translator([](std::exception_ptr p) {
         try {
@@ -133,7 +133,7 @@ void regclass_pyngraph_InitializationFailureFrontEnd(py::module m) {
     });
 }
 
-void regclass_pyngraph_NotImplementedFailureFrontEnd(py::module m) {
+void regclass_frontend_NotImplementedFailureFrontEnd(py::module m) {
     static py::exception<ngraph::frontend::NotImplementedFailure> exc(std::move(m), "NotImplementedFailure");
     py::register_exception_translator([](std::exception_ptr p) {
         try {

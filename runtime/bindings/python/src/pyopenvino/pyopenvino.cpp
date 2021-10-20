@@ -47,6 +47,10 @@
 #include "pyopenvino/graph/types/regmodule_graph_types.hpp"
 #include "pyopenvino/graph/util.hpp"
 #include "pyopenvino/graph/variant.hpp"
+#include "pyopenvino/frontend/frontend.hpp"
+#include "pyopenvino/frontend/frontend_manager.hpp"
+#include "pyopenvino/frontend/inputmodel.hpp"
+#include "pyopenvino/frontend/place.hpp"
 
 namespace py = pybind11;
 
@@ -88,6 +92,15 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_Shape(m);
     regclass_graph_PartialShape(m);
     regclass_graph_Node(m);
+    regclass_frontend_Place(m);
+    regclass_frontend_InitializationFailureFrontEnd(m);
+    regclass_frontend_GeneralFailureFrontEnd(m);
+    regclass_frontend_OpConversionFailureFrontEnd(m);
+    regclass_frontend_OpValidationFailureFrontEnd(m);
+    regclass_frontend_NotImplementedFailureFrontEnd(m);
+    regclass_frontend_FrontEndManager(m);
+    regclass_frontend_FrontEnd(m);
+    regclass_frontend_InputModel(m);
     regclass_graph_Input(m);
     regclass_graph_Output(m);
     regclass_graph_NodeFactory(m);

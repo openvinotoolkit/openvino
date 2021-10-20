@@ -13,7 +13,7 @@
 
 namespace py = pybind11;
 
-void regclass_pyngraph_FrontEnd(py::module m) {
+void regclass_frontend_FrontEnd(py::module m) {
     py::class_<ngraph::frontend::FrontEnd, std::shared_ptr<ngraph::frontend::FrontEnd>> fem(m,
                                                                                             "FrontEnd",
                                                                                             py::dynamic_attr(),
