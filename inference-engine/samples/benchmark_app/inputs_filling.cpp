@@ -290,7 +290,6 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
         size_t binaryInputId = 0;
         for (auto& item : app_inputs_info) {
             Blob::Ptr inputBlob = requests.at(requestId)->getBlob(item.first);
-            inputBlob->setShape(InferenceEngine::SizeVector{1, 128});
             auto app_info = app_inputs_info.at(item.first);
             auto precision = app_info.precision;
             if (app_info.isImage()) {

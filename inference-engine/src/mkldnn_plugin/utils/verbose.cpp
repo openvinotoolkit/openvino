@@ -132,7 +132,7 @@ void Verbose::printInfo() {
             post_ops.append(colorize(GREEN, fusedNode->getName())).append(":")
                 .append(colorize(CYAN, NameFromType(fusedNode->getType()))).append(":")
                 .append(algToString(fusedNode->getAlgorithm()))
-                .append(":");
+                .append(";");
         }
         post_ops += "'";
     }
@@ -148,18 +148,18 @@ void Verbose::printInfo() {
     const std::string& nodeAlg  = algToString(node->getAlgorithm());
     const std::string& nodePrimImplType =  impl_type_to_string(node->getSelectedPrimitiveDescriptor()->getImplementationType());
 
-    stream << "ov_cpu_verbose" << ';'
-           << "exec" << ';'
-           << nodeImplementer << ';'
-           << nodeName << ";" << nodeType << ";" << nodeAlg << ';'
-           << nodePrimImplType << ';'
-           << portsInfo << ';'
-           << post_ops << ';';
+    stream << "ov_cpu_verbose" << ','
+           << "exec" << ','
+           << nodeImplementer << ','
+           << nodeName << ":" << nodeType << ":" << nodeAlg << ','
+           << nodePrimImplType << ','
+           << portsInfo << ','
+           << post_ops << ',';
 }
 
 void Verbose::printDuration() {
     const auto& duration = node->PerfCounter().duration().count();
-    stream << duration << ";";
+    stream << duration << "ms";
 }
 
 void Verbose::flush() const {
