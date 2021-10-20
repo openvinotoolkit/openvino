@@ -25,9 +25,9 @@ std::vector<std::vector<ov::Shape>> inputShapes = {
         {{2, 10, 1, 4}, {2, 10, 1, 1}}
 };
 
-std::vector<ov::test::InputShapes> inShapesDynamic = {
-        {{{ngraph::Dimension(1, 10), 200}, {ngraph::Dimension(1, 10), 200}},
-         {{{2, 200}, {2, 200}}, {{1, 200}, {5, 200}}}},
+std::vector<std::vector<ov::test::InputShape>> inShapesDynamic = {
+        {{{ngraph::Dimension(1, 10), 200}, {{2, 200}, {1, 200}}},
+         {{ngraph::Dimension(1, 10), 200}, {{2, 200}, {5, 200}}}},
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
