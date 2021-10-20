@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
@@ -125,9 +129,9 @@ std::vector<FakeQuantizeParams> generateParamsForFakeQuantize() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<FakeQuantizeParams> params {
-        FakeQuantizeParams(ov::Shape{1, 2, 3, 4}, 
-                           ov::Shape{1, 2, 3, 4}, 
-                           IN_ET, 
+        FakeQuantizeParams(ov::Shape{1, 2, 3, 4},
+                           ov::Shape{1, 2, 3, 4},
+                           IN_ET,
                            IN_ET,
                            iota_vector<T>(shape_size(ov::Shape{1, 2, 3, 4})),
                            std::vector<T>{2.f,          2.f,          2.f,          2.f,          6.6666669f,   6.6666669f,
