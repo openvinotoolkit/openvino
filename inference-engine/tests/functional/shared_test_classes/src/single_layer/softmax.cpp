@@ -39,7 +39,7 @@ void SoftMaxLayerTest::SetUp() {
     size_t axis;
 
     std::tie(ngPrc, shapes, axis, targetDevice, configuration) = GetParam();
-    init_input_shapes(shapes);
+    init_input_shapes({shapes});
 
     const auto params = ngraph::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
     const auto paramOuts =

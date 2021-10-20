@@ -11,7 +11,7 @@ namespace test {
 namespace subgraph {
 
 std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<EltwiseTestParams>& obj) {
-    std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> shapes;
+    std::vector<InputShape> shapes;
     ElementType netType;
     ngraph::helpers::InputLayerType secondaryInputType;
     CommonTestUtils::OpType opType;
@@ -21,16 +21,17 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     std::tie(shapes, eltwiseOpType, secondaryInputType, opType, netType, targetName, additional_config) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::partialShape2str(shapes.first) << "_";
-    results << "TS=";
-    for (const auto& shape : shapes.second) {
-        results << "(";
-        for (const auto& item : shape) {
+    results << "IS=(";
+    for (const auto& shape : shapes) {
+        results << CommonTestUtils::partialShape2str({shape.first}) << "_";
+    }
+    results << ")_TS=(";
+    for (const auto& shape : shapes) {
+        for (const auto& item : shape.second) {
             results << CommonTestUtils::vec2str(item) << "_";
         }
-        results << ")_";
     }
-    results << "eltwiseOpType=" << eltwiseOpType << "_";
+    results << ")_eltwiseOpType=" << eltwiseOpType << "_";
     results << "secondaryInputType=" << secondaryInputType << "_";
     results << "opType=" << opType << "_";
     results << "NetType=" << netType << "_";
@@ -79,6 +80,9 @@ void EltwiseLayerTest::transformInputShapesAccordingEltwise(const ov::PartialSha
         }
     }
     ASSERT_EQ(inputDynamicShapes.size(), 2) << "Incorrect inputs number!";
+    if (secondInputShape.is_dynamic()) {
+        return;
+    }
     if (secondInputShape.get_shape() == ov::Shape{1}) {
         inputDynamicShapes[1] = secondInputShape;
         for (auto& staticShape : targetStaticShapes) {
@@ -88,7 +92,7 @@ void EltwiseLayerTest::transformInputShapesAccordingEltwise(const ov::PartialSha
 }
 
 void EltwiseLayerTest::SetUp() {
-    InputShapes shapes;
+    std::vector<InputShape> shapes;
     ElementType netType;
     ngraph::helpers::InputLayerType secondaryInputType;
     CommonTestUtils::OpType opType;
@@ -114,7 +118,7 @@ void EltwiseLayerTest::SetUp() {
             FAIL() << "Unsupported Secondary operation type";
     }
     // To propagate shape_input_secondary just in static case because all shapes are defined in dynamic scenarion
-    if (shape_input_secondary.is_static()) {
+    if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
         transformInputShapesAccordingEltwise(shape_input_secondary);
     }
 

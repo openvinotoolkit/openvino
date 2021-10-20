@@ -12,7 +12,7 @@ namespace test {
 namespace subgraph {
 
 typedef std::tuple<
-    InputShapes,                       // input shapes
+    std::vector<InputShape>,           // input shapes
     ngraph::helpers::EltwiseTypes,     // eltwise op type
     ngraph::helpers::InputLayerType,   // secondary input type
     CommonTestUtils::OpType,           // op type

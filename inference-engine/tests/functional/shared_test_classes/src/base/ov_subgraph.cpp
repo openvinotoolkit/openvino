@@ -179,31 +179,21 @@ void SubgraphBaseTest::validate() {
     compare(expectedOutputs, actualOutputs);
 }
 
-void SubgraphBaseTest::init_input_shapes(const InputShapes& shapes) {
-    targetStaticShapes = shapes.second;
-    if (!shapes.first.empty()) {
-        inputDynamicShapes = shapes.first;
-    } else {
-        OPENVINO_ASSERT(targetStaticShapes.size() == 1, "Incorrect size of targetStaticShapes for static scenario");
-        for (const auto& targetStaticShape : targetStaticShapes.front()) {
-            inputDynamicShapes.emplace_back(targetStaticShape);
+void SubgraphBaseTest::init_input_shapes(const std::vector<InputShape>& shapes) {
+    size_t targetStaticShapeSize = shapes.front().second.size();
+    targetStaticShapes.resize(targetStaticShapeSize);
+    for (const auto& shape : shapes) {
+        auto dynShape = shape.first;
+        if (dynShape.rank() == 0) {
+            ASSERT_EQ(targetStaticShapeSize, 1) << "Incorrect number of static shapes for static case";
+            dynShape = shape.second.front();
+        }
+        inputDynamicShapes.push_back(dynShape);
+        ASSERT_EQ(shape.second.size(), targetStaticShapeSize) << "Target static count shapes should be the same for all inputs";
+        for (size_t i = 0; i < shape.second.size(); ++i) {
+            targetStaticShapes[i].push_back(shape.second.at(i));
         }
     }
 }
-
-void SubgraphBaseTest::init_input_shapes(const InputShape& shapes) {
-    std::pair<std::vector<ov::PartialShape>, std::vector<std::vector<ov::Shape>>> tmpShapeObj;
-    if (shapes.first.rank() != 0) {
-        tmpShapeObj.first = {shapes.first};
-        for (const auto& staticShape : shapes.second) {
-            tmpShapeObj.second.push_back({staticShape});
-        }
-    } else {
-        tmpShapeObj.first = {};
-        tmpShapeObj.second = {shapes.second};
-    }
-    init_input_shapes(tmpShapeObj);
-}
-
 }  // namespace test
 }  // namespace ov
