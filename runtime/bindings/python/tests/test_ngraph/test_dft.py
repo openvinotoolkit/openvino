@@ -1,4 +1,7 @@
-import ngraph as ng
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+import openvino.opset8 as ov
 import numpy as np
 from tests.runtime import get_runtime
 
@@ -11,10 +14,10 @@ def build_fft_input_data():
 def test_dft_1d():
     runtime = get_runtime()
     input_data = build_fft_input_data()
-    input_tensor = ng.constant(input_data)
-    input_axes = ng.constant(np.array([2], dtype=np.int64))
+    input_tensor = ov.constant(input_data)
+    input_axes = ov.constant(np.array([2], dtype=np.int64))
 
-    dft_node = ng.dft(input_tensor, input_axes)
+    dft_node = ov.dft(input_tensor, input_axes)
     computation = runtime.computation(dft_node)
     dft_results = computation()
     np_results = np.fft.fft(np.squeeze(input_data.view(dtype=np.complex64), axis=-1),
@@ -26,10 +29,10 @@ def test_dft_1d():
 def test_dft_2d():
     runtime = get_runtime()
     input_data = build_fft_input_data()
-    input_tensor = ng.constant(input_data)
-    input_axes = ng.constant(np.array([1, 2], dtype=np.int64))
+    input_tensor = ov.constant(input_data)
+    input_axes = ov.constant(np.array([1, 2], dtype=np.int64))
 
-    dft_node = ng.dft(input_tensor, input_axes)
+    dft_node = ov.dft(input_tensor, input_axes)
     computation = runtime.computation(dft_node)
     dft_results = computation()
     np_results = np.fft.fft2(np.squeeze(input_data.view(dtype=np.complex64), axis=-1),
@@ -41,10 +44,10 @@ def test_dft_2d():
 def test_dft_3d():
     runtime = get_runtime()
     input_data = build_fft_input_data()
-    input_tensor = ng.constant(input_data)
-    input_axes = ng.constant(np.array([0, 1, 2], dtype=np.int64))
+    input_tensor = ov.constant(input_data)
+    input_axes = ov.constant(np.array([0, 1, 2], dtype=np.int64))
 
-    dft_node = ng.dft(input_tensor, input_axes)
+    dft_node = ov.dft(input_tensor, input_axes)
     computation = runtime.computation(dft_node)
     dft_results = computation()
     np_results = np.fft.fftn(np.squeeze(input_data.view(dtype=np.complex64), axis=-1),
@@ -56,11 +59,11 @@ def test_dft_3d():
 def test_dft_1d_signal_size():
     runtime = get_runtime()
     input_data = build_fft_input_data()
-    input_tensor = ng.constant(input_data)
-    input_axes = ng.constant(np.array([-2], dtype=np.int64))
-    input_signal_size = ng.constant(np.array([20], dtype=np.int64))
+    input_tensor = ov.constant(input_data)
+    input_axes = ov.constant(np.array([-2], dtype=np.int64))
+    input_signal_size = ov.constant(np.array([20], dtype=np.int64))
 
-    dft_node = ng.dft(input_tensor, input_axes, input_signal_size)
+    dft_node = ov.dft(input_tensor, input_axes, input_signal_size)
     computation = runtime.computation(dft_node)
     dft_results = computation()
     np_results = np.fft.fft(np.squeeze(input_data.view(dtype=np.complex64), axis=-1), n=20,
@@ -72,11 +75,11 @@ def test_dft_1d_signal_size():
 def test_dft_2d_signal_size_1():
     runtime = get_runtime()
     input_data = build_fft_input_data()
-    input_tensor = ng.constant(input_data)
-    input_axes = ng.constant(np.array([0, 2], dtype=np.int64))
-    input_signal_size = ng.constant(np.array([4, 5], dtype=np.int64))
+    input_tensor = ov.constant(input_data)
+    input_axes = ov.constant(np.array([0, 2], dtype=np.int64))
+    input_signal_size = ov.constant(np.array([4, 5], dtype=np.int64))
 
-    dft_node = ng.dft(input_tensor, input_axes, input_signal_size)
+    dft_node = ov.dft(input_tensor, input_axes, input_signal_size)
     computation = runtime.computation(dft_node)
     dft_results = computation()
     np_results = np.fft.fft2(np.squeeze(input_data.view(dtype=np.complex64), axis=-1), s=[4, 5],
@@ -88,11 +91,11 @@ def test_dft_2d_signal_size_1():
 def test_dft_2d_signal_size_2():
     runtime = get_runtime()
     input_data = build_fft_input_data()
-    input_tensor = ng.constant(input_data)
-    input_axes = ng.constant(np.array([1, 2], dtype=np.int64))
-    input_signal_size = ng.constant(np.array([4, 5], dtype=np.int64))
+    input_tensor = ov.constant(input_data)
+    input_axes = ov.constant(np.array([1, 2], dtype=np.int64))
+    input_signal_size = ov.constant(np.array([4, 5], dtype=np.int64))
 
-    dft_node = ng.dft(input_tensor, input_axes, input_signal_size)
+    dft_node = ov.dft(input_tensor, input_axes, input_signal_size)
     computation = runtime.computation(dft_node)
     dft_results = computation()
     np_results = np.fft.fft2(np.squeeze(input_data.view(dtype=np.complex64), axis=-1), s=[4, 5],
@@ -104,11 +107,11 @@ def test_dft_2d_signal_size_2():
 def test_dft_3d_signal_size():
     runtime = get_runtime()
     input_data = build_fft_input_data()
-    input_tensor = ng.constant(input_data)
-    input_axes = ng.constant(np.array([0, 1, 2], dtype=np.int64))
-    input_signal_size = ng.constant(np.array([4, 5, 16], dtype=np.int64))
+    input_tensor = ov.constant(input_data)
+    input_axes = ov.constant(np.array([0, 1, 2], dtype=np.int64))
+    input_signal_size = ov.constant(np.array([4, 5, 16], dtype=np.int64))
 
-    dft_node = ng.dft(input_tensor, input_axes, input_signal_size)
+    dft_node = ov.dft(input_tensor, input_axes, input_signal_size)
     computation = runtime.computation(dft_node)
     dft_results = computation()
     np_results = np.fft.fftn(np.squeeze(input_data.view(dtype=np.complex64), axis=-1),

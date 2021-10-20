@@ -965,6 +965,13 @@ bool MKLDNNEltwiseNode::isSupportedOperation(const std::shared_ptr<const ngraph:
             errorMessage = "Doesn't support Eltwise algorithm: " +  std::string(op->get_type_name());
             return false;
         }
+        if (const auto binOp = std::dynamic_pointer_cast<const ov::op::util::BinaryElementwiseArithmetic>(op)) {
+            if (binOp->get_autob().m_type != ngraph::op::AutoBroadcastType::NONE &&
+                binOp->get_autob().m_type != ngraph::op::AutoBroadcastType::NUMPY) {
+                errorMessage = "Doesn't support broadcast type: " + ngraph::as_string(binOp->get_autob().m_type);
+                return false;
+            }
+        }
     } catch (...) {
         return false;
     }
@@ -1227,6 +1234,14 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
 
     inputNum = getParentEdges().size();
     currentInBlkDims.resize(inputNum);
+}
+
+std::vector<VectorDims> MKLDNNEltwiseNode::shapeInfer() const {
+    ov::PartialShape outShape = getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape();
+    for (size_t i = 1; i < getParentEdges().size(); i++) {
+        ov::PartialShape::broadcast_merge_into(outShape, getParentEdgesAtPort(i)[0]->getMemory().GetShape().toPartialShape(), ov::op::AutoBroadcastSpec::NUMPY);
+    }
+    return {outShape.get_shape()};
 }
 
 void MKLDNNEltwiseNode::prepareParams() {
@@ -1738,16 +1753,10 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, bool initAsBinary, 
                 case EltwiseSubtract:
                     appendBinary(mkldnn::algorithm::binary_add, shiftsMemory, shifts);
                     break;
-//
-//                    appendBinary(mkldnn::algorithm::binary_sub, shiftsMemory, shifts);
-//                    break;
                 case EltwiseMultiply:
                 case EltwiseDivide:
                     appendBinary(mkldnn::algorithm::binary_mul, scalesMemory, scales);
                     break;
-//
-//                    appendBinary(mkldnn::algorithm::binary_div, scalesMemory, scales);
-//                    break;
                 case EltwiseMulAdd:
                 case EltwisePowerStatic:
                     appendBinary(mkldnn::algorithm::binary_mul, scalesMemory, scales);

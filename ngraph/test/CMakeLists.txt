@@ -89,7 +89,6 @@ set(SRC
     pass/serialization/serialize.cpp
     pattern.cpp
     preprocess.cpp
-    provenance.cpp
     replace_node.cpp
     reshape_opt_kernel.cpp
     shape.cpp
@@ -460,7 +459,6 @@ set(MULTI_TEST_SRC
     backend/batch_norm.in.cpp
     backend/batch_to_space.in.cpp
     backend/broadcast.in.cpp
-    backend/bucketize.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
     backend/ceiling.in.cpp
     backend/concat.in.cpp
@@ -471,8 +469,6 @@ set(MULTI_TEST_SRC
     backend/detection_output.in.cpp
     backend/dft.in.cpp
     backend/divide.in.cpp
-    backend/deformable_convolution.in.cpp
-    backend/deformable_convolution_opset8.in.cpp
     backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
     backend/experimental_detectron_generate_proposals.in.cpp
@@ -488,8 +484,6 @@ set(MULTI_TEST_SRC
     backend/gather.in.cpp
     backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
-    backend/group_convolution.in.cpp
-    backend/group_convolution_backprop_data.in.cpp
     backend/idft.in.cpp
     backend/interpolate.in.cpp
     backend/log.in.cpp
@@ -507,7 +501,6 @@ set(MULTI_TEST_SRC
     backend/node_name.in.cpp
     backend/normalize_l2.in.cpp
     backend/non_max_suppression.in.cpp
-    backend/non_zero.in.cpp
     backend/one_hot.in.cpp
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
@@ -556,7 +549,6 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
             onnx/onnx_import_dyn_shapes.in.cpp
             onnx/onnx_import_external_data.in.cpp
             onnx/onnx_import_org_openvino.in.cpp
-            onnx/onnx_import_provenance.in.cpp
             onnx/onnx_import_reshape.in.cpp
             onnx/onnx_import_rnn.in.cpp
             onnx/onnx_import_quant.in.cpp)

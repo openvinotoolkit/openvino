@@ -107,6 +107,10 @@ public:
     ov::Output<const ov::Node> input(size_t i) const;
     ov::Output<const ov::Node> input(const std::string& tensor_name) const;
 
+    void add_output(const std::string& tensor_name);
+    void add_output(const std::string& op_name, size_t output_idx);
+    void add_output(const ov::Output<ov::Node>& port);
+
     void reshape(const std::map<std::string, ov::PartialShape>& partial_shapes);
 
     /// Return the element type of output i
