@@ -46,7 +46,9 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
         return std::make_shared<TestOpMultiOut>(new_args.at(0), new_args.at(1));
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 }  // namespace ngraph
 

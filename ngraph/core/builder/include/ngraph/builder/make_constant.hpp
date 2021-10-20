@@ -108,7 +108,7 @@ std::shared_ptr<Node> make_constant(const element::Type& type, const Shape& shap
         val = builder::opset1::make_broadcast(val, shape, axes).get_node_shared_ptr();
     }
 
-    return val->add_provenance_group_members_above({});
+    return val;
 }
 
 /// \brief      Create constant filled with double value
