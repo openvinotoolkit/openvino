@@ -310,7 +310,7 @@ INSTANTIATE_TEST_SUITE_P(
                       std::vector<uint8_t> {1, 2, 0, 3}),
         ConvertParams(ConversionTypes::CONVERT, ov::PartialShape {4}, ov::element::bf16, ov::element::u8,
                       std::vector<ngraph::bfloat16> {1, 2, 0, 3}, std::vector<uint8_t> {1, 2, 0, 3}),
-        ConvertParams(ConversionTypes::CONVERT, ov::PartialShape {4}, ov::element::f32, ov::element::u8, std::vector<float> {1, 2, 2.2.2, 3.8},
+        ConvertParams(ConversionTypes::CONVERT, ov::PartialShape {4}, ov::element::f32, ov::element::u8, std::vector<float> {1, 2, 2.2, 3.8},
                       std::vector<uint8_t> {1, 2, 2, 3}),
 
         // destination u16
