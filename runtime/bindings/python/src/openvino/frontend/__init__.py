@@ -9,14 +9,14 @@ Low level wrappers for the FrontEnd c++ api.
 # flake8: noqa
 
 # main classes
-from pyopenvino import FrontEndManager
-from pyopenvino import FrontEnd
-from pyopenvino import InputModel
-from pyopenvino import Place
+from openvino.pyopenvino import FrontEndManager
+from openvino.pyopenvino import FrontEnd
+from openvino.pyopenvino import InputModel
+from openvino.pyopenvino import Place
 
 # exceptions
-from pyopenvino import NotImplementedFailure
-from pyopenvino import InitializationFailure
-from pyopenvino import OpConversionFailure
-from pyopenvino import OpValidationFailure
-from pyopenvino import GeneralFailure
+from openvino.pyopenvino import NotImplementedFailure
+from openvino.pyopenvino import InitializationFailure
+from openvino.pyopenvino import OpConversionFailure
+from openvino.pyopenvino import OpValidationFailure
+from openvino.pyopenvino import GeneralFailure

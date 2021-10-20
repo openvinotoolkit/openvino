@@ -92,15 +92,6 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_Shape(m);
     regclass_graph_PartialShape(m);
     regclass_graph_Node(m);
-    regclass_frontend_Place(m);
-    regclass_frontend_InitializationFailureFrontEnd(m);
-    regclass_frontend_GeneralFailureFrontEnd(m);
-    regclass_frontend_OpConversionFailureFrontEnd(m);
-    regclass_frontend_OpValidationFailureFrontEnd(m);
-    regclass_frontend_NotImplementedFailureFrontEnd(m);
-    regclass_frontend_FrontEndManager(m);
-    regclass_frontend_FrontEnd(m);
-    regclass_frontend_InputModel(m);
     regclass_graph_Input(m);
     regclass_graph_Output(m);
     regclass_graph_NodeFactory(m);
@@ -160,4 +151,14 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_InputInfo(m);
     regclass_InferQueue(m);
     regclass_PreProcessInfo(m);
+
+    regclass_frontend_Place(m);
+    regclass_frontend_InitializationFailureFrontEnd(m);
+    regclass_frontend_GeneralFailureFrontEnd(m);
+    regclass_frontend_OpConversionFailureFrontEnd(m);
+    regclass_frontend_OpValidationFailureFrontEnd(m);
+    regclass_frontend_NotImplementedFailureFrontEnd(m);
+    regclass_frontend_FrontEndManager(m);
+    regclass_frontend_FrontEnd(m);
+    regclass_frontend_InputModel(m);
 }
