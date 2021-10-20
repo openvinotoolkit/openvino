@@ -98,8 +98,6 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
     void fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align = -1);
-
-protected:
     void alignScalesAndShifts(const VectorDims &postOpDims, std::vector<float> &scales, std::vector<float> &shifts);
 
 private:

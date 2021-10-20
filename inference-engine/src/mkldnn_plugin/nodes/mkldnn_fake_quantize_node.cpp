@@ -1250,8 +1250,8 @@ bool MKLDNNFakeQuantizeNode::needPrepareParams() const {
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
 
-    if (internalBlobMemory.empty() || selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref &&
-            getParentEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims() != currentInBlkDims) {
+    if (internalBlobMemory.empty() || (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref &&
+            getParentEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims() != currentInBlkDims)) {
         return true;
     }
 
