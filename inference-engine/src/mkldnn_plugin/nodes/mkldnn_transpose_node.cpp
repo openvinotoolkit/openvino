@@ -66,10 +66,11 @@ void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
     config.dynBatchSupport = true;
     config.inConfs.resize(2);
     config.outConfs.resize(1);
-    config.inConfs[0].inPlace = -1;
-    config.inConfs[0].constant = false;
-    config.inConfs[1].constant = constMap[1];
-    config.inConfs[1].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(getOriginalInputPrecisionAtPort(1), getInputShapeAtPort(1));
+    config.inConfs[INPUT_DATA_IDX].inPlace = -1;
+    config.inConfs[INPUT_DATA_IDX].constant = false;
+    config.inConfs[INPUT_ORDER_IDX].constant = constMap[INPUT_ORDER_IDX];
+    config.inConfs[INPUT_ORDER_IDX].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            getOriginalInputPrecisionAtPort(INPUT_ORDER_IDX), getInputShapeAtPort(INPUT_ORDER_IDX));
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
 

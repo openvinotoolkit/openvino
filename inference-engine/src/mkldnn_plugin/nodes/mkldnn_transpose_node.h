@@ -39,7 +39,7 @@ protected:
 
 private:
     struct TransposeExecutor {
-        TransposeExecutor() {}
+        TransposeExecutor() = default;
         virtual void exec(MKLDNNTransposeNode* node, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB) = 0;
         virtual ~TransposeExecutor() = default;
     };
@@ -56,8 +56,6 @@ private:
     struct TransposeRefExecutor : public TransposeExecutor {
         TransposeRefExecutor() = default;
         void exec(MKLDNNTransposeNode* node, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB) override;
-
-        PermuteParams jep;
     };
 
     template<typename T> void optimizedExecute(const int MB, const MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr);
