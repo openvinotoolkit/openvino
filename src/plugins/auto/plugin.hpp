@@ -8,6 +8,7 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <list>
 
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
@@ -45,7 +46,9 @@ public:
                                                                        const std::map<std::string, std::string> & config) const;
 
     std::string GetDeviceList(const std::map<std::string, std::string>& config) const;
-    MOCKTESTMACRO DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices, const std::string& networkPrecision = METRIC_VALUE(FP32));
+    MOCKTESTMACRO DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices,
+            const std::string& networkPrecision = METRIC_VALUE(FP32), unsigned int priority = 0);
+    void DeletePriority(unsigned int priority, std::string deviceName);
 
 protected:
     std::map<std::string, std::string> GetSupportedConfig(const std::map<std::string, std::string>& config,
@@ -56,10 +59,12 @@ private:
                                                                        InferenceEngine::CNNNetwork network,
                                                                        const std::map<std::string, std::string>& config,
                                                                        const std::string &networkPrecision = METRIC_VALUE(FP32));
-    static void CheckConfig(const std::map<std::string, std::string>& config, bool& needPerfCounters,
+    void CheckConfig(const std::map<std::string, std::string>& config, AutoContext& context,
                             std::map<std::string, std::string>& filterConfig);
     std::vector<DeviceInformation> FilterDevice(const std::vector<DeviceInformation>& metaDevices,
                                                 const std::map<std::string, std::string>& config);
+    static std::mutex _mtx;
+    static std::map<unsigned int, std::list<std::string>> _priorityMap;
 };
 
 }  // namespace MultiDevicePlugin

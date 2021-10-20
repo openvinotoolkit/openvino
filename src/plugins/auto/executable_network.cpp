@@ -149,11 +149,12 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                                            const std::vector<DeviceInformation>&      metaDevices,
                                                            const std::string&                         strDevices,
                                                            MultiDeviceInferencePlugin*                plugin,
-                                                           const bool                                needPerfCounters)
+                                                           const AutoContext&                         context)
                                                            : _devicePriorities{metaDevices}
                                                            , _devicePrioritiesInitial{metaDevices}
-                                                           , _needPerfCounters(needPerfCounters)
+                                                           , _needPerfCounters(context.needPerfCounters)
                                                            , _multiPlugin(plugin)
+                                                           , _context(context)
                                                            , _workModeIsAUTO(true) {
     if (_multiPlugin->GetCore() == nullptr) {
         IE_THROW() << "Please, work with MULTI device via InferencEngine::Core object";
@@ -173,7 +174,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     _loadContext[ACTUALDEVICE].isEnabled = true;
     _loadContext[ACTUALDEVICE].networkPrecision = GetNetworkPrecision(network);
     _loadContext[ACTUALDEVICE].metaDevices = metaDevices;
-    _loadContext[ACTUALDEVICE].deviceInfo = _multiPlugin->SelectDevice(metaDevices, _loadContext[ACTUALDEVICE].networkPrecision);
+    _loadContext[ACTUALDEVICE].deviceInfo = _multiPlugin->SelectDevice(metaDevices,
+            _loadContext[ACTUALDEVICE].networkPrecision, _context.modelPriority);
     LOG_INFO("[AUTOPLUGIN]:select device:%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
     bool isActualDevCPU =
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") != std::string::npos;
@@ -467,6 +469,11 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
         // it's necessary to wait the loading network threads to stop here.
         InferenceEngine::ExecutorManager::getInstance()->clear("AutoDeviceAsyncLoad");
         _executor.reset();
+        if (_acceleratorDevice.fullName.empty()) {
+            _multiPlugin->DeletePriority(_context.modelPriority, _acceleratorDevice.deviceName);
+        } else {
+            _multiPlugin->DeletePriority(_context.modelPriority, _acceleratorDevice.fullName);
+        }
     }
     {
         std::lock_guard<std::mutex> lock(_mutex);

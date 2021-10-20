@@ -33,6 +33,6 @@ namespace MultiDeviceConfigParams {
  * @brief Device Priorities config option, with comma-separated devices listed in the desired priority
  */
 DECLARE_MULTI_CONFIG_KEY(DEVICE_PRIORITIES);
-
+DECLARE_CONFIG_KEY(NETWORK_PRIORITY);
 }  // namespace MultiDeviceConfigParams
 }  // namespace InferenceEngine
