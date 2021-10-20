@@ -788,7 +788,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             out[name]->setShape(outDims);
         }
 
-        auto srcPrec = MKLDNNExtensionUtils::DataTypeToIEPrecision(intr_blob.GetDataType());
+        auto srcPrec = actualDesc.getPrecision();
         auto dstPrec = expectedDesc.getPrecision();
 
         if (srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
