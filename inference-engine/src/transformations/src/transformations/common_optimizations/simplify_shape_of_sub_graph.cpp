@@ -197,7 +197,10 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifySecondInputOfReshape, "SimplifySeco
 ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
     MATCHER_SCOPE(SimplifySecondInputOfReshape);
     const auto input = pattern::any_input();
-    const auto concat = pattern::wrap_type<opset8::Concat>(ngraph::pattern::has_static_rank());
+    auto has_static_1d_shape = [](const Output<Node>& output) {
+        return pattern::has_static_shape()(output) && pattern::rank_equals(1)(output);
+    };
+    const auto concat = pattern::wrap_type<opset8::Concat>(has_static_1d_shape);
     const auto reshape_pattern = pattern::wrap_type<opset8::Reshape>({ input, concat });
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -208,10 +211,11 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
         }
 
         const auto concat = as_type_ptr<opset8::Concat>(reshape->get_input_node_shared_ptr(1));
-        const auto concat_axis = concat->get_axis();
-        if (!concat || concat_axis != 0) {
+        if (!concat)
             return false;
-        }
+
+        const auto concat_axis = concat->get_axis();
+        OPENVINO_ASSERT(concat_axis == 0, "axis is not valid for matched Concat with 1D output");
 
         auto data = m.get_pattern_value_map().at(input);
         if (is_type<opset8::FakeQuantize>(data.get_node_shared_ptr()) ||
@@ -221,7 +225,8 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
 
         auto check_shape_of_gather = [&](const std::shared_ptr<Node>& gather) {
             auto shape_of = gather->get_input_node_shared_ptr(0);
-            if (!is_type<opset8::ShapeOf>(shape_of) || shape_of->get_output_target_inputs(0).size() > 1) {
+            if ((!is_type<opset8::ShapeOf>(shape_of) && !is_type<opset1::ShapeOf>(shape_of)) ||
+                (shape_of->get_output_target_inputs(0).size() > 1)) {
                 return false;
             }
             return shape_of->input_value(0) == data;
@@ -257,12 +262,9 @@ ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
                     gather_folded = true;
                 }
             } else {
-                auto input_rank = input.get_partial_shape().size();
-                if (input_rank == 0) {
-                    gather_dims_expected_location += 1;
-                } else {
-                    gather_dims_expected_location += input_rank;
-                }
+                const auto concat_input_shape = input.get_shape();
+                OPENVINO_ASSERT(concat_input_shape.size() == 1, "concat input rank is not valid for matched Concat with 1D output");
+                gather_dims_expected_location += concat_input_shape[0];
             }
         }
 
