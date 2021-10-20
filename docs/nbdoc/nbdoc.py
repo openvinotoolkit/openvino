@@ -9,6 +9,7 @@ from utils import (
     verify_notebook_name,
     generate_artifact_link,
     remove_existing,
+    split_notebooks_into_sections,
 )
 from consts import (
     binder_template,
@@ -19,8 +20,10 @@ from consts import (
     repo_name,
     repo_directory,
     notebooks_docs,
+    section_names
 )
 from notebook import Notebook
+from section import Section
 from io import BytesIO
 from glob import glob
 from jinja2 import Template
@@ -110,15 +113,21 @@ class NbDownloader:
 class NbProcessor:
     def __init__(self, nb_path: str = notebooks_path):
         self.nb_path = nb_path
-        self.rst_data = {
-            "notebooks": [
+        notebooks = [
                 Notebook(
                     name=process_notebook_name(notebook),
-                    path=f"{notebook}",
+                    path=notebook,
                 )
                 for notebook in os.listdir(self.nb_path)
                 if verify_notebook_name(notebook)
+        ]
+        notebooks = split_notebooks_into_sections(notebooks)
+        self.rst_data = {
+            "sections": [
+                Section(name=section_name, notebooks=section_notebooks)
+                for section_name, section_notebooks in zip(section_names, notebooks)
             ]
+            
         }
         self.binder_data = {
             "owner": repo_owner,
