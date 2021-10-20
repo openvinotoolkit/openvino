@@ -16,10 +16,10 @@ struct EmbeddingBagOffsetsSumParams {
                                  const ov::PartialShape& oShape,
                                  const ov::element::Type& oType,
                                  const std::vector<IT>& oValues,
-                                 const ConstantPtr& indices,
-                                 const ConstantPtr& offsets,
-                                 const ConstantPtr& default_index = nullptr,
-                                 const ConstantPtr& per_sample_weights = nullptr)
+                                 const std::shared_ptr<ngraph::opset1::Constant>& indices,
+                                 const std::shared_ptr<ngraph::opset1::Constant>& offsets,
+                                 const std::shared_ptr<ngraph::opset1::Constant>& default_index = nullptr,
+                                 const std::shared_ptr<ngraph::opset1::Constant>& per_sample_weights = nullptr)
         : _iShape(iShape),
           _iType(iType),
           _iData(CreateTensor(iType, iValues)),
@@ -39,10 +39,10 @@ struct EmbeddingBagOffsetsSumParams {
     ov::element::Type _refType;
     ov::runtime::Tensor _refData;
 
-    ConstantPtr _indices;
-    ConstantPtr _offsets;
-    ConstantPtr _defaultIndex;      // Optional, default filled zero.
-    ConstantPtr _perSampleWeights;  // Optional, default is tensor of ones.
+    std::shared_ptr<ngraph::opset1::Constant> _indices;
+    std::shared_ptr<ngraph::opset1::Constant> _offsets;
+    std::shared_ptr<ngraph::opset1::Constant> _defaultIndex;      // Optional, default filled zero.
+    std::shared_ptr<ngraph::opset1::Constant> _perSampleWeights;  // Optional, default is tensor of ones.
 };
 
 class ReferenceEmbeddingBagOffsetsSumLayerTest : public testing::TestWithParam<EmbeddingBagOffsetsSumParams>,
@@ -70,12 +70,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape,
-                                                    const element::Type& input_type,
-                                                    const ConstantPtr indices,
-                                                    const ConstantPtr offsets,
-                                                    const ConstantPtr default_index,
-                                                    const ConstantPtr per_sample_weights) {
+    static std::shared_ptr<Function> CreateFunction(
+        const PartialShape& input_shape,
+        const element::Type& input_type,
+        const std::shared_ptr<ngraph::opset1::Constant> indices,
+        const std::shared_ptr<ngraph::opset1::Constant> offsets,
+        const std::shared_ptr<ngraph::opset1::Constant> default_index,
+        const std::shared_ptr<ngraph::opset1::Constant> per_sample_weights) {
         const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
 
         if (default_index) {
@@ -105,49 +106,55 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_EmbeddingBagOffsetsSum_With_Hardcoded_Refs,
     ReferenceEmbeddingBagOffsetsSumLayerTest,
     ::testing::Values(
-        EmbeddingBagOffsetsSumParams(ov::PartialShape{5, 2},
-                                     ov::element::f32,
-                                     std::vector<float>{-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7},
-                                     ov::PartialShape{3, 2},
-                                     ov::element::f32,
-                                     {-1.05f, -1.2f, -0.2f, -0.6f, -0.1f, 0.4f},
-                                     GetConstantVec<int32_t>({0, 2, 3, 4}, element::i32),
-                                     GetConstantVec<int32_t>({0, 2, 2}, element::i32),
-                                     GetConstantVal<int32_t>(0, element::i32),
-                                     GetConstantVec<float>({0.5, 0.5, 0.5, 0.5}, element::f32)),
-        EmbeddingBagOffsetsSumParams(ov::PartialShape{5, 2},
-                                     ov::element::f64,
-                                     std::vector<double>{-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7},
-                                     ov::PartialShape{3, 2},
-                                     ov::element::f64,
-                                     std::vector<double>{-2.1, -2.4, -0.2, -0.6, -0.2, 0.8},
-                                     GetConstantVec<int32_t>({0, 2, 3, 4}, element::i32),
-                                     GetConstantVec<int32_t>({0, 2, 2}, element::i32),
-                                     GetConstantVal<int32_t>(0, element::i32)),
-        EmbeddingBagOffsetsSumParams(ov::PartialShape{5, 2},
-                                     ov::element::i32,
-                                     std::vector<int32_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
-                                     ov::PartialShape{3, 2},
-                                     ov::element::i32,
-                                     std::vector<int32_t>{-6, -4, 0, 0, 2, 18},
-                                     GetConstantVec<int32_t>({0, 2, 3, 4}, element::i32),
-                                     GetConstantVec<int32_t>({0, 2, 2}, element::i32)),
-        EmbeddingBagOffsetsSumParams(ov::PartialShape{5, 2},
-                                     ov::element::u32,
-                                     std::vector<uint32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
-                                     ov::PartialShape{3, 2},
-                                     ov::element::u32,
-                                     std::vector<uint32_t>{6, 8, 3, 4, 16, 18},
-                                     GetConstantVec<int32_t>({0, 2, 3, 4}, element::i32),
-                                     GetConstantVec<int32_t>({0, 2, 2}, element::i32),
-                                     GetConstantVal<int32_t>(1, element::i32)),
+        EmbeddingBagOffsetsSumParams(
+            ov::PartialShape{5, 2},
+            ov::element::f32,
+            std::vector<float>{-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7},
+            ov::PartialShape{3, 2},
+            ov::element::f32,
+            {-1.05f, -1.2f, -0.2f, -0.6f, -0.1f, 0.4f},
+            std::make_shared<ngraph::opset1::Constant>(element::i32, ov::Shape({4}), std::vector<int32_t>{0, 2, 3, 4}),
+            std::make_shared<ngraph::opset1::Constant>(element::i32, ov::Shape({3}), std::vector<int32_t>{0, 2, 2}),
+            std::make_shared<ngraph::opset1::Constant>(element::i32, ov::Shape(), std::vector<int32_t>{0}),
+            std::make_shared<ngraph::opset1::Constant>(element::f32,
+                                                       ov::Shape({4}),
+                                                       std::vector<float>{0.5, 0.5, 0.5, 0.5})),
+        EmbeddingBagOffsetsSumParams(
+            ov::PartialShape{5, 2},
+            ov::element::f64,
+            std::vector<double>{-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7},
+            ov::PartialShape{3, 2},
+            ov::element::f64,
+            std::vector<double>{-2.1, -2.4, -0.2, -0.6, -0.2, 0.8},
+            std::make_shared<ngraph::opset1::Constant>(element::i32, ov::Shape({4}), std::vector<int32_t>{0, 2, 3, 4}),
+            std::make_shared<ngraph::opset1::Constant>(element::i32, ov::Shape({3}), std::vector<int32_t>{0, 2, 2}),
+            std::make_shared<ngraph::opset1::Constant>(element::i32, ov::Shape(), std::vector<int32_t>{0})),
+        EmbeddingBagOffsetsSumParams(
+            ov::PartialShape{5, 2},
+            ov::element::i32,
+            std::vector<int32_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
+            ov::PartialShape{3, 2},
+            ov::element::i32,
+            std::vector<int32_t>{-6, -4, 0, 0, 2, 18},
+            std::make_shared<ngraph::opset1::Constant>(element::i32, ov::Shape({4}), std::vector<int32_t>{0, 2, 3, 4}),
+            std::make_shared<ngraph::opset1::Constant>(element::i32, ov::Shape({3}), std::vector<int32_t>{0, 2, 2})),
+        EmbeddingBagOffsetsSumParams(
+            ov::PartialShape{5, 2},
+            ov::element::u32,
+            std::vector<uint32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+            ov::PartialShape{3, 2},
+            ov::element::u32,
+            std::vector<uint32_t>{6, 8, 3, 4, 16, 18},
+            std::make_shared<ngraph::opset1::Constant>(element::i32, ov::Shape({4}), std::vector<int32_t>{0, 2, 3, 4}),
+            std::make_shared<ngraph::opset1::Constant>(element::i32, ov::Shape({3}), std::vector<int32_t>{0, 2, 2}),
+            std::make_shared<ngraph::opset1::Constant>(element::i32, ov::Shape(), std::vector<int32_t>{1})),
         EmbeddingBagOffsetsSumParams(ov::PartialShape{5, 2},
                                      ov::element::f16,
                                      std::vector<float16>{-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7},
                                      ov::PartialShape{3, 2},
                                      ov::element::f16,
                                      std::vector<float16>{-2.1, -2.4, 0, 0, -0.2, 0.8},
-                                     GetConstantVec<int64_t>({0, 2, 3, 4}, element::i64),
+                                     std::make_shared<ngraph::opset1::Constant>(element::i64, ov::Shape({4}), std::vector<int64_t>{0, 2, 3, 4}),
                                      GetConstantVec<int64_t>({0, 2, 2}, element::i64)),
         EmbeddingBagOffsetsSumParams(ov::PartialShape{5, 2},
                                      ov::element::i64,
@@ -155,7 +162,7 @@ INSTANTIATE_TEST_SUITE_P(
                                      ov::PartialShape{3, 2},
                                      ov::element::i64,
                                      std::vector<int64_t>{-6, -4, -1, 2, 2, 18},
-                                     GetConstantVec<int64_t>({0, 2, 3, 4}, element::i64),
+                                     std::make_shared<ngraph::opset1::Constant>(element::i64, ov::Shape({4}), std::vector<int64_t>{0, 2, 3, 4}),
                                      GetConstantVec<int64_t>({0, 2, 2}, element::i64),
                                      GetConstantVal<int64_t>(0, element::i64)),
         EmbeddingBagOffsetsSumParams(ov::PartialShape{5, 2},
@@ -164,17 +171,18 @@ INSTANTIATE_TEST_SUITE_P(
                                      ov::PartialShape{3, 2},
                                      ov::element::i8,
                                      std::vector<int8_t>{-12, -8, -1, 2, 4, 36},
-                                     GetConstantVec<int64_t>({0, 2, 3, 4}, element::i64),
+                                     std::make_shared<ngraph::opset1::Constant>(element::i64, ov::Shape({4}), std::vector<int64_t>{0, 2, 3, 4}),
                                      GetConstantVec<int64_t>({0, 2, 2}, element::i64),
                                      GetConstantVal<int64_t>(0, element::i64),
                                      GetConstantVec<int8_t>({2, 2, 2, 2}, element::i8)),
-        EmbeddingBagOffsetsSumParams(ov::PartialShape{5, 2},
-                                     ov::element::u8,
-                                     std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
-                                     ov::PartialShape{3, 2},
-                                     ov::element::u8,
-                                     std::vector<uint8_t>{6, 8, 1, 2, 16, 18},
-                                     GetConstantVec<int32_t>({0, 2, 3, 4}, element::i32),
-                                     GetConstantVec<int32_t>({0, 2, 2}, element::i32),
-                                     GetConstantVal<int32_t>(0, element::i32))),
+        EmbeddingBagOffsetsSumParams(
+            ov::PartialShape{5, 2},
+            ov::element::u8,
+            std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+            ov::PartialShape{3, 2},
+            ov::element::u8,
+            std::vector<uint8_t>{6, 8, 1, 2, 16, 18},
+            std::make_shared<ngraph::opset1::Constant>(element::i32, ov::Shape({4}), std::vector<int32_t>{0, 2, 3, 4}),
+            std::make_shared<ngraph::opset1::Constant>(element::i32, ov::Shape({3}), std::vector<int32_t>{0, 2, 2}),
+            std::make_shared<ngraph::opset1::Constant>(element::i32, ov::Shape(), std::vector<int32_t>{0}))),
     ReferenceEmbeddingBagOffsetsSumLayerTest::getTestCaseName);
