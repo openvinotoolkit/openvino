@@ -12,9 +12,6 @@
 #include <ngraph/rt_info.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::PropagateMasks, "PropagateMasks", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvolutionPropagate, "ConvolutionPropagate", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::EltwisePropagate, "EltwisePropagate", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConcatPropagate, "ConcatPropagate", 0);
 
 namespace ngraph {
 namespace pass {
@@ -623,16 +620,4 @@ ngraph::pass::PropagateMasks::PropagateMasks() {
     add_matcher<mask_propagation::FakeQuantize>();
     add_matcher<mask_propagation::Concat>();
     add_matcher<mask_propagation::StopPropagation>();
-}
-
-ngraph::pass::ConvolutionPropagate::ConvolutionPropagate() {
-    add_matcher<mask_propagation::Convolution>();
-}
-
-ngraph::pass::EltwisePropagate::EltwisePropagate() {
-    add_matcher<mask_propagation::Elementwise>();
-}
-
-ngraph::pass::ConcatPropagate::ConcatPropagate() {
-    add_matcher<mask_propagation::Concat>();
 }

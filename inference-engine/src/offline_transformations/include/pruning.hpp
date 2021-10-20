@@ -17,10 +17,7 @@ class InitConstMask;
 class InitMasks;
 class PropagateMasks;
 class ShrinkWeights;
-class ConvolutionPropagate;
 class Pruning;
-class EltwisePropagate;
-class ConcatPropagate;
 } // namespace pass
 } // namespace ngraph
 
@@ -56,32 +53,6 @@ class ngraph::pass::PropagateMasks : public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     PropagateMasks();
-};
-
-/**
- * @ingroup ie_transformation_common_api
- * @brief Initialising masks for pruned operations
- */
-class ngraph::pass::ConvolutionPropagate : public ngraph::pass::GraphRewrite {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    ConvolutionPropagate();
-};
-
-class ngraph::pass::ConcatPropagate : public ngraph::pass::GraphRewrite {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    ConcatPropagate();
-};
-
-/**
- * @ingroup ie_transformation_common_api
- * @brief Initialising masks for pruned operations
- */
-class ngraph::pass::EltwisePropagate : public ngraph::pass::GraphRewrite {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    EltwisePropagate();
 };
 
 /**
