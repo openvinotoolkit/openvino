@@ -62,10 +62,8 @@ Optionally, configure input and output of the model using the steps below:
 
 2. Request input and output information using input_info, outputs 
    ```py
-   inputs = net.input_info 
    input_name = next(iter(net.input_info))  
 
-   outputs = net.outputs 
    output_name = next(iter(net.outputs)) 
    ``` 
    Information for this input layer is stored in input_info. The next cell prints the input layout, precision and shape. 
@@ -137,11 +135,13 @@ input_data = np.expand_dims(np.transpose(image, (2, 0, 1)), 0).astype(np.float32
 
 ### Step 5. Start Inference
 ```py
+input_name = next(iter(net.input_info))
 result = exec_net.infer({input_name: input_data}) 
 ``` 
 
 ### Step 6. Process the Inference Results 
 ```py
+output_name = next(iter(net.outputs))
 output = result[output_name] 
 ```
 
