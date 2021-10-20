@@ -63,7 +63,7 @@ target_compile_definitions(${TARGET_NAME}_test_static
         PUBLIC
             GNA_LIB_VER=${GNA_LIBRARY_VERSION_NUMBER}
             INTEGER_LOW_P
-            OPENVINO_STATIC_LIBRARY)
+            USE_STATIC_IE)
 
 target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_preproc_s inference_engine_transformations libGNA::API)
 target_include_directories(${TARGET_NAME}_test_static PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}

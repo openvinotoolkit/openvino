@@ -167,10 +167,6 @@ if (TBBBIND_2_4_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
 endif()
 
-if(NOT BUILD_SHARED_LIBS)
-    set_source_files_properties(${IE_STATIC_DEPENDENT_FILES} PROPERTIES COMPILE_DEFINITIONS OPENVINO_STATIC_LIBRARY)
-endif()
-
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt openvino::util ${CMAKE_DL_LIBS} Threads::Threads
                                              frontend_manager::static inference_engine_transformations
                                      PUBLIC ngraph)
@@ -216,7 +212,7 @@ endif()
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph frontend_manager::static
                                                inference_engine_transformations pugixml::static)
 
-target_compile_definitions(${TARGET_NAME}_s PUBLIC OPENVINO_STATIC_LIBRARY)
+target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
 set_target_properties(${TARGET_NAME}_s PROPERTIES EXCLUDE_FROM_ALL ON)
 
