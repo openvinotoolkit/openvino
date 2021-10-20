@@ -50,18 +50,20 @@ endif()
 
 # check python requirements_dev.txt
 
-set(req_file "${ncc_style_dir}/requirements_dev.txt")
-file(STRINGS ${req_file} req_lines)
-
-foreach(req IN LISTS req_lines)
-    ie_check_pip_package(${req} STATUS)
-endforeach()
-
 set(ncc_script_py "${ncc_style_dir}/ncc/ncc.py")
 
 if(NOT EXISTS ${ncc_script_py})
     message(WARNING "ncc.py is not downloaded via submodule")
     set(ENABLE_NCC_STYLE OFF)
+endif()
+
+if(ENABLE_NCC_STYLE)
+    set(req_file "${ncc_style_dir}/requirements_dev.txt")
+    file(STRINGS ${req_file} req_lines)
+
+    foreach(req IN LISTS req_lines)
+        ie_check_pip_package(${req} STATUS)
+    endforeach()
 endif()
 
 # create high-level target
