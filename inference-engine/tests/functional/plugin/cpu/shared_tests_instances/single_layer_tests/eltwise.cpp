@@ -26,8 +26,8 @@ std::vector<std::vector<ov::Shape>> inShapesStatic = {
 };
 
 std::vector<std::vector<ov::test::InputShape>> inShapesDynamic = {
-        {{{ngraph::Dimension(1, 10), 200}, {{2, 200}, {1, 200}}}},
-        {{{ngraph::Dimension(1, 10), 200}, {{2, 200}, {5, 200}}}},
+        {{{ngraph::Dimension(1, 10), 200}, {{2, 200}, {1, 200}}},
+         {{ngraph::Dimension(1, 10), 200}, {{2, 200}, {5, 200}}}},
 };
 
 std::vector<ov::test::ElementType> netPrecisions = {
