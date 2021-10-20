@@ -4,19 +4,26 @@
 
 #include "details/ie_so_loader.h"
 #include "ie_common.h"
-#include "openvino/util/so_loader.hpp"
+#include "openvino/util/file_util.hpp"
+#include "openvino/util/shared_object.hpp"
 
 namespace InferenceEngine {
 namespace details {
 
-struct SharedObjectLoader::Impl : public ov::util::SharedObjectLoader {
-    explicit Impl(const std::shared_ptr<void>& shared_object_) : SharedObjectLoader(shared_object_) {}
+struct SharedObjectLoader::Impl {
+    std::shared_ptr<void> shared_object = nullptr;
 
-    explicit Impl(const char* pluginName) : SharedObjectLoader(pluginName) {}
+    explicit Impl(const std::shared_ptr<void>& shared_object_) : shared_object{shared_object_} {}
+
+    explicit Impl(const char* pluginName) : shared_object{ov::util::load_shared_object(pluginName)} {}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    explicit Impl(const wchar_t* pluginName) : SharedObjectLoader(pluginName) {}
+    explicit Impl(const wchar_t* pluginName) : Impl(ov::util::wstring_to_string(pluginName).c_str()) {}
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
+    void* get_symbol(const char* symbolName) const {
+        return ov::util::get_symbol(shared_object, symbolName);
+    }
 };
 
 SharedObjectLoader::SharedObjectLoader(const std::shared_ptr<void>& shared_object) {
@@ -43,7 +50,7 @@ void* SharedObjectLoader::get_symbol(const char* symbolName) const {
 }
 
 std::shared_ptr<void> SharedObjectLoader::get() const {
-    return _impl->get();
+    return _impl->shared_object;
 }
 
 }  // namespace details
