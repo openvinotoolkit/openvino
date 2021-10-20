@@ -82,38 +82,38 @@ bool ov::op::util::is_commutative(const ov::Node* node) {
            dynamic_cast<const ngraph::op::v1::LogicalOr*>(node) != nullptr;
 }
 
-bool ov::op::util::is_unary_elementwise_arithmetic(const std::shared_ptr<ov::Node>& node) {
+bool ov::op::util::is_unary_elementwise_arithmetic(const std::shared_ptr<const ov::Node>& node) {
     return is_unary_elementwise_arithmetic(node.get());
 }
-bool ov::op::util::is_binary_elementwise_arithmetic(const std::shared_ptr<ov::Node>& node) {
+bool ov::op::util::is_binary_elementwise_arithmetic(const std::shared_ptr<const ov::Node>& node) {
     return is_binary_elementwise_arithmetic(node.get());
 }
-bool ov::op::util::is_binary_elementwise_comparison(const std::shared_ptr<ov::Node>& node) {
+bool ov::op::util::is_binary_elementwise_comparison(const std::shared_ptr<const ov::Node>& node) {
     return is_binary_elementwise_comparison(node.get());
 }
-bool ov::op::util::is_binary_elementwise_logical(const std::shared_ptr<ov::Node>& node) {
+bool ov::op::util::is_binary_elementwise_logical(const std::shared_ptr<const ov::Node>& node) {
     return is_binary_elementwise_logical(node.get());
 }
 
-bool ov::op::util::supports_auto_broadcast(const std::shared_ptr<ov::Node>& node) {
+bool ov::op::util::supports_auto_broadcast(const std::shared_ptr<const ov::Node>& node) {
     return supports_auto_broadcast(node.get());
 }
 
-bool ov::op::util::is_op(const std::shared_ptr<ov::Node>& node) {
+bool ov::op::util::is_op(const std::shared_ptr<const ov::Node>& node) {
     return is_op(node.get());
 }
-bool ov::op::util::is_parameter(const std::shared_ptr<ov::Node>& node) {
+bool ov::op::util::is_parameter(const std::shared_ptr<const ov::Node>& node) {
     return is_parameter(node.get());
 }
-bool ov::op::util::is_output(const std::shared_ptr<ov::Node>& node) {
+bool ov::op::util::is_output(const std::shared_ptr<const ov::Node>& node) {
     return is_output(node.get());
 }
-bool ov::op::util::is_sink(const std::shared_ptr<ov::Node>& node) {
+bool ov::op::util::is_sink(const std::shared_ptr<const ov::Node>& node) {
     return is_sink(node.get());
 }
-bool ov::op::util::is_constant(const std::shared_ptr<ov::Node>& node) {
+bool ov::op::util::is_constant(const std::shared_ptr<const ov::Node>& node) {
     return is_constant(node.get());
 }
-bool ov::op::util::is_commutative(const std::shared_ptr<ov::Node>& node) {
+bool ov::op::util::is_commutative(const std::shared_ptr<const ov::Node>& node) {
     return is_commutative(node.get());
 }

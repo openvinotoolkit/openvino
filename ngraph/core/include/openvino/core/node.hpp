@@ -249,8 +249,10 @@ public:
     }
     /// Sets/replaces the arguments with new arguments.
     void set_arguments(const NodeVector& arguments);
+    void set_arguments(const ConstNodeVector& arguments);
     /// Sets/replaces the arguments with new arguments.
     void set_arguments(const OutputVector& arguments);
+    void set_arguments(const ConstOutputVector& arguments);
     /// Sets/replaces the arguments with new arguments.
     void set_argument(size_t position, const Output<Node>& argument);
 
@@ -388,7 +390,8 @@ public:
 
     Node* get_input_node_ptr(size_t index) const;
     std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;
-    Output<Node> get_input_source_output(size_t i) const;
+    Output<const Node> get_input_source_output(size_t i) const;
+    Output<Node> get_input_source_output(size_t i);
 
     virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const = 0;
 
@@ -410,7 +413,8 @@ public:
     }
 
     /// Get all the nodes that uses the current node
-    NodeVector get_users(bool check_is_used = false) const;
+    NodeVector get_users(bool check_is_used = false);
+    ConstNodeVector get_users(bool check_is_used = false) const;
 
     /// \return Version of this node
     virtual size_t get_version() const {
@@ -433,7 +437,8 @@ public:
     std::vector<Input<const Node>> inputs() const;
 
     /// \return A vector containing the values for each input
-    std::vector<Output<Node>> input_values() const;
+    std::vector<Output<Node>> input_values();
+    std::vector<Output<const Node>> input_values() const;
 
     /// \return A vector containing a handle for each of this node's outputs, in order.
     // TODO: Rename to get_outputs()?
@@ -450,7 +455,8 @@ public:
     /// \throw std::out_of_range if the node does not have at least `input_index+1` inputs.
     Input<const Node> input(size_t input_index) const;
 
-    Output<Node> input_value(size_t input_index) const;
+    Output<Node> input_value(size_t input_index);
+    Output<const Node> input_value(size_t input_index) const;
 
     /// \return A handle to the `output_index`th output of this node.
     /// \throw std::out_of_range if the node does not have at least `output_index+1` outputs.

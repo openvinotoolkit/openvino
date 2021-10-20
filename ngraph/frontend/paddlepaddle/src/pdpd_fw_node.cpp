@@ -18,11 +18,12 @@ void PDPDFrameworkNode::validate_and_infer_types() {
     }
 }
 
-std::map<std::string, OutputVector> PDPDFrameworkNode::get_named_inputs() const {
+std::map<std::string, ov::OutputVector> PDPDFrameworkNode::get_named_inputs() const {
     return m_decoder.map_for_each_input([&](const std::string& name, size_t) {
         auto it = std::find(m_inputs_names.begin(), m_inputs_names.end(), name);
         if (it != m_inputs_names.end()) {
-            return input(it - m_inputs_names.begin()).get_source_output();
+            auto out = input(it - m_inputs_names.begin()).get_source_output();
+            return Output<Node>(const_cast<Node*>(out.get_node()), out.get_index());
         } else {
             return Output<Node>();
         }

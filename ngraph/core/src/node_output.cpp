@@ -159,8 +159,8 @@ const PartialShape& Output<const Node>::get_partial_shape() const {
     return m_node->get_output_partial_shape(m_index);
 }
 
-std::set<Input<Node>> Output<const Node>::get_target_inputs() const {
-    std::set<Input<Node>> result;
+std::set<Input<const Node>> Output<const Node>::get_target_inputs() const {
+    std::set<Input<const Node>> result;
 
     for (auto& input : m_node->m_outputs.at(m_index).get_inputs()) {
         result.emplace(input->get_raw_pointer_node(), input->get_index());

@@ -1242,6 +1242,18 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper) {
         return output.get_tensor().get_lower_value();
 }
 
+HostTensorPtr evaluate_bound(const Output<const Node>& output, bool is_upper) {
+    return evaluate_bound(Output<Node>(const_cast<Node*>(output.get_node()), output.get_index()), is_upper);
+}
+
+HostTensorPtr ngraph::evaluate_lower_bound(const Output<const Node>& output) {
+    return evaluate_bound(output, false);
+}
+
+HostTensorPtr ngraph::evaluate_upper_bound(const Output<const Node>& output) {
+    return evaluate_bound(output, true);
+}
+
 HostTensorPtr ngraph::evaluate_lower_bound(const Output<Node>& output) {
     return evaluate_bound(output, false);
 }
@@ -1250,11 +1262,15 @@ HostTensorPtr ngraph::evaluate_upper_bound(const Output<Node>& output) {
     return evaluate_bound(output, true);
 }
 
+pair<HostTensorPtr, HostTensorPtr> ngraph::evaluate_both_bounds(const Output<const Node>& output) {
+    return {evaluate_lower_bound(output), evaluate_upper_bound(output)};
+}
+
 pair<HostTensorPtr, HostTensorPtr> ngraph::evaluate_both_bounds(const Output<Node>& output) {
     return {evaluate_lower_bound(output), evaluate_upper_bound(output)};
 }
 
-bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {
+bool ov::evaluate_as_partial_shape(const Output<const Node>& output, PartialShape& pshape) {
     HostTensorPtr lb, ub;
     std::tie(lb, ub) = evaluate_both_bounds(output);
     bool shape_defined = false;
@@ -1271,6 +1287,10 @@ bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& psh
         shape_defined = true;
     }
     return shape_defined;
+}
+
+bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {
+    return evaluate_as_partial_shape(ov::Output<const Node>(output.get_node(), output.get_index()), pshape);
 }
 
 bool default_bound_evaluator(const Node* node, const HostTensorVector& output_values, bool is_upper) {
@@ -1489,7 +1509,7 @@ bool ngraph::host_tensor_is_positive(const HostTensorPtr& bound) {
     return result[0];
 }
 
-bool ngraph::has_and_set_equal_bounds(const Output<Node>& source) {
+bool ngraph::has_and_set_equal_bounds(const Output<const Node>& source) {
     if (op::is_constant(source.get_node_shared_ptr()))
         return true;
     HostTensorPtr lb, ub;
@@ -1497,12 +1517,21 @@ bool ngraph::has_and_set_equal_bounds(const Output<Node>& source) {
     return lb && lb == ub;
 }
 
-shared_ptr<op::Constant> ov::get_constant_from_source(const Output<Node>& source) {
+bool ngraph::has_and_set_equal_bounds(const Output<Node>& source) {
+    return has_and_set_equal_bounds(Output<const Node>(source.get_node(), source.get_index()));
+}
+
+shared_ptr<const op::Constant> ov::get_constant_from_source(const Output<const Node>& source) {
     if (!has_and_set_equal_bounds(source))
         return nullptr;
-    if (const auto& c = ov::as_type_ptr<op::v0::Constant>(source.get_node_shared_ptr()))
+    if (const auto& c = ov::as_type_ptr<const op::v0::Constant>(source.get_node_shared_ptr()))
         return c;
-    return std::make_shared<op::v0::Constant>(source.get_tensor().get_upper_value());
+    return std::make_shared<const op::v0::Constant>(source.get_tensor().get_upper_value());
+}
+
+shared_ptr<op::Constant> ov::get_constant_from_source(const Output<Node>& source) {
+    return std::const_pointer_cast<ov::op::v0::Constant>(
+        get_constant_from_source(Output<const Node>(source.get_node(), source.get_index())));
 }
 
 bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size) {

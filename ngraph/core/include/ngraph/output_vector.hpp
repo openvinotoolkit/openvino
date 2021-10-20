@@ -12,5 +12,7 @@
 namespace ngraph {
 
 using NodeVector = ov::NodeVector;
+using ConstNodeVector = ov::ConstNodeVector;
 using OutputVector = ov::OutputVector;
+using ConstOutputVector = ov::ConstOutputVector;
 }  // namespace ngraph

@@ -124,7 +124,7 @@ private:
     OutputVector lstm_pass(bool is_reverse = false) const;
 
     // Split(bi-directional) and squeeze input data to remove 'num_direction' dimension.
-    std::shared_ptr<Node> prepare_input(Output<Node> node, bool is_reverse, size_t num_direction_axis = 0) const;
+    std::shared_ptr<Node> prepare_input(Output<const Node> node, bool is_reverse, size_t num_direction_axis = 0) const;
 
     std::vector<float> m_activations_alpha;
     std::vector<float> m_activations_beta;

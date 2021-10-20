@@ -168,10 +168,9 @@ shared_ptr<Node> op::v0::LSTMSequence::get_masked_node(const Output<Node>& data,
                                  data.get_shape(),
                                  vector<int32_t>(shape_size(data.get_shape()), time_step));
 
+    auto in_val = std::const_pointer_cast<Node>(input_value(3).get_node_shared_ptr());
     Output<Node> batch_seq_length =
-        builder::opset1::legacy_broadcast_for_binary_operation(curr_time_step_node,
-                                                               input_value(3).get_node_shared_ptr(),
-                                                               batch_axis);
+        builder::opset1::legacy_broadcast_for_binary_operation(curr_time_step_node, in_val, batch_axis);
 
     // Create mask node deciding whether or not to mask batch data.
     shared_ptr<Node> mask_condition = make_shared<opset1::Greater>(curr_time_step_node, batch_seq_length);
@@ -203,10 +202,10 @@ OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const {
     // h_list  - The list of hidden states at all processed time steps.
 
     NodeVector h_list;
-    shared_ptr<Node> X = input_value(0).get_node_shared_ptr();
+    shared_ptr<Node> X = std::const_pointer_cast<Node>(input_value(0).get_node_shared_ptr());
     shared_ptr<Node> H_t = prepare_input(input_value(1), is_reverse, 1);
     shared_ptr<Node> C_t = prepare_input(input_value(2), is_reverse, 1);
-    shared_ptr<Node> seq_lengths = input_value(3).get_node_shared_ptr();
+    shared_ptr<Node> seq_lengths = std::const_pointer_cast<Node>(input_value(3).get_node_shared_ptr());
     shared_ptr<Node> W = prepare_input(input_value(4), is_reverse);
     shared_ptr<Node> R = prepare_input(input_value(5), is_reverse);
     shared_ptr<Node> B = prepare_input(input_value(6), is_reverse);
@@ -277,13 +276,13 @@ OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const {
     return {Y, Y_h, Y_c};
 }
 
-shared_ptr<Node> op::v0::LSTMSequence::prepare_input(Output<Node> node,
+shared_ptr<Node> op::v0::LSTMSequence::prepare_input(Output<const Node> node,
                                                      bool is_reverse,
                                                      size_t num_direction_axis) const {
     // In bidirectional mode inputs are stacked together, so we must split them.
-    Output<Node> tmp = node;
+    Output<Node> tmp(const_cast<Node*>(node.get_node()), node.get_index());
     if (m_direction == direction::BIDIRECTIONAL) {
-        tmp = builder::opset1::split(node, 2, num_direction_axis).at(is_reverse ? 1 : 0);
+        tmp = builder::opset1::split(tmp, 2, num_direction_axis).at(is_reverse ? 1 : 0);
     }
     // Since we have forward LSTM we can squeeze `num_directions` axis from inputs.
     return builder::opset1::squeeze(tmp, {num_direction_axis});

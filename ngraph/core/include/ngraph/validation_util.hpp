@@ -163,6 +163,7 @@ NGRAPH_API void evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map
 /// estimation through it.
 /// \param Node output pointing to the tensor for estimation.
 /// \return HostTensorPtr to estimated value if can be determined, or nullptr.
+NGRAPH_API HostTensorPtr evaluate_lower_bound(const Output<const Node>& output);
 NGRAPH_API HostTensorPtr evaluate_lower_bound(const Output<Node>& output);
 
 /// \brief Evaluates lower value estimation of the output tensor. Traverses graph up to deduce
@@ -170,6 +171,7 @@ NGRAPH_API HostTensorPtr evaluate_lower_bound(const Output<Node>& output);
 /// \param output Tensor to be estimated.
 /// \return HostTensorPtr to estimated value if can be determined, or nullptr.
 NGRAPH_API HostTensorPtr evaluate_upper_bound(const Output<Node>& output);
+NGRAPH_API HostTensorPtr evaluate_upper_bound(const Output<const Node>& output);
 
 /// \brief Evaluates lower and upper value estimations of the output tensor. Traverses graph up
 /// to deduce estimation through it.
@@ -177,6 +179,7 @@ NGRAPH_API HostTensorPtr evaluate_upper_bound(const Output<Node>& output);
 /// \return pair with HostTensorPtrs for lower and upper value estimation. Each object in pair
 /// could be HostTensorPtr to estimated value if particular bound can be determined, or nullptr.
 NGRAPH_API std::pair<HostTensorPtr, HostTensorPtr> evaluate_both_bounds(const Output<Node>& output);
+NGRAPH_API std::pair<HostTensorPtr, HostTensorPtr> evaluate_both_bounds(const Output<const Node>& output);
 
 /// \brief Estimates upper bound for node output tensors using only upper bounds of the nodes
 /// inputs.
@@ -209,6 +212,7 @@ NGRAPH_API bool host_tensor_is_positive(const HostTensorPtr& bound);
 /// and pointers are the same. It doesn't check if lower and upper values are the same relying
 /// only on pointers comparison.
 NGRAPH_API bool has_and_set_equal_bounds(const Output<Node>& source);
+NGRAPH_API bool has_and_set_equal_bounds(const Output<const Node>& source);
 
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::max()
 NGRAPH_API std::shared_ptr<op::Constant> get_constant_max_of_type(element::Type_t t);

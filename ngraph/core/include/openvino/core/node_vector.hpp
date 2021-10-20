@@ -25,7 +25,9 @@ class Result;
 }  // namespace op
 
 using NodeVector = std::vector<std::shared_ptr<Node>>;
+using ConstNodeVector = std::vector<std::shared_ptr<const Node>>;
 using OutputVector = std::vector<Output<Node>>;
+using ConstOutputVector = std::vector<Output<const Node>>;
 using ResultVector = std::vector<std::shared_ptr<ov::op::v0::Result>>;
 
 OPENVINO_API

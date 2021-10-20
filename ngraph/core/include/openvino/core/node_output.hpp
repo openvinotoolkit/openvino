@@ -161,7 +161,7 @@ public:
     std::string get_any_name() const;
     /// \return A set containing handles for all inputs targeted by the output referenced by
     ///        this output handle.
-    std::set<Input<Node>> get_target_inputs() const;
+    std::set<Input<const Node>> get_target_inputs() const;
 
     bool operator==(const Output& other) const;
     bool operator!=(const Output& other) const;

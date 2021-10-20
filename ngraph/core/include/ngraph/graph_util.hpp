@@ -172,7 +172,7 @@ bool is_one(const Output<Node>& reduce_constant);
 // Returns true if `node` is live in the graph i.e. a result op
 // transitively uses this `node`
 NGRAPH_API
-bool is_used(Node* node);
+bool is_used(const Node* node);
 
 // Returns count of `node` users that are still live in the graph
 NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")

@@ -427,7 +427,7 @@ bool ov::op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
 
 ov::Shape ov::op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) const {
     Shape target_shape;
-    const auto shape_constant = ov::as_type_ptr<ngraph::op::v0::Constant>(input_value(1).get_node_shared_ptr());
+    const auto shape_constant = ov::as_type_ptr<const ngraph::op::v0::Constant>(input_value(1).get_node_shared_ptr());
     if (shape_constant) {
         target_shape = shape_constant->get_shape_val();
     } else {
@@ -450,7 +450,7 @@ bool ov::op::util::BroadcastBase::evaluate(const HostTensorVector& outputs, cons
     if (m_mode.m_type == BroadcastType::NONE) {
         AxisVector axes_mapping_val;
         const auto axes_mapping_constant =
-            ov::as_type_ptr<ngraph::op::v0::Constant>(input_value(2).get_node_shared_ptr());
+            ov::as_type_ptr<const ngraph::op::v0::Constant>(input_value(2).get_node_shared_ptr());
         if (axes_mapping_constant) {
             axes_mapping_val = axes_mapping_constant->get_axis_vector_val();
         } else {

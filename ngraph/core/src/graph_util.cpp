@@ -544,13 +544,13 @@ NodeVector ngraph::extract_subgraph(const NodeVector& results, const NodeVector&
     return subgraph;
 }
 
-bool ngraph::is_used(Node* node) {
-    std::unordered_set<Node*> instances_seen;
-    std::stack<Node*, std::vector<Node*>> stack;
+bool ngraph::is_used(const Node* node) {
+    std::unordered_set<const Node*> instances_seen;
+    std::stack<const Node*, std::vector<const Node*>> stack;
     stack.push(node);
 
     while (stack.size() > 0) {
-        ngraph::Node* n = stack.top();
+        const ngraph::Node* n = stack.top();
         if (instances_seen.count(n) == 0) {
             if (ngraph::op::is_output(n)) {
                 return true;
