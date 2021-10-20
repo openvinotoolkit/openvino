@@ -210,8 +210,8 @@ ie::Parameter ExecutableNetwork::get_metric(const std::string& name) const {
     OV_EXEC_NET_CALL_STATEMENT(return _impl->GetMetric(name));
 }
 
-std::shared_ptr<ie::RemoteContext> ExecutableNetwork::get_context() const {
-    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetContext());
+RemoteContext ExecutableNetwork::get_context() const {
+    OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetContext()});
 }
 
 bool ExecutableNetwork::operator!() const noexcept {
