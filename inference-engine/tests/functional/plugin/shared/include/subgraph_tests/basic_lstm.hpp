@@ -42,8 +42,7 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
     manager.register_pass<ngraph::pass::LowLatency2>(); // LowLatency enables UnrollTI
     manager.run_passes(function);
     LoadNetwork();
-    IE_SUPPRESS_DEPRECATED_START
-    auto states = executableNetwork.QueryState();
+    auto states = inferRequest.QueryState();
     for (auto& state : states) {
         auto name = state.GetName();
         if (name.find("cell_state_1") != std::string::npos) {
@@ -58,7 +57,6 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
             GTEST_FAIL() << "unknown memory state";
         }
     }
-    IE_SUPPRESS_DEPRECATED_END
     // Run and compare
     Infer();
     const auto& actualOutputs = GetOutputs();
