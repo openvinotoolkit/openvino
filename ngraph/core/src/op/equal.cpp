@@ -34,6 +34,8 @@ bool evaluate_equal(const HostTensorPtr& arg0,
     out->set_broadcast(broadcast_spec, arg0, arg1, element::boolean);
     switch (arg0->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_equal, boolean, arg0, arg1, out, broadcast_spec);
+        NGRAPH_TYPE_CASE(evaluate_equal, i8, arg0, arg1, out, broadcast_spec);
+        NGRAPH_TYPE_CASE(evaluate_equal, u8, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_equal, i32, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_equal, i64, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_equal, u32, arg0, arg1, out, broadcast_spec);
@@ -50,7 +52,7 @@ bool evaluate_equal(const HostTensorPtr& arg0,
 
 //------------------------------- v1 -------------------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v1::Equal, "Equal", 1, op::util::BinaryElementwiseComparison);
+BWDCMP_RTTI_DEFINITION(op::v1::Equal);
 
 op::v1::Equal::Equal(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseComparison(arg0, arg1, auto_broadcast) {
@@ -72,6 +74,8 @@ bool op::v1::Equal::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Equal_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::boolean:
+    case ngraph::element::i8:
+    case ngraph::element::u8:
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

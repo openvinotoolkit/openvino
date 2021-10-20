@@ -14,7 +14,9 @@ add_subdirectory(ittapi EXCLUDE_FROM_ALL)
 add_subdirectory(itt_collector EXCLUDE_FROM_ALL)
 add_subdirectory(zlib EXCLUDE_FROM_ALL)
 add_subdirectory(cnpy EXCLUDE_FROM_ALL)
-add_subdirectory(ocl EXCLUDE_FROM_ALL)
+if(ENABLE_CLDNN)
+    add_subdirectory(ocl EXCLUDE_FROM_ALL)
+endif()
 
 add_subdirectory(xbyak EXCLUDE_FROM_ALL)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
@@ -72,7 +74,7 @@ endif()
 # Protobuf
 #
 
-if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_FRONTEND_ENABLE)
+if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_TF_FRONTEND_ENABLE)
     if(NGRAPH_USE_SYSTEM_PROTOBUF)
         set(Protobuf_USE_STATIC_LIBS ON)
         if(VERBOSE_BUILD)
@@ -119,7 +121,7 @@ endif()
 #
 # oneDNN for GPU plugin
 #
-if (ANDROID OR (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
+if (ANDROID OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
     # oneDNN doesn't support old compilers and android builds for now, so we'll build GPU plugin without oneDNN
     set(ENABLE_ONEDNN_FOR_GPU OFF CACHE BOOL "")
 else()

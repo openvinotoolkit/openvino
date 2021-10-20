@@ -1096,16 +1096,16 @@ vector<MaxValue> exec_nop(Node* node, vector<MaxValue>& inputs) {
 }  // namespace
 
 pair<bool, uint64_t> ngraph::maximum_value(const Output<Node>& value) {
-    static Evaluator<MaxValue>::op_handler_map handlers = {{op::v0::Concat::type_info, exec_concat},
-                                                           {op::v0::Constant::type_info, exec_constant},
-                                                           {op::v0::Convert::type_info, exec_nop},
-                                                           {op::v1::Gather::type_info, exec_gather},
-                                                           {op::v1::Minimum::type_info, exec_minimum},
-                                                           {op::v1::ReduceMin::type_info, exec_reduce_min},
-                                                           {op::v1::Reshape::type_info, exec_nop},
-                                                           {op::v3::ShapeOf::type_info, exec_shape_of},
-                                                           {op::v0::Squeeze::type_info, exec_nop},
-                                                           {op::v0::Unsqueeze::type_info, exec_nop}};
+    static Evaluator<MaxValue>::op_handler_map handlers = {{op::v0::Concat::get_type_info_static(), exec_concat},
+                                                           {op::v0::Constant::get_type_info_static(), exec_constant},
+                                                           {op::v0::Convert::get_type_info_static(), exec_nop},
+                                                           {op::v1::Gather::get_type_info_static(), exec_gather},
+                                                           {op::v1::Minimum::get_type_info_static(), exec_minimum},
+                                                           {op::v1::ReduceMin::get_type_info_static(), exec_reduce_min},
+                                                           {op::v1::Reshape::get_type_info_static(), exec_nop},
+                                                           {op::v3::ShapeOf::get_type_info_static(), exec_shape_of},
+                                                           {op::v0::Squeeze::get_type_info_static(), exec_nop},
+                                                           {op::v0::Unsqueeze::get_type_info_static(), exec_nop}};
     Evaluator<MaxValue>::value_map value_map;
     Evaluator<MaxValue> evaluator(handlers, value_map);
     auto val = evaluator.evaluate(value);
@@ -1117,7 +1117,7 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                             const OutputVector& outputs,
                             const EvaluationContext& evaluation_context) {
     Evaluator<HostTensorPtr> evaluator({}, value_map);
-    evaluator.set_univeral_handler(
+    evaluator.set_universal_handler(
         [&output_tensor_map, &evaluation_context](Node* node,
                                                   const HostTensorVector& input_tensors) -> HostTensorVector {
             HostTensorVector output_tensors;

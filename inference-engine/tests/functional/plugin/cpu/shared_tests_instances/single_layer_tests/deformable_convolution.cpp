@@ -128,5 +128,53 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     DeformableConvolutionLayerTest::getTestCaseName);
-
+/* ============= Multiple groups case ============= */
+INSTANTIATE_TEST_SUITE_P(
+        smoke_DeformableConvolution2D_MultipleGroups, DeformableConvolutionLayerTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{1, 16, 2, 2}}),  // offsets
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{2, 2, 2, 2}}),  // ker.
+                        ::testing::ValuesIn(strides),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::ValuesIn(dilations),
+                        ::testing::ValuesIn(std::vector<size_t> {2}),  // gr.
+                        ::testing::ValuesIn(std::vector<size_t> {2}),  // def. gr.
+                        ::testing::ValuesIn(numOutChannels),
+                        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+                        ::testing::ValuesIn(with_bilinear_interpolation_pad),
+                        ::testing::ValuesIn(with_modulated_scalar)),
+                        ::testing::ValuesIn(netPrecisions),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(std::vector<size_t>({1, 4, 3, 3})),
+                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        DeformableConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+        smoke_DeformableConvolution2D_MultipleGroups_2, DeformableConvolutionLayerTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{1, 18, 66, 66}}),  // offsets
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{4, 2, 3, 3}}),  // ker.
+                        ::testing::ValuesIn(strides),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::ValuesIn(dilations),
+                        ::testing::ValuesIn(std::vector<size_t> {4}),  // gr.
+                        ::testing::ValuesIn(std::vector<size_t> {1}),  // def. gr.
+                        ::testing::ValuesIn(numOutChannels),
+                        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+                        ::testing::ValuesIn(with_bilinear_interpolation_pad),
+                        ::testing::ValuesIn(with_modulated_scalar)),
+                        ::testing::ValuesIn(netPrecisions),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(std::vector<size_t>({1, 8, 68, 68})),
+                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        DeformableConvolutionLayerTest::getTestCaseName);
 }  // namespace

@@ -16,14 +16,14 @@
 #include <vector>
 
 #include "ie_plugin_config.hpp"
-#include "ie_version.hpp"
+#include "openvino/core/version.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/executable_network.hpp"
 #include "openvino/runtime/remote_context.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace InferenceEngine {
 class IExtension;
-class Blob;
 class RemoteContext;
 }  // namespace InferenceEngine
 
@@ -38,7 +38,7 @@ namespace runtime {
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class INFERENCE_ENGINE_API_CLASS(Core) {
+class OPENVINO_RUNTIME_API Core {
     class Impl;
     std::shared_ptr<Impl> _impl;
 
@@ -49,7 +49,7 @@ public:
      * See register_plugins for more details.
      *
      * @param xmlConfigFile A path to .xml file with plugins to load from. If XML configuration file is not specified,
-     * then default Inference Engine plugins are loaded from the default plugin.xml file.
+     * then default OpenVINO Runtime plugins are loaded from the default plugin.xml file.
      */
     explicit Core(const std::string& xmlConfigFile = {});
 
@@ -59,9 +59,9 @@ public:
      * @param deviceName Device name to identify plugin
      * @return A vector of versions
      */
-    std::map<std::string, ie::Version> get_versions(const std::string& deviceName) const;
+    std::map<std::string, Version> get_versions(const std::string& deviceName) const;
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**
      * @brief Reads models from IR and ONNX formats
      * @param modelPath path to model
@@ -91,19 +91,14 @@ public:
     /**
      * @brief Reads models from IR and ONNX formats
      * @param model string with model in IR or ONNX format
-     * @param weights shared pointer to constant blob with weights
-     * Reading ONNX models doesn't support loading weights from data blobs.
-     * If you are using an ONNX model with external data files, please use the
-     * `ov::runtime::Core::read_model(const std::string& model, const Blob::CPtr& weights) const`
-     * function overload which takes a filesystem path to the model.
-     * For ONNX case the second parameter should contain empty blob.
+     * @param weights shared pointer to constant tensor with weights
+     * Reading ONNX models doesn't support loading weights from data tensors.
      * @note Created Function object shares the weights with `weights` object.
      * So, do not create `weights` on temporary data which can be later freed, since the network
      * constant data becomes to point to invalid memory.
      * @return Function
      */
-    std::shared_ptr<ov::Function> read_model(const std::string& model,
-                                             const std::shared_ptr<const ie::Blob>& weights) const;
+    std::shared_ptr<ov::Function> read_model(const std::string& model, const Tensor& weights) const;
 
     /**
      * @brief Creates an executable network from a network object.
@@ -236,7 +231,7 @@ public:
     std::vector<std::string> get_available_devices() const;
 
     /**
-     * @brief Register new device and plugin which implement this device inside Inference Engine.
+     * @brief Register new device and plugin which implement this device inside OpenVINO Runtime.
      *
      * @param pluginName A name of plugin. Depending on platform pluginName is wrapped with shared library suffix and
      * prefix to identify library full name
@@ -247,15 +242,15 @@ public:
     void register_plugin(const std::string& pluginName, const std::string& deviceName);
 
     /**
-     * @brief Unloads previously loaded plugin with a specified name from Inference Engine
+     * @brief Unloads previously loaded plugin with a specified name from OpenVINO Runtime
      * The method is needed to remove plugin instance and free its resources. If plugin for a
      * specified device has not been created before, the method throws an exception.
      *
-     * @param deviceName Device name identifying plugin to remove from Inference Engine
+     * @param deviceName Device name identifying plugin to remove from OpenVINO Runtime
      */
     void unload_plugin(const std::string& deviceName);
 
-    /** @brief Registers plugin to Inference Engine Core instance using XML configuration file with
+    /** @brief Registers plugin to OpenVINO Runtime Core instance using XML configuration file with
      * plugins description.
      *
      *  XML file has the following structure:

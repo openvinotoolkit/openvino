@@ -19,7 +19,7 @@
 #include "mkldnn_graph_optimizer.h"
 #include "mkldnn_extension_utils.h"
 #include "mkldnn_extension_mngr.h"
-#include "mkldnn_memory_solver.hpp"
+#include "memory_solver.hpp"
 #include "mkldnn_itt.h"
 #include "mkldnn_infer_request.h"
 #include <nodes/mkldnn_input_node.h>
@@ -39,6 +39,7 @@
 #include "utils/node_dumper.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/cpu_utils.hpp"
+#include "utils/verbose.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 
 #include <ngraph/node.hpp>
@@ -74,7 +75,7 @@ void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMg
 
     status = Ready;
 
-    ENABLE_CPU_DEBUG_CAP(serialize(*this));
+    CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
 template void MKLDNNGraph::CreateGraph(const std::shared_ptr<const ngraph::Function>&,
@@ -218,19 +219,16 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
             const auto inInfo = inputsInfo.find(node->getName());
             if (inInfo != inputsInfo.end()) {
                 inputNodesMap[node->getName()] = node;
+                IE_SUPPRESS_DEPRECATED_START
                 if (inInfo->second->getInputData()->isDynamic())
                     graphHasDynamicInput = true;
+                IE_SUPPRESS_DEPRECATED_END
             }
         }
 
         if (op->get_type_info() == ngraph::op::v0::Result::type_info) {
             const auto &input = op->input_value(0);
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            auto name = input.get_tensor().get_name();
-            NGRAPH_SUPPRESS_DEPRECATED_END
-            if (name.empty()) {
-                name = ngraph::op::util::create_ie_output_name(input);
-            }
+            auto name = ngraph::op::util::get_ie_output_name(input);
 
             if (outputsInfo.count(name) != 0) {
                 outputNodesMap[name] = node;
@@ -317,7 +315,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
 void MKLDNNGraph::InitGraph() {
     MKLDNNGraphOptimizer optimizer;
-    ENABLE_CPU_DEBUG_CAP(initNodeDumper(config.debugCaps));
+    CPU_DEBUG_CAP_ENABLE(initNodeDumper(config.debugCaps));
 
     SortTopologically();
     InitNodes();
@@ -344,7 +342,7 @@ void MKLDNNGraph::InitGraph() {
         graphNode->cleanup();
     }
 #endif
-    ExtractConstantNodes();
+    ExtractConstantAndExecutableNodes();
 
     ExecuteConstantNodesOnly();
 }
@@ -389,13 +387,18 @@ void MKLDNNGraph::InitOptimalPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNGraph::ExtractConstantNodes() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExtractConstantNodes");
-    for (auto& graphNode : graphNodes) {
+void MKLDNNGraph::ExtractConstantAndExecutableNodes() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExtractConstantAndExecutableNodes");
+    for (const auto& graphNode : graphNodes) {
         if (graphNode->isConstant())
             constantGraphNodes.emplace_back(graphNode);
-        else
-            mutableGraphNodes.emplace_back(graphNode);
+        else if (CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable()))
+            /* @todo
+             * Revise implementation.
+             * With current way it is possible that with debug_caps enabled
+             * we execute a node, which is not ready to be executed
+             */
+            executableGraphNodes.emplace_back(graphNode);
     }
 }
 
@@ -746,13 +749,13 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         auto node = outputMap.second;
         const MKLDNNMemory& intr_blob = node->getParentEdgeAt(0)->getMemory();
 
-        const auto ext_blob = out.find(name);
+        auto ext_blob = out.find(name);
         if (ext_blob == out.end()) {
             IE_THROW(Unexpected) << "The network outputs do not contain mkldnn graph output node name: \"" << name << "\"";
         }
 
         const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
-        const auto &expectedDesc = ext_blob->second->getTensorDesc();
+        auto &expectedDesc = ext_blob->second->getTensorDesc();
 
         // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
         // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar
@@ -770,6 +773,12 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         if (out[name]->getTensorDesc().getDims() != intr_blob.getStaticDims() && !isScalarOutput) {
             if (!node->isDynamicNode())
                 IE_THROW() << "Output blob and node dims mismatch for node with name: \"" << name << "\"";
+
+            // WA: because input/output info initially contains non empty dims, order etc.
+            // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
+            if (expectedDesc.getLayout() == Layout::BLOCKED) {
+                expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
+            }
             out[name]->setShape(intr_blob.getStaticDims());
         }
 
@@ -827,8 +836,10 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
 
     mkldnn::stream stream(eng);
 
-    for (const auto& node : mutableGraphNodes) {
-        PERF(config.collectPerfCounters, node);
+    for (const auto& node : executableGraphNodes) {
+        VERBOSE(node, config.debugCaps.verbose);
+        PERF(node, config.collectPerfCounters);
+
         if (request)
             request->ThrowIfCanceled();
 
@@ -949,7 +960,7 @@ void MKLDNNGraph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEn
         }
     };
 
-    for (int i = 1; i < graphNodes.size(); i++) {
+    for (int i = 0; i < graphNodes.size(); i++) {
         getPerfMapFor(perfMap, graphNodes[i]);
     }
 }

@@ -16,7 +16,8 @@ namespace v1 {
 ///        for each slice along specified axis.
 class OPENVINO_API TopK : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("TopK", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     using SortType = TopKSortType;
     using Mode = TopKMode;
@@ -90,7 +91,9 @@ public:
     size_t get_default_output_index() const override {
         return no_default_index();
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 protected:
@@ -117,7 +120,8 @@ namespace v3 {
 ///        for each slice along specified axis.
 class OPENVINO_API TopK : public v1::TopK {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("TopK", "opset3", op::Op, 3);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a TopK operation
     TopK() = default;
     /// \brief Constructs a TopK operation with two outputs: values and indices.
@@ -149,7 +153,9 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 protected:

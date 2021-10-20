@@ -25,7 +25,8 @@ namespace v0 {
 ///
 class OPENVINO_API FakeQuantize : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("FakeQuantize", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     FakeQuantize();
     ///
@@ -66,7 +67,9 @@ public:
         m_auto_broadcast = auto_broadcast;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override {
         return false;

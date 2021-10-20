@@ -14,7 +14,8 @@ namespace v1 {
 /// \brief Generic padding operation.
 class OPENVINO_API Pad : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Pad", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a generic padding operation.
     ///
@@ -67,7 +68,9 @@ public:
     void set_pad_mode(PadMode pad_mode) {
         m_pad_mode = pad_mode;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 private:

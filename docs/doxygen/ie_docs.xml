@@ -211,6 +211,8 @@ limitations under the License.
                 <tab type="user" title="NonZero-3" url="@ref openvino_docs_ops_condition_NonZero_3"/>
                 <tab type="user" title="NormalizeL2-1" url="@ref openvino_docs_ops_normalization_NormalizeL2_1"/>
                 <tab type="user" title="NotEqual-1" url="@ref openvino_docs_ops_comparison_NotEqual_1"/>
+                <tab type="user" title="NV12toBGR-8" url="@ref openvino_docs_ops_image_NV12toBGR_8"/>
+                <tab type="user" title="NV12toRGB-8" url="@ref openvino_docs_ops_image_NV12toRGB_8"/>
                 <tab type="user" title="OneHot-1" url="@ref openvino_docs_ops_sequence_OneHot_1"/>
                 <tab type="user" title="PReLU-1" url="@ref openvino_docs_ops_activation_PReLU_1"/>
                 <tab type="user" title="PSROIPooling-1" url="@ref openvino_docs_ops_detection_PSROIPooling_1"/>
@@ -260,6 +262,7 @@ limitations under the License.
                 <tab type="user" title="Sin-1" url="@ref openvino_docs_ops_arithmetic_Sin_1"/>
                 <tab type="user" title="Sinh-1" url="@ref openvino_docs_ops_arithmetic_Sinh_1"/>
                 <tab type="user" title="SoftMax-1" url="@ref openvino_docs_ops_activation_SoftMax_1"/>
+                <tab type="user" title="SoftMax-8" url="@ref openvino_docs_ops_activation_SoftMax_8"/>
                 <tab type="user" title="SoftPlus-4" url="@ref openvino_docs_ops_activation_SoftPlus_4"/>
                 <tab type="user" title="SpaceToBatch-2" url="@ref openvino_docs_ops_movement_SpaceToBatch_2"/>
                 <tab type="user" title="SpaceToDepth-1" url="@ref openvino_docs_ops_movement_SpaceToDepth_1"/>

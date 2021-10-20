@@ -18,6 +18,7 @@ This plugin adds the following command-line options:
 import hashlib
 import json
 import logging
+import tempfile
 # pylint:disable=import-error
 import os
 import sys
@@ -33,11 +34,10 @@ from jsonschema import validate, ValidationError
 UTILS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "utils")
 sys.path.insert(0, str(UTILS_DIR))
 
-from plugins.conftest import *
 from path_utils import check_positive_int
 from proc_utils import cmd_exec
 from platform_utils import get_os_name, get_os_version, get_cpu_info
-from utils import metadata_from_manifest, DATABASES, DB_COLLECTIONS
+from utils import metadata_from_manifest, DATABASES, DB_COLLECTIONS, upload_data
 
 MEMORY_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
 sys.path.append(MEMORY_TESTS_DIR)
@@ -56,8 +56,6 @@ def abs_path(relative_path):
 
 
 # -------------------- CLI options --------------------
-
-
 def pytest_addoption(parser):
     """Specify command-line options for all plugins"""
     test_args_parser = parser.getgroup("test run")
@@ -80,7 +78,7 @@ def pytest_addoption(parser):
         help="number of iterations to run executable and aggregate results",
         default=3
     )
-    omz_args_parser = parser.getgroup("test with omz models")
+    omz_args_parser = parser.getgroup("Test with OMZ models")
     omz_args_parser.addoption(
         "--omz",
         type=Path,
@@ -105,12 +103,6 @@ def pytest_addoption(parser):
         default=abs_path('../_omz_out/irs'),
         help='Directory to put test data into. Required for OMZ converter.py only.'
     )
-    omz_args_parser.addoption(
-        "--mo",
-        type=Path,
-        default=abs_path("../../../model-optimizer/mo.py"),
-        help="Path to model-optimizer mo.py. Required for OMZ converter.py only",
-    )
     helpers_args_parser = parser.getgroup("test helpers")
     helpers_args_parser.addoption(
         "--dump_refs",
@@ -122,9 +114,9 @@ def pytest_addoption(parser):
         '--db_submit',
         metavar="RUN_ID",
         type=str,
-        help='submit results to the database. ' \
-             '`RUN_ID` should be a string uniquely identifying the run' \
-             ' (like Jenkins URL or time)'
+        help='submit results to the database. '
+             '`RUN_ID` should be a string uniquely identifying the run '
+             '(like Jenkins URL or time)'
     )
     is_db_used = db_args_parser.parser.parse_known_args(sys.argv).db_submit
     db_args_parser.addoption(
@@ -177,9 +169,17 @@ def executable(request):
 def niter(request):
     """Fixture function for command-line option."""
     return request.config.getoption('niter')
-
-
 # -------------------- CLI options --------------------
+
+
+@pytest.fixture(scope="function")
+def temp_dir(pytestconfig):
+    """Create temporary directory for test purposes.
+    It will be cleaned up after every test run.
+    """
+    temp_dir = tempfile.TemporaryDirectory()
+    yield Path(temp_dir.name)
+    temp_dir.cleanup()
 
 
 @pytest.fixture(scope="function")
@@ -190,22 +190,23 @@ def omz_models_conversion(instance, request):
     # Check Open Model Zoo key
     omz_path = request.config.getoption("omz")
     if omz_path:
-        cache_dir = request.config.getoption("omz_cache_dir")
-        omz_models_out_dir = request.config.getoption("omz_models_out_dir")
-        omz_irs_out_dir = request.config.getoption("omz_irs_out_dir")
-        mo_path = request.config.getoption("mo")
-
-        downloader_path = omz_path / "tools" / "downloader" / "downloader.py"
-        converter_path = omz_path / "tools" / "downloader" / "converter.py"
-        info_dumper_path = omz_path / "tools" / "downloader" / "info_dumper.py"
+        # TODO: After switch to wheel OV installation, omz tools should be accessible through command line
+        downloader_path = omz_path / "tools" / "model_tools" / "downloader.py"
+        converter_path = omz_path / "tools" / "model_tools" / "converter.py"
+        info_dumper_path = omz_path / "tools" / "model_tools" / "info_dumper.py"
 
         if instance["instance"]["model"]["source"] == "omz":
             model_name = instance["instance"]["model"]["name"]
             model_precision = instance["instance"]["model"]["precision"]
 
+            cache_dir = request.config.getoption("omz_cache_dir")
+            omz_models_out_dir = request.config.getoption("omz_models_out_dir")
+            omz_irs_out_dir = request.config.getoption("omz_irs_out_dir")
+
             # get full model info
-            cmd = f'"{sys.executable}" "{info_dumper_path}" --name {model_name}'
-            _, info = cmd_exec([cmd], shell=True, log=logging)
+            cmd = [f'{sys.executable}', f'{info_dumper_path}', '--name', f'{model_name}']
+            return_code, info = cmd_exec(cmd, log=logging)
+            assert return_code == 0, "Getting information about OMZ models has failed!"
 
             model_info = json.loads(info)[0]
 
@@ -213,30 +214,27 @@ def omz_models_conversion(instance, request):
                 logging.error(f"Please specify precision for the model "
                               f"{model_name} from the list: {model_info['precisions']}")
 
-            model_path = Path(model_info["subdirectory"]) / model_precision / (model_name + ".xml")
-            model_full_path = omz_irs_out_dir / model_info["subdirectory"] / model_precision / (model_name + ".xml")
+            sub_model_path = str(Path(model_info["subdirectory"]) / model_precision / (model_name + ".xml"))
+            model_out_path = omz_models_out_dir / sub_model_path
+            model_irs_out_path = omz_irs_out_dir / sub_model_path
 
             # prepare models and convert models to IRs
-            cmd = f'{sys.executable} {downloader_path}' \
-                  f' --name {model_name}' \
-                  f' --precisions={model_precision}' \
-                  f' --num_attempts {OMZ_NUM_ATTEMPTS}' \
-                  f' --output_dir {omz_models_out_dir}' \
-                  f' --cache_dir {cache_dir}'
-            cmd_exec([cmd], shell=True, log=logging)
+            cmd = [f'{sys.executable}', f'{downloader_path}', '--name', f'{model_name}',
+                   '--precisions', f'{model_precision}', '--num_attempts', f'{OMZ_NUM_ATTEMPTS}',
+                   '--output_dir', f'{omz_models_out_dir}', '--cache_dir', f'{cache_dir}']
 
-            cmd = f'{sys.executable} {converter_path}' \
-                  f' --name {model_name}' \
-                  f' -p {sys.executable}' \
-                  f' --precisions={model_precision}' \
-                  f' --output_dir {omz_irs_out_dir}' \
-                  f' --download_dir {omz_models_out_dir}' \
-                  f' --mo {mo_path}'
-            cmd_exec([cmd], shell=True, log=logging)
+            return_code, _ = cmd_exec(cmd, log=logging)
+            assert return_code == 0, "Downloading OMZ models has failed!"
 
-            instance["instance"]["model"]["framework"] = model_info["framework"]
-            instance["instance"]["model"]["path"] = model_path
-            instance["instance"]["model"]["full_path"] = model_full_path
+            cmd = [f'{sys.executable}', f'{converter_path}', '--name', f'{model_name}', '-p', f'{sys.executable}',
+                   '--precisions', f'{model_precision}', '--output_dir', f'{omz_irs_out_dir}',
+                   '--download_dir', f'{omz_models_out_dir}']
+
+            return_code, _ = cmd_exec(cmd, log=logging)
+            assert return_code == 0, "Converting OMZ models has failed!"
+
+            instance["instance"]["model"]["cache_path"] = model_out_path
+            instance["instance"]["model"]["irs_out_path"] = model_irs_out_path
 
 
 @pytest.fixture(scope="function")
@@ -294,6 +292,8 @@ def prepare_db_info(request, instance, executable, niter, manifest_metadata):
         yield
         return
 
+    instance["db"] = {}
+
     # add db_metadata
     db_meta_path = request.config.getoption("db_metadata")
     if db_meta_path:
@@ -317,10 +317,10 @@ def prepare_db_info(request, instance, executable, niter, manifest_metadata):
         "references": instance["instance"].get("references", {}),  # upload actual references that were used
         "ref_factor": REFS_FACTOR,
     }
-    info['_id'] = hashlib.sha256(
-        ''.join([str(info[key]) for key in FIELDS_FOR_ID]).encode()).hexdigest()
-    instance["db"] = info
+    info['_id'] = hashlib.sha256(''.join([str(info[key]) for key in FIELDS_FOR_ID]).encode()).hexdigest()
 
+    # add metadata
+    instance["db"].update(info)
     # add manifest metadata
     instance["db"].update(manifest_metadata)
 
@@ -339,7 +339,6 @@ def prepare_db_info(request, instance, executable, niter, manifest_metadata):
             "model": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string"},
                     "name": {"type": "string"},
                     "precision": {"type": "string"},
                     "framework": {"type": "string"}
@@ -433,10 +432,12 @@ def prepare_timeline_report(pytestconfig):
 
         env = jinja2.Environment(
             loader=jinja2.FileSystemLoader(
-                searchpath=Path().absolute() / 'memory-template'),
+                searchpath=Path().absolute() / 'memory_template'),
             autoescape=False)
         template = env.get_template('timeline_report.html')
         template.stream(records=records, timelines=timelines).dump(report_path)
+
+        logging.info(f"Save html timeline_report to {report_path}")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -447,7 +448,7 @@ def prepare_tconf_with_refs(pytestconfig):
     yield
     new_tconf_path = pytestconfig.getoption('dump_refs')
     if new_tconf_path:
-        logging.info("Save new test config with test results as references to {}".format(new_tconf_path))
+        logging.info(f"Save new test config with test results as references to {new_tconf_path}")
 
         upd_cases = []
         steps_to_dump = {"create_exenetwork", "first_inference"}
@@ -539,7 +540,7 @@ def pytest_runtest_makereport(item, call):
                 instance["db"]["status"] = "passed"
         instance["db"]["results"] = instance["results"]
         instance["db"]["raw_results"] = instance["raw_results"]
-        logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, db_name, db_collection, instance["db"]))
 
-        # TODO: upload to new DB (memcheck -> memory_tests)
-        # upload_data(data, db_url, db_name, db_collection)
+        logging.info(f"Upload data to {db_url}/{db_name}.{db_collection}. "
+                     f"Data: {instance['db']}")
+        upload_data(instance["db"], db_url, db_name, db_collection)

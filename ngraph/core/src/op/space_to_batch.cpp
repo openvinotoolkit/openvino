@@ -21,7 +21,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::SpaceToBatch, "SpaceToBatch", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::SpaceToBatch);
 
 ngraph::op::v1::SpaceToBatch::SpaceToBatch(const ngraph::Output<ngraph::Node>& data,
                                            const ngraph::Output<ngraph::Node>& block_shape,
@@ -196,32 +196,32 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
             }
         }
 
-        runtime::opt_kernel::reshape(flat_data.data(),
-                                     dispersed_data.data(),
-                                     data_shape,
-                                     plain_axes_order,
-                                     dispersed_shape,
-                                     elem_size);
+        ngraph::runtime::opt_kernel::reshape(flat_data.data(),
+                                             dispersed_data.data(),
+                                             data_shape,
+                                             plain_axes_order,
+                                             dispersed_shape,
+                                             elem_size);
         ov::Shape post_transpose_shape(axes_order.size());
         for (size_t i = 0; i < axes_order.size(); ++i) {
             post_transpose_shape[i] = dispersed_shape[axes_order[i]];
         }
 
-        runtime::opt_kernel::reshape(dispersed_data.data(),
-                                     post_transpose_data.data(),
-                                     dispersed_shape,
-                                     axes_order,
-                                     post_transpose_shape,
-                                     elem_size);
+        ngraph::runtime::opt_kernel::reshape(dispersed_data.data(),
+                                             post_transpose_data.data(),
+                                             dispersed_shape,
+                                             axes_order,
+                                             post_transpose_shape,
+                                             elem_size);
         squeezed_shape[0] *= block_values[block_idx];
         squeezed_shape[block_idx] /= block_values[block_idx];
 
-        runtime::opt_kernel::reshape(post_transpose_data.data(),
-                                     flat_data.data(),
-                                     post_transpose_shape,
-                                     plain_axes_order,
-                                     squeezed_shape,
-                                     elem_size);
+        ngraph::runtime::opt_kernel::reshape(post_transpose_data.data(),
+                                             flat_data.data(),
+                                             post_transpose_shape,
+                                             plain_axes_order,
+                                             squeezed_shape,
+                                             elem_size);
         data_shape = squeezed_shape;
     }
 

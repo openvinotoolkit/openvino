@@ -31,7 +31,7 @@ const auto basicCases = ::testing::Combine(
     ::testing::Values(1e-6f, 0.33f, 1.1f, 2.25f, 100.25f),
     ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(smoke_GRN_Basic, GrnLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GRN_Basic, GrnLayerTest,
                         basicCases,
                         GrnLayerTest::getTestCaseName);
 }  // namespace

@@ -37,6 +37,7 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/util/variable_value.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ngraph {
 
@@ -71,29 +72,11 @@ class Output;
 class Node;
 
 /// EvaluationContext stores and manages a context (additional parameters, values and
-/// environment) for evaluating ngraph::function.
+/// environment) for evaluating ov::Function.
 using EvaluationContext = std::map<std::string, std::shared_ptr<Variant>>;
-
-using ResultVector = std::vector<std::shared_ptr<ov::op::v0::Result>>;
 
 OPENVINO_API
 std::string node_validation_failure_loc_string(const Node* node);
-
-OPENVINO_API
-const std::shared_ptr<Node>& check_single_output_arg(const std::shared_ptr<Node>& node, size_t i);
-OPENVINO_API
-const NodeVector& check_single_output_args(const NodeVector& args);
-
-OPENVINO_API
-OutputVector as_output_vector(const NodeVector& args);
-OPENVINO_API
-NodeVector as_node_vector(const OutputVector& values);
-/// Returns a ResultVector referencing values.
-OPENVINO_API
-ResultVector as_result_vector(const OutputVector& values);
-
-/// Alias useful for cloning
-using NodeMap = std::unordered_map<Node*, std::shared_ptr<Node>>;
 
 /// \brief Used in evaluator switch statement so that the case type and evaluate call
 /// are guaranteed to have the types match.
@@ -132,20 +115,10 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     template <typename NodeType>
     friend class Output;
 
-public:
-    /// \brief Verifies that attributes and inputs are consistent and computes output shapes
-    /// and element types. Must be implemented by concrete child classes so that it
-    /// can be run any number of times.
-    ///
-    /// Throws if the node is invalid.
-    virtual void validate_and_infer_types();
-
-    // Called in constructors during transition
-    void constructor_validate_and_infer_types();
-
-    using type_info_t = DiscreteTypeInfo;
-
 protected:
+    descriptor::Input& get_input_descriptor(size_t position);
+    descriptor::Output& get_output_descriptor(size_t position);
+
     /// \brief Construct an unitialized Node
     Node() = default;
     /// \brief Copying a node
@@ -190,6 +163,18 @@ protected:
     void set_input_is_relevant_to_value(size_t i, bool relevant = true);
 
 public:
+    /// \brief Verifies that attributes and inputs are consistent and computes output shapes
+    /// and element types. Must be implemented by concrete child classes so that it
+    /// can be run any number of times.
+    ///
+    /// Throws if the node is invalid.
+    virtual void validate_and_infer_types();
+
+    // Called in constructors during transition
+    void constructor_validate_and_infer_types();
+
+    using type_info_t = DiscreteTypeInfo;
+
     virtual ~Node();
 
     virtual bool visit_attributes(AttributeVisitor&) {
@@ -202,25 +187,53 @@ public:
     /// operation
     // \returns true if evaluate is available
     virtual bool has_evaluate() const;
+    /// \deprecated Use evaluate with ov::runtime::Tensor instead
     /// \brief Evaluates the op on input_values putting results in output_values
     /// \param output_values Tensors for the outputs to compute. One for each result
     /// \param input_values Tensors for the inputs. One for each inputs.
     /// \returns true if successful
+    OPENVINO_DEPRECATED(
+        "This method is deprecated and will be removed soon. Please use evaluate with ov::runtime::Tensor instead.")
     virtual bool evaluate(const ov::HostTensorVector& output_values, const ov::HostTensorVector& input_values) const;
+    /// \deprecated Use evaluate with ov::runtime::Tensor instead
     /// \brief Evaluates the op on input_values putting results in output_values
     /// \param output_values Tensors for the outputs to compute. One for each result
     /// \param input_values Tensors for the inputs. One for each inputs.
     /// \param evaluation_context Storage of additional settings and attributes that can be used
     /// when evaluating the op.
     /// \returns true if successful
+    OPENVINO_DEPRECATED(
+        "This method is deprecated and will be removed soon. Please use evaluate with ov::runtime::Tensor instead.")
     virtual bool evaluate(const ov::HostTensorVector& output_values,
                           const ov::HostTensorVector& input_values,
                           const EvaluationContext& evaluationContext) const;
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon. Please use evaluate_lower with "
+                        "ov::runtime::Tensor instead.")
     virtual bool evaluate_lower(const ov::HostTensorVector& output_values) const;
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon. Please use evaluate_upper with "
+                        "ov::runtime::Tensor instead.")
     virtual bool evaluate_upper(const ov::HostTensorVector& output_values) const;
 
+    /// \brief Evaluates the op on input_values putting results in output_values
+    /// \param output_values Tensors for the outputs to compute. One for each result
+    /// \param input_values Tensors for the inputs. One for each inputs.
+    /// \returns true if successful
+    virtual bool evaluate(ov::runtime::TensorVector& output_values,
+                          const ov::runtime::TensorVector& input_values) const;
+    /// \brief Evaluates the op on input_values putting results in output_values
+    /// \param output_values Tensors for the outputs to compute. One for each result
+    /// \param input_values Tensors for the inputs. One for each inputs.
+    /// \param evaluation_context Storage of additional settings and attributes that can be used
+    /// when evaluating the op.
+    /// \returns true if successful
+    virtual bool evaluate(ov::runtime::TensorVector& output_values,
+                          const ov::runtime::TensorVector& input_values,
+                          const ov::EvaluationContext& evaluationContext) const;
+    virtual bool evaluate_lower(ov::runtime::TensorVector& output_values) const;
+    virtual bool evaluate_upper(ov::runtime::TensorVector& output_values) const;
+
     virtual bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values);
-    /// \brief Decomposes the FusedOp into a sub-graph consisting of core ngraph ops
+    /// \brief Decomposes the FusedOp into a sub-graph consisting of core openvino ops
     ///
     /// \return A vector of nodes comprising the sub-graph. The order of output
     ///         tensors must match the match output tensors of the FusedOp
@@ -377,7 +390,6 @@ public:
     std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;
     Output<Node> get_input_source_output(size_t i) const;
 
-public:
     virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const = 0;
 
     std::shared_ptr<Node> copy_with_new_inputs(const OutputVector& new_args) const;
@@ -396,36 +408,6 @@ public:
     const RTMap& get_rt_info() const {
         return m_rt_info;
     }
-    const std::unordered_set<std::string>& get_provenance_tags() const;
-    void add_provenance_tag(const std::string& tag);
-    template <typename T>
-    void add_provenance_tags(T tag_set) {
-        for (auto tag : tag_set) {
-            add_provenance_tag(tag);
-        }
-    }
-    /// \brief Adds tag_set to this node and all intermediate nodes above base
-    void add_provenance_tags_above(const OutputVector& base, const std::unordered_set<std::string>& tag_set);
-    void remove_provenance_tag(const std::string& tag);
-    /// \brief Add node to additional nodes that receive tags
-    void add_provenance_group_member(const std::shared_ptr<Node>& node);
-    /// \brief Remove node to additional nodes that receive tags
-    void remove_provenance_group_member(const std::shared_ptr<Node>& node);
-    /// \brief Replace current_node with replacement_node and transfer tags
-    void replace_provenance_group_member(const std::shared_ptr<Node>& current_node,
-                                         const std::shared_ptr<Node>& replacement_node);
-    /// \return Provenance group nodes
-    const std::set<std::shared_ptr<Node>>& get_provenance_group_members() const;
-
-    /// \brief Add all nodes between this node and nodes in base as additional nodes to receive
-    /// provenance tags.
-    std::shared_ptr<Node> add_provenance_group_members_above(const OutputVector& base);
-
-    // to be used when nodes are replaced
-    void merge_provenance_tags_from(const std::shared_ptr<const Node>& source);
-
-    /// Transfer provenance tags to replacement
-    void transfer_provenance_tags(const std::shared_ptr<Node>& replacement);
 
     /// Get all the nodes that uses the current node
     NodeVector get_users(bool check_is_used = false) const;
@@ -496,126 +478,26 @@ public:
     virtual bool match_node(ov::pass::pattern::Matcher* matcher, const Output<Node>& graph_value);
 
 private:
-    descriptor::Input& get_input_descriptor(size_t position);
-    descriptor::Output& get_output_descriptor(size_t position);
-
     std::vector<Node*> m_control_dependents;
     std::vector<std::shared_ptr<Node>> m_control_dependencies;
     std::string m_node_type;
     size_t m_instance_id{m_next_instance_id.fetch_add(1)};
     std::string m_friendly_name;
-    std::string m_unique_name;
+    mutable std::string m_unique_name;
+    mutable std::atomic_bool m_name_changing{false};
     static std::atomic<size_t> m_next_instance_id;
-    std::unordered_set<std::string> m_provenance_tags;
-    std::set<std::shared_ptr<Node>> m_provenance_group;
     std::deque<descriptor::Input> m_inputs;
     std::deque<descriptor::Output> m_outputs;
     OPENVINO_SUPPRESS_DEPRECATED_START
     std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
     OPENVINO_SUPPRESS_DEPRECATED_END
     std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
-    mutable std::mutex m_mutex;
 };
 
 using NodeTypeInfo = Node::type_info_t;
 
 OPENVINO_API std::ostream& operator<<(std::ostream&, const Node&);
 OPENVINO_API std::ostream& operator<<(std::ostream&, const Node*);
-
-/// Helper macro that puts necessary declarations of RTTI block inside a class definition.
-/// Should be used in the scope of class that requires type identification besides one provided by
-/// C++ RTTI.
-/// Recommended to be used for all classes that are inherited from class ov::Node to enable
-/// pattern
-/// matching for them. Accepts necessary type identification details like type of the operation,
-/// version and optional parent class.
-///
-/// Applying this macro within a class definition provides declaration of type_info static
-/// constant for backward compatibility with old RTTI definition for Node,
-/// static function get_type_info_static which returns a reference to an object that is equal to
-/// type_info but not necessary to the same object, and get_type_info virtual function that
-/// overrides Node::get_type_info and returns a reference to the same object that
-/// get_type_info_static gives.
-///
-/// Use this macro as a public part of the class definition:
-///
-///     class MyOp : public Node
-///     {
-///         public:
-///             // Don't use Node as a parent for type_info, it doesn't have any value and
-///             prohibited
-///             OPENVINO_RTTI_DECLARATION;
-///
-///             ...
-///     };
-///
-///     class MyInheritedOp : public MyOp
-///     {
-///         public:
-///             OPENVINO_RTTI_DECLARATION;
-///
-///             ...
-///     };
-///
-/// To complete type identification for a class, use OPENVINO_RTTI_DEFINITION.
-///
-#define OPENVINO_RTTI_DECLARATION                                  \
-    static const ::ov::Node::type_info_t type_info;                \
-    const ::ov::Node::type_info_t& get_type_info() const override; \
-    static const ::ov::Node::type_info_t& get_type_info_static()
-
-#define _OPENVINO_RTTI_DEFINITION_COMMON(CLASS)                   \
-    const ::ov::Node::type_info_t& CLASS::get_type_info() const { \
-        return get_type_info_static();                            \
-    }                                                             \
-    const ::ov::Node::type_info_t CLASS::type_info = CLASS::get_type_info_static()
-#define _OPENVINO_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)         \
-    const ::ov::Node::type_info_t& CLASS::get_type_info_static() {                                    \
-        static const ::ov::Node::type_info_t type_info_static{TYPE_NAME,                              \
-                                                              _VERSION_INDEX,                         \
-                                                              &PARENT_CLASS::get_type_info_static()}; \
-        return type_info_static;                                                                      \
-    }                                                                                                 \
-    _OPENVINO_RTTI_DEFINITION_COMMON(CLASS)
-
-#define _OPENVINO_RTTI_DEFINITION_NO_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX)             \
-    const ::ov::Node::type_info_t& CLASS::get_type_info_static() {                        \
-        static const ::ov::Node::type_info_t type_info_static{TYPE_NAME, _VERSION_INDEX}; \
-        return type_info_static;                                                          \
-    }                                                                                     \
-    _OPENVINO_RTTI_DEFINITION_COMMON(CLASS)
-
-/// Complementary to OPENVINO_RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
-/// OPENVINO_RTTI_DECLARATION.
-/// Should be used outside the class definition scope in place where ODR is ensured.
-///
-/// \param CLASS is a C++ name of the class where corresponding OPENVINO_RTTI_DECLARATION was applied.
-/// \param TYPE_NAME a string literal of type const char* that names your class in type
-/// identification namespace;
-///        It is your choice how to name it, but it should be unique among all
-///        OPENVINO_RTTI_DECLARATION-enabled classes that can be
-///        used in conjunction with each other in one transformation flow.
-/// \param _VERSION_INDEX is an unsigned integer index to distinguish different versions of
-///        operations that shares the same TYPE_NAME
-/// \param PARENT_CLASS is an optional direct or indirect parent class for this class; define
-///        it only in case if there is a need to capture any operation from some group of operations
-///        that all derived from some common base class. Don't use Node as a parent, it is a base
-///        class
-///        for all operations and doesn't provide ability to define some perfect subset of
-///        operations. PARENT_CLASS should define RTTI with OPENVINO_RTTI_{DECLARATION/DEFINITION}
-///        macros.
-///
-/// Examples (see corresponding declarations in OPENVINO_RTTI_DECLARATION description):
-///
-///     OPENVINO_RTTI_DEFINITION(MyOp,"MyOp", 1);
-///     OPENVINO_RTTI_DEFINITION(MyInheritedOp, "MyInheritedOp", 1, MyOp)
-///
-/// For convenience, TYPE_NAME and CLASS name are recommended to be the same.
-///
-#define OPENVINO_RTTI_DEFINITION(...)                                                               \
-    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                           \
-                                                             _OPENVINO_RTTI_DEFINITION_WITH_PARENT, \
-                                                             _OPENVINO_RTTI_DEFINITION_NO_PARENT)(__VA_ARGS__))
 
 // Like an Output but with a Node* instead of a shared_ptr<Node>
 struct RawNodeOutput {
@@ -655,11 +537,11 @@ using RawNodeOutputMap = std::map<RawNodeOutput, Output<Node>>;
 
 class OPENVINO_API NodeValidationFailure : public ov::AssertFailure {
 public:
-    NodeValidationFailure(const ngraph::CheckLocInfo& check_loc_info, const Node* node, const std::string& explanation)
+    NodeValidationFailure(const ov::CheckLocInfo& check_loc_info, const Node* node, const std::string& explanation)
         : AssertFailure(check_loc_info, node_validation_failure_loc_string(node), explanation) {}
 };
 }  // namespace ov
-#define NODE_VALIDATION_CHECK(node, ...) NGRAPH_CHECK_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)
+#define NODE_VALIDATION_CHECK(node, ...) OPENVINO_ASSERT_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)
 
 namespace ov {
 template <typename T>

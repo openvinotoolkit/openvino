@@ -6,11 +6,11 @@
 
 #include <cstddef>
 
-#include "ngraph/op/util/attr_types.hpp"
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rank.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/op/util/attr_types.hpp"
 
 namespace ov {
 namespace op {
@@ -218,7 +218,7 @@ public:
     /// \brief Try to merge one shape into another along with implicit broadcasting
     static bool broadcast_merge_into(PartialShape& dst,
                                      const PartialShape& src,
-                                     const ngraph::op::AutoBroadcastSpec& autob);
+                                     const ov::op::AutoBroadcastSpec& autob);
 
     /// \brief Returns a read/write iterator that points to the first
     ///        element in the shape. Iteration is done in ordinary
@@ -291,6 +291,47 @@ public:
     ///        is done in reverse element order.
     const_reverse_iterator crend() const noexcept {
         return m_dimensions.crend();
+    }
+
+    /// \brief Resizes dimensions container to contain count elements
+    void resize(size_t count) {
+        m_dimensions.resize(count);
+        m_rank_is_static = true;
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+    }
+    /// \brief Returns size of dimension vector. Requires rank to be static
+    size_t size() const {
+        OPENVINO_ASSERT(rank().is_static());
+        return m_dimensions.size();
+    }
+    /// \brief Returns a read/write iterator that points to the inserted element in the shape.
+    iterator insert(iterator position, const Dimension& val) {
+        m_rank_is_static = true;
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+        return m_dimensions.insert(position, val);
+    }
+    /// \brief Inserts count copies of the value before position
+    void insert(iterator position, size_t n, const Dimension& val) {
+        m_dimensions.insert(position, n, val);
+        m_rank_is_static = true;
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+    }
+    /// \brief Inserts elements from range [first, last) before position
+    template <class InputIterator>
+    void insert(iterator position, InputIterator first, InputIterator last) {
+        m_dimensions.insert(position, first, last);
+        m_rank_is_static = true;
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+    }
+    /// \brief Requests that the dimensions vector capacity be enough to contain n elements
+    void reserve(size_t n) {
+        m_dimensions.reserve(n);
+    }
+    /// \brief push element to the end of partial shape
+    void push_back(const Dimension& val) {
+        m_dimensions.push_back(val);
+        m_rank_is_static = true;
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
     }
 
 private:

@@ -12,7 +12,7 @@ namespace v8 {
 /// \brief Tensor RandomUniform operation.
 class OPENVINO_API RandomUniform : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("RandomUniform", "opset8");
 
     RandomUniform() = default;
 
@@ -28,7 +28,7 @@ public:
     RandomUniform(const Output<Node>& out_shape,
                   const Output<Node>& min_val,
                   const Output<Node>& max_val,
-                  const ngraph::element::Type& out_type,
+                  const ov::element::Type& out_type,
                   uint64_t global_seed = 0,
                   uint64_t op_seed = 0);
 
@@ -44,10 +44,10 @@ public:
     }
 
     /// \return The output tensor type.
-    const ngraph::element::Type& get_out_type() const {
+    const ov::element::Type& get_out_type() const {
         return m_output_type;
     }
-    void set_out_type(const ngraph::element::Type& output_type) {
+    void set_out_type(const ov::element::Type& output_type) {
         m_output_type = output_type;
     }
 
@@ -67,12 +67,14 @@ public:
         m_op_seed = seed2;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     bool has_evaluate() const override;
 
 protected:
-    ngraph::element::Type m_output_type;
+    ov::element::Type m_output_type;
     uint64_t m_global_seed;
     uint64_t m_op_seed;
 

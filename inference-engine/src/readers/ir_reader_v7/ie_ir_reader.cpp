@@ -4,6 +4,7 @@
 
 #include <xml_parse_utils.h>
 
+#include "openvino/runtime/common.hpp"
 #include <ie_ir_version.hpp>
 #include <ie_ir_reader.hpp>
 #include <memory>
@@ -32,7 +33,7 @@ CNNNetwork IRReader::read(std::istream& model, const Blob::CPtr& weights, const 
     pugi::xml_document xmlDoc;
     pugi::xml_parse_result res = xmlDoc.load(model);
     if (res.status != pugi::status_ok) {
-        IE_THROW() << res.description() << "at offset " << res.offset;
+        IE_THROW() << res.description() << " at offset " << res.offset;
     }
     pugi::xml_node root = xmlDoc.document_element();
 
@@ -41,6 +42,6 @@ CNNNetwork IRReader::read(std::istream& model, const Blob::CPtr& weights, const 
     return CNNNetwork(parser.parse(root, weights));
 }
 
-INFERENCE_PLUGIN_API(void) InferenceEngine::CreateReader(std::shared_ptr<IReader>& reader) {
+OPENVINO_PLUGIN_API void InferenceEngine::CreateReader(std::shared_ptr<IReader>& reader) {
     reader = std::make_shared<IRReader>();
 }

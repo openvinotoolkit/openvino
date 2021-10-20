@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include "ie_blob.h"
+
 #include <openvino/core/except.hpp>
 #include <openvino/runtime/variable_state.hpp>
 
@@ -27,6 +29,6 @@ TEST(VariableStateOVTests, throwsOnUninitializedGetState) {
 
 TEST(VariableStateOVTests, throwsOnUninitializedSetState) {
     ov::runtime::VariableState state;
-    InferenceEngine::Blob::Ptr blob;
-    ASSERT_THROW(state.set_state(blob), ov::Exception);
+    ov::runtime::Tensor tensor;
+    ASSERT_THROW(state.set_state(tensor), ov::Exception);
 }

@@ -15,7 +15,8 @@ class OPENVINO_API NonMaxSuppression : public Op {
 public:
     enum class BoxEncodingType { CORNER, CENTER };
 
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("NonMaxSuppression", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     NonMaxSuppression() = default;
 
@@ -84,7 +85,8 @@ class OPENVINO_API NonMaxSuppression : public Op {
 public:
     enum class BoxEncodingType { CORNER, CENTER };
 
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("NonMaxSuppression", "opset3", op::Op, 3);
+    BWDCMP_RTTI_DECLARATION;
     NonMaxSuppression() = default;
 
     /// \brief Constructs a NonMaxSuppression operation.
@@ -106,7 +108,7 @@ public:
                       const Output<Node>& score_threshold,
                       const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                       const bool sort_result_descending = true,
-                      const ngraph::element::Type& output_type = ngraph::element::i64);
+                      const ov::element::Type& output_type = ov::element::i64);
 
     /// \brief Constructs a NonMaxSuppression operation with default values for the last
     ///        3 inputs
@@ -121,7 +123,7 @@ public:
                       const Output<Node>& scores,
                       const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                       const bool sort_result_descending = true,
-                      const ngraph::element::Type& output_type = ngraph::element::i64);
+                      const ov::element::Type& output_type = ov::element::i64);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -152,7 +154,7 @@ public:
 protected:
     BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
     bool m_sort_result_descending = true;
-    ngraph::element::Type m_output_type = ngraph::element::i64;
+    ov::element::Type m_output_type = ov::element::i64;
     void validate();
     int64_t max_boxes_output_from_input() const;
 };
@@ -163,7 +165,8 @@ namespace v4 {
 ///
 class OPENVINO_API NonMaxSuppression : public op::v3::NonMaxSuppression {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("NonMaxSuppression", "opset4", op::v3::NonMaxSuppression, 4);
+    BWDCMP_RTTI_DECLARATION;
     NonMaxSuppression() = default;
 
     /// \brief Constructs a NonMaxSuppression operation.
@@ -185,7 +188,7 @@ public:
                       const Output<Node>& score_threshold,
                       const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                       const bool sort_result_descending = true,
-                      const ngraph::element::Type& output_type = ngraph::element::i64);
+                      const ov::element::Type& output_type = ov::element::i64);
 
     /// \brief Constructs a NonMaxSuppression operation with default values for the last
     ///        3 inputs
@@ -200,7 +203,7 @@ public:
                       const Output<Node>& scores,
                       const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                       const bool sort_result_descending = true,
-                      const ngraph::element::Type& output_type = ngraph::element::i64);
+                      const ov::element::Type& output_type = ov::element::i64);
 
     void validate_and_infer_types() override;
 
@@ -213,7 +216,8 @@ namespace v5 {
 ///
 class OPENVINO_API NonMaxSuppression : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("NonMaxSuppression", "opset5", op::Op, 5);
+    BWDCMP_RTTI_DECLARATION;
     enum class BoxEncodingType { CORNER, CENTER };
 
     NonMaxSuppression() = default;
@@ -231,7 +235,7 @@ public:
                       const Output<Node>& scores,
                       const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                       const bool sort_result_descending = true,
-                      const ngraph::element::Type& output_type = ngraph::element::i64);
+                      const ov::element::Type& output_type = ov::element::i64);
 
     /// \brief Constructs a NonMaxSuppression operation with default values in the last.
     ///        3 inputs.
@@ -249,7 +253,7 @@ public:
                       const Output<Node>& max_output_boxes_per_class,
                       const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                       const bool sort_result_descending = true,
-                      const ngraph::element::Type& output_type = ngraph::element::i64);
+                      const ov::element::Type& output_type = ov::element::i64);
 
     /// \brief Constructs a NonMaxSuppression operation with default values in the last.
     ///        2 inputs.
@@ -269,7 +273,7 @@ public:
                       const Output<Node>& iou_threshold,
                       const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                       const bool sort_result_descending = true,
-                      const ngraph::element::Type& output_type = ngraph::element::i64);
+                      const ov::element::Type& output_type = ov::element::i64);
 
     /// \brief Constructs a NonMaxSuppression operation with default value in the last.
     ///        input.
@@ -291,7 +295,7 @@ public:
                       const Output<Node>& score_threshold,
                       const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                       const bool sort_result_descending = true,
-                      const ngraph::element::Type& output_type = ngraph::element::i64);
+                      const ov::element::Type& output_type = ov::element::i64);
 
     /// \brief Constructs a NonMaxSuppression operation.
     ///
@@ -314,7 +318,7 @@ public:
                       const Output<Node>& soft_nms_sigma,
                       const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                       const bool sort_result_descending = true,
-                      const ngraph::element::Type& output_type = ngraph::element::i64);
+                      const ov::element::Type& output_type = ov::element::i64);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -351,7 +355,7 @@ public:
 protected:
     BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
     bool m_sort_result_descending = true;
-    ngraph::element::Type m_output_type = ngraph::element::i64;
+    ov::element::Type m_output_type = ov::element::i64;
     void validate();
 };
 }  // namespace v5
@@ -373,10 +377,8 @@ public:
     AttributeAdapter(op::v1::NonMaxSuppression::BoxEncodingType& value)
         : EnumAttributeAdapterBase<op::v1::NonMaxSuppression::BoxEncodingType>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v1::NonMaxSuppression::BoxEncodingType>", 1};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::v1::NonMaxSuppression::BoxEncodingType>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -386,10 +388,8 @@ public:
     AttributeAdapter(op::v3::NonMaxSuppression::BoxEncodingType& value)
         : EnumAttributeAdapterBase<op::v3::NonMaxSuppression::BoxEncodingType>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v3::NonMaxSuppression::BoxEncodingType>", 1};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::v3::NonMaxSuppression::BoxEncodingType>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -399,10 +399,8 @@ public:
     AttributeAdapter(op::v5::NonMaxSuppression::BoxEncodingType& value)
         : EnumAttributeAdapterBase<op::v5::NonMaxSuppression::BoxEncodingType>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v5::NonMaxSuppression::BoxEncodingType>", 1};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::v5::NonMaxSuppression::BoxEncodingType>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

@@ -14,7 +14,8 @@ namespace v3 {
 ///
 class OPENVINO_API ScatterUpdate : public util::ScatterBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ScatterUpdate", "opset3", util::ScatterBase, 3);
+    BWDCMP_RTTI_DECLARATION;
     ScatterUpdate() = default;
     ///
     /// \brief      Constructs ScatterUpdate operator object.
@@ -31,7 +32,9 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 private:

@@ -20,7 +20,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v3::ShapeOf, "ShapeOf", 3);
+BWDCMP_RTTI_DEFINITION(op::v3::ShapeOf);
 
 op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, element::Type output_type) : Op({arg}), m_output_type(output_type) {
     constructor_validate_and_infer_types();
@@ -104,7 +104,9 @@ bool evaluate_bound_shape(const Node* shape_of_node, const HostTensorVector& out
     const auto input_et = shape_of_node->get_input_element_type(0);
     const auto output_et = shape_of_node->get_output_element_type(0);
     if (pshape_low.to_shape() == pshape_up.to_shape()) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         shape_of_node->evaluate(output_values, {std::make_shared<HostTensor>(input_et, pshape_low)});
+        OPENVINO_SUPPRESS_DEPRECATED_END
         shape_of_node->get_output_tensor(0).set_lower_value(output_values[0]);
         shape_of_node->get_output_tensor(0).set_upper_value(output_values[0]);
     } else {
@@ -112,14 +114,18 @@ bool evaluate_bound_shape(const Node* shape_of_node, const HostTensorVector& out
             is_upper ? output_values
                      : HostTensorVector{
                            std::make_shared<HostTensor>(output_et, ov::PartialShape{pshape_up.rank().get_length()})};
+        OPENVINO_SUPPRESS_DEPRECATED_START
         shape_of_node->evaluate(upper, {std::make_shared<HostTensor>(input_et, pshape_up)});
+        OPENVINO_SUPPRESS_DEPRECATED_END
         shape_of_node->get_output_tensor(0).set_upper_value(upper[0]);
 
         HostTensorVector lower =
             !is_upper ? output_values
                       : HostTensorVector{
                             std::make_shared<HostTensor>(output_et, ov::PartialShape{pshape_low.rank().get_length()})};
+        OPENVINO_SUPPRESS_DEPRECATED_START
         shape_of_node->evaluate(lower, {std::make_shared<HostTensor>(input_et, pshape_low)});
+        OPENVINO_SUPPRESS_DEPRECATED_END
         shape_of_node->get_output_tensor(0).set_lower_value(lower[0]);
 
         vector<bool> dynamic_mask;  // true if dimension is dynamic
@@ -174,13 +180,13 @@ bool op::v3::ShapeOf::evaluate_upper(const HostTensorVector& output_values) cons
 
 bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "op::v3::ShapeOf::constant_fold");
-    if (get_rt_info().count("DISABLED_CONSTANT_FOLDING"))
+    if (get_rt_info().count("disabled_constant_folding_0"))
         return false;
     return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0]);
 }
 
 // op::v0::ShapeOf
-OPENVINO_RTTI_DEFINITION(op::v0::ShapeOf, "ShapeOf", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::ShapeOf);
 
 op::v0::ShapeOf::ShapeOf(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
@@ -233,7 +239,7 @@ bool op::v0::ShapeOf::has_evaluate() const {
 
 bool op::v0::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "op::v0::ShapeOf::constant_fold");
-    if (get_rt_info().count("DISABLED_CONSTANT_FOLDING"))
+    if (get_rt_info().count("disabled_constant_folding_0"))
         return false;
     return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0]);
 }

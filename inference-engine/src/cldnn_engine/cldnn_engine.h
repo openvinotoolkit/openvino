@@ -21,6 +21,7 @@ class clDNNEngine : public InferenceEngine::IInferencePlugin,
     struct impl;
     std::shared_ptr<impl> _impl;
     bool streamsSet = false;
+    bool throttlingSet = false;
 
     // key: device_id, value: cldnn device
     std::map<std::string, cldnn::device::ptr> device_map;
@@ -48,6 +49,7 @@ public:
                                                                         const std::map<std::string, std::string> &config) override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
+    std::string GetDeviceIDFromConfig(const std::map<std::string, std::string>& config) const;
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
     InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
