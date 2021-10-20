@@ -6,8 +6,6 @@
 
 from pkg_resources import get_distribution, DistributionNotFound
 
-__path__ = __import__('pkgutil').extend_path(__path__, __name__)  # type: ignore  # mypy issue #1422
-
 try:
     __version__ = get_distribution("openvino-core").version
 except DistributionNotFound:
