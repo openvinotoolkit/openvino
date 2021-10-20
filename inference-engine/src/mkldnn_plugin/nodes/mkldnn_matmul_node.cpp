@@ -90,7 +90,7 @@ void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights
 }
 
 
-std::shared_ptr<mkldnn::primitive_attr> MKLDNNMatMulNode::initPrimitiveAttr() const {
+MKLDNNNode::AttrPtr MKLDNNMatMulNode::initPrimitiveAttr() const {
     auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
 
     setPostOps(*attr, true);
@@ -109,17 +109,18 @@ static VectorDims getStridesAndModifyShape(Shape& shape, const bool transpose) {
     const auto getRank = shape.getRank();
 
     VectorDims strides(getRank, 1);
+    const auto& staticDims = shape.getStaticDims();
     for (size_t i = 1; i < getRank; i++) {
-        strides[getRank - i - 1 ] = strides[getRank - i] * shape.getStaticDims()[getRank - i];
+        strides[getRank - i - 1 ] = strides[getRank - i] * staticDims[getRank - i];
     }
 
     if (transpose && getRank > 1) {
         // form new shape
-        auto dims = shape.getStaticDims();
+        auto dims = staticDims;
         std::swap(dims[getRank - 2], dims[getRank - 1]);
         shape = Shape{dims};
         // update strides
-        strides[getRank - 1] = shape.getStaticDims()[getRank - 2];
+        strides[getRank - 1] = staticDims[getRank - 2];
         strides[getRank - 2] = 1;
     }
 
@@ -149,10 +150,14 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
         outPortPrec = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
 
-    if (inputShapes[0].getRank() != inputShapes[1].getRank() || inputShapes[0].getRank() != outputShapes[0].getRank())
+    const auto& inputShape0 = getInputShapeAtPort(0);
+    const auto& inputShape1 = getInputShapeAtPort(1);
+    const auto& outputShape = getOutputShapeAtPort(0);
+
+    if (inputShape0.getRank() != inputShape1.getRank() || inputShape0.getRank() != outputShape.getRank())
         IE_THROW()  << errorPrefix << " has invalid dims count";
 
-    const int nDims = inputShapes[0].getRank();
+    const int nDims = inputShape0.getRank();
     const auto xAxis = nDims - 1;
     const auto yAxis = nDims - 2;
     const auto xAxis0 = transposeIn[0] ? yAxis : xAxis;
@@ -180,10 +185,10 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
     }
 
     std::vector<Shape> staticInputShapes(2);
-    staticInputShapes[0] = inputShapes[0].isStatic() ? inputShapes[0] : MemoryDescUtils::makeDummyShape(inputShapes[0]);
-    staticInputShapes[1] = inputShapes[1].isStatic() ? inputShapes[1] : MemoryDescUtils::makeDummyShape(inputShapes[1]);
+    staticInputShapes[0] = inputShape0.isStatic() ? inputShape0 : MemoryDescUtils::makeDummyShape(inputShape0);
+    staticInputShapes[1] = inputShape1.isStatic() ? inputShape1 : MemoryDescUtils::makeDummyShape(inputShape1);
 
-    auto staticOutputShape = outputShapes[0].isStatic() ? outputShapes[0] : Shape(shapeInferGeneric(staticInputShapes).front());
+    auto staticOutputShape = outputShape.isStatic() ? outputShape : Shape(shapeInferGeneric(staticInputShapes).front());
 
     const VectorDims inStrides0 = getStridesAndModifyShape(staticInputShapes[0], transposeIn[0]);
     const VectorDims inStrides1 = getStridesAndModifyShape(staticInputShapes[1], transposeIn[1]);

@@ -15,9 +15,6 @@ namespace MKLDNNPlugin {
 
 class MKLDNNMatMulNode : public MKLDNNNode {
 public:
-    using AttrPtr = std::shared_ptr<mkldnn::primitive_attr>;
-
-public:
     MKLDNNMatMulNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
@@ -41,7 +38,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
-    std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() const override;
+    AttrPtr initPrimitiveAttr() const override;
 
 private:
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights) const;
