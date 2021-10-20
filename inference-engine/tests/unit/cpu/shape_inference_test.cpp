@@ -43,7 +43,7 @@ TEST(StaticShapeInferenceTest, ConvolutionTest) {
 
 TEST(StaticShapeInferenceTest, TileTest) {
     auto param0 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
-    auto param1 = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{3}, std::vector<int>{3, 4, 1});
+    auto param1 = std::make_shared<ov::op::v0::Constant>(element::i64, ov::Shape{3}, std::vector<int>{3, 4, 1});
     auto tile = std::make_shared<op::v0::Tile>(param0, param1);
     //Test Partial Shape
     std::vector<PartialShape> input_shapes = {PartialShape{6, 8, 10}, PartialShape{3, 4, 1}},
