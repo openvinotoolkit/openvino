@@ -28,7 +28,7 @@ const std::vector<std::map<std::string, std::string>> multiConfigs = {
 };
 
 const std::vector<std::map<std::string, std::string>> autoConfigs = {
-        {{ InferenceEngine::KEY_AUTO_DEVICE_LIST , targetDevice}}
+        {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , targetDevice}}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessTest,

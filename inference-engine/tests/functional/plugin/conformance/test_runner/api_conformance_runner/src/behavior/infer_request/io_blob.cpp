@@ -21,7 +21,7 @@ const std::vector<std::map<std::string, std::string>> MulticonfigsIOBlob = {
 };
 
 const std::vector<std::map<std::string, std::string>> AutoconfigsIOBlob = {
-        {{ AUTO_CONFIG_KEY(DEVICE_LIST), targetDevice}}
+        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES), targetDevice}}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestIOBBlobTest,

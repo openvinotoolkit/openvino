@@ -18,7 +18,7 @@ const std::vector<std::map<std::string, std::string>> multiConfigsCallback = {
 };
 
 const std::vector<std::map<std::string, std::string>> autoConfigsCallback = {
-        {{AUTO_CONFIG_KEY(DEVICE_LIST), targetDevice}}
+        {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), targetDevice}}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestCallbackTests,
