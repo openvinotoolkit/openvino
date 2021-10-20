@@ -84,6 +84,8 @@ if [[ -f /etc/centos-release ]]; then
     DISTRO="centos"
 elif [[ -f /etc/lsb-release ]]; then
     DISTRO="ubuntu"
+elif [[ -f /etc/redhat-release ]]; then
+    DISTRO="redhat"
 fi
 
 if [[ $DISTRO == "centos" ]]; then
@@ -91,6 +93,8 @@ if [[ $DISTRO == "centos" ]]; then
     if command -v python3.6 >/dev/null 2>&1; then
         python_binary=python3.6
     fi
+elif [[ $DISTRO == "redhat" ]]; then
+    python_binary=python3
 elif [[ $DISTRO == "ubuntu" ]]; then
     python_binary=python3
 elif [[ "$OSTYPE" == "darwin"* ]]; then
@@ -130,7 +134,7 @@ fi
 echo -ne "\n###############|| Downloading the Caffe model and the prototxt ||###############\n\n"
 
 model_dir=$(omz_info_dumper --name "$model_name" |
-    python -c 'import sys, json; print(json.load(sys.stdin)[0]["subdirectory"])')
+    ${python_binary} -c 'import sys, json; print(json.load(sys.stdin)[0]["subdirectory"])')
 
 print_and_run omz_downloader --name "$model_name" --output_dir "${models_path}" --cache_dir "${models_cache}"
 
