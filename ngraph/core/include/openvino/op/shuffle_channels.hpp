@@ -48,7 +48,7 @@ public:
 
 private:
     bool evaluate_shuffle_channels(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
-    template<class T>
+    template <class T>
     friend void shape_infer(const ShuffleChannels* op,
                             const std::vector<T>& input_shapes,
                             std::vector<T>& output_shapes);
