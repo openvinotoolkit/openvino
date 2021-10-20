@@ -507,7 +507,7 @@ set(MULTI_TEST_SRC
     backend/result.in.cpp
     backend/reverse.in.cpp
     backend/roll.in.cpp
-    backend/scatter_nd_update.in.cpp
+    backend/round.in.cpp
     backend/space_to_depth.in.cpp
     backend/shuffle_channels.in.cpp
     backend/space_to_batch.in.cpp
