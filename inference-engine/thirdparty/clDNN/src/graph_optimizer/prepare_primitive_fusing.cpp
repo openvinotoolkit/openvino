@@ -55,11 +55,31 @@
 
 void prepare_primitive_fusing::run(program& p) {
     fuse_reorders(p);
+    remove_redundant_reshape(p);
     fuse_sigmoid_mul_to_swish(p);
     fuse_bias(p);
     fuse_simple_primitives(p);
     fuse_activations(p);
     optimize_fused_ops(p);
+}
+
+void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
+    auto node_itr = p.get_processing_order().begin();
+    while (node_itr != p.get_processing_order().end()) {
+        auto node = (*node_itr++);
+        program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
+            auto input_lay = node.input().get_output_layout();
+            auto output_lay = node.get_output_layout();
+
+            if (!node.is_in_place())
+                return;
+
+            if (program_helpers::are_layouts_identical(input_lay, output_lay).first) {
+                p.add_optimized_primitive_info(node.id());
+                p.extract_and_remove(node);
+            }
+        });
+    }
 }
 
 void prepare_primitive_fusing::fuse_sigmoid_mul_to_swish(program &p) {
@@ -592,12 +612,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
-            auto out_layout = node.get_output_layout();
-            if (out_layout.data_type == data_types::f16 && out_layout.size.batch[0] > 1 &&
-                (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
-                return false;
+            if (_lo.get_optimization_attributes().use_onednn_impls == 0) {
+                auto out_layout = node.get_output_layout();
+                if (out_layout.data_type == data_types::f16 && out_layout.size.batch[0] > 1 &&
+                    (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
+                    return false;
+                }
             }
-
             return true;
         };
 
@@ -975,6 +996,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             auto fused_node = parents[fused_idx];
             auto peer_node = parents[peer_idx];
+
+            if (_lo.get_optimization_attributes().use_onednn_impls) {
+                auto eltw_in_size = peer_node->get_output_layout().size;
+                // Temporary disable mul fusion with full tensor as onednn doesn't support it
+                if (fused_node->is_type<convolution>() && prim->mode == eltwise_mode::prod &&
+                    (eltw_in_size.spatial[0] > 1 || eltw_in_size.spatial[1] > 1 || eltw_in_size.batch[0] > 1))
+                    return;
+            }
 
             if (parent1->is_type<convolution>() && !conv_supports_fusings(parent1->as<convolution>()))
                 return;
