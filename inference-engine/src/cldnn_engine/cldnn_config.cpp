@@ -350,6 +350,27 @@ void Config::adjustKeyMapValues() {
     key_config_map[PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS] =
         std::to_string(perfHintsConfig.ovPerfHintNumRequests);
 }
+
+void Configs::CreateConfig(std::string device_id) {
+    if (configs.find(device_id) == configs.end()) {
+        configs.emplace(device_id, Config(device_id));
+    }
+}
+
+Config& Configs::GetConfig(std::string device_id) {
+    if (device_id.empty()) {
+        return GetDefaultDeviceConfig();
+    }
+    if (configs.find(device_id) == configs.end()) {
+        IE_THROW() << "Config for device with " << device_id << " ID is not registered in GPU plugin";
+    }
+    return configs.find(device_id)->second;
+}
+
+Config& Configs::GetDefaultDeviceConfig() {
+    return GetConfig(default_device_id);
+}
+
 IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace CLDNNPlugin
