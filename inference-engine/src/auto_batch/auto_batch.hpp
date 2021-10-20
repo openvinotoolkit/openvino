@@ -122,10 +122,15 @@ public:
 
     // Batch-Device impl specific: sets the data (blobs from the device request to the batched device request)
     void SetBlobsToAnotherRequest(InferenceEngine::SoIInferRequestInternal& req);
+    void CopyInputsIfNeeded();
+    void CopyOutputsIfNeeded();
     AutoBatchExecutableNetwork::WorkerInferRequest* _workerInferRequest;
 protected:
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>  _perfMap;
     bool                                                                _needPerfCounters = false;
+    void CopyBlobIfNeeded(InferenceEngine::Blob::CPtr src, InferenceEngine::Blob::Ptr dst, bool bInput);
+    size_t _batchId;
+    size_t _batchSize;
 };
 
 class AutoBatchAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
