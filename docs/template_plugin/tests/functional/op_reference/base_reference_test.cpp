@@ -64,18 +64,18 @@ void CommonReferenceTest::Infer() {
 
 void CommonReferenceTest::Validate() {
     ASSERT_EQ(executableNetwork.outputs().size(), refOutData.size());
-    std::vector<ov::runtime::Tensor> outputs;
     for (const auto& output : executableNetwork.outputs()) {
-        outputs.emplace_back(inferRequest.get_tensor(output));
+        actualOutData.emplace_back(inferRequest.get_tensor(output));
     }
 
-    ASSERT_EQ(refOutData.size(), outputs.size());
+    ASSERT_EQ(refOutData.size(), actualOutData.size());
     for (size_t i = 0; i < refOutData.size(); i++) {
-        ValidateBlobs(refOutData[i], outputs[i]);
+        ValidateBlobs(refOutData[i], actualOutData[i], threshold, abs_threshold);
     }
 }
 
-void CommonReferenceTest::ValidateBlobs(const ov::runtime::Tensor& refBlob, const ov::runtime::Tensor& outBlob) {
+void CommonReferenceTest::ValidateBlobs(const ov::runtime::Tensor& refBlob, const ov::runtime::Tensor& outBlob,
+                                        float threshold, float abs_threshold) {
     ASSERT_EQ(refBlob.get_element_type(), outBlob.get_element_type());
     ASSERT_EQ(refBlob.get_byte_size(), outBlob.get_byte_size());
 
