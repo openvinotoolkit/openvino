@@ -25,10 +25,20 @@
 #include <cstring>
 #include <ngraph/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "ie_icore.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
+
+InferenceEngine::IInferRequestInternal::Ptr
+MKLDNNExecNetwork::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                          const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
+    if (!this->_plugin || !this->_plugin->GetCore() || !this->_plugin->GetCore()->isNewAPI())
+        return nullptr;
+    return std::make_shared<MKLDNNInferRequest>(inputs, outputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
+}
 
 InferenceEngine::IInferRequestInternal::Ptr
 MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
