@@ -43,12 +43,14 @@ public:
         register_factory(DERIVED_TYPE::get_type_info_static(), factory);
     }
 
+    #ifndef OPENVINO_STATIC_LIBRARY
     template <typename DERIVED_TYPE, typename std::enable_if<HasTypeInfoMember<DERIVED_TYPE>::value, bool>::type = true>
     void register_factory(Factory factory) {
         NGRAPH_SUPPRESS_DEPRECATED_START
         register_factory(DERIVED_TYPE::type_info, factory);
         NGRAPH_SUPPRESS_DEPRECATED_END
     }
+    #endif
 
     /// \brief Register the defualt constructor factory for DERIVED_TYPE
     template <typename DERIVED_TYPE>
@@ -69,12 +71,14 @@ public:
         return has_factory(DERIVED_TYPE::get_type_info_static());
     }
 
+    #ifndef OPENVINO_STATIC_LIBRARY
     template <typename DERIVED_TYPE, typename std::enable_if<HasTypeInfoMember<DERIVED_TYPE>::value, bool>::type = true>
     bool has_factory() {
         NGRAPH_SUPPRESS_DEPRECATED_START
         return has_factory(DERIVED_TYPE::type_info);
         NGRAPH_SUPPRESS_DEPRECATED_END
     }
+    #endif
 
     /// \brief Create an instance for type_info
     BASE_TYPE* create(const typename BASE_TYPE::type_info_t& type_info) const {
@@ -90,12 +94,14 @@ public:
         return create(DERIVED_TYPE::get_type_info_static());
     }
 
+    #ifndef OPENVINO_STATIC_LIBRARY
     template <typename DERIVED_TYPE, typename std::enable_if<HasTypeInfoMember<DERIVED_TYPE>::value, bool>::type = true>
     BASE_TYPE* create() const {
         NGRAPH_SUPPRESS_DEPRECATED_START
         return create(DERIVED_TYPE::type_info);
         NGRAPH_SUPPRESS_DEPRECATED_END
     }
+    #endif
 
 protected:
     FactoryMap m_factory_map;

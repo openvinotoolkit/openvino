@@ -21,7 +21,7 @@ namespace op {
  */
 class TRANSFORMATIONS_API PowerStatic : public ngraph::op::v1::Power {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("PowerStatic", "SnippetsOpset", ngraph::op::v1::Power);
 
     PowerStatic() : Power() {
     }

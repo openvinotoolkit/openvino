@@ -20,7 +20,7 @@ namespace op {
  */
 class TRANSFORMATIONS_API Scalar  : public ngraph::op::Constant {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("Scalar", "SnippetsOpset", ngraph::op::Constant);
 
     Scalar() = default;
     Scalar(const std::shared_ptr<runtime::Tensor>& tensor) : Constant(tensor) {}

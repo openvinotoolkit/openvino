@@ -11,7 +11,7 @@ namespace TemplateExtension {
 
 class Operation : public ngraph::op::Op {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("Template", "custom_opset");
 
     Operation() = default;
     Operation(const ngraph::Output<ngraph::Node>& arg, int64_t add);

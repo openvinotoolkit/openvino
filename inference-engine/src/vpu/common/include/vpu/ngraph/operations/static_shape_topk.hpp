@@ -15,8 +15,7 @@ namespace ngraph { namespace vpu { namespace op {
 
 class StaticShapeTopK : public ngraph::op::v3::TopK {
 public:
-    static constexpr NodeTypeInfo type_info{"StaticShapeTopK", 0};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("StaticShapeTopK", "VPUOpset", ngraph::op::v3::TopK);
 
     StaticShapeTopK(const Output<Node>& data,
                     const Output<Node>& k,

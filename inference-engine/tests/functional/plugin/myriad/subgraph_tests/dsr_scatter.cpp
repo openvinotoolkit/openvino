@@ -52,13 +52,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_DynamicScatter, DSR_Scatter,
                     ngraph::element::i32),
             testing::Values(
                     ScatterTestCase{
-                        ngraph::opset3::ScatterUpdate::type_info,
+                        ngraph::opset3::ScatterUpdate::get_type_info_static(),
                         {{84, 256, 7, 7}, {100, 256, 7, 7}},
                         {{84}, {100}},
                         {{84, 256, 7, 7}, {100, 256, 7, 7}},
                         0},
                     ScatterTestCase{
-                        ngraph::opset5::ScatterElementsUpdate::type_info,
+                        ngraph::opset5::ScatterElementsUpdate::get_type_info_static(),
                         {{142}, {300}},
                         {{80}, {300}},
                         {{80}, {300}},

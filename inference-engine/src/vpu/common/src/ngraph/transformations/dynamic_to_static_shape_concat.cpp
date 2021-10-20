@@ -34,7 +34,7 @@ void dynamicToStaticShapeConcat(std::shared_ptr<ngraph::Node> target) {
     VPU_THROW_UNLESS(!dsrInputs.empty(),
                      "DynamicToStaticShape transformation for {} of type {} expects at least "
                      "one {} as input, actual types: {}", target->get_friendly_name(),
-                     target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info,
+                     target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::get_type_info_static(),
                      std::accumulate(inputs.begin(), inputs.end(), std::string(), [](
                              const std::string& typesStr, const ngraph::Output<ngraph::Node>& input) {
                          return typesStr + input.get_node_shared_ptr()->get_type_info().name + ", ";

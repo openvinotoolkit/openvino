@@ -6,10 +6,11 @@
 
 using namespace ngraph;
 
-constexpr VariantTypeInfo VariantWrapper<std::istream*>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<std::istream*>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<std::istringstream*>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<Weights>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<Extensions>);
 
-constexpr VariantTypeInfo VariantWrapper<std::istringstream*>::type_info;
-
-constexpr VariantTypeInfo VariantWrapper<std::shared_ptr<ngraph::runtime::AlignedBuffer>>::type_info;
-
-constexpr VariantTypeInfo VariantWrapper<std::map<std::string, ngraph::OpSet>>::type_info;
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<std::wstring>);
+#endif

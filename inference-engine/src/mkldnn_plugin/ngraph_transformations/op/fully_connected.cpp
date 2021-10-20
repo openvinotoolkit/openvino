@@ -4,8 +4,6 @@
 
 #include "fully_connected.hpp"
 
-constexpr ngraph::NodeTypeInfo MKLDNNPlugin::FullyConnectedNode::type_info;
-
 MKLDNNPlugin::FullyConnectedNode::FullyConnectedNode(const ngraph::Output<Node>& A,
                                                      const ngraph::Output<Node>& B,
                                                      const ngraph::Rank& output_rank,

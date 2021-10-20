@@ -276,8 +276,7 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUDynamicToDynamic) {
 
 class CustomTestOp: public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"CustomTestLayer", 0};
-    const ngraph::NodeTypeInfo& get_type_info() const override { return type_info;  }
+    OPENVINO_OP("CustomTestLayer", "test_extension");
 
     CustomTestOp() = default;
     CustomTestOp(const ngraph::Output<ngraph::Node>& arg, bool test1, int64_t test2):
@@ -318,8 +317,6 @@ private:
     int64_t test2;
 };
 
-constexpr ngraph::NodeTypeInfo CustomTestOp::type_info;
-
 class TestInPlaceExtension : public InferenceEngine::IExtension {
 public:
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
@@ -331,7 +328,7 @@ public:
         if (opsets.empty()) {
             ngraph::OpSet opset;
             opset.insert<CustomTestOp>();
-            opsets["test_extension"] = opset;
+            opsets[CustomTestOp::get_type_info_static().version_id] = opset;
         }
         return opsets;
     }

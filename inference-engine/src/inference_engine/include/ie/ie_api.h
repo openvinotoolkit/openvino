@@ -100,8 +100,16 @@ IE_DO_PRAGMA(warning(disable : 1786))
  * @param type A plugin type
  */
 
-#if defined(_WIN32) && defined(IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
-#    define INFERENCE_PLUGIN_API(type) extern "C" __declspec(dllexport) type
-#else
-#    define INFERENCE_PLUGIN_API(type) INFERENCE_ENGINE_API(type)
+#if defined(_WIN32)
+#    ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+#        define INFERENCE_PLUGIN_API(type) extern "C" __declspec(dllexport) type
+#    else
+#        define INFERENCE_PLUGIN_API(type) extern "C" type
+#    endif
+#elif defined(__GNUC__) && (__GNUC__ >= 4)
+#    ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+#        define INFERENCE_PLUGIN_API(type) extern "C" __attribute__((visibility("default"))) type
+#    else
+#        define INFERENCE_PLUGIN_API(type) extern "C" type
+#    endif
 #endif

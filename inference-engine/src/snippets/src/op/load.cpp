@@ -11,8 +11,6 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(snippets::op::Load, "Load", 0);
-
 snippets::op::Load::Load(const Output<Node>& x) : Op({x}) {
     constructor_validate_and_infer_types();
 }
