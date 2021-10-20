@@ -30,4 +30,30 @@ const auto testCase_values = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12, ConvertColorNV12LayerTest, testCase_values, ConvertColorNV12LayerTest::getTestCaseName);
 
+const auto testCase_accuracy_values = ::testing::Combine(
+        ::testing::Values(ov::Shape{1, 16*6, 16, 1}),
+        ::testing::Values(ov::element::u8),
+        ::testing::Values(false),
+        ::testing::Values(true),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12_acc,
+                         ConvertColorNV12AccuracyTest,
+                         testCase_accuracy_values,
+                         ConvertColorNV12LayerTest::getTestCaseName);
+
+const auto testCase_accuracy_values_nightly = ::testing::Combine(
+        ::testing::Values(ov::Shape{1, 256*256, 256, 1}),
+        ::testing::Values(ov::element::u8),
+        ::testing::Values(false),
+        ::testing::Values(true),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+);
+
+INSTANTIATE_TEST_SUITE_P(nightly_TestsConvertColorNV12_acc,
+                         ConvertColorNV12AccuracyTest,
+                         testCase_accuracy_values_nightly,
+                         ConvertColorNV12LayerTest::getTestCaseName);
+
 }  // namespace
