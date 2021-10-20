@@ -408,36 +408,6 @@ public:
     const RTMap& get_rt_info() const {
         return m_rt_info;
     }
-    const std::unordered_set<std::string>& get_provenance_tags() const;
-    void add_provenance_tag(const std::string& tag);
-    template <typename T>
-    void add_provenance_tags(T tag_set) {
-        for (auto tag : tag_set) {
-            add_provenance_tag(tag);
-        }
-    }
-    /// \brief Adds tag_set to this node and all intermediate nodes above base
-    void add_provenance_tags_above(const OutputVector& base, const std::unordered_set<std::string>& tag_set);
-    void remove_provenance_tag(const std::string& tag);
-    /// \brief Add node to additional nodes that receive tags
-    void add_provenance_group_member(const std::shared_ptr<Node>& node);
-    /// \brief Remove node to additional nodes that receive tags
-    void remove_provenance_group_member(const std::shared_ptr<Node>& node);
-    /// \brief Replace current_node with replacement_node and transfer tags
-    void replace_provenance_group_member(const std::shared_ptr<Node>& current_node,
-                                         const std::shared_ptr<Node>& replacement_node);
-    /// \return Provenance group nodes
-    const std::set<std::shared_ptr<Node>>& get_provenance_group_members() const;
-
-    /// \brief Add all nodes between this node and nodes in base as additional nodes to receive
-    /// provenance tags.
-    std::shared_ptr<Node> add_provenance_group_members_above(const OutputVector& base);
-
-    // to be used when nodes are replaced
-    void merge_provenance_tags_from(const std::shared_ptr<const Node>& source);
-
-    /// Transfer provenance tags to replacement
-    void transfer_provenance_tags(const std::shared_ptr<Node>& replacement);
 
     /// Get all the nodes that uses the current node
     NodeVector get_users(bool check_is_used = false) const;
@@ -516,8 +486,6 @@ private:
     mutable std::string m_unique_name;
     mutable std::atomic_bool m_name_changing{false};
     static std::atomic<size_t> m_next_instance_id;
-    std::unordered_set<std::string> m_provenance_tags;
-    std::set<std::shared_ptr<Node>> m_provenance_group;
     std::deque<descriptor::Input> m_inputs;
     std::deque<descriptor::Output> m_outputs;
     OPENVINO_SUPPRESS_DEPRECATED_START

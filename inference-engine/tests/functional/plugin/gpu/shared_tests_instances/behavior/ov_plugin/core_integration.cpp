@@ -129,8 +129,6 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetConfigTest, OVClassGetConfigTest, ::testing::Values("GPU"));
 
-
-
 // IE Class Query network
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryNetworkTest, OVClassQueryNetworkTest, ::testing::Values("GPU"));
@@ -142,4 +140,57 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest, :
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworkGetMetricTest,
         OVClassLoadNetworkAfterCoreRecreateTest,
         ::testing::Values("GPU"));
+
+// GetConfig / SetConfig for specific device
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVClassSpecificDevice0Test, OVClassSpecificDeviceTestGetConfig,
+        ::testing::Values("GPU.0")
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVClassSpecificDevice1Test, OVClassSpecificDeviceTestGetConfig,
+        ::testing::Values("GPU.1")
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVClassSpecificDevice0Test, OVClassSpecificDeviceTestSetConfig,
+        ::testing::Values("GPU.0")
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVClassSpecificDevice1Test, OVClassSpecificDeviceTestSetConfig,
+        ::testing::Values("GPU.1")
+);
+
+// Several devices case
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVClassSeveralDevicesTest, OVClassSeveralDevicesTestLoadNetwork,
+        ::testing::Values(std::vector<std::string>({"GPU.0", "GPU.1"}))
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVClassSeveralDevicesTest, OVClassSeveralDevicesTestQueryNetwork,
+        ::testing::Values(std::vector<std::string>({"GPU.0", "GPU.1"}))
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVClassSeveralDevicesTest, OVClassSeveralDevicesTestDefaultCore,
+        ::testing::Values(std::vector<std::string>({"GPU.0", "GPU.1"}))
+);
+
+// Set default device ID
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVClassSetDefaultDeviceIDTest, OVClassSetDefaultDeviceIDTest,
+        ::testing::Values(std::make_pair("GPU", "1"))
+);
+
+// Set config for all GPU devices
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_OVClassSetGlobalConfigTest, OVClassSetGlobalConfigTest,
+        ::testing::Values("GPU")
+);
 }  // namespace
