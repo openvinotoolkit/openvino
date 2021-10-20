@@ -124,8 +124,7 @@ Output<ngraph::Node> get_prepared_bias(const Output<ngraph::Node>& bias, const O
             std::make_shared<default_opset::Concat>(OutputVector{one_node, C_dim, remaining_bias_shape_ones}, 0);
     }
 
-    return std::make_shared<default_opset::Reshape>(bias, bias_shape_node, false)
-        ->add_provenance_group_members_above({bias});
+    return std::make_shared<default_opset::Reshape>(bias, bias_shape_node, false);
 }
 }  // namespace
 

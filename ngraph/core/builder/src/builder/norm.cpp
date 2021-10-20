@@ -45,7 +45,7 @@ shared_ptr<Node> lp_norm(const Output<Node>& value,
     // Get outer part of equation: raise values to 1/p_norm exponent.
     shared_ptr<Node> inv_p_node = ngraph::opset1::Constant::create(values->get_element_type(), Shape{}, {1.f / p_norm});
 
-    return {make_shared<ngraph::opset1::Power>(values, inv_p_node)->add_provenance_group_members_above({value})};
+    return {make_shared<ngraph::opset1::Power>(values, inv_p_node)};
 }
 }  // namespace opset1
 }  // namespace detail
@@ -61,8 +61,7 @@ shared_ptr<Node> builder::opset1::l0_norm(const Output<Node>& value,
         make_shared<ngraph::opset1::Convert>(make_shared<ngraph::opset1::NotEqual>(value, zero_node),
                                              value.get_element_type());
 
-    return make_shared<ngraph::opset1::ReduceSum>(non_zero_values, reduction_axes, keep_dims)
-        ->add_provenance_group_members_above({value});
+    return make_shared<ngraph::opset1::ReduceSum>(non_zero_values, reduction_axes, keep_dims);
 }
 
 shared_ptr<Node> builder::opset1::l1_norm(const Output<Node>& value,
@@ -74,7 +73,7 @@ shared_ptr<Node> builder::opset1::l1_norm(const Output<Node>& value,
 
     const shared_ptr<Node> bias_node{ngraph::opset1::Constant::create(values->get_element_type(), Shape{}, {bias})};
 
-    return make_shared<ngraph::opset1::Add>(values, bias_node)->add_provenance_group_members_above({value});
+    return make_shared<ngraph::opset1::Add>(values, bias_node);
 }
 
 shared_ptr<Node> builder::opset1::l2_norm(const Output<Node>& value,
@@ -98,7 +97,7 @@ shared_ptr<Node> builder::opset1::l2_norm(const Output<Node>& value,
     default:
         result = make_shared<ngraph::opset1::Sqrt>(make_shared<ngraph::opset1::Add>(values, bias_node));
     }
-    return result->add_provenance_group_members_above({value});
+    return result;
 }
 
 shared_ptr<Node> builder::opset1::lp_norm(const Output<Node>& value,
