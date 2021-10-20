@@ -24,7 +24,6 @@ from tests_compatibility import (
     xfail_issue_38708,
     xfail_issue_38710,
     xfail_issue_38713,
-    xfail_issue_38722,
     xfail_issue_38724,
     xfail_issue_38732,
     xfail_issue_38734,
@@ -330,11 +329,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_isinf_positive_cpu",
         "OnnxBackendNodeModelTest.test_isinf_negative_cpu",
         "OnnxBackendNodeModelTest.test_isinf_cpu",
-    ),
-    (
-        xfail_issue_38722,
-        "OnnxBackendNodeModelTest.test_qlinearmatmul_2D_cpu",
-        "OnnxBackendNodeModelTest.test_qlinearmatmul_3D_cpu",
     ),
     (xfail_issue_38724, "OnnxBackendNodeModelTest.test_resize_tf_crop_and_resize_cpu"),
     (
