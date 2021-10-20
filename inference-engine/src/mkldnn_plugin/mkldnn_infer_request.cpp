@@ -239,7 +239,8 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
             if (_networkInputs.find(name) != _networkInputs.end()) {
                 InferenceEngine::TensorDesc desc = _networkInputs[name]->getTensorDesc();
                 IE_SUPPRESS_DEPRECATED_START
-                bool isDynamic = _networkInputs[name]->getInputData()->isDynamic();
+                // bool isDynamic = _networkInputs[name]->getInputData()->isDynamic();
+                bool isDynamic = graph->getInputNodeByName(name)->isDynamicNode();
                 IE_SUPPRESS_DEPRECATED_END
 
                 _inputs[name] = make_blob_with_precision(desc);
@@ -359,7 +360,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
         IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
     IE_SUPPRESS_DEPRECATED_START
     if (data->size() == 0 &&
-        !((foundInput && foundInput->getInputData()->isDynamic()) || (foundOutput && foundOutput->isDynamic()))) {
+        !((foundInput && graph->getInputNodeByName(name)->isDynamicNode()) || (foundOutput && graph->getOutputNodeByName(name)->isDynamicNode()))) {
         IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
     IE_SUPPRESS_DEPRECATED_END
@@ -393,7 +394,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
                 : 1;
 
             IE_SUPPRESS_DEPRECATED_START
-            const bool isDynamic = foundInput->getInputData()->isDynamic();
+            const bool isDynamic = graph->getInputNodeByName(name)->isDynamicNode();
             IE_SUPPRESS_DEPRECATED_END
             if (!isDynamic && dataSize != inputSize) {
                 IE_THROW() << "Input blob size is not equal network input size ("
@@ -438,7 +439,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
             : 1;
 
         IE_SUPPRESS_DEPRECATED_START
-        const bool isDynamic = foundOutput->isDynamic();
+        const bool isDynamic = graph->getOutputNodeByName(name)->isDynamicNode();
         IE_SUPPRESS_DEPRECATED_END
         if (!isDynamic && dataSize != outputSize) {
             IE_THROW() << "Output blob size is not equal network output size ("

@@ -208,11 +208,6 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
 
 void MKLDNNMatMulNode::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                                         const std::vector<MemoryDescPtr>& outputDesc) {
-
-    const auto a = inDataDesc[0]->getDnnlDesc();
-    const auto b = inDataDesc[1]->getDnnlDesc();
-    const auto c = outDataDesc->getDnnlDesc();
-
     MKLDNNDescriptor desc{
         std::make_shared<matmul::desc>(inDataDesc[0]->getDnnlDesc(),
                                        inDataDesc[1]->getDnnlDesc(),

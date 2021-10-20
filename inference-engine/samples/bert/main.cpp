@@ -51,29 +51,29 @@ void fillBlobRandom(InferenceEngine::Blob::Ptr& inputBlob,
 
 int main(int argc, char* argv[]) {
     Core ie;
-    CNNNetwork network = ie.ReadNetwork("/home/maximandronov/test_repo/openvino/models/BERT_TF/bert-base-chinese-xnli-zh.xml",
-                                        "/home/maximandronov/test_repo/openvino/models/BERT_TF/bert-base-chinese-xnli-zh.bin");
+    CNNNetwork network = ie.ReadNetwork("/home/maximandronov/test_repo/openvino/models/BERT/fp32/bert-base-chinese-xnli-zh-fp32-onnx-0001.xml",
+                                        "/home/maximandronov/test_repo/openvino/models/BERT/fp32/bert-base-chinese-xnli-zh-fp32-onnx-0001.bin");
 
     InferenceEngine::InputsDataMap inputsInfo = network.getInputsInfo();
     std::map<std::string, ov::PartialShape> shapes;
     for (const auto &in: inputsInfo) {
         std::cout << "INPUT: " << in.first << std::endl;
-        shapes[in.first] = {1, 64};
+        shapes[in.first] = {1, -1};
     }
     network.reshape(shapes);
 
-    network.serialize("/home/maximandronov/test_repo/openvino/models/BERT/dynamic_fp32/model.xml");
+    // network.serialize("/home/maximandronov/test_repo/openvino/models/BERT/dynamic_fp32/model.xml");
 
-    InferenceEngine::SizeVector initDims = {1, 111};
+    InferenceEngine::SizeVector initDims = {1, 16};
 std::cout << "START LOAD NETWORK" << std::endl; 
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(network, "CPU");
 std::cout << "END LOAD NETWORK" << std::endl; 
     InferenceEngine::InferRequest infer_request = exeNetwork.CreateInferRequest();
 
-    const size_t inferNum = 2;
+    const size_t inferNum = 5;
     for (size_t i = 0; i < inferNum; i++) {
         std::cout << "START INFER: " << i << std::endl;
-        // initDims[1] *= 2;
+        initDims[1] *= 2;
         for (const auto &in: inputsInfo) {
             InferenceEngine::Blob::Ptr blob = InferenceEngine::make_shared_blob<int32_t>((InferenceEngine::TensorDesc(InferenceEngine::Precision::I32, initDims, InferenceEngine::Layout::BLOCKED)));
             blob->allocate();
