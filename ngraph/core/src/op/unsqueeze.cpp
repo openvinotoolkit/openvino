@@ -19,7 +19,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Unsqueeze, "Unsqueeze", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::Unsqueeze);
 
 op::v0::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {
     constructor_validate_and_infer_types();
@@ -40,7 +40,7 @@ void op::v0::Unsqueeze::validate_and_infer_types() {
                           axes_pshape.rank().get_length());
 
     if (data_rank.is_dynamic() || !axes_constant) {
-        set_output_type(0, get_input_element_type(0), ov::Shape::dynamic());
+        set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());
         return;
     }
 
@@ -58,7 +58,7 @@ void op::v0::Unsqueeze::validate_and_infer_types() {
 
         output_shape.insert(next(begin(output_shape), axis), 1);
     }
-    set_output_type(0, get_input_element_type(0), ov::Shape{output_shape});
+    set_output_type(0, get_input_element_type(0), ov::PartialShape{output_shape});
 }
 
 bool op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor) {

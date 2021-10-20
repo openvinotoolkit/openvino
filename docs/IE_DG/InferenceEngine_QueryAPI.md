@@ -29,8 +29,6 @@ The function returns list of available devices, for example:
 ```
 MYRIAD.1.2-ma2480
 MYRIAD.1.4-ma2480
-FPGA.0
-FPGA.1
 CPU
 GPU.0
 GPU.1
@@ -72,6 +70,10 @@ The method is used to get executable network specific metric such as `METRIC_KEY
 Or the current temperature of `MYRIAD` device:
 
 @snippet snippets/InferenceEngine_QueryAPI4.cpp part4
+
+The code below demonstrates how to get memory statistics of `GPU` device:
+
+@snippet snippets/InferenceEngine_QueryAPI6.cpp part6
 
 ### GetConfig()
 

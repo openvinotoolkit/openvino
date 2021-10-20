@@ -56,8 +56,9 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
                          const std::string& build_options,
                          const layout& output_layout,
                          const std::vector<size_t>& gws = {},
-                         const std::vector<size_t>& lws = {})
-        : primitive_base(id, {input}, output_layout.data_padding),
+                         const std::vector<size_t>& lws = {},
+                         const primitive_id& ext_prim_id = "")
+        : primitive_base(id, {input}, ext_prim_id, output_layout.data_padding),
           kernel_entry_point(kernel_entry_point),
           kernel_arguments(kernel_arguments),
           build_options(build_options),

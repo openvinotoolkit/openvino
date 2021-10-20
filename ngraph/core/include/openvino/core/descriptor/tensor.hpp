@@ -5,15 +5,17 @@
 #pragma once
 
 #include <atomic>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_set>
 
-#include "ngraph/shape.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/variant.hpp"
 
 namespace ngraph {
 namespace runtime {
@@ -28,23 +30,24 @@ namespace descriptor {
 /// \brief Compile-time descriptor of a first-class value that is a tensor.
 class OPENVINO_API Tensor {
 public:
-    Tensor(const element::Type& element_type, const Shape& pshape, const std::string& name);
-    Tensor(const element::Type& element_type, const Shape& pshape, Node* node, size_t node_output_number);
+    Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name);
+    Tensor(const element::Type& element_type, const PartialShape& pshape, Node* node, size_t node_output_number);
 
     Tensor(const Tensor&) = delete;
     Tensor& operator=(const Tensor&) = delete;
 
-    NGRAPH_DEPRECATED("get_name() is deprecated! Please use get_names() instead.")
+    OPENVINO_DEPRECATED("get_name() is deprecated! Please use get_names() instead.")
     const std::string& get_name() const;
-    NGRAPH_DEPRECATED("set_name() is deprecated! Please use set_names() instead.")
+    OPENVINO_DEPRECATED("set_name() is deprecated! Please use set_names() instead.")
     void set_name(const std::string& name);
 
+    std::string get_any_name() const;
     const std::unordered_set<std::string>& get_names() const;
     void set_names(const std::unordered_set<std::string>& names);
     void add_names(const std::unordered_set<std::string>& names);
-    void set_tensor_type(const element::Type& element_type, const Shape& pshape);
+    void set_tensor_type(const element::Type& element_type, const PartialShape& pshape);
     void set_element_type(const element::Type& elemenet_type);
-    void set_partial_shape(const Shape& partial_shape);
+    void set_partial_shape(const PartialShape& partial_shape);
 
     /// \brief sets lower bound value description
     void set_lower_value(const ngraph::HostTensorPtr& value);
@@ -56,8 +59,8 @@ public:
     const element::Type& get_element_type() const {
         return m_element_type;
     }
-    const StaticShape& get_shape() const;
-    const Shape& get_partial_shape() const {
+    const Shape& get_shape() const;
+    const PartialShape& get_partial_shape() const {
         return m_partial_shape;
     }
     /// \brief gets lower bound value description
@@ -74,29 +77,40 @@ public:
     }
     size_t size() const;
 
+    RTMap& get_rt_info() {
+        return m_rt_info;
+    }
+    const RTMap& get_rt_info() const {
+        return m_rt_info;
+    }
+
 protected:
     element::Type m_element_type;
 
     // TODO: remove along with get_shape
-    // Initially there was StaticShape m_shape only available to keep shape information.
-    // Support for dynamic shapes required transition to ov::Shape.
-    // To smoothly transition to ov::Shape we introduced m_partial_shape
+    // Initially there was Shape m_shape only available to keep shape information.
+    // Support for dynamic shapes required transition to ov::PartialShape.
+    // To smoothly transition to ov::PartialShape we introduced m_partial_shape
     // and kept m_shape in sync with m_partial_shape. Synchronization point was placed
-    // in set_partial_shape which dramatically affected performance of ngraph::Function
-    // validation. Since we have started the transition to ov::Shape and reduced
-    // StaticShape usage the only user of m_shape was get_shape method with signature:
-    // const Shape& descriptor::Tensor::get_shape() const
+    // in set_partial_shape which dramatically affected performance of ov::Function
+    // validation. Since we have started the transition to ov::PartialShape and reduced
+    // Shape usage the only user of m_shape was get_shape method with signature:
+    // const PartialShape& descriptor::Tensor::get_shape() const
     // It was decided to move m_shape and m_partial_shape synchronization point there and
     // to keep methods signature backward compatible.
-    mutable std::mutex shape_mutex;
+    mutable std::mutex m_mutex;
     mutable std::atomic_bool m_shape_changed;
-    mutable StaticShape m_shape;
+    mutable Shape m_shape;
     // TODO: end
 
-    Shape m_partial_shape;
+    PartialShape m_partial_shape;
     ngraph::HostTensorPtr m_lower_value, m_upper_value;
     std::string m_name;
-    std::unordered_set<std::string> m_names;
+
+    mutable std::atomic_bool m_names_changing{false};
+    mutable std::unordered_set<std::string> m_names;
+    static std::atomic<size_t> m_next_instance_id;
+    std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
 };
 
 OPENVINO_API

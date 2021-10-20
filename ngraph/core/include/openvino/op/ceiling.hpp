@@ -12,7 +12,8 @@ namespace v0 {
 /// \brief Elementwise ceiling operation.
 class OPENVINO_API Ceiling : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Ceiling", "opset1", util::UnaryElementwiseArithmetic);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a ceiling operation.
     Ceiling() = default;
     /// \brief Constructs a ceiling operation.
@@ -24,7 +25,9 @@ public:
         return true;
     }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
 }  // namespace v0

@@ -55,8 +55,7 @@ class VirtualEnv:
 
     def create(self):
         """Creates virtual environment."""
-        cmd = '{executable} -m venv {venv}'.format(executable=sys.executable,
-                                                   venv=self.get_venv_dir())
+        cmd = '{executable} -m venv {venv}'.format(executable=sys.executable, venv=self.get_venv_dir())
         run_in_subprocess(cmd)
         self.is_created = True
 
@@ -85,6 +84,22 @@ def run_in_subprocess(cmd, check_call=True):
         subprocess.call(cmd, shell=True)
 
 
+def get_model_recs(test_conf_root):
+    """Parse models from test config.
+       Model records in multi-model configs with static test definition are members of "device" sections
+    """
+    device_recs = test_conf_root.findall("device")
+    if device_recs:
+        model_recs = []
+        for device_rec in device_recs:
+            for model_rec in device_rec.findall("model"):
+                model_recs.append(model_rec)
+
+        return model_recs
+
+    return test_conf_root.find("models")
+
+
 def main():
     """Main entry point.
     """
@@ -97,7 +112,6 @@ def main():
     parser.add_argument('--omz_repo', required=False,
                         help='Path to Open Model Zoo (OMZ) repository. It will be used to skip cloning step.')
     parser.add_argument('--mo_tool', type=Path,
-                        default=Path(abs_path('../../../model-optimizer/mo.py')).resolve(),
                         help='Path to Model Optimizer (MO) runner. Required for OMZ converter.py only.')
     parser.add_argument('--omz_models_out_dir', type=Path,
                         default=abs_path('../_omz_out/models'),
@@ -131,25 +145,26 @@ def main():
     if not args.no_venv:
         Venv = VirtualEnv("./.stress_venv")
         requirements = [
-            omz_path / "tools" / "downloader" / "requirements.in",
             args.mo_tool.parent / "requirements.txt",
             args.mo_tool.parent / "requirements_dev.txt",
-            omz_path / "tools" / "downloader" / "requirements-caffe2.in",
-            omz_path / "tools" / "downloader" / "requirements-pytorch.in"
+            omz_path / "tools" / "model_tools" / "requirements.in",
+            omz_path / "tools" / "model_tools" / "requirements-caffe2.in",
+            omz_path / "tools" / "model_tools" / "requirements-pytorch.in"
         ]
         Venv.create_n_install_requirements(*requirements)
         python_executable = Venv.get_venv_executable()
 
-    # parse models from test config
     test_conf_obj = ET.parse(str(args.test_conf))
     test_conf_root = test_conf_obj.getroot()
-    for model_rec in test_conf_root.find("models"):
+    model_recs = get_model_recs(test_conf_root)
+
+    for model_rec in model_recs:
         if "name" not in model_rec.attrib or model_rec.attrib.get("source") != "omz":
             continue
         model_name = model_rec.attrib["name"]
         precision = model_rec.attrib["precision"]
 
-        info_dumper_path = omz_path / "tools" / "downloader" / "info_dumper.py"
+        info_dumper_path = omz_path / "tools" / "model_tools" / "info_dumper.py"
         cmd = '"{executable}" "{info_dumper_path}" --name {model_name}'.format(executable=sys.executable,
                                                                                info_dumper_path=info_dumper_path,
                                                                                model_name=model_name)
@@ -177,28 +192,28 @@ def main():
             args.omz_irs_out_dir / model_rec.attrib["subdirectory"] / precision / (model_rec.attrib["name"] + ".xml"))
 
         # prepare models
-        downloader_path = omz_path / "tools" / "downloader" / "downloader.py"
+        downloader_path = omz_path / "tools" / "model_tools" / "downloader.py"
         cmd = '{downloader_path} --name {model_name}' \
               ' --precisions={precision}' \
               ' --num_attempts {num_attempts}' \
               ' --output_dir {models_dir}' \
-              ' --cache_dir {cache_dir}'.format(downloader_path=downloader_path, model_name=model_name,
-                                                precision=precision, num_attempts=OMZ_NUM_ATTEMPTS,
-                                                models_dir=args.omz_models_out_dir, cache_dir=args.omz_cache_dir)
+              ' --cache_dir {cache_dir}'.format(downloader_path=downloader_path, precision=precision,
+                                                models_dir=args.omz_models_out_dir,
+                                                num_attempts=OMZ_NUM_ATTEMPTS, model_name=model_name,
+                                                cache_dir=args.omz_cache_dir)
 
         run_in_subprocess(cmd, check_call=not args.skip_omz_errors)
 
         # convert models to IRs
-        converter_path = omz_path / "tools" / "downloader" / "converter.py"
+        converter_path = omz_path / "tools" / "model_tools" / "converter.py"
         # NOTE: remove --precisions if both precisions (FP32 & FP16) required
         cmd = '{executable} {converter_path} --name {model_name}' \
-              ' -p {executable}' \
+              ' -p "{executable}"' \
               ' --precisions={precision}' \
               ' --output_dir {irs_dir}' \
               ' --download_dir {models_dir}' \
-              ' --mo {mo_tool}'.format(executable=python_executable, precision=precision,
-                                       converter_path=converter_path,
-                                       model_name=model_name, irs_dir=args.omz_irs_out_dir,
+              ' --mo {mo_tool}'.format(executable=python_executable, converter_path=converter_path,
+                                       precision=precision, model_name=model_name, irs_dir=args.omz_irs_out_dir,
                                        models_dir=args.omz_models_out_dir, mo_tool=args.mo_tool)
         run_in_subprocess(cmd, check_call=not args.skip_omz_errors)
 

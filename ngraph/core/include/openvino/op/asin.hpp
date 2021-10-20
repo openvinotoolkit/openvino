@@ -15,7 +15,8 @@ namespace v0 {
 ///
 class OPENVINO_API Asin : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Asin", "opset1", util::UnaryElementwiseArithmetic);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs an arcsin operation.
     Asin() = default;
     /// \brief Constructs an arcsin operation.
@@ -31,7 +32,9 @@ public:
     bool visit_attributes(AttributeVisitor&) override {
         return true;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
 }  // namespace v0

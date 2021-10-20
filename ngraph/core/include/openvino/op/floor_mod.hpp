@@ -13,7 +13,8 @@ namespace v1 {
 ///
 class OPENVINO_API FloorMod : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("FloorMod", "opset1", op::util::BinaryElementwiseArithmetic, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an uninitialized addition operation
     FloorMod() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY){};
@@ -34,7 +35,9 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
 }  // namespace v1

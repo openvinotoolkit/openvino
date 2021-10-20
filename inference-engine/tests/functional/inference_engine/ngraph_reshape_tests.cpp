@@ -29,6 +29,9 @@
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "ie_common.h"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -71,106 +74,19 @@ TEST_F(NGraphReshapeTests, ReshapedDynamicShapeLayout) {
 
     CNNNetwork cnnNetwork(ngraph);
     ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["A"]->getLayout());
+    IE_SUPPRESS_DEPRECATED_START
     ASSERT_TRUE(cnnNetwork.getInputsInfo()["A"]->getInputData()->isDynamic());
+    IE_SUPPRESS_DEPRECATED_END
 
     ICNNNetwork::InputShapes new_shape;
-    new_shape["A"] = ngraph::Shape{1, 3, 22, 22};
+    new_shape["A"] = {1, 3, 22, 22};
     cnnNetwork.reshape(new_shape);
 
     ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["A"]->getLayout());
+    IE_SUPPRESS_DEPRECATED_START
     ASSERT_FALSE(cnnNetwork.getInputsInfo()["A"]->getInputData()->isDynamic());
+    IE_SUPPRESS_DEPRECATED_END
 }
-
-TEST_F(NGraphReshapeTests, ReshapeBatchReLU) {
-    std::shared_ptr<ngraph::Function> ngraph;
-    {
-        ngraph::PartialShape shape({1, 3, 22, 22});
-        ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
-        auto result = std::make_shared<ngraph::op::Result>(relu);
-
-        ngraph::ParameterVector params = {param};
-        ngraph::ResultVector results = {result};
-
-        ngraph = std::make_shared<ngraph::Function>(results, params);
-    }
-
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
-    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
-
-    {
-        ngraph::PartialShape shape({2, 3, 22, 22});
-        ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-
-        ngraph->replace_parameter(0, param);
-        ngraph->validate_nodes_and_infer_types();
-    }
-
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({2, 3, 22, 22}));
-    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({2, 3, 22, 22}));
-}
-
-TEST_F(NGraphReshapeTests, ReshapeSpatialReLU) {
-    std::shared_ptr<ngraph::Function> ngraph;
-    {
-        ngraph::PartialShape shape({1, 3, 22, 22});
-        ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
-        auto result = std::make_shared<ngraph::op::Result>(relu);
-
-        ngraph::ParameterVector params = {param};
-        ngraph::ResultVector results = {result};
-
-        ngraph = std::make_shared<ngraph::Function>(results, params);
-    }
-
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
-    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
-
-    {
-        ngraph::PartialShape shape({1, 3, 25, 25});
-        ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-
-        ngraph->replace_parameter(0, param);
-        ngraph->validate_nodes_and_infer_types();
-    }
-
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
-    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
-}
-
-TEST_F(NGraphReshapeTests, ReshapeSpatialReLUWithoutReplaceParameter) {
-    std::shared_ptr<ngraph::Function> ngraph;
-    {
-        ngraph::PartialShape shape({1, 3, 22, 22});
-        ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        auto relu = std::make_shared<ngraph::op::Relu>(param);
-        auto result = std::make_shared<ngraph::op::Result>(relu);
-
-        ngraph::ParameterVector params = {param};
-        ngraph::ResultVector results = {result};
-
-        ngraph = std::make_shared<ngraph::Function>(results, params);
-    }
-
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
-    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
-
-    {
-        ngraph->get_parameters()[0]->set_partial_shape({1, 3, 25, 25});
-
-        ngraph->validate_nodes_and_infer_types();
-    }
-
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
-    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
-}
-
 
 TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLU) {
     std::shared_ptr<const ngraph::Function> ngraph;
@@ -192,7 +108,7 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLU) {
     ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
 
     CNNNetwork cnnNetwork(ngraph::clone_function(*ngraph));
-    std::map<std::string, std::vector<size_t>> shapes;
+    std::map<std::string, SizeVector> shapes;
     shapes["data"] = {1, 3, 25, 25};
 
     ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
@@ -225,7 +141,7 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUWithoutCloneFunction) {
     ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
 
     CNNNetwork cnnNetwork(ngraph);
-    std::map<std::string, std::vector<size_t>> shapes;
+    std::map<std::string, SizeVector> shapes;
     shapes["data"] = {1, 3, 25, 25};
 
     ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
@@ -262,7 +178,9 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUStaticToDynamic) {
     std::map<std::string, ngraph::PartialShape> shapes;
     shapes["data"] = refShape;
 
+    IE_SUPPRESS_DEPRECATED_START
     ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
+    IE_SUPPRESS_DEPRECATED_END
 
     auto changedFunction = cnnNetwork.getFunction();
     ASSERT_NE(nullptr, changedFunction);
@@ -300,7 +218,9 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUStaticToFullyDynamic) {
     std::map<std::string, ngraph::PartialShape> shapes;
     shapes["data"] = refShape;
 
+    IE_SUPPRESS_DEPRECATED_START
     ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
+    IE_SUPPRESS_DEPRECATED_END
 
     auto changedFunction = cnnNetwork.getFunction();
     ASSERT_NE(nullptr, changedFunction);
@@ -338,7 +258,9 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUDynamicToDynamic) {
     std::map<std::string, ngraph::PartialShape> shapes;
     shapes["data"] = refShape;
 
+    IE_SUPPRESS_DEPRECATED_START
     ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
+    IE_SUPPRESS_DEPRECATED_END
 
     auto changedFunction = cnnNetwork.getFunction();
     ASSERT_NE(nullptr, changedFunction);
@@ -364,14 +286,17 @@ public:
     }
 
     void validate_and_infer_types() override {
-        auto input_shape = get_input_partial_shape(0).to_shape();
-
-        ngraph::Shape output_shape(input_shape);
-        for (int i = 0; i < input_shape.size(); ++i) {
-            output_shape[i] = input_shape[i] * test2 + (test1 ? 0 : 1);
+        auto input_pshape = get_input_partial_shape(0);
+        if (input_pshape.is_static()) {
+            auto input_shape = input_pshape.to_shape();
+            ngraph::Shape output_shape(input_shape);
+            for (int i = 0; i < input_shape.size(); ++i) {
+                output_shape[i] = input_shape[i] * test2 + (test1 ? 0 : 1);
+            }
+            set_output_type(0, get_input_element_type(0), ngraph::PartialShape(output_shape));
+        } else {
+            set_output_type(0, get_input_element_type(0), ngraph::PartialShape::dynamic());
         }
-
-        set_output_type(0, get_input_element_type(0), ngraph::PartialShape(output_shape));
     }
 
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {

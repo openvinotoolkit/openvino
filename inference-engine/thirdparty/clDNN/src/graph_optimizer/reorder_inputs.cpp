@@ -58,7 +58,7 @@ std::map<program_node*, format::type> get_preferred_formats(program& p, layout_o
             continue;
 
         auto ex = lo.get_preferred_format(*n);
-        auto impl = lo.get_preferred_impl_type(*n);
+        auto impl = lo.get_preferred_impl_type(*n, ex);
         fmt_map[n] = ex;
 
         n->set_preferred_impl_type(impl);
@@ -515,5 +515,12 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             reorder_input_detection_output,
             reorder_input_binary_convolution,
             reorder_input_deconvolution);
+    }
+
+    for (auto n : p.get_processing_order()) {
+        if (n->is_in_data_flow() && fmt_map.count(n) != 0) {
+            auto preferred_impl = lo.get_preferred_impl_type(*n, fmt_map.at(n));
+            n->set_preferred_impl_type(preferred_impl);
+        }
     }
 }

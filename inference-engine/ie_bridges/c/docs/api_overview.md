@@ -22,7 +22,7 @@ Supported Python* versions:
 
 To configure the environment for the Inference Engine C* API, run:
 
-- On Ubuntu 16.04: `source <INSTALL_DIR>/bin/setupvars.sh .`
+- On Ubuntu 16.04: `source <INSTALL_DIR>/setupvars.sh .`
 - On Windows 10: XXXX
 
 The script automatically detects latest installed C* version and configures required environment if the version is supported.

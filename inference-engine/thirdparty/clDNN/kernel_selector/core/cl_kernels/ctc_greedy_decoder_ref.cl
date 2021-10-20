@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/fetch_data.cl"
 
 KERNEL(ctc_greedy_decoder_ref)(const __global INPUT0_TYPE* probabilities
                               ,const __global INPUT1_TYPE* sequence_indicators

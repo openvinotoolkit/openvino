@@ -6,21 +6,24 @@ import json
 import numpy as np
 import pytest
 
-from _pyngraph import VariantInt, VariantString
+import openvino.opset8 as ov
 
-import ngraph as ng
-from ngraph.exceptions import UserInputError
-from ngraph.impl import Function, PartialShape, Shape, Type
-from ngraph.impl.op import Parameter
+from openvino.pyopenvino import VariantInt, VariantString
+
+from openvino.exceptions import UserInputError
+from openvino.impl import Function, PartialShape, Shape, Type
+from openvino.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
+
+from tests import skip_issue_67415
 
 
 def test_ngraph_function_api():
     shape = [2, 2]
-    parameter_a = ng.parameter(shape, dtype=np.float32, name="A")
-    parameter_b = ng.parameter(shape, dtype=np.float32, name="B")
-    parameter_c = ng.parameter(shape, dtype=np.float32, name="C")
+    parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
+    parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
     model = (parameter_a + parameter_b) * parameter_c
     function = Function(model, [parameter_a, parameter_b, parameter_c], "TestFunction")
 
@@ -44,7 +47,7 @@ def test_ngraph_function_api():
     "dtype",
     [
         np.float32,
-        np.float64,
+        pytest.param(np.float64, marks=skip_issue_67415),
         np.int8,
         np.int16,
         np.int32,
@@ -59,9 +62,9 @@ def test_simple_computation_on_ndarrays(dtype):
     runtime = get_runtime()
 
     shape = [2, 2]
-    parameter_a = ng.parameter(shape, dtype=dtype, name="A")
-    parameter_b = ng.parameter(shape, dtype=dtype, name="B")
-    parameter_c = ng.parameter(shape, dtype=dtype, name="C")
+    parameter_a = ov.parameter(shape, dtype=dtype, name="A")
+    parameter_b = ov.parameter(shape, dtype=dtype, name="B")
+    parameter_c = ov.parameter(shape, dtype=dtype, name="C")
     model = (parameter_a + parameter_b) * parameter_c
     computation = runtime.computation(model, parameter_a, parameter_b, parameter_c)
 
@@ -81,9 +84,9 @@ def test_simple_computation_on_ndarrays(dtype):
 def test_serialization():
     dtype = np.float32
     shape = [2, 2]
-    parameter_a = ng.parameter(shape, dtype=dtype, name="A")
-    parameter_b = ng.parameter(shape, dtype=dtype, name="B")
-    parameter_c = ng.parameter(shape, dtype=dtype, name="C")
+    parameter_a = ov.parameter(shape, dtype=dtype, name="A")
+    parameter_b = ov.parameter(shape, dtype=dtype, name="B")
+    parameter_c = ov.parameter(shape, dtype=dtype, name="C")
     model = (parameter_a + parameter_b) * parameter_c
 
     runtime = get_runtime()
@@ -103,7 +106,7 @@ def test_broadcast_1():
 
     new_shape = [3, 3]
     expected = [[1, 2, 3], [1, 2, 3], [1, 2, 3]]
-    result = run_op_node([input_data], ng.broadcast, new_shape)
+    result = run_op_node([input_data], ov.broadcast, new_shape)
     assert np.allclose(result, expected)
 
 
@@ -111,7 +114,7 @@ def test_broadcast_2():
     input_data = np.arange(4, dtype=np.int32)
     new_shape = [3, 4, 2, 4]
     expected = np.broadcast_to(input_data, new_shape)
-    result = run_op_node([input_data], ng.broadcast, new_shape)
+    result = run_op_node([input_data], ov.broadcast, new_shape)
     assert np.allclose(result, expected)
 
 
@@ -121,7 +124,7 @@ def test_broadcast_3():
     axis_mapping = [0]
     expected = [[1, 1, 1], [2, 2, 2], [3, 3, 3]]
 
-    result = run_op_node([input_data], ng.broadcast, new_shape, axis_mapping, "EXPLICIT")
+    result = run_op_node([input_data], ov.broadcast, new_shape, axis_mapping, "EXPLICIT")
     assert np.allclose(result, expected)
 
 
@@ -131,7 +134,7 @@ def test_broadcast_3():
 )
 def test_convert_to_bool(destination_type, input_data):
     expected = np.array(input_data, dtype=bool)
-    result = run_op_node([input_data], ng.convert, destination_type)
+    result = run_op_node([input_data], ov.convert, destination_type)
     assert np.allclose(result, expected)
     assert np.array(result).dtype == bool
 
@@ -149,7 +152,7 @@ def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type)
     np.random.seed(133391)
     input_data = np.random.randint(*rand_range, size=(2, 2), dtype=in_dtype)
     expected = np.array(input_data, dtype=expected_type)
-    result = run_op_node([input_data], ng.convert, destination_type)
+    result = run_op_node([input_data], ov.convert, destination_type)
     assert np.allclose(result, expected)
     assert np.array(result).dtype == expected_type
 
@@ -171,7 +174,7 @@ def test_convert_to_int(destination_type, expected_type):
     np.random.seed(133391)
     input_data = (np.ceil(-8 + np.random.rand(2, 3, 4) * 16)).astype(np.float32)
     expected = np.array(input_data, dtype=expected_type)
-    result = run_op_node([input_data], ng.convert, destination_type)
+    result = run_op_node([input_data], ov.convert, destination_type)
     assert np.allclose(result, expected)
     assert np.array(result).dtype == expected_type
 
@@ -193,14 +196,14 @@ def test_convert_to_uint(destination_type, expected_type):
     np.random.seed(133391)
     input_data = np.ceil(np.random.rand(2, 3, 4) * 16).astype(np.float32)
     expected = np.array(input_data, dtype=expected_type)
-    result = run_op_node([input_data], ng.convert, destination_type)
+    result = run_op_node([input_data], ov.convert, destination_type)
     assert np.allclose(result, expected)
     assert np.array(result).dtype == expected_type
 
 
 def test_bad_data_shape():
-    A = ng.parameter(shape=[2, 2], name="A", dtype=np.float32)
-    B = ng.parameter(shape=[2, 2], name="B")
+    A = ov.parameter(shape=[2, 2], name="A", dtype=np.float32)
+    B = ov.parameter(shape=[2, 2], name="B")
     model = A + B
     runtime = get_runtime()
     computation = runtime.computation(model, A, B)
@@ -213,7 +216,7 @@ def test_bad_data_shape():
 
 def test_constant_get_data_bool():
     input_data = np.array([True, False, False, True])
-    node = ng.constant(input_data, dtype=np.bool)
+    node = ov.constant(input_data, dtype=np.bool)
     retrieved_data = node.get_data()
     assert np.allclose(input_data, retrieved_data)
 
@@ -225,7 +228,7 @@ def test_constant_get_data_floating_point(data_type):
     min_value = -1.0e20
     max_value = 1.0e20
     input_data = min_value + input_data * max_value * data_type(2)
-    node = ng.constant(input_data, dtype=data_type)
+    node = ov.constant(input_data, dtype=data_type)
     retrieved_data = node.get_data()
     assert np.allclose(input_data, retrieved_data)
 
@@ -236,7 +239,7 @@ def test_constant_get_data_signed_integer(data_type):
     input_data = np.random.randint(
         np.iinfo(data_type).min, np.iinfo(data_type).max, size=[2, 3, 4], dtype=data_type
     )
-    node = ng.constant(input_data, dtype=data_type)
+    node = ov.constant(input_data, dtype=data_type)
     retrieved_data = node.get_data()
     assert np.allclose(input_data, retrieved_data)
 
@@ -248,19 +251,57 @@ def test_constant_get_data_unsigned_integer(data_type):
     input_data = (
         np.iinfo(data_type).min + input_data * np.iinfo(data_type).max + input_data * np.iinfo(data_type).max
     )
-    node = ng.constant(input_data, dtype=data_type)
+    node = ov.constant(input_data, dtype=data_type)
     retrieved_data = node.get_data()
     assert np.allclose(input_data, retrieved_data)
 
 
+def test_set_argument():
+    runtime = get_runtime()
+
+    data1 = np.array([1, 2, 3])
+    data2 = np.array([4, 5, 6])
+    data3 = np.array([7, 8, 9])
+
+    node1 = ov.constant(data1, dtype=np.float32)
+    node2 = ov.constant(data2, dtype=np.float32)
+    node3 = ov.constant(data3, dtype=np.float32)
+    node_add = ov.add(node1, node2)
+
+    # Original arguments
+    computation = runtime.computation(node_add)
+    output = computation()
+    assert np.allclose(data1 + data2, output)
+
+    # Arguments changed by set_argument
+    node_add.set_argument(1, node3.output(0))
+    output = computation()
+    assert np.allclose(data1 + data3, output)
+
+    # Arguments changed by set_argument
+    node_add.set_argument(0, node3.output(0))
+    output = computation()
+    assert np.allclose(data3 + data3, output)
+
+    # Arguments changed by set_argument(OutputVector)
+    node_add.set_arguments([node2.output(0), node3.output(0)])
+    output = computation()
+    assert np.allclose(data2 + data3, output)
+
+    # Arguments changed by set_arguments(NodeVector)
+    node_add.set_arguments([node1, node2])
+    output = computation()
+    assert np.allclose(data1 + data2, output)
+
+
 def test_result():
-    node = np.array([[11, 10], [1, 8], [3, 4]])
-    result = run_op_node([node], ng.result)
+    node = np.array([[11, 10], [1, 8], [3, 4]], dtype=np.float32)
+    result = run_op_node([node], ov.result)
     assert np.allclose(result, node)
 
 
 def test_node_friendly_name():
-    dummy_node = ng.parameter(shape=[1], name="dummy_name")
+    dummy_node = ov.parameter(shape=[1], name="dummy_name")
 
     assert(dummy_node.friendly_name == "dummy_name")
 
@@ -278,9 +319,9 @@ def test_node_output():
     splits = 3
     expected_shape = len(input_array) // splits
 
-    input_tensor = ng.constant(input_array, dtype=np.int32)
-    axis = ng.constant(0, dtype=np.int64)
-    split_node = ng.split(input_tensor, axis, splits)
+    input_tensor = ov.constant(input_array, dtype=np.int32)
+    axis = ov.constant(0, dtype=np.int64)
+    split_node = ov.split(input_tensor, axis, splits)
 
     split_node_outputs = split_node.outputs()
 
@@ -308,8 +349,8 @@ def test_node_output():
 
 def test_node_input():
     shape = [2, 2]
-    parameter_a = ng.parameter(shape, dtype=np.float32, name="A")
-    parameter_b = ng.parameter(shape, dtype=np.float32, name="B")
+    parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
 
     model = parameter_a + parameter_b
 
@@ -337,8 +378,8 @@ def test_node_input():
 
 def test_node_target_inputs_soruce_output():
     shape = [2, 2]
-    parameter_a = ng.parameter(shape, dtype=np.float32, name="A")
-    parameter_b = ng.parameter(shape, dtype=np.float32, name="B")
+    parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
 
     model = parameter_a + parameter_b
 
@@ -377,7 +418,7 @@ def test_runtime_info():
     test_shape = PartialShape([1, 1, 1, 1])
     test_type = Type.f32
     test_param = Parameter(test_type, test_shape)
-    relu_node = ng.relu(test_param)
+    relu_node = ov.relu(test_param)
     runtime_info = relu_node.get_rt_info()
     runtime_info["affinity"] = "test_affinity"
     relu_node.set_friendly_name("testReLU")
@@ -386,17 +427,17 @@ def test_runtime_info():
     assert runtime_info_after["affinity"] == "test_affinity"
 
 
-def test_mutiple_outputs():
+def test_multiple_outputs():
     input_shape = [4, 4]
-    input_data = np.arange(-8, 8).reshape(input_shape)
+    input_data = np.arange(-8, 8).reshape(input_shape).astype(np.float32)
 
     expected_output = np.split(input_data, 2, axis=1)[0]
     expected_output[expected_output < 0] = 0
 
-    test_param = ng.parameter(input_shape, dtype=np.float32, name="A")
-    split = ng.split(test_param, axis=1, num_splits=2)
+    test_param = ov.parameter(input_shape, dtype=np.float32, name="A")
+    split = ov.split(test_param, axis=1, num_splits=2)
     split_first_output = split.output(0)
-    relu = ng.relu(split_first_output)
+    relu = ov.relu(split_first_output)
 
     runtime = get_runtime()
     computation = runtime.computation(relu, test_param)
@@ -406,11 +447,11 @@ def test_mutiple_outputs():
 
 
 def test_sink_function_ctor():
-    input_data = ng.parameter([2, 2], name="input_data", dtype=np.float32)
-    rv = ng.read_value(input_data, "var_id_667")
-    add = ng.add(rv, input_data, name="MemoryAdd")
-    node = ng.assign(add, "var_id_667")
-    res = ng.result(add, "res")
+    input_data = ov.parameter([2, 2], name="input_data", dtype=np.float32)
+    rv = ov.read_value(input_data, "var_id_667")
+    add = ov.add(rv, input_data, name="MemoryAdd")
+    node = ov.assign(add, "var_id_667")
+    res = ov.result(add, "res")
     function = Function(results=[res], sinks=[node], parameters=[input_data], name="TestFunction")
 
     ordered_ops = function.get_ordered_ops()
@@ -428,7 +469,7 @@ def test_sink_function_ctor():
 
 
 def test_node_version():
-    node = ng.add([1], [2])
+    node = ov.add([1], [2])
 
     assert node.get_version() == 1
     assert node.version == 1

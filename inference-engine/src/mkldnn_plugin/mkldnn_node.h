@@ -36,175 +36,6 @@ using MKLDNNNodePtr = std::shared_ptr<MKLDNNNode>;
 using MKLDNNNodeConstPtr = std::shared_ptr<const MKLDNNNode>;
 using MKLDNNNodeWeakPtr = std::weak_ptr<MKLDNNNode>;
 
-Type TypeFromName(const std::string type);
-
-static std::string NameFromType(Type type) {
-    switch (type) {
-        case Generic:
-            return "Generic";
-        case Reorder:
-            return "Reorder";
-        case Input:
-            return "Input";
-        case Output:
-            return "Output";
-        case Convolution:
-            return "Convolution";
-        case Deconvolution:
-            return "Deconvolution";
-        case Lrn:
-            return "Lrn";
-        case Pooling:
-            return "Pooling";
-        case AdaptivePooling:
-            return "AdaptivePooling";
-        case FullyConnected:
-            return "FullyConnected";
-        case MatMul:
-            return "MatMul";
-        case Softmax:
-            return "Softmax";
-        case Split:
-            return "Split";
-        case Concatenation:
-            return "Concatenation";
-        case StridedSlice:
-            return "StridedSlice";
-        case Reshape:
-            return "Reshape";
-        case Tile:
-            return "Tile";
-        case ROIAlign:
-            return "ROIAlign";
-        case ROIPooling:
-            return "ROIPooling";
-        case PSROIPooling:
-            return "PSROIPooling";
-        case DepthToSpace:
-            return "DepthToSpace";
-        case BatchToSpace:
-            return "BatchToSpace";
-        case Pad:
-            return "Pad";
-        case Transpose:
-            return "Transpose";
-        case SpaceToDepth:
-            return "SpaceToDepth";
-        case SpaceToBatch:
-            return "SpaceToBatch";
-        case MemoryOutput:
-            return "MemoryOutput";
-        case MemoryInput:
-            return "MemoryInput";
-        case RNNSeq:
-            return "RNNSeq";
-        case RNNCell:
-            return "RNNCell";
-        case Eltwise:
-            return "Eltwise";
-        case FakeQuantize:
-            return "FakeQuantize";
-        case BinaryConvolution:
-            return "BinaryConvolution";
-        case DeformableConvolution:
-            return "DeformableConvolution";
-        case MVN:
-            return "MVN";
-        case TensorIterator:
-            return "TensorIterator";
-        case Convert:
-            return "Convert";
-        case NormalizeL2:
-            return "NormalizeL2";
-        case ScatterUpdate:
-            return "ScatterUpdate";
-        case ScatterElementsUpdate:
-            return "ScatterElementsUpdate";
-        case ScatterNDUpdate:
-            return "ScatterNDUpdate";
-        case Interpolate:
-            return "Interpolate";
-        case Reduce:
-            return "Reduce";
-        case Broadcast:
-            return "Broadcast";
-        case EmbeddingSegmentsSum:
-            return "EmbeddingSegmentsSum";
-        case EmbeddingBagPackedSum:
-            return "EmbeddingBagPackedSum";
-        case EmbeddingBagOffsetsSum:
-            return "EmbeddingBagOffsetsSum";
-        case Gather:
-            return "Gather";
-        case GatherElements:
-            return "GatherElements";
-        case GatherND:
-            return "GatherND";
-        case OneHot:
-            return "OneHot";
-        case RegionYolo:
-            return "RegionYolo";
-        case Select:
-            return "Select";
-        case Roll:
-            return "Roll";
-        case ShuffleChannels:
-            return "ShuffleChannels";
-        case DFT:
-            return "DFT";
-        case Math:
-            return "Math";
-        case CTCLoss:
-            return "CTCLoss";
-        case Bucketize:
-            return "Bucketize";
-        case CTCGreedyDecoder:
-            return "CTCGreedyDecoder";
-        case CTCGreedyDecoderSeqLen:
-            return "CTCGreedyDecoderSeqLen";
-        case CumSum:
-            return "CumSum";
-        case DetectionOutput:
-            return "DetectionOutput";
-        case ExperimentalDetectronDetectionOutput:
-            return "ExperimentalDetectronDetectionOutput";
-        case LogSoftmax:
-            return "LogSoftmax";
-        case TopK:
-            return "TopK";
-        case GatherTree:
-            return "GatherTree";
-        case GRN:
-            return "GRN";
-        case Range:
-            return "Range";
-        case Proposal:
-            return "Proposal";
-        case ReorgYolo:
-            return "ReorgYolo";
-        case ReverseSequence:
-            return "ReverseSequence";
-        case ExperimentalDetectronTopKROIs:
-            return "ExperimentalDetectronTopKROIs";
-        case ExperimentalDetectronROIFeatureExtractor:
-            return "ExperimentalDetectronROIFeatureExtractor";
-        case ExperimentalDetectronPriorGridGenerator:
-            return "ExperimentalDetectronPriorGridGenerator";
-        case ExperimentalDetectronGenerateProposalsSingleImage:
-            return "ExperimentalDetectronGenerateProposalsSingleImage";
-        case ExtractImagePatches:
-            return "ExtractImagePatches";
-        case NonMaxSuppression:
-            return "NonMaxSuppression";
-        case MatrixNms:
-            return "MatrixNms";
-        case MulticlassNms:
-            return "MulticlassNms";
-        default:
-            return "Unknown";
-    }
-}
-
 class PortConfigurator {
 public:
     PortConfigurator(MKLDNNPlugin::LayoutType blockedDescType, InferenceEngine::Precision prc, const Shape& shape,
@@ -362,6 +193,11 @@ public:
     }
 
     bool isInPlace();
+
+    // must be called only after MKLDNNGraph::InitEdges()
+    virtual bool isExecutable() const {
+        return true;
+    }
 
     bool isConstant();
 
@@ -722,14 +558,6 @@ public:
     }
 
 protected:
-    // TODO [DS] : make pure after all nodes will be support dynamic shapes
-    virtual std::vector<VectorDims> shapeInfer() const {
-        IE_THROW(NotImplemented) << "[DS] MKLDNNNode::shapeInfer is not defined for node with type: " << getTypeStr();
-    }
-    virtual void executeDynamicImpl(mkldnn::stream strm) {
-        IE_THROW(NotImplemented) << "[DS] executeDynamicImpl not implemented for node with type: " << getTypeStr();
-    }
-
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
     // TODO [mandrono]: place outside of the node API
     void fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align = -1);
@@ -738,7 +566,7 @@ protected:
         this->type = type;
     }
 
-    virtual size_t getMaxBatch();
+    virtual size_t getMaxBatch() const;
 
 
     virtual MemoryDescPtr getDefinedInputDesc(const NodeConfig &config, size_t idx) const;
@@ -751,7 +579,7 @@ protected:
      * Seed node should call this routine and pass its post operations list as parameter.
      * @param ops List of fused post operations
      */
-    virtual void appendPostOps(mkldnn::post_ops& ops);
+    virtual void appendPostOps(mkldnn::post_ops& ops, bool initAsBinary = false, bool initBinaryMemory = false);
     virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() const { return nullptr; }
 
     typedef std::function<DnnlMemoryDescPtr (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>
@@ -792,12 +620,13 @@ protected:
     std::vector<MKLDNNMemoryPtr> internalBlobMemory;
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, mkldnn::memory> primArgs;
+    std::vector<mkldnn::memory> binaryPostOpsArgs;
     MKLDNNPrimitive prim;
     std::vector<MKLDNNDescriptor> descs;
 
     MKLDNNWeightsSharing::Ptr weightCache;
 
-    Algorithm algorithm = Algorithm::Undefined;
+    Algorithm algorithm = Algorithm::Default;
 
     bool isInQuantizedGraph = false;
 
@@ -813,7 +642,7 @@ protected:
     virtual const std::vector<impl_desc_type>& getPrimitivesPriority();
 
     virtual std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
-    int batchToProcess();
+    int batchToProcess() const;
 
     InferenceEngine::Layout getWeightsLayoutByDims(InferenceEngine::SizeVector dims, bool isGrouped);
 
@@ -869,8 +698,30 @@ protected:
         supportedPrimitiveDescriptors.push_back({config, implType});
     }
 
-private:
     bool isDynamic = false;
+
+    bool inputShapesDefined() const;
+    void updateLastInputDims();
+
+    bool inputShapesModified() const;
+    virtual bool needShapeInfer() const;
+    virtual std::vector<VectorDims> shapeInfer() const;
+    // TODO [DS] : make pure after all nodes will be support dynamic shapes
+    virtual void executeDynamicImpl(mkldnn::stream strm) {
+        IE_THROW(NotImplemented) << "[DS] executeDynamicImpl not implemented for node with type: " << getTypeStr();
+    }
+
+    virtual bool needPrepareParams() const;
+    // TODO [mandrono]: add description
+    // called after memory allocation/reallocation
+    virtual void prepareParams() {
+        IE_THROW(NotImplemented) << "[DS] prapareParams not implemented for node with type " << NameFromType(getType());
+    }
+
+    std::vector<VectorDims> lastInputDims = {};
+
+private:
+    std::shared_ptr<ngraph::Node> opToShapeInfer;
 
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;
     std::vector<MKLDNNEdgeWeakPtr> childEdges;
@@ -894,6 +745,8 @@ private:
 
     bool isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const;
 
+    void createShapeInferSubgraph(const std::shared_ptr<ngraph::Node>& op);
+
     template <class PD, class D, typename FPD>
     typename std::enable_if<!std::is_same<FPD, bool>::value, PD>::type
     createPd(MKLDNNDescriptor desc) {
@@ -912,6 +765,10 @@ private:
     void prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_desc_iterator& itpd);
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<MKLDNNNodePtr>& checkNodes);
+
+#ifdef CPU_DEBUG_CAPS
+    friend class Verbose;
+#endif
 };
 
 class MKLDNNNode::NodesFactory : public openvino::cc::Factory<Type,

@@ -3,8 +3,8 @@
 
 import numpy as np
 
-import ngraph as ng
-from ngraph.impl import Dimension, Function, PartialShape, Shape
+import openvino.opset8 as ov
+from openvino.impl import Dimension, Function, PartialShape, Shape
 
 
 def test_dimension():
@@ -224,8 +224,8 @@ def test_partial_shape_equals():
 
 def test_repr_dynamic_shape():
     shape = PartialShape([-1, 2])
-    parameter_a = ng.parameter(shape, dtype=np.float32, name="A")
-    parameter_b = ng.parameter(shape, dtype=np.float32, name="B")
+    parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
     model = parameter_a + parameter_b
     function = Function(model, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
 
@@ -234,3 +234,29 @@ def test_repr_dynamic_shape():
     ops = function.get_ordered_ops()
     for op in ops:
         assert "{?,2}" in repr(op)
+
+
+def test_discrete_type_info():
+    data_shape = [6, 12, 10, 24]
+    data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
+    k = np.int32(3)
+    axis = np.int32(1)
+    n1 = ov.topk(data_parameter, k, axis, "max", "value")
+    n2 = ov.topk(data_parameter, k, axis, "max", "value")
+    n3 = ov.sin(0.2)
+
+    assert n1.type_info.name == "TopK"
+    assert n3.type_info.name == "Sin"
+    assert n1.get_type_info().name == "TopK"
+    assert n3.get_type_info().name == "Sin"
+    assert n1.type_info.name == n2.type_info.name
+    assert n1.type_info.version == n2.type_info.version
+    assert n1.type_info.parent == n2.type_info.parent
+    assert n1.get_type_info().name == n2.get_type_info().name
+    assert n1.get_type_info().version == n2.get_type_info().version
+    assert n1.get_type_info().parent == n2.get_type_info().parent
+    assert n1.get_type_info().name != n3.get_type_info().name
+    assert n1.get_type_info().name > n3.get_type_info().name
+    assert n1.get_type_info().name >= n3.get_type_info().name
+    assert n3.get_type_info().name < n1.get_type_info().name
+    assert n3.get_type_info().name <= n1.get_type_info().name

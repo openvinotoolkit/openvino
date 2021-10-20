@@ -14,7 +14,8 @@ namespace v1 {
 /// Reduces the tensor, eliminating the specified reduction axes by taking the product.
 class OPENVINO_API ReduceProd : public util::ArithmeticReductionKeepDims {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ReduceProd", "opset1", util::ArithmeticReductionKeepDims, 1);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a product reduction operation.
     ReduceProd() = default;
     /// \brief Constructs a product reduction operation.
@@ -31,10 +32,14 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate_lower(const HostTensorVector& outputs) const override;
     bool evaluate_upper(const HostTensorVector& outputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 }  // namespace v1
 }  // namespace op

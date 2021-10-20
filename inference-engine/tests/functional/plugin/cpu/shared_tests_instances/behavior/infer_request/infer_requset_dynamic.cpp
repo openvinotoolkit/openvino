@@ -18,12 +18,17 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {}
 };
 
+const std::vector<std::map<std::string, std::string>> HeteroConfigs = {
+    {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_CPU}}
+};
+
 std::shared_ptr<ngraph::Function> getFunction1() {
     const std::vector<size_t> inputShape = {1, 4, 20, 20};
     const ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32;
 
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     params.front()->set_friendly_name("Param_1");
+    params.front()->get_output_tensor(0).set_names({"Tensor_1"});
 
     auto in2add = ngraph::builder::makeConstant(ngPrc, {1, 4, 1, 1}, std::vector<float>{}, true);
     auto add = ngraph::builder::makeEltwise(params[0], in2add, ngraph::helpers::EltwiseTypes::ADD);
@@ -40,6 +45,7 @@ std::shared_ptr<ngraph::Function> getFunction2() {
 
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     params.front()->set_friendly_name("Param_1");
+    params.front()->get_output_tensor(0).set_names({"Tensor_1"});
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
 
     auto in2add = ngraph::builder::makeConstant(ngPrc, {1, 2, 1, 1}, std::vector<float>{}, true);
@@ -55,7 +61,7 @@ std::shared_ptr<ngraph::Function> getFunction2() {
     return std::make_shared<ngraph::Function>(concat, params, "SplitAddConcat");
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests_1, InferRequestDynamicTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_1, InferRequestDynamicTests,
                         ::testing::Combine(
                                 ::testing::Values(getFunction1()),
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
@@ -65,7 +71,7 @@ INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests_1, InferRequestDynamicTests,
                                 ::testing::ValuesIn(configs)),
                         InferRequestDynamicTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests_2, InferRequestDynamicTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_2, InferRequestDynamicTests,
                         ::testing::Combine(
                                 ::testing::Values(getFunction2()),
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
@@ -73,6 +79,16 @@ INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests_2, InferRequestDynamicTests,
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::ValuesIn(configs)),
+                        InferRequestDynamicTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestDynamicTests,
+                        ::testing::Combine(
+                                ::testing::Values(getFunction2()),
+                                ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
+                                    {{1, 4, 20, 20}, {1, 2, 20, 40}},
+                                    {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
+                                ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                ::testing::ValuesIn(HeteroConfigs)),
                         InferRequestDynamicTests::getTestCaseName);
 
 }  // namespace

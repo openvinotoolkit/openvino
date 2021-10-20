@@ -12,7 +12,8 @@ namespace v1 {
 /// \brief Elementwise less-than operation.
 class OPENVINO_API Less : public util::BinaryElementwiseComparison {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Less", "opset1", op::util::BinaryElementwiseComparison, 1);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a less-than operation.
     Less() : util::BinaryElementwiseComparison(AutoBroadcastSpec::NUMPY) {}
     /// \brief Constructs a less-than operation.
@@ -25,7 +26,9 @@ public:
          const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
 }  // namespace v1

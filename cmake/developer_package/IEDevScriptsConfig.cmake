@@ -14,7 +14,7 @@ set(CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
 function(set_ci_build_number)
     set(repo_root "${CMAKE_SOURCE_DIR}")
     include(version)
-    foreach(var CI_BUILD_NUMBER IE_VERSION
+    foreach(var CI_BUILD_NUMBER IE_VERSION IE_VERSION_BUILD
                 IE_VERSION_MAJOR IE_VERSION_MINOR IE_VERSION_PATCH)
         if(NOT DEFINED ${var})
             message(FATAL_ERROR "${var} version component is not defined")
@@ -280,8 +280,10 @@ function(ie_check_pip_package full_name message_type)
                 set(installed_version "${CMAKE_MATCH_1}")
             endif()
 
-            message(${message_type} "${name} package is installed, but may have different version (${installed_version}). "
-                "Please use \"${PYTHON_EXECUTABLE} -m pip install ${full_name}\".")
+            if(NOT req_version STREQUAL installed_version)
+                message(${message_type} "${name} package is installed, but may have different version (${installed_version}). "
+                    "Please use \"${PYTHON_EXECUTABLE} -m pip install ${full_name}\".")
+            endif()
         else()
             set(${name}_FOUND ON PARENT_SCOPE)
         endif()
