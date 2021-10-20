@@ -42,8 +42,8 @@ def test(instance, executable, niter, temp_dir, omz_models_conversion, validate_
     """
     # Prepare model to get model_path
     model_path = ''
-    cache_model_path = instance["instance"]["model"].get("path")
-    irs_model_path = instance["instance"]["model"].get("full_path")
+    cache_model_path = instance["instance"]["model"].get("cache_path")
+    irs_model_path = instance["instance"]["model"].get("irs_out_path")
 
     if os.path.isfile(irs_model_path):
         model_path = irs_model_path
