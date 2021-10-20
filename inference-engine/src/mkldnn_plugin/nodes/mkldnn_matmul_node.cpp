@@ -340,11 +340,9 @@ void MKLDNNMatMulNode::prepareParams() {
 
     prim.reset(new matmul(prim_desc));
 
-    const auto& src0 = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    const auto& src1 = getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPrimitive();
-    const auto& dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-
-    primArgs = {{DNNL_ARG_SRC_0, src0}, {DNNL_ARG_WEIGHTS_0, src1}, {DNNL_ARG_DST, dst}};
+    primArgs[DNNL_ARG_SRC_0] = src0MemPtr->GetPrimitive();
+    primArgs[DNNL_ARG_WEIGHTS_0] = src1MemPtr->GetPrimitive();
+    primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
 }
 
 void MKLDNNMatMulNode::executeDynamicImpl(dnnl::stream strm) {
