@@ -11,7 +11,7 @@
 
 #include "pugixml.hpp"
 
-#include <transformations/serialize.hpp>
+#include <openvino/pass/serialize.hpp>
 #include <ngraph/opsets/opset.hpp>
 
 #include "ngraph/variant.hpp"
@@ -94,7 +94,7 @@ void LayerTestsCommon::Run() {
     }
 }
 
-void LayerTestsCommon::Serialize() {
+void LayerTestsCommon::Serialize(ngraph::pass::Serialize::Version ir_version) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     std::string output_name = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + GetTimestamp();
@@ -103,7 +103,7 @@ void LayerTestsCommon::Serialize() {
     std::string out_bin_path = output_name + ".bin";
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path);
+    manager.register_pass<ov::pass::Serialize>(out_xml_path, out_bin_path, ir_version);
     manager.run_passes(function);
     function->validate_nodes_and_infer_types();
 
@@ -344,7 +344,9 @@ void LayerTestsCommon::Compare(const InferenceEngine::TensorDesc &actualDesc, co
 
 void LayerTestsCommon::ConfigureNetwork() {
     for (const auto &in : cnnNetwork.getInputsInfo()) {
-        if (inLayout != InferenceEngine::Layout::ANY) {
+        if (inLayout != InferenceEngine::Layout::ANY &&
+            // cannot setLayout for fully-dynamic network
+            !in.second->getPartialShape().rank().is_dynamic()) {
             in.second->setLayout(inLayout);
         }
         if (inPrc != InferenceEngine::Precision::UNSPECIFIED) {
@@ -353,7 +355,9 @@ void LayerTestsCommon::ConfigureNetwork() {
     }
 
     for (const auto &out : cnnNetwork.getOutputsInfo()) {
-        if (outLayout != InferenceEngine::Layout::ANY) {
+        if (outLayout != InferenceEngine::Layout::ANY &&
+            // cannot setLayout for fully-dynamic network
+            !out.second->getPartialShape().rank().is_dynamic()) {
             out.second->setLayout(outLayout);
         }
         if (outPrc != InferenceEngine::Precision::UNSPECIFIED) {

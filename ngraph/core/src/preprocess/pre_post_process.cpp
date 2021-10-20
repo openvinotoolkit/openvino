@@ -324,6 +324,7 @@ PrePostProcessor&& PrePostProcessor::output(OutputInfo&& builder) && {
 
 std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function>& function) {
     FunctionGuard guard(function);
+    std::tuple<std::unordered_set<std::string>, bool> existing_names{std::unordered_set<std::string>{}, false};
     bool tensor_data_updated = false;
     for (const auto& input : m_impl->in_contexts) {
         std::shared_ptr<op::v0::Parameter> param;
@@ -343,6 +344,9 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         }
         input->m_resolved_param = param;
     }
+    auto results = function->get_results();
+    auto parameters_list = std::list<std::shared_ptr<op::v0::Parameter>>(function->get_parameters().begin(),
+                                                                         function->get_parameters().end());
 
     for (const auto& input : m_impl->in_contexts) {
         auto param = input->m_resolved_param;
@@ -394,17 +398,33 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         std::vector<Output<Node>> nodes;
         std::vector<std::shared_ptr<op::v0::Parameter>> new_params;
 
-        // Create separate parameter for each plane. Shape and friendly name is based on color format
+        // Create separate parameter for each plane. Shape is based on color format
         for (size_t plane = 0; plane < color_info->planes_count(); plane++) {
             auto plane_shape = color_info->shape(plane, new_param_shape);
             auto plane_param =
                 std::make_shared<op::v0::Parameter>(input->m_tensor_data->get_element_type(), plane_shape);
             if (plane < input->m_tensor_data->planes_sub_names().size()) {
-                auto sub_name = std::string("/") + input->m_tensor_data->planes_sub_names()[plane];
-                inherit_friendly_names(function, param, plane_param, sub_name, false);
-            } else {
-                auto sub_name = color_info->friendly_suffix(plane);
-                inherit_friendly_names(function, param, plane_param, sub_name);
+                std::unordered_set<std::string> plane_tensor_names;
+                std::string sub_name;
+                sub_name = std::string("/") + input->m_tensor_data->planes_sub_names()[plane];
+                if (!std::get<1>(existing_names)) {
+                    existing_names = std::make_tuple(get_function_tensor_names(function), true);
+                }
+                for (const auto& tensor_name : param->get_default_output().get_tensor().get_names()) {
+                    auto new_name = tensor_name + sub_name;
+                    OPENVINO_ASSERT(
+                        std::get<0>(existing_names).count(new_name) == 0,
+                        "Error while trying to create plane input with name '",
+                        new_name,
+                        "' - name already exists in network. Please specify another sub-name for set_color_format");
+                    plane_tensor_names.insert(new_name);
+                }
+                plane_param->get_default_output().get_tensor().set_names(plane_tensor_names);
+                plane_param->set_friendly_name(param->get_friendly_name() + sub_name);
+            } else if (color_info->planes_count() == 1) {
+                plane_param->get_default_output().get_tensor().set_names(
+                    param->get_default_output().get_tensor().get_names());
+                plane_param->set_friendly_name(param->get_friendly_name());
             }
             if (!input->m_tensor_data->get_layout().empty()) {
                 plane_param->set_layout(input->m_tensor_data->get_layout());
@@ -464,11 +484,25 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         for (auto consumer : consumers) {
             consumer.replace_source_output(node);
         }
-        function->add_parameters(new_params);
-        // remove old parameter
-        function->remove_parameter(param);
+        {
+            auto param_it = std::find(parameters_list.begin(), parameters_list.end(), param);
+            OPENVINO_ASSERT(param_it != parameters_list.end(),
+                            "Parameter to replace has been replaced by previous steps of preprocessing. Use only one "
+                            "InputInfo for one input parameter");
+            // Insert list of new parameters to the place of original parameter
+            param_it = parameters_list.erase(param_it);
+            parameters_list.insert(param_it, new_params.begin(), new_params.end());
+        }
     }
 
+    // Add parameters with right order
+    {
+        while (!function->get_parameters().empty()) {
+            function->remove_parameter(*function->get_parameters().begin());
+        }
+        auto parameters_vec = ParameterVector(parameters_list.begin(), parameters_list.end());
+        function->add_parameters(parameters_vec);
+    }
     // Validate nodes after preprocessing if needed (no need to repeat it after post-processing)
     if (tensor_data_updated) {
         function->validate_nodes_and_infer_types();
@@ -487,6 +521,7 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
             node = function->output();
         }
         auto start_out_node_names = node.get_tensor().get_names();
+        node.get_tensor().set_names({});
         result = std::dynamic_pointer_cast<op::v0::Result>(node.get_node_shared_ptr());
         // Set result layout from 'network' information
         if (output->m_network_data && output->m_network_data->is_layout_set() && result->get_layout().empty()) {
@@ -525,17 +560,28 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
             auto action_result = action({node}, context);
             node = std::get<0>(action_result);
         }
+        node.get_node_shared_ptr()->set_friendly_name(
+            result->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name());
 
         // Create result
         auto new_result = std::make_shared<ov::op::v0::Result>(node);
+        new_result->set_friendly_name(result->get_friendly_name());
         if (!context.layout().empty()) {
             new_result->set_layout(context.layout());
         }
         node.get_tensor().set_names(start_out_node_names);
 
-        function->add_results({new_result});
-        function->remove_result(result);
+        for (auto& old_result : results) {
+            if (result == old_result) {
+                old_result = new_result;
+                break;
+            }
+        }
     }
+    // Add results with right order
+    while (!function->get_results().empty())
+        function->remove_result(*function->get_results().begin());
+    function->add_results(results);
 
     guard.reset();
     return function;

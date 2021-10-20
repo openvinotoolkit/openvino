@@ -32,8 +32,6 @@ ov::Node::Node(const Node& node)
       m_friendly_name(node.m_friendly_name)
       // skip m_unique_name -- will be generated automatically
       ,
-      m_provenance_tags(node.m_provenance_tags),
-      m_provenance_group(node.m_provenance_group),
       m_inputs(node.m_inputs)  // will be modified in the body
       // skip m_outputs -- should be initialized outside
       ,
@@ -51,8 +49,6 @@ ov::Node& ov::Node::operator=(const Node& node) {
     this->m_control_dependencies = node.m_control_dependencies;
     this->m_instance_id = m_next_instance_id.fetch_add(1);
     this->m_friendly_name = node.m_friendly_name;
-    this->m_provenance_tags = node.m_provenance_tags;
-    this->m_provenance_group = node.m_provenance_group;
     this->m_inputs = node.m_inputs;
     this->m_op_annotations = node.m_op_annotations;
     this->m_rt_info = node.m_rt_info;
@@ -249,125 +245,6 @@ const std::string& ov::Node::get_name() const {
 
 void ov::Node::set_friendly_name(const string& name) {
     m_friendly_name = name;
-}
-
-void ov::Node::add_provenance_group_member(const shared_ptr<Node>& node) {
-    m_provenance_group.insert(node);
-}
-
-void ov::Node::remove_provenance_group_member(const shared_ptr<Node>& node) {
-    m_provenance_group.erase(node);
-}
-
-void ov::Node::replace_provenance_group_member(const shared_ptr<Node>& current_node,
-                                               const shared_ptr<Node>& replacement_node) {
-    // Catch up with the current state of the group
-    replacement_node->add_provenance_tags(get_provenance_tags());
-    if (current_node != nullptr) {
-        remove_provenance_group_member(current_node);
-        // Catch up with what was added to the current node
-        replacement_node->add_provenance_tags(current_node->get_provenance_tags());
-    }
-    add_provenance_group_member(replacement_node);
-}
-
-const set<shared_ptr<ov::Node>>& ov::Node::get_provenance_group_members() const {
-    return m_provenance_group;
-}
-
-shared_ptr<ov::Node> ov::Node::add_provenance_group_members_above(const OutputVector& base) {
-    set<Node*> base_set;
-    for (auto& output : base) {
-        Node* node = output.get_node();
-        if (node == this) {
-            // A builder did nothing
-            return shared_from_this();
-        }
-        base_set.insert(node);
-    }
-    vector<Node*> todo;
-    for (const auto& value : input_values()) {
-        todo.push_back(value.get_node());
-    }
-    while (!todo.empty()) {
-        Node* node = todo.back();
-        todo.pop_back();
-        if (base_set.count(node) > 0) {
-            continue;
-        }
-        add_provenance_group_member(node->shared_from_this());
-        for (const auto& value : node->input_values()) {
-            if (m_provenance_group.count(value.get_node_shared_ptr()) == 0) {
-                todo.push_back(value.get_node());
-            }
-        }
-        base_set.insert(node);
-    }
-    return shared_from_this();
-}
-
-void ov::Node::add_provenance_tags_above(const OutputVector& base, const std::unordered_set<std::string>& tag_set) {
-    set<Node*> base_set;
-    for (auto& output : base) {
-        base_set.insert(output.get_node());
-    }
-    vector<Node*> todo{this};
-    while (!todo.empty()) {
-        Node* node = todo.back();
-        todo.pop_back();
-        if (base_set.count(node) > 0) {
-            continue;
-        }
-        node->add_provenance_tags(tag_set);
-        for (const auto& value : node->input_values()) {
-            todo.push_back(value.get_node());
-        }
-        base_set.insert(node);
-    }
-}
-
-const std::unordered_set<std::string>& ov::Node::get_provenance_tags() const {
-    return m_provenance_tags;
-}
-
-void ov::Node::add_provenance_tag(const std::string& tag) {
-    m_provenance_tags.insert(tag);
-    for (const auto& node : m_provenance_group) {
-        node->add_provenance_tag(tag);
-    }
-}
-
-void ov::Node::remove_provenance_tag(const std::string& tag) {
-    m_provenance_tags.erase(tag);
-}
-
-void ov::Node::merge_provenance_tags_from(const std::shared_ptr<const Node>& source) {
-    for (auto& tag : source->get_provenance_tags()) {
-        add_provenance_tag(tag);
-    }
-}
-
-void ov::Node::transfer_provenance_tags(const shared_ptr<Node>& replacement) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    auto common_args = ngraph::find_common_args(shared_from_this(), replacement);
-
-    std::set<string> removed_subgraph_tags;
-
-    auto set_replacement_prov = [&removed_subgraph_tags](const std::shared_ptr<Node>& node) {
-        for (const auto& tag : node->get_provenance_tags()) {
-            removed_subgraph_tags.insert(tag);
-        }
-    };
-
-    ngraph::traverse_nodes({shared_from_this()}, set_replacement_prov, common_args);
-    replacement->add_provenance_tags(removed_subgraph_tags);
-
-    auto set_prov_new_nodes = [&removed_subgraph_tags](const std::shared_ptr<Node>& node) {
-        node->add_provenance_tags(removed_subgraph_tags);
-    };
-
-    ngraph::traverse_nodes({replacement}, set_prov_new_nodes, common_args);
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 ov::Node* ov::Node::get_input_node_ptr(size_t index) const {
@@ -604,42 +481,16 @@ std::string ov::node_validation_failure_loc_string(const Node* node) {
     return ss.str();
 }
 
-const std::shared_ptr<ov::Node>& ov::check_single_output_arg(const std::shared_ptr<Node>& node, size_t i) {
+const std::shared_ptr<ov::Node>& ngraph::check_single_output_arg(const std::shared_ptr<Node>& node, size_t i) {
     NGRAPH_CHECK(node->get_output_size() == 1, "Argument ", i, node, " must produce exactly one value.");
     return node;
 }
 
-const ov::NodeVector& ov::check_single_output_args(const NodeVector& args) {
+const ov::NodeVector& ngraph::check_single_output_args(const NodeVector& args) {
     for (size_t i = 0; i < args.size(); ++i) {
         ngraph::check_single_output_arg(args.at(i), i);
     }
     return args;
-}
-
-ov::OutputVector ov::as_output_vector(const NodeVector& args) {
-    OutputVector output_vector;
-    for (const auto& arg : args) {
-        output_vector.push_back(arg);
-    }
-    return output_vector;
-}
-
-ov::NodeVector ov::as_node_vector(const OutputVector& values) {
-    NodeVector node_vector;
-    for (auto& value : values) {
-        node_vector.emplace_back(value.get_node_shared_ptr());
-    }
-    return node_vector;
-}
-
-ov::ResultVector ov::as_result_vector(const OutputVector& values) {
-    ResultVector result;
-    for (auto value : values) {
-        shared_ptr<Node> node = value.get_node_shared_ptr();
-        result.push_back(ov::is_type<ngraph::op::Result>(node) ? ov::as_type_ptr<ngraph::op::Result>(node)
-                                                               : make_shared<ngraph::op::Result>(value));
-    }
-    return result;
 }
 
 bool ov::Node::match_value(ngraph::pattern::Matcher* matcher,
@@ -776,6 +627,7 @@ bool ov::Node::has_evaluate() const {
     return false;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool ov::Node::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     return false;
 }
@@ -785,6 +637,7 @@ bool ov::Node::evaluate(const HostTensorVector& output_values,
                         const EvaluationContext& evaluationContext) const {
     return evaluate(output_values, input_values);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace {
 
@@ -846,7 +699,9 @@ inline void update_output_tensors(ov::runtime::TensorVector& output_values, cons
 bool ov::Node::evaluate(ov::runtime::TensorVector& output_values, const ov::runtime::TensorVector& input_values) const {
     HostTensorVector output = create_tmp_tensors(output_values);
     HostTensorVector input = create_tmp_tensors(input_values);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool sts = evaluate(output, input);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     update_output_tensors(output_values, output);
     return sts;
 }
@@ -856,17 +711,32 @@ bool ov::Node::evaluate(ov::runtime::TensorVector& output_values,
                         const ov::EvaluationContext& evaluationContext) const {
     HostTensorVector output = create_tmp_tensors(output_values);
     HostTensorVector input = create_tmp_tensors(input_values);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool sts = evaluate(output, input, evaluationContext);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     update_output_tensors(output_values, output);
     return sts;
 }
 
 bool ov::Node::evaluate_lower(ov::runtime::TensorVector& output_values) const {
     HostTensorVector output = create_tmp_tensors(output_values);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool sts = evaluate_lower(output);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     update_output_tensors(output_values, output);
     return sts;
 }
+
+bool ov::Node::evaluate_upper(ov::runtime::TensorVector& output_values) const {
+    HostTensorVector output = create_tmp_tensors(output_values);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    bool sts = evaluate_upper(output);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    update_output_tensors(output_values, output);
+    return sts;
+}
+
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 bool ov::Node::evaluate_lower(const HostTensorVector& output_values) const {
     const auto& inputs = input_values();
@@ -878,13 +748,6 @@ bool ov::Node::evaluate_lower(const HostTensorVector& output_values) const {
     return ngraph::default_lower_bound_evaluator(this, output_values);
 }
 
-bool ov::Node::evaluate_upper(ov::runtime::TensorVector& output_values) const {
-    HostTensorVector output = create_tmp_tensors(output_values);
-    bool sts = evaluate_upper(output);
-    update_output_tensors(output_values, output);
-    return sts;
-}
-
 bool ov::Node::evaluate_upper(const HostTensorVector& output_values) const {
     const auto& inputs = input_values();
     bool dyn_inputs = std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& output) {
@@ -894,6 +757,8 @@ bool ov::Node::evaluate_upper(const HostTensorVector& output_values) const {
         return false;
     return ngraph::default_upper_bound_evaluator(this, output_values);
 }
+
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Node::constant_fold");
@@ -921,12 +786,14 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
         auto tensor = make_shared<HostTensor>(output.get_element_type(), output.get_partial_shape());
         output_tensors.push_back(tensor);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (evaluate(output_tensors, input_tensors)) {
         for (size_t i = 0; i < output_tensors.size(); ++i) {
             output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i]);
         }
         return true;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
 }
 

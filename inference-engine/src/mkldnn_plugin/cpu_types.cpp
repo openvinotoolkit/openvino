@@ -146,6 +146,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Cosh", Math},
         { "Floor", Math},
         { "HardSigmoid", Math},
+        { "If", If},
         { "Log", Math},
         { "Neg", Math},
         { "Reciprocal", Math},
@@ -326,6 +327,8 @@ std::string NameFromType(const Type type) {
             return "DetectionOutput";
         case ExperimentalDetectronDetectionOutput:
             return "ExperimentalDetectronDetectionOutput";
+        case If:
+            return "If";
         case LogSoftmax:
             return "LogSoftmax";
         case TopK:

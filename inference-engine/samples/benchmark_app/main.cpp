@@ -218,6 +218,25 @@ int main(int argc, char* argv[]) {
         else if (FLAGS_hint == "latency")
             ov_perf_hint = CONFIG_VALUE(LATENCY);
 
+        auto getDeviceTypeFromName = [](std::string device) -> std::string {
+            return device.substr(0, device.find_first_of(".("));
+        };
+
+        // Set default values from dumped config
+        std::set<std::string> default_devices;
+        for (auto& device : devices) {
+            auto default_config = config.find(getDeviceTypeFromName(device));
+            if (default_config != config.end()) {
+                if (!config.count(device)) {
+                    config[device] = default_config->second;
+                    default_devices.emplace(default_config->first);
+                }
+            }
+        }
+        for (auto& device : default_devices) {
+            config.erase(device);
+        }
+
         bool perf_counts = false;
         // Update config per device according to command line parameters
         for (auto& device : devices) {
@@ -256,7 +275,7 @@ int main(int argc, char* argv[]) {
 
             // the rest are individual per-device settings (overriding the values set with perf modes)
             auto setThroughputStreams = [&]() {
-                const std::string key = device + "_THROUGHPUT_STREAMS";
+                const std::string key = getDeviceTypeFromName(device) + "_THROUGHPUT_STREAMS";
                 if (device_nstreams.count(device)) {
                     // set to user defined value
                     std::vector<std::string> supported_config_keys =
@@ -279,13 +298,13 @@ int main(int argc, char* argv[]) {
                                << slog::endl;
                     if (std::string::npos == device.find("MYRIAD"))  // MYRIAD sets the default number of
                                                                      // streams implicitly (without _AUTO)
-                        device_config[key] = std::string(device + "_THROUGHPUT_AUTO");
+                        device_config[key] = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_AUTO");
                 }
                 if (device_config.count(key))
                     device_nstreams[device] = device_config.at(key);
             };
 
-            if (device == "CPU") {  // CPU supports few special performance-oriented keys
+            if (device.find("CPU") != std::string::npos) {  // CPU supports few special performance-oriented keys
                 // limit threading for CPU portion of inference
                 if (isFlagSetInCommandLine("nthreads"))
                     device_config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(FLAGS_nthreads);
@@ -307,7 +326,7 @@ int main(int argc, char* argv[]) {
 
                 // for CPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
-            } else if (device == ("GPU")) {
+            } else if (device.find("GPU") != std::string::npos) {
                 // for GPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
 
@@ -320,10 +339,10 @@ int main(int argc, char* argv[]) {
                                << slog::endl;
                     device_config[GPU_CONFIG_KEY(PLUGIN_THROTTLE)] = "1";
                 }
-            } else if (device == "MYRIAD") {
+            } else if (device.find("MYRIAD") != std::string::npos) {
                 device_config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
                 setThroughputStreams();
-            } else if (device == "GNA") {
+            } else if (device.find("GNA") != std::string::npos) {
                 if (FLAGS_qb == 8)
                     device_config[GNA_CONFIG_KEY(PRECISION)] = "I8";
                 else
@@ -525,7 +544,7 @@ int main(int argc, char* argv[]) {
 
         // Update number of streams
         for (auto&& ds : device_nstreams) {
-            const std::string key = ds.first + "_THROUGHPUT_STREAMS";
+            const std::string key = getDeviceTypeFromName(ds.first) + "_THROUGHPUT_STREAMS";
             device_nstreams[ds.first] = ie.GetConfig(ds.first, key).as<std::string>();
         }
 

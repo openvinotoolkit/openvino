@@ -1,0 +1,247 @@
+{
+    "target_device": "CPU",
+    "config": {
+        "quantization": {
+            "q8_a": {
+                "bits": 8,
+                "mode": [
+                    "symmetric",
+                    "asymmetric"
+                ],
+                "granularity": "pertensor"
+            },
+            "q8_a_ch": {
+                "bits": 8,
+                "mode": [
+                    "symmetric",
+                    "asymmetric"
+                ],
+                "granularity": "perchannel"
+            },
+            "q8_w_sym": {
+                "bits": 8,
+                "mode": "symmetric",
+                "level_low": -127,
+                "level_high": 127,
+                "granularity": "perchannel"
+            },
+            "q8_w_asym": {
+                "bits": 8,
+                "mode": "asymmetric",
+                "granularity": "perchannel"
+            }
+        }
+    },
+    "operations": [
+        {
+            "type": "Convolution",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "DepthWiseConvolution",
+            "quantization": {
+                "activations": "q8_a_ch",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "ConvolutionBackpropData",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "MatMul",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "Add",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "Multiply",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "Maximum",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "Less",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "LessEqual",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "Greater",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "GreaterEqual",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "Divide",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "Minimum",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "Equal",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "Subtract",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "NotEqual",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "FloorMod",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "LogicalOr",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "LogicalXor",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "LogicalAnd",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "LogicalNot",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
+            "type": "Power",
+            "quantization": {
+                "activations": "q8_a"
+            }
+        },
+        {
+            "type": "AvgPool",
+            "quantization": {
+                "activations": "q8_a"
+            }
+        },
+        {
+            "type": "NormalizeL2",
+            "quantization": {
+                "activations": "q8_a"
+            }
+        },
+        {
+            "type": "ReduceMean",
+            "quantization": {
+                "activations": "q8_a"
+            }
+        },
+        {
+            "type": "MaxPool"
+        },
+        {
+            "type": "ReduceMax"
+        },
+        {
+            "type": "Interpolate",
+            "quantization": {
+                "activations": "q8_a"
+            }
+        },
+        {
+            "type": "MVN",
+            "quantization": {
+                "activations": "q8_a"
+            }
+        },
+        {
+            "type": "Concat",
+            "attributes": {
+                "scales": "unified"
+            }
+        },
+        {"type": "Reshape"},
+        {"type": "Flatten"},
+        {"type": "Squeeze"},
+        {"type": "Unsqueeze"},
+        {"type": "Split"},
+        {"type": "VariadicSplit"},
+        {"type": "Crop"},
+        {"type": "Transpose"},
+        {"type": "Tile"},
+        {"type": "StridedSlice"},
+        {"type": "ShuffleChannels"},
+        {"type": "Broadcast"},
+        {"type": "Pad"},
+        {"type": "ConvertLike"},  
+        {"type": "DepthToSpace"}
+    ]
+}
