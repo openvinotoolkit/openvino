@@ -61,7 +61,7 @@ def import_core_modules(silent: bool, path_to_module: str):
 
         import openvino  # pylint: disable=import-error,no-name-in-module
         import ngraph  # pylint: disable=import-error,no-name-in-module
-        import ngraph.frontend  # pylint: disable=import-error,no-name-in-module
+        import openvino.frontend  # pylint: disable=import-error,no-name-in-module
 
         if silent:
             return True

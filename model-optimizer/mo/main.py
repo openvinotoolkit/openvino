@@ -44,7 +44,7 @@ from mo.utils.version import get_version, get_simplified_mo_version, get_simplif
 from mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
 
 # pylint: disable=no-name-in-module,import-error
-from ngraph.frontend import FrontEndManager, FrontEnd
+from openvino.frontend import FrontEndManager, FrontEnd
 
 
 def replace_ext(name: str, old: str, new: str):
