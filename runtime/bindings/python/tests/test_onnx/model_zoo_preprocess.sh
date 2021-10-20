@@ -6,7 +6,7 @@
 set -e
 
 # default ONNX Model Zoo commit hash ID:
-ONNX_SHA=d58213534f2a4d1c4b19ba62b3bb5f544353256e
+ONNX_SHA=f064171f7dd8e962a8a5b34eac8e1bcf83cebbde
 
 MODELS_DIR="$HOME/.onnx/model_zoo"
 ENABLE_MSFT=false
