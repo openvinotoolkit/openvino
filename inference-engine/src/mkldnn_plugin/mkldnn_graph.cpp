@@ -1213,7 +1213,7 @@ void MKLDNNGraph::EnforceBF16() {
         return;
     /* list of node types that must be forced to be executed in BF16 precision
      * because of performance gains */
-    static const std::unordered_set<Type> significantNodes {
+    static const std::unordered_set<Type, std::hash<int>> significantNodes { // std::hash<int> is necessary old compilers (defect in C++11 standart)
         Convolution,    // conv nets
         FullyConnected, // conv / bert nets
         RNNCell,        // recurent nets
@@ -1247,7 +1247,7 @@ void MKLDNNGraph::EnforceBF16() {
     }
 
     for (const auto& node : graphNodes) {
-        if (nodesToSkip.count(node))
+        if (nodesToSkip.count(node) && !node->enforceBF16evenForGraphTail)
             continue;
 
         if (node->getType() != Input && node->getType() != Output) {
