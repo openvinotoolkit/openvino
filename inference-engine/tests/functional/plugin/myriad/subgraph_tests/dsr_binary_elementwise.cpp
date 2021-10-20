@@ -39,7 +39,7 @@ protected:
         const auto inputSubgraph0 = createInputSubgraphWithDSR(inDataType, inDataShapes.lhs);
         const auto inputSubgraph1 = createInputSubgraphWithDSR(inDataType, inDataShapes.rhs);
 
-        const auto eltwise = eltwiseType == ngraph::opset6::Select::type_info ?
+        const auto eltwise = eltwiseType == ngraph::opset6::Select::get_type_info_static() ?
             ngraph::helpers::getNodeSharedPtr(eltwiseType, {createInputSubgraphWithDSR(
                 ngraph::element::boolean, inDataShapes.lhs), inputSubgraph0, inputSubgraph1}) :
             ngraph::helpers::getNodeSharedPtr(eltwiseType, {inputSubgraph0, inputSubgraph1});
@@ -61,7 +61,7 @@ protected:
         const auto inputSubgraph0 = createInputSubgraphWithDSR(inDataType, inDataShapes.lhs);
         const auto input1 = createParameter(inDataType, inDataShapes.rhs.shape);
 
-        const auto eltwise = eltwiseType == ngraph::opset6::Select::type_info ?
+        const auto eltwise = eltwiseType == ngraph::opset6::Select::get_type_info_static() ?
             ngraph::helpers::getNodeSharedPtr(eltwiseType, {createParameter(
                 ngraph::element::boolean, inDataShapes.rhs.shape), inputSubgraph0, input1}) :
             ngraph::helpers::getNodeSharedPtr(eltwiseType, {inputSubgraph0, input1});
@@ -71,20 +71,20 @@ protected:
 };
 
 static const std::vector<ngraph::NodeTypeInfo> binaryEltwiseTypeVector = {
-        ngraph::opset6::Add::type_info,
-        ngraph::opset6::Multiply::type_info,
-        ngraph::opset6::Divide::type_info,
-        ngraph::opset6::Subtract::type_info,
-        ngraph::opset6::Equal::type_info,
-        ngraph::opset6::Greater::type_info,
-        ngraph::opset6::Power::type_info,
-        ngraph::opset6::Select::type_info,
+        ngraph::opset6::Add::get_type_info_static(),
+        ngraph::opset6::Multiply::get_type_info_static(),
+        ngraph::opset6::Divide::get_type_info_static(),
+        ngraph::opset6::Subtract::get_type_info_static(),
+        ngraph::opset6::Equal::get_type_info_static(),
+        ngraph::opset6::Greater::get_type_info_static(),
+        ngraph::opset6::Power::get_type_info_static(),
+        ngraph::opset6::Select::get_type_info_static(),
 };
 
 static const std::set<ngraph::NodeTypeInfo> doNotSupportI32 = {
-        ngraph::opset6::Power::type_info,
-        ngraph::opset6::Equal::type_info,
-        ngraph::opset6::Greater::type_info,
+        ngraph::opset6::Power::get_type_info_static(),
+        ngraph::opset6::Equal::get_type_info_static(),
+        ngraph::opset6::Greater::get_type_info_static(),
 };
 
 TEST_P(DSR_BinaryElementwiseBothDSR, CompareWithReference) {

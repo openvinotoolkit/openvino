@@ -79,6 +79,7 @@ std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info);
 
 /// \brief Tests if value is a pointer/shared_ptr that can be statically cast to a
 /// Type*/shared_ptr<Type>
+#ifndef OPENVINO_STATIC_LIBRARY
 OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename Type, typename Value>
 typename std::enable_if<
@@ -89,6 +90,7 @@ is_type(Value value) {
     return value->get_type_info().is_castable(Type::type_info);
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
+#endif
 
 template <typename Type, typename Value>
 typename std::enable_if<

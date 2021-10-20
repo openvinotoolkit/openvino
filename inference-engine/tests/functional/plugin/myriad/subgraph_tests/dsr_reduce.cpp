@@ -21,13 +21,13 @@ const DataShapeWithUpperBound defaultReduceShapes {
 const auto arithmeticCombinations = testing::Combine(
         testing::Values(
                 // ReduceMean can be replaced with avg pooling and work incorrectly #-34278
-                // ngraph::opset3::ReduceMean::type_info,
+                // ngraph::opset3::ReduceMean::get_type_info_static(),
 
                 // ReduceProd is not supported by myriad plugin
-                // ngraph::opset3::ReduceProd::type_info,
-                ngraph::opset3::ReduceSum::type_info,
-                ngraph::opset3::ReduceMax::type_info,
-                ngraph::opset3::ReduceMin::type_info),
+                // ngraph::opset3::ReduceProd::get_type_info_static(),
+                ngraph::opset3::ReduceSum::get_type_info_static(),
+                ngraph::opset3::ReduceMax::get_type_info_static(),
+                ngraph::opset3::ReduceMin::get_type_info_static()),
         testing::Values(
                 ngraph::element::f32),
         testing::Values(
@@ -43,9 +43,9 @@ const auto arithmeticCombinations = testing::Combine(
 const auto logicalCombinations = testing::Combine(
         testing::Values(
                 // ReduceLogicalOr is not supported by Myriad plugin
-                // ngraph::opset3::ReduceLogicalOr::type_info,
+                // ngraph::opset3::ReduceLogicalOr::get_type_info_static(),
 
-                ngraph::opset3::ReduceLogicalAnd::type_info),
+                ngraph::opset3::ReduceLogicalAnd::get_type_info_static()),
         testing::Values(ngraph::element::boolean),
         testing::Values(
                 ngraph::element::i32),

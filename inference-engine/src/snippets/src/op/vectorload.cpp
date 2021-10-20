@@ -6,7 +6,5 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(snippets::op::VectorLoad, "VectorLoad", 0);
-
 snippets::op::VectorLoad::VectorLoad(const Output<Node>& x) : Load(x) {
 }

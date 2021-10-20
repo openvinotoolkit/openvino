@@ -33,24 +33,28 @@ public:
     void insert(const std::string& name) {
         insert(name, OP_TYPE::get_type_info_static(), ngraph::FactoryRegistry<Node>::get_default_factory<OP_TYPE>());
     }
+    #ifndef OPENVINO_STATIC_LIBRARY
     template <typename OP_TYPE, typename std::enable_if<ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
     void insert(const std::string& name) {
         OPENVINO_SUPPRESS_DEPRECATED_START
         insert(name, OP_TYPE::type_info, ngraph::FactoryRegistry<Node>::get_default_factory<OP_TYPE>());
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
+    #endif
 
     /// \brief Insert OP_TYPE into the opset with the default name and factory
     template <typename OP_TYPE, typename std::enable_if<!ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
     void insert() {
         insert<OP_TYPE>(OP_TYPE::get_type_info_static().name);
     }
+    #ifndef OPENVINO_STATIC_LIBRARY
     template <typename OP_TYPE, typename std::enable_if<ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
     void insert() {
         OPENVINO_SUPPRESS_DEPRECATED_START
         insert<OP_TYPE>(OP_TYPE::type_info.name);
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
+    #endif
 
     const std::set<NodeTypeInfo>& get_types_info() const {
         return m_op_types;
@@ -72,12 +76,14 @@ public:
     bool contains_type() const {
         return contains_type(OP_TYPE::get_type_info_static());
     }
+    #ifndef OPENVINO_STATIC_LIBRARY
     template <typename OP_TYPE, typename std::enable_if<ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
     bool contains_type() const {
         OPENVINO_SUPPRESS_DEPRECATED_START
         return contains_type(OP_TYPE::type_info);
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
+    #endif
 
     /// \brief Return true if name is in the opset
     bool contains_type(const std::string& name) const {

@@ -77,7 +77,7 @@ protected:
                                 ngraph::PartialShape::dynamic(concat->get_output_partial_shape(0).rank()));
 
         const auto transformations = vpu::Transformations{
-            {ngraph::opset3::Concat::type_info, vpu::dynamicToStaticShapeConcat}};
+            {ngraph::opset3::Concat::get_type_info_static(), vpu::dynamicToStaticShapeConcat}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }

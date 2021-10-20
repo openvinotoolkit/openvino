@@ -10,8 +10,7 @@ namespace ngraph { namespace vpu { namespace op {
 
 class StaticShapeLoop : public ngraph::opset6::Loop {
 public:
-    static constexpr NodeTypeInfo type_info{"StaticShapeLoop", 0};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("StaticShapeLoop", "VPUOpset");
 
     explicit StaticShapeLoop(const Loop& loop);
     void validate_and_infer_types() override;

@@ -18,7 +18,7 @@ bool MKLDNNRangeNode::isSupportedOperation(const std::shared_ptr<const ngraph::N
             errorMessage = "Doesn't support op with dynamic shapes";
             return false;
         }
-        if (!MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v0::Range::type_info, ngraph::op::v4::Range::type_info)) {
+        if (!MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v0::Range::get_type_info_static(), ngraph::op::v4::Range::get_type_info_static())) {
             errorMessage = "Only opset1 and opset4 Range operation is supported";
             return false;
         }

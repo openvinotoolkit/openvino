@@ -84,10 +84,7 @@ private:
 
 class CustomReluOp : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{CUSTOM_RELU_TYPE, 0};
-    const ngraph::NodeTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_OP("CustomReluOp", "experimental");
 
     CustomReluOp() = default;
     explicit CustomReluOp(const ngraph::Output<ngraph::Node>& arg) : Op({arg}) {
@@ -117,8 +114,6 @@ public:
         return true;
     }
 };
-
-constexpr ngraph::NodeTypeInfo CustomReluOp::type_info;
 
 class InPlaceExtension : public InferenceEngine::IExtension {
 public:

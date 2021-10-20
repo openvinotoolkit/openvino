@@ -20,7 +20,8 @@ namespace vpu {
 void dynamicToStaticShapeTopK(std::shared_ptr<ngraph::Node> target) {
     const auto dsr = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(target->input_value(0).get_node_shared_ptr());
     VPU_THROW_UNLESS(dsr, "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
-                     target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info, 0);
+                     target->get_friendly_name(), target->get_type_info(),
+                     ngraph::vpu::op::DynamicShapeResolver::get_type_info_static(), 0);
 
     const auto topk = ngraph::as_type_ptr<ngraph::opset3::TopK>(target);
 

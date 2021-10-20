@@ -123,17 +123,6 @@ public:
     using factories_map_t = std::map<ngraph::DiscreteTypeInfo, factory_t>;
 
     template<typename OpType,
-        typename std::enable_if<std::is_base_of<ngraph::Node, OpType>::value && ngraph::HasTypeInfoMember<OpType>::value, int>::type = 0>
-    static void RegisterFactory(factory_t func) {
-        static std::mutex m;
-        std::lock_guard<std::mutex> lock(m);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (Program::factories_map.find(OpType::type_info) == Program::factories_map.end())
-            Program::factories_map.insert({OpType::type_info, func});
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-
-    template<typename OpType,
         typename std::enable_if<std::is_base_of<ngraph::Node, OpType>::value && !ngraph::HasTypeInfoMember<OpType>::value, int>::type = 0>
     static void RegisterFactory(factory_t func) {
         static std::mutex m;

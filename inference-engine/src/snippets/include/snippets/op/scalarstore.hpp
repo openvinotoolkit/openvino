@@ -20,7 +20,7 @@ namespace op {
  */
 class TRANSFORMATIONS_API ScalarStore : public Store {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("ScalarStore", "SnippetsOpset", ngraph::snippets::op::Store);
 
     ScalarStore(const Output<Node>& x);
     ScalarStore() = default;

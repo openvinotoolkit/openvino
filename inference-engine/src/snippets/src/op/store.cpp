@@ -11,8 +11,6 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(snippets::op::Store, "Store", 0);
-
 snippets::op::Store::Store(const Output<Node>& x) : Op({x}) {
     constructor_validate_and_infer_types();
 }

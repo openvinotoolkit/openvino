@@ -20,7 +20,7 @@ namespace op {
  */
 class TRANSFORMATIONS_API VectorStore : public Store {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("VectorStore", "SnippetsOpset", ngraph::snippets::op::Store);
 
     VectorStore(const Output<Node>& x);
     VectorStore() = default;

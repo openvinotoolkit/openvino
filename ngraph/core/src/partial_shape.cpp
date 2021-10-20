@@ -355,6 +355,8 @@ ov::Dimension& ov::PartialShape::operator[](size_t i) {
     return m_dimensions[i];
 }
 
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::PartialShape>);
+
 const std::vector<int64_t>& ov::AttributeAdapter<ov::PartialShape>::get() {
     if (!m_buffer_valid) {
         m_buffer.clear();
@@ -385,5 +387,3 @@ void ov::AttributeAdapter<ov::PartialShape>::set(const std::vector<int64_t>& val
     }
     m_buffer_valid = false;
 }
-
-OPENVINO_API constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<ov::PartialShape>::type_info;

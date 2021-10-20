@@ -9,8 +9,6 @@
 
 namespace ngraph { namespace vpu { namespace op {
 
-constexpr NodeTypeInfo StaticShapeReshape::type_info;
-
 StaticShapeReshape::StaticShapeReshape(const Output<Node>& arg, const Output<Node>& pattern, bool special_zero)
     : ::ngraph::opset3::Reshape(arg, pattern, special_zero),
       m_evaluatedOutputShape{PartialShape::dynamic()} {

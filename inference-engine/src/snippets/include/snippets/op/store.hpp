@@ -19,7 +19,7 @@ namespace op {
  */
 class TRANSFORMATIONS_API Store : public ngraph::op::Op {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("Store", "SnippetsOpset");
 
     Store(const Output<Node>& x);
     Store() = default;

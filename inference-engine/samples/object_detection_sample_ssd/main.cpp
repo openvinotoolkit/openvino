@@ -184,7 +184,7 @@ int main(int argc, char* argv[]) {
         if (auto ngraphFunction = network.getFunction()) {
             for (const auto& out : outputsInfo) {
                 for (const auto& op : ngraphFunction->get_ops()) {
-                    if (op->get_type_info() == ngraph::op::DetectionOutput::type_info &&
+                    if (op->get_type_info() == ngraph::op::DetectionOutput::get_type_info_static() &&
                         op->get_friendly_name() == out.second->getName()) {
                         outputName = out.first;
                         outputInfo = out.second;

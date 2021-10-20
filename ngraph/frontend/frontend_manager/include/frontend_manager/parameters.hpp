@@ -12,26 +12,25 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "openvino/core/variant.hpp"
+#include "openvino/core/rtti.hpp"
 
 namespace ov {
 
 template <>
 class FRONTEND_API VariantWrapper<std::istream*> : public VariantImpl<std::istream*> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::std::istream*", 0};
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("Variant::std::istream*");
+    BWDCMP_RTTI_DECLARATION;
+
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
 template <>
 class FRONTEND_API VariantWrapper<std::istringstream*> : public VariantImpl<std::istringstream*> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::std::istringstream*", 0};
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("Variant::std::istringstream*");
+    BWDCMP_RTTI_DECLARATION;
+
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
@@ -39,40 +38,39 @@ public:
 template <>
 class FRONTEND_API VariantWrapper<std::wstring> : public VariantImpl<std::wstring> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::std::wstring", 0};
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("Variant::std::wstring");
+    BWDCMP_RTTI_DECLARATION;
+
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 #endif
 
+using Weights = std::shared_ptr<ngraph::runtime::AlignedBuffer>;
+
 template <>
-class FRONTEND_API VariantWrapper<std::shared_ptr<ngraph::runtime::AlignedBuffer>>
-    : public VariantImpl<std::shared_ptr<ngraph::runtime::AlignedBuffer>> {
+class FRONTEND_API VariantWrapper<Weights>
+    : public VariantImpl<Weights> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::Weights", 0};
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("Variant::Weights");
+    BWDCMP_RTTI_DECLARATION;
+
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
-using Weights = std::shared_ptr<ngraph::runtime::AlignedBuffer>;
 using WeightsVariant = VariantWrapper<Weights>;
 
+using Extensions = std::map<std::string, ngraph::OpSet>;
+
 template <>
-class FRONTEND_API VariantWrapper<std::map<std::string, ngraph::OpSet>>
-    : public VariantImpl<std::map<std::string, ngraph::OpSet>> {
+class FRONTEND_API VariantWrapper<Extensions>
+    : public VariantImpl<Extensions> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::Extensions", 0};
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("Variant::Extensions");
+    BWDCMP_RTTI_DECLARATION;
+
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
-using Extensions = std::map<std::string, ngraph::OpSet>;
 using ExtensionsVariant = VariantWrapper<Extensions>;
 
 }  // namespace ov

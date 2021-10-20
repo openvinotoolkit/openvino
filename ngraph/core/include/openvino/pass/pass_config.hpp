@@ -64,10 +64,12 @@ public:
     void disable() {
         disable(T::get_type_info_static());
     }
+    #ifndef OPENVINO_STATIC_LIBRARY
     template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     void disable() {
-        disable(T::get_type_info_static());
+        disable(T::type_info);
     }
+    #endif
 
     /// \brief Enable transformation by its type_info
     /// \param type_info Transformation type_info
@@ -77,12 +79,14 @@ public:
     void enable() {
         enable(T::get_type_info_static());
     }
+    #ifndef OPENVINO_STATIC_LIBRARY
     template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     void enable() {
         OPENVINO_SUPPRESS_DEPRECATED_START
         enable(T::type_info);
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
+    #endif
 
     /// \brief Set callback for all kind of transformations
     void set_callback(const param_callback& callback) {
@@ -122,6 +126,7 @@ public:
         m_callback_map[T::get_type_info_static()] = callback;
         set_callback<Args...>(callback);
     }
+    #ifndef OPENVINO_STATIC_LIBRARY
     template <typename T,
               class... Args,
               typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
@@ -131,6 +136,7 @@ public:
         OPENVINO_SUPPRESS_DEPRECATED_END
         set_callback<Args...>(callback);
     }
+    #endif
 
     /// \brief Get callback for given transformation type_info
     /// \param type_info Transformation type_info
@@ -142,12 +148,14 @@ public:
 
     /// \brief Get callback for given transformation class type
     /// \return callback lambda function
+    #ifndef OPENVINO_STATIC_LIBRARY
     template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     param_callback get_callback() const {
         OPENVINO_SUPPRESS_DEPRECATED_START
         return get_callback(T::type_info);
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
+    #endif
     template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     param_callback get_callback() const {
         return get_callback(T::get_type_info_static());
@@ -162,12 +170,14 @@ public:
 
     /// \brief Check either transformation class type is disabled or not
     /// \return true if transformation type was disabled and false otherwise
+    #ifndef OPENVINO_STATIC_LIBRARY
     template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     bool is_disabled() const {
         OPENVINO_SUPPRESS_DEPRECATED_START
         return is_disabled(T::type_info);
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
+    #endif
     template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     bool is_disabled() const {
         return is_disabled(T::get_type_info_static());
@@ -182,12 +192,14 @@ public:
 
     /// \brief Check either transformation class type is force enabled or not
     /// \return true if transformation type was force enabled and false otherwise
+    #ifndef OPENVINO_STATIC_LIBRARY
     template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     bool is_enabled() const {
         OPENVINO_SUPPRESS_DEPRECATED_START
         return is_enabled(T::type_info);
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
+    #endif
     template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     bool is_enabled() const {
         return is_enabled(T::get_type_info_static());

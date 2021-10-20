@@ -54,12 +54,14 @@ private:
 };
 }  // namespace op
 
+#ifndef OPENVINO_STATIC_LIBRARY
 template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
 void collect_wrap_info(std::vector<DiscreteTypeInfo>& info) {
     OPENVINO_SUPPRESS_DEPRECATED_START
     info.emplace_back(T::type_info);
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
+#endif
 template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
 void collect_wrap_info(std::vector<DiscreteTypeInfo>& info) {
     info.emplace_back(T::get_type_info_static());

@@ -583,8 +583,8 @@ bool MKLDNNDeformableConvolutionNode::isSupportedOperation(const std::shared_ptr
             return false;
         }
         if (!one_of(op->get_type_info(),
-                ngraph::op::v1::DeformableConvolution::type_info,
-                ngraph::op::v8::DeformableConvolution::type_info)) {
+                ngraph::op::v1::DeformableConvolution::get_type_info_static(),
+                ngraph::op::v8::DeformableConvolution::get_type_info_static())) {
             errorMessage = "Node is not an instance of DeformableConvolution form the operation set v1 or v8.";
             return false;
         }
@@ -619,7 +619,7 @@ MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shar
 
     paddingL = defConvNodeBase->get_pads_begin();
 
-    if (op->get_type_info() == ngraph::op::v8::DeformableConvolution::type_info) {
+    if (op->get_type_info() == ngraph::op::v8::DeformableConvolution::get_type_info_static()) {
         auto defConvNode = std::dynamic_pointer_cast<ngraph::op::v8::DeformableConvolution>(op);
         if (defConvNode == nullptr)
             IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
