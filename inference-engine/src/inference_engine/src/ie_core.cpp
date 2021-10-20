@@ -554,9 +554,9 @@ public:
                 std::vector<std::shared_ptr<const ov::Node>> params;
                 params.reserve(inputsInfo.size());
                 for (auto&& input : inputsInfo) {
-                    auto param =
-                        std::make_shared<ov::op::v0::Parameter>(convertPrecision(input.second->getPrecision()),
-                                                                ov::PartialShape(input.second->getTensorDesc().getDims()));
+                    auto param = std::make_shared<ov::op::v0::Parameter>(
+                        convertPrecision(input.second->getPrecision()),
+                        ov::PartialShape(input.second->getTensorDesc().getDims()));
                     param->set_friendly_name(input.first);
                     param->get_output_tensor(0).add_names({input.first});
                     params.emplace_back(std::move(param));
@@ -572,9 +572,9 @@ public:
                 std::vector<std::shared_ptr<const ov::Node>> results;
                 results.reserve(outputsInfo.size());
                 for (auto&& output : outputsInfo) {
-                    auto fake_param =
-                        std::make_shared<ov::op::v0::Parameter>(convertPrecision(output.second->getPrecision()),
-                                                                ov::PartialShape(output.second->getTensorDesc().getDims()));
+                    auto fake_param = std::make_shared<ov::op::v0::Parameter>(
+                        convertPrecision(output.second->getPrecision()),
+                        ov::PartialShape(output.second->getTensorDesc().getDims()));
                     fake_param->set_friendly_name(output.first);
                     auto result = std::make_shared<ov::op::v0::Result>(fake_param);
                     result->get_output_tensor(0).add_names({output.first});
