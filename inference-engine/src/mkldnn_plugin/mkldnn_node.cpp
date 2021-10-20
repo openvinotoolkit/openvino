@@ -499,8 +499,11 @@ void MKLDNNNode::execute(mkldnn::stream strm) {
 void MKLDNNNode::executeDynamic(mkldnn::stream strm) {
     if (needShapeInfer())
         redefineOutputMemory(shapeInfer());
-    if (needPrepareParams())
+    if (needPrepareParams()) {
+        IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<
+            " since the input shapes are not defined.";
         prepareParams();
+    }
     executeDynamicImpl(strm);
     updateLastInputDims();
 }
