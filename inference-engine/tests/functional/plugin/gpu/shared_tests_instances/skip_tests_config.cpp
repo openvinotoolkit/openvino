@@ -22,9 +22,9 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(PreprocessTest).*(SetMeanValuePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
-            R"(.*(PreprocessDynamicallyInSetBlobTest).*)",
+            R"(.*(InferRequestPreprocessDynamicallyInSetBlobTest).*)",
             // TODO: Issue: 51764
-            ".*PreprocessConversionTest.*",
+            ".*InferRequestPreprocessConversionTest.*",
             // TODO: Issue: 41462
             R"(.*(SoftMaxLayerTest).*axis=0.*)",
             // TODO: Issue: 43511
@@ -56,14 +56,37 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*ActivationLayerTest.*SoftPlus.*)",
             // need to implement Export / Import
             R"(.*IEClassImportExportTestP.*)",
-
+            R"(.*Behavior.*InferRequestSetBlobByType.*Device=HETERO.*)",
             // TODO: Issue: 59586, NormalizeL2 output mismatch for empty axes case
             R"(.*NormalizeL2LayerTest.*axes=\(\).*)",
 
             // Not allowed dynamic loop tests on GPU
             R"(.*smoke_StaticShapeLoop_dynamic_exit.*)",
-
+            // Not expected behavior
+            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
+            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetInBlobWithDifferentLayouts.*layout=NHWC.*)",
+            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=(CN|HW).*)",
+            R"(.*Behavior.*(Multi|Auto).*InferRequestSetBlobByType.*Batched.*)",
+            R"(.*(Multi|Auto).*Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
+            R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
             // TODO: until issue is xxx-59670 is resolved
-            R"(.*Gather8LayerTest.*)"
+            R"(.*Gather8LayerTest.*)",
+            // Not implemented yet:
+            R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
+            R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
+            R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
+            R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
+            R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
+            // TODO: Issue 66516
+            R"(.*smoke_PrePostProcess_GPU.*convert_element_type_and_mean.*)",
+            // TODO: Issue 67408
+            R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
+            // TODO: Issue 67910
+            R"(.*smoke_PrePostProcess_GPU.*two_inputs_trivial.*)",
+            // TODO: CVS-68525
+            R"(.*CanSetInBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
+            R"(.*CanSetInBlobWithDifferentPrecision/netPRC=BIN.*)",
+            R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
+            R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=BIN.*)",
     };
 }

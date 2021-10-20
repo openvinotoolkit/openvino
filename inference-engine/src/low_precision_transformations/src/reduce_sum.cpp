@@ -31,7 +31,7 @@ ReduceSumTransformation::ReduceSumTransformation(const Params& params) : ReduceB
 }
 
 bool ReduceSumTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
-    const auto reduceSum = as_type_ptr<opset1::ReduceSum>(reduce);
+    const auto reduceSum = ov::as_type_ptr<opset1::ReduceSum>(reduce);
     if (!reduceSum || !ReduceBaseTransformation::canBeTransformed(context, reduceSum)) {
         return false;
     }
@@ -57,7 +57,7 @@ void ReduceSumTransformation::changeDequantizationValues(
     ReduceBaseTransformation::changeDequantizationValues(reduce, dequantization);
 
     if (dequantization.subtract) {
-        const auto reduceSum = as_type_ptr<opset1::ReduceSum>(reduce);
+        const auto reduceSum = ov::as_type_ptr<opset1::ReduceSum>(reduce);
         const auto reductionAxes = reduceSum->get_reduction_axes();
         const auto inputShape = reduceSum->get_input_partial_shape(0);
 
@@ -72,7 +72,7 @@ void ReduceSumTransformation::changeDequantizationValues(
         const auto result = fold<opset1::Multiply>(dequantization.subtractConstant, reductionSizeConstant);
 
         replace_node(dequantization.subtractConstant, result);
-        dequantization.subtractConstant = as_type_ptr<opset1::Constant>(result);
+        dequantization.subtractConstant = ov::as_type_ptr<opset1::Constant>(result);
     }
 }
 

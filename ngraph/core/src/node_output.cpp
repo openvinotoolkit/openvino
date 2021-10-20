@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/node_output.hpp"
+#include "openvino/core/node_output.hpp"
 
 #include "ngraph/log.hpp"
-#include "ngraph/node.hpp"
 #include "ngraph/variant.hpp"
+#include "openvino/core/node.hpp"
 
-namespace ngraph {
+namespace ov {
 Output<Node>::Output(Node* node, size_t index) : m_node(node->shared_from_this()), m_index(index) {}
 
 Output<Node>::Output(const std::shared_ptr<Node>& node, size_t index) : m_node(node), m_index(index) {}
@@ -77,6 +77,30 @@ const RTMap& Output<Node>::get_rt_info() const {
 
 const RTMap& Output<const Node>::get_rt_info() const {
     return m_node->m_outputs.at(m_index).get_rt_info();
+}
+
+const std::unordered_set<std::string>& Output<Node>::get_names() const {
+    return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_names();
+}
+
+std::string Output<Node>::get_any_name() const {
+    return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_any_name();
+}
+
+void Output<Node>::set_names(const std::unordered_set<std::string>& names) {
+    return m_node->m_outputs.at(m_index).get_tensor_ptr()->set_names(names);
+}
+
+void Output<Node>::add_names(const std::unordered_set<std::string>& names) {
+    return m_node->m_outputs.at(m_index).get_tensor_ptr()->add_names(names);
+}
+
+const std::unordered_set<std::string>& Output<const Node>::get_names() const {
+    return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_names();
+}
+
+std::string Output<const Node>::get_any_name() const {
+    return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_any_name();
 }
 
 bool Output<Node>::operator==(const Output& other) const {
@@ -172,4 +196,4 @@ std::ostream& operator<<(std::ostream& out, const Output<const Node>& output) {
     return output.get_node()->write_description(out, 0)
            << "[" << output.get_index() << "]:" << output.get_element_type() << output.get_partial_shape();
 }
-}  // namespace ngraph
+}  // namespace ov

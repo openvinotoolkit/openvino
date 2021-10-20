@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::TensorIterator, "TensorIterator", 0, op::util::SubGraphOp);
+BWDCMP_RTTI_DEFINITION(op::v0::TensorIterator);
 
 op::v0::TensorIterator::TensorIterator(const OutputVector& values) : op::util::SubGraphOp(values) {}
 
@@ -35,7 +35,7 @@ void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops() {
     while (nodes_to_do.size() > 0) {
         auto node = nodes_to_do.top();
         if (nodes_done.count(node) == 0) {
-            NGRAPH_CHECK(as_type_ptr<op::v0::TensorIterator>(node) == nullptr, "No nested TensorIterator");
+            NGRAPH_CHECK(ov::as_type_ptr<op::v0::TensorIterator>(node) == nullptr, "No nested TensorIterator");
             bool can_add = true;
             size_t arg_count = node->get_input_size();
             for (size_t i = 0; i < arg_count; ++i) {
@@ -84,7 +84,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
     for (const auto& input_description : m_input_descriptions[0]) {
         auto index = input_description->m_input_index;
 
-        if (auto slice_input_description = as_type_ptr<SliceInputDescription>(input_description)) {
+        if (auto slice_input_description = ov::as_type_ptr<SliceInputDescription>(input_description)) {
             auto body_parameter = body->get_parameters().at(slice_input_description->m_body_parameter_index);
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
             if (input_partial_shape.is_static()) {
@@ -99,13 +99,13 @@ void op::v0::TensorIterator::validate_and_infer_types() {
                 // +1 because the left and right borders are included [start, end]
                 m_num_iterations = (abs(end - start) + 1) / part_size;
                 // infer type for m_body_parameter
-                Shape out_shape{input_shape};
+                ov::Shape out_shape{input_shape};
                 out_shape[axis] = part_size;
                 body_parameter->set_partial_shape(out_shape);
             } else {
-                body_parameter->set_partial_shape(PartialShape::dynamic(input_partial_shape.rank()));
+                body_parameter->set_partial_shape(ov::PartialShape::dynamic(input_partial_shape.rank()));
             }
-        } else if (auto merged_input_description = as_type_ptr<MergedInputDescription>(input_description)) {
+        } else if (auto merged_input_description = ov::as_type_ptr<MergedInputDescription>(input_description)) {
             auto body_value = m_bodies[0]->get_results().at(merged_input_description->m_body_value_index)->input(0);
             ends.push_back(body_value.get_node()->shared_from_this());
 
@@ -114,7 +114,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
             body_parameter->set_partial_shape(input_partial_shape);
-        } else if (auto invariant_input_description = as_type_ptr<InvariantInputDescription>(input_description)) {
+        } else if (auto invariant_input_description = ov::as_type_ptr<InvariantInputDescription>(input_description)) {
             auto body_parameter = m_bodies[0]->get_parameters().at(invariant_input_description->m_body_parameter_index);
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
@@ -134,15 +134,15 @@ void op::v0::TensorIterator::validate_and_infer_types() {
 
         auto body_value = m_bodies[0]->get_results().at(output_description->m_body_value_index)->input_value(0);
 
-        if (auto concat_output_description = as_type_ptr<ConcatOutputDescription>(output_description)) {
-            auto body_value_partial_shape = body_value.get_partial_shape();
-            set_output_type(index, body_value.get_element_type(), PartialShape::dynamic());
+        if (auto concat_output_description = ov::as_type_ptr<ConcatOutputDescription>(output_description)) {
+            const auto& body_value_partial_shape = body_value.get_partial_shape();
+            set_output_type(index, body_value.get_element_type(), ov::PartialShape::dynamic());
             if (body_value_partial_shape.is_static()) {
                 auto body_value_shape = body_value_partial_shape.to_shape();
                 auto part_size = concat_output_description->m_part_size;
                 auto axis = concat_output_description->m_axis;
 
-                Shape out_shape{body_value_shape};
+                ov::Shape out_shape{body_value_shape};
 
                 if (body_value_shape.empty()) {
                     NODE_VALIDATION_CHECK(this,
@@ -151,7 +151,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
                                           "tensor slices are scalars. "
                                           "TensorIterator output index: ",
                                           index);
-                    out_shape = Shape(1);
+                    out_shape = ov::Shape(1);
                 }
 
                 if (m_num_iterations != -1) {
@@ -162,9 +162,9 @@ void op::v0::TensorIterator::validate_and_infer_types() {
             } else {
                 set_output_type(index,
                                 body_value.get_element_type(),
-                                PartialShape::dynamic(body_value.get_partial_shape().rank()));
+                                ov::PartialShape::dynamic(body_value.get_partial_shape().rank()));
             }
-        } else if (auto body_output_description = as_type_ptr<BodyOutputDescription>(output_description)) {
+        } else if (auto body_output_description = ov::as_type_ptr<BodyOutputDescription>(output_description)) {
             set_output_type(index, body_value.get_element_type(), body_value.get_partial_shape());
         }
     }
@@ -178,7 +178,7 @@ namespace {
 template <typename Desc>
 bool has_slice_input_desc(const Desc& desc) {
     const auto is_slice_input_desc = +[](typename Desc::const_reference d) {
-        return is_type<op::util::SubGraphOp::SliceInputDescription>(d);
+        return ov::is_type<op::util::SubGraphOp::SliceInputDescription>(d);
     };
     return std::any_of(begin(desc), end(desc), is_slice_input_desc);
 }
@@ -190,7 +190,7 @@ void op::v0::TensorIterator::try_to_set_num_iterations_if_no_slice_inputs() {
     }
 
     for (const auto& output_description : m_output_descriptions[0]) {
-        if (auto concat = as_type_ptr<ConcatOutputDescription>(output_description)) {
+        if (auto concat = ov::as_type_ptr<ConcatOutputDescription>(output_description)) {
             m_num_iterations = ((std::abs(concat->m_end - concat->m_start)) / concat->m_part_size);
             break;
         }
@@ -204,7 +204,7 @@ std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const Output
     op->set_output_size(m_output_descriptions[0].size());
 
     std::vector<::ngraph::element::Type> types(m_bodies[0]->get_parameters().size());
-    std::vector<::ngraph::PartialShape> new_shapes(m_bodies[0]->get_parameters().size());
+    std::vector<ov::PartialShape> new_shapes(m_bodies[0]->get_parameters().size());
 
     for (size_t input_index = 0; input_index < new_args.size(); ++input_index) {
         for (auto& input_description : m_input_descriptions[0]) {

@@ -45,16 +45,15 @@ Three modes are supported:
 - *static* - The first
 utterance in the input file is scanned for dynamic range.  The scale factor (floating point scalar multiplier) required to scale the maximum input value of the first utterance to 16384 (15 bits) is used
 for all subsequent inputs.  The neural network is quantized to accommodate the scaled input dynamic range.
-- *dynamic* - The user may specify a scale factor via the `-sf` flag that will be used for static quantization.
-- *user-defined* - The scale factor for each input batch is computed
+- *dynamic* - The scale factor for each input batch is computed
 just before inference on that batch.  The input and network are (re)quantized on-the-fly using an efficient procedure.
+- *user-defined* - The user may specify a scale factor via the `-sf` flag that will be used for static quantization.
 
 The `-qb` flag provides a hint to the GNA plugin regarding the preferred target weight resolution for all layers.  For example, when `-qb 8` is specified, the plugin will use 8-bit weights wherever possible in the
 network.
 > **NOTE**:
 >
-> - It is not always possible to use 8-bit weights due to GNA hardware limitations. For example, convolutional layers always use 16-bit weights (GNA hardware version 1 and 2).  This limitation
-will be removed in GNA hardware version 3 and higher.
+> - It is not always possible to use 8-bit weights due to GNA hardware limitations. For example, convolutional layers always use 16-bit weights (GNA hardware version 1 and 2). This limitation will be removed in GNA hardware version 3 and higher.
 
 #### Execution Modes
 

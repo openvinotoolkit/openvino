@@ -45,7 +45,7 @@ class InterpolateTransformation :
     public testing::WithParamInterface<InterpolateTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<InterpolateTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<InterpolateTransformationParams>& obj);
 
 protected:
     void SetUp() override;

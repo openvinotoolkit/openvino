@@ -22,9 +22,9 @@ ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
     MATCHER_SCOPE(ConvertNMSToNMSIEInternal);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset5::NonMaxSuppression>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
         auto nms_5 = std::dynamic_pointer_cast<ngraph::opset5::NonMaxSuppression>(m.get_match_root());
-        if (!nms_5) {
+        if (!nms_5 || transformation_callback(nms_5)) {
             return false;
         }
 
@@ -86,7 +86,8 @@ ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
                     new_soft_nms_sigma,
                     center_point_box,
                     nms_5->get_sort_result_descending(),
-                    element::i32);
+                    element::i32,
+                    nms_5->get_output_element_type(1));
             new_ops.push_back(nms_legacy);
         } else {
             nms_legacy = std::make_shared<op::internal::NonMaxSuppressionIEInternal>(
@@ -97,7 +98,8 @@ ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
                     new_score_threshold,
                     center_point_box,
                     nms_5->get_sort_result_descending(),
-                    element::i32);
+                    element::i32,
+                    nms_5->get_output_element_type(1));
             new_ops.push_back(nms_legacy);
         }
 

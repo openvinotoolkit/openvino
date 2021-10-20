@@ -88,13 +88,17 @@ std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>> get_inp
     input_low =
         std::make_shared<default_opset::Multiply>(y_scale,
                                                   std::make_shared<default_opset::Subtract>(output_low, zero_point));
+    if (auto constant = get_constant_from_source(input_low))
+        input_low = constant;
     input_high =
         std::make_shared<default_opset::Multiply>(y_scale,
                                                   std::make_shared<default_opset::Subtract>(output_high, zero_point));
+    if (auto constant = get_constant_from_source(input_high))
+        input_high = constant;
 
     return std::make_tuple(input_low, input_high);
 }
-
+}  // namespace
 std::shared_ptr<ngraph::Node> make_fake_quantize(const Output<ngraph::Node>& y_scale,
                                                  const Output<ngraph::Node>& y_zero_point,
                                                  const Output<ngraph::Node>& data) {
@@ -116,7 +120,6 @@ std::shared_ptr<ngraph::Node> make_fake_quantize(const Output<ngraph::Node>& y_s
         std::make_shared<default_opset::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels),
         destination_type);
 }
-}  // namespace
 }  // namespace detail
 
 namespace set_1 {
@@ -135,11 +138,13 @@ OutputVector quantize_linear(const Node& node) {
 }  // namespace set_1
 
 namespace set_13 {
-OutputVector quantize_linear(const Node& node) {
-    OutputVector inputs{node.get_ng_inputs()};
-    auto x = inputs.at(0);
-    auto y_scale = inputs.at(1);
-    auto y_zero_point = detail::get_zero_point(inputs);
+namespace detail {
+OutputVector quantize_linear(Output<ngraph::Node> x,
+                             Output<ngraph::Node> y_scale,
+                             Output<ngraph::Node> y_zero_point,
+                             int64_t axis,
+                             Node node) {
+    namespace detail = ngraph::onnx_import::op::detail;
 
     x = detail::validate_data(node, x);
     detail::validate_zero_point_type(node, y_zero_point);
@@ -147,7 +152,6 @@ OutputVector quantize_linear(const Node& node) {
 
     const auto& x_shape = x.get_partial_shape();
 
-    int64_t axis{node.get_attribute_value<int64_t>("axis", 1)};
     axis = normalize_axis(node.get_description(), axis, x_shape.rank());
 
     const auto& y_scale_shape = y_scale.get_partial_shape();
@@ -185,7 +189,22 @@ OutputVector quantize_linear(const Node& node) {
 
     return {detail::make_fake_quantize(y_scale, y_zero_point, x)};
 }
+}  // namespace detail
 
+OutputVector quantize_linear(const Node& node) {
+    const OutputVector inputs{node.get_ng_inputs()};
+
+    NGRAPH_CHECK(2 <= inputs.size() && inputs.size() <= 3,
+                 "The QuantizeLinear op expects 2 required and one optional "
+                 "input. Got: ",
+                 inputs.size());
+
+    const auto x = inputs[0];
+    auto scale = inputs[1];
+    auto zero_point = op::detail::get_zero_point(inputs);
+
+    return detail::quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
+}
 }  // namespace set_13
 
 }  // namespace op

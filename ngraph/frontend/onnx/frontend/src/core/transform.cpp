@@ -6,10 +6,54 @@
 
 #include <onnx/defs/function.h>
 #include <onnx/defs/schema.h>
+#include <onnx/shape_inference/implementation.h>
+
+#include <algorithm>
 
 #include "core/model.hpp"
 #include "ngraph/file_util.hpp"
+#include "ngraph/log.hpp"
 #include "ops_bridge.hpp"
+
+namespace ngraph {
+namespace onnx_import {
+namespace transform {
+namespace detail {
+ONNX_NAMESPACE::TypeProto get_input_type(std::string const& name, ONNX_NAMESPACE::GraphProto& graph) {
+    for (auto& input : graph.input()) {
+        if (input.name() == name) {
+            return input.type();
+        }
+    }
+    for (auto& value_info : graph.value_info()) {
+        if (value_info.name() == name) {
+            return value_info.type();
+        }
+    }
+    return ONNX_NAMESPACE::TypeProto();
+}
+
+inline void function_expand_and_remove_original_node(const ONNX_NAMESPACE::NodeProto& node,
+                                                     const ONNX_NAMESPACE::FunctionProto& func_proto,
+                                                     ONNX_NAMESPACE::GraphProto* graph,
+                                                     int current_node_idx) {
+    const auto before_expand_size = graph->node().size();
+    ONNX_NAMESPACE::FunctionExpandHelper(node, func_proto, *graph);
+    const auto added_nodes = graph->node().size() - before_expand_size;
+
+    // Remove the original node which contained the function
+    graph->mutable_node()->erase(graph->mutable_node()->begin() + current_node_idx);
+
+    // Move nodes from expanded function to position of removed node
+    std::rotate(graph->mutable_node()->begin() + current_node_idx,
+                graph->mutable_node()->end() - added_nodes,
+                graph->mutable_node()->end());
+}
+
+}  // namespace detail
+}  // namespace transform
+}  // namespace onnx_import
+}  // namespace ngraph
 
 void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::ModelProto& model_proto) {
     auto graph_proto = model_proto.mutable_graph();
@@ -36,26 +80,35 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
         // Check if operation schema contains a function body and expand function
         if (node_op_schema->HasFunction()) {
             const auto* func_proto = node_op_schema->GetFunction();
-            ONNX_NAMESPACE::FunctionExpandHelper(node, *func_proto, *graph_proto);
-
-            // Remove the original node which contained the function.
-            graph_proto->mutable_node()->erase(graph_proto->mutable_node()->begin() + i);
+            // Move index to the previous position because a first node of expanded function can have also function
+            detail::function_expand_and_remove_original_node(node, *func_proto, graph_proto, i--);
         }
 
         else if (node_op_schema->HasContextDependentFunction()) {
-            ONNX_NAMESPACE::FunctionBodyBuildContextImpl ctx(node);
+            // In order to expand a context-dependent function, we need to infer types
+            try {
+                ONNX_NAMESPACE::shape_inference::InferShapes(model_proto);
+            } catch (const std::exception& e) {
+                NGRAPH_WARN << "ONNX Shape inference failed: " << e.what();
+            }
+
+            std::vector<ONNX_NAMESPACE::TypeProto> input_types;
+            for (const auto& input : node.input()) {
+                input_types.push_back(ngraph::onnx_import::transform::detail::get_input_type(input, *graph_proto));
+            }
+
+            ONNX_NAMESPACE::FunctionBodyBuildContextImpl ctx(node, input_types);
             ONNX_NAMESPACE::FunctionProto func_proto;
             node_op_schema->BuildContextDependentFunction(ctx, func_proto);
-            ONNX_NAMESPACE::FunctionExpandHelper(node, func_proto, *graph_proto);
-
-            // Remove the original node which contained the function.
-            graph_proto->mutable_node()->erase(graph_proto->mutable_node()->begin() + i);
+            // Move index to the previous position because a first node of expanded function can have also function
+            detail::function_expand_and_remove_original_node(node, func_proto, graph_proto, i--);
         }
     }
 }
 
 void ngraph::onnx_import::transform::update_external_data_paths(ONNX_NAMESPACE::ModelProto& model_proto,
                                                                 const std::string& model_path) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     if (model_path.empty()) {
         return;
     }
@@ -70,7 +123,7 @@ void ngraph::onnx_import::transform::update_external_data_paths(ONNX_NAMESPACE::
             const auto santized_external_data_relative_path = file_util::sanitize_path(external_data_relative_path);
             auto external_data_full_path = file_util::path_join(model_dir_path, santized_external_data_relative_path);
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
             file_util::convert_path_win_style(external_data_full_path);
 #endif
 
@@ -78,6 +131,7 @@ void ngraph::onnx_import::transform::update_external_data_paths(ONNX_NAMESPACE::
             initializer_tensor.mutable_external_data(location_key_value_index)->set_value(external_data_full_path);
         }
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 void ngraph::onnx_import::transform::fixup_legacy_operators(ONNX_NAMESPACE::ModelProto& model_proto) {

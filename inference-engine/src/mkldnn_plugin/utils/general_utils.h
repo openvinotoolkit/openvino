@@ -4,9 +4,11 @@
 
 #pragma once
 
-#include <cassert>
 #include <inference_engine.hpp>
 #include "cpu_shape.h"
+
+#include <algorithm>
+#include <cassert>
 
 namespace MKLDNNPlugin {
 
@@ -39,29 +41,6 @@ constexpr bool everyone_is(T val, P item, Args... item_others) {
 
 constexpr inline bool implication(bool cause, bool cond) {
     return !cause || !!cond;
-}
-
-template<typename T, typename... Args>
-std::unique_ptr<T> make_unique(Args&&... args) {
-    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-}
-
-inline std::string getExceptionDescWithoutStatus(const InferenceEngine::Exception& ex) {
-    std::string desc = ex.what();
-    IE_SUPPRESS_DEPRECATED_START
-    if (ex.getStatus() != 0) {
-        size_t pos = desc.find("]");
-        if (pos != std::string::npos) {
-            if (desc.size() == pos + 1) {
-                desc.erase(0, pos + 1);
-            } else {
-                desc.erase(0, pos + 2);
-            }
-        }
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
-    return desc;
 }
 
 template<typename T>
@@ -124,11 +103,10 @@ inline bool dimsEqualWeak(const std::vector<size_t>& lhs, const std::vector<size
 
 inline InferenceEngine::Precision getMaxPrecision(std::vector<InferenceEngine::Precision> precisions) {
     if (!precisions.empty()) {
-        std::sort(precisions.begin(), precisions.end(),
-                  [](const InferenceEngine::Precision &lhs, const InferenceEngine::Precision &rhs) {
-                      return lhs.size() > rhs.size();
-                  });
-        return precisions[0];
+        return *std::max_element(precisions.begin(), precisions.end(),
+                                 [](const InferenceEngine::Precision &lhs, const InferenceEngine::Precision &rhs) {
+                                     return lhs.size() > rhs.size();
+                                 });
     }
 
     return InferenceEngine::Precision::UNSPECIFIED;

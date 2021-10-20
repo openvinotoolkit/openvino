@@ -21,7 +21,17 @@ Interval::value_type clip_times(Interval::value_type a, Interval::value_type b) 
     }
 }
 Interval::value_type clip_add(Interval::value_type a, Interval::value_type b) {
-    return (a == Interval::s_max || b == Interval::s_max) ? Interval::s_max : a + b;
+    if (a == Interval::s_max || b == Interval::s_max) {
+        return Interval::s_max;
+    }
+
+    // check overflow without undefined behavior: a + b <= max
+    const static auto max = std::numeric_limits<Interval::value_type>::max();
+    if (b > (max - a)) {
+        return Interval::s_max;
+    }
+
+    return a + b;
 }
 Interval::value_type clip_minus(Interval::value_type a, Interval::value_type b) {
     if (a <= b) {
@@ -111,8 +121,7 @@ bool Interval::contains(const Interval& interval) const {
 
 constexpr Interval::value_type Interval::s_max;
 
-namespace ngraph {
-std::ostream& operator<<(std::ostream& str, const Interval& interval) {
+std::ostream& ov::operator<<(std::ostream& str, const Interval& interval) {
     str << "Interval(" << interval.get_min_val() << ", ";
     auto max_val = interval.get_max_val();
     if (max_val == Interval::s_max) {
@@ -122,4 +131,3 @@ std::ostream& operator<<(std::ostream& str, const Interval& interval) {
     }
     return str << ")";
 }
-}  // namespace ngraph

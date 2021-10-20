@@ -47,8 +47,11 @@ endif()
 target_include_directories(ngraph_backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 install(TARGETS ngraph_backend
-        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT tests EXCLUDE_FROM_ALL)
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
 
 add_subdirectory(interpreter)
 add_subdirectory(ie)
+
+file(GLOB_RECURSE all_backends_src "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
+add_clang_format_target(ngraph_backend_clang FOR_SOURCES ${all_backends_src})

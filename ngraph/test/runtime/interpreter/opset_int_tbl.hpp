@@ -3,8 +3,8 @@
 //
 
 #ifndef NGRAPH_OP
-#warning "NGRAPH_OP not defined"
-#define NGRAPH_OP(x, y)
+#    warning "NGRAPH_OP not defined"
+#    define NGRAPH_OP(x, y)
 #endif
 
 NGRAPH_OP(Abs, op::v0)
@@ -88,6 +88,7 @@ NGRAPH_OP(CTCGreedyDecoderSeqLen, op::v6)
 NGRAPH_OP(ExperimentalDetectronDetectionOutput, op::v6)
 NGRAPH_OP(ExperimentalDetectronGenerateProposalsSingleImage, op::v6)
 NGRAPH_OP(ExperimentalDetectronPriorGridGenerator, op::v6)
+NGRAPH_OP(ExperimentalDetectronROIFeatureExtractor, op::v6)
 NGRAPH_OP(ExperimentalDetectronTopKROIs, op::v6)
 NGRAPH_OP(GatherElements, op::v6)
 NGRAPH_OP(MVN, ngraph::op::v6)
@@ -99,5 +100,7 @@ NGRAPH_OP(Roll, ngraph::op::v7)
 
 NGRAPH_OP(AdaptiveAvgPool, ngraph::op::v8)
 NGRAPH_OP(AdaptiveMaxPool, ngraph::op::v8)
+NGRAPH_OP(Gather, op::v8)
 NGRAPH_OP(MatrixNms, op::v8)
 NGRAPH_OP(MulticlassNms, op::v8)
+NGRAPH_OP(Slice, op::v8)

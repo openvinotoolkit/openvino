@@ -29,7 +29,7 @@ TEST(attributes, prior_box_clustered_op) {
 
     auto pbc = make_shared<opset1::PriorBoxClustered>(layer_shape, image_shape, attrs);
     NodeBuilder builder(pbc);
-    auto g_pbc = as_type_ptr<opset1::PriorBoxClustered>(builder.create());
+    auto g_pbc = ov::as_type_ptr<opset1::PriorBoxClustered>(builder.create());
     const auto pbc_attrs = pbc->get_attrs();
     const auto g_pbc_attrs = g_pbc->get_attrs();
     const auto expected_attr_count = 8;

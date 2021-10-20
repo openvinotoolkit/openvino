@@ -44,7 +44,7 @@ from mo.utils.version import get_version, get_simplified_mo_version, get_simplif
 from mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
 
 # pylint: disable=no-name-in-module,import-error
-from ngraph.frontend import FrontEndManager
+from ngraph.frontend import FrontEndManager, FrontEnd
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -96,23 +96,42 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
     print('\n'.join(lines), flush=True)
 
 
-def prepare_ir(argv: argparse.Namespace):
+def get_moc_frontends(argv: argparse.Namespace):
     fem = argv.feManager
-    available_moc_front_ends = []
-    moc_front_end = None
 
-    # TODO: in future, check of 'use_legacy_frontend' in argv can be added here (issue 61973)
-    force_use_legacy_frontend = False
+    # Read user flags:
+    use_legacy_frontend = argv.use_legacy_frontend
+    use_new_frontend = argv.use_new_frontend
 
-    if fem and not force_use_legacy_frontend:
-        available_moc_front_ends = fem.get_available_front_ends()
-        if argv.input_model:
-            if not argv.framework:
-                moc_front_end = fem.load_by_model(argv.input_model)
-                if moc_front_end:
-                    argv.framework = moc_front_end.get_name()
-            elif argv.framework in available_moc_front_ends:
-                moc_front_end = fem.load_by_framework(argv.framework)
+    if not fem or use_legacy_frontend:
+        return None, []
+
+    available_moc_front_ends = fem.get_available_front_ends()
+
+    if not argv.framework and argv.input_model:
+        moc_front_end = fem.load_by_model(argv.input_model)
+        if not moc_front_end:
+            return None, available_moc_front_ends
+        argv.framework = moc_front_end.get_name()
+    elif argv.framework in available_moc_front_ends:
+        moc_front_end = fem.load_by_framework(argv.framework)
+    else:
+        return None, []
+
+    # Set which frontend to use by default, values should be 'new' or 'legacy'
+    frontend_defaults = {
+        'onnx': 'legacy',
+        'tf': 'legacy'
+    }
+    # Disable MOC frontend if default is set to legacy and no user override
+    if frontend_defaults.get(moc_front_end.get_name()) == 'legacy' and not use_new_frontend:
+        moc_front_end = None
+
+    return moc_front_end, available_moc_front_ends
+
+
+def arguments_post_parsing(argv: argparse.Namespace):
+    moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
 
     is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
         deduce_framework_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
@@ -121,8 +140,13 @@ def prepare_ir(argv: argparse.Namespace):
         frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']
         frameworks = list(set(frameworks + available_moc_front_ends))
         if argv.framework not in frameworks:
-            raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
-                        refer_to_faq_msg(15), argv.framework, frameworks)
+            if argv.use_legacy_frontend:
+                raise Error('Framework {} is not a valid target when using the --use_legacy_frontend flag. '
+                            'The following legacy frameworks are available: {}' +
+                            refer_to_faq_msg(15), argv.framework, frameworks)
+            else:
+                raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
+                            refer_to_faq_msg(15), argv.framework, frameworks)
 
     if is_tf and not argv.input_model and not argv.saved_model_dir and not argv.input_meta_graph:
         raise Error('Path to input model or saved model dir is required: use --input_model, --saved_model_dir or '
@@ -186,11 +210,13 @@ def prepare_ir(argv: argparse.Namespace):
     if argv.legacy_ir_generation and len(argv.transform) != 0:
         raise Error("--legacy_ir_generation and --transform keys can not be used at the same time.")
 
-    use_legacy_fe = argv.framework not in available_moc_front_ends
-    # For C++ frontends there is no specific python installation requirements, thus check only generic ones
-    ret_code = check_requirements(framework=argv.framework if use_legacy_fe else None)
+    # For C++ frontends there are no specific Python installation requirements, check only generic ones
+    if moc_front_end:
+        ret_code = check_requirements()
+    else:
+        ret_code = check_requirements(framework=argv.framework)
     if ret_code:
-        raise Error('check_requirements exit with return code {}'.format(ret_code))
+        raise Error('check_requirements exited with return code {}'.format(ret_code))
 
     if is_tf and argv.tensorflow_use_custom_operations_config is not None:
         argv.transformations_config = argv.tensorflow_use_custom_operations_config
@@ -276,13 +302,21 @@ def prepare_ir(argv: argparse.Namespace):
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
 
+    return argv
+
+
+def prepare_ir(argv):
+    argv = arguments_post_parsing(argv)
+
     graph = None
     ngraph_function = None
+    moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
 
-    if argv.framework not in available_moc_front_ends:
-        graph = unified_pipeline(argv)
-    else:
+    if moc_front_end:
         ngraph_function = moc_pipeline(argv, moc_front_end)
+    else:
+        graph = unified_pipeline(argv)
+
     return graph, ngraph_function
 
 

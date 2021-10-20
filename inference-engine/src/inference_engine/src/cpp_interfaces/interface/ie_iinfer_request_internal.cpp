@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <openvino/core/partial_shape.hpp>
 #include <string>
 
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
@@ -51,18 +52,22 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
     }
     if (!userBlob)
         IE_THROW(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
+    InputInfo::Ptr foundInput;
+    DataPtr foundOutput;
+    const bool isInput = findInputAndOutputBlobByName(name, foundInput, foundOutput);
     const bool compoundBlobPassed = userBlob->is<CompoundBlob>();
     const bool remoteBlobPassed = userBlob->is<RemoteBlob>();
     if (!compoundBlobPassed && !remoteBlobPassed && userBlob->buffer() == nullptr)
         IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
-    if (userBlob->size() == 0) {
+    IE_SUPPRESS_DEPRECATED_START
+    if (userBlob->size() == 0 &&
+        !((foundInput && foundInput->getInputData()->isDynamic()) || (foundOutput && foundOutput->isDynamic()))) {
         IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
+    IE_SUPPRESS_DEPRECATED_END
 
-    InputInfo::Ptr foundInput;
-    DataPtr foundOutput;
     size_t dataSize = userBlob->size();
-    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
+    if (isInput) {
         // ilavreno: the condition below is obsolete, but we need an exact list of precisions
         // which are supports by G-API preprocessing
         if (foundInput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
@@ -126,11 +131,8 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
             data = it->second->getRoiBlob();
         } else {
             data = _inputs[name];
-            checkBlob(
-                data,
-                name,
-                true,
-                foundInput->getTensorDesc().getLayout() != SCALAR ? foundInput->getTensorDesc().getDims() : oneVector);
+            const auto& dims = foundInput->getTensorDesc().getDims();
+            checkBlob(data, name, true, foundInput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
 
             auto& devBlob = _deviceInputs[name];
             if (preProcessingRequired(foundInput, data, devBlob)) {
@@ -140,11 +142,8 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
         }
     } else {
         data = _outputs[name];
-        checkBlob(
-            data,
-            name,
-            false,
-            foundOutput->getTensorDesc().getLayout() != SCALAR ? foundOutput->getTensorDesc().getDims() : oneVector);
+        const auto& dims = foundOutput->getTensorDesc().getDims();
+        checkBlob(data, name, false, foundOutput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
     }
     return data;
 }
@@ -252,6 +251,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
         IE_THROW(NotAllocated) << strNotAllocated;
     }
     size_t refSize;
+    bool isDynamic = false;
     if (refDims.empty()) {
         SizeVector dims;
         if (isInput) {
@@ -263,6 +263,9 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
             if (foundInputPair == std::end(_networkInputs)) {
                 IE_THROW(NotFound) << "Failed to find input with name: \'" << name << "\'";
             }
+            IE_SUPPRESS_DEPRECATED_START
+            isDynamic = foundInputPair->second->getInputData()->getPartialShape().is_dynamic();
+            IE_SUPPRESS_DEPRECATED_END
             dims = foundInputPair->second->getTensorDesc().getDims();
             refSize = foundInputPair->second->getTensorDesc().getLayout() != SCALAR ? details::product(dims) : 1;
         } else {
@@ -274,14 +277,24 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
             if (foundOutputPair == std::end(_networkOutputs)) {
                 IE_THROW(NotFound) << "Failed to find output with name: \'" << name << "\'";
             }
-            dims = foundOutputPair->second->getTensorDesc().getDims();
+            IE_SUPPRESS_DEPRECATED_START
+            isDynamic = foundOutputPair->second->getPartialShape().is_dynamic();
+            ngraph::PartialShape blobPartialShape(blob->getTensorDesc().getDims());
+            if (foundOutputPair->second->getPartialShape().compatible(blobPartialShape)) {
+                dims = blob->getTensorDesc().getDims();
+            } else {
+                // TODO: it is strange to request tensor desc from data when the shapes are not compatible, probably we
+                // need to immediately throw here
+                dims = foundOutputPair->second->getTensorDesc().getDims();
+            }
+            IE_SUPPRESS_DEPRECATED_END
             refSize = foundOutputPair->second->getTensorDesc().getLayout() != SCALAR ? details::product(dims) : 1;
         }
     } else {
         refSize = details::product(refDims);
     }
 
-    if (refSize != blob->size()) {
+    if (!isDynamic && refSize != blob->size()) {
         IE_THROW() << strNotMatched + ": got " << blob->size() << " expecting " << refSize;
     }
     const bool remoteBlobPassed = blob->is<RemoteBlob>();
@@ -339,7 +352,7 @@ bool IInferRequestInternal::preProcessingRequired(const InputInfo::Ptr& info,
 }
 
 void IInferRequestInternal::addInputPreProcessingFor(const std::string& name,
-                                                     Blob::Ptr const& from,
+                                                     const Blob::Ptr& from,
                                                      const Blob::Ptr& to) {
     auto ppDataIt = _preProcData.find(name);
     if (ppDataIt == _preProcData.end()) {

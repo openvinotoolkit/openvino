@@ -2,7 +2,7 @@
 
 **Versioned name**: *DeformablePSROIPooling-1*
 
-**Category**: Object detection
+**Category**: *Object detection*
 
 **Short description**: *DeformablePSROIPooling* computes deformable position-sensitive pooling of regions of interest specified by input.
 

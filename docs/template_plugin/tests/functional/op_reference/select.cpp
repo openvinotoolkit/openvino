@@ -4,17 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <tuple>
-
+#include "openvino/op/select.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 
 struct SelectParams {
     template <class IT, class OT>
@@ -24,22 +18,22 @@ struct SelectParams {
         : data_type(data_type),
           broadcast(broadcast),
           select_input_pshape(select_input_pshape),
-          select_input(CreateBlob(element::boolean, select_input)),
+          select_input(CreateTensor(element::boolean, select_input)),
           if_input_pshape(if_input_pshape),
-          if_input(CreateBlob(data_type, if_input)),
+          if_input(CreateTensor(data_type, if_input)),
           else_input_pshape(else_input_pshape),
-          else_input(CreateBlob(data_type, else_input)),
-          expected_output(CreateBlob(data_type, expected_output)) {}
+          else_input(CreateTensor(data_type, else_input)),
+          expected_output(CreateTensor(data_type, expected_output)) {}
 
     element::Type data_type;
     op::AutoBroadcastSpec broadcast;
     PartialShape select_input_pshape;
-    Blob::Ptr select_input;
+    ov::runtime::Tensor select_input;
     PartialShape if_input_pshape;
-    Blob::Ptr if_input;
+    ov::runtime::Tensor if_input;
     PartialShape else_input_pshape;
-    Blob::Ptr else_input;
-    Blob::Ptr expected_output;
+    ov::runtime::Tensor else_input;
+    ov::runtime::Tensor expected_output;
 };
 
 class ReferenceSelectLayerTest : public testing::TestWithParam<SelectParams>, public CommonReferenceTest {
@@ -64,10 +58,10 @@ public:
 private:
     static std::shared_ptr<Function> CreateFunction(const element::Type& data_type, const op::AutoBroadcastSpec& broadcast,
                                                     const PartialShape& select_pshape, const PartialShape& if_pshape, const PartialShape& else_pshape) {
-        auto A = std::make_shared<op::Parameter>(element::boolean, select_pshape);
-        auto B = std::make_shared<op::Parameter>(data_type, if_pshape);
-        auto C = std::make_shared<op::Parameter>(data_type, else_pshape);
-        return std::make_shared<Function>(std::make_shared<op::v1::Select>(A, B, C, broadcast), ParameterVector {A, B, C});
+        auto A = std::make_shared<op::v0::Parameter>(element::boolean, select_pshape);
+        auto B = std::make_shared<op::v0::Parameter>(data_type, if_pshape);
+        auto C = std::make_shared<op::v0::Parameter>(data_type, else_pshape);
+        return std::make_shared<ov::Function>(std::make_shared<op::v1::Select>(A, B, C, broadcast), ParameterVector {A, B, C});
     }
 };
 

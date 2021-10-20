@@ -31,6 +31,17 @@ public:
     ///
     /// \param model_path Path to the file containing the model.
     ONNXModelEditor(const std::string& model_path);
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    ONNXModelEditor(const std::wstring& model_path);
+#endif
+
+    /// \brief Creates an editor from a model stream. The stream is parsed and loaded
+    ///        into the m_model_proto member variable.
+    ///
+    /// \param model_stream The stream containing the model.
+    /// \param model_path Path to the file containing the model. This information can be used
+    ///                   for ONNX external weights feature support.
+    ONNXModelEditor(std::istream& model_stream, const std::string& path = "");
 
     /// \brief Modifies the in-memory representation of the model by setting
     ///        custom input types for all inputs specified in the provided map.
@@ -100,8 +111,20 @@ public:
     ///        instance of the model editor.
     std::vector<std::string> model_outputs() const;
 
+    /// \brief     Get name of the tensor which is the source of the input edge.
+    ///
+    /// \note      Empty string is returned if the tensor name is not found.
+    ///
+    std::string get_source_tensor_name(const InputEdge& edge) const;
+
     /// \brief     Returns true if input edge is input of the model. Otherwise false.
     bool is_input(const InputEdge& edge) const;
+
+    /// \brief     Get name of the tensor which is the target of the output edge.
+    ///
+    /// \note      Empty string is returned if the tensor name is not found.
+    ///
+    std::string get_target_tensor_name(const OutputEdge& edge) const;
 
     /// \brief     Returns true if output edge is input of the model. Otherwise false.
     bool is_output(const OutputEdge& edge) const;
@@ -175,11 +198,35 @@ public:
     ///
     bool is_correct_and_unambiguous_node(const EditorNode& node) const;
 
+    /// \brief Returns index (position) of provided node in the graph
+    ///        in topological order.
+    ///
+    /// \param node An EditorNode helper structure created based on a node name
+    ///             or a node output name.
+    ///
+    /// \note  The exception will be thrown if the provided node is ambiguous.
+    ///
+    int get_node_index(const EditorNode& node) const;
+
     /// \brief Returns true if a provided tensor name is correct (exists in a graph).
     ///
     /// \param name The name of tensor in a graph.
     ///
     bool is_correct_tensor_name(const std::string& name) const;
+
+    /// \brief     Get names of input ports of given node.
+    ///
+    /// \param node An EditorNode helper structure created based on a node name
+    ///             or a node output name.
+    ///
+    std::vector<std::string> get_input_ports(const EditorNode& node) const;
+
+    /// \brief     Get names of output ports of given node.
+    ///
+    /// \param node An EditorNode helper structure created based on a node name
+    ///             or a node output name.
+    ///
+    std::vector<std::string> get_output_ports(const EditorNode& node) const;
 
     /// \brief Returns a nGraph function based on edited model
     ///        decoded to framework nodes

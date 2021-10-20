@@ -2,7 +2,7 @@
 
 **Versioned name**: *Log-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Log* performs element-wise natural logarithm operation with given tensor.
 

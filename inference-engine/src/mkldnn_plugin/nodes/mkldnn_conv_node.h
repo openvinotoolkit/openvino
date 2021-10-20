@@ -18,10 +18,10 @@ class MKLDNNConvolutionNode : public MKLDNNNode {
 public:
     MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
-    void createDescriptor(const std::vector<const MemoryDesc*>& inputDesc,
-                          const std::vector<const MemoryDesc*>& outputDesc) override;
+    void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                          const std::vector<MemoryDescPtr>& outputDesc) override;
     void initDescriptor(const NodeConfig& config) override;
     void createPrimitive() override;
     void selectOptimalPrimitiveDescriptor() override;
@@ -32,7 +32,7 @@ public:
         return false;
     }
     InferenceEngine::Precision getRuntimePrecision() const override;
-    std::unique_ptr<MKLDNNMemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
     const mkldnn::memory& getWeights() const;
     const mkldnn::memory& getBias() const;
@@ -66,7 +66,7 @@ protected:
 
 private:
     void addZeroPoints(mkldnn::primitive_attr& attr) const;
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights) const;
+    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights, bool initAsBinary);
     void filterSupportedDescriptors();
     bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) const;
     bool isNspcAvailable() const;

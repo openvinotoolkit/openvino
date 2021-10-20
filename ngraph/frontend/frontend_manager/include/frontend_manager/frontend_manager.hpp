@@ -5,11 +5,13 @@
 #pragma once
 
 #include <memory>
+#include <sstream>
 #include <string>
 
 #include "frontend.hpp"
 #include "frontend_manager_defs.hpp"
 #include "ngraph/variant.hpp"
+#include "parameters.hpp"
 
 namespace ngraph {
 namespace frontend {
@@ -76,6 +78,9 @@ private:
     std::unique_ptr<Impl> m_impl;
 };
 
+template <>
+FRONTEND_API FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<std::shared_ptr<Variant>>& variants);
+
 // --------- Plugin exporting information --------------
 
 /// \brief Each frontend plugin is responsible to export GetAPIVersion function returning
@@ -93,27 +98,4 @@ struct FrontEndPluginInfo {
 };
 
 }  // namespace frontend
-
-template <>
-class FRONTEND_API VariantWrapper<std::istream*> : public VariantImpl<std::istream*> {
-public:
-    static constexpr VariantTypeInfo type_info{"Variant::std::istream*", 0};
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
-};
-
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-template <>
-class FRONTEND_API VariantWrapper<std::wstring> : public VariantImpl<std::wstring> {
-public:
-    static constexpr VariantTypeInfo type_info{"Variant::std::wstring", 0};
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
-};
-#endif
-
 }  // namespace ngraph

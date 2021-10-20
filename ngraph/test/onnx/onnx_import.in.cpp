@@ -33,9 +33,9 @@
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/ndarray.hpp"
-#include "util/test_case.hpp"
+#include "engines_util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/engine/test_engines.hpp"
+#include "engines_util/test_engines.hpp"
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
 #include <cpp/ie_cnn_network.h>
@@ -390,6 +390,43 @@ NGRAPH_TEST(onnx_${BACKEND_NAME}, onnx_expand_function) {
     test_case.add_expected_output<uint8_t>(Shape{6}, {191, 121, 172, 96, 42, 0});
     test_case.add_expected_output<float>(Shape{}, {0.0156862754f});
     test_case.add_expected_output<uint8_t>(Shape{}, {255});
+    test_case.run();
+}
+
+NGRAPH_TEST(onnx_${BACKEND_NAME}, onnx_expand_function_dependency_to_created_subgraph) {
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/transformations/greater_or_equal.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{5}, {3.f, 5.f, 3.f, 3.f, 6.f});
+    test_case.add_input<float>(Shape{5}, {1.f, 4.f, 3.f, 7.f, 8.f});
+    test_case.add_expected_output<int32_t>(Shape{5}, {1, 1, 1, 0, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(onnx_${BACKEND_NAME}, onnx_expand_context_dependent_function) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/transformations/softmax_crossentropy_consumed.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{3, 5},
+                               {0.54881352186203,
+                                0.7151893377304077,
+                                0.6027633547782898,
+                                0.5448831915855408,
+                                0.42365479469299316,
+                                0.6458941102027893,
+                                0.4375872015953064,
+                                0.891772985458374,
+                                0.9636627435684204,
+                                0.3834415078163147,
+                                0.7917250394821167,
+                                0.5288949012756348,
+                                0.5680445432662964,
+                                0.9255966544151306,
+                                0.07103605568408966});
+    test_case.add_input<int64_t>(Shape{3}, {1, 4, 3});
+    test_case.add_expected_output<int32_t>(Shape{}, {1});
     test_case.run();
 }
 
@@ -2525,6 +2562,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_eye_like) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/eye_like.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{3, 4}, {5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f, 5.f});
     test_case.add_expected_output<float>(Shape{3, 4}, {0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f});
 
     test_case.run();
@@ -2710,6 +2748,110 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatterND_const_i32_indices) {
     test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
     test_case.add_input<float>({9.f, 10.f, 11.f, 12.f});
     test_case.add_expected_output<float>(Shape{8}, {1.f, 11.f, 3.f, 10.f, 9.f, 6.f, 7.f, 12.f});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_float_1D) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gather_float_1D.onnx"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // clang-format off
+    test_case.add_input<float>(Shape{3},
+        {   5, 6, 7 });
+    test_case.add_input<int64_t>(Shape{2, 2},
+        {   0, 1,
+            1, 2    });
+    test_case.add_expected_output<float>(Shape{2, 2},
+        {   5, 6,
+            6, 7    });
+    // clang-format on
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_int32_3D_axis_1) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gather_int32_3D_axis_1.onnx"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // clang-format off
+    test_case.add_input<int32_t>(Shape{2, 2, 2},
+        {   1, 2,
+            3, 4,
+
+            5, 6,
+            7, 8    });
+    test_case.add_input<int32_t>(Shape{4, 1},
+        {   0,
+            1,
+            1,
+            0       });
+    test_case.add_expected_output<int32_t>(Shape{2, 4, 1, 2},
+        {   1, 2,
+            3, 4,
+            3, 4,
+            1, 2,
+
+            5, 6,
+            7, 8,
+            7, 8,
+            5, 6     });
+    // clang-format on
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_int8_3D_axis_neg_1) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gather_int8_3D_axis_neg_1.onnx"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // clang-format off
+    test_case.add_input<int8_t>(Shape{2, 2, 2},
+        {   1, 2,
+            3, 4,
+
+            5, 6,
+            7, 8            });
+    test_case.add_input<int32_t>(Shape{4, 1},
+        {   0, 1, 1, 0      });
+    test_case.add_expected_output<int8_t>(Shape{2, 2, 4, 1},
+        {   1, 2, 2, 1,
+            3, 4, 4, 3,
+
+            5, 6, 6, 5,
+            7, 8, 8, 7      });
+    // clang-format on
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_float_2D_neg_indices) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gather_float_2D_axis_1.onnx"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // clang-format off
+    test_case.add_input<float>(Shape{3, 3},
+        {   0.0, 0.1, 0.2,
+            1.0, 1.1, 1.2,
+            2.0, 2.1, 2.2   });
+    test_case.add_input<int64_t>(Shape{2, 2},
+        {   -1, -2,
+            -3, -2      });
+    test_case.add_expected_output<float>(Shape{3, 2, 2},
+        {
+            0.2, 0.1,
+            0.0, 0.1,
+
+            1.2, 1.1,
+            1.0, 1.1,
+
+            2.2, 2.1,
+            2.0, 2.1    });
+    // clang-format on
 
     test_case.run();
 }
@@ -4020,5 +4162,29 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_float16_tensor_as_int32) {
             {   20, 24,
                 36, 40  });
     // clang-format on
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_random_uniform) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/random_uniform.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    // These output values are unknown at this time as we don't have a reference implementation of random number
+    // generator
+    test_case.add_expected_output<ngraph::float16>(Shape{2, 2}, {41, 42, 43, 44});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_random_uniform_like) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/random_uniform_like.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<ngraph::float16>(Shape{2, 2}, {0, 0, 0, 0});
+
+    // These output values are unknown at this time as we don't have a reference implementation of random number
+    // generator
+    test_case.add_input<ngraph::float16>(Shape{2, 2}, {41, 42, 43, 44});
     test_case.run();
 }

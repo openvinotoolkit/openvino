@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/partial_shape.hpp"
+#include "openvino/core/partial_shape.hpp"
 
 #include <algorithm>
 #include <iostream>
@@ -10,30 +10,28 @@
 
 #include "ngraph/check.hpp"
 
-using namespace ngraph;
+ov::PartialShape::PartialShape() : PartialShape(std::initializer_list<Dimension>{}) {}
 
-PartialShape::PartialShape() : PartialShape(std::initializer_list<Dimension>{}) {}
+ov::PartialShape::PartialShape(std::initializer_list<Dimension> init) : PartialShape(true, init) {}
 
-PartialShape::PartialShape(std::initializer_list<Dimension> init) : PartialShape(true, init) {}
-
-PartialShape::PartialShape(const std::vector<Dimension::value_type>& dimensions)
+ov::PartialShape::PartialShape(const std::vector<Dimension::value_type>& dimensions)
     : m_rank_is_static(true),
       m_dimensions(dimensions.begin(), dimensions.end()) {}
 
-PartialShape::PartialShape(const Shape& shape)
+ov::PartialShape::PartialShape(const Shape& shape)
     : m_rank_is_static(true),
       m_shape_type(ShapeType::SHAPE_IS_STATIC),
       m_dimensions(shape.begin(), shape.end()) {}
 
-PartialShape::PartialShape(bool rank_is_static, std::vector<Dimension> dimensions)
+ov::PartialShape::PartialShape(bool rank_is_static, std::vector<Dimension> dimensions)
     : m_rank_is_static(rank_is_static),
       m_dimensions(std::move(dimensions)) {}
 
-PartialShape::PartialShape(std::vector<Dimension> dimensions)
+ov::PartialShape::PartialShape(std::vector<Dimension> dimensions)
     : m_rank_is_static(true),
       m_dimensions(std::move(dimensions)) {}
 
-bool ngraph::PartialShape::is_static() const {
+bool ov::PartialShape::is_static() const {
     ShapeType shape_type = m_shape_type;
 
     if (m_shape_type == ShapeType::SHAPE_IS_UNKNOWN || m_shape_type == ShapeType::SHAPE_IS_UPDATED) {
@@ -52,7 +50,7 @@ bool ngraph::PartialShape::is_static() const {
     return shape_type == ShapeType::SHAPE_IS_STATIC;
 }
 
-bool ngraph::PartialShape::operator==(const PartialShape& partial_shape) const {
+bool ov::PartialShape::operator==(const PartialShape& partial_shape) const {
     if (rank() != partial_shape.rank()) {
         return false;
     }
@@ -67,11 +65,11 @@ bool ngraph::PartialShape::operator==(const PartialShape& partial_shape) const {
     return true;
 }
 
-bool ngraph::PartialShape::operator!=(const PartialShape& partial_shape) const {
+bool ov::PartialShape::operator!=(const PartialShape& partial_shape) const {
     return !(*this == partial_shape);
 }
 
-Shape ngraph::PartialShape::get_max_shape() const {
+ov::Shape ov::PartialShape::get_max_shape() const {
     if (rank().is_dynamic()) {
         return Shape();
     } else {
@@ -83,7 +81,7 @@ Shape ngraph::PartialShape::get_max_shape() const {
     }
 }
 
-Shape ngraph::PartialShape::get_min_shape() const {
+ov::Shape ov::PartialShape::get_min_shape() const {
     if (rank().is_dynamic()) {
         return Shape();
     } else {
@@ -95,7 +93,7 @@ Shape ngraph::PartialShape::get_min_shape() const {
     }
 }
 
-Shape ngraph::PartialShape::get_shape() const {
+ov::Shape ov::PartialShape::get_shape() const {
     NGRAPH_CHECK(rank().is_static(), "get_shape() must be called on a static shape");
     Shape shape;
     for (auto dimension : m_dimensions) {
@@ -107,7 +105,7 @@ Shape ngraph::PartialShape::get_shape() const {
     return shape;
 }
 
-PartialShape ngraph::operator+(const PartialShape& s1, const PartialShape& s2) {
+ov::PartialShape ov::operator+(const PartialShape& s1, const PartialShape& s2) {
     if (s1.rank().is_dynamic() || s2.rank().is_dynamic()) {
         return PartialShape::dynamic();
     }
@@ -124,7 +122,7 @@ PartialShape ngraph::operator+(const PartialShape& s1, const PartialShape& s2) {
     return result;
 }
 
-std::ostream& ngraph::operator<<(std::ostream& str, const PartialShape& shape) {
+std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
     if (shape.m_rank_is_static) {
         str << "{";
         bool first = true;
@@ -141,12 +139,12 @@ std::ostream& ngraph::operator<<(std::ostream& str, const PartialShape& shape) {
     }
 }
 
-PartialShape PartialShape::dynamic(Rank r) {
+ov::PartialShape ov::PartialShape::dynamic(Rank r) {
     return PartialShape(r.is_static(),
                         std::vector<Dimension>(r.is_static() ? r.get_length() : 0, Dimension::dynamic()));
 }
 
-bool PartialShape::compatible(const PartialShape& s) const {
+bool ov::PartialShape::compatible(const PartialShape& s) const {
     // If we don't know *this's rank, or we don't know s's rank, they are compatible.
     if (!m_rank_is_static || s.rank().is_dynamic()) {
         return true;
@@ -169,7 +167,7 @@ bool PartialShape::compatible(const PartialShape& s) const {
     }
 }
 
-bool PartialShape::same_scheme(const PartialShape& s) const {
+bool ov::PartialShape::same_scheme(const PartialShape& s) const {
     if (rank().is_dynamic() && s.rank().is_dynamic()) {
         return true;
     } else if (rank().is_static() && s.rank().is_static()) {
@@ -189,7 +187,7 @@ bool PartialShape::same_scheme(const PartialShape& s) const {
     }
 }
 
-bool PartialShape::relaxes(const PartialShape& s) const {
+bool ov::PartialShape::relaxes(const PartialShape& s) const {
     if (rank().is_dynamic()) {
         return true;
     } else if (s.rank().is_static() && rank().get_length() == s.rank().get_length()) {
@@ -205,7 +203,7 @@ bool PartialShape::relaxes(const PartialShape& s) const {
     }
 }
 
-bool PartialShape::refines(const PartialShape& s) const {
+bool ov::PartialShape::refines(const PartialShape& s) const {
     if (s.rank().is_dynamic()) {
         return true;
     } else if (rank().is_static() && rank().get_length() == s.rank().get_length()) {
@@ -221,7 +219,7 @@ bool PartialShape::refines(const PartialShape& s) const {
     }
 }
 
-bool PartialShape::merge_rank(Rank r) {
+bool ov::PartialShape::merge_rank(Rank r) {
     if (r.is_dynamic()) {
         return true;
     } else if (!m_rank_is_static) {
@@ -234,7 +232,7 @@ bool PartialShape::merge_rank(Rank r) {
     }
 }
 
-Shape PartialShape::to_shape() const {
+ov::Shape ov::PartialShape::to_shape() const {
     if (is_dynamic()) {
         throw std::invalid_argument("to_shape was called on a dynamic shape.");
     }
@@ -247,7 +245,7 @@ Shape PartialShape::to_shape() const {
     return shape_dimensions;
 }
 
-bool PartialShape::merge_into(PartialShape& dst, const PartialShape& src) {
+bool ov::PartialShape::merge_into(PartialShape& dst, const PartialShape& src) {
     if (dst.rank().is_dynamic()) {
         dst = src;
         return true;
@@ -267,9 +265,9 @@ bool PartialShape::merge_into(PartialShape& dst, const PartialShape& src) {
     }
 }
 
-bool PartialShape::broadcast_merge_into(PartialShape& dst,
-                                        const PartialShape& src,
-                                        const op::AutoBroadcastSpec& autob) {
+bool ov::PartialShape::broadcast_merge_into(PartialShape& dst,
+                                            const PartialShape& src,
+                                            const op::AutoBroadcastSpec& autob) {
     switch (autob.m_type) {
     case op::AutoBroadcastType::NONE:
         return true;
@@ -332,7 +330,7 @@ bool PartialShape::broadcast_merge_into(PartialShape& dst,
     return false;
 }
 
-bool PartialShape::all_non_negative() const {
+bool ov::PartialShape::all_non_negative() const {
     for (auto& d : m_dimensions) {
         if (d.is_static() && d.get_length() < 0) {
             return false;
@@ -342,14 +340,14 @@ bool PartialShape::all_non_negative() const {
     return true;
 }
 
-const Dimension& PartialShape::operator[](size_t i) const {
+const ov::Dimension& ov::PartialShape::operator[](size_t i) const {
     if (i >= m_dimensions.size()) {
         throw std::out_of_range("Accessing out-of-range dimension in Dimension[]");
     }
     return m_dimensions[i];
 }
 
-Dimension& PartialShape::operator[](size_t i) {
+ov::Dimension& ov::PartialShape::operator[](size_t i) {
     if (i >= m_dimensions.size()) {
         throw std::out_of_range("Accessing out-of-range dimension in Dimension[]");
     }
@@ -357,14 +355,14 @@ Dimension& PartialShape::operator[](size_t i) {
     return m_dimensions[i];
 }
 
-const std::vector<int64_t>& ngraph::AttributeAdapter<ngraph::PartialShape>::get() {
+const std::vector<int64_t>& ov::AttributeAdapter<ov::PartialShape>::get() {
     if (!m_buffer_valid) {
         m_buffer.clear();
         if (m_ref.rank().is_dynamic()) {
             m_buffer.push_back(-2);
         } else {
             for (int64_t i = 0; i < m_ref.rank().get_length(); ++i) {
-                const auto& elt = static_cast<const PartialShape&>(m_ref)[i];
+                const auto& elt = static_cast<const ov::PartialShape&>(m_ref)[i];
                 m_buffer.push_back(elt.is_dynamic() ? -1 : elt.get_length());
             }
         }
@@ -373,18 +371,19 @@ const std::vector<int64_t>& ngraph::AttributeAdapter<ngraph::PartialShape>::get(
     return m_buffer;
 }
 
-void ngraph::AttributeAdapter<ngraph::PartialShape>::set(const std::vector<int64_t>& value) {
-    m_ref = PartialShape();
+void ov::AttributeAdapter<ov::PartialShape>::set(const std::vector<int64_t>& value) {
+    m_ref = ov::PartialShape();
     if (value.size() == 1 && value[0] == -2) {
-        m_ref = PartialShape::dynamic();
+        m_ref = ov::PartialShape::dynamic();
     } else {
         std::vector<Dimension> dims;
+        dims.reserve(value.size());
         for (auto elt : value) {
             dims.push_back(elt == -1 ? Dimension::dynamic() : elt);
         }
-        m_ref = PartialShape(dims);
+        m_ref = ov::PartialShape(dims);
     }
     m_buffer_valid = false;
 }
 
-NGRAPH_API constexpr DiscreteTypeInfo AttributeAdapter<PartialShape>::type_info;
+OPENVINO_API constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<ov::PartialShape>::type_info;

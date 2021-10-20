@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string PoolingLayerTest::getTestCaseName(testing::TestParamInfo<poolLayerTestParamsSet> obj) {
+std::string PoolingLayerTest::getTestCaseName(const testing::TestParamInfo<poolLayerTestParamsSet>& obj) {
     poolSpecificParams poolParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
@@ -48,7 +48,7 @@ std::string PoolingLayerTest::getTestCaseName(testing::TestParamInfo<poolLayerTe
     return result.str();
 }
 
-std::string GlobalPoolingLayerTest::getTestCaseName(testing::TestParamInfo<globalPoolLayerTestParamsSet> obj) {
+std::string GlobalPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<globalPoolLayerTestParamsSet>& obj) {
     poolSpecificParams poolParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;

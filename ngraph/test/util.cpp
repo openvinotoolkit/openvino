@@ -7,21 +7,35 @@
 #include <string>
 #include <vector>
 
+#include "execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
+#include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset6.hpp"
 #include "ngraph/opsets/opset8.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
+#include "openvino/core/version.hpp"
 #include "util/all_close.hpp"
 #include "util/ndarray.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
+
+TEST(openvino_version, version) {
+    auto version = ov::get_openvino_version();
+    ASSERT_EQ(std::string("OpenVINO Runtime"), version->description);
+    ASSERT_FALSE(std::string(version->buildNumber).empty());
+}
+
+TEST(ngraph_version_variable, version) {
+    ASSERT_FALSE(std::string(NGRAPH_VERSION_NUMBER).empty());
+}
 
 TEST(util, split) {
     {
@@ -169,6 +183,7 @@ public:
         nodes.push_back(A);
         nodes.push_back(B);
         nodes.push_back(C);
+        func->get_rt_info()["version"] = std::make_shared<VariantWrapper<int64_t>>(10);
     }
 
     bool CompareNodeVector(const std::vector<std::shared_ptr<ngraph::Node>>& orig,
@@ -194,11 +209,11 @@ TEST_F(CloneTest, clone_nodes_full) {
     auto cloned_nodes = clone_nodes(nodes, node_map);
     ASSERT_TRUE(CompareNodeVector(nodes, cloned_nodes, node_map));
 
-    ASSERT_NE(nullptr, as_type_ptr<op::Parameter>(node_map.at(A.get())));
-    ASSERT_NE(nullptr, as_type_ptr<op::Parameter>(node_map.at(B.get())));
-    ASSERT_NE(nullptr, as_type_ptr<op::Parameter>(node_map.at(C.get())));
-    ASSERT_NE(nullptr, as_type_ptr<op::v1::Add>(node_map.at(AplusB.get())));
-    ASSERT_NE(nullptr, as_type_ptr<op::v1::Multiply>(node_map.at(AplusBtimesC.get())));
+    ASSERT_NE(nullptr, ov::as_type_ptr<op::Parameter>(node_map.at(A.get())));
+    ASSERT_NE(nullptr, ov::as_type_ptr<op::Parameter>(node_map.at(B.get())));
+    ASSERT_NE(nullptr, ov::as_type_ptr<op::Parameter>(node_map.at(C.get())));
+    ASSERT_NE(nullptr, ov::as_type_ptr<op::v1::Add>(node_map.at(AplusB.get())));
+    ASSERT_NE(nullptr, ov::as_type_ptr<op::v1::Multiply>(node_map.at(AplusBtimesC.get())));
 
     auto sorted_nodes = topological_sort(nodes);
     auto sorted_cloned_nodes = topological_sort(cloned_nodes);
@@ -220,6 +235,11 @@ TEST_F(CloneTest, clone_nodes_partial) {
 TEST_F(CloneTest, clone_function_full) {
     auto cloned_func = clone_function(*func, node_map);
     ASSERT_TRUE(CompareNodeVector(func->get_ops(), cloned_func->get_ops(), node_map));
+    ASSERT_EQ(cloned_func->get_rt_info().size(), func->get_rt_info().size());
+    ASSERT_TRUE(cloned_func->get_rt_info().count("version"));
+    auto ver = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(cloned_func->get_rt_info().at("version"));
+    ASSERT_NE(nullptr, ver);
+    ASSERT_EQ(10, ver->get());
 }
 
 TEST(graph_util, clone_multiple_results) {
@@ -235,7 +255,7 @@ TEST(graph_util, clone_multiple_results) {
     auto copy = clone_function(*f);
 }
 
-TEST(graph_util, clone_function_variables) {
+TEST(graph_util, clone_function_variables_dynamic) {
     auto c_fp16 = make_shared<opset8::Constant>(element::f16, Shape{3}, std::vector<float>{0});
     auto variable = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "var_1"});
     auto read_value = make_shared<opset8::ReadValue>(c_fp16, variable);
@@ -250,6 +270,19 @@ TEST(graph_util, clone_function_variables) {
     }
     copy->validate_nodes_and_infer_types();
     copy = clone_function(*f);
+}
+
+TEST(graph_util, clone_function_variables_validate_partially) {
+    auto c_fp16 = make_shared<opset8::Constant>(element::f16, Shape{3}, std::vector<float>{0});
+
+    auto read_value = make_shared<opset3::ReadValue>(c_fp16, "var_1");
+    auto assign = make_shared<opset3::Assign>(read_value, "var_1");
+    auto res = make_shared<opset3::Result>(read_value);
+    auto f = make_shared<Function>(ResultVector{res}, SinkVector{assign}, ParameterVector{});
+    f->validate_nodes_and_infer_types();
+    NodeMap nm;
+    auto copy = clone_function(*f, nm);
+    nm[assign.get()]->validate_and_infer_types();
 }
 
 TEST(graph_util, clone_rt_info) {

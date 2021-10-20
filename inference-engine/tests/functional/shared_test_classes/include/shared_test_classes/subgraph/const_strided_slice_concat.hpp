@@ -29,7 +29,7 @@ typedef std::tuple<
 class ConstStridedSliceConcatTest : public testing::WithParamInterface<ConstStridedSliceConcatParams>,
                             public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConstStridedSliceConcatParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConstStridedSliceConcatParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 
 protected:

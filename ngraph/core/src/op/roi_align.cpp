@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::ROIAlign::type_info;
+BWDCMP_RTTI_DEFINITION(op::v3::ROIAlign);
 
 op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
                            const Output<Node>& rois,
@@ -107,10 +107,10 @@ void op::v3::ROIAlign::validate_and_infer_types() {
     }
 
     // the output shape should have the following format [NUM_ROIS, C, pooled_h, pooled_w]
-    auto output_shape = PartialShape{{Dimension::dynamic(),
-                                      input_ps[1],
-                                      Dimension{static_cast<int64_t>(m_pooled_h)},
-                                      Dimension{static_cast<int64_t>(m_pooled_w)}}};
+    auto output_shape = ov::PartialShape{{Dimension::dynamic(),
+                                          input_ps[1],
+                                          Dimension{static_cast<int64_t>(m_pooled_h)},
+                                          Dimension{static_cast<int64_t>(m_pooled_w)}}};
 
     // if either of those 2 dimensions is static its value will be used
     // for the first dimension of the output shape - 'NUM_ROIS'
@@ -161,21 +161,22 @@ shared_ptr<Node> op::v3::ROIAlign::clone_with_new_inputs(const OutputVector& new
                                  m_mode);
 }
 
-namespace ngraph {
-constexpr DiscreteTypeInfo AttributeAdapter<op::v3::ROIAlign::PoolingMode>::type_info;
+namespace ov {
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::v3::ROIAlign::PoolingMode>);
 
 template <>
-NGRAPH_API EnumNames<op::v3::ROIAlign::PoolingMode>& EnumNames<op::v3::ROIAlign::PoolingMode>::get() {
-    static auto enum_names = EnumNames<op::v3::ROIAlign::PoolingMode>(
+NGRAPH_API EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>& EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>(
         "op::v3::ROIAlign::PoolingMode",
-        {{"avg", op::v3::ROIAlign::PoolingMode::AVG}, {"max", op::v3::ROIAlign::PoolingMode::MAX}});
+        {{"avg", ngraph::op::v3::ROIAlign::PoolingMode::AVG}, {"max", ngraph::op::v3::ROIAlign::PoolingMode::MAX}});
     return enum_names;
 }
+
+}  // namespace ov
 
 std::ostream& operator<<(std::ostream& s, const op::v3::ROIAlign::PoolingMode& type) {
     return s << as_string(type);
 }
-}  // namespace ngraph
 
 namespace roi_alinop {
 template <element::Type_t ET>
@@ -188,7 +189,7 @@ bool evaluate(const HostTensorPtr& feature_maps,
               const int sampling_ratio,
               const float spatial_scale,
               const op::v3::ROIAlign::PoolingMode& pooling_mode,
-              const Shape& batch_indices_shape) {
+              const ov::Shape& batch_indices_shape) {
     using T = typename element_type_traits<ET>::value_type;
     runtime::reference::roi_align<T>(feature_maps->get_data_ptr<ET>(),
                                      rois->get_data_ptr<ET>(),

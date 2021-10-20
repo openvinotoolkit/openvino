@@ -15,7 +15,7 @@
 using namespace ngraph;
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(op::v1::ReduceLogicalOr, "ReduceLogicalOr", 1, util::LogicalReductionKeepDims);
+BWDCMP_RTTI_DEFINITION(op::v1::ReduceLogicalOr);
 
 op::v1::ReduceLogicalOr::ReduceLogicalOr(const Output<Node>& data,
                                          const Output<Node>& reduction_axes,

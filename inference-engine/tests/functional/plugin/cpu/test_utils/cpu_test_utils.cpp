@@ -116,7 +116,6 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
     if (nodeType.empty()) return;
 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
-    bool isNodeFound = false;
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
     auto function = execGraphInfo.getFunction();
     ASSERT_NE(nullptr, function);
@@ -145,7 +144,6 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
         };
 
         if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == nodeType) {
-            isNodeFound = true;
             ASSERT_LE(inFmts.size(), node->get_input_size());
             ASSERT_LE(outFmts.size(), node->get_output_size());
             for (int i = 0; i < inFmts.size(); i++) {
@@ -176,7 +174,21 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
 
             auto actualOutputMemoryFormats = getActualOutputMemoryFormats(getExecValueOutputsLayout(node));
 
-            for (size_t i = 0; i < outFmts.size(); i++) {
+            bool isAllEqual = true;
+            for (size_t i = 1; i < outFmts.size(); i++) {
+                if (outFmts[i - 1] != outFmts[i]) {
+                    isAllEqual = false;
+                    break;
+                }
+            }
+            size_t fmtsNum = outFmts.size();
+            if (isAllEqual) {
+                fmtsNum = fmtsNum == 0 ? 0 : 1;
+            } else {
+                ASSERT_EQ(fmtsNum, actualOutputMemoryFormats.size());
+            }
+
+            for (size_t i = 0; i < fmtsNum; i++) {
                 const auto actualOutputMemoryFormat = getExecValue(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
                 const auto shape = node->get_output_shape(i);
 
@@ -191,7 +203,6 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
             ASSERT_EQ(selectedType, primType);
         }
     }
-    ASSERT_TRUE(isNodeFound) << "Node type name: \"" << nodeType << "\" has not been found.";
 }
 
 std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {

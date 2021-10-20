@@ -5,7 +5,6 @@
 #include <signal.h>
 #include <ie_transformations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
-#include <transformations/serialize.hpp>
 #include <functional_test_utils/core_config.hpp>
 #include "ngraph/opsets/opset7.hpp"
 #include "ngraph_functions/builders.hpp"
@@ -55,6 +54,7 @@ namespace LayerTestsDefinitions {
 
 
     void MemoryTest::Run() {
+        functionRefs = ngraph::clone_function(*function);
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         using namespace LayerTestsUtils;
         auto crashHandler = [](int errCode) {
@@ -67,7 +67,6 @@ namespace LayerTestsDefinitions {
 
         auto &s = LayerTestsUtils::Summary::getInstance();
         s.setDeviceName(targetDevice);
-
         if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
             s.updateOPsStats(function, PassRate::Statuses::SKIPPED);
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
@@ -88,16 +87,16 @@ namespace LayerTestsDefinitions {
                 Infer();
                 Validate();
             }
-            s.updateOPsStats(function, PassRate::Statuses::PASSED);
+            s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
         }
         catch (const std::runtime_error &re) {
-            s.updateOPsStats(function, PassRate::Statuses::FAILED);
+            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_(re.what());
         } catch (const std::exception &ex) {
-            s.updateOPsStats(function, PassRate::Statuses::FAILED);
+            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_(ex.what());
         } catch (...) {
-            s.updateOPsStats(function, PassRate::Statuses::FAILED);
+            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_("Unknown failure occurred.");
         }
     }
@@ -134,7 +133,9 @@ namespace LayerTestsDefinitions {
         for (auto& outTensor : outputTensors) {
             outTensor = std::make_shared<HostTensor>();
         }
+        OPENVINO_SUPPRESS_DEPRECATED_START
         function->evaluate(outputTensors, inputTensors, eval_context);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> outputs(outInfo.size());
         for (size_t idx = 0; idx < outInfo.size(); ++idx) {
@@ -197,7 +198,7 @@ namespace LayerTestsDefinitions {
            manager.run_passes(function);
         } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
             cnnNetwork = InferenceEngine::CNNNetwork{function};
-           InferenceEngine::lowLatency2(cnnNetwork, iteration_count);
+            InferenceEngine::lowLatency2(cnnNetwork, iteration_count);
         }
     }
 

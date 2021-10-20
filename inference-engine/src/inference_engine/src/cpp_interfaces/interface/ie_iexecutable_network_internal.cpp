@@ -26,6 +26,19 @@ void IExecutableNetworkInternal::setNetworkOutputs(const OutputsDataMap& network
     _networkOutputs = networkOutputs;
 }
 
+void IExecutableNetworkInternal::setInputs(const std::vector<std::shared_ptr<const ov::Node>>& params) {
+    _parameters = params;
+}
+const std::vector<std::shared_ptr<const ov::Node>>& IExecutableNetworkInternal::getInputs() const {
+    return _parameters;
+}
+void IExecutableNetworkInternal::setOutputs(const std::vector<std::shared_ptr<const ov::Node>>& results) {
+    _results = results;
+}
+const std::vector<std::shared_ptr<const ov::Node>>& IExecutableNetworkInternal::getOutputs() const {
+    return _results;
+}
+
 ConstOutputsDataMap IExecutableNetworkInternal::GetOutputsInfo() const {
     ConstOutputsDataMap outputMap;
     for (const auto& output : _networkOutputs) {
@@ -62,7 +75,7 @@ void IExecutableNetworkInternal::Export(std::ostream& networkModel) {
     IE_THROW(NotImplemented);
 }
 
-CNNNetwork IExecutableNetworkInternal::GetExecGraphInfo() {
+std::shared_ptr<ngraph::Function> IExecutableNetworkInternal::GetExecGraphInfo() {
     IE_THROW(NotImplemented);
 }
 

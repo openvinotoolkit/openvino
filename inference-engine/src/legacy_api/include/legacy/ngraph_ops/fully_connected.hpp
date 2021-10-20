@@ -10,7 +10,6 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
-#include "ngraph/op/util/fused_op.hpp"
 
 namespace ngraph {
 namespace op {
@@ -18,8 +17,8 @@ namespace op {
 /// \brief Operator performing Matrix Multiplication.
 class INFERENCE_ENGINE_API_CLASS(FullyConnected) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"FullyConnected", 0};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("FullyConnected", "legacy");
+    BWDCMP_RTTI_DECLARATION;
     FullyConnected() = default;
     /// \brief Constructs an FullyConnected operation.
     ///

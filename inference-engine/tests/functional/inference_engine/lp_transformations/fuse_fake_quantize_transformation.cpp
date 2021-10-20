@@ -118,6 +118,8 @@ TEST_P(FuseFakeQuantizeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
@@ -385,12 +387,12 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
         },
         {
             element::f32,
-            { {127}, element::f32 },
+            {},
             element::f32,
-            { {element::f32}, { -128 }, { 0.01f } },
+            { {}, {}, {} },
             element::f32,
             element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+            { 256ul, {}, { -255.f }, { 0.f }, { 0.f }, { 2.55f } }
         }
     },
     // negative multiply

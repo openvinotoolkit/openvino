@@ -21,18 +21,23 @@ enum class Type {
     MAX,
 };
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 NGRAPH_API
 std::ostream& operator<<(std::ostream& out, const Type& obj);
+NGRAPH_SUPPRESS_DEPRECATED_END
 }  // namespace reduction
 
-template <>
-class NGRAPH_API AttributeAdapter<reduction::Type> : public EnumAttributeAdapterBase<reduction::Type> {
-public:
-    AttributeAdapter(reduction::Type& value) : EnumAttributeAdapterBase<reduction::Type>(value) {}
-
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<reduction::Type>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-};
 }  // namespace ngraph
+
+namespace ov {
+
+template <>
+class NGRAPH_API AttributeAdapter<ngraph::reduction::Type> : public EnumAttributeAdapterBase<ngraph::reduction::Type> {
+public:
+    AttributeAdapter(ngraph::reduction::Type& value) : EnumAttributeAdapterBase<ngraph::reduction::Type>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<reduction::Type>");
+    BWDCMP_RTTI_DECLARATION;
+};
+
+}  // namespace ov

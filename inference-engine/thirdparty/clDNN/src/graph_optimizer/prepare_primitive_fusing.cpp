@@ -55,11 +55,31 @@
 
 void prepare_primitive_fusing::run(program& p) {
     fuse_reorders(p);
+    remove_redundant_reshape(p);
     fuse_sigmoid_mul_to_swish(p);
     fuse_bias(p);
     fuse_simple_primitives(p);
     fuse_activations(p);
     optimize_fused_ops(p);
+}
+
+void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
+    auto node_itr = p.get_processing_order().begin();
+    while (node_itr != p.get_processing_order().end()) {
+        auto node = (*node_itr++);
+        program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
+            auto input_lay = node.input().get_output_layout();
+            auto output_lay = node.get_output_layout();
+
+            if (!node.is_in_place())
+                return;
+
+            if (program_helpers::are_layouts_identical(input_lay, output_lay).first) {
+                p.add_optimized_primitive_info(node.id());
+                p.extract_and_remove(node);
+            }
+        });
+    }
 }
 
 void prepare_primitive_fusing::fuse_sigmoid_mul_to_swish(program &p) {
@@ -295,10 +315,56 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             new_node.recalc_output_layout();
         };
 
+        auto recalculate_biases = [&](data_node& original_node, data_node& new_node) -> bool {
+            auto original_mem = original_node.get_attached_memory_ptr();
+            auto new_mem = new_node.get_attached_memory_ptr();
+            if (original_mem->count() != new_mem->count() || original_mem->get_layout().data_type != new_mem->get_layout().data_type)
+                return false;
+
+            switch (original_mem->get_layout().data_type) {
+                case data_types::f32: {
+                    mem_lock<float, mem_lock_type::write> original_bias_mem(original_mem, p.get_stream());
+                    mem_lock<float, mem_lock_type::read> new_bias_mem(new_mem, p.get_stream());
+                    float* original_data = original_bias_mem.data();
+                    float* new_data = new_bias_mem.data();
+                    for (size_t i = 0; i < original_bias_mem.size(); i++)
+                        original_data[i] += new_data[i];
+                    break;
+                }
+                case data_types::f16: {
+                    mem_lock<uint16_t, mem_lock_type::write> original_bias_mem(original_mem, p.get_stream());
+                    mem_lock<uint16_t, mem_lock_type::read> new_bias_mem(new_mem, p.get_stream());
+                    uint16_t* original_data = original_bias_mem.data();
+                    uint16_t* new_data = new_bias_mem.data();
+                    for (size_t i = 0; i < original_bias_mem.size(); i++) {
+                        float new_val = half_to_float(original_data[i]) + half_to_float(new_data[i]);
+                        original_data[i] = float_to_half(new_val);
+                    }
+                    break;
+                }
+                default:
+                    return false;
+            }
+            return true;
+        };
+
         if (replace_candidate.is_type<convolution>()) {
             auto& conv = replace_candidate.as<convolution>();
             auto desc = conv.get_primitive();
             std::vector<primitive_id> biases = {bias_name};
+
+            // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
+            if (conv.bias_term()) {
+                if (conv.bias().is_type<data>() && bias_node.is_type<data>()) {
+                    if (recalculate_biases(conv.bias().as<data>(), bias_node.as<data>())) {
+                        p.replace_all_usages(eltw_node, conv);
+                        p.add_optimized_primitive_info(eltw_node.id(), {conv.id()});
+                        p.remove_all_connections(eltw_node);
+                        p.remove_if_dangling(eltw_node);
+                    }
+                }
+                continue;
+            }
 
             auto conv_with_bias_prim = std::make_shared<convolution>(desc->id + "_tmp",
                                                                      desc->input[0],
@@ -325,6 +391,19 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             auto desc = deconv.get_primitive();
             std::vector<primitive_id> biases = {bias_name};
 
+            // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
+            if (deconv.bias_term()) {
+                if (deconv.bias().is_type<data>() && bias_node.is_type<data>()) {
+                    if (recalculate_biases(deconv.bias().as<data>(), bias_node.as<data>())) {
+                        p.replace_all_usages(eltw_node, deconv);
+                        p.add_optimized_primitive_info(eltw_node.id(), {deconv.id()});
+                        p.remove_all_connections(eltw_node);
+                        p.remove_if_dangling(eltw_node);
+                    }
+                }
+                continue;
+            }
+
             auto deconv_with_bias_prim = std::make_shared<deconvolution>(desc->id + "_tmp",
                                                                          desc->input[0],
                                                                          desc->weights,
@@ -340,6 +419,20 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         } else if (replace_candidate.is_type<fully_connected>()) {
             auto& fc = replace_candidate.as<fully_connected>();
             auto desc = fc.get_primitive();
+
+            // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
+            if (fc.bias_term()) {
+                if (fc.bias().is_type<data>() && bias_node.is_type<data>()) {
+                    if (recalculate_biases(fc.bias().as<data>(), bias_node.as<data>())) {
+                        p.replace_all_usages(eltw_node, fc);
+                        p.add_optimized_primitive_info(eltw_node.id(), {fc.id()});
+                        p.remove_all_connections(eltw_node);
+                        p.remove_if_dangling(eltw_node);
+                    }
+                }
+                continue;
+            }
+
             auto fc_with_bias_prim = std::make_shared<fully_connected>(desc->id + "_tmp",
                                                                        desc->input[0],
                                                                        desc->weights,
@@ -397,6 +490,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if ((node.get_output_layout().format == format::bs_fs_yx_bsv16_fsv16 ||
                  (_lo.is_format_optimized(node, format::bs_fs_yx_bsv16_fsv16) &&
                   _lo.get_optimization_attributes().bs_fs_yx_bsv16_fsv16_network)) && node.get_primitive()->groups == 1)
+                return true;
+
+            if (node.get_output_layout().format == format::bs_fs_yx_bsv32_fsv32 || _lo.is_format_optimized(node, format::bs_fs_yx_bsv32_fsv32))
+                return true;
+
+            if (node.get_output_layout().format == format::bs_fs_yx_bsv32_fsv16 || _lo.is_format_optimized(node, format::bs_fs_yx_bsv32_fsv16))
                 return true;
 
             auto in_dt = node.get_dependency(0).get_output_layout().data_type;
@@ -476,7 +575,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto pooling_supports_fusings = [](pooling_node& node) -> bool {
-            auto pooling_mode = node.as<pooling>().get_primitive()->mode;
+            auto pooling_mode = node.get_primitive()->mode;
 
             if (pooling_mode != cldnn::pooling_mode::max_with_argmax)
                 return true;
@@ -513,12 +612,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
-            auto out_layout = node.get_output_layout();
-            if (out_layout.data_type == data_types::f16 && out_layout.size.batch[0] > 1 &&
-                (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
-                return false;
+            if (_lo.get_optimization_attributes().use_onednn_impls == 0) {
+                auto out_layout = node.get_output_layout();
+                if (out_layout.data_type == data_types::f16 && out_layout.size.batch[0] > 1 &&
+                    (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
+                    return false;
+                }
             }
-
             return true;
         };
 
@@ -579,6 +679,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
 
             if (!input_data_supports_fusings(input_data, activation_node.id()))
+                return;
+
+            if ((input_data.get_users().size() != 1 || activation_node.get_dependencies().size() != 1) &&
+                _lo.get_optimization_attributes().use_onednn_impls == 1)
                 return;
 
             bool should_fuse = input_data.is_type<binary_convolution>();
@@ -892,6 +996,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             auto fused_node = parents[fused_idx];
             auto peer_node = parents[peer_idx];
+
+            if (_lo.get_optimization_attributes().use_onednn_impls) {
+                auto eltw_in_size = peer_node->get_output_layout().size;
+                // Temporary disable mul fusion with full tensor as onednn doesn't support it
+                if (fused_node->is_type<convolution>() && prim->mode == eltwise_mode::prod &&
+                    (eltw_in_size.spatial[0] > 1 || eltw_in_size.spatial[1] > 1 || eltw_in_size.batch[0] > 1))
+                    return;
+            }
 
             if (parent1->is_type<convolution>() && !conv_supports_fusings(parent1->as<convolution>()))
                 return;

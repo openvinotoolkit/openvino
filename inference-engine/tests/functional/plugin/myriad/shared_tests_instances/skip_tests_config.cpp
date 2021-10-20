@@ -32,14 +32,11 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 47315
         ".*ProposalLayerTest.*",
         // TODO: Issue 51804
-        ".*PreprocessConversionTest.*oPRC=U8.*",
-        // TODO: Issue: 56556
-        R"(.*(PreprocessTest).*(SetScalePreProcessSetBlob).*)",
-        R"(.*(PreprocessTest).*(SetScalePreProcessGetBlob).*)",
+        ".*InferRequestPreprocessConversionTest.*oPRC=U8.*",
         // TODO: Issue 54163
         R"(.*ActivationLayerTest.*SoftPlus.*)",
         // TODO: Issue 54722
-        R"(.*IS=\(16\.16\.96\)\(96\)_eltwiseOpType=FloorMod_secondaryInputType=PARAMETER_opType=VECTOR_netPRC=FP32.*)",
+        R"(.*TS=\(\(16\.16\.96\)_\(96\)_\).*eltwiseOpType=FloorMod_secondaryInputType=PARAMETER_opType=VECTOR_netPRC=FP32.*)",
         // TODO: Issue 57108
         R"(.*QueryNetworkHETEROWithMULTINoThrow_V10.*)",
         R"(.*QueryNetworkMULTIWithHETERONoThrow_V10.*)",
@@ -47,6 +44,17 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*HoldersTestOnImportedNetwork\.CreateRequestWithCoreRemoved.*)",
         // TODO: Issue 58621
         R"(.*IEClassNetworkTestP\.LoadNetworkActualNoThrow.*)",
-        R"(.*IEClassNetworkTestP\.LoadNetworkActualHeteroDeviceNoThrow.*)"
+        R"(.*IEClassNetworkTestP\.LoadNetworkActualHeteroDeviceNoThrow.*)",
+        // Not implemented yet:
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
+        // TODO: CVS-65013
+        R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
+        // Not expected behavior
+        R"(.*Behavior.*ExecNetSetPrecision.*canSetOutputPrecisionForNetwork.*U8.*)",
+        R"(.*CoreThreadingTestsWithIterations.*)",
+        R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
+        R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
+        R"(.*OVClassNetworkTestP.*(SetAffinityWithConstantBranches|SetAffinityWithKSO).*)",
     };
 }

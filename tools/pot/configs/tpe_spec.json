@@ -1,0 +1,133 @@
+{
+    /* Model parameters */
+
+    "model": {
+        "model_name": "model_name", // Model name
+        "model": "<MODEL_PATH>", // Path to a model (.xml format)
+        "weights": "<PATH_TO_WEIGHTS>" // Path to weights (.bin format)
+    },
+
+    /* Parameters of the engine used for model inference. */
+
+    /* Post-Training Optimization Tool supports engine based on the Accuracy Checker and custom engine.
+       For custom engine, specify your own set of parameters.
+       The engine based on the Accuracy Checker uses Accuracy Checker parameters. You can specify the parameters
+       via the Accuracy Checker config file or directly in the engine section.
+       Find more information about Accuracy Checker parameters at
+       https://github.com/opencv/open_model_zoo/tree/master/tools/accuracy_checker */
+
+    "engine": {
+        "stat_requests_number": 8, // Number of requests during statistcs collection
+        "eval_requests_number": 8, // Number of requests during evaluation
+        "config": "<CONFIG_PATH>",
+        /* OR */
+        "name": "model_name",
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": "classification"
+            }
+        ],
+        "datasets": [
+            {
+                "name": "dataset_name",
+                "data_source": "<DATASET_PATH>",
+                "annotation": "<ANNOTATION_PATH>",
+                "preprocessing": [
+                    {
+                        "type": "resize",
+                        "interpolation": "BILINEAR",
+                        "aspect_ratio_scale": "greater",
+                        "size": 224
+                    }
+                ],
+                "metrics": [
+                    {
+                        "name": "accuracy@top1",
+                        "type": "accuracy",
+                        "top_k": 1
+                    }
+                ]
+            }
+        ]
+    },
+
+    /* Global optimizer used to find "optimal" hyperparameters */
+
+    "optimizer": {
+        "name": "Tpe", // Global optimizer name
+        "params": {
+            "max_trials": 100, // Maximum number of trails
+            "max_minutes": 10, // [Optional] Trials time limit. When it expires, the last trial is completed and the best result is returned.
+            "stop_on_target": true, // [Optional] Flag to stop TPE trials when accuracy_loss and latency_reduce targets are reached.
+                                    // If false or not specified TPE will continue until max_trials or max_minutes is reached even if targets are reached earlier.
+            "eval_subset_size": 2000, // [Optional] subset of test data used to evaluate hyperparameters. The whole dataset is used if no parameter specified.
+            "trials_load_method": "cold_start", // Start from scratch or reuse previous results, supported options [cold_start, warm_start, fine_tune, eval]
+            "accuracy_loss": 0.1, // Accuracy threshold (%)
+            "latency_reduce": 1.5, // Target latency improvement versus original model
+            "accuracy_weight": 1.0, // Accuracy weight in loss function
+            "latency_weight": 1.0, // Latency weight in loss function
+            // An optional list of reference metrics values.
+            // If not specified, all metrics will be calculated from the original model.
+            "metrics": [
+                {
+                    "name": "accuracy", // Metric name
+                    "baseline_value": 0.72 // Baseline metric value of the original model
+                }
+            ],
+            "benchmark": {
+                // Latency measurement benchmark configuration (https://docs.openvinotoolkit.org/latest/_inference_engine_samples_benchmark_app_README.html)
+                "performance_count": false,
+                "batch_size": 0,
+                "nthreads": 4,
+                "nstreams": 0,
+                "nireq": 0,
+                "api_type": "sync",
+                "niter": 4,
+                "duration_seconds": 30,
+                "benchmark_app_dir": "<path to benchmark_app>" // Path to benchmark_app If not specified, Python base benchmark will be used. Use benchmark_app to reduce jitter in results.
+            }
+        }
+    },
+
+    /* Optimization hyperparameters */
+
+    "compression": {
+        "target_device": "ANY", // Target device, the specificity of which will be taken
+                                // into account during optimization
+        "algorithms": [
+            {
+                "name": "ActivationChannelAlignment",
+                "params": {
+                    "stat_subset_size": 300 // Size of subset to calculate activations statistics that can be used
+                                            // for quantization parameters calculation.
+                }
+            },
+            {
+                "name": "TunableQuantization",
+                "params": {
+                    /* Preset is a collection of optimization algorithm parameters that will specify to the algorithm
+                    to improve which metric the algorithm needs to concentrate. Each optimization algorithm supports
+                    [performance, mixed, accuracy] presets which control the quantization mode
+                    (symmetric, mixed(weights symmetric and activations asymmetric), and fully asymmetric respectively)*/
+                    "preset": "performance",
+                    "stat_subset_size": 300,   // Size of subset to calculate activations statistics that can be used
+                                               // for quantization parameters calculation.
+                    "tuning_scope": ["layer"], // List of quantization parameters that will be tuned,
+                                               // available options: [bits, mode, granularity, layer, range_estimator]
+                    "estimator_tuning_scope": ["preset", "aggregator", "type", "outlier_prob"], // List of range_estimator parameters that will be tuned,
+                                                                                                // available options: [preset, aggregator, type, outlier_prob]
+                    "outlier_prob_choices": [1e-3, 1e-4, 1e-5] // List of outlier_prob values to use when tuning outlier_prob parameter
+                }
+            },
+            {
+                "name": "FastBiasCorrection",
+                "params": {
+                    "stat_subset_size": 300 // Size of subset to calculate activations statistics that can be used
+                                            // for quantization parameters calculation.
+                }
+            }
+        ]
+    }
+}

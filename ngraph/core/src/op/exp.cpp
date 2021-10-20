@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::Exp, "Exp", 0, UnaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(op::v0::Exp);
 
 op::Exp::Exp(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
@@ -44,7 +44,6 @@ bool evaluate_exp(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_exp, boolean, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_exp, i32, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_exp, i64, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_exp, u32, arg0, out, count);
@@ -68,7 +67,6 @@ bool op::Exp::evaluate(const HostTensorVector& outputs, const HostTensorVector& 
 bool op::Exp::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Exp_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::boolean:
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

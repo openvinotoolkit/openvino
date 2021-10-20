@@ -18,8 +18,6 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v8::MatrixNms, "MatrixNms", 8, op::util::NmsBase);
-
 op::v8::MatrixNms::MatrixNms() : NmsBase(m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k) {}
 
 op::v8::MatrixNms::MatrixNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)
@@ -64,19 +62,21 @@ bool ngraph::op::v8::MatrixNms::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-namespace ngraph {
+std::ostream& ov::operator<<(std::ostream& s, const op::v8::MatrixNms::DecayFunction& type) {
+    return s << as_string(type);
+}
+
+namespace ov {
 template <>
-NGRAPH_API EnumNames<op::v8::MatrixNms::DecayFunction>& EnumNames<op::v8::MatrixNms::DecayFunction>::get() {
-    static auto enum_names =
-        EnumNames<op::v8::MatrixNms::DecayFunction>("op::v8::MatrixNms::DecayFunction",
-                                                    {{"gaussian", op::v8::MatrixNms::DecayFunction::GAUSSIAN},
-                                                     {"linear", op::v8::MatrixNms::DecayFunction::LINEAR}});
+NGRAPH_API EnumNames<ngraph::op::v8::MatrixNms::DecayFunction>&
+EnumNames<ngraph::op::v8::MatrixNms::DecayFunction>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v8::MatrixNms::DecayFunction>(
+        "op::v8::MatrixNms::DecayFunction",
+        {{"gaussian", ngraph::op::v8::MatrixNms::DecayFunction::GAUSSIAN},
+         {"linear", ngraph::op::v8::MatrixNms::DecayFunction::LINEAR}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::v8::MatrixNms::DecayFunction>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v8::MatrixNms::DecayFunction>);
 
-std::ostream& operator<<(std::ostream& s, const op::v8::MatrixNms::DecayFunction& type) {
-    return s << as_string(type);
-}
-}  // namespace ngraph
+}  // namespace ov

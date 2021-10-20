@@ -145,16 +145,13 @@ ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower
         const auto output_shape = add_node->get_output_partial_shape(0);
         const auto output_shape_rank = output_shape.rank().get_length();
 
-        bool is_dequantization =
-                (add_node->get_rt_info().count("DEQUANTIZATION") != 0 || mul_node->get_rt_info().count("DEQUANTIZATION") != 0);
-
         if (res1 == CONVERSION_RESULT::NONE || res2 == CONVERSION_RESULT::NONE ||
-            ((res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) && !is_dequantization && output_shape_rank < 4)) {
+            ((res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) && output_shape_rank < 4)) {
             return false;
         }
 
         // TODO: in case if scale and shift constants has equal values the best way is to convert them to Power
-        if (res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT || is_dequantization) {
+        if (res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) {
             NodeVector new_ops;
 
             auto weights_in = ngraph::op::util::normalize_constant(const_weights_node, output_shape);
@@ -162,23 +159,11 @@ ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower
             new_ops.push_back(weights_in);
             new_ops.push_back(biases_in);
 
-            if (is_dequantization) {
-                const Shape data_shape = data_node.get_shape();
-                Shape broadcasted_shape = std::vector<size_t>(data_shape.size(), 1ul);
-                broadcasted_shape[1] = data_shape[1];
-
-                weights_in = ngraph::op::util::broadcastTo(weights_in, broadcasted_shape);
-                new_ops.push_back(weights_in);
-
-                biases_in = ngraph::op::util::broadcastTo(biases_in, broadcasted_shape);
-                new_ops.push_back(biases_in);
-            }
-
-            if (res1 == CONVERSION_RESULT::POWER && !is_dequantization) {
+            if (res1 == CONVERSION_RESULT::POWER) {
                 weights_in = ngraph::op::util::broadcastTo(weights_in, biases_in->get_shape());
                 new_ops.push_back(weights_in);
             }
-            if (res2 == CONVERSION_RESULT::POWER && !is_dequantization) {
+            if (res2 == CONVERSION_RESULT::POWER) {
                 biases_in = ngraph::op::util::broadcastTo(biases_in, weights_in->get_shape());
                 new_ops.push_back(biases_in);
             }

@@ -136,6 +136,8 @@ TEST_P(FuseSubtractToFakeQuantizeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 const std::vector<size_t> quantizationLevels = { 256ul, 128ul };
@@ -256,6 +258,7 @@ INSTANTIATE_TEST_SUITE_P(
 namespace testValues2 {
 const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
     {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+    PartialShape::dynamic()
 };
 
 const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues = {
@@ -300,37 +303,4 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(testValues)),
     FuseSubtractToFakeQuantizeTransformation::getTestCaseName);
 } // namespace testValues2
-
-namespace testValues3 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
-    PartialShape::dynamic()
-};
-
-const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues = {
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {element::f32}, { 128.f }, {} },
-            {},
-            {}
-        },
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {element::f32}, { 128.f }, {} },
-            {},
-            {}
-        }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    FuseSubtractToFakeQuantizeTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(quantizationLevels),
-        ::testing::ValuesIn(inputShapesWithDynamicRank),
-        ::testing::ValuesIn(testValues)),
-    FuseSubtractToFakeQuantizeTransformation::getTestCaseName);
-} // namespace testValues3
 } // namespace

@@ -2,7 +2,7 @@
 
 **Versioned name**: *Reverse-1*
 
-**Category**: data movement operation
+**Category**: *Data movement*
 
 **Short description**: *Reverse* operations reverse specified axis in an input tensor.
 

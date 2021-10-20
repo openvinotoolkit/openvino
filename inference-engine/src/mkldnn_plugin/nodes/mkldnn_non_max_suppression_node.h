@@ -24,7 +24,7 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
     struct filteredBoxes {
         float score;
@@ -50,19 +50,29 @@ public:
     void nmsWithoutSoftSigma(const float *boxes, const float *scores, const SizeVector &boxesStrides,
                              const SizeVector &scoresStrides, std::vector<filteredBoxes> &filtBoxes);
 
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+
+    bool needShapeInfer() const override { return false; }
+    bool needPrepareParams() const override { return false; }
+
 private:
     // input
-    const size_t NMS_BOXES = 0;
-    const size_t NMS_SCORES = 1;
-    const size_t NMS_MAXOUTPUTBOXESPERCLASS = 2;
-    const size_t NMS_IOUTHRESHOLD = 3;
-    const size_t NMS_SCORETHRESHOLD = 4;
-    const size_t NMS_SOFTNMSSIGMA = 5;
+    enum : size_t {
+        NMS_BOXES,
+        NMS_SCORES,
+        NMS_MAXOUTPUTBOXESPERCLASS,
+        NMS_IOUTHRESHOLD,
+        NMS_SCORETHRESHOLD,
+        NMS_SOFTNMSSIGMA,
+    } InputNumber;
 
     // output
-    const size_t NMS_SELECTEDINDICES = 0;
-    const size_t NMS_SELECTEDSCORES = 1;
-    const size_t NMS_VALIDOUTPUTS = 2;
+    enum : size_t {
+        NMS_SELECTEDINDICES,
+        NMS_SELECTEDSCORES,
+        NMS_VALIDOUTPUTS
+    } OutputNumber;
+
 
     enum class boxEncoding {
         CORNER,
@@ -81,22 +91,14 @@ private:
     float soft_nms_sigma = 0.0f;
     float scale = 1.f;
 
-    SizeVector inputShape_MAXOUTPUTBOXESPERCLASS;
-    SizeVector inputShape_IOUTHRESHOLD;
-    SizeVector inputShape_SCORETHRESHOLD;
-    SizeVector inputShape_SOFTNMSSIGMA;
-
-    SizeVector outputShape_SELECTEDINDICES;
-    SizeVector outputShape_SELECTEDSCORES;
-
     std::string errorPrefix;
 
     std::vector<std::vector<size_t>> numFiltBox;
     const std::string inType = "input", outType = "output";
 
-    void checkPrecision(const Precision prec, const std::vector<Precision> precList, const std::string name, const std::string type);
-    void check1DInput(const SizeVector& dims, const std::vector<Precision> precList, const std::string name, const size_t port);
-    void checkOutput(const SizeVector& dims, const std::vector<Precision> precList, const std::string name, const size_t port);
+    void checkPrecision(const Precision& prec, const std::vector<Precision>& precList, const std::string& name, const std::string& type);
+    void check1DInput(const Shape& shape, const std::vector<Precision>& precList, const std::string& name, const size_t port);
+    void checkOutput(const Shape& shape, const std::vector<Precision>& precList, const std::string& name, const size_t port);
 };
 
 }  // namespace MKLDNNPlugin

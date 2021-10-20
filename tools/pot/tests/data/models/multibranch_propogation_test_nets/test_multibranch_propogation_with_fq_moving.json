@@ -1,0 +1,7 @@
+{
+  "name": "test_multibranch_propogation_with_fq_moving",
+  "framework": "pytorch",
+  "mo_args": {
+    "input_model": "$model_dir/multibranch_propogation_test_nets/test_ig_border_case_with_fq_moving.onnx"
+  }
+}

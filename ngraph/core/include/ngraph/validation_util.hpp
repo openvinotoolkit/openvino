@@ -11,8 +11,16 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/variable_context.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace ngraph {
+using ov::evaluate_as_partial_shape;
+using ov::get_constant_from_source;
+using ov::infer_auto_padding;
+using ov::infer_convolution_forward;
+using ov::normalize_axes;
+using ov::normalize_axis;
+
 NGRAPH_API
 Strides conv_default_strides(const Node* node, const PartialShape& data_batch_shape, const PartialShape& filters_shape);
 
@@ -62,16 +70,6 @@ PartialShape validate_and_infer_convolution_forward_output_shape(const Node* nod
                                                                  Strides& dilations,
                                                                  CoordinateDiff& pads_begin,
                                                                  CoordinateDiff& pads_end);
-
-NGRAPH_API
-PartialShape infer_convolution_forward(const Node* node,
-                                       const PartialShape& data_batch_shape,
-                                       const Strides& data_dilation,
-                                       const CoordinateDiff& data_padding_below,
-                                       const CoordinateDiff& data_padding_above,
-                                       const PartialShape& filters_shape,
-                                       const Strides& filter_strides,
-                                       const Strides& filter_dilation);
 
 NGRAPH_API
 PartialShape infer_batched_pooling_forward(const Node* node,
@@ -130,15 +128,6 @@ bool try_apply_auto_padding(const PartialShape& image_shape,
                             CoordinateDiff& padding_below);
 
 NGRAPH_API
-void infer_auto_padding(const Shape& image_shape,
-                        const Shape& filter_shape,
-                        const Strides& filter_strides,
-                        const Strides& filter_dilations,
-                        const op::PadType pad_type,
-                        CoordinateDiff& padding_above,
-                        CoordinateDiff& padding_below);
-
-NGRAPH_API
 PartialShape infer_slice_shape(const Node* node,
                                const PartialShape& input_shape,
                                const std::vector<int64_t>& begin,
@@ -149,80 +138,6 @@ PartialShape infer_slice_shape(const Node* node,
                                const AxisSet& new_axis_mask,
                                const AxisSet& shrink_axis_mask,
                                const AxisSet& ellipsis_mask);
-
-/// \brief      Handle out of range axis.
-///
-/// \param[in]  node         The node with requested axis.
-/// \param[in]  axis         The requested axis value.
-/// \param[in]  tensor_rank  The corresponding tensor rank.
-///
-/// \return    Checking if axis is in range [-tensor_rank, tensor_rank-1], otherwise
-///            returns error. If negative axis, it counts from the last to the first axis,
-///            by adding tensor_rank to axis.
-NGRAPH_API
-int64_t normalize_axis(const Node* node, std::int64_t axis, const Rank& tensor_rank);
-
-/// \brief      Handle out of range axes in vector.
-///
-/// \param[in]  node_description  The name of node with requested axes.
-/// \param[in]  axes              The requested vector of axes.
-/// \param[in]  tensor_rank       The corresponding tensor rank.
-///
-/// \return     If any negative axis in vector, it counts from the last to the first
-///             axis, by adding tensor_rank to axis.
-///
-NGRAPH_API
-std::vector<size_t> normalize_axes(const std::string& node_description,
-                                   const std::vector<int64_t>& axes,
-                                   const Rank& tensor_rank);
-
-/// \brief      Handle out of range axis.
-///
-/// \param[in]  node_description   The node with requested axis.
-/// \param[in]  axis               The requested axis value.
-/// \param[in]  tensor_rank        The corresponding tensor rank.
-///
-/// \return    Checking if axis is in range [-tensor_rank, tensor_rank-1], otherwise
-///            returns error. If negative axis, it counts from the last to the first axis,
-///            by adding tensor_rank to axis.
-NGRAPH_API
-int64_t normalize_axis(const std::string& node_description, std::int64_t axis, const Rank& tensor_rank);
-
-/// \brief      Handle out of range axis.
-///
-/// \param[in]  node            The node with requested axis.
-/// \param[in]  axis            The requested axis value.
-/// \param[in]  tensor_rank     The corresponding tensor rank.
-/// \param[in]  axis_range_min  The min value of accepted range for axis.
-/// \param[in]  axis_range_max  The max value of accepted range for axis.
-///
-/// \return     Checking if axis is in range [axis_range_min, axis_range_max], otherwise
-///             returns error. If negative axis, it counts from the last to the first axis,
-///             by adding tensor_rank to axis.
-NGRAPH_API
-int64_t normalize_axis(const Node* node,
-                       std::int64_t axis,
-                       std::uint64_t tensor_rank,
-                       std::int64_t axis_range_min,
-                       std::int64_t axis_range_max);
-
-/// \brief      Handle out of range axis.
-///
-/// \param[in]  node_description   The name of node with requested axis.
-/// \param[in]  axis               The requested axis value.
-/// \param[in]  tensor_rank        The corresponding tensor rank.
-/// \param[in]  axis_range_min     The min value of accepted range for axis.
-/// \param[in]  axis_range_max     The max value of accepted range for axis.
-///
-/// \return     Checking if axis is in range [axis_range_min, axis_range_max], otherwise
-///             returns error. If negative axis, it counts from the last to the first axis,
-///             by adding tensor_rank to axis.
-NGRAPH_API
-int64_t normalize_axis(const std::string& node_description,
-                       std::int64_t axis,
-                       std::uint64_t tensor_rank,
-                       std::int64_t axis_range_min,
-                       std::int64_t axis_range_max);
 
 /// \brief Try to compute the maximum value of value
 /// \return (true, max_value) if can be determined, or (false, numeric_limits<uint64_t>::max())
@@ -263,13 +178,6 @@ NGRAPH_API HostTensorPtr evaluate_upper_bound(const Output<Node>& output);
 /// could be HostTensorPtr to estimated value if particular bound can be determined, or nullptr.
 NGRAPH_API std::pair<HostTensorPtr, HostTensorPtr> evaluate_both_bounds(const Output<Node>& output);
 
-/// \brief Evaluates lower and upper value estimations for the output tensor. Estimation would
-/// be represented as partial shape object using Dimension(min, max) for each element.
-/// \param output Node output pointing to the tensor for estimation.
-/// \param pshape Resulting estimation would be stored in this PartialShape.
-/// \return boolean status if value evaluation was successful.
-NGRAPH_API bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape);
-
 /// \brief Estimates upper bound for node output tensors using only upper bounds of the nodes
 /// inputs.
 /// \param node Operation to be performed
@@ -301,10 +209,6 @@ NGRAPH_API bool host_tensor_is_positive(const HostTensorPtr& bound);
 /// and pointers are the same. It doesn't check if lower and upper values are the same relying
 /// only on pointers comparison.
 NGRAPH_API bool has_and_set_equal_bounds(const Output<Node>& source);
-
-/// \brief Runs an estimation of source tensor. If it succeeded to calculate both bounds and
-/// they are the same returns Constant operation from the resulting bound, otherwise nullptr.
-NGRAPH_API std::shared_ptr<op::Constant> get_constant_from_source(const Output<Node>& source);
 
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::max()
 NGRAPH_API std::shared_ptr<op::Constant> get_constant_max_of_type(element::Type_t t);
@@ -344,3 +248,5 @@ void infer_conv_backprop_auto_padding(const Shape& input_data_shape,
                                       CoordinateDiff& pads_end);
 }  // namespace opset1
 }  // namespace ngraph
+
+using ngraph::get_constant_from_source;

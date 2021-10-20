@@ -74,7 +74,7 @@ TEST(copy, broadcast) {
                                        op::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
                                        op::Constant::create(element::i64, Shape{axes.size()}, axes.to_vector()));
     auto new_node = node->copy_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::v1::Broadcast>(new_node);
+    auto node_cast = ov::as_type_ptr<op::v1::Broadcast>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_NE(nullptr, new_node);
@@ -99,7 +99,7 @@ TEST(copy, concat) {
     int64_t axis = 0;
     auto node = make_shared<op::Concat>(NodeVector{arg0, arg1}, axis);
     auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::Concat>(new_node);
+    auto node_cast = ov::as_type_ptr<op::Concat>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
@@ -113,7 +113,7 @@ TEST(copy, constant) {
     auto& et = element::f32;
     auto node = op::Constant::create(et, shape, c);
     auto new_node = node->clone_with_new_inputs(OutputVector{});
-    auto node_cast = as_type_ptr<op::Constant>(new_node);
+    auto node_cast = ov::as_type_ptr<op::Constant>(new_node);
     ASSERT_NE(node_cast, nullptr);
     ASSERT_TRUE(nullptr != new_node);
     ASSERT_TRUE(OutputVector{} == new_node->input_values());
@@ -130,7 +130,7 @@ TEST(copy, convert) {
 
     auto node = make_shared<op::Convert>(arg0, et);
     auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::Convert>(new_node);
+    auto node_cast = ov::as_type_ptr<op::Convert>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
@@ -206,7 +206,7 @@ TEST(copy, parameter) {
     Shape shape{1};
     auto node = make_shared<op::Parameter>(element::f32, shape);
     auto new_node = node->clone_with_new_inputs({});
-    auto node_cast = as_type_ptr<op::Parameter>(new_node);
+    auto node_cast = ov::as_type_ptr<op::Parameter>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
@@ -228,7 +228,7 @@ TEST(copy, reduce_sum) {
     OutputVector new_args{make_shared<op::Parameter>(element::f32, shape),
                           op::Constant::create(element::i64, {axes.size()}, axes.to_vector())};
     auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::v1::ReduceSum>(new_node);
+    auto node_cast = ov::as_type_ptr<op::v1::ReduceSum>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
@@ -248,7 +248,7 @@ TEST(copy, reshape) {
     auto shape_pattern = op::Constant::create(element::u64, {shape_out.size()}, shape_out);
     auto node = make_shared<op::v1::Reshape>(arg0, shape_pattern, false);
     auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::v1::Reshape>(new_node);
+    auto node_cast = ov::as_type_ptr<op::v1::Reshape>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
@@ -267,7 +267,7 @@ TEST(copy, select) {
 
     auto node = make_shared<op::v1::Select>(arg0, arg1, arg2);
     auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::v1::Select>(new_node);
+    auto node_cast = ov::as_type_ptr<op::v1::Select>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);
@@ -311,7 +311,7 @@ TEST(copy, strided_slice) {
                                                   std::vector<int64_t>{0, 0, 1},
                                                   std::vector<int64_t>{1, 0, 0});
     auto new_node = node->clone_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::v1::StridedSlice>(new_node);
+    auto node_cast = ov::as_type_ptr<op::v1::StridedSlice>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
     ASSERT_TRUE(nullptr != new_node);

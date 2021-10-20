@@ -16,10 +16,16 @@
 
 #include "blob_factory.hpp"
 #include "cpp/ie_cnn_network.h"
+#include "details/ie_so_pointer.hpp"
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
+#include "openvino/pp.hpp"
+#include "so_ptr.hpp"
 
+namespace ov {
+class Function;
+}  // namespace ov
 namespace InferenceEngine {
 
 class ICore;
@@ -297,24 +303,36 @@ protected:
      * @param exeNetwork An executable network object to set information to
      * @param inputs An input information to set
      * @param outputs An output information to set
+     * @param function Function with initial execution info
      */
     void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                            const ConstInputsDataMap& inputs,
                            const ConstOutputsDataMap& outputs);
+
+    /**
+     * @brief Set input and output information to executable network. This method is used to
+     * set additional information to InferenceEngine::IExecutableNetworkInternal create by device plugin.
+     * @param function Function with initial execution info
+     */
+    void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
+                           const std::shared_ptr<ov::Function>& function);
 
     std::string _pluginName;                     //!< A device name that plugins enables
     std::map<std::string, std::string> _config;  //!< A map config keys -> values
     std::weak_ptr<ICore> _core;                  //!< A pointer to ICore interface
 };
 
+#define IE_CREATE_PLUGIN CreatePluginEngine
+
+constexpr static const auto create_plugin_function = OV_PP_TOSTRING(IE_CREATE_PLUGIN);
+
 namespace details {
 template <>
 class SOCreatorTrait<IInferencePlugin> {
 public:
-    static constexpr auto name = "CreatePluginEngine";
+    static constexpr auto name = OV_PP_TOSTRING(IE_CREATE_PLUGIN);
 };
 }  // namespace details
-
 }  // namespace InferenceEngine
 
 /**
@@ -322,16 +340,17 @@ public:
  * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
  * @ingroup ie_dev_api_plugin_api
  */
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                                  \
-    INFERENCE_PLUGIN_API(void) CreatePluginEngine(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) { \
-        try {                                                                                                       \
-            plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                                   \
-        } catch (const InferenceEngine::Exception&) {                                                               \
-            throw;                                                                                                  \
-        } catch (const std::exception& ex) {                                                                        \
-            IE_THROW() << ex.what();                                                                                \
-        } catch (...) {                                                                                             \
-            IE_THROW(Unexpected);                                                                                   \
-        }                                                                                                           \
-        plugin->SetVersion(version);                                                                                \
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                     \
+    INFERENCE_PLUGIN_API(void)                                                                         \
+    IE_CREATE_PLUGIN(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) noexcept(false) { \
+        try {                                                                                          \
+            plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                      \
+        } catch (const InferenceEngine::Exception&) {                                                  \
+            throw;                                                                                     \
+        } catch (const std::exception& ex) {                                                           \
+            IE_THROW() << ex.what();                                                                   \
+        } catch (...) {                                                                                \
+            IE_THROW(Unexpected);                                                                      \
+        }                                                                                              \
+        plugin->SetVersion(version);                                                                   \
     }

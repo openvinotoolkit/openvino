@@ -20,10 +20,21 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
     const std::vector<impl_desc_type>& getPrimitivesPriority() override;
+
+    bool isExecutable() const override {
+        return !isOptimized;
+    }
+
+    void createPrimitive() override;
+
+    std::vector<VectorDims> shapeInfer() const override;
+
+    void prepareParams() override;
+
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
 
     void setDescs(const MemoryDesc& input, const MemoryDesc& output) {
         this->input = input.clone();
@@ -50,16 +61,21 @@ public:
 
     static std::string getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc);
 
+    static void reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output, size_t size = 0);
+
 private:
-    std::unique_ptr<MemoryDesc> input;
-    std::unique_ptr<MemoryDesc> output;
+    std::shared_ptr<MemoryDesc> input;
+    std::shared_ptr<MemoryDesc> output;
 
     MKLDNNMemoryPtr dst_blocked;
     MKLDNNMemoryPtr src_blocked;
 
     bool isOptimized = false;
-    bool canUseOptimizedNspc2Ncsp = false;
-    bool canUseOptimizedNcsp2Nspc = false;
+
+    bool isNspc2NcspCase = false;
+    bool isNcsp2NspcCase = false;
+    bool canUseNspc2Ncsp = false;
+    bool canUseNcsp2Nspc = false;
 
     void optimizedNspc2Ncsp();
     void optimizedNcsp2Nspc();

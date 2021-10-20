@@ -7,7 +7,6 @@ import os
 import numpy as np
 
 from extensions.back.TopKNormalizer import TopKNormalizer
-from extensions.middle.FakeSplitOutputs import AddFakeOutputsToSplit
 from extensions.ops.Cast import Cast
 from extensions.ops.ReduceOps import ReduceOp
 from extensions.ops.activation_ops import Activation
@@ -26,7 +25,6 @@ from mo.ops.convolution import Convolution
 from mo.ops.deconvolution import Deconvolution
 from mo.ops.op import Op
 from mo.ops.pooling import Pooling
-from mo.ops.result import Result
 from mo.utils.class_registration import update_registration
 from mo.utils.import_extensions import import_by_path
 from mo.utils.ir_reader.extender import Extender
@@ -185,15 +183,17 @@ def groupconv_to_conv(op: Node):
     if weights_node.type == 'Const':
         weights_node.value = np.reshape(weights_node.value, new_shape)
     elif weights_node.type == 'Reshape':
-        # we remove reshape node added in ConvolutionWithGroupsResolver pass
+        # We remove reshape node added in ConvolutionWithGroupsResolver pass
         assert weights_node.in_port(0).get_source().data.get_shape() == new_shape, \
             'Weight shape and calculated shape mismatch in GroupConv node {}.'.format(op.name)
         op.in_port(1).disconnect()
-        weights_node.in_port(0).get_source().get_connection().set_destination(op.in_port(1))
+        # We use add_destination method here to support case with multiple destinations of source port
+        weights_node.in_port(0).get_source().get_connection().add_destination(op.in_port(1))
+        weights_node.in_port(0).disconnect()
     else:
         assert op.in_port(1).get_source().data.get_shape() == new_shape, \
             'Weight shape and calculated shape mismatch in GroupConv node {}.'.format(op.name)
-    # we need to set this attrs for correct shape infer as convolution
+    # We need to set this attrs for correct shape infer as convolution
     op['group'] = group
     # The only way GroupConvolution with 'group' = 1 appears in IR is by converting from TF DepthwiseConv2dNative.
     # In this case we need to specify 'op' parameter for the
@@ -218,9 +218,6 @@ def backprop_to_deconv(op: Node):
     if op.has_valid('output_padding'):
         # In this case we need to create Deconvolution as Convolution
         op['type_to_create'] = 'Convolution'
-    op['old_input_shapes'] = list()
-    for n in op.in_nodes():
-        op.old_input_shapes.append(int64_array(op.in_node(n).shape))
 
 
 def ti_add_edge_attrs(op: Node):
@@ -239,18 +236,6 @@ def ti_add_edge_attrs(op: Node):
     for num in range(len(op.out_ports())):
         op.out_port(num).external_port_id = i
         i += 1
-
-
-def assign_add_output_result(op: Node):
-    """
-    Function adds necessary output result node for Assign node
-    :param op:
-    :return:
-    """
-    assert op.soft_get('type') == 'Assign', 'Wrong operation type, {} instead of Assign!' \
-                                            ''.format(op.soft_get('type'))
-    tmp_result = Result(op.graph, {'name': op.soft_get('name', op.id) + '/Result'}).create_node()
-    op.out_port(0).connect(tmp_result.in_port(0))
 
 
 def copy_input_blobs(op: Node, copy_op: Node):
@@ -273,17 +258,12 @@ preprocessing_op_nodes = {
     'GroupConvolution': groupconv_to_conv,
     'ConvolutionBackpropData': backprop_to_deconv,
     'GroupConvolutionBackpropData': backprop_to_deconv,
-
 }
 
 # Map with postprocessing functions for nodes
 postprocessing_op_nodes = {
-    'Assign': assign_add_output_result,
     'TensorIterator': ti_add_edge_attrs,
     'TopK': TopKNormalizer.normalize_outputs,
-    # Call normalize Split outputs for generated IR by ir-reader
-    'Split': AddFakeOutputsToSplit.split_normalize_outputs,
-    'VariadicSplit': AddFakeOutputsToSplit.split_normalize_outputs,
 }
 
 
@@ -344,6 +324,11 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
     # Create a new copy of graph with correct attributes (shape & type infer, backend attrs etc.)
     for op in graph.get_op_nodes():
 
+        # Save input shapes restored from IR
+        op['old_input_shapes'] = list()
+        for n in op.in_nodes():
+            op.old_input_shapes.append(int64_array(op.in_node(n).shape))
+
         # Apply extenders to nodes in source graph
         if op.type in Extender.registered_ops:
             Extender.get_extender_class_by_name(op.type).extend(op)
@@ -356,9 +341,32 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
         if op_type in custom_ops:
             node = custom_ops[op_type](new_graph, op.attrs()).create_node()
         else:
-            assert op_type in Op.registered_ops, 'Operation {} not found in MO operations, ' \
-                                                 'please check it!'.format(op_type)
-            node = Op.get_op_class_by_name(op_type)(new_graph, op.attrs()).create_node()
+            if op_type not in Op.registered_ops:
+                log.warning('Operation {} is not found in MO operations, please check it! '
+                            'Simple shape infer function is used'.format(op_type))
+                node = Op(new_graph, op.attrs()).create_node()
+                assert 'type' in node, 'Operation {} have no `type` attribute.'.format(node.soft_get('name'))
+                node['op'] = node.type
+                node['infer'] = Extender.use_shapes_from_ir
+                if 'ir_data_attrs' in op:
+                    node['IE'] = [('layer',
+                                   [('id', lambda node: node.node), 'name', 'type', 'version'],
+                                   [('data',
+                                     list(op.ir_data_attrs.keys()),
+                                     []),
+                                    '@ports',
+                                    '@consts'])]
+
+            else:
+                node = Op.get_op_class_by_name(op_type)(new_graph, op.attrs()).create_node()
+
+            # Fill out_ports_count attribute
+            if 'out_ports_count' not in node and node.soft_get('type') != 'Result':
+                node['out_ports_count'] = len(op.out_edges())
+
+        # This attribute is no longer needed and we can delete it
+        if 'ir_data_attrs' in node:
+            del node['ir_data_attrs']
 
         if op.has_and_set('need_copy_input_blobs'):
             copy_input_blobs(op, node)
@@ -377,6 +385,19 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
 
     # Nodes postprocessing stage in new graph
     for op in new_graph.get_op_nodes():
+        # Call normalize node outputs for restored operations to connect temporary Result operations for disconnected
+        # output ports. We need to do that for correct shape inference. These Result operations will be removed during
+        # IR emitting. For TopK operation outputs normalizing we should use specific
+        # function TopKNormalizer.normalize_outputs.
+        if op.soft_get('type') != 'TopK':
+            Op.normalize_outputs(op)
+
+        # Set correct_data_type attribute to Const data nodes to correct processing of restored values
+        if op.soft_get('type') == 'Const':
+            assert len(op.out_nodes()) == 1 and op.out_node(0).soft_get('kind') == 'data',\
+                'Const node {} not properly corrected to appropriate data node'.format(op.soft_get('name'))
+            op.out_node(0)['correct_data_type'] = True
+
         restore_tensor_names(op)
 
         # operations postprocessing with some special types

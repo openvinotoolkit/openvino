@@ -18,11 +18,12 @@
 
 #include <cpu/x64/jit_generator.hpp>
 #include <cpu/x64/jit_uni_eltwise.hpp>
-#include <cpu/x64/jit_uni_depthwise_injector.hpp>
-#include <cpu/x64/jit_uni_quantization_injector.hpp>
-#include <cpu/x64/jit_uni_eltwise_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 
 #include <ngraph/opsets/opset6.hpp>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -603,6 +604,11 @@ private:
 
 bool MKLDNNMVNNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
         if (op->get_output_partial_shape(0).rank().is_dynamic()) {
             errorMessage = "Unsupported dynamic input rank.";
             return false;
@@ -720,13 +726,8 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
         inputPrecision = outputPrecision = Precision::FP32;
     }
 
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(outputPrecision);
-
-    input_prec = inputPrecision;
-    output_prec = outputPrecision;
-    src_data_size = MKLDNNExtensionUtils::sizeOfDataType(inputDataType);
-    dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(outputDataType);
+    src_data_size = inputPrecision.size();
+    dst_data_size = outputPrecision.size();
 
     bool canBeInplace = (src_data_size == dst_data_size) &&
                         (getParentEdgeAt(0)->getParent()->getChildEdges().size() == 1) &&
@@ -742,14 +743,14 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].inPlace = -1;
     config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
     if (inputsNum == 2) {
-        config.inConfs[1].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(1)->getShape().getStaticDims(), memory::data_type::s32,
-                                                               MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(1)->getShape().getRank()));
+        config.inConfs[1].desc = std::make_shared<CpuBlockedMemoryDesc>(InferenceEngine::Precision::I32, getInputShapeAtPort(1));
         config.inConfs[1].constant = true;
     }
 
-    auto pushDesc = [&](memory::format_tag format, impl_desc_type impl_type) {
-        config.inConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticDims(), inputDataType, format);
-        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticDims(), outputDataType, format);
+    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    auto pushDesc = [&](LayoutType format, impl_desc_type impl_type) {
+        config.inConfs[0].desc = creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(0));
+        config.outConfs[0].desc = creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     };
 
@@ -766,23 +767,17 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
 
     if (mayiuse(cpu::x64::sse41)) {
         // nspc
-        if (getParentEdgeAt(0)->getShape().getRank() == 4) {
-            pushDesc(memory::format_tag::nhwc, impl_type);
-        } else if (getParentEdgeAt(0)->getShape().getRank() == 5) {
-            pushDesc(memory::format_tag::ndhwc, impl_type);
+        if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
+            pushDesc(LayoutType::nspc, impl_type);
         }
         // blk
         if (impl_desc_type::jit_avx512 == impl_type) {
-            if (getParentEdgeAt(0)->getShape().getRank() == 4) {
-                pushDesc(memory::format_tag::nChw16c, impl_type);
-            } else if (getParentEdgeAt(0)->getShape().getRank() == 5) {
-                pushDesc(memory::format_tag::nCdhw16c, impl_type);
+            if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
+                pushDesc(LayoutType::nCsp16c, impl_type);
             }
         } else if (impl_desc_type::jit_avx2 ==  impl_type || impl_desc_type::jit_sse42 == impl_type) {
-            if (getParentEdgeAt(0)->getShape().getRank() == 4) {
-                pushDesc(memory::format_tag::nChw8c, impl_type);
-            } else if (getParentEdgeAt(0)->getShape().getRank() == 5) {
-                pushDesc(memory::format_tag::nCdhw8c, impl_type);
+            if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
+                pushDesc(LayoutType::nCsp8c, impl_type);
             }
         }
     }
@@ -790,7 +785,7 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     // planar
     if (canBeInplace)
         config.inConfs[0].inPlace = 0;
-    pushDesc(MKLDNNMemory::GetPlainFormatByRank(getChildEdgeAt(0)->getShape().getRank()), impl_type);
+    pushDesc(LayoutType::ncsp, impl_type);
 }
 
 void MKLDNNMVNNode::createPrimitive() {
@@ -803,7 +798,7 @@ void MKLDNNMVNNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
-    const SizeVector in_dims = getParentEdgeAt(0)->getShape().getStaticDims();
+    const SizeVector in_dims = srcMemPtr->getStaticDims();
     transformTo5DCase(in_dims);
     auto selectedPD = getSelectedPrimitiveDescriptor();
     auto jcp = jit_mvn_config_params();
@@ -911,12 +906,12 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
     uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
     uint8_t *src_data = reinterpret_cast<uint8_t*>(srcMemPtr->GetPtr());
 
-    auto dim = getParentEdgeAt(0)->getShape().getStaticDims();
+    auto dim = srcMemPtr->getStaticDims();
     if (mayiuse(cpu::x64::sse41)) {
         if (!mvn_mean_kernel || (normalizeVariance_ && !mvn_variance_kernel) || !mvn_kernel) {
             IE_THROW() << "MVN layer with name '" << getName() << "' doesn't create kernel to execute on sse41 above platform.";
         }
-        if (getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::ncsp)) {
+        if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
             mvn_pln(src_data, dst_data, dim);
         } else {
             mvn_blk(src_data, dst_data, dim);
@@ -1170,7 +1165,7 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
     size_t N = 1; size_t C = 1; size_t D = 1; size_t H = 1; size_t W = 1;
     std::tie(N, C, D, H, W) = shape5D;
 
-    bool is_nhwc = getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nspc);
+    bool is_nhwc = getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc);
 
     size_t CB = div_up(C, blk_size);
 
@@ -1401,7 +1396,7 @@ bool MKLDNNMVNNode::canFuse(const MKLDNNNodePtr& node) const {
     }
     // limit post ops to unary when shape transformed on channel
     // 1D only fused with unary
-    int inputRank = getParentEdgeAt(0)->getShape().getRank();
+    int inputRank = getInputShapeAtPort(0).getRank();
     bool unaryEltwise = one_of(node->getAlgorithm(), EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseClamp, EltwiseTanh,
                                             EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
                                             EltwiseRoundHalfAwayFromZero, EltwiseAbs, EltwiseSqrt, EltwiseSoftRelu);

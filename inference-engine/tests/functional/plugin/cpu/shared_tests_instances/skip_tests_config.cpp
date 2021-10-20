@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <string>
+#include "functional_test_utils/skip_tests_config.hpp"
 
 #include <ie_system_conf.h>
-#include "functional_test_utils/skip_tests_config.hpp"
+
+#include <string>
+#include <vector>
+
 #include "ie_parallel.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
@@ -25,12 +27,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(RangeAddSubgraphTest).*Start=1.2.*Stop=(5.2|-5.2).*Step=(0.1|-0.1).*netPRC=FP16.*)",
         R"(.*(RangeNumpyAddSubgraphTest).*netPRC=FP16.*)",
         // TODO: Issue: 43793
-        R"(.*PreprocessDynamicallyInSetBlobTest.*iPRC=0.*_iLT=1.*)",
-        R"(.*PreprocessDynamicallyInSetBlobTest.*oPRC=0.*_oLT=1.*)",
-        // TODO: Issue: 34348
-        R"(.*IEClassGetAvailableDevices.*)",
-        // TODO: Issue: 25533
-        R"(.*ConvertLikeLayerTest.*)",
+        R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*iPRC=0.*_iLT=1.*)",
+        R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*_oLT=1.*)",
+        // TODO: Issue: 63469
+        R"(.*ConversionLayerTest.*ConvertLike.*)",
         // TODO: Issue: 34055
         R"(.*ShapeOfLayerTest.*)",
         R"(.*ReluShapeOfSubgraphTest.*)",
@@ -52,8 +52,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConvolutionLayerCPUTest.*BF16.*_inFmts=(ndhwc|nhwc).*)",
         // TODO: 56827. Sporadic test failures
         R"(.*smoke_Conv.+_FP32.ConvolutionLayerCPUTest\.CompareWithRefs.IS=\(1\.67.+\).*inFmts=n.+c.*_primitive=jit_avx2.*)",
-        // lpt transformation produce the same names for MatMul and Multiply
-        R"(.*MatMulTransformation.*)",
         // incorrect jit_uni_planar_convolution with dilation = {1, 2, 1} and output channel 1
         R"(.*smoke_Convolution3D.*D=\(1.2.1\)_O=1.*)",
 
@@ -69,31 +67,96 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*BF16NetworkRestore1.*)",
         R"(.*MobileNet_ssd_with_branching.*)",
 
-        // TODO: 55656 AUTO plugin and QueryNetwork
-        R"(.*CoreThreading.*smoke_QueryNetwork.*targetDevice=AUTO_config.*)",
-        // Unsupported config KEY_ENFORCE_BF16 for AUTO plugin
-        R"(.*smoke_SetBlobOfKindAUTO.*SetBlobOfKindTest.CompareWithRefs.*)",
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
-        // need to implement Export / Import
-        R"(.*IEClassImportExportTestP.*)",
+        // Not expected behavior
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=HW.*)",
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetInBlobWithDifferentLayouts.*layout=NHWC.*targetDevice=(AUTO|MULTI).*)",
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=CN.*targetDevice=(AUTO|MULTI).*)",
+        R"(.*Behavior.*InferRequestSetBlobByType.*Batched.*)",
+        R"(.*Auto_Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
+        R"(.*Auto.*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
+        R"(.*(Auto|Multi).*Behavior.*CorrectConfigAPITests.*CanSetExclusiveAsyncRequests.*)",
+        R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
+        R"(.*OVExecutableNetworkBaseTest.*(CanGetInputsInfoAndCheck|CanSetConfigToExecNet|canLoadCorrectNetworkToGetExecutableWithIncorrectConfig).*)",
+        R"(.*Behavior.*CorrectConfigCheck.*(canSetConfigAndCheckGetConfig|canSetConfigTwiceAndCheckGetConfig).*CPU_BIND_THREAD=YES.*)",
         // azure is failing after #6199
-        R"(.*/NmsLayerTest.*)"
+        R"(.*/NmsLayerTest.*)",
+        // TODO: 56520 Accuracy mismatch
+        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
+        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",
+        // Not implemented yet:
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
+        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*checkGetExecGraphInfo.*)",
+        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
+        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution).*)",
+        R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*CheckExecGraphInfoSerialization.*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNetWithIncorrectConfig.*)",
+        R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
+        R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*ExecGraphInfo.*)",
+        R"(.*Hetero.*Behavior.*ExecutableNetworkBaseTest.*CanCreateTwoExeNetworksAndCheckFunction.*)",
+
+        // CPU plugin does not support some precisions
+        R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
+        // Issue 66685
+        R"(smoke_PrePostProcess.*resize_linear_nhwc.*)",
+        // CPU plugin does not support some precisions
+        R"(.*Behavior.*OVExecGraphImportExportTest.*elementType=(i8|u32).*)",
+        R"(.*Behavior.*OVExecGraphImportExportTest.*elementType=(f16).*)",
+
+        // TODO: CVS-66526 overrides i/o precisions in execution graph
+        // as WA we used GetInputsInfo() precisions instead of ngraph ones
+        // R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.*importExportedFunction.*type=(i16|u16).*)",
+        // R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.*importExportedFunction.*type=(i64|u64).*)",
+        // R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.*importExportedIENetwork.*type=(i16|u16).*)",
+        // R"(.*smoke_BehaviorTests.*OVExecGraphImportExportTest.*importExportedIENetwork.*type=(i64|u64).*)",
+
+        // CPU does not support dynamic rank
+        // Issue: CVS-66778
+        R"(.*smoke_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
+        R"(.*smoke_Hetero_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
+        R"(.*smoke_BehaviorTests.*DynamicOutputToDynamicInput.*)",
+        R"(.*smoke_BehaviorTests.*DynamicInputToDynamicOutput.*)",
+        R"(.*smoke_Hetero_BehaviorTests.*DynamicOutputToDynamicInput.*)",
+        R"(.*smoke_Hetero_BehaviorTests.*DynamicInputToDynamicOutput.*)",
+
+        // CPU dynamism: empty tensor returns size() == 1. Looks like layout is SCALAR
+        // Issue: CVS-66780
+        R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
+        R"(.*smoke_BehaviorTests.*InferDynamicNetworkWithGetTensor.*)",
+
+        // TODO: Issue CVS-51680
+        R"(.*BehaviorTests.*canRun3SyncRequestsConsistentlyFromThreads.*CPU_THROUGHPUT.*)",
+        // Issue 67214
+        R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)",
+        // Issue 67910
+        R"(.*smoke_PrePostProcess.*two_inputs_trivial.*)",
+        // TODO: CVS-67255
+        R"(smoke_If.*SimpleIf2OutTest.*)",
+        // TODO: CVS-68525
+        R"(.*CanSetInBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
+        R"(.*CanSetInBlobWithDifferentPrecision/netPRC=BIN.*)",
+        R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
+        R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=BIN.*)",
     };
 
-#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+#define FIX_62820 0
+#if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
     retVector.emplace_back(R"(.*ReusableCPUStreamsExecutor.*)");
 #endif
 
 #ifdef __APPLE__
-        // TODO: Issue 55717
-        //retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");
+    // TODO: Issue 55717
+    // retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");
 #endif
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
         // tests are useless on such platforms
-       retVector.emplace_back(R"(.*BF16.*)");
-       retVector.emplace_back(R"(.*bfloat16.*)");
+        retVector.emplace_back(R"(.*BF16.*)");
+        retVector.emplace_back(R"(.*bfloat16.*)");
     }
 
     return retVector;

@@ -7,6 +7,7 @@
 #include <cstddef>
 
 #include "ngraph/util.hpp"
+#include "openvino/core/rtti.hpp"
 
 namespace ngraph {
 namespace runtime {
@@ -63,15 +64,17 @@ protected:
     size_t m_byte_size;
 };
 }  // namespace runtime
-template <>
-class NGRAPH_API AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>>
-    : public DirectValueAccessor<std::shared_ptr<runtime::AlignedBuffer>> {
-public:
-    AttributeAdapter(std::shared_ptr<runtime::AlignedBuffer>& value);
-
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-};
 }  // namespace ngraph
+
+namespace ov {
+template <>
+class NGRAPH_API AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>
+    : public DirectValueAccessor<std::shared_ptr<ngraph::runtime::AlignedBuffer>> {
+public:
+    AttributeAdapter(std::shared_ptr<ngraph::runtime::AlignedBuffer>& value);
+
+    OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>");
+    BWDCMP_RTTI_DECLARATION;
+};
+
+}  // namespace ov

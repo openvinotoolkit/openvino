@@ -7,14 +7,33 @@
 #include <fstream>
 #include <istream>
 #include <map>
+#include <memory>
 #include <mutex>
+#include <string>
 
+#include "cnn_network_ngraph_impl.hpp"
+#include "cpp/ie_cnn_network.h"
 #include "details/ie_so_pointer.hpp"
 #include "file_utils.h"
 #include "frontend_manager/frontend_manager.hpp"
+#include "ie_api.h"
+#include "ie_common.h"
+#include "ie_icnn_network.hpp"
+#include "ie_input_info.hpp"
 #include "ie_ir_version.hpp"
 #include "ie_itt.hpp"
 #include "ie_reader.hpp"
+#include "ngraph/function.hpp"
+#include "ngraph/type/element_type.hpp"
+#include "ngraph/variant.hpp"
+#include "openvino/core/deprecated.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/preprocess/input_network_info.hpp"
+#include "openvino/core/preprocess/input_tensor_info.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "transformations/rt_info/old_api_map_attribute.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
 
@@ -45,13 +64,13 @@ class Reader : public IReader {
 
     InferenceEngine::details::SOPointer<IReader> getReaderPtr() {
         std::call_once(readFlag, [&]() {
-            FileUtils::FilePath libraryName = FileUtils::toFilePath(location);
-            FileUtils::FilePath readersLibraryPath =
+            ov::util::FilePath libraryName = ov::util::to_file_path(location);
+            ov::util::FilePath readersLibraryPath =
                 FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
             if (!FileUtils::fileExist(readersLibraryPath)) {
                 IE_THROW() << "Please, make sure that Inference Engine ONNX reader library "
-                           << FileUtils::fromFilePath(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
+                           << ov::util::from_file_path(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
                            << getIELibraryPath();
             }
             ptr = {readersLibraryPath};
@@ -96,6 +115,11 @@ namespace {
 // Extension to plugins creator
 std::multimap<std::string, Reader::Ptr> readers;
 
+static ngraph::frontend::FrontEndManager& get_frontend_manager() {
+    static ngraph::frontend::FrontEndManager manager;
+    return manager;
+}
+
 void registerReaders() {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "registerReaders");
     static bool initialized = false;
@@ -104,30 +128,15 @@ void registerReaders() {
     if (initialized)
         return;
 
-    // TODO: Read readers info from XML
     auto create_if_exists = [](const std::string name, const std::string library_name) {
-        FileUtils::FilePath libraryName = FileUtils::toFilePath(library_name);
-        FileUtils::FilePath readersLibraryPath =
+        ov::util::FilePath libraryName = ov::util::to_file_path(library_name);
+        ov::util::FilePath readersLibraryPath =
             FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
         if (!FileUtils::fileExist(readersLibraryPath))
             return std::shared_ptr<Reader>();
         return std::make_shared<Reader>(name, library_name);
     };
-
-    // try to load ONNX reader if library exists
-    auto onnxReader =
-        create_if_exists("ONNX", std::string("inference_engine_onnx_reader") + std::string(IE_BUILD_POSTFIX));
-    if (onnxReader) {
-        readers.emplace("onnx", onnxReader);
-        readers.emplace("prototxt", onnxReader);
-    }
-
-    // try to load IR reader v10 if library exists
-    auto irReaderv10 =
-        create_if_exists("IRv10", std::string("inference_engine_ir_reader") + std::string(IE_BUILD_POSTFIX));
-    if (irReaderv10)
-        readers.emplace("xml", irReaderv10);
 
     // try to load IR reader v7 if library exists
     auto irReaderv7 =
@@ -147,6 +156,7 @@ void assertIfIRv7LikeModel(std::istream& modelStream) {
 
     for (auto&& kvp : readers) {
         Reader::Ptr reader = kvp.second;
+        // if we have reader for IR v7
         if (reader->getName() == "IRv7") {
             return;
         }
@@ -158,32 +168,36 @@ void assertIfIRv7LikeModel(std::istream& modelStream) {
                   "version of the OpenVINO to generate supported IR version.";
 }
 
-}  // namespace
+ov::Extensions get_extensions_map(const std::vector<InferenceEngine::IExtensionPtr>& exts) {
+    ov::Extensions extensions;
+    for (const auto& ext : exts) {
+        for (const auto& item : ext->getOpSets()) {
+            if (extensions.count(item.first)) {
+                IE_THROW() << "Extension with " << item.first << " name already exists";
+            }
+            extensions[item.first] = item.second;
+        }
+    }
+    return extensions;
+}
 
-CNNNetwork details::ReadNetwork(const std::string& modelPath,
-                                const std::string& binPath,
-                                const std::vector<IExtensionPtr>& exts) {
-    // Register readers if it is needed
-    registerReaders();
-
+CNNNetwork load_ir_v7_network(const std::string& modelPath,
+                              const std::string& binPath,
+                              const std::vector<IExtensionPtr>& exts) {
     // Fix unicode name
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring model_path = FileUtils::multiByteCharToWString(modelPath.c_str());
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    std::wstring model_path = ov::util::string_to_wstring(modelPath.c_str());
 #else
     std::string model_path = modelPath;
 #endif
+
     // Try to open model file
     std::ifstream modelStream(model_path, std::ios::binary);
-    // save path in extensible array of stream
-    // notice: lifetime of path pointed by pword(0) is limited by current scope
-    const std::string path_to_save_in_stream = modelPath;
-    modelStream.pword(0) = const_cast<char*>(path_to_save_in_stream.c_str());
     if (!modelStream.is_open())
         IE_THROW() << "Model file " << modelPath << " cannot be opened!";
 
     assertIfIRv7LikeModel(modelStream);
 
-    // Find reader for model extension
     auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
     for (auto it = readers.lower_bound(fileExt); it != readers.upper_bound(fileExt); it++) {
         auto reader = it->second;
@@ -207,8 +221,8 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
             }
             if (!bPath.empty()) {
                 // Open weights file
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-                std::wstring weights_path = FileUtils::multiByteCharToWString(bPath.c_str());
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+                std::wstring weights_path = ov::util::string_to_wstring(bPath.c_str());
 #else
                 std::string weights_path = bPath;
 #endif
@@ -239,51 +253,274 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
             return reader->read(modelStream, exts);
         }
     }
+
+    return {};
+}
+
+CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
+                                 const std::vector<IExtensionPtr>& exts,
+                                 bool newAPI) {
+    auto& rt_info = function->get_rt_info();
+    const auto it = rt_info.find("version");
+    const bool is_ir = it != rt_info.end();
+
+    // only for IR cases we need preprocessing or postprocessing steps
+    if (is_ir) {
+        using namespace ov::preprocess;
+        PrePostProcessor prepost;
+
+        auto ir_version_impl = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second);
+        OPENVINO_ASSERT(ir_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
+        const int64_t ir_version = ir_version_impl->get();
+
+        if (ir_version == 10 && newAPI) {
+            const auto inputs = function->inputs();
+            for (size_t i = 0; i < inputs.size(); ++i) {
+                const auto ngraph_type = inputs[i].get_element_type();
+                const auto legacy_type = details::toLegacyType(ngraph_type, true);
+                prepost.input(ov::preprocess::InputInfo(i).tensor(InputTensorInfo().set_element_type(legacy_type)));
+            }
+
+            // in order to support the following scenarios for IR v10 cases:
+            // ov::Function f = ie.read_model(..);
+            // f.input("input_operation_name");
+            // f.output("output_operation_name");
+            // f.add_output("operation_name[].port_index]");
+            // f.reshape({ { "input_operation_name", ov::PartialShape{} } });
+            // we need to add operation names as tensor names for inputs and outputs
+            {
+                std::vector<std::string> result_names;
+                std::vector<ov::Output<ov::Node>> prevPorts;
+                result_names.reserve(function->get_results().size());
+                prevPorts.reserve(function->get_results().size());
+
+                for (const auto& result : function->get_results()) {
+                    result_names.emplace_back(ngraph::op::util::create_ie_output_name(result->input_value(0)));
+                    result->output(0).get_tensor().add_names({result_names.back()});
+                    prevPorts.emplace_back(result->input_value(0));
+                }
+                for (const auto& param : function->get_parameters()) {
+                    param->output(0).get_tensor().add_names({param->get_friendly_name()});
+                }
+            }
+
+            const auto outputs = function->outputs();
+            for (size_t i = 0; i < outputs.size(); ++i) {
+                const auto ngraph_type = outputs[i].get_element_type();
+                const auto legacy_type = details::toLegacyType(ngraph_type, false);
+
+                prepost.output(OutputInfo(i).tensor(OutputTensorInfo().set_element_type(legacy_type)));
+            }
+
+            function = prepost.build(function);
+
+            // Set version to 10
+            rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
+        } else if (ir_version == 11 && !newAPI) {
+            const std::string& old_api_map_key = ov::OldApiMap::get_type_info_static();
+
+            auto& parameters = function->get_parameters();
+            for (size_t i = 0; i < parameters.size(); ++i) {
+                const auto& parameter = parameters[i];
+                ov::RTMap& rtInfo = parameter->get_rt_info();
+                const auto it = rtInfo.find(old_api_map_key);
+                if (it == rtInfo.end())
+                    continue;
+
+                const auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(it->second);
+                OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMap");
+                const auto old_api_map_attr_val = old_api_map_attr->get();
+                auto old_api_type = old_api_map_attr_val.get_type();
+                const auto old_api_transpose_args = old_api_map_attr_val.get_order();
+
+                OPENVINO_ASSERT(!old_api_type.is_dynamic(), "Old API map does not support dynamic type");
+                // if no differences between IR v10 and IR v11, add identity convert which will be optimized out
+                if (old_api_type == ov::element::undefined)
+                    old_api_type = parameter->get_element_type();
+
+                std::stringstream tensorLayout, networkLayout;
+                for (size_t i = 0; i < old_api_transpose_args.size(); ++i) {
+                    tensorLayout << i;
+                    networkLayout << old_api_transpose_args[i];
+                }
+
+                prepost.input(
+                    ov::preprocess::InputInfo(i)
+                        .tensor(
+                            InputTensorInfo().set_element_type(old_api_type).set_layout(ov::Layout(tensorLayout.str())))
+                        .network(InputNetworkInfo().set_layout(ov::Layout(networkLayout.str()))));
+
+                // Set version to 10
+                rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
+            }
+
+            auto& resuls = function->get_results();
+            for (size_t i = 0; i < resuls.size(); ++i) {
+                const auto& result = resuls[i];
+                ov::RTMap& rtInfo = result->get_rt_info();
+                const auto it = rtInfo.find(old_api_map_key);
+                if (it == rtInfo.end())
+                    continue;
+
+                const auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(it->second);
+                OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMap");
+                const auto old_api_map_attr_val = old_api_map_attr->get();
+                auto old_api_type = old_api_map_attr_val.get_type();
+                const auto old_api_transpose_args = old_api_map_attr_val.get_order();
+
+                OPENVINO_ASSERT(!old_api_type.is_dynamic(), "Old API map does not support dynamic type");
+                // if no differences between IR v10 and IR v11, add identity convert which will be optimized out
+                if (old_api_type == ov::element::undefined)
+                    old_api_type = result->get_element_type();
+
+                std::stringstream tensorLayout, networkLayout;
+                for (size_t i = 0; i < old_api_transpose_args.size(); ++i) {
+                    networkLayout << i;
+                    tensorLayout << old_api_transpose_args[i];
+                }
+
+                prepost.output(OutputInfo(i)
+                                   .network(OutputNetworkInfo().set_layout(ov::Layout(networkLayout.str())))
+                                   .tensor(OutputTensorInfo()
+                                               .set_element_type(old_api_type)
+                                               .set_layout(ov::Layout(tensorLayout.str()))));
+
+                // remove old api once we applied it
+                rtInfo.erase(it);
+            }
+
+            function = prepost.build(function);
+
+            // TODO: keep information about layout once we have an ability to
+            // apply permutation to layout
+
+            // restore layout information
+            for (const auto& parameter : function->get_parameters()) {
+                parameter->set_layout({});
+            }
+            for (const auto& result : function->get_results()) {
+                result->set_layout({});
+            }
+        }
+    }
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(function, exts, newAPI));
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+}  // namespace
+
+CNNNetwork details::ReadNetwork(const std::string& modelPath,
+                                const std::string& binPath,
+                                const std::vector<IExtensionPtr>& exts,
+                                bool newAPI) {
+    // IR v7 obsolete code
+    {
+        // Register readers if it is needed
+        registerReaders();
+        auto cnnnetwork = load_ir_v7_network(modelPath, binPath, exts);
+
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if (static_cast<ICNNNetwork::Ptr>(cnnnetwork) != nullptr) {
+            OPENVINO_ASSERT(!newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
+            return cnnnetwork;
+        }
+        OPENVINO_SUPPRESS_DEPRECATED_END
+    }
+
+    // Fix unicode name
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    std::wstring model_path = ov::util::string_to_wstring(modelPath.c_str());
+#else
+    std::string model_path = modelPath;
+#endif
+
     // Try to load with FrontEndManager
-    static ngraph::frontend::FrontEndManager manager;
+    auto& manager = get_frontend_manager();
     ngraph::frontend::FrontEnd::Ptr FE;
     ngraph::frontend::InputModel::Ptr inputModel;
-    if (!binPath.empty()) {
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        std::wstring weights_path = FileUtils::multiByteCharToWString(binPath.c_str());
-#else
-        std::string weights_path = binPath;
-#endif
-        FE = manager.load_by_model(model_path, weights_path);
-        if (FE)
-            inputModel = FE->load(model_path, weights_path);
-    } else {
-        FE = manager.load_by_model(model_path);
-        if (FE)
-            inputModel = FE->load(model_path);
+
+    ov::VariantVector params{ov::make_variant(model_path)};
+    if (!exts.empty()) {
+        params.emplace_back(ov::make_variant(get_extensions_map(exts)));
     }
+
+    if (!binPath.empty()) {
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        const std::wstring& weights_path = ov::util::string_to_wstring(binPath.c_str());
+#else
+        const std::string& weights_path = binPath;
+#endif
+        params.emplace_back(ov::make_variant(weights_path));
+    }
+
+    FE = manager.load_by_model(params);
+    if (FE)
+        inputModel = FE->load(params);
+
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return CNNNetwork(ngFunc);
+        return convert_to_cnnnetwork(ngFunc, exts, newAPI);
     }
-    IE_THROW() << "Unknown model format! Cannot find reader for model format: " << fileExt
-               << " and read the model: " << modelPath << ". Please check that reader library exists in your PATH.";
+
+    const auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
+    IE_THROW(NetworkNotRead) << "Unable to read the model: " << modelPath
+                             << " Please check that model format: " << fileExt
+                             << " is supported and the model is correct.";
 }
 
 CNNNetwork details::ReadNetwork(const std::string& model,
                                 const Blob::CPtr& weights,
-                                const std::vector<IExtensionPtr>& exts) {
-    // Register readers if it is needed
-    registerReaders();
-    std::istringstream modelStream(model);
+                                const std::vector<IExtensionPtr>& exts,
+                                bool newAPI) {
+    std::istringstream modelStringStream(model);
+    std::istream& modelStream = modelStringStream;
 
-    assertIfIRv7LikeModel(modelStream);
+    // IR v7 obsolete code
+    {
+        // Register readers if it is needed
+        registerReaders();
 
-    for (auto it = readers.begin(); it != readers.end(); it++) {
-        auto reader = it->second;
-        if (reader->supportModel(modelStream)) {
-            if (weights)
-                return reader->read(modelStream, weights, exts);
-            return reader->read(modelStream, exts);
+        assertIfIRv7LikeModel(modelStream);
+
+        for (auto it = readers.begin(); it != readers.end(); it++) {
+            auto reader = it->second;
+            if (reader->supportModel(modelStream)) {
+                OPENVINO_ASSERT(!newAPI, "Cannot read IR v7 from OpenVINO 2.0 API");
+                if (weights)
+                    return reader->read(modelStream, weights, exts);
+                return reader->read(modelStream, exts);
+            }
         }
     }
-    IE_THROW() << "Unknown model format! Cannot find reader for the model and read it. Please check that reader "
-                  "library exists in your PATH.";
+
+    // Try to load with FrontEndManager
+    auto& manager = get_frontend_manager();
+    ngraph::frontend::FrontEnd::Ptr FE;
+    ngraph::frontend::InputModel::Ptr inputModel;
+
+    ov::VariantVector params{ov::make_variant(&modelStream)};
+    if (weights) {
+        char* data = weights->cbuffer().as<char*>();
+        ov::Weights weights_buffer =
+            std::make_shared<ngraph::runtime::SharedBuffer<Blob::CPtr>>(data, weights->byteSize(), weights);
+        params.emplace_back(ov::make_variant(weights_buffer));
+    }
+    if (!exts.empty()) {
+        params.emplace_back(ov::make_variant(get_extensions_map(exts)));
+    }
+
+    FE = manager.load_by_model(params);
+    if (FE)
+        inputModel = FE->load(params);
+    if (inputModel) {
+        auto ngFunc = FE->convert(inputModel);
+        return convert_to_cnnnetwork(ngFunc, exts, newAPI);
+    }
+
+    IE_THROW(NetworkNotRead)
+        << "Unable to read the model. Please check if the model format is supported and model is correct.";
 }
 
 }  // namespace InferenceEngine

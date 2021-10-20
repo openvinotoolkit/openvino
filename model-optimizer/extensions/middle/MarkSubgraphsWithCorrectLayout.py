@@ -22,10 +22,14 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
     1. Prevents from adding Transpose operations before and after "reinterp_shape" like operations which change rank of
     the input and output tensors of this layout agnostic op.
     2. Disable attributes permutation for all intermediate ops between these "reinterp_shape" nodes.
-    3. Marks nodes along the weight path of convolutions as in correct layout to not permute them from NHWC to NCHW
+    3. Marks nodes along the weight path of convolutions as in correct layout to not permute them from NHWC to NCHW.
+    The latest is needed for TF NCHW graphs as well. In Conv/Deconv infer functions "set_permutation()"
+    ads "permutation" attr to weights data node even for NCHW, it is needed to permute Conv weights from the
+    original TF layout into IE even for NCHW graphs. Therefore for TF models
+    to prevent unwarranted permutations need to mark weights path as having correct layout even for NCHW graphs.
     """
     enabled = True
-    graph_condition = [lambda graph: graph.graph['layout'] == 'NHWC']
+    graph_condition = [lambda graph: graph.graph['fw'] == 'tf']
     op_conditions = [lambda n: n.soft_get('op') == 'MatMul' and
                                any([len(port.data.get_shape()) in (4, 5) for port in n.in_ports().values()]),
                      ]

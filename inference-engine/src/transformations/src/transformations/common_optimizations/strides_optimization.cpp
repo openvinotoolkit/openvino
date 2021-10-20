@@ -90,7 +90,15 @@ static void handle_not_equal_stride_props(std::vector<ngraph::Input<ngraph::Node
 
 ngraph::pass::ConvStridesPropagation::ConvStridesPropagation() {
     MATCHER_SCOPE(ConvStridesPropagation);
-    auto data = pattern::any_input();
+    auto data = pattern::any_input([] (const Output<Node>& node) -> bool {
+                                          const auto& shape = node.get_partial_shape();
+                                          const auto& rank = shape.rank();
+                                          if (rank.is_dynamic())
+                                              return false;
+                                          return std::all_of(shape.begin() + 2, shape.end(), [] (const Dimension& dim) -> bool {
+                                                                                                    return dim.is_static();
+                                                                                                });
+                                      });
     auto weights = pattern::any_input(pattern::has_static_shape());
     auto conv_pattern = pattern::wrap_type<opset7::Convolution>({data, weights});
 
@@ -118,6 +126,12 @@ ngraph::pass::ConvStridesPropagation::ConvStridesPropagation() {
             auto conv_input = conv->input(0);
             insert_strides_prop(conv_input, conv_strides);
         } else {
+            // Retain original padding
+            // Make sure that setting strides does not change padding in cases when auto_pad is not EXPLICIT.
+            // When padding type is not EXPLICIT, strides make a role to paddings calculation.
+            // Change in padding, results in change in image position that filter is applied,
+            // so we may end up with unwanted results after that.
+            conv->set_auto_pad(op::PadType::EXPLICIT);
             conv->set_strides(conv_strides);
         }
 

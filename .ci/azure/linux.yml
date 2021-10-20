@@ -29,9 +29,11 @@ jobs:
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
+    BUILD_LAYER_TESTS_DIR: $(WORK_DIR)/build_layer_tests
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
-    SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
+    LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
+    SETUPVARS: $(INSTALL_DIR)/setupvars.sh
 
   steps:
   - script: |
@@ -101,6 +103,7 @@ jobs:
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
+    # Should be after 'Install dependencies' because Git lfs is not installed
   - checkout: testdata
     clean: true
     lfs: true
@@ -139,6 +142,21 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
 
+  - task: CMake@1
+    inputs:
+      cmakeArgs: >
+        -GNinja
+        $(REPO_DIR)/tests/layer_tests
+      workingDirectory: $(BUILD_LAYER_TESTS_DIR)
+
+  - script: ninja
+    workingDirectory: $(BUILD_LAYER_TESTS_DIR)
+    displayName: 'Build Layer Tests'
+
+  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
+    workingDirectory: $(BUILD_LAYER_TESTS_DIR)
+    displayName: 'Install Layer Tests'
+
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
@@ -153,11 +171,11 @@ jobs:
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
-  - script: $(INSTALL_DIR)/deployment_tools/inference_engine/samples/cpp/build_samples.sh
+  - script: $(INSTALL_DIR)/samples/cpp/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
 
-  - script: $(INSTALL_DIR)/deployment_tools/inference_engine/samples/c/build_samples.sh
+  - script: $(INSTALL_DIR)/samples/c/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
 
@@ -166,13 +184,16 @@ jobs:
     continueOnError: false
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
-  - script: . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
+  - script: |
+      export DATA_PATH=$(MODELS_PATH)
+      export MODELS_PATH=$(MODELS_PATH)
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
     displayName: 'nGraph Python Bindings Tests'
     continueOnError: false
 
   - script: |
-      export MO_ROOT=$(INSTALL_DIR)/deployment_tools/model_optimizer
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/deployment_tools/model_optimizer/unit_tests --junitxml=TEST-ModelOptimizer.xml
+      export MO_ROOT=$(INSTALL_DIR)/tools/model_optimizer
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/tools/model_optimizer/unit_tests --junitxml=TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
     continueOnError: false
 
@@ -235,6 +256,16 @@ jobs:
       cd $(REPO_DIR)/inference-engine/ie_bridges/python/tests
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest --junitxml=TEST-PythonAPI.xml
     displayName: 'Python API Tests'
+    continueOnError: false
+
+  - script: |
+      . $(SETUPVARS)
+      python3 -m pip install -r requirements.txt
+      export MO_ROOT=$(INSTALL_DIR)/tools/model_optimizer
+      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
+      python3 -m pytest tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=TEST-tf_Roll.xmlTEST
+    workingDirectory: $(LAYER_TESTS_DIR)
+    displayName: 'Layer Tests'
     continueOnError: false
 
   - task: PublishTestResults@2

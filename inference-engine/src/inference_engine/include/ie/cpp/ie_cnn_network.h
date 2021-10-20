@@ -18,11 +18,12 @@
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
-#include "ie_extension.h"
 #include "ie_icnn_network.hpp"
 #include "ngraph/function.hpp"
 
 namespace InferenceEngine {
+
+class IExtension;
 
 /**
  * @brief This class contains all the information about the Neural Network and the related binary information
@@ -52,7 +53,8 @@ public:
      * @param network Pointer to the ngraph::Function object
      * @param exts Vector of pointers to IE extension objects
      */
-    explicit CNNNetwork(const std::shared_ptr<ngraph::Function>& network, const std::vector<IExtensionPtr>& exts = {});
+    explicit CNNNetwork(const std::shared_ptr<ngraph::Function>& network,
+                        const std::vector<std::shared_ptr<IExtension>>& exts = {});
 
     /**
      * @brief Gets the network output Data node information. The received info is stored in the given Data node.
@@ -182,7 +184,23 @@ public:
      * @param inputShapes A map of pairs: name of corresponding data and its dimension.
      */
     void reshape(const ICNNNetwork::InputShapes& inputShapes);
+
+    /**
+     * @deprecated void InferenceEngine::CNNNetwork::reshape(const ICNNNetwork::InputShapes&)
+     * @brief Run shape inference with new input shapes for the network
+     * @param inputShapes A map of pairs: name of corresponding data and its dimension.
+     */
+    INFERENCE_ENGINE_DEPRECATED("InferenceEngine::CNNNetwork::reshape(const ICNNNetwork::InputShapes&)")
+    void reshape(const std::initializer_list<ICNNNetwork::InputShapes::value_type>& inputShapes);
     IE_SUPPRESS_DEPRECATED_END
+
+    /**
+     * @deprecated Use ov::Function::reshape for dynamic shapes
+     * @brief Run shape inference with new input partial shapes for the network
+     * @param inputShapes A map of pairs: name of corresponding data and its dimension.
+     */
+    INFERENCE_ENGINE_DEPRECATED("Use ov::Function::reshape for dynamic shapes")
+    void reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes);
 
     /**
      * @brief Serialize network to IR and weights files.

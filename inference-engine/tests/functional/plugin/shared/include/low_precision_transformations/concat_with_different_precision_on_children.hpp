@@ -13,6 +13,7 @@
 namespace LayerTestsDefinitions {
 class ConcatWithDifferentChildrenTransformationParam {
 public:
+    std::int64_t axis;
     ngraph::builder::subgraph::FakeQuantizeOnData fqOnData1;
     ngraph::builder::subgraph::FakeQuantizeOnData fqOnData2;
 };
@@ -22,15 +23,14 @@ typedef std::tuple<
     ngraph::PartialShape,
     std::string, // target device: CPU, GPU
     ConcatWithDifferentChildrenTransformationParam,
-    ngraph::pass::low_precision::LayerTransformation::Params, // transformation parameters
-    // multichannel
-    bool> ConcatWithDifferentChildrenTransformationParams;
+    ngraph::pass::low_precision::LayerTransformation::Params // transformation parameters
+    > ConcatWithDifferentChildrenTransformationParams;
 
 class ConcatWithDifferentChildrenTransformation :
     public testing::WithParamInterface<ConcatWithDifferentChildrenTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConcatWithDifferentChildrenTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConcatWithDifferentChildrenTransformationParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:

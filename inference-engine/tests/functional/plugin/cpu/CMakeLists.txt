@@ -9,14 +9,14 @@ add_library(cpuSpecificRtInfo STATIC ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin/uti
 target_link_libraries(cpuSpecificRtInfo PRIVATE ngraph)
 
 set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin)
-set(DEPENDENCIES MKLDNNPlugin AutoPlugin)
+set(DEPENDENCIES MKLDNNPlugin)
 set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo)
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND INCLUDES "${OpenVINO_SOURCE_DIR}/docs/onnx_custom_op")
     list(APPEND LINK_LIBRARIES onnx_custom_op)
     list(APPEND DEPENDENCIES template_extension onnx_custom_op)
 else()
-    set(EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/extension")
+    set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/extension ${CMAKE_CURRENT_SOURCE_DIR}/onnx)
 endif()
 
 addIeTargetTest(

@@ -10,6 +10,7 @@
 
 #include "dnn_types.h"
 #include "gna_types.h"
+#include "gna/gna_config.hpp"
 
 #include "gna_plugin_log.hpp"
 
@@ -153,6 +154,13 @@ public:
             (void*&)ptr_filters,
             (void*&)ptr_biases);
     }
+
+    // Checks whether operation is Convolution and its parameters makes it specific to GNA1/GNA2 targets
+    // It does not guarantee that operation fully compatible to GNA1/GNA2, but for sure is not comaptible with GNA3 target
+    static bool isOperationCnnLegacySpecific(const Gna2Operation& operation);
+    // Recomputes number of outputs from CNN1D operations using legacy or new formula
+    // If isOperationCnnLegacySpecific() is true the number of outputs will also be recomputed for legacy compatibility
+    static void updateNumberOfOutputsIfPoolingEnabled(Gna2Model& gnaModel, bool useLegacyFormula);
 #endif
 
     template<class A, class B>

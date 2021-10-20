@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::ScatterUpdate::type_info;
+BWDCMP_RTTI_DEFINITION(op::v3::ScatterUpdate);
 
 op::v3::ScatterUpdate::ScatterUpdate(const Output<Node>& data,
                                      const Output<Node>& indices,
@@ -74,15 +74,15 @@ bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outp
         return false;
     }
 
-    runtime::reference::scatter_update(data->get_data_ptr<char>(),
-                                       indices_casted_vector.data(),
-                                       updates->get_data_ptr<char>(),
-                                       axis_val,
-                                       out->get_data_ptr<char>(),
-                                       elem_size,
-                                       data->get_shape(),
-                                       indices->get_shape(),
-                                       updates->get_shape());
+    ngraph::runtime::reference::scatter_update(data->get_data_ptr<char>(),
+                                               indices_casted_vector.data(),
+                                               updates->get_data_ptr<char>(),
+                                               axis_val,
+                                               out->get_data_ptr<char>(),
+                                               elem_size,
+                                               data->get_shape(),
+                                               indices->get_shape(),
+                                               updates->get_shape());
 
     return true;
 }

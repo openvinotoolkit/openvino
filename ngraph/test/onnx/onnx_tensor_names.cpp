@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "engines_util/test_case.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/onnx_utils.hpp"
-#include "util/test_case.hpp"
 #include "util/test_control.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -22,14 +22,20 @@ NGRAPH_TEST(onnx_tensor_names, simple_model) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/tensor_names.onnx"));
 
     auto ops = function->get_ordered_ops();
+    // Parameter
     ASSERT_EQ(ops[0]->get_friendly_name(), "input");
     ASSERT_EQ(ops[0]->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"input"});
+
     ASSERT_EQ(ops[1]->get_friendly_name(), "relu_t");
     ASSERT_EQ(ops[1]->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"relu_t"});
-    // ops[2] is a constant created in the ONNX importer as part of Identity operator
+
+    // should be abs_t, but Identity operator gets cut out and that makes Abs become the 'final_output'
+    ASSERT_EQ(ops[2]->get_friendly_name(), "final_output");
+    ASSERT_EQ(ops[2]->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"final_output"});
+
+    // Result node
     ASSERT_EQ(ops[3]->get_friendly_name(), "final_output");
     ASSERT_EQ(ops[3]->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"final_output"});
-    ASSERT_EQ(ops[4]->get_friendly_name(), "final_output");
 
     ASSERT_EQ(function->get_result()->get_input_tensor(0).get_names(), std::unordered_set<std::string>{"final_output"});
     ASSERT_EQ(function->get_result()->input_value(0).get_tensor().get_names(),

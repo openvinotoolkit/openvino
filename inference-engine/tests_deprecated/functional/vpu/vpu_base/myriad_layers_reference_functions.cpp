@@ -1944,7 +1944,7 @@ namespace internal {
               T hy = static_cast<T>(1) - ly, hx = static_cast<T>(1) - lx;
               T w1 = hy * hx, w2 = hy * lx, w3 = ly * hx, w4 = ly * lx;
 
-              // save weights and indeces
+              // save weights and indices
               PreCalc<T> pc;
               pc.pos1 = y_low * width + x_low;
               pc.pos2 = y_low * width + x_high;
@@ -2014,7 +2014,7 @@ namespace internal {
         // We do average (integral) pooling inside a bin
         const T count = static_cast<T>(roi_bin_grid_h * roi_bin_grid_w);  // e.g. = 4
 
-        // we want to precalculate indeces and weights shared by all chanels,
+        // we want to precalculate indices and weights shared by all chanels,
         // this is the key point of optimiation
         std::vector<PreCalc<T>> pre_calc(
             roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
@@ -2302,7 +2302,7 @@ namespace internal {
             // We do average (integral) pooling inside a bin
             const T count = static_cast<T>(roi_bin_grid_h * roi_bin_grid_w);  // e.g. = 4
 
-            // we want to precalculate indeces and weights shared by all chanels,
+            // we want to precalculate indices and weights shared by all chanels,
             // this is the key point of optimiation
             std::vector<PreCalc<T>> pre_calc(
                 roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);

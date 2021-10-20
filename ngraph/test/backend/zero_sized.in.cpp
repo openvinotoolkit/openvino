@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "runtime/backend.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
-#include "util/known_element_types.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -225,10 +224,6 @@ NGRAPH_TEST(${BACKEND_NAME}, zero_sized_minimum) {
 
 NGRAPH_TEST(${BACKEND_NAME}, zero_sized_multiply) {
     make_binary_empty_test<op::v1::Multiply>("${BACKEND_NAME}");
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, zero_sized_not_equal) {
-    make_binary_empty_test<op::v1::NotEqual>("${BACKEND_NAME}", true);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, zero_sized_power) {

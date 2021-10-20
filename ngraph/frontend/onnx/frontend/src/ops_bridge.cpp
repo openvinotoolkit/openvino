@@ -26,8 +26,12 @@
 #include "op/batch_norm.hpp"
 #include "op/bitshift.hpp"
 #include "op/cast.hpp"
+#include "op/cast_like.hpp"
 #include "op/ceil.hpp"
 #include "op/clip.hpp"
+#include "op/com.microsoft/bias_gelu.hpp"
+#include "op/com.microsoft/embed_layer_normalization.hpp"
+#include "op/com.microsoft/skip_layer_normalization.hpp"
 #include "op/compress.hpp"
 #include "op/concat.hpp"
 #include "op/constant.hpp"
@@ -38,6 +42,7 @@
 #include "op/conv_transpose.hpp"
 #include "op/cos.hpp"
 #include "op/cosh.hpp"
+#include "op/crop.hpp"
 #include "op/cum_sum.hpp"
 #include "op/depth_to_space.hpp"
 #include "op/dequantize_linear.hpp"
@@ -61,8 +66,10 @@
 #include "op/greater.hpp"
 #include "op/gru.hpp"
 #include "op/hard_sigmoid.hpp"
+#include "op/hard_swish.hpp"
 #include "op/hardmax.hpp"
 #include "op/identity.hpp"
+#include "op/if.hpp"
 #include "op/image_scaler.hpp"
 #include "op/instance_norm.hpp"
 #include "op/leaky_relu.hpp"
@@ -75,6 +82,7 @@
 #include "op/lrn.hpp"
 #include "op/lstm.hpp"
 #include "op/matmul.hpp"
+#include "op/matmul_integer.hpp"
 #include "op/max.hpp"
 #include "op/max_pool.hpp"
 #include "op/mean.hpp"
@@ -88,10 +96,6 @@
 #include "op/not.hpp"
 #include "op/onehot.hpp"
 #include "op/or.hpp"
-#include "op/pad.hpp"
-#include "op/pow.hpp"
-#include "op/prelu.hpp"
-// #include "op/quant_conv.hpp"
 #include "op/org.openvinotoolkit/deformable_conv_2d.hpp"
 #include "op/org.openvinotoolkit/detection_output.hpp"
 #include "op/org.openvinotoolkit/experimental_detectron/detection_output.hpp"
@@ -104,7 +108,13 @@
 #include "op/org.openvinotoolkit/normalize.hpp"
 #include "op/org.openvinotoolkit/prior_box.hpp"
 #include "op/org.openvinotoolkit/swish.hpp"
+#include "op/pad.hpp"
+#include "op/pow.hpp"
+#include "op/prelu.hpp"
+#include "op/qlinear_conv.hpp"
 #include "op/quantize_linear.hpp"
+#include "op/random_uniform.hpp"
+#include "op/random_uniform_like.hpp"
 #include "op/range.hpp"
 #include "op/reciprocal.hpp"
 #include "op/reduce.hpp"
@@ -256,6 +266,8 @@ bool OperatorsBridge::_is_operator_registered(const std::string& name,
     }
 }
 
+static const char* const MICROSOFT_DOMAIN = "com.microsoft";
+
 #define REGISTER_OPERATOR(name_, ver_, fn_) \
     m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1))
 
@@ -282,6 +294,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
     REGISTER_OPERATOR("BitShift", 1, bitshift);
     REGISTER_OPERATOR("Cast", 1, cast);
+    REGISTER_OPERATOR("CastLike", 1, cast_like);
     REGISTER_OPERATOR("Ceil", 1, ceil);
     REGISTER_OPERATOR("Clip", 1, clip);
     REGISTER_OPERATOR("Clip", 11, clip);
@@ -327,7 +340,9 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Hardmax", 1, hardmax);
     REGISTER_OPERATOR("Hardmax", 13, hardmax);
     REGISTER_OPERATOR("HardSigmoid", 1, hard_sigmoid);
+    REGISTER_OPERATOR("HardSwish", 1, hard_swish);
     REGISTER_OPERATOR("Identity", 1, identity);
+    REGISTER_OPERATOR("If", 1, if_op);
     REGISTER_OPERATOR("ImageScaler", 1, image_scaler);
     REGISTER_OPERATOR("InstanceNormalization", 1, instance_norm);
     REGISTER_OPERATOR("LeakyRelu", 1, leaky_relu);
@@ -339,6 +354,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("LpNormalization", 1, lp_norm);
     REGISTER_OPERATOR("LRN", 1, lrn);
     REGISTER_OPERATOR("LSTM", 1, lstm);
+    REGISTER_OPERATOR("MatMulInteger", 1, matmul_integer);
     REGISTER_OPERATOR("MatMul", 1, matmul);
     REGISTER_OPERATOR("MaxPool", 1, max_pool);
     REGISTER_OPERATOR("Max", 1, max);
@@ -361,10 +377,12 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Pad", 11, pad);
     REGISTER_OPERATOR("Pow", 1, pow);
     REGISTER_OPERATOR("PRelu", 1, prelu);
-    // REGISTER_OPERATOR("QLinearConv", 1, quant_conv);
+    REGISTER_OPERATOR("QLinearConv", 1, qlinear_conv);
     REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
     REGISTER_OPERATOR("QuantizeLinear", 13, quantize_linear);
     REGISTER_OPERATOR("Range", 1, range);
+    REGISTER_OPERATOR("RandomUniform", 1, random_uniform);
+    REGISTER_OPERATOR("RandomUniformLike", 1, random_uniform_like);
     REGISTER_OPERATOR("Reciprocal", 1, reciprocal);
     REGISTER_OPERATOR("ReduceLogSum", 1, reduce_log_sum);
     REGISTER_OPERATOR("ReduceLogSumExp", 1, reduce_log_sum_exp);
@@ -427,6 +445,7 @@ OperatorsBridge::OperatorsBridge() {
 
     // deprecated ops
     REGISTER_OPERATOR("Affine", 1, affine);
+    REGISTER_OPERATOR("Crop", 1, crop);
     REGISTER_OPERATOR("Scatter", 1, scatter_elements);
     REGISTER_OPERATOR("Upsample", 1, upsample);
     REGISTER_OPERATOR("Upsample", 7, upsample);
@@ -462,6 +481,10 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBox", 1, prior_box);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBoxClustered", 1, prior_box_clustered);
     REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Swish", 1, swish);
+
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "BiasGelu", 1, bias_gelu);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
 }
 
 #undef REGISTER_OPERATOR

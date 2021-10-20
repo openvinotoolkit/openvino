@@ -2,7 +2,7 @@
 
 **Versioned name**: *LogSoftmax-5*
 
-**Category**: *Activation*
+**Category**: *Activation function*
 
 **Short description**: LogSoftmax computes the natural logarithm of softmax values for the given input.
 

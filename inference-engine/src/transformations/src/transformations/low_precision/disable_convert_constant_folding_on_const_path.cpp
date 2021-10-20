@@ -13,7 +13,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/variant.hpp>
-#include "transformations/rt_info/dequantization_attribute.hpp"
+#include <transformations/rt_info/disable_constant_folding.hpp>
 
 using namespace ngraph;
 
@@ -52,10 +52,9 @@ ngraph::pass::DisableConvertConstantFoldingOnConstPath::DisableConvertConstantFo
             return false;
         }
         auto child = target_inputs.begin()->get_node();
-        if (is_type<ngraph::opset1::Constant>(parent) &&
-            (is_type<ngraph::opset1::Subtract>(child) || is_type<ngraph::opset1::Multiply>(child))) {
-            auto& rtInfo = convert->get_rt_info();
-            rtInfo["DISABLED_CONSTANT_FOLDING"] = std::make_shared<VariantWrapper<std::string>>("");
+        if (ov::is_type<ngraph::opset1::Constant>(parent) &&
+            (ov::is_type<ngraph::opset1::Subtract>(child) || ov::is_type<ngraph::opset1::Multiply>(child))) {
+            ov::disable_constant_folding(convert);
             return true;
         }
 

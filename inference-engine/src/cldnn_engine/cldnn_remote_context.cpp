@@ -131,11 +131,11 @@ const std::shared_ptr<IAllocator>& CLDNNRemoteBlobImpl::getAllocator() const noe
 };
 
 std::string CLDNNRemoteBlobImpl::getDeviceName() const noexcept {
-    return getContextImpl(m_context.lock())->GetPlugin().lock()->GetName();
+    return getContextImpl(m_context.lock())->getDeviceName();
 };
 
 std::shared_ptr<RemoteContext> CLDNNRemoteBlobImpl::getContext() const noexcept {
-    return std::dynamic_pointer_cast<RemoteContext>(m_context.lock());
+    return m_context.lock();
 }
 
 void CLDNNRemoteBlobImpl::lock() const {
@@ -203,6 +203,7 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
     lock.clear(std::memory_order_relaxed);
     gpu_handle_param _context_id = nullptr;
     gpu_handle_param _va_device = nullptr;
+    int target_tile_id = -1;
 
     if (params.size()) {
         // parameter map is non-empty
@@ -216,13 +217,17 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
         } else {
             IE_THROW() << "Invalid execution context type" << contextTypeStr;
         }
+        auto tile_id_itr = params.find(GPU_PARAM_KEY(TILE_ID));
+        if (tile_id_itr != params.end()) {
+            target_tile_id = tile_id_itr->second.as<int>();
+        }
     }
 
     // TODO: Parameterize this based on plugin config and compilation options
     auto engine_type = cldnn::engine_types::ocl;
     auto runtime_type = cldnn::runtime_types::ocl;
     // Use actual runtime and engine types
-    cldnn::device_query device_query(engine_type, runtime_type, _context_id, _va_device);
+    cldnn::device_query device_query(engine_type, runtime_type, _context_id, _va_device, target_tile_id);
     auto device_map = device_query.get_available_devices();
 
     auto iter = device_map.find(m_config.device_id);
@@ -233,7 +238,12 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
         bool enable_profiling = (m_config.useProfiling ||
                 (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||
                 (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache));
-        cldnn::queue_types queue_type = cldnn::queue_types::out_of_order;
+        cldnn::queue_types queue_type;
+        if (dev->get_info().supports_immad)
+            queue_type = cldnn::queue_types::in_order;
+        else
+            queue_type = cldnn::queue_types::out_of_order;
+
         bool use_unified_shared_memory = true;
         m_engine = cldnn::engine::create(engine_type, runtime_type, dev, cldnn::engine_configuration(enable_profiling,
                                                                                                      queue_type,
@@ -266,7 +276,10 @@ ParamMap CLDNNExecutionContextImpl::getParams() const {
 }
 
 std::string CLDNNExecutionContextImpl::getDeviceName() const noexcept {
-    return m_plugin.lock()->GetName();
+    auto devName = m_plugin.lock()->GetName();
+    if (!m_config.device_id.empty())
+        devName += "." + m_config.device_id;
+    return devName;
 }
 
 };  // namespace CLDNNPlugin

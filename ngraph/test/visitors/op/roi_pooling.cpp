@@ -23,7 +23,7 @@ TEST(attributes, roi_pooling_op) {
 
     const auto op = make_shared<opset3::ROIPooling>(data, coords, Shape{5, 5}, 0.123, "bilinear");
     NodeBuilder builder(op);
-    const auto g_op = as_type_ptr<opset3::ROIPooling>(builder.create());
+    const auto g_op = ov::as_type_ptr<opset3::ROIPooling>(builder.create());
 
     EXPECT_EQ(g_op->get_output_size(), op->get_output_size());
     EXPECT_EQ(g_op->get_spatial_scale(), op->get_spatial_scale());

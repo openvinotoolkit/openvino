@@ -28,7 +28,7 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Transformations library")
 
 target_link_libraries(${TARGET_NAME} PUBLIC ngraph
-                                     PRIVATE ngraph_reference openvino::itt ngraph::builder pugixml::static)
+                                     PRIVATE ngraph_reference openvino::itt ngraph::builder)
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -49,7 +49,7 @@ openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NA
 
 # install
 
-install(TARGETS ${TARGET_NAME} EXPORT InferenceEngineTargets
+install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)

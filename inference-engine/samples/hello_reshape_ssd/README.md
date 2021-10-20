@@ -20,7 +20,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 | Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
 | Validated images                 | The sample uses OpenCV\* to [read input image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (\*.bmp, \*.png)
 | Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
-| Other language realization       | [C](../../ie_bridges/c/samples/object_detection_sample_ssd/README.md), [Python](../../ie_bridges/python/sample/hello_reshape_ssd/README.md) |
+| Other language realization       | [C](../../ie_bridges/c/samples/object_detection_sample_ssd/README.md), [Python](../../../samples/python/hello_reshape_ssd/README.md) |
 
 ## How It Works
 
@@ -56,7 +56,7 @@ You can use the following command to do inference on CPU of an image using a tra
 ```
 
 ### Example
-1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader_README):
+1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
 ```
 python <path_to_omz_tools>/downloader.py --name person-detection-retail-0013
 ```

@@ -2,7 +2,7 @@
 
 **Versioned name**: *PriorBox-1*
 
-**Category**: Object detection
+**Category**: *Object detection*
 
 **Short description**: *PriorBox* operation generates prior boxes of specified sizes and aspect ratios across all dimensions.
 

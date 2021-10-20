@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Convert, "Convert", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::Convert);
 
 op::Convert::Convert(const Output<Node>& arg, const element::Type& destination_type)
     : Op({arg}),
@@ -136,7 +136,9 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
         if (input_maximum_value == nullptr || output_maximum_value == nullptr)
             return false;
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         bool status = node->evaluate(output_values, {value});
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         if (!status)
             return status;

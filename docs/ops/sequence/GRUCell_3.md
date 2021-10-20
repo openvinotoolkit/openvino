@@ -2,7 +2,7 @@
 
 **Versioned name**: *GRUCell-3*
 
-**Category**: Sequence processing
+**Category**: *Sequence processing*
 
 **Short description**: *GRUCell* represents a single GRU Cell that computes the output using the formula described in the [paper](https://arxiv.org/abs/1406.1078).
 

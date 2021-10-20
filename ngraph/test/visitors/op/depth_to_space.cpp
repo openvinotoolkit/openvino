@@ -24,7 +24,7 @@ TEST(attributes, depth_to_space) {
 
     const auto dts = std::make_shared<opset1::DepthToSpace>(data, mode, block_size);
     NodeBuilder builder(dts);
-    auto g_dts = as_type_ptr<opset1::DepthToSpace>(builder.create());
+    auto g_dts = ov::as_type_ptr<opset1::DepthToSpace>(builder.create());
 
     // attribute count
     const auto expected_attr_count = 2;

@@ -35,8 +35,8 @@ def roipooling_infer(node: Node):
     layout = node.graph.graph['layout']
     assert len(layout) == 4
 
-    node.out_node().shape = shape_for_layout(layout,
-                                             batch=shapes[1][get_batch_dim(layout, 4)],
-                                             features=shapes[0][get_features_dim(layout, 4)],
-                                             height=node.pooled_h,
-                                             width=node.pooled_w)
+    node.out_port(0).data.set_shape(shape_for_layout(layout,
+                                                     batch=shapes[1][get_batch_dim(layout, 4)],
+                                                     features=shapes[0][get_features_dim(layout, 4)],
+                                                     height=node.pooled_h,
+                                                     width=node.pooled_w))
