@@ -88,6 +88,12 @@ ngraph::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationF
         const bool transposed_a = matmul->get_transpose_a();
         const bool transposed_b = matmul->get_transpose_b();
 
+        auto reshape_before = std::dynamic_pointer_cast<opset1::Reshape>(pattern_value_map.at(reshape_before_pattern).get_node_shared_ptr());
+        auto reshape_after = std::dynamic_pointer_cast<opset1::Reshape>(pattern_value_map.at(reshape_after_pattern).get_node_shared_ptr());
+        // this transformation supports only cases when 2nd input of matmul is transpose->reshape
+        if (matmul->get_input_node_shared_ptr(1) != reshape_before)
+            return false;
+
         // check transpose order before and after matmul
         auto transpose_before = std::dynamic_pointer_cast<opset1::Transpose>(pattern_value_map.at(transpose_before_pattern).get_node_shared_ptr());
         auto transpose_after = std::dynamic_pointer_cast<opset1::Transpose>(pattern_value_map.at(transpose_after_pattern).get_node_shared_ptr());
@@ -95,11 +101,10 @@ ngraph::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationF
                 std::dynamic_pointer_cast<ngraph::opset1::Constant>(transpose_before->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
         auto transpose_after_order =
                 std::dynamic_pointer_cast<ngraph::opset1::Constant>(transpose_after->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
+
+        // need to check that input shape is correctly contracted and output shape is correctly unpacked using transposes
         if (!check_transposes(transpose_before_order, transpose_after_order, transpose_before->get_input_shape(0).size(), transposed_b))
             return false;
-
-        auto reshape_before = std::dynamic_pointer_cast<opset1::Reshape>(pattern_value_map.at(reshape_before_pattern).get_node_shared_ptr());
-        auto reshape_after = std::dynamic_pointer_cast<opset1::Reshape>(pattern_value_map.at(reshape_after_pattern).get_node_shared_ptr());
 
         const auto new_matmul = std::make_shared<opset1::MatMul>(input_1, input_2, transposed_a, false);
         new_matmul->set_friendly_name(matmul->get_friendly_name());
