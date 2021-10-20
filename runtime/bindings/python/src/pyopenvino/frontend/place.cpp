@@ -9,7 +9,7 @@
 #include "frontend_manager.hpp"
 #include "frontend_manager/frontend_exceptions.hpp"
 #include "frontend_manager/frontend_manager.hpp"
-#include "pyngraph/function.hpp"
+#include "pyopenvino/graph/function.hpp"
 
 namespace py = pybind11;
 
