@@ -37,7 +37,7 @@ public:
 }  // namespace ov
 
 namespace ov {
-/// Keep GraphIterator::Ptr object and type information for for type-safe
+/// Keep GraphIterator::Ptr object and type information for type-safe
 /// dynamic conversions without using C++ RTTI
 template <>
 class TF_API VariantWrapper<::ov::frontend::GraphIterator::Ptr>

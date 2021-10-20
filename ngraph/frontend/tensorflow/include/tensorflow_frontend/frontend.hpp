@@ -22,8 +22,6 @@ class NodeContext;
 
 namespace ov {
 namespace frontend {
-class InputModelTF;
-
 class TF_API FrontEndTF : public ngraph::frontend::FrontEnd {
 public:
     using CreatorFunction = std::function<::ov::OutputVector(const ::ov::frontend::tf::NodeContext&)>;
@@ -75,7 +73,7 @@ protected:
         const std::vector<std::shared_ptr<ov::Variant>>& variants) const override;
 
 private:
-    void translate_graph(const std::shared_ptr<InputModelTF>& model,
+    void translate_graph(const ngraph::frontend::InputModel::Ptr& model,
                          const std::string& model_name,
                          bool fail_fast,
                          bool no_conversion,

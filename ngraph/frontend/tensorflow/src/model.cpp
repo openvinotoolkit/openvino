@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "model.hpp"
-
 #include <frontend_manager/frontend_exceptions.hpp>
 #include <fstream>
 #include <openvino/opsets/opset7.hpp>
@@ -12,6 +10,7 @@
 
 #include "graph_iterator_proto.hpp"
 #include "ngraph_conversions.hpp"
+#include "model.hpp"
 #include "node_context.hpp"
 #include "place.hpp"
 #include "utils.hpp"

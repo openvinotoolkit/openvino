@@ -48,7 +48,7 @@ void translate_framework_node(const std::shared_ptr<TFFrameworkNode>& node,
 
 FrontEndTF::FrontEndTF() : m_op_translators(tf::op::get_supported_ops()) {}
 
-void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
+void FrontEndTF::translate_graph(const ngraph::frontend::InputModel::Ptr& model,
                                  const std::string& model_name,
                                  bool fail_fast,
                                  bool no_conversion,
@@ -58,10 +58,12 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
 
     ov::ParameterVector params;
     ov::ResultVector results;
-    const auto& operation_places = model->get_op_places();
-    const auto& model_inputs = model->get_inputs();
-    const auto& model_outputs = model->get_outputs();
-    const auto& model_frozen_inputs = model->get_tensor_values();
+    const auto& model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
+    FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into nGraph function");
+    const auto& operation_places = model_tf->get_op_places();
+    const auto& model_inputs = model_tf->get_inputs();
+    const auto& model_outputs = model_tf->get_outputs();
+    const auto& model_frozen_inputs = model_tf->get_tensor_values();
 
     std::map<const std::string, const std::function<ov::OutputVector(const NodeContext&)>> translate_map;
 
