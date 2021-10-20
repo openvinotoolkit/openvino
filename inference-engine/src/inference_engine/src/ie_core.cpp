@@ -543,6 +543,54 @@ public:
                                                   const std::map<std::string, std::string>& config) override {
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto exec = GetCPPPluginByName(parsed._deviceName).import_model(networkModel, parsed._config);
+
+        if (isNewAPI()) {
+            // create getInputs() based on GetInputsInfo()
+            using namespace InferenceEngine::details;
+
+            if (exec->getInputs().empty()) {
+                const auto& inputsInfo = exec->GetInputsInfo();
+                OPENVINO_ASSERT(!inputsInfo.empty(), "inputsInfo is empty after network import");
+
+                std::vector<std::shared_ptr<const ov::Node>> params;
+                params.reserve(inputsInfo.size());
+                for (auto&& input : inputsInfo) {
+                    auto param = std::make_shared<ov::op::v0::Parameter>(
+                        convertPrecision(input.second->getPrecision()),
+                        ov::PartialShape(input.second->getTensorDesc().getDims()));
+                    param->set_friendly_name(input.first);
+                    param->get_output_tensor(0).add_names({input.first});
+                    params.emplace_back(std::move(param));
+                }
+
+                exec->setInputs(params);
+            }
+
+            if (exec->getOutputs().empty()) {
+                const auto& outputsInfo = exec->GetOutputsInfo();
+                OPENVINO_ASSERT(!outputsInfo.empty(), "outputsInfo is empty after network import");
+
+                std::vector<std::shared_ptr<const ov::Node>> results;
+                results.reserve(outputsInfo.size());
+                for (auto&& output : outputsInfo) {
+                    auto fake_param = std::make_shared<ov::op::v0::Parameter>(
+                        convertPrecision(output.second->getPrecision()),
+                        ov::PartialShape(output.second->getTensorDesc().getDims()));
+                    fake_param->set_friendly_name(output.first);
+                    auto result = std::make_shared<ov::op::v0::Result>(fake_param);
+                    result->get_output_tensor(0).add_names({output.first});
+                    results.emplace_back(std::move(result));
+                }
+                exec->setOutputs(results);
+            }
+
+            // but for true support plugins need:
+            // 1. ensure order or parameters and results as in ov::Function
+            // 2. provide tensor names for inputs and outputs
+            // 3. precisions for getInputs and getOutputs should be taken from GetInputsInfo / GetOutputsInfo
+            //    not from ngraph. Plugins should use SetExeNetworkInfo
+        }
+
         return {{exec._so}, exec._ptr};
     }
 
@@ -1384,50 +1432,6 @@ ExecutableNetwork Core::import_model(std::istream& modelStream,
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->ImportNetwork(modelStream, deviceName, config);
-
-        // create getInputs() based on GetInputsInfo()
-        using namespace InferenceEngine::details;
-
-        if (exec->getInputs().empty()) {
-            const auto& inputsInfo = exec->GetInputsInfo();
-            OPENVINO_ASSERT(!inputsInfo.empty(), "inputsInfo is empty after network import");
-
-            std::vector<std::shared_ptr<const ov::Node>> params;
-            params.reserve(inputsInfo.size());
-            for (auto&& input : inputsInfo) {
-                auto param =
-                    std::make_shared<ov::op::v0::Parameter>(convertPrecision(input.second->getPrecision()),
-                                                            ov::PartialShape(input.second->getTensorDesc().getDims()));
-                param->get_output_tensor(0).add_names({input.first});
-                params.emplace_back(std::move(param));
-            }
-
-            exec->setInputs(params);
-        }
-
-        if (exec->getOutputs().empty()) {
-            const auto& outputsInfo = exec->GetOutputsInfo();
-            OPENVINO_ASSERT(!outputsInfo.empty(), "outputsInfo is empty after network import");
-
-            std::vector<std::shared_ptr<const ov::Node>> results;
-            results.reserve(outputsInfo.size());
-            for (auto&& output : outputsInfo) {
-                auto fake_param =
-                    std::make_shared<ov::op::v0::Parameter>(convertPrecision(output.second->getPrecision()),
-                                                            ov::PartialShape(output.second->getTensorDesc().getDims()));
-                auto result = std::make_shared<ov::op::v0::Result>(fake_param);
-                result->get_output_tensor(0).add_names({output.first});
-                results.emplace_back(std::move(result));
-            }
-            exec->setOutputs(results);
-        }
-
-        // but for true support plugins need:
-        // 1. ensure order or parameters and results as in ov::Function
-        // 2. provide tensor names for inputs and outputs
-        // 3. precisions for getInputs and getOutputs should be taken from GetInputsInfo / GetOutputsInfo
-        //    not from ngraph. Plugins should use SetExeNetworkInfo
-
         return {exec._so, exec._ptr};
     });
 }
