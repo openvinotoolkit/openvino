@@ -10,7 +10,13 @@
 
 *RNNCell* represents a single RNN cell and is part of [RNNSequence](RNNSequence_5.md) operation.
 
-Ho = f(clip(X*(W^T) + H*(R^T) + B)) is a formula for the operation, where * is matrix multiplication, ^T is a matrix transpose operation and explanations for X, H, W, B, Ho, clip, and f are given in Attributes and Inputs sections.
+```
+Formula:
+  *  - matrix multiplication
+  ^T - matrix transpose
+  f  - activation function
+    Ht = f(Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi)
+```
 
 **Attributes**
 
