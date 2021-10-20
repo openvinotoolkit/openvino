@@ -25,6 +25,10 @@
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+using namespace mkldnn::impl::utils;
+using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl::cpu::x64;
+using namespace Xbyak;
 
 MKLDNNSnippetNode::MKLDNNSnippetNode(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache) {
@@ -81,20 +85,7 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
         return false;
     };
 
-    Precision prec = Precision::FP32;
-
-    NodeConfig config;
-    outputShapes[0].getStaticDims();
-    config.dynBatchSupport = outputShapes[0].getRank() > 1 && inputShapes[0] == outputShapes[0];
-    config.inConfs.resize(inputShapes.size());
-    for (auto k = 0; k < inputShapes.size(); k++) {
-        config.inConfs[k].inPlace = (!k && canBeInPlace() && inputPrecisions[k] == Precision(Precision::FP32)) ? 0 : -1;
-        config.inConfs[k].constant = false;
-    }
-    PortConfig outDataConfig;
-    outDataConfig.inPlace = -1;
-    outDataConfig.constant = false;
-    config.outConfs.resize(outputShapes.size(), outDataConfig);
+    Precision supportedPrecision = Precision::FP32;
 
     bool dimRanksAreEqual = true;
     for (size_t i = 0; dimRanksAreEqual && i < inputShapes.size(); i++) {
@@ -107,29 +98,94 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
     const size_t ndims = outputShapes[0].getRank();
     const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1, 2, 4, 5) && dimRanksAreEqual;
     const bool isBlockedApplicable = dnnl::impl::utils::one_of(ndims,  4, 5) && dimRanksAreEqual && !hasBroadcastByC();
+    enum LayoutType {
+        Planar,
+        ChannelsFirst,
+        Blocked
+    };
+    auto initDesc = [&] (LayoutType lt) -> NodeDesc {
+        auto createMemoryDesc = [lt](const Shape &shape, Precision prc, size_t offset) -> std::shared_ptr<CpuBlockedMemoryDesc> {
+            const auto &dims = shape.getDims();
+            if (lt == ChannelsFirst && shape.getRank() != 1) {
+                auto ndims = shape.getRank();
+                VectorDims order(ndims);
+                std::iota(order.begin(), order.end(), 0);
+                if (ndims > 1) {
+                    order.erase(order.begin() + 1);
+                    order.push_back(1);
+                }
 
-    std::vector<LayoutType> tdCreatorTypes;
-    if (isChannelsFirstApplicable) {
-        tdCreatorTypes.push_back(LayoutType::nspc);
-    }
-    if (isBlockedApplicable) {
-        if (host_isa == dnnl::impl::cpu::x64::avx512_common)
-            tdCreatorTypes.push_back(LayoutType::nCsp16c);
-        else if (host_isa == dnnl::impl::cpu::x64::avx2)
-            tdCreatorTypes.push_back(LayoutType::nCsp8c);
-    }
-    tdCreatorTypes.push_back(LayoutType::ncsp);
+                VectorDims blocks(ndims);
+                for (size_t i = 0; i < order.size(); i++) {
+                    blocks[i] = dims[order[i]];
+                }
 
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    for (auto type : tdCreatorTypes) {
-        for (auto k = 0; k < inputShapes.size(); k++)
-            config.inConfs[k].desc = creatorsMap.at(type)->createSharedDesc(prec, inputShapes[k]);
+                return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
+                // TODO: need investigate
+                // bad accuracy for shape {1, 1, 4, 11}, {2, 5, 1, 1}
+                // same for disabled collapse dims
+            } else if (lt == Blocked && shape.getRank() != 1 && (shape.getMinDims()[1] != Shape::UNDEFINED_DIM && shape.getMinDims()[1] > 1)) {
+                size_t blockSize = mayiuse(dnnl::impl::cpu::x64::avx512_common) ? 16 : 8;
 
-        for (auto k = 0; k < outputShapes.size(); k++)
-            config.outConfs[k].desc = creatorsMap.at(type)->createSharedDesc(prec, outputShapes[k]);
+                VectorDims blocks = dims;
+                VectorDims order(blocks.size());
+                std::iota(order.begin(), order.end(), 0);
 
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
-    }
+                blocks[1] = dims[1] != Shape::UNDEFINED_DIM ? div_up(blocks[1], blockSize) : Shape::UNDEFINED_DIM;
+                blocks.push_back(blockSize);
+                order.push_back(1);
+
+                return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
+            } else {
+                VectorDims blocks = dims;
+                VectorDims order(blocks.size());
+                std::iota(order.begin(), order.end(), 0);
+
+                return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
+            }
+        };
+
+        // Todo: inhereted from eltwise node. Why offset is max for non-dynamic nodes?
+        //  size_t offset = isDynamicNode() ? 0 : std::numeric_limits<size_t>::max();
+        size_t offset = std::numeric_limits<size_t>::max();
+        NodeConfig config;
+        config.dynBatchSupport = outputShapes[0].getRank() > 1 && inputShapes[0] == outputShapes[0];
+//        config.inConfs.resize(getParentEdges().size());
+//        for (size_t i = 0; i < getParentEdges().size(); i++) {
+        config.inConfs.resize(inputShapes.size());
+        for (size_t i = 0; i < inputShapes.size(); i++) {
+            PortConfig portConfig;
+            portConfig.inPlace = (!i && canBeInPlace() && inputPrecisions[i] == supportedPrecision) ? 0 : -1;
+            portConfig.constant = false;
+            portConfig.desc = createMemoryDesc(inputShapes[i], supportedPrecision, offset);
+            config.inConfs[i] = portConfig;
+        }
+        config.outConfs.resize(outputShapes.size());
+        for (size_t i = 0; i < outputShapes.size(); i++) {
+            PortConfig portConfig;
+            portConfig.inPlace = -1;
+            portConfig.constant = false;
+            portConfig.desc = createMemoryDesc(outputShapes[i], supportedPrecision, offset);
+            config.outConfs[i] = portConfig;
+        }
+
+        impl_desc_type impl_type;
+        if (mayiuse(x64::avx512_common)) {
+            impl_type = impl_desc_type::jit_avx512;
+        } else if (mayiuse(x64::avx2)) {
+            impl_type = impl_desc_type::jit_avx2;
+        } else {
+            // Should never hit here: currently only avx512 and avx2 are supported
+            impl_type = impl_desc_type::unknown;
+        }
+        return {config, impl_type};
+    };
+
+    if (isChannelsFirstApplicable)
+        supportedPrimitiveDescriptors.emplace_back(initDesc(ChannelsFirst));
+    if (isBlockedApplicable)
+        supportedPrimitiveDescriptors.emplace_back(initDesc(Blocked));
+    supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
 }
 
 void MKLDNNSnippetNode::selectOptimalPrimitiveDescriptor() {
@@ -147,6 +203,26 @@ void MKLDNNSnippetNode::createPrimitive() {
     // or generate schedule for a kernel..
     // Here kernel is generated for most warying dimension by default.
     generate();
+}
+
+void MKLDNNSnippetNode::initOptimalPrimitiveDescriptor() {
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        IE_THROW() << "Preferable primitive descriptor is not set.";
+    auto config = selected_pd->getConfig();
+    if (!isConfigDefined(config)) {
+        for (size_t i = 0; i < config.inConfs.size(); i++) {
+            config.inConfs[i].desc = getDefinedInputDesc(config, i);
+        }
+
+        for (size_t i = 0; i < config.outConfs.size(); i++) {
+            config.outConfs[i].desc = getDefinedOutputDesc(config, i);
+        }
+
+        initDescriptor(config);
+    } else {
+        initDescriptor(config);
+    }
 }
 
 void MKLDNNSnippetNode::execute(dnnl::stream strm) {
