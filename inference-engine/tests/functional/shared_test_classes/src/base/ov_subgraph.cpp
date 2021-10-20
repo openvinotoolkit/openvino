@@ -138,7 +138,13 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
     const auto& params = function->get_parameters();
     for (int i = 0; i < params.size(); ++i) {
         const auto& param = params[i];
-        ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(), targetInputStaticShapes[i]);
+        ov::runtime::Tensor tensor;
+        if (param->get_element_type().is_real()) {
+            tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(), targetInputStaticShapes[i],
+                                                             10, 0, 1000);
+        } else {
+            tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(), targetInputStaticShapes[i]);
+        }
         inputs.insert({param->get_friendly_name(), tensor});
     }
 }
