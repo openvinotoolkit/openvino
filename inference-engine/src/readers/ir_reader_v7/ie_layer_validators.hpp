@@ -514,10 +514,6 @@ public:
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
-extern template class RNNCellValidator<RNNSequenceLayer::LSTM>;
-extern template class RNNCellValidator<RNNSequenceLayer::GRU>;
-extern template class RNNCellValidator<RNNSequenceLayer::RNN>;
-
 template <RNNSequenceLayer::CellType CELL>
 class RNNSequenceValidator : public RNNBaseValidator {
 public:
@@ -527,10 +523,6 @@ public:
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
-
-extern template class RNNSequenceValidator<RNNSequenceLayer::LSTM>;
-extern template class RNNSequenceValidator<RNNSequenceLayer::GRU>;
-extern template class RNNSequenceValidator<RNNSequenceLayer::RNN>;
 
 class ArgMaxValidator : public LayerValidator {
 public:
