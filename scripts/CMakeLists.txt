@@ -19,6 +19,7 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
                            "${OpenVINO_SOURCE_DIR}/scripts/install_dependencies/install_NEO_OCL_driver.sh"
                            "${OpenVINO_SOURCE_DIR}/scripts/install_dependencies/install_openvino_dependencies.sh"
                            "${OpenVINO_SOURCE_DIR}/runtime/bindings/python/tests/test_onnx/model_zoo_preprocess.sh"
+                           "${OpenVINO_SOURCE_DIR}/runtime/bindings/python/tests_compatibility/test_onnx/model_zoo_preprocess.sh"
                            )
 
 #

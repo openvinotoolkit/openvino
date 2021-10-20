@@ -7,7 +7,6 @@
 void ov::frontend::tf::SetTracingInfo(const std::string& op_name, const ov::Output<ov::Node>& ng_node) {
     auto node = ng_node.get_node_shared_ptr();
     node->set_friendly_name(op_name);
-    node->add_provenance_tag(op_name);
 }
 
 void ov::frontend::tf::TFTensorShapeToNGraphShape(const tensorflow::TensorShapeProto& tf_shape,

@@ -347,6 +347,7 @@ protected:
 
 
 TEST_P(InferRequestIOBBlobSetPrecisionTest, CanSetInBlobWithDifferentPrecision) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -362,6 +363,7 @@ TEST_P(InferRequestIOBBlobSetPrecisionTest, CanSetInBlobWithDifferentPrecision) 
 }
 
 TEST_P(InferRequestIOBBlobSetPrecisionTest, CanSetOutBlobWithDifferentPrecision) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
