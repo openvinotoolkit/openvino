@@ -35,7 +35,7 @@ using namespace InferenceEngine::details;
 InferenceEngine::IInferRequestInternal::Ptr
 MKLDNNExecNetwork::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                           const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    if (!this->_plugin->GetCore() || !this->_plugin->GetCore()->isNewAPI())
+    if (!this->_plugin || !this->_plugin->GetCore() || !this->_plugin->GetCore()->isNewAPI())
         return nullptr;
     return std::make_shared<MKLDNNInferRequest>(inputs, outputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
 }

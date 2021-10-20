@@ -421,7 +421,7 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
 
 IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {
     IInferRequestInternal::Ptr syncRequestImpl;
-    if (this->_plugin->GetCore() && GetCore()->isNewAPI())
+    if (this->_plugin && this->_plugin->GetCore() && GetCore()->isNewAPI())
         syncRequestImpl = CreateInferRequestImpl(_parameters, _results);
 
     if (!syncRequestImpl)

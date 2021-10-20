@@ -111,7 +111,7 @@ IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequest() {
         }
     }
 
-    if (this->_plugin->GetCore() && this->_plugin->GetCore()->isNewAPI())
+    if (this->_plugin && this->_plugin->GetCore() && this->_plugin->GetCore()->isNewAPI())
         internalRequest = CreateInferRequestImpl(_parameters, _results);
     if (!internalRequest)
         internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);

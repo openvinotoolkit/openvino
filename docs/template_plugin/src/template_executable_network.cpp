@@ -164,7 +164,7 @@ InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::C
 // ! [executable_network:create_infer_request]
 InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
     InferenceEngine::IInferRequestInternal::Ptr internalRequest;
-    if (this->_plugin->GetCore() && this->_plugin->GetCore()->isNewAPI())
+    if (this->_plugin && this->_plugin->GetCore() && this->_plugin->GetCore()->isNewAPI())
         internalRequest = CreateInferRequestImpl(_parameters, _results);
     if (!internalRequest)
         internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
