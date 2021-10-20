@@ -89,7 +89,6 @@ set(SRC
     pass/serialization/serialize.cpp
     pattern.cpp
     preprocess.cpp
-    provenance.cpp
     replace_node.cpp
     reshape_opt_kernel.cpp
     shape.cpp
@@ -102,6 +101,7 @@ set(SRC
     type_prop/acos.cpp
     type_prop/adaptive_avg_pool.cpp
     type_prop/adaptive_max_pool.cpp
+    type_prop/add.cpp
     type_prop/asin.cpp
     type_prop/asinh.cpp
     type_prop/assign.cpp
@@ -286,6 +286,7 @@ set(SRC
     visitors/op/deformable_psroi_pooling.cpp
     visitors/op/depth_to_space.cpp
     visitors/op/detection_output.cpp
+    visitors/op/divide.cpp
     visitors/op/einsum.cpp
     visitors/op/elu.cpp
     visitors/op/equal.cpp
@@ -452,7 +453,6 @@ set(MULTI_TEST_SRC
     backend/abs.in.cpp
     backend/adaptive_avg_pool.in.cpp
     backend/adaptive_max_pool.in.cpp
-    backend/add.in.cpp
     backend/aliased_output.in.cpp
     backend/api.in.cpp
     backend/auto_broadcast.in.cpp
@@ -469,9 +469,6 @@ set(MULTI_TEST_SRC
     backend/deformable_psroi_pooling.in.cpp
     backend/detection_output.in.cpp
     backend/dft.in.cpp
-    backend/divide.in.cpp
-    backend/deformable_convolution.in.cpp
-    backend/deformable_convolution_opset8.in.cpp
     backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
     backend/experimental_detectron_generate_proposals.in.cpp
@@ -482,26 +479,20 @@ set(MULTI_TEST_SRC
     backend/experimental_detectron_prior_grid.in.cpp
     backend/fake_quantize.in.cpp
     backend/floor.in.cpp
-    backend/floor_mod.in.cpp
     backend/function_name.in.cpp
     backend/gather.in.cpp
     backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
-    backend/group_convolution.in.cpp
-    backend/group_convolution_backprop_data.in.cpp
     backend/idft.in.cpp
     backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
     backend/matrix_nms.in.cpp
-    backend/maximum.in.cpp
     backend/max_pool.in.cpp
-    backend/mod.in.cpp
     backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
-    backend/multiply.in.cpp
     backend/negative.in.cpp
     backend/node_name.in.cpp
     backend/normalize_l2.in.cpp
@@ -509,7 +500,6 @@ set(MULTI_TEST_SRC
     backend/one_hot.in.cpp
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
-    backend/power.in.cpp
     backend/prior_box_clustered.in.cpp
     backend/prior_box.in.cpp
     backend/proposal.in.cpp
@@ -530,9 +520,7 @@ set(MULTI_TEST_SRC
     backend/space_to_batch.in.cpp
     backend/split.in.cpp
     backend/sqrt.in.cpp
-    backend/squared_difference.in.cpp
     backend/squeeze.in.cpp
-    backend/subtract.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp
     backend/transpose.in.cpp
@@ -554,7 +542,6 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
             onnx/onnx_import_dyn_shapes.in.cpp
             onnx/onnx_import_external_data.in.cpp
             onnx/onnx_import_org_openvino.in.cpp
-            onnx/onnx_import_provenance.in.cpp
             onnx/onnx_import_reshape.in.cpp
             onnx/onnx_import_rnn.in.cpp
             onnx/onnx_import_quant.in.cpp)

@@ -7,13 +7,15 @@ import pytest
 
 from tests.test_onnx.utils import run_node
 
+from tests import xfail_issue_67415
+
 
 @pytest.mark.parametrize(
     "onnx_op, numpy_func, data_type",
     [
-        pytest.param("And", np.logical_and, np.bool),
-        pytest.param("Or", np.logical_or, np.bool),
-        pytest.param("Xor", np.logical_xor, np.bool),
+        pytest.param("And", np.logical_and, np.bool, marks=xfail_issue_67415),
+        pytest.param("Or", np.logical_or, np.bool, marks=xfail_issue_67415),
+        pytest.param("Xor", np.logical_xor, np.bool, marks=xfail_issue_67415),
         pytest.param("Equal", np.equal, np.int32),
         pytest.param("Greater", np.greater, np.int32),
         pytest.param("Less", np.less, np.int32),
@@ -35,6 +37,7 @@ def test_logical(onnx_op, numpy_func, data_type):
     assert np.array_equal(ng_results, [expected_output])
 
 
+@xfail_issue_67415
 def test_logical_not():
     input_data = np.array([[False, True, True], [False, True, False], [False, False, True]])
     expected_output = np.logical_not(input_data)
