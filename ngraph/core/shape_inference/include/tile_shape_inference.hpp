@@ -8,12 +8,12 @@ namespace ov {
 namespace op {
 namespace v0 {
 template <class T>
-void inline set_dynamic_shape(T& shape){
-    shape = T{};
+void inline default_work(Tile* op, T& shape){
+    NODE_VALIDATION_CHECK(op, false, "[Tile]Can not infer shape based on input shape");
 }
 
 template<>
-void inline set_dynamic_shape(PartialShape& shape){
+void inline default_work(Tile* op, PartialShape& shape){
     shape = PartialShape::dynamic();
 }
 
@@ -41,7 +41,7 @@ void shape_infer(Tile* op, const std::vector<T>& input_shapes, std::vector<T>& o
             output_shape[i] = data_shape[i] * repeats_value[i];
 
     } else {
-        set_dynamic_shape(output_shape);
+        default_work(op, output_shape);
     }
 }
 }  // namespace v0
