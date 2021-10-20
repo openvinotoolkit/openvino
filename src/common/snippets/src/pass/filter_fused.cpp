@@ -15,21 +15,16 @@ namespace snippets {
 namespace pass {
 
 namespace {
-bool hasFusedParent(std::shared_ptr<Node> node, SnippetsNodeType& FusedChainType) {
-    // todo: what if a node has > 1 parents with different fusing types?
-    const std::vector<SnippetsNodeType> supportedFusingTypes = {SnippetsNodeType::FusedWithConvolution,
-                                                                SnippetsNodeType::FusedWithConvolutionSumActivation,
-                                                                SnippetsNodeType::FusedWithMisc};
+std::vector<SnippetsNodeType> getContinuableChains(std::shared_ptr<Node> node) {
+    std::vector<SnippetsNodeType> result;
     for (const auto& input : node->inputs()) {
         const auto parent = input.get_source_output().get_node_shared_ptr();
-        for (auto s : supportedFusingTypes) {
-            if (GetSnippetsNodeType(parent) == s) {
-                FusedChainType = s;
-                return true;
-            }
+        const auto snt = GetSnippetsNodeType(parent);
+        if (snt > SnippetsNodeType::FusedTerminator) {
+            result.push_back(snt);
         }
     }
-    return false;
+    return result;
 }
 bool hasIgnoredParent(std::shared_ptr<Node> node) {
     for (const auto& input : node->inputs()) {
@@ -51,9 +46,9 @@ bool hasParentInStartedSubgraph(std::shared_ptr<Node> node) {
     auto inputs = node->inputs();
     for (const auto& input : inputs) {
         const auto parent = input.get_source_output().get_node_shared_ptr();
-        if ((GetSnippetsNodeType(parent) == SnippetsNodeType::SubgraphStart) ||
-            (GetSnippetsNodeType(parent) == SnippetsNodeType::SubgraphBody))
-                return true;
+        // True for SubgraphStart and SubgraphBody by convention
+        if (GetSnippetsNodeType(parent) < SnippetsNodeType::NotSet)
+            return true;
     }
     return false;
 }
@@ -187,8 +182,8 @@ SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node> node) {
     const int64_t type_val = ov::as_type_ptr<ngraph::VariantWrapper<int64_t>>(rinfo->second)->get();
     // Todo: Remove the check from DEBUG also as soon as the PR is merged
     #ifdef DEBUG
-    const int64_t lower_bound = static_cast<int64_t>(SnippetsNodeType::FusedWithConvolution);
-    const int64_t upper_bound = static_cast<int64_t>(SnippetsNodeType::SubgraphBody);
+    const int64_t lower_bound = static_cast<int64_t>(SnippetsNodeType::SubgraphStart);
+    const int64_t upper_bound = static_cast<int64_t>(SnippetsNodeType::FusedWithMisc);
     if ((type_val < lower_bound) || (type_val > upper_bound))
         throw ngraph_error("Invalid value of SnippetsNodeType is detected.");
     #endif
@@ -236,8 +231,7 @@ bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
             SetSnippetsNodeType(node, SnippetsNodeType::FusedWithMisc);
             continue;
         }
-        SnippetsNodeType fusingChainType{SnippetsNodeType::NotSet};
-        if (hasFusedParent(node, fusingChainType)) {
+        for (const auto fusingChainType : getContinuableChains(node)) {
             if (isSuitableChildForFusingSimple(node)) {
                 PropagateIfHasOnlyChild(node, fusingChainType);
             } else if (fusingChainType == SnippetsNodeType::FusedWithConvolution) {
@@ -260,10 +254,7 @@ bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
                 SetSnippetsNodeType(node, SnippetsNodeType::Ignored);
                 continue;
             }
-            if (GetSnippetsNodeType(node) == SnippetsNodeType::FusedWithMisc ||
-                GetSnippetsNodeType(node) == SnippetsNodeType::FusedWithConvolution ||
-                GetSnippetsNodeType(node) == SnippetsNodeType::FusedWithConvolutionSumActivation ||
-                GetSnippetsNodeType(node) == SnippetsNodeType::FusedTerminator)
+            if (GetSnippetsNodeType(node) >= SnippetsNodeType::FusedTerminator)
                 continue;
             if (hasParentInStartedSubgraph(node)) {
                 SetSnippetsNodeType(node, SnippetsNodeType::SubgraphBody);

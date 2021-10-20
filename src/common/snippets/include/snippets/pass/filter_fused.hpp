@@ -27,9 +27,15 @@ public:
  FusedWithConvolution, FusedWithConvolutionSumActivation, FusedWithMisc - fusing chain is active and may be continued
  FusedTerminator - the node is fused, but the chain must be interrupted
  Ignored - must be skipped, since can't be handled properly at this time
+ Order of SnippetsNodeType is important!:
+    * SnippetsNodeType < NotSet is a part of subgraph
+    * SnippetsNodeType >= FusedTerminator is a Fused chain
+    * SnippetsNodeType > FusedTerminator is a Fused chain that may be continued
  */
-enum class SnippetsNodeType : int64_t {NotSet = 0, FusedWithConvolution, FusedWithConvolutionSumActivation,
-                                        FusedWithMisc, FusedTerminator, Ignored, SubgraphStart, SubgraphBody};
+enum class SnippetsNodeType : int64_t {SubgraphStart, SubgraphBody,
+                                        NotSet, Ignored,
+                                        FusedTerminator,
+                                        FusedWithConvolution, FusedWithConvolutionSumActivation, FusedWithMisc};
 void SetSnippetsNodeType(std::shared_ptr<Node> node, SnippetsNodeType);
 SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node> node);
 
