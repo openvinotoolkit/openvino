@@ -179,6 +179,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     auto next_output_layout = next.get_output_layout();
     auto prev_dt = prev.get_output_layout().data_type;
     auto next_dt = next.get_output_layout().data_type;
+    auto use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
     auto is_input_idx = [&](size_t idx) -> bool {
         if (&next.get_dependency(idx) == &prev)
@@ -224,7 +225,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
     // Additional check: fmt_prev == fmt_next is added only when onednn is enabled.
     if (next.is_type<convolution>() &&
-        (!get_optimization_attributes().use_onednn_impls || fmt_prev == fmt_next) &&
+        (!use_onednn_impls || fmt_prev == fmt_next) &&
         (fmt_prev == format::bfyx || fmt_prev == format::bs_fs_yx_bsv4_fsv2) &&
         ((fmt_next == format::fs_b_yx_fsv32 && next.as<convolution>().get_primitive()->groups == 1) ||
         (fmt_next == format::b_fs_yx_fsv32 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
@@ -269,7 +270,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             next_output_layout.size.feature[0] >= 16 && prev_output_layout.size.feature[0] == 3))
         return true;
 
-    if (_optimization_attributes.use_onednn_impls) {
+    if (use_onednn_impls) {
         if (next.is_type<eltwise>() && (fmt_prev == format::bfyx) && (fmt_next == format::bs_fs_yx_bsv4_fsv2) &&
             prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
             return true;
@@ -313,6 +314,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node& next, format fmt_prev, format fmt_next) {
     auto dt_prev = prev.get_output_layout().data_type;
     auto dt_next = next.get_output_layout().data_type;
+    auto use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
     if (prev.is_type<reorder>())
         return true;
@@ -327,7 +329,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
         return true;
 
     if (prev.is_type<quantize>() &&
-        (fmt_next == format::b_fs_yx_fsv4 || fmt_next == format::b_fs_yx_fsv32 || fmt_next == format::b_fs_zyx_fsv32 ||
+        (fmt_next == format::b_fs_yx_fsv4 || fmt_next == format::b_fs_zyx_fsv32 || (fmt_next == format::b_fs_yx_fsv32 && !use_onednn_impls) ||
          fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16))
         return true;
 
@@ -354,7 +356,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
         return true;
     }
 
-    if (_optimization_attributes.use_onednn_impls) {
+    if (use_onednn_impls) {
         if (prev.is_type<convolution>() && fmt_next == format::bs_fs_yx_bsv32_fsv16 && fmt_prev == format::bs_fs_yx_bsv4_fsv2)
             return true;
     }
