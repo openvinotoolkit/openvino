@@ -51,6 +51,7 @@ static string describe(shared_ptr<Node> node) {
 static shared_ptr<Transpose> make_transpose(const Output<Node>& arg, const AxisVector& input_order) {
     auto order = std::make_shared<Constant>(element::u64, Shape{input_order.size()}, input_order);
     auto transpose = make_shared<Transpose>(arg, order);
+    transpose->set_friendly_name("sinked_transpose");
     NGRAPH_VLOG() << "Make Transpose " << describe<Transpose>(transpose);
     return transpose;
 }
