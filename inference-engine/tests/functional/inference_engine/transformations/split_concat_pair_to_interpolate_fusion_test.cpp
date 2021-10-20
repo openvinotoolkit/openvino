@@ -20,13 +20,14 @@
 using namespace testing;
 
 TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D1) {
-    size_t num_splits = 3;
+    ngraph::Shape input_shape { 1, 100, 120, 150 };
+    int64_t axis = 3;
+    size_t num_splits = input_shape[axis];
     size_t scale_factor = 2;
     size_t num_of_concat_inputs = num_splits * scale_factor;
-    int64_t axis = 3;
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 100, 120, 150 });
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
         auto split_axis = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, { axis });
         auto split = std::make_shared<ngraph::opset8::Split>(input, split_axis, num_splits);
 
@@ -59,7 +60,7 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D1) {
         attrs.coordinate_transformation_mode = ngraph::opset8::Interpolate::CoordinateTransformMode::HALF_PIXEL;
         attrs.cube_coeff = -0.75f;
 
-        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 100, 120, 150 });
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
         auto scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, {1}, std::vector<float>{static_cast<float>(scale_factor)});
         auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{axis});
         auto shape_node = std::make_shared<ngraph::opset8::ShapeOf>(input);
@@ -84,13 +85,14 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D1) {
 }
 
 TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D2) {
-    size_t num_splits = 3;
+    ngraph::Shape input_shape { 1, 100, 120, 150 };
+    int64_t axis = 2;
+    size_t num_splits = input_shape[axis];
     size_t scale_factor = 2;
     size_t num_of_concat_inputs = num_splits * scale_factor;
-    int64_t axis = 2;
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 100, 120, 150 });
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
         auto split_axis = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, { axis });
         auto split = std::make_shared<ngraph::opset8::Split>(input, split_axis, num_splits);
 
@@ -123,7 +125,7 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D2) {
         attrs.coordinate_transformation_mode = ngraph::opset8::Interpolate::CoordinateTransformMode::HALF_PIXEL;
         attrs.cube_coeff = -0.75f;
 
-        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 100, 120, 150 });
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
         auto scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, {1}, std::vector<float>{static_cast<float>(scale_factor)});
         auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{axis});
         auto shape_node = std::make_shared<ngraph::opset8::ShapeOf>(input);
@@ -148,13 +150,14 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D2) {
 }
 
 TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial3D1) {
-    size_t num_splits = 3;
+    ngraph::Shape input_shape { 1, 3, 100, 120, 150 };
+    int64_t axis = 4;
+    size_t num_splits = input_shape[axis];
     size_t scale_factor = 2;
     size_t num_of_concat_inputs = num_splits * scale_factor;
-    int64_t axis = 4;
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 100, 120, 150 });
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
         auto split_axis = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, { axis });
         auto split = std::make_shared<ngraph::opset8::Split>(input, split_axis, num_splits);
 
@@ -187,7 +190,7 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial3D1) {
         attrs.coordinate_transformation_mode = ngraph::opset8::Interpolate::CoordinateTransformMode::HALF_PIXEL;
         attrs.cube_coeff = -0.75f;
 
-        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 100, 120, 150 });
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
         auto scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, {1}, std::vector<float>{static_cast<float>(scale_factor)});
         auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{axis});
         auto shape_node = std::make_shared<ngraph::opset8::ShapeOf>(input);
@@ -212,13 +215,14 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial3D1) {
 }
 
 TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial3D2) {
-    size_t num_splits = 3;
+    ngraph::Shape input_shape { 1, 3, 100, 120, 150 };
+    int64_t axis = 3;
+    size_t num_splits = input_shape[axis];
     size_t scale_factor = 2;
     size_t num_of_concat_inputs = num_splits * scale_factor;
-    int64_t axis = 3;
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 100, 120, 150 });
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
         auto split_axis = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, { axis });
         auto split = std::make_shared<ngraph::opset8::Split>(input, split_axis, num_splits);
 
@@ -323,11 +327,11 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionTwoSplitsOneConcat) 
 }
 
 TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D1WithConstantFolding) {
-    size_t num_splits = 3;
+    ngraph::Shape input_shape { 1, 100, 120, 150 };
+    int64_t axis = 3;
+    size_t num_splits = input_shape[axis];
     size_t scale_factor = 2;
     size_t num_of_concat_inputs = num_splits * scale_factor;
-    int64_t axis = 3;
-    ngraph::Shape input_shape { 1, 100, 120, 150 };
     int64_t target_size = static_cast<int64_t>(input_shape[axis]) * scale_factor;
 
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
@@ -379,11 +383,11 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D1WithConsta
 }
 
 TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D2WithConstantFolding) {
-    size_t num_splits = 3;
+    ngraph::Shape input_shape { 1, 100, 120, 150 };
+    int64_t axis = 2;
+    size_t num_splits = input_shape[axis];
     size_t scale_factor = 2;
     size_t num_of_concat_inputs = num_splits * scale_factor;
-    int64_t axis = 2;
-    ngraph::Shape input_shape { 1, 100, 120, 150 };
     int64_t target_size = static_cast<int64_t>(input_shape[axis]) * scale_factor;
 
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
@@ -435,11 +439,11 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial2D2WithConsta
 }
 
 TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial3D1WithConstantFolding) {
-    size_t num_splits = 3;
+    ngraph::Shape input_shape { 1, 3, 100, 120, 150 };
+    int64_t axis = 4;
+    size_t num_splits = input_shape[axis];
     size_t scale_factor = 2;
     size_t num_of_concat_inputs = num_splits * scale_factor;
-    int64_t axis = 4;
-    ngraph::Shape input_shape { 1, 3, 100, 120, 150 };
     int64_t target_size = static_cast<int64_t>(input_shape[axis]) * scale_factor;
 
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
@@ -491,11 +495,11 @@ TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial3D1WithConsta
 }
 
 TEST(TransformationTests, SplitConcatPairToInterpolateFusionSpatial3D2WithConstantFolding) {
-    size_t num_splits = 3;
+    ngraph::Shape input_shape { 1, 3, 100, 120, 150 };
+    int64_t axis = 3;
+    size_t num_splits = input_shape[axis];
     size_t scale_factor = 2;
     size_t num_of_concat_inputs = num_splits * scale_factor;
-    int64_t axis = 3;
-    ngraph::Shape input_shape { 1, 3, 100, 120, 150 };
     int64_t target_size = static_cast<int64_t>(input_shape[axis]) * scale_factor;
 
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);

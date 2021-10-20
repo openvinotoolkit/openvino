@@ -108,7 +108,8 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
     //     5) split_dim of 'split' is equal to axis of 'concat';
     //     6) output port 0 of 'split' goes to ports [0, ..., m-1] of next node, output port 1 of 'split' goes to ports
     //        [m, ..., m + (m-1)] of next node, ..., output port i of 'split' goes to ports [i * m, ..., i * m + (m - 1)],
-    //        and so on.
+    //        and so on;
+    //     7) number of outputs of 'split' is equal to the length of the split axis.
     // Such subgraph
     //     Split -> Concat
     // can be replaced with the Interpolate layer with the following attributes:
@@ -149,6 +150,8 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
         if (!split_axis_const) return false;
 
         int64_t axis = split_axis_const->cast_vector<int64_t>()[0];
+
+        if (split->get_input_partial_shape(0).is_static() && split->get_input_shape(0)[axis] != split->outputs().size()) return false;
 
         opset8::Interpolate::InterpolateAttrs attrs;
 
