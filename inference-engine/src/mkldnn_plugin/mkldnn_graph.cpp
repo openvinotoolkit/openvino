@@ -845,6 +845,8 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
         ExecuteNode(node, stream);
     }
 
+    std::cout << "========================================================" << std::endl;
+
     if (infer_count != -1) infer_count++;
 }
 

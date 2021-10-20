@@ -431,10 +431,10 @@ int main(int argc, char* argv[]) {
                                                             inputInfo,
                                                             reshape);
             if (reshape) {
-                InferenceEngine::ICNNNetwork::InputShapes shapes = {};
+                std::map<std::string, ov::PartialShape> shapes;
                 for (auto& item : app_inputs_info)
-                    shapes[item.first] = item.second.shape;
-                slog::info << "Reshaping network: " << getShapesString(shapes) << slog::endl;
+                    shapes[item.first] = {1, -1};
+                slog::info << "Reshaping network: " << "getShapesString(shapes)" << slog::endl;
                 startTime = Time::now();
                 cnnNetwork.reshape(shapes);
                 duration_ms = double_to_string(get_total_ms_time(startTime));
@@ -646,23 +646,24 @@ int main(int argc, char* argv[]) {
         }
         next_step(ss.str());
 
+
         // warming up - out of scope
-        auto inferRequest = inferRequestsQueue.getIdleRequest();
-        if (!inferRequest) {
-            IE_THROW() << "No idle Infer Requests!";
-        }
-        if (FLAGS_api == "sync") {
-            inferRequest->infer();
-        } else {
-            inferRequest->startAsync();
-        }
-        inferRequestsQueue.waitAll();
-        auto duration_ms = double_to_string(inferRequestsQueue.getLatencies()[0]);
-        slog::info << "First inference took " << duration_ms << " ms" << slog::endl;
-        if (statistics)
-            statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
-                                      {{"first inference time (ms)", duration_ms}});
-        inferRequestsQueue.resetTimes();
+        InferReqWrap::Ptr inferRequest; // = inferRequestsQueue.getIdleRequest();
+        // if (!inferRequest) {
+        //     IE_THROW() << "No idle Infer Requests!";
+        // }
+        // if (FLAGS_api == "sync") {
+        //     inferRequest->infer();
+        // } else {
+        //     inferRequest->startAsync();
+        // }
+        // inferRequestsQueue.waitAll();
+        // auto duration_ms = double_to_string(inferRequestsQueue.getLatencies()[0]);
+        // slog::info << "First inference took " << duration_ms << " ms" << slog::endl;
+        // if (statistics)
+        //     statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+        //                               {{"first inference time (ms)", duration_ms}});
+        // inferRequestsQueue.resetTimes();
 
         auto startTime = Time::now();
         auto execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
