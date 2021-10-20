@@ -84,15 +84,16 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
 
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::tensorflow)
 
-install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph)
+# TODO: add install commands once TensorFlow frontend is complete
+#install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
+#        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
+#        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
+#        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph)
 
-install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/tensorflow_frontend
-        DESTINATION ${FRONTEND_INSTALL_INCLUDE}
-        COMPONENT ngraph_dev
-        FILES_MATCHING PATTERN "*.hpp")
-
+#install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/tensorflow_frontend
+#        DESTINATION ${FRONTEND_INSTALL_INCLUDE}
+#        COMPONENT ngraph_dev
+#        FILES_MATCHING PATTERN "*.hpp")
+#
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
