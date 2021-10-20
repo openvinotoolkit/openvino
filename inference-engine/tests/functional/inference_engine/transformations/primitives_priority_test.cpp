@@ -16,8 +16,6 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/variant.hpp>
 #include <transformations/utils/utils.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <transformations/init_node_info.hpp>
 #include <cpp/ie_cnn_network.h>
 #include <ie_ngraph_utils.hpp>
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
@@ -40,11 +38,9 @@ TEST(TransformationTests, ConvBiasFusion) {
         add->set_friendly_name("add");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
-
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.run_passes(f);
     }
+
+    std::unordered_map<std::string, std::string> pp;
 
     InferenceEngine::CNNNetwork network(f);
 
@@ -54,7 +50,8 @@ TEST(TransformationTests, ConvBiasFusion) {
     for (auto & op : nGraph->get_ops()) {
         if (auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(op)) {
             auto & rtInfo = conv->get_rt_info();
-            rtInfo["PrimitivesPriority"] = std::make_shared<ngraph::VariantWrapper<std::string> > ("test");
+            rtInfo["PrimitivesPriority"] = std::make_shared<ngraph::VariantWrapper<std::string>>("test");
+            pp[op->get_friendly_name()] = "test";
         }
     }
 
@@ -62,9 +59,11 @@ TEST(TransformationTests, ConvBiasFusion) {
     auto funcs = clonedNetwork.getFunction();
 
     for (auto & op : funcs->get_ops()) {
-        if (op->get_friendly_name() == "add") {
-            auto pp = ov::getPrimitivesPriority(op);
-            ASSERT_EQ(pp, "test");
+        if (auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(op)) {
+            auto& nodeInfo = op->get_rt_info();
+            auto itInfo = nodeInfo.find("PrimitivesPriority");
+            ASSERT_TRUE(pp.find(op->get_friendly_name()) != pp.end());
+            ASSERT_TRUE(pp[op->get_friendly_name()] == "test");
         }
     }
 }
