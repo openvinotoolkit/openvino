@@ -303,12 +303,15 @@ void remove_redundant_reorders::run(program& p) {
             if (!lo.can_fuse_reorder_to_prev(input, *node.get_users().front(), input.get_output_layout().format, output_layout.format))
                 continue;
 
+            auto old_output_layout_of_input = input.get_output_layout();
             input.set_output_layout(output_layout, false);
             if (input.type()->does_possible_implementation_exist(input)) {
                 p.replace_all_usages(node, input);
                 p.add_optimized_primitive_info(node.id());
                 p.remove_all_connections(node);
                 p.remove_if_dangling(node);
+            } else {
+                input.set_output_layout(old_output_layout_of_input, false);
             }
         }
     }
@@ -409,6 +412,7 @@ void remove_redundant_reorders::run(program& p) {
             }
         }
 
+        auto old_output_layout_of_input = input.get_output_layout();
         auto output_layout = node->get_output_layout();
         input.set_output_layout(output_layout, false);
         if (input.type()->does_possible_implementation_exist(input)) {
@@ -428,8 +432,11 @@ void remove_redundant_reorders::run(program& p) {
             node->can_be_optimized(true);
             p.add_optimized_primitive_info(node->id());
             p.extract_and_remove(*node);
+            return true;
+        } else {
+            input.set_output_layout(old_output_layout_of_input, false);
+            return false;
         }
-        return true;
     };
 
     if (enable_reorder_fusing) {
