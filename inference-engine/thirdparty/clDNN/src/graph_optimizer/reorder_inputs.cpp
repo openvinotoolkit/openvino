@@ -516,4 +516,11 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             reorder_input_binary_convolution,
             reorder_input_deconvolution);
     }
+
+    for (auto n : p.get_processing_order()) {
+        if (n->is_in_data_flow() && fmt_map.count(n) != 0) {
+            auto preferred_impl = lo.get_preferred_impl_type(*n, fmt_map.at(n));
+            n->set_preferred_impl_type(preferred_impl);
+        }
+    }
 }
