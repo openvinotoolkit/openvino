@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "openvino/op/op.hpp"
+#include "openvino/core/node_vector.hpp"
 
 namespace ov {
 namespace op {
@@ -23,5 +24,4 @@ protected:
     explicit Sink(const OutputVector& arguments) : Op(arguments) {}
 };
 }  // namespace op
-using SinkVector = std::vector<std::shared_ptr<op::Sink>>;
 }  // namespace ov

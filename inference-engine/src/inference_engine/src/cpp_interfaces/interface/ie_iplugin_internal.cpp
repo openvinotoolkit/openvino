@@ -132,7 +132,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
 
     // if IR `version` is not set, suppose it's IR v10 for old API
     // it allows to use operation names in set_ / get_tensor instead of tensor_names
-    auto orig_function = orig_network.getFunction();
+    auto orig_function = std::const_pointer_cast<ov::Function>(orig_network.getFunction());
     std::shared_ptr<ov::Function> function;
     InferenceEngine::CNNNetwork network = orig_network;
     if (orig_function) {

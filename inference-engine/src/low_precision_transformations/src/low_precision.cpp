@@ -255,9 +255,9 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
 }
 
 bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::shared_ptr<const ngraph::Function>& function) {
-    std::set<std::shared_ptr<ngraph::Node>> handledNodes;
-    std::deque<std::shared_ptr<ngraph::Node>> nodes;
-    for (auto result : function->get_results()) {
+    std::set<std::shared_ptr<const ngraph::Node>> handledNodes;
+    std::deque<std::shared_ptr<const ngraph::Node>> nodes;
+    for (const auto& result : function->get_results()) {
         nodes.push_front(result);
     }
 
@@ -288,10 +288,10 @@ bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::s
 bool ngraph::pass::low_precision::LowPrecision::isFQLevelsPresent(
         const std::shared_ptr<const ngraph::Function>& function,
         const std::set<size_t>& levels) {
-    std::vector<std::shared_ptr<ngraph::Node>> nodes = function->get_ops();
+    std::vector<std::shared_ptr<const ngraph::Node>> nodes = function->get_ops();
     for (auto& node : nodes) {
         for (size_t i = 0; i < node->inputs().size(); ++i) {
-            const auto fakeQuantize = as_type_ptr<ngraph::opset1::FakeQuantize>(node);
+            const auto fakeQuantize = as_type_ptr<const ngraph::opset1::FakeQuantize>(node);
             if (fakeQuantize != nullptr) {
                 if (levels.count(fakeQuantize->get_levels()) == 1) {
                     return true;

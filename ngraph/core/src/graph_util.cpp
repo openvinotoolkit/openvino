@@ -32,13 +32,113 @@ using namespace std;
 using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
+namespace {
+void traverse_nodes(const ConstNodeVector& subgraph_results,
+                    const std::function<void(const std::shared_ptr<const Node>&)>& f,
+                    const ConstNodeVector& subgraph_params = {}) {
+    std::unordered_set<const Node*> instances_seen;
+    std::stack<const Node*, std::vector<const Node*>> stack;
+    for (auto& node_ptr : subgraph_params) {
+        instances_seen.insert(node_ptr.get());
+    }
+    for (auto& node_ptr : subgraph_results) {
+        stack.push(node_ptr.get());
+    }
 
-void ov::traverse_nodes(const std::shared_ptr<const Function>& p,
+    while (!stack.empty()) {
+        const Node* n = stack.top();
+        stack.pop();
+        if (instances_seen.insert(n).second) {
+            f(n->shared_from_this());
+            for (size_t i = 0; i < n->inputs().size(); i++) {
+                stack.push(n->get_input_node_ptr(i));
+            }
+
+            for (auto& cdep : n->get_control_dependencies()) {
+                stack.push(cdep.get());
+            }
+        }
+    }
+}
+
+std::vector<std::shared_ptr<ngraph::Node>> clone_nodes(const ConstNodeVector& nodes, NodeMap& node_map) {
+    // for each node in topological order
+    auto sorted_nodes = topological_sort(nodes);
+    for (const auto& const_node : sorted_nodes) {
+        auto node = std::const_pointer_cast<ov::Node>(const_node);
+        if (node_map.count(node.get()) == 0) {
+            // get (already) cloned arguments and clone the node
+            OutputVector cloned_args;
+            for (auto input : node->inputs()) {
+                Output<Node> output = input.get_source_output();
+                cloned_args.push_back(output.for_node(node_map.at(output.get_node())));
+            }
+            std::vector<std::shared_ptr<Node>> cloned_dependencies;
+            for (auto& dependency : node->get_control_dependencies()) {
+                shared_ptr<Node>& dependent = node_map.at(dependency.get());
+                if (find(cloned_dependencies.begin(), cloned_dependencies.end(), dependent) ==
+                    cloned_dependencies.end()) {
+                    cloned_dependencies.push_back(dependent);
+                }
+            }
+            auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
+            // There is a friendly name for this node so copy it
+            cloned_node->set_friendly_name(node->get_friendly_name());
+            auto rt_info = node->get_rt_info();
+            cloned_node->get_rt_info() = rt_info;
+
+            for (auto output : node->outputs()) {
+                const auto& output_rt_info = output.get_rt_info();
+                auto new_output = output.for_node(cloned_node);
+                new_output.get_rt_info() = output_rt_info;
+            }
+
+            cloned_node->set_op_annotations(node->get_op_annotations());
+
+            node_map[node.get()] = cloned_node;
+        }
+    }
+
+    // create and return vector of cloned nodes
+    // order matches input vector (not necessarily topological)
+    std::vector<std::shared_ptr<ngraph::Node>> cloned_nodes;
+    for (const auto& const_node : nodes) {
+        auto node = std::const_pointer_cast<ov::Node>(const_node);
+        cloned_nodes.push_back(node_map.at(node.get()));
+    }
+    return cloned_nodes;
+}
+
+}  // namespace
+
+void ov::traverse_nodes(const std::shared_ptr<Function>& p,
                         const std::function<void(const std::shared_ptr<Node>&)>& f) {
     traverse_nodes(p.get(), f);
 }
 
-void ov::traverse_nodes(const Function* p, const std::function<void(const std::shared_ptr<Node>&)>& f) {
+void ov::traverse_nodes(const std::shared_ptr<const Function>& p,
+                        const std::function<void(const std::shared_ptr<const Node>&)>& f) {
+    traverse_nodes(p.get(), f);
+}
+
+void ov::traverse_nodes(const Function* p, const std::function<void(const std::shared_ptr<const Node>&)>& f) {
+    ConstNodeVector nodes;
+
+    for (const auto& r : p->get_results()) {
+        nodes.push_back(r);
+    }
+    for (auto s : p->get_sinks()) {
+        nodes.emplace_back(s);
+    }
+
+    for (const auto& param : p->get_parameters()) {
+        nodes.push_back(param);
+    }
+
+    ::traverse_nodes(nodes, f);
+}
+
+void ov::traverse_nodes(Function* p, const std::function<void(const std::shared_ptr<Node>&)>& f) {
     NodeVector nodes;
 
     for (const auto& r : p->get_results()) {
@@ -336,7 +436,8 @@ std::shared_ptr<ngraph::Function> ov::clone_function(const ngraph::Function& fun
 
     // get cloned function results and sinks and parameters
     ResultVector cloned_results;
-    for (shared_ptr<Node> node : func.get_results()) {
+    for (const auto& const_node : func.get_results()) {
+        auto node = std::const_pointer_cast<ov::op::v0::Result>(const_node);
         auto result = ov::as_type_ptr<op::v0::Result>(node_map.at(node.get()));
         if (!result) {
             throw ngraph_error("Results should be of type op::Result");
@@ -344,12 +445,14 @@ std::shared_ptr<ngraph::Function> ov::clone_function(const ngraph::Function& fun
         cloned_results.push_back(result);
     }
     SinkVector cloned_sinks;
-    for (const auto& node : func.get_sinks()) {
+    for (const auto& const_node : func.get_sinks()) {
+        auto node = std::const_pointer_cast<ov::op::Sink>(const_node);
         cloned_sinks.push_back(static_pointer_cast<op::Sink>(node_map.at(node.get())));
     }
 
     std::vector<std::shared_ptr<op::v0::Parameter>> cloned_params;
-    for (const auto& param : func.get_parameters()) {
+    for (const auto& const_param : func.get_parameters()) {
+        auto param = std::const_pointer_cast<ov::op::v0::Parameter>(const_param);
         cloned_params.push_back(ov::as_type_ptr<op::v0::Parameter>(node_map.at(param.get())));
     }
 
@@ -663,10 +766,10 @@ std::vector<Output<Node>> ngraph::get_outputs_to(Node& src, Node& dst) {
     return result;
 }
 
-static bool check_for_cycles_bkwd(const std::shared_ptr<ngraph::Node>& node,
-                                  std::deque<std::shared_ptr<ngraph::Node>>& path,
-                                  std::unordered_set<std::shared_ptr<ngraph::Node>>& path_set,
-                                  ngraph::NodeVector& cycle_nodes) {
+static bool check_for_cycles_bkwd(const std::shared_ptr<const ngraph::Node>& node,
+                                  std::deque<std::shared_ptr<const ngraph::Node>>& path,
+                                  std::unordered_set<std::shared_ptr<const ngraph::Node>>& path_set,
+                                  ngraph::ConstNodeVector& cycle_nodes) {
     path.push_back(node);
     path_set.insert(node);
     for (size_t i = 0; i < node->inputs().size(); i++) {
@@ -688,10 +791,10 @@ static bool check_for_cycles_bkwd(const std::shared_ptr<ngraph::Node>& node,
     return false;
 }
 
-static bool check_for_cycles_fwd(const std::shared_ptr<ngraph::Node>& node,
-                                 std::deque<std::shared_ptr<ngraph::Node>>& path,
-                                 std::unordered_set<std::shared_ptr<ngraph::Node>>& path_set,
-                                 ngraph::NodeVector& cycle_nodes) {
+static bool check_for_cycles_fwd(const std::shared_ptr<const ngraph::Node>& node,
+                                 std::deque<std::shared_ptr<const ngraph::Node>>& path,
+                                 std::unordered_set<std::shared_ptr<const ngraph::Node>>& path_set,
+                                 ngraph::ConstNodeVector& cycle_nodes) {
     path.push_back(node);
     path_set.insert(node);
     for (auto& arg : node->get_users()) {
@@ -713,34 +816,39 @@ static bool check_for_cycles_fwd(const std::shared_ptr<ngraph::Node>& node,
 }
 
 bool ngraph::check_for_cycles(const ngraph::Function* func, ngraph::NodeVector& cycle_nodes, bool& is_bkwd_cycle) {
+    ngraph::ConstNodeVector const_cycle_nodes;
     for (const auto& res : func->get_results()) {
-        std::deque<std::shared_ptr<Node>> path;
+        std::deque<std::shared_ptr<const Node>> path;
         // mirror of path stack for faster cycle check
-        std::unordered_set<std::shared_ptr<Node>> path_set;
-        if (check_for_cycles_bkwd(res, path, path_set, cycle_nodes)) {
+        std::unordered_set<std::shared_ptr<const Node>> path_set;
+        if (check_for_cycles_bkwd(res, path, path_set, const_cycle_nodes)) {
             is_bkwd_cycle = true;
             return true;
         }
     }
 
     for (const auto& res : func->get_sinks()) {
-        std::deque<std::shared_ptr<Node>> path;
+        std::deque<std::shared_ptr<const Node>> path;
         // mirror of path stack for faster cycle check
-        std::unordered_set<std::shared_ptr<Node>> path_set;
-        if (check_for_cycles_bkwd(res, path, path_set, cycle_nodes)) {
+        std::unordered_set<std::shared_ptr<const Node>> path_set;
+        if (check_for_cycles_bkwd(res, path, path_set, const_cycle_nodes)) {
             is_bkwd_cycle = true;
             return true;
         }
     }
 
     for (const auto& param : func->get_parameters()) {
-        std::deque<std::shared_ptr<Node>> path;
+        std::deque<std::shared_ptr<const Node>> path;
         // mirror of path stack for faster cycle check
-        std::unordered_set<std::shared_ptr<Node>> path_set;
-        if (check_for_cycles_fwd(param, path, path_set, cycle_nodes)) {
+        std::unordered_set<std::shared_ptr<const Node>> path_set;
+        if (check_for_cycles_fwd(param, path, path_set, const_cycle_nodes)) {
             is_bkwd_cycle = false;
             return true;
         }
+    }
+    cycle_nodes.resize(const_cycle_nodes.size());
+    for (size_t i = 0; i < const_cycle_nodes.size(); i++) {
+        cycle_nodes[i] = std::const_pointer_cast<ov::Node>(const_cycle_nodes[i]);
     }
     // no cycles
     return false;

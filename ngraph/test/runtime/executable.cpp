@@ -84,7 +84,7 @@ size_t runtime::Executable::get_preferred_pipeline_depth() const {
     return 2;
 }
 
-void runtime::Executable::set_parameters_and_results(const Function& func) {
+void runtime::Executable::set_parameters_and_results(Function& func) {
     m_parameters = func.get_parameters();
     m_results = func.get_results();
 }

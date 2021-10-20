@@ -22,11 +22,15 @@
 namespace ov {
 
 OPENVINO_API
+void traverse_nodes(const std::shared_ptr<Function>& p, const std::function<void(const std::shared_ptr<Node>&)>& f);
+OPENVINO_API
 void traverse_nodes(const std::shared_ptr<const Function>& p,
-                    const std::function<void(const std::shared_ptr<Node>&)>& f);
+                    const std::function<void(const std::shared_ptr<const Node>&)>& f);
 
 OPENVINO_API
-void traverse_nodes(const Function* p, const std::function<void(const std::shared_ptr<Node>&)>& f);
+void traverse_nodes(Function* p, const std::function<void(const std::shared_ptr<Node>&)>& f);
+OPENVINO_API
+void traverse_nodes(const Function* p, const std::function<void(const std::shared_ptr<const Node>&)>& f);
 
 /// \brief Visit each node in a sub-graph of the entire graph
 /// \param subgraph_results The output nodes of the sub-graph
@@ -221,28 +225,28 @@ void replace_nodes(const std::shared_ptr<Function>& f,
 
 /// Topological sort of nodes needed to compute root_nodes
 template <typename T>
-std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
-    std::stack<Node*, std::vector<Node*>> nodes_to_do;
-    std::unordered_set<Node*> nodes_done;
-    std::vector<std::shared_ptr<Node>> result;
+std::vector<std::shared_ptr<T>> topological_sort(const std::vector<std::shared_ptr<T>>& root_nodes) {
+    std::stack<T*, std::vector<T*>> nodes_to_do;
+    std::unordered_set<T*> nodes_done;
+    std::vector<std::shared_ptr<T>> result;
 
     for (auto& node : root_nodes) {
         nodes_to_do.push(node.get());
     }
     while (nodes_to_do.size() > 0) {
-        Node* node = nodes_to_do.top();
+        T* node = nodes_to_do.top();
         if (nodes_done.count(node) == 0) {
             bool can_add = true;
             size_t arg_count = node->get_input_size();
             for (size_t i = 0; i < arg_count; ++i) {
-                Node* dep = node->get_input_node_ptr(arg_count - i - 1);
+                T* dep = node->get_input_node_ptr(arg_count - i - 1);
                 if (nodes_done.count(dep) == 0) {
                     can_add = false;
                     nodes_to_do.push(dep);
                 }
             }
             for (auto& depptr : node->get_control_dependencies()) {
-                Node* dep = depptr.get();
+                T* dep = depptr.get();
                 if (nodes_done.count(dep) == 0) {
                     can_add = false;
                     nodes_to_do.push(dep);

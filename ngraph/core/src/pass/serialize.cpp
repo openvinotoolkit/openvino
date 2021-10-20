@@ -519,8 +519,8 @@ public:
     }
 };
 
-const std::unordered_map<ngraph::Node*, int> create_layer_ids(const ngraph::Function& f) {
-    std::unordered_map<ngraph::Node*, int> layer_ids;
+const std::unordered_map<const ngraph::Node*, int> create_layer_ids(const ngraph::Function& f) {
+    std::unordered_map<const ngraph::Node*, int> layer_ids;
     int id = 0;
     for (const auto& node : f.get_ordered_ops()) {
         layer_ids[node.get()] = id++;
@@ -528,7 +528,7 @@ const std::unordered_map<ngraph::Node*, int> create_layer_ids(const ngraph::Func
     return layer_ids;
 }
 
-const std::vector<Edge> create_edge_mapping(const std::unordered_map<ngraph::Node*, int>& layer_ids,
+const std::vector<Edge> create_edge_mapping(const std::unordered_map<const ngraph::Node*, int>& layer_ids,
                                             const ngraph::Function& f) {
     std::vector<Edge> edges;
     for (const auto& node : f.get_ordered_ops()) {
@@ -538,8 +538,8 @@ const std::vector<Edge> create_edge_mapping(const std::unordered_map<ngraph::Nod
 
         for (const auto& i : node->inputs()) {
             auto source_output = i.get_source_output();
-            auto source_node = source_output.get_node();
-            auto current_node = i.get_node();
+            auto source_node = const_cast<ov::Node*>(source_output.get_node());
+            auto current_node = const_cast<ov::Node*>(i.get_node());
 
             NGRAPH_CHECK(layer_ids.find(source_node) != layer_ids.end(), "Internal error");
             NGRAPH_CHECK(layer_ids.find(current_node) != layer_ids.end(), "Internal error");
@@ -706,7 +706,7 @@ bool is_exec_graph(const ngraph::Function& f) {
     return false;
 }
 
-bool has_dynamic_output(const std::shared_ptr<Node>& n) {
+bool has_dynamic_output(const std::shared_ptr<const Node>& n) {
     for (size_t i = 0; i < n->get_output_size(); i++) {
         if (n->get_output_partial_shape(i).is_dynamic()) {
             return true;
@@ -717,7 +717,7 @@ bool has_dynamic_output(const std::shared_ptr<Node>& n) {
 
 bool resolve_dynamic_shapes(const ngraph::Function& f) {
     const auto& f_ops = f.get_ordered_ops();
-    if (std::all_of(f_ops.begin(), f_ops.end(), [](const std::shared_ptr<Node>& results) {
+    if (std::all_of(f_ops.begin(), f_ops.end(), [](const std::shared_ptr<const Node>& results) {
             return !results->is_dynamic() && !has_dynamic_output(results);
         })) {
         return false;
@@ -728,7 +728,7 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
     NGRAPH_CHECK(f_ops.size() == f_clone_ops.size(), "Unexpected get_ordered_ops method behaviour");
 
     for (size_t id = 0; id < f_ops.size(); ++id) {
-        auto& op = f_ops[id];
+        auto op = std::const_pointer_cast<ov::Node>(f_ops[id]);
         auto& clone_op = f_clone_ops[id];
         ov::pass::enable_constant_folding(clone_op);  // to be able to fold ShapeOfs
         if (auto op_subgraph = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(op)) {
@@ -842,7 +842,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     netXml.append_attribute("version").set_value(version);
     pugi::xml_node layers = netXml.append_child("layers");
 
-    const std::unordered_map<ngraph::Node*, int> layer_ids = create_layer_ids(f);
+    const std::unordered_map<const ngraph::Node*, int> layer_ids = create_layer_ids(f);
     std::unordered_set<std::string> unique_names;
 
     // TODO remove resolve_dynamic_shapes function completely when support for -1 will be implemented in the MO
@@ -852,7 +852,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 
     auto sorted_ops = f.get_ordered_ops();
     if (version >= 11) {
-        std::vector<std::shared_ptr<ov::Node>> result;
+        std::vector<std::shared_ptr<const ov::Node>> result;
         result.reserve(sorted_ops.size());
         for (const auto& param : f.get_parameters()) {
             result.emplace_back(param);
@@ -871,7 +871,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     }
 
     for (const auto& n : sorted_ops) {
-        ngraph::Node* node = n.get();
+        const ngraph::Node* node = n.get();
         const std::string& node_type_name{node->get_type_name()};
 
         NGRAPH_CHECK(layer_ids.find(node) != layer_ids.end(), "Internal error");
@@ -917,7 +917,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
             pugi::xml_node input = layer.append_child("input");
             for (const auto& i : node->inputs()) {
                 // WA for LSTMCellv0, peephole input shall not be serialized
-                if (i.get_index() == 6 && dynamic_cast<opset1::LSTMCell*>(node)) {
+                if (i.get_index() == 6 && dynamic_cast<const opset1::LSTMCell*>(node)) {
                     port_id++;
                     continue;
                 }
@@ -994,9 +994,10 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         }
 
         // fill <data> general attributes
-        auto_pad_resolving(node);  // Backward compatibility: clear padding values for nodes with auto_pad
+        auto_pad_resolving(
+            const_cast<ov::Node*>(node));  // Backward compatibility: clear padding values for nodes with auto_pad
         XmlSerializer visitor(data, node_type_name, custom_opsets, constant_node_write_handler, version);
-        NGRAPH_CHECK(node->visit_attributes(visitor), "Visitor API is not supported in ", node);
+        NGRAPH_CHECK(const_cast<ov::Node*>(node)->visit_attributes(visitor), "Visitor API is not supported in ", node);
         rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
 
         if (exec_graph) {

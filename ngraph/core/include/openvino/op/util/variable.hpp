@@ -27,6 +27,7 @@ struct VariableInfo {
 class OPENVINO_API Variable {
 public:
     using Ptr = std::shared_ptr<Variable>;
+    using CPtr = std::shared_ptr<const Variable>;
     Variable() = default;
 
     explicit Variable(VariableInfo variable_info) : m_info(std::move(variable_info)) {}
@@ -42,6 +43,7 @@ private:
     VariableInfo m_info;
 };
 using VariableVector = std::vector<Variable::Ptr>;
+using ConstVariableVector = std::vector<Variable::CPtr>;
 
 }  // namespace util
 }  // namespace op

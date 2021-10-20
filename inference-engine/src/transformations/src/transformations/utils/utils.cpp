@@ -82,7 +82,7 @@ bool constantIsEqualTo(const std::shared_ptr<ngraph::op::Constant>& const_node, 
 
 bool has_f16_constants(const std::shared_ptr<const ngraph::Function> &function) {
     for (auto & layer : function->get_ops()) {
-        if (std::dynamic_pointer_cast<ngraph::op::Constant>(layer) && layer->output(0).get_element_type() == ngraph::element::f16) {
+        if (std::dynamic_pointer_cast<const ngraph::op::Constant>(layer) && layer->output(0).get_element_type() == ngraph::element::f16) {
             return true;
         }
     }

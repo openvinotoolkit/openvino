@@ -108,7 +108,8 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
         return -1;
     };
 
-    for (const auto op : subgraph->get_ordered_ops()) {
+    for (const auto& const_op : subgraph->get_ordered_ops()) {
+        auto op = std::const_pointer_cast<ov::Node>(const_op);
         const MKLDNNNodePtr node {MKLDNNNode::factory().create(op, getEngine(), extMgr, weightsCache)};
         if (isQuantized()) {
             node->setQuantizedGraphFlag(true);
@@ -208,7 +209,8 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "AllNodes");
 
     // Replicate All Nodes in topological order
-    for (const auto& op : orderedOps) {
+    for (const auto& const_op : orderedOps) {
+        auto op = std::const_pointer_cast<ov::Node>(const_op);
         const MKLDNNNodePtr node(MKLDNNNode::factory().create(op, getEngine(), extMgr, weightsCache));
         if (isQuantized()) {
             node->setQuantizedGraphFlag(true);

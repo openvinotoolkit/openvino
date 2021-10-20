@@ -123,7 +123,8 @@ public:
     const PartialShape& get_output_partial_shape(size_t i) const;
 
     /// Check that there is a single result and return it.
-    std::shared_ptr<ov::Node> get_result() const;
+    std::shared_ptr<ov::Node> get_result();
+    std::shared_ptr<const ov::Node> get_result() const;
 
     /// \brief Get the unique name of the function.
     /// \returns A const reference to the function's unique name.
@@ -140,8 +141,10 @@ public:
     /// \returns A const reference to the function's friendly name.
     const std::string& get_friendly_name() const;
 
-    std::vector<std::shared_ptr<ov::Node>> get_ops() const;
-    std::vector<std::shared_ptr<ov::Node>> get_ordered_ops() const;
+    std::vector<std::shared_ptr<ov::Node>> get_ops();
+    std::vector<std::shared_ptr<const ov::Node>> get_ops() const;
+    std::vector<std::shared_ptr<ov::Node>> get_ordered_ops();
+    std::vector<std::shared_ptr<const ov::Node>> get_ordered_ops() const;
     void map_unordered_ops(std::function<void(ov::Node*)> f) const;
 
     friend std::ostream& operator<<(std::ostream&, const Function&);
@@ -174,12 +177,26 @@ public:
     virtual bool visit_attributes(ov::AttributeVisitor& visitor);
 
     /// Return the function parameters
-    const ov::ParameterVector& get_parameters() const {
+    const ov::ParameterVector& get_parameters() {
         return m_parameters;
     };
+    const ov::ConstParameterVector get_parameters() const {
+        ov::ConstParameterVector const_params;
+        const_params.reserve(m_parameters.size());
+        for (const auto& param : m_parameters)
+            const_params.emplace_back(param);
+        return const_params;
+    };
     /// Return a list of function's outputs
-    const ov::ResultVector& get_results() const {
+    const ov::ResultVector& get_results() {
         return m_results;
+    };
+    const ov::ConstResultVector get_results() const {
+        ov::ConstResultVector const_result;
+        const_result.reserve(m_results.size());
+        for (const auto& result : m_results)
+            const_result.emplace_back(result);
+        return const_result;
     };
     /// Index for parameter, or -1
     int64_t get_parameter_index(const std::shared_ptr<ov::op::v0::Parameter>& parameter) const;
@@ -209,8 +226,15 @@ public:
                   ov::EvaluationContext evaluation_context = ov::EvaluationContext()) const;
 
     /// \brief Return a list of function's sinks.
-    const ov::SinkVector& get_sinks() const {
+    const ov::SinkVector& get_sinks() {
         return m_sinks;
+    }
+    const ov::ConstSinkVector get_sinks() const {
+        ov::ConstSinkVector const_sinks;
+        const_sinks.reserve(m_sinks.size());
+        for (const auto& sink : m_sinks)
+            const_sinks.emplace_back(sink);
+        return const_sinks;
     }
     /// \brief Add new sink nodes to the list. Method doesn't validate graph, it should be done
     /// manually after all changes.
@@ -269,12 +293,20 @@ public:
     void remove_variable(const ov::op::util::Variable::Ptr& variable);
 
     /// \brief Return a list of function's variables.
-    const ov::op::util::VariableVector& get_variables() const {
+    const ov::op::util::VariableVector& get_variables() {
         return m_variables;
+    }
+    const ov::op::util::ConstVariableVector get_variables() const {
+        ov::op::util::ConstVariableVector const_vars;
+        const_vars.reserve(m_variables.size());
+        for (const auto& var : m_variables)
+            const_vars.emplace_back(var);
+        return const_vars;
     }
 
     /// \brief Return a variable by specified variable_id.
-    ov::op::util::Variable::Ptr get_variable_by_id(const std::string& variable_id) const;
+    ov::op::util::Variable::Ptr get_variable_by_id(const std::string& variable_id);
+    ov::op::util::Variable::CPtr get_variable_by_id(const std::string& variable_id) const;
     RTMap& get_rt_info() {
         return m_rt_info;
     }
