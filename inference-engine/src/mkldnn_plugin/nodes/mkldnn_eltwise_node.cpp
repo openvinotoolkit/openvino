@@ -1753,16 +1753,10 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, bool initAsBinary, 
                 case EltwiseSubtract:
                     appendBinary(mkldnn::algorithm::binary_add, shiftsMemory, shifts);
                     break;
-//
-//                    appendBinary(mkldnn::algorithm::binary_sub, shiftsMemory, shifts);
-//                    break;
                 case EltwiseMultiply:
                 case EltwiseDivide:
                     appendBinary(mkldnn::algorithm::binary_mul, scalesMemory, scales);
                     break;
-//
-//                    appendBinary(mkldnn::algorithm::binary_div, scalesMemory, scales);
-//                    break;
                 case EltwiseMulAdd:
                 case EltwisePowerStatic:
                     appendBinary(mkldnn::algorithm::binary_mul, scalesMemory, scales);
