@@ -306,20 +306,20 @@ jobs:
     continueOnError: false
 
   - script: |  
-      python3 -m pip install -r $(REPO_DIR)/tests/samples_smoke_tests/smoke_tests/requirements.txt 
+      python3 -m pip install -r $(REPO_DIR)/tests/samples_tests/smoke_tests/requirements.txt 
     workingDirectory: $(REPO_DIR)
     displayName: 'Install  dependencies for samples smoke tests'
     continueOnError: false
 
   - script: |
-      . $(SETUPVARS)
       export IE_APP_PATH=$(BIN_DIR)
       export IE_APP_PYTHON_PATH=$(REPO_DIR)/inference-engine/ie_bridges/python/sample/
-      export PYTHONPATH=$(REPO_DIR)/tests/samples_smoke_tests/:$(BIN_DIR)/lib/python_api/python3.8/:$(REPO_DIR)/ngraph/python/src/
-      export SHARE=$(REPO_DIR)/tests/samples_smoke_tests/smoke_tests/samples_smoke_tests_data/
+      export PYTHONPATH=$(REPO_DIR)/tests/samples_tests/:$(BIN_DIR)/lib/python_api/python3.8/:$(REPO_DIR)/ngraph/python/src/
+      export SHARE=$(REPO_DIR)/tests/samples_tests/smoke_tests/samples_smoke_tests_data/
       export WORKSPACE=$(REPO_DIR)
       export IE_APP_PYTHON_TOOL_PATH=$(REPO_DIR)/tools/
-      python3 -m pytest $(REPO_DIR)/tests/samples_smoke_tests/smoke_tests/  --env_conf $(REPO_DIR)/tests/samples_smoke_tests/smoke_tests/env_config.yml -s --junitxml=$(BUILD_DIR)/TEST-SamplesSmokeTests.xml
+      export LD_LIBRARY_PATH=$(BIN_DIR)/lib:$(REPO_DIR)/inference-engine/temp/opencv_4.5.2_ubuntu20/opencv/lib/:$(REPO_DIR)/inference-engine/temp/tbb/lib
+      python3 -m pytest $(REPO_DIR)/tests/samples_tests/smoke_tests/  --env_conf $(REPO_DIR)/tests/samples_tests/smoke_tests/env_config.yml -s --junitxml=$(BUILD_DIR)/TEST-SamplesSmokeTests.xml
     workingDirectory: $(REPO_DIR)
     displayName: 'Samples Smoke Tests'
     continueOnError: false

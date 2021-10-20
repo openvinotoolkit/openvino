@@ -182,7 +182,7 @@ jobs:
     condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: |
-      python -m pip install -r $(REPO_DIR)/tests/samples_smoke_tests/smoke_tests/requirements.txt
+      python -m pip install -r $(REPO_DIR)/tests/samples_tests/smoke_tests/requirements.txt
     workingDirectory: $(REPO_DIR)
     displayName: 'Install  dependencies for samples smoke tests'
     continueOnError: false
@@ -190,12 +190,12 @@ jobs:
   - script: |
       call $(SETUPVARS) && set IE_APP_PATH=$(BIN_DIR)
       set IE_APP_PYTHON_PATH=$(REPO_DIR)\inference-engine\ie_bridges\python\sample\
-      set PYTHONPATH=$(REPO_DIR)\tests\samples_smoke_tests\;$(BIN_DIR)\$(BUILD_TYPE)\python_api\python3.7\;$(REPO_DIR)\ngraph\python\src\
-      set SHARE=$(REPO_DIR)\tests\samples_smoke_tests\smoke_tests\samples_smoke_tests_data\
+      set PYTHONPATH=$(REPO_DIR)\tests\samples_tests\;$(BIN_DIR)\$(BUILD_TYPE)\python_api\python3.7\;$(REPO_DIR)\ngraph\python\src\
+      set SHARE=$(REPO_DIR)\tests\samples_tests\smoke_tests\samples_smoke_tests_data\
       set WORKSPACE=$(REPO_DIR)
-      set IE_APP_PYTHON_TOOL_PATH=$(REPO_DIR)\inference-engine\tools\
+      set IE_APP_PYTHON_TOOL_PATH=$(REPO_DIR)\tools\
 
-      python -m pytest $(REPO_DIR)\tests\samples_smoke_tests\smoke_tests\  --env_conf $(REPO_DIR)\tests\samples_smoke_tests\smoke_tests\env_config.yml -s --junitxml=TEST-SamplesSmokeTests.xml
+      python -m pytest $(REPO_DIR)\tests\samples_tests\smoke_tests\  --env_conf $(REPO_DIR)\tests\samples_tests\smoke_tests\env_config.yml -s --junitxml=TEST-SamplesSmokeTests.xml
     workingDirectory: $(REPO_DIR)
     displayName: 'Samples Smoke Tests'
     continueOnError: false

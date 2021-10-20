@@ -4,7 +4,7 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-project(samples_smoke_tests)
+project(samples_tests)
 
 # Search OpenVINO Inference Engine installed
 find_package(OpenVINO REQUIRED)

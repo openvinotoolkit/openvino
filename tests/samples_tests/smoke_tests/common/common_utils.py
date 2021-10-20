@@ -51,7 +51,7 @@ def parse_avg_err(speech_sample_out):
     return avg_error
 
 
-def fix_path(path, root_path=None):
+def fix_path(path, env_name, root_path=None):
     """
     Fix path: expand environment variables if any, make absolute path from
     root_path/path if path is relative, resolve symbolic links encountered.
@@ -59,7 +59,9 @@ def fix_path(path, root_path=None):
     path = os.path.expandvars(path)
     if not os.path.isabs(path) and root_path is not None:
         path = os.path.join(root_path, path)
-    return path
+    if env_name == "samples_data_zip":
+        return path
+    return os.path.realpath(os.path.abspath(path))
 
 
 def fix_env_conf(env, root_path=None):
@@ -72,5 +74,5 @@ def fix_env_conf(env, root_path=None):
             # recursively update (sub)environment as well
             env[name] = fix_env_conf(value, root_path=root_path)
         else:
-            env[name] = fix_path(value, root_path=root_path)
+            env[name] = fix_path(value, name, root_path=root_path)
     return env

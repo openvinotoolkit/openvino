@@ -134,7 +134,7 @@ def getting_samples_data_zip(url, samples_path, size_of_chunk=128):
         samples_file.close()
         print("\nExtracting of samples_smoke_tests_data.zip...")
         with zipfile.ZipFile(samples_path, 'r') as samples_zip:
-            samples_zip.extractall("./")
+            samples_zip.extractall(Environment.env['smoke_tests_path'])
         if os.path.exists(samples_path):
             print("\nRemoving samples_smoke_tests_data.zip...")
             os.remove(samples_path)	
