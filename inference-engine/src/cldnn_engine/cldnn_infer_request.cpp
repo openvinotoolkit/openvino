@@ -457,6 +457,16 @@ CLDNNInferRequest::CLDNNInferRequest(InputsDataMap networkInputs, OutputsDataMap
     streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
 }
 
+CLDNNInferRequest::CLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                     const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                                     const CLDNNExecNetwork::Ptr& execNetwork)
+        : IInferRequestInternal(inputs, outputs)
+        , m_useProfiling(false)
+        , m_useStreams(false) {
+    IE_ASSERT(nullptr != execNetwork);
+    streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
+}
+
 // ----------------------------------------------------------------------------------------- //
 // ---------------------------- internal pipeline stages ----------------------------------- //
 // ----------------------------------------------------------------------------------------- //

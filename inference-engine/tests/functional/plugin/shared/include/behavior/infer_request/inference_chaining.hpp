@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <chrono>
 #include <gtest/gtest.h>
+
+#include <chrono>
 #include <initializer_list>
 #include <memory>
 #include <string>
@@ -12,6 +13,7 @@
 
 #include "base/behavior_test_utils.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/function.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rank.hpp"
@@ -19,8 +21,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/core/function.hpp"
-#include "ngraph_functions/builders.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -107,9 +107,9 @@ public:
 
         // perform inference chaining
         if (outputToInput) {
-            ASSERT_NO_THROW(r1.set_tensor("param_0", r0.get_tensor("result_0")));
+            ASSERT_NO_THROW(r1.set_tensor("input_tensor_0", r0.get_tensor("result_tensor_0")));
         } else {
-            ASSERT_NO_THROW(r0.set_tensor("result_0", r1.get_tensor("param_0")));
+            ASSERT_NO_THROW(r0.set_tensor("result_tensor_0", r1.get_tensor("input_tensor_0")));
         }
 
         // create input tensors
@@ -118,15 +118,15 @@ public:
         ov::runtime::Tensor t2 = tensor(std::vector<float>{7.0f, 8.0f, 9.0f});
         ov::runtime::Tensor t3 = tensor(std::vector<float>{2.0f, 3.0f, 2.0f});
 
-        ASSERT_NO_THROW(r0.set_tensor("param_0", t0));
-        ASSERT_NO_THROW(r0.set_tensor("param_1", t1));
-        ASSERT_NO_THROW(r0.set_tensor("param_2", t2));
-        ASSERT_NO_THROW(r1.set_tensor("param_1", t3));
+        ASSERT_NO_THROW(r0.set_tensor("input_tensor_0", t0));
+        ASSERT_NO_THROW(r0.set_tensor("input_tensor_1", t1));
+        ASSERT_NO_THROW(r0.set_tensor("input_tensor_2", t2));
+        ASSERT_NO_THROW(r1.set_tensor("input_tensor_1", t3));
 
-        ASSERT_NO_THROW(r2.set_tensor("param_0", t0));
-        ASSERT_NO_THROW(r2.set_tensor("param_1", t1));
-        ASSERT_NO_THROW(r2.set_tensor("param_2", t2));
-        ASSERT_NO_THROW(r2.set_tensor("param_3", t3));
+        ASSERT_NO_THROW(r2.set_tensor("input_tensor_0", t0));
+        ASSERT_NO_THROW(r2.set_tensor("input_tensor_1", t1));
+        ASSERT_NO_THROW(r2.set_tensor("input_tensor_2", t2));
+        ASSERT_NO_THROW(r2.set_tensor("input_tensor_3", t3));
 
         ASSERT_NO_THROW(r0.infer());
         ASSERT_NO_THROW(r1.infer());
@@ -136,9 +136,9 @@ public:
         std::vector<float> reference1 = {12.0f, 15.0f, 18.0f};
         std::vector<float> reference2 = {24.0f, 45.0f, 36.0f};
 
-        auto rti = r0.get_tensor("result_0");
-        auto rt0 = r1.get_tensor("result_0");
-        auto rt1 = r2.get_tensor("result_0");
+        auto rti = r0.get_tensor("result_tensor_0");
+        auto rt0 = r1.get_tensor("result_tensor_0");
+        auto rt1 = r2.get_tensor("result_tensor_0");
 
         for (size_t i = 0; i < reference1.size(); ++i) {
             EXPECT_EQ(reference1[i], rti.data<float>()[i]);
@@ -147,7 +147,6 @@ public:
         }
     }
 };
-
 
 TEST_P(OVInferenceChaining, StaticOutputToStaticInput) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
