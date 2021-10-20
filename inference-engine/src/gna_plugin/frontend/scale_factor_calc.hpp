@@ -423,7 +423,11 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
             auto maxOutValue = quantizedParams->_dst_quant.GetMaxValues().front();
             auto absMax = std::max(std::abs(minOutValue), std::abs(maxOutValue));
 
-            result = (quantizedParams->_dst_quant.GetLevels() - 1) / (maxOutValue - minOutValue);
+            // GNA activation output is always quantized to int16, so number of levels can't be greater than max uint16
+            // todo: should be solved in POT (issue 63330)
+            size_t levels = std::min(quantizedParams->_dst_quant.GetLevels(),
+                static_cast<size_t>(std::numeric_limits<uint16_t>::max() + 1));
+            result = (levels - 1) / (maxOutValue - minOutValue);
             if (std::isinf(result) || fp32eq(absMax, 0.0f)) {
                 result = max_activation_scale_factor;
             }
