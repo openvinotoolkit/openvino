@@ -288,7 +288,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
         abort
     };
 
-    continuation_strategy strategy = continuation_strategy::abort;
+    continuation_strategy strategy = continuation_strategy::reset;
 
     ngraph::graph_rewrite_callback continuation_callback = [strategy](ngraph::pattern::Matcher &m) -> bool {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::AttachToSubgraph_callback")
