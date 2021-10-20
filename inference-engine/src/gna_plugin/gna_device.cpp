@@ -9,6 +9,7 @@
 #include <cstring>
 #include <mutex>
 #include <vector>
+#include <fstream>
 
 #if GNA_LIB_VER == 2
 #include "gna_api_wrapper.hpp"
@@ -151,6 +152,7 @@ void GNADeviceHelper::setUpActiveList(const uint32_t requestConfigId, uint32_t l
 }
 
 uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
+    static int idx = 0;
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t reqId{};
     if ((gna2AccelerationMode == Gna2AccelerationModeHardware ||
@@ -159,6 +161,27 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
         gnawarn() << "GNA Device not detected, consider using other mode of acceleration";
     }
     const auto status1 = Gna2RequestConfigSetAccelerationMode(requestConfigId, gna2AccelerationMode);
+
+    for (auto&& a : allAllocations) {
+        auto name = a.GetTagName();
+        std::ofstream file(std::to_string(idx) + name + ".BeforeGna2RequestEnqueue.bin", std::ios::out | std::ios::binary);
+        file.write(static_cast<char*>(a.ptr), a.sizeGranted);
+        if (a.isTag(Gna2MemoryTagInput)) {
+            std::ofstream f(std::to_string(idx) + name + ".BeforeGna2RequestEnqueue.txt", std::ios::out);
+            auto inputs = static_cast<int16_t*>(a.ptr);
+            for (int i = 0; i < 200; i++) {
+                f << inputs[i] << " ";
+            }
+        }
+        if (a.isTag(Gna2MemoryTagOutput)) {
+            std::ofstream f(std::to_string(idx) + name + ".BeforeGna2RequestEnqueue.txt", std::ios::out);
+            auto inputs = static_cast<int32_t*>(a.ptr);
+            for (int i = 0; i < 88; i++) {
+                f << inputs[i] << " ";
+            }
+        }
+    }
+    idx++;
     checkGna2Status(status1, "Gna2RequestConfigSetAccelerationMode");
     const auto status2 = Gna2RequestEnqueue(requestConfigId, &reqId);
     checkGna2Status(status2, "Gna2RequestEnqueue");
@@ -477,6 +500,7 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
 #endif
 
 GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
+    static int idx;
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 2
     const auto status = Gna2RequestWait(reqId, millisTimeout);
@@ -488,6 +512,26 @@ GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
         return GNA_REQUEST_ABORTED;
     }
     checkGna2Status(status, "Gna2RequestWait");
+    for (auto&& a : allAllocations) {
+        auto name = a.GetTagName();
+        std::ofstream file(std::to_string(idx) + name + ".AfterGna2RequestWait.bin", std::ios::out | std::ios::binary);
+        file.write(static_cast<char*>(a.ptr), a.sizeGranted);
+        if (a.isTag(Gna2MemoryTagInput)) {
+            std::ofstream f(std::to_string(idx) + name + ".AfterGna2RequestWait.txt", std::ios::out);
+            auto inputs = static_cast<int16_t*>(a.ptr);
+            for (int i = 0; i < 200; i++) {
+                f << inputs[i] << " ";
+            }
+}
+        if (a.isTag(Gna2MemoryTagOutput)) {
+            std::ofstream f(std::to_string(idx) + name + ".AfterGna2RequestWait.txt", std::ios::out);
+            auto inputs = static_cast<int32_t*>(a.ptr);
+            for (int i = 0; i < 88; i++) {
+                f << inputs[i] << " ";
+            }
+        }
+    }
+    idx++;
 #else
     if (isPerformanceMeasuring) {
         nGNAStatus = GNAWaitPerfRes(nGNAHandle, millisTimeout, reqId, &nGNAPerfResults);

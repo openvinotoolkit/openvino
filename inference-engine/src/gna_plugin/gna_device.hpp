@@ -48,6 +48,9 @@ struct GnaAllocation {
         isTagSet = true;
         tag = in;
     }
+    bool isTag(Gna2MemoryTag in) {
+        return isTagSet && in == tag;
+    }
     std::string GetTagName() const {
         static const std::map< Gna2MemoryTag, std::string > tm = {
                 { Gna2MemoryTagReadWrite, "Gna2MemoryTagReadWrite" },
@@ -60,13 +63,13 @@ struct GnaAllocation {
                 { Gna2MemoryTagState, "Gna2MemoryTagState" },
         };
         if (!isTagSet) {
-            return "Gna2MemoryTag(NotSet)";
+            return "Gna2MemoryTag_NotSet_";
         }
         auto f = tm.find(tag);
         if (f != tm.end()) {
             return f->second;
         }
-        return "Gna2MemoryTag(" + std::to_string(tag) + ")";
+        return "Gna2MemoryTag_" + std::to_string(tag) + "_";
     }
     std::pair<bool, size_t> getOffset(void* offset) const {
         std::pair<bool, size_t> v;
