@@ -43,7 +43,7 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
         _log(log), _stagesMetaData(blobMetaData), _config(myriadConfig),
         _inputInfo(compilerInputsInfo), _outputInfo(compilerOutputsInfo),
         _graphDesc(graphDesc), _constDatas(constDatas), _isNetworkConstant(isNetworkConstant) {
-    CreateInferRequest(compilerInputsInfo, compilerOutputsInfo);
+    CreateInferRequest();
 }
 
 MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
@@ -61,11 +61,10 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
         _log(log), _stagesMetaData(blobMetaData), _config(myriadConfig),
         _inputInfo(compilerInputsInfo), _outputInfo(compilerOutputsInfo),
         _graphDesc(graphDesc), _constDatas(constDatas), _isNetworkConstant(isNetworkConstant) {
-    CreateInferRequest(compilerInputsInfo, compilerOutputsInfo);
+    CreateInferRequest();
 }
 
-void MyriadInferRequest::CreateInferRequest(DataInfo& compilerInputsInfo,
-                                            DataInfo& compilerOutputsInfo) {
+void MyriadInferRequest::CreateInferRequest() {
     VPU_PROFILE(MyriadInferRequest);
 
     const auto& ioStrides = _config.get<TensorStridesOption>();
@@ -107,8 +106,8 @@ void MyriadInferRequest::CreateInferRequest(DataInfo& compilerInputsInfo,
         _outputs[networkOutput.first] = outputBlob;
     }
 
-    inputBuffer .resize(compilerInputsInfo.totalSize);
-    resultBuffer.resize(compilerOutputsInfo.totalSize);
+    inputBuffer .resize(_inputInfo.totalSize);
+    resultBuffer.resize(_outputInfo.totalSize);
 
     VPU_THROW_UNLESS(
         !_networkOutputs.empty() && !(_networkInputs.empty() && !_isNetworkConstant),

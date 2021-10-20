@@ -35,35 +35,34 @@ class MyriadInferRequest : public InferenceEngine::IInferRequestInternal {
     std::vector<uint8_t> inputBuffer;
     std::map<std::string, ie::Blob::Ptr> _constDatas;
     bool _isNetworkConstant;
-    void CreateInferRequest(DataInfo& compilerInputsInfo,
-                            DataInfo& compilerOutputsInfo);
+    void CreateInferRequest();
 
 public:
     typedef std::shared_ptr<MyriadInferRequest> Ptr;
 
-    explicit MyriadInferRequest(GraphDesc &_graphDesc,
-                                InferenceEngine::InputsDataMap networkInputs,
-                                InferenceEngine::OutputsDataMap networkOutputs,
-                                DataInfo& compilerInputsInfo,
-                                DataInfo& compilerOutputsInfo,
-                                const std::vector<StageMetaInfo> &blobMetaData,
-                                const PluginConfiguration &myriadConfig,
-                                const Logger::Ptr &log,
-                                const MyriadExecutorPtr &executor,
-                                std::map<std::string, ie::Blob::Ptr> constDatas,
-                                bool isNetworkConstant);
+    MyriadInferRequest(GraphDesc &_graphDesc,
+                       InferenceEngine::InputsDataMap networkInputs,
+                       InferenceEngine::OutputsDataMap networkOutputs,
+                       DataInfo& compilerInputsInfo,
+                       DataInfo& compilerOutputsInfo,
+                       const std::vector<StageMetaInfo> &blobMetaData,
+                       const PluginConfiguration &myriadConfig,
+                       const Logger::Ptr &log,
+                       const MyriadExecutorPtr &executor,
+                       std::map<std::string, ie::Blob::Ptr> constDatas,
+                       bool isNetworkConstant);
 
-    explicit MyriadInferRequest(GraphDesc &_graphDesc,
-                                const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                                const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                                DataInfo& compilerInputsInfo,
-                                DataInfo& compilerOutputsInfo,
-                                const std::vector<StageMetaInfo> &blobMetaData,
-                                const PluginConfiguration &myriadConfig,
-                                const Logger::Ptr &log,
-                                const MyriadExecutorPtr &executor,
-                                std::map<std::string, ie::Blob::Ptr> constDatas,
-                                bool isNetworkConstant);
+    MyriadInferRequest(GraphDesc &_graphDesc,
+                       const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                       const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                       DataInfo& compilerInputsInfo,
+                       DataInfo& compilerOutputsInfo,
+                       const std::vector<StageMetaInfo> &blobMetaData,
+                       const PluginConfiguration &myriadConfig,
+                       const Logger::Ptr &log,
+                       const MyriadExecutorPtr &executor,
+                       std::map<std::string, ie::Blob::Ptr> constDatas,
+                       bool isNetworkConstant);
 
     void InferImpl() override;
     void InferAsync();
