@@ -21,10 +21,10 @@ std::string PriorBoxLayerTest::getTestCaseName(const testing::TestParamInfo<prio
 
     std::vector<float> min_size, max_size, aspect_ratio, density, fixed_ratio, fixed_size, variance;
     float step, offset;
-    bool clip, flip, scale_all_sizes;
+    bool clip, flip, scale_all_sizes, min_max_aspect_ratios_order;
     std::tie(min_size, max_size, aspect_ratio,
              density, fixed_ratio, fixed_size, clip,
-             flip, step, offset, variance, scale_all_sizes) = specParams;
+             flip, step, offset, variance, scale_all_sizes, min_max_aspect_ratios_order) = specParams;
 
     std::ostringstream result;
     const char separator = '_';
@@ -47,6 +47,7 @@ std::string PriorBoxLayerTest::getTestCaseName(const testing::TestParamInfo<prio
     result << "clip=" << clip << separator;
     result << "flip=" << flip<< separator;
     result << "scale_all=" << scale_all_sizes << separator;
+    result << "min_max_aspect_ratios_order=" << min_max_aspect_ratios_order << separator;
     result << "trgDev=" << targetDevice;
 
     return result.str();
@@ -58,14 +59,14 @@ void PriorBoxLayerTest::SetUp() {
              inPrc, outPrc, inLayout, outLayout,
              inputShapes, imageShapes, targetDevice) = GetParam();
 
-    std::tie(min_size, max_size, aspect_ratio,
-             density, fixed_ratio, fixed_size, clip,
-             flip, step, offset, variance, scale_all_sizes) = specParams;
+    std::tie(min_size, max_size, aspect_ratio, density, fixed_ratio, fixed_size,
+             clip, flip, step, offset, variance, scale_all_sizes,
+             min_max_aspect_ratios_order) = specParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes, imageShapes});
 
-    ngraph::op::PriorBoxAttrs attributes;
+    ngraph::op::v8::PriorBoxAttrs attributes;
     attributes.min_size = min_size;
     attributes.max_size = max_size;
     attributes.aspect_ratio = aspect_ratio;
@@ -77,10 +78,11 @@ void PriorBoxLayerTest::SetUp() {
     attributes.offset = offset;
     attributes.clip = clip;
     attributes.flip = flip;
+    attributes.min_max_aspect_ratios_order = min_max_aspect_ratios_order;
 
     auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
     auto shape_of_2 = std::make_shared<ngraph::opset3::ShapeOf>(params[1]);
-    auto priorBox = std::make_shared<ngraph::op::PriorBox>(
+    auto priorBox = std::make_shared<ngraph::op::v8::PriorBox>(
         shape_of_1,
         shape_of_2,
         attributes);

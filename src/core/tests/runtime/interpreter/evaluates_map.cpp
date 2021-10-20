@@ -1529,11 +1529,47 @@ bool evaluate(const shared_ptr<op::v0::Elu>& op, const HostTensorVector& outputs
 template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::PriorBox>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
+    op::v0::PriorBox::Attributes attrs = op->get_attrs();
     runtime::reference::prior_box<T>(inputs[0]->get_data_ptr<T>(),
                                      inputs[1]->get_data_ptr<T>(),
                                      outputs[0]->get_data_ptr<float>(),
                                      outputs[0]->get_shape(),
-                                     op->get_attrs());
+                                     attrs.min_size,
+                                     attrs.max_size,
+                                     attrs.aspect_ratio,
+                                     attrs.density,
+                                     attrs.fixed_ratio,
+                                     attrs.fixed_size,
+                                     attrs.clip,
+                                     attrs.flip,
+                                     attrs.step,
+                                     attrs.offset,
+                                     attrs.variance,
+                                     attrs.scale_all_sizes);
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v8::PriorBox>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    op::v8::PriorBox::Attributes attrs = op->get_attrs();
+    runtime::reference::prior_box<T>(inputs[0]->get_data_ptr<T>(),
+                                     inputs[1]->get_data_ptr<T>(),
+                                     outputs[0]->get_data_ptr<float>(),
+                                     outputs[0]->get_shape(),
+                                     attrs.min_size,
+                                     attrs.max_size,
+                                     attrs.aspect_ratio,
+                                     attrs.density,
+                                     attrs.fixed_ratio,
+                                     attrs.fixed_size,
+                                     attrs.clip,
+                                     attrs.flip,
+                                     attrs.step,
+                                     attrs.offset,
+                                     attrs.variance,
+                                     attrs.scale_all_sizes,
+                                     attrs.min_max_aspect_ratios_order);
     return true;
 }
 

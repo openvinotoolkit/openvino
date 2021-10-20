@@ -22,8 +22,71 @@ static inline float clip_less(float x, float threshold) {
     return x > threshold ? x : threshold;
 }
 
+std::vector<float> normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip) {
+    std::set<float> unique_ratios;
+    for (auto ratio : aspect_ratio) {
+        unique_ratios.insert(std::round(ratio * 1e6) / 1e6);
+        if (flip)
+            unique_ratios.insert(std::round(1 / ratio * 1e6) / 1e6);
+    }
+    unique_ratios.insert(1);
+    return std::vector<float>(unique_ratios.begin(), unique_ratios.end());
+}
+
+int64_t number_of_priors(const std::vector<float>& attrs_min_size,
+                         const std::vector<float>& attrs_max_size,
+                         const std::vector<float>& attrs_aspect_ratio,
+                         const std::vector<float>& attrs_density,
+                         const std::vector<float>& attrs_fixed_ratio,
+                         const std::vector<float>& attrs_fixed_size,
+                         const bool& attrs_flip,
+                         const bool& attrs_scale_all_sizes) {
+    // Starting with 0 number of prior and then various conditions on attributes will contribute
+    // real number of prior boxes as PriorBox is a fat thing with several modes of
+    // operation that will be checked in order in the next statements.
+    int64_t num_priors = 0;
+
+    // Total number of boxes around each point; depends on whether flipped boxes are included
+    // plus one box 1x1.
+    int64_t total_aspect_ratios = normalized_aspect_ratio(attrs_aspect_ratio, attrs_flip).size();
+
+    if (attrs_scale_all_sizes)
+        num_priors = total_aspect_ratios * attrs_min_size.size() + attrs_max_size.size();
+    else
+        num_priors = total_aspect_ratios + attrs_min_size.size() - 1;
+
+    if (!attrs_fixed_size.empty())
+        num_priors = total_aspect_ratios * attrs_fixed_size.size();
+
+    for (auto density : attrs_density) {
+        auto rounded_density = static_cast<int64_t>(density);
+        auto density_2d = (rounded_density * rounded_density - 1);
+        if (!attrs_fixed_ratio.empty())
+            num_priors += attrs_fixed_ratio.size() * density_2d;
+        else
+            num_priors += total_aspect_ratios * density_2d;
+    }
+    return num_priors;
+}
+
 template <typename T>
-void prior_box(const T* data, const T* img, float* dst_data, const Shape& out_shape, const op::PriorBoxAttrs& attrs) {
+void prior_box(const T* data,
+               const T* img,
+               float* dst_data,
+               const Shape& out_shape,
+               const std::vector<float>& attrs_min_size,
+               const std::vector<float>& attrs_max_size,
+               const std::vector<float>& attrs_aspect_ratio,
+               const std::vector<float>& attrs_density,
+               const std::vector<float>& attrs_fixed_ratio,
+               const std::vector<float>& attrs_fixed_size,
+               const bool& attrs_clip,
+               const bool& attrs_flip,
+               const float& attrs_step,
+               const float& attrs_offset,
+               const std::vector<float>& attrs_variance,
+               const bool& attrs_scale_all_sizes,
+               const bool& attrs_min_max_aspect_ratios_order = true) {
     const int64_t W = data[1];
     const int64_t H = data[0];
     const int64_t IW = img[1];
@@ -33,29 +96,36 @@ void prior_box(const T* data, const T* img, float* dst_data, const Shape& out_sh
     const int64_t OW = 1;
 
     std::vector<float> aspect_ratios = {1.0f};
-    for (const auto& aspect_ratio : attrs.aspect_ratio) {
+    for (const auto& aspect_ratio : attrs_aspect_ratio) {
         bool exist = false;
         for (const auto existed_value : aspect_ratios)
             exist |= std::fabs(aspect_ratio - existed_value) < 1e-6;
 
         if (!exist) {
             aspect_ratios.push_back(aspect_ratio);
-            if (attrs.flip) {
+            if (attrs_flip) {
                 aspect_ratios.push_back(1.0f / aspect_ratio);
             }
         }
     }
 
-    std::vector<float> variance = attrs.variance;
+    std::vector<float> variance = attrs_variance;
     NGRAPH_CHECK(variance.size() == 1 || variance.size() == 4 || variance.empty());
     if (variance.empty())
         variance.push_back(0.1f);
 
-    int64_t num_priors = op::PriorBox::number_of_priors(attrs);
+    int64_t num_priors = number_of_priors(attrs_min_size,
+                                          attrs_max_size,
+                                          attrs_aspect_ratio,
+                                          attrs_density,
+                                          attrs_fixed_ratio,
+                                          attrs_fixed_size,
+                                          attrs_flip,
+                                          attrs_scale_all_sizes);
 
-    float step = attrs.step;
-    auto min_size = attrs.min_size;
-    if (!attrs.scale_all_sizes) {
+    float step = attrs_step;
+    auto min_size = attrs_min_size;
+    if (!attrs_scale_all_sizes) {
         // mxnet-like PriorBox
         if (step == -1)
             step = 1.f * IH / H;
@@ -100,21 +170,21 @@ void prior_box(const T* data, const T* img, float* dst_data, const Shape& out_sh
                 center_x = (w + 0.5f) * step_x;
                 center_y = (h + 0.5f) * step_y;
             } else {
-                center_x = (attrs.offset + w) * step;
-                center_y = (attrs.offset + h) * step;
+                center_x = (attrs_offset + w) * step;
+                center_y = (attrs_offset + h) * step;
             }
 
-            for (size_t s = 0; s < attrs.fixed_size.size(); ++s) {
-                auto fixed_size_ = static_cast<size_t>(attrs.fixed_size[s]);
+            for (size_t s = 0; s < attrs_fixed_size.size(); ++s) {
+                auto fixed_size_ = static_cast<size_t>(attrs_fixed_size[s]);
                 box_width = box_height = fixed_size_ * 0.5f;
 
-                if (!attrs.fixed_ratio.empty()) {
-                    for (float ar : attrs.fixed_ratio) {
-                        auto density_ = static_cast<int64_t>(attrs.density[s]);
-                        auto shift = static_cast<int64_t>(attrs.fixed_size[s] / density_);
+                if (!attrs_fixed_ratio.empty()) {
+                    for (float ar : attrs_fixed_ratio) {
+                        auto density_ = static_cast<int64_t>(attrs_density[s]);
+                        auto shift = static_cast<int64_t>(attrs_fixed_size[s] / density_);
                         ar = std::sqrt(ar);
-                        float box_width_ratio = attrs.fixed_size[s] * 0.5f * ar;
-                        float box_height_ratio = attrs.fixed_size[s] * 0.5f / ar;
+                        float box_width_ratio = attrs_fixed_size[s] * 0.5f * ar;
+                        float box_height_ratio = attrs_fixed_size[s] * 0.5f / ar;
                         for (int64_t r = 0; r < density_; ++r) {
                             for (int64_t c = 0; c < density_; ++c) {
                                 float center_x_temp = center_x - fixed_size_ / 2 + shift / 2.f + c * shift;
@@ -124,9 +194,9 @@ void prior_box(const T* data, const T* img, float* dst_data, const Shape& out_sh
                         }
                     }
                 } else {
-                    if (!attrs.density.empty()) {
-                        auto density_ = static_cast<int64_t>(attrs.density[s]);
-                        auto shift = static_cast<int64_t>(attrs.fixed_size[s] / density_);
+                    if (!attrs_density.empty()) {
+                        auto density_ = static_cast<int64_t>(attrs_density[s]);
+                        auto shift = static_cast<int64_t>(attrs_fixed_size[s] / density_);
                         for (int64_t r = 0; r < density_; ++r) {
                             for (int64_t c = 0; c < density_; ++c) {
                                 float center_x_temp = center_x - fixed_size_ / 2 + shift / 2.f + c * shift;
@@ -141,11 +211,11 @@ void prior_box(const T* data, const T* img, float* dst_data, const Shape& out_sh
                             continue;
                         }
 
-                        auto density_ = static_cast<int64_t>(attrs.density[s]);
-                        auto shift = static_cast<int64_t>(attrs.fixed_size[s] / density_);
+                        auto density_ = static_cast<int64_t>(attrs_density[s]);
+                        auto shift = static_cast<int64_t>(attrs_fixed_size[s] / density_);
                         ar = std::sqrt(ar);
-                        float box_width_ratio = attrs.fixed_size[s] * 0.5f * ar;
-                        float box_height_ratio = attrs.fixed_size[s] * 0.5f / ar;
+                        float box_width_ratio = attrs_fixed_size[s] * 0.5f * ar;
+                        float box_height_ratio = attrs_fixed_size[s] * 0.5f / ar;
                         for (int64_t r = 0; r < density_; ++r) {
                             for (int64_t c = 0; c < density_; ++c) {
                                 float center_x_temp = center_x - fixed_size_ / 2 + shift / 2.f + c * shift;
@@ -162,21 +232,42 @@ void prior_box(const T* data, const T* img, float* dst_data, const Shape& out_sh
                 box_height = min_size[ms_idx] * 0.5f;
                 calculate_data(center_x, center_y, box_width, box_height, false);
 
-                if (attrs.max_size.size() > ms_idx) {
-                    box_width = box_height = std::sqrt(min_size[ms_idx] * attrs.max_size[ms_idx]) * 0.5f;
-                    calculate_data(center_x, center_y, box_width, box_height, false);
-                }
+                if (attrs_min_max_aspect_ratios_order) {
+                    if (attrs_max_size.size() > ms_idx) {
+                        box_width = box_height = std::sqrt(min_size[ms_idx] * attrs_max_size[ms_idx]) * 0.5f;
+                        calculate_data(center_x, center_y, box_width, box_height, false);
+                    }
 
-                if (attrs.scale_all_sizes || (!attrs.scale_all_sizes && (ms_idx == min_size.size() - 1))) {
-                    size_t s_idx = attrs.scale_all_sizes ? ms_idx : 0;
-                    for (float ar : aspect_ratios) {
-                        if (std::fabs(ar - 1.0f) < 1e-6) {
-                            continue;
+                    if (attrs_scale_all_sizes || (!attrs_scale_all_sizes && (ms_idx == min_size.size() - 1))) {
+                        size_t s_idx = attrs_scale_all_sizes ? ms_idx : 0;
+                        for (float ar : aspect_ratios) {
+                            if (std::fabs(ar - 1.0f) < 1e-6) {
+                                continue;
+                            }
+
+                            ar = std::sqrt(ar);
+                            box_width = min_size[s_idx] * 0.5f * ar;
+                            box_height = min_size[s_idx] * 0.5f / ar;
+                            calculate_data(center_x, center_y, box_width, box_height, false);
                         }
+                    }
+                } else {
+                    if (attrs_scale_all_sizes || (!attrs_scale_all_sizes && (ms_idx == min_size.size() - 1))) {
+                        size_t s_idx = attrs_scale_all_sizes ? ms_idx : 0;
+                        for (float ar : aspect_ratios) {
+                            if (std::fabs(ar - 1.0f) < 1e-6) {
+                                continue;
+                            }
 
-                        ar = std::sqrt(ar);
-                        box_width = min_size[s_idx] * 0.5f * ar;
-                        box_height = min_size[s_idx] * 0.5f / ar;
+                            ar = std::sqrt(ar);
+                            box_width = min_size[s_idx] * 0.5f * ar;
+                            box_height = min_size[s_idx] * 0.5f / ar;
+                            calculate_data(center_x, center_y, box_width, box_height, false);
+                        }
+                    }
+
+                    if (attrs_max_size.size() > ms_idx) {
+                        box_width = box_height = std::sqrt(min_size[ms_idx] * attrs_max_size[ms_idx]) * 0.5f;
                         calculate_data(center_x, center_y, box_width, box_height, false);
                     }
                 }
@@ -184,7 +275,7 @@ void prior_box(const T* data, const T* img, float* dst_data, const Shape& out_sh
         }
     }
 
-    if (attrs.clip) {
+    if (attrs_clip) {
         for (int64_t i = 0; i < H * W * num_priors * 4; ++i) {
             dst_data[i] = (std::min)((std::max)(dst_data[i], 0.0f), 1.0f);
         }
