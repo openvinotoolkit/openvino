@@ -68,7 +68,6 @@ TEST(function, get_output_by_tensor_index_without_name) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
 
-    const std::unordered_set<std::string> out_names = {"relu_t", "identity"};
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     auto result = std::make_shared<ov::opset8::Result>(relu);
@@ -77,8 +76,7 @@ TEST(function, get_output_by_tensor_index_without_name) {
 
     auto output = f->output(0);
     EXPECT_THROW(f->output("relu_t"), ov::Exception);
-    EXPECT_EQ(output.get_tensor().get_names().size(), 2);
-    EXPECT_EQ(output.get_tensor().get_names(), out_names);
+    EXPECT_EQ(output.get_tensor().get_names().size(), 0);
     EXPECT_EQ(output.get_node(), result.get());
     EXPECT_THROW(f->output("identity"), ov::Exception);
     EXPECT_EQ(output.get_element_type(), ov::element::f32);
@@ -524,18 +522,6 @@ TEST(function, multiple_inputs_outputs_function_from_const_function) {
     EXPECT_EQ(output2.get_node(), result2.get());
     EXPECT_EQ(f->inputs().size(), 2);
     EXPECT_EQ(f->outputs().size(), 2);
-}
-
-TEST(function, DISABLED_create_function_with_incorrect_tensor_names_from_const_function) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
-    arg0->set_friendly_name("data");
-    arg0->get_output_tensor(0).set_names({"input"});
-
-    auto relu = std::make_shared<ov::opset8::Relu>(arg0);
-    relu->set_friendly_name("relu");
-    relu->get_output_tensor(0).set_names({"input"});
-    auto f = std::make_shared<const ov::Function>(relu, ov::ParameterVector{arg0});
-    EXPECT_THROW(f->validate_nodes_and_infer_types(), ov::Exception);
 }
 
 TEST(function_reshape, ReshapedDynamicShapeLayout) {

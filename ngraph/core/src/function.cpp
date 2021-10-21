@@ -742,7 +742,7 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
     std::unordered_map<const ov::Node*, std::string> port_tensor_map;
     const ov::Function* const_this = this;
     for (const auto& it : partial_shapes) {
-        const auto port = const_this->output(it.first);
+        const auto port = const_this->input(it.first);
         if (port_tensor_map.find(port.get_node()) != port_tensor_map.end()) {
             OPENVINO_ASSERT(it.second == const_pshape.at(port),
                             "Tensor with names {'",
@@ -757,7 +757,7 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
                             ", but they define the same tensor");
         }
         port_tensor_map[port.get_node()] = it.first;
-        const_pshape[const_this->output(it.first)] = it.second;
+        const_pshape[port] = it.second;
     }
     reshape(const_pshape);
 }
