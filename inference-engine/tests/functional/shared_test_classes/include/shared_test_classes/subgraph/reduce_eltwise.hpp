@@ -25,7 +25,7 @@ using ReduceEltwiseParamsTuple = typename std::tuple<
 
 class ReduceEltwiseTest:
         public testing::WithParamInterface<ReduceEltwiseParamsTuple>,
-        public LayerTestsUtils::LayerTestsCommon{
+        virtual public LayerTestsUtils::LayerTestsCommon{
 public:
     std::shared_ptr<ngraph::Function> fn;
     static std::string getTestCaseName(const testing::TestParamInfo<ReduceEltwiseParamsTuple> &obj);

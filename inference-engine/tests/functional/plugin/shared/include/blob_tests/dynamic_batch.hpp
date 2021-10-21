@@ -20,7 +20,7 @@ typedef std::tuple<
     std::map<std::string, std::string> // Additional configuration
 > dynamicBatchTestParams;
 
-class DynamicBatchTest : public LayerTestsUtils::LayerTestsCommon,
+class DynamicBatchTest : virtual public LayerTestsUtils::LayerTestsCommon,
     public testing::WithParamInterface<dynamicBatchTestParams> {
 private:
     bool run_async = false;

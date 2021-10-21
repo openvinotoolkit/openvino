@@ -20,7 +20,7 @@ typedef std::tuple<
 > BatchNormLayerTestParams;
 
 class BatchNormLayerTest : public testing::WithParamInterface<BatchNormLayerTestParams>,
-                           public LayerTestsUtils::LayerTestsCommon {
+                           virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<BatchNormLayerTestParams>& obj);
 

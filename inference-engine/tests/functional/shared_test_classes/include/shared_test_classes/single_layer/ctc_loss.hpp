@@ -31,7 +31,7 @@ typedef std::tuple<
 > CTCLossParams;
 
 class CTCLossLayerTest : public testing::WithParamInterface<CTCLossParams>,
-                        public LayerTestsUtils::LayerTestsCommon {
+                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<CTCLossParams> &obj);
 

@@ -28,7 +28,7 @@ typedef std::tuple<
 > GatherNDParams;
 
 class GatherNDLayerTest : public testing::WithParamInterface<GatherNDParams>,
-                          public LayerTestsUtils::LayerTestsCommon {
+                          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<GatherNDParams> &obj);
 

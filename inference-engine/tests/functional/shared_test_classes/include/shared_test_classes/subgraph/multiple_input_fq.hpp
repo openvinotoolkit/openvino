@@ -17,7 +17,7 @@ typedef std::tuple<
     std::map<std::string, std::string>  // Configuration
 > multipleInputParams;
 
-class MultipleInputTest : public LayerTestsUtils::LayerTestsCommon,
+class MultipleInputTest : virtual public LayerTestsUtils::LayerTestsCommon,
     public testing::WithParamInterface<multipleInputParams> {
 protected:
     void SetUp() override;

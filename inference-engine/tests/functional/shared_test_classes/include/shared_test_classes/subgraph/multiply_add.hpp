@@ -22,7 +22,7 @@ using MultiplyAddParamsTuple = typename std::tuple<
 
 class MultiplyAddLayerTest:
         public testing::WithParamInterface<MultiplyAddParamsTuple>,
-        public LayerTestsUtils::LayerTestsCommon{
+        virtual public LayerTestsUtils::LayerTestsCommon{
 public:
     std::shared_ptr<ngraph::Function> fn;
     static std::string getTestCaseName(const testing::TestParamInfo<MultiplyAddParamsTuple> &obj);

@@ -18,7 +18,7 @@ typedef std::tuple<
     std::map<std::string, std::string>  // Configuration
 > multipleLSTMCellParams;
 
-class MultipleLSTMCellTest : public LayerTestsUtils::LayerTestsCommon,
+class MultipleLSTMCellTest : virtual public LayerTestsUtils::LayerTestsCommon,
     public testing::WithParamInterface<multipleLSTMCellParams> {
 private:
     // you have to Unroll TI manually and remove memory untill ngraph supports it

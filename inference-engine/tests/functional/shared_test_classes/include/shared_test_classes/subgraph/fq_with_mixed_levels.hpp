@@ -23,7 +23,7 @@ typedef std::tuple<
 > FqWithMixedLevelsParams;
 
 class FqWithMixedLevelsTest : public testing::WithParamInterface<FqWithMixedLevelsParams>,
-                        public LayerTestsUtils::LayerTestsCommon {
+                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<FqWithMixedLevelsParams>& obj);
 

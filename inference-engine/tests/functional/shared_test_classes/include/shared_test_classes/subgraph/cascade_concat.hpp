@@ -24,7 +24,7 @@ typedef std::tuple<
 
 class CascadeConcat
         : public testing::WithParamInterface<CascadeConcatTuple>,
-          public LayerTestsUtils::LayerTestsCommon {
+          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<CascadeConcatTuple> &obj);
 protected:
