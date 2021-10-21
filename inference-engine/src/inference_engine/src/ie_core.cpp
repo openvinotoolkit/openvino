@@ -37,6 +37,7 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/executable_network.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/shared_object.hpp"
 #include "xml_parse_utils.h"
 
 using namespace InferenceEngine::PluginConfigParams;
@@ -685,6 +686,8 @@ public:
                 // plugin is not created by e.g. invalid env
             } catch (ov::Exception&) {
                 // plugin is not created by e.g. invalid env
+            } catch (std::runtime_error&) {
+                // plugin is not created by e.g. invalid env
             } catch (const std::exception& ex) {
                 IE_THROW() << "An exception is thrown while trying to create the " << deviceName
                            << " device and call GetMetric: " << ex.what();
@@ -724,11 +727,11 @@ public:
         auto it_plugin = plugins.find(deviceName);
         if (it_plugin == plugins.end()) {
             PluginDescriptor desc = it->second;
-            auto so = load_shared_object(desc.libraryLocation.c_str());
+            auto so = ov::util::load_shared_object(desc.libraryLocation.c_str());
             try {
                 using CreateF = void(std::shared_ptr<ie::IInferencePlugin>&);
                 std::shared_ptr<ie::IInferencePlugin> plugin_impl;
-                reinterpret_cast<CreateF*>(get_symbol(so, OV_PP_TOSTRING(IE_CREATE_PLUGIN)))(plugin_impl);
+                reinterpret_cast<CreateF*>(ov::util::get_symbol(so, OV_PP_TOSTRING(IE_CREATE_PLUGIN)))(plugin_impl);
                 auto plugin = InferencePlugin{so, plugin_impl};
 
                 {
