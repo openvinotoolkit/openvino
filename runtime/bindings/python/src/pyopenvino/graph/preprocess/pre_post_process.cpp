@@ -5,15 +5,12 @@
 #include "openvino/core/preprocess/pre_post_process.hpp"
 
 #include <pybind11/functional.h>
-#include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <pybind11/stl_bind.h>
 
 #include "pyopenvino/graph/preprocess/pre_post_process.hpp"
 
-namespace py = pybind11;
 
-PYBIND11_MAKE_OPAQUE(const std::vector<float>);
+namespace py = pybind11;
 
 static void regclass_graph_PreProcessSteps(py::module m) {
     py::class_<ov::preprocess::PreProcessSteps, std::shared_ptr<ov::preprocess::PreProcessSteps>> steps(
@@ -43,7 +40,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
               )");
     steps.def(
         "mean",
-        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, const std::vector<float> values) {
+        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, const std::vector<float>& values) {
             me->mean(values);
             return me;
         },
@@ -120,8 +117,8 @@ static void regclass_graph_PreProcessSteps(py::module m) {
     steps.def(
         "custom",
         [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me,
-           const ov::preprocess::PreProcessSteps::CustomPreprocessOp& op) {
-            me->custom(op);
+           py::function op) {
+            me->custom(op.cast<const ov::preprocess::PreProcessSteps::CustomPreprocessOp>());
             return me;
         },
         py::arg("operation"),
