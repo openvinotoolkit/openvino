@@ -288,8 +288,13 @@ void gpu_usm::unlock(const stream& /* stream */) {
 
 event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
     // auto& cl_stream = downcast<ze_stream>(stream);
-    throw std::runtime_error("[clDNN] gpu_usm::fill is not implemented for gpu_usm");
-    auto ev = stream.create_base_event();
+    //throw std::runtime_error("[clDNN] gpu_usm::fill is not implemented for gpu_usm");
+
+    auto& _ze_stream = downcast<const ze_stream>(stream);
+    auto ev = stream.create_user_event(false);
+    auto ev_ze = downcast<ze::ze_base_event>(ev.get())->get();
+
+    ZE_CHECK(zeCommandListAppendMemoryFill(_ze_stream.get_queue(), _buffer.get(), 0, pattern, _bytes_count, ev_ze, 0, nullptr));
     // ze::Event ev_ze = downcast<ze_event>(ev.get())->get();
     // // enqueueFillUsm call will never finish. Driver bug? Uncomment when fixed. Some older drivers doesn't support enqueueFillUsm call at all.
     // // cl_stream.get_usm_helper().enqueue_fill_mem<unsigned char>(cl_stream.get_cl_queue(), _buffer.get(), pattern, _bytes_count, nullptr, &ev_ze)
@@ -303,15 +308,16 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
 }
 
 event::ptr gpu_usm::fill(stream& stream) {
-    throw std::runtime_error("[clDNN] gpu_usm::fill is not implemented for gpu_usm");
+    //throw std::runtime_error("[clDNN] gpu_usm::fill is not implemented for gpu_usm");
     //event::ptr ev{ new ze_base_event(), false };
-    // ze::Event ev_ze = downcast<ze_event>(ev.get())->get();
+    //ze::Event ev_ze = downcast<ze_event>(ev.get())->get();
     // ze::usm::enqueue_set_mem(cl_stream.get_cl_queue(), _buffer.get(), 0, _bytes_count, nullptr, &ev_ze);
     // ev->wait();
     //auto& _ze_stream = downcast<const ze_stream>(stream);
     //auto ev = stream.create_user_event(true);
     //cldnn::ze::ze_event ev_ze = downcast<ze_event>(ev.get())->get();
-    //zeCommandListAppendMemoryFill(_ze_stream.get_queue(), _buffer.get(), 0, _bytes_count, nullptr, &ev_ze);
+
+    //ZE_CHECK(zeCommandListAppendMemoryFill(_ze_stream.get_queue(), _buffer.get(), 0, 0, _bytes_count, ev_ze, 0, nullptr));
     // [WA]
     return fill(stream, 0);
 }

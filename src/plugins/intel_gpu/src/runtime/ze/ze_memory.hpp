@@ -132,6 +132,19 @@ public:
     }
 
     void allocateShared(size_t size) {
+        ze_device_mem_alloc_desc_t device_desc = {};
+        device_desc.stype = ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC;
+        device_desc.flags = 0;
+        device_desc.pNext = nullptr;
+
+        ze_host_mem_alloc_desc_t host_desc = {};
+        host_desc.stype = ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC;
+        host_desc.flags = 0;
+        host_desc.pNext = nullptr;
+
+        void* memory = nullptr;
+        ZE_CHECK(zeMemAllocShared(_context, &device_desc, &host_desc, size, 1, _device, &memory));
+        _allocate(memory);
         // cl_int error = CL_SUCCESS;
         // _allocate(_usmHelper.allocate_shared(nullptr, size, 0, &error));
         // if (error != CL_SUCCESS)

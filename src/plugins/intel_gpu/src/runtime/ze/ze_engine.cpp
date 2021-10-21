@@ -56,9 +56,9 @@ memory::ptr ze_engine::allocate_memory(const layout& layout, allocation_type typ
 
     memory::ptr res = std::make_shared<ze::gpu_usm>(this, layout, type);
 
-    //     if (reset || res->is_memory_reset_needed(layout)) {
-    //         res->fill(get_program_stream());
-    //     }
+    if (reset || res->is_memory_reset_needed(layout)) {
+        res->fill(get_program_stream());
+    }
 
     return res;
 }
