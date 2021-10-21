@@ -21,7 +21,7 @@ cmake .. && make time_tests
 
 2. Install tests:
 ``` bash
-сmake install
+сmake install <build_dir> --prefix <install_path>
 ```
 
 3. Run test:
