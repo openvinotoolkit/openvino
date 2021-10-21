@@ -15,17 +15,10 @@
 namespace GNAPluginNS {
 
 class GNAInferRequest : public InferenceEngine::IInferRequestInternal {
- protected:
-    std::shared_ptr<GNAPlugin> plg;
-    uint32_t inferRequestIdx = -1;
-
- public:
-    GNAInferRequest(const std::shared_ptr<GNAPlugin>& plg,
-                    InferenceEngine::InputsDataMap networkInputs,
-                    InferenceEngine::OutputsDataMap networkOutputs)
-        : InferenceEngine::IInferRequestInternal(networkInputs, networkOutputs), plg(plg) {
+ private:
+    void CreateInferRequest() {
         // TODO: internal connection API - better to generalize
-        if (networkOutputs.empty()) {
+        if (_networkOutputs.empty()) {
             THROW_GNA_EXCEPTION << "GNAInferRequest :: network has zero outputs";
         }
 
@@ -39,6 +32,24 @@ class GNAInferRequest : public InferenceEngine::IInferRequestInternal {
             _inputs[input.first] =
                 plg->GetInputBlob(input.first, input.second->getTensorDesc().getPrecision());
         }
+    }
+
+ protected:
+    std::shared_ptr<GNAPlugin> plg;
+    uint32_t inferRequestIdx = -1;
+
+ public:
+    GNAInferRequest(const std::shared_ptr<GNAPlugin>& plg,
+                    const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                    const std::vector<std::shared_ptr<const ov::Node>>& outputs)
+        : InferenceEngine::IInferRequestInternal(inputs, outputs), plg(plg) {
+        CreateInferRequest();
+    }
+    GNAInferRequest(const std::shared_ptr<GNAPlugin>& plg,
+                    InferenceEngine::InputsDataMap networkInputs,
+                    InferenceEngine::OutputsDataMap networkOutputs)
+        : InferenceEngine::IInferRequestInternal(networkInputs, networkOutputs), plg(plg) {
+        CreateInferRequest();
     }
     /**
      * @brief Infers specified input(s) in synchronous mode
