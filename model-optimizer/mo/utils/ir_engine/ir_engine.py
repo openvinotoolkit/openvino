@@ -466,7 +466,7 @@ class IREngine(object):
 
     @staticmethod
     def __read_old_api_map(attr, layer_type):
-        version = float(attr.attrib['version'])
+        version = int(attr.attrib['version'])
         order = list(map(int, attr.attrib['order'].split(',')))
         element_type = destination_type_to_np_data_type(attr.attrib['element_type'])
         old_api_map = OldAPIMap(version=version)
@@ -478,4 +478,4 @@ class IREngine(object):
         else:
             raise AttributeError("Cannot read old_api_map for layer of type: {}".format(layer_type))
 
-        return {(version, 'old_api_map'): old_api_map}
+        return {('old_api_map', version): old_api_map}
