@@ -499,7 +499,6 @@ set(MULTI_TEST_SRC
     backend/prior_box.in.cpp
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
-    backend/range.in.cpp
     backend/recurrent_cells.in.cpp
     backend/region_yolo.in.cpp
     backend/reorg_yolo.in.cpp
