@@ -25,7 +25,7 @@ ze_engine::ze_engine(const device::ptr dev, runtime_types runtime_type, const en
     if (!casted)
         throw std::runtime_error("[CLDNN] Invalid device type passed to ze engine");
 
-    // _program_stream.reset(new ze_stream(*this));
+    _program_stream.reset(new ze_stream(*this));
 }
 
 const ze_driver_handle_t ze_engine::get_driver() const {

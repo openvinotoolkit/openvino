@@ -291,10 +291,10 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
     //throw std::runtime_error("[clDNN] gpu_usm::fill is not implemented for gpu_usm");
 
     auto& _ze_stream = downcast<const ze_stream>(stream);
-    auto ev = stream.create_user_event(false);
+    auto ev = stream.create_user_event(true);
     auto ev_ze = downcast<ze::ze_base_event>(ev.get())->get();
-
-    ZE_CHECK(zeCommandListAppendMemoryFill(_ze_stream.get_queue(), _buffer.get(), 0, pattern, _bytes_count, ev_ze, 0, nullptr));
+    std::vector<unsigned char> temp_buffer(_bytes_count, pattern);
+    ZE_CHECK(zeCommandListAppendMemoryFill(_ze_stream.get_queue(), _buffer.get(), temp_buffer.data(), pattern, _bytes_count, ev_ze, 0, nullptr));
     // ze::Event ev_ze = downcast<ze_event>(ev.get())->get();
     // // enqueueFillUsm call will never finish. Driver bug? Uncomment when fixed. Some older drivers doesn't support enqueueFillUsm call at all.
     // // cl_stream.get_usm_helper().enqueue_fill_mem<unsigned char>(cl_stream.get_cl_queue(), _buffer.get(), pattern, _bytes_count, nullptr, &ev_ze)
