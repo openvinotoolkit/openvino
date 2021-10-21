@@ -22,8 +22,7 @@ using Node = std::shared_ptr<ngraph::Node>;
 
 namespace {
 
-void DoTransformation(Node start_node, Node last_node)
-{
+void DoTransformation(Node start_node, Node last_node) {
     auto activation = std::make_shared<ov::op::gna::SoftSign>(start_node);
     activation->set_friendly_name(last_node->get_friendly_name());
     ngraph::copy_runtime_info(last_node, activation);

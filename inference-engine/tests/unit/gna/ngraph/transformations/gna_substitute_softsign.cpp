@@ -17,13 +17,12 @@ namespace testing {
 
 namespace {
 
-std::shared_ptr<ngraph::Function> createSoftSignFunction()
-{
+std::shared_ptr<ngraph::Function> createSoftSignFunction() {
     auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f16,
                                                                     ngraph::Shape{ 1, 1, 1, 64 });
 
     auto softsign = std::make_shared<ov::op::gna::SoftSign>(input_params);
- 
+
     ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(softsign) };
 
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{results},
@@ -33,7 +32,6 @@ std::shared_ptr<ngraph::Function> createSoftSignFunction()
 } // namespace
 
 TEST(TransformationTests, SubstituteSoftSignMulPower) {
-    
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
@@ -68,7 +66,6 @@ TEST(TransformationTests, SubstituteSoftSignMulPower) {
 }
 
 TEST(TransformationTests, SubstituteSoftSignDivide) {
-    
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
