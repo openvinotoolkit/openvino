@@ -73,14 +73,6 @@ const std::map<py::str, ov::element::Type> dtype_to_ov_type = {
     {"bool", ov::element::boolean},
 };
 
-ov::Strides to_numpy_strides(const ov::Strides& strides, const ov::element::Type& ov_type) {
-    ov::Strides numpy_strides(strides.size());
-    std::transform(strides.begin(), strides.end(), numpy_strides.begin(), [&ov_type](size_t stride) {
-        return stride * ov_type.size();
-    });
-    return numpy_strides;
-}
-
 InferenceEngine::Layout get_layout_from_string(const std::string& layout) {
     return layout_str_to_enum.at(layout);
 }

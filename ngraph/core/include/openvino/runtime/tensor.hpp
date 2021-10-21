@@ -79,8 +79,8 @@ public:
      * @param type Tensor element type
      * @param shape Tensor shape
      * @param host_ptr Pointer to pre-allocated host memory
-     * @param strides Optional strides parameters in elements. Strides are supposed to be equal to shape if they are not
-     * set
+     * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
+     * on shape and element size
      */
     Tensor(const element::Type type, const Shape& shape, void* host_ptr, const Strides& strides = {});
 
@@ -124,7 +124,7 @@ public:
     size_t get_byte_size() const;
 
     /**
-     * @return Tensor's strides in elements
+     * @return Tensor's strides in bytes
      */
     Strides get_strides() const;
 
