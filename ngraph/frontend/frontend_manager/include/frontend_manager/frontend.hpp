@@ -12,6 +12,7 @@
 #include "input_model.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/variant.hpp"
+#include "openvino/core/extension.hpp"
 
 namespace ngraph {
 namespace frontend {
@@ -87,6 +88,10 @@ public:
     ///
     /// \return Current frontend name. Empty string if not implemented
     virtual std::string get_name() const;
+
+    /// \brief Register extensions in the FrontEnd
+    /// \param extensions vector of extensions
+    virtual void add_extensions(const std::vector<ov::Extension::Ptr>& extensions);
 
 protected:
     virtual bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const;

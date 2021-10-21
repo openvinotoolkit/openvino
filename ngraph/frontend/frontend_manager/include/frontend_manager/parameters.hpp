@@ -59,7 +59,6 @@ public:
 };
 
 using Weights = std::shared_ptr<ngraph::runtime::AlignedBuffer>;
-using WeightsVariant = VariantWrapper<Weights>;
 
 template <>
 class FRONTEND_API VariantWrapper<std::map<std::string, ngraph::OpSet>>
@@ -71,8 +70,5 @@ public:
     }
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
-
-using Extensions = std::map<std::string, ngraph::OpSet>;
-using ExtensionsVariant = VariantWrapper<Extensions>;
 
 }  // namespace ov

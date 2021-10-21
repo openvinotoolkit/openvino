@@ -30,6 +30,7 @@ set(DEPENDENCIES
     HeteroPlugin
     MultiDevicePlugin
     template_extension
+    template_ov_extension
     lptNgraphFunctions
     sharedTestClasses
     test_model_zoo

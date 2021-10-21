@@ -168,8 +168,8 @@ void assertIfIRv7LikeModel(std::istream& modelStream) {
                   "version of the OpenVINO to generate supported IR version.";
 }
 
-ov::Extensions get_extensions_map(const std::vector<InferenceEngine::IExtensionPtr>& exts) {
-    ov::Extensions extensions;
+std::map<std::string, ngraph::OpSet> get_extensions_map(const std::vector<InferenceEngine::IExtensionPtr>& exts) {
+    std::map<std::string, ngraph::OpSet> extensions;
     for (const auto& ext : exts) {
         for (const auto& item : ext->getOpSets()) {
             if (extensions.count(item.first)) {
@@ -414,6 +414,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
 CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::string& binPath,
                                 const std::vector<IExtensionPtr>& exts,
+                                const std::vector<ov::Extension::Ptr>& ov_exts,
                                 bool newAPI) {
     // IR v7 obsolete code
     {
@@ -456,8 +457,10 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     }
 
     FE = manager.load_by_model(params);
-    if (FE)
+    if (FE) {
+        FE->add_extensions(ov_exts);
         inputModel = FE->load(params);
+    }
 
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
@@ -473,6 +476,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 CNNNetwork details::ReadNetwork(const std::string& model,
                                 const Blob::CPtr& weights,
                                 const std::vector<IExtensionPtr>& exts,
+                                const std::vector<ov::Extension::Ptr>& ov_exts,
                                 bool newAPI) {
     std::istringstream modelStringStream(model);
     std::istream& modelStream = modelStringStream;
@@ -503,7 +507,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     ov::VariantVector params{ov::make_variant(&modelStream)};
     if (weights) {
         char* data = weights->cbuffer().as<char*>();
-        ov::Weights weights_buffer =
+        std::shared_ptr<ngraph::runtime::AlignedBuffer> weights_buffer =
             std::make_shared<ngraph::runtime::SharedBuffer<Blob::CPtr>>(data, weights->byteSize(), weights);
         params.emplace_back(ov::make_variant(weights_buffer));
     }
@@ -512,8 +516,10 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     }
 
     FE = manager.load_by_model(params);
-    if (FE)
+    if (FE) {
+        FE->add_extensions(ov_exts);
         inputModel = FE->load(params);
+    }
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
         return convert_to_cnnnetwork(ngFunc, exts, newAPI);
