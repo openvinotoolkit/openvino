@@ -9,7 +9,28 @@
 namespace GNAPluginNS {
 
 /**
- * @brief TODO
+ * @brief Current version of ModelOptimizer substitutes SoftSign activation
+ * function with next subgraph
+ *  a layer
+ *  |  \
+ * abs  \
+ *  |    |
+ * add   |
+ *  |    |
+ * power |
+ *  \   /
+ *  Divide
+ * 
+ * See model-optimizer/extensions/front/softsign_replacer.py
+ * 
+ * The ConvertDivide transformation from CommonOptimizations
+ * substitutes Divide with {-1} and add constant {1}
+ * - GNA supports Power [0, 2.8]
+ * - Add, Power, Divide layers are more perfomance expensive in GNA
+ *   than SoftSign PWL
+ * 
+ * SubstituteSoftsign transformation does backward substitution to SoftSign.
+ * TODO: remove that pass as soon as ModelOptimizer will not substitute SoftSign activation
  */
 class SubstituteSoftsign : public ngraph::pass::MatcherPass {
 public:
