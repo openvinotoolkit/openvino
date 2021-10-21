@@ -65,7 +65,7 @@ declared in `namespace opset8`.
 * [FloorMod](arithmetic/FloorMod_1.md)
 * [Gather](movement/Gather_8.md)
 * [GatherElements](movement/GatherElements_6.md)
-* [GatherND_5](movement/GatherND_5.md)
+* [GatherND_8](movement/GatherND_8.md)
 * [GatherTree](movement/GatherTree_1.md)
 * [Gelu](activation/GELU_7.md)
 * [Greater](comparison/Greater_1.md)
