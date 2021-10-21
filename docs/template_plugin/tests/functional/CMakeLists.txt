@@ -10,7 +10,6 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
             templatePlugin
-            HeteroPlugin
         LINK_LIBRARIES
             IE::funcSharedTests
         INCLUDES
@@ -20,6 +19,10 @@ addIeTargetTest(
         LABELS
             TEMPLATE
 )
+
+if(ENABLE_HETERO)
+    add_dependencies(${TARGET_NAME} HeteroPlugin)
+endif()
 
 if(ENABLE_TEMPLATE_OPENCV_TESTS)
     find_package(OpenCV QUIET COMPONENTS core imgproc)

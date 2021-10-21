@@ -10,6 +10,8 @@ add_subdirectory(preprocessing)
 
 add_subdirectory(legacy_api)
 
+add_subdirectory(inference_engine)
+
 if(ENABLE_MKL_DNN)
     add_subdirectory(mkldnn_plugin)
 endif()
@@ -35,8 +37,6 @@ if(ENABLE_MULTI)
 endif()
 
 add_subdirectory(transformations)
-
-add_subdirectory(inference_engine)
 
 add_subdirectory(readers)
 

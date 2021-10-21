@@ -40,6 +40,11 @@
 #include "openvino/util/shared_object.hpp"
 #include "xml_parse_utils.h"
 
+#ifdef OPENVINO_STATIC_LIBRARY
+// hard WA for now
+INFERENCE_PLUGIN_API(void) CreatePluginEngine(::std::shared_ptr<::InferenceEngine::IInferencePlugin>&) noexcept(false);
+#endif
+
 using namespace InferenceEngine::PluginConfigParams;
 using namespace std::placeholders;
 
@@ -135,7 +140,11 @@ void allowNotImplemented(F&& f) {
 }  // namespace
 
 class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore> {
+#ifdef OPENVINO_STATIC_LIBRARY
     mutable std::map<std::string, ov::runtime::InferencePlugin> plugins;
+#else
+    mutable std::map<std::string, ov::runtime::InferencePlugin> plugins;
+#endif
 
     class CoreConfig final {
     public:
@@ -179,10 +188,12 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     struct PluginDescriptor {
         ov::util::FilePath libraryLocation;
         std::map<std::string, std::string> defaultConfig;
+        // TODO: make extensions to be optional with conditional compilation
         std::vector<ov::util::FilePath> listOfExtentions;
     };
 
     mutable std::unordered_set<std::string> opsetNames;
+    // TODO: make extensions to be optional with conditional compilation
     mutable std::vector<ie::IExtensionPtr> extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
@@ -225,7 +236,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
     ov::runtime::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(
         const InferenceEngine::CNNNetwork& network,
-        InferencePlugin& plugin,
+        ov::runtime::InferencePlugin& plugin,
         const std::map<std::string, std::string>& parsedConfig,
         const ie::RemoteContext::Ptr& context,
         const std::string& blobID,
@@ -727,12 +738,21 @@ public:
         auto it_plugin = plugins.find(deviceName);
         if (it_plugin == plugins.end()) {
             PluginDescriptor desc = it->second;
-            auto so = ov::util::load_shared_object(desc.libraryLocation.c_str());
             try {
+#ifdef OPENVINO_STATIC_LIBRARY
+                // using CreateF = void(std::shared_ptr<ie::IInferencePlugin>&);
+                std::shared_ptr<ie::IInferencePlugin> plugin_impl;
+                // TODO: creare a map with plugins
+                // std::map<std::string, CreateF> plugins_xml;
+                CreatePluginEngine(plugin_impl);
+                auto plugin = InferencePlugin{nullptr, plugin_impl};
+#else
+                auto so = ov::util::load_shared_object(desc.libraryLocation.c_str());
                 using CreateF = void(std::shared_ptr<ie::IInferencePlugin>&);
                 std::shared_ptr<ie::IInferencePlugin> plugin_impl;
                 reinterpret_cast<CreateF*>(ov::util::get_symbol(so, OV_PP_TOSTRING(IE_CREATE_PLUGIN)))(plugin_impl);
                 auto plugin = InferencePlugin{so, plugin_impl};
+#endif // OPENVINO_STATIC_LIBRARY
 
                 {
                     plugin.set_name(deviceName);

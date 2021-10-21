@@ -42,9 +42,6 @@ CNNNetwork IRReader::read(std::istream& model, const Blob::CPtr& weights, const 
     return CNNNetwork(parser.parse(root, weights));
 }
 
-#ifndef OPENVINO_STATIC_LIBRARY
-OPENVINO_PLUGIN_API
-#endif // !OPENVINO_STATIC_LIBRARY
-void InferenceEngine::CreateReader(std::shared_ptr<IReader>& reader) {
+INFERENCE_PLUGIN_API(void) InferenceEngine::CreateReader(std::shared_ptr<IReader>& reader) {
     reader = std::make_shared<IRReader>();
 }

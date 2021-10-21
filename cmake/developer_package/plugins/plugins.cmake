@@ -55,7 +55,13 @@ function(ie_add_plugin)
             add_cpplint_target(${obj_lib}_cpplint FOR_TARGETS ${obj_lib})
         endforeach()
 
-        add_library(${IE_PLUGIN_NAME} MODULE ${input_files})
+        if(BUILD_SHARED_LIBS)
+            set(library_type MODULE)
+        else()
+            set(library_type STATIC)
+        endif()
+
+        add_library(${IE_PLUGIN_NAME} ${library_type} ${input_files})
         target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
         ie_add_vs_version_file(NAME ${IE_PLUGIN_NAME}
@@ -65,6 +71,11 @@ function(ie_add_plugin)
             target_link_libraries(${IE_PLUGIN_NAME} PRIVATE IE::inference_engine_plugin_api)
         else()
             target_link_libraries(${IE_PLUGIN_NAME} PRIVATE inference_engine_plugin_api)
+        endif()
+
+        # for static compilation IE depends on the plugins
+        if(NOT BUILD_SHARED_LIBS)
+            target_link_libraries(inference_engine PRIVATE ${IE_PLUGIN_NAME})
         endif()
 
         if(WIN32)
@@ -87,23 +98,25 @@ function(ie_add_plugin)
         endif()
 
         add_dependencies(ie_plugins ${IE_PLUGIN_NAME})
-        if(TARGET inference_engine_preproc)
+        if(TARGET inference_engine_preproc AND BUILD_SHARED_LIBS)
             add_dependencies(${IE_PLUGIN_NAME} inference_engine_preproc)
         endif()
 
         # fake dependencies to build in the following order:
         # IE -> IE readers -> IE inference plugins -> IE-based apps
-        if(TARGET ir_ngraph_frontend)
-            add_dependencies(${IE_PLUGIN_NAME} ir_ngraph_frontend)
-        endif()
-        if(TARGET inference_engine_ir_v7_reader)
-            add_dependencies(${IE_PLUGIN_NAME} inference_engine_ir_v7_reader)
-        endif()
-        if(TARGET onnx_ngraph_frontend)
-            add_dependencies(${IE_PLUGIN_NAME} onnx_ngraph_frontend)
-        endif()
-        if(TARGET paddlepaddle_ngraph_frontend)
-            add_dependencies(${IE_PLUGIN_NAME} paddlepaddle_ngraph_frontend)
+        if(BUILD_SHARED_LIBS)
+            if(TARGET ir_ngraph_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} ir_ngraph_frontend)
+            endif()
+            if(TARGET inference_engine_ir_v7_reader)
+                add_dependencies(${IE_PLUGIN_NAME} inference_engine_ir_v7_reader)
+            endif()
+            if(TARGET onnx_ngraph_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} onnx_ngraph_frontend)
+            endif()
+            if(TARGET paddlepaddle_ngraph_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} paddlepaddle_ngraph_frontend)
+            endif()
         endif()
 
         # install rules

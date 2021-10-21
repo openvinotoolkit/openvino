@@ -58,9 +58,6 @@ protected:
  * @brief Creates the default instance of the reader
  * @return Reader interface
  */
-#ifndef OPENVINO_STATIC_LIBRARY
-OPENVINO_PLUGIN_API
-#endif // !OPENVINO_STATIC_LIBRARY
-void CreateReader(std::shared_ptr<IReader>& reader);
+INFERENCE_PLUGIN_API(void) CreateReader(std::shared_ptr<IReader>& reader);
 
 }  // namespace InferenceEngine

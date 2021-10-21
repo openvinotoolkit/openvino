@@ -6,7 +6,16 @@ set(TARGET_NAME funcSharedTests)
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-set(DEPENDENCIES inference_engine mock_engine HeteroPlugin MultiDevicePlugin)
+set(DEPENDENCIES mock_engine)
+
+if(ENABLE_HETERO)
+    list(APPEND DEPENDENCIES HeteroPlugin)
+endif()
+
+if(ENABLE_MULTI)
+    list(APPEND DEPENDENCIES MultiDevicePlugin)
+endif()
+
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND DEPENDENCIES test_model_zoo)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}/func_tests/models/")

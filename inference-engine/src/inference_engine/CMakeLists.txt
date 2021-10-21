@@ -28,7 +28,7 @@ set(LEGACY_LIBRARY_SHARED_SRCS
     "${LEGACY_SRC_ROOT}/ngraph_ops/onehot_ie.cpp")
 
 set_source_files_properties(${LEGACY_LIBRARY_SHARED_SRCS} PROPERTIES
-    COMPILE_DEFINITIONS "BUILD_AS_IE_SOURCES")
+    COMPILE_DEFINITIONS "USE_STATIC_IE")
 
 set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
@@ -99,7 +99,8 @@ add_library(${TARGET_NAME}_plugin_api INTERFACE)
 target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     "${IE_MAIN_SOURCE_DIR}/src/plugin_api"
     $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_INCLUDE_DIRECTORIES>
-    ${PUBLIC_HEADERS_DIR} ${PUBLIC_HEADERS_DIR}/ie)
+    ${PUBLIC_HEADERS_DIR}
+    ${PUBLIC_HEADERS_DIR}/ie)
 
 target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE pugixml::static openvino::itt openvino::util)
 
