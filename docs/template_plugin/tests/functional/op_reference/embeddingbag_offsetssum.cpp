@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "embeddingbag.hpp"
+#include <gtest/gtest.h>
+
+#include <shared_test_classes/base/layer_test_utils.hpp>
+
+#include "base_reference_test.hpp"
 
 using namespace reference_tests;
 using namespace ngraph;
@@ -148,33 +152,36 @@ INSTANTIATE_TEST_SUITE_P(
             std::make_shared<ngraph::opset1::Constant>(element::i32, ov::Shape({4}), std::vector<int32_t>{0, 2, 3, 4}),
             std::make_shared<ngraph::opset1::Constant>(element::i32, ov::Shape({3}), std::vector<int32_t>{0, 2, 2}),
             std::make_shared<ngraph::opset1::Constant>(element::i32, ov::Shape(), std::vector<int32_t>{1})),
-        EmbeddingBagOffsetsSumParams(ov::PartialShape{5, 2},
-                                     ov::element::f16,
-                                     std::vector<float16>{-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7},
-                                     ov::PartialShape{3, 2},
-                                     ov::element::f16,
-                                     std::vector<float16>{-2.1, -2.4, 0, 0, -0.2, 0.8},
-                                     std::make_shared<ngraph::opset1::Constant>(element::i64, ov::Shape({4}), std::vector<int64_t>{0, 2, 3, 4}),
-                                     GetConstantVec<int64_t>({0, 2, 2}, element::i64)),
-        EmbeddingBagOffsetsSumParams(ov::PartialShape{5, 2},
-                                     ov::element::i64,
-                                     std::vector<int64_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
-                                     ov::PartialShape{3, 2},
-                                     ov::element::i64,
-                                     std::vector<int64_t>{-6, -4, -1, 2, 2, 18},
-                                     std::make_shared<ngraph::opset1::Constant>(element::i64, ov::Shape({4}), std::vector<int64_t>{0, 2, 3, 4}),
-                                     GetConstantVec<int64_t>({0, 2, 2}, element::i64),
-                                     GetConstantVal<int64_t>(0, element::i64)),
-        EmbeddingBagOffsetsSumParams(ov::PartialShape{5, 2},
-                                     ov::element::i8,
-                                     std::vector<int8_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
-                                     ov::PartialShape{3, 2},
-                                     ov::element::i8,
-                                     std::vector<int8_t>{-12, -8, -1, 2, 4, 36},
-                                     std::make_shared<ngraph::opset1::Constant>(element::i64, ov::Shape({4}), std::vector<int64_t>{0, 2, 3, 4}),
-                                     GetConstantVec<int64_t>({0, 2, 2}, element::i64),
-                                     GetConstantVal<int64_t>(0, element::i64),
-                                     GetConstantVec<int8_t>({2, 2, 2, 2}, element::i8)),
+        EmbeddingBagOffsetsSumParams(
+            ov::PartialShape{5, 2},
+            ov::element::f16,
+            std::vector<float16>{-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7},
+            ov::PartialShape{3, 2},
+            ov::element::f16,
+            std::vector<float16>{-2.1, -2.4, 0, 0, -0.2, 0.8},
+            std::make_shared<ngraph::opset1::Constant>(element::i64, ov::Shape({4}), std::vector<int64_t>{0, 2, 3, 4}),
+            std::make_shared<ngraph::opset1::Constant>(element::i64, ov::Shape({3}), std::vector<int64_t>{0, 2, 2})),
+        EmbeddingBagOffsetsSumParams(
+            ov::PartialShape{5, 2},
+            ov::element::i64,
+            std::vector<int64_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
+            ov::PartialShape{3, 2},
+            ov::element::i64,
+            std::vector<int64_t>{-6, -4, -1, 2, 2, 18},
+            std::make_shared<ngraph::opset1::Constant>(element::i64, ov::Shape({4}), std::vector<int64_t>{0, 2, 3, 4}),
+            std::make_shared<ngraph::opset1::Constant>(element::i64, ov::Shape({3}), std::vector<int64_t>{0, 2, 2}),
+            std::make_shared<ngraph::opset1::Constant>(element::i64, ov::Shape(), std::vector<int64_t>{0})),
+        EmbeddingBagOffsetsSumParams(
+            ov::PartialShape{5, 2},
+            ov::element::i8,
+            std::vector<int8_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
+            ov::PartialShape{3, 2},
+            ov::element::i8,
+            std::vector<int8_t>{-12, -8, -1, 2, 4, 36},
+            std::make_shared<ngraph::opset1::Constant>(element::i64, ov::Shape({4}), std::vector<int64_t>{0, 2, 3, 4}),
+            std::make_shared<ngraph::opset1::Constant>(element::i64, ov::Shape({3}), std::vector<int64_t>{0, 2, 2}),
+            std::make_shared<ngraph::opset1::Constant>(element::i64, ov::Shape(), std::vector<int64_t>{0}),
+            std::make_shared<ngraph::opset1::Constant>(element::i8, ov::Shape({4}), std::vector<int8_t>{2, 2, 2, 2})),
         EmbeddingBagOffsetsSumParams(
             ov::PartialShape{5, 2},
             ov::element::u8,
