@@ -193,7 +193,7 @@ void AutoBatchInferRequest::InferImpl() {
     std::unique_lock<std::mutex> lock(_workerInferRequest->_mutex);
     int sz = _workerInferRequest->_tasks.unsafe_size();
     if (sz == _workerInferRequest->_batchSize) {
-        printf("!!! BATCH : %ld \n", _workerInferRequest->_tasks.unsafe_size());
+        // printf("!!! BATCH : %ld \n", _workerInferRequest->_tasks.unsafe_size());
         std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
         for (int c = 0; c < _workerInferRequest->_batchSize; c++) {
             if (_workerInferRequest->_tasks.try_pop(t)) {
