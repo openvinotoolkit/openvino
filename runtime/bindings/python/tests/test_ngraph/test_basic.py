@@ -530,3 +530,7 @@ def test_layout():
     assert not(layout.has_name("H"))
     assert not(layout.has_name("D"))
     assert not(layout.has_name("C"))
+
+    layout = ov.Layout("N...C")
+    assert layout == "N...C"
+    assert layout != "NC?"
