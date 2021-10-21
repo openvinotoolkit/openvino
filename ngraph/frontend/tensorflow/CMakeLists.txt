@@ -84,6 +84,11 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
 
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::tensorflow)
 
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
+
 # TODO: add install commands once TensorFlow frontend is complete
 #install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
 #        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
