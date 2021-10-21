@@ -1002,10 +1002,10 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
             }
 
             if (isOutputHighBroadcasted) {
-                binarizationOutputMask.push_back(outputHighData[0]);
+                binarizationOutputMask.push_back(outputHighData[0] == 1.f ? 0xffffffff : 0x00000000);
             } else {
                 IE_ASSERT(axisSize != -1);
-                binarizationThresholds.resize(rnd_up(axisSize, 16));
+                binarizationOutputMask.resize(rnd_up(axisSize, 16));
                 for (int i = 0; i < axisSize; i++) {
                     binarizationOutputMask[i] = outputHighData[i] == 1.f ? 0xffffffff : 0x00000000;
                 }

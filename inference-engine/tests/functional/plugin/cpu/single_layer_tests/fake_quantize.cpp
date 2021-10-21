@@ -12,11 +12,9 @@ using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
 
-struct inferShapes {
-    std::vector<ngraph::PartialShape> dynShape;
-    std::vector<ngraph::Shape> inferShape;
-    std::vector<SizeVector> ranges;
-};
+using inferShapes = std::tuple<std::vector<ngraph::PartialShape>,
+                               std::vector<ngraph::Shape>,
+                               std::vector<SizeVector>>;
 
 using fqSpecificParams = std::tuple<int64_t,                  // 'data' input low bounds
                                     int64_t,                  // 'data' input high bounds
@@ -36,12 +34,17 @@ class FakeQuantizeLayerCPUTest : public testing::WithParamInterface<fqLayerTestP
 public:
     static std::string getTestCaseName(testing::TestParamInfo<fqLayerTestParamsSet> obj) {
         fqSpecificParams fqParams;
-        inferShapes shapes;
+        inferShapes testShapes;
         Precision inPrec;
         std::pair<std::vector<float>, std::vector<float>> inputRangesValues;
         bool shouldBeDecomposed;
         CPUSpecificParams cpuParams;
-        std::tie(fqParams, shapes, inPrec, inputRangesValues, shouldBeDecomposed, cpuParams) = obj.param;
+        std::tie(fqParams, testShapes, inPrec, inputRangesValues, shouldBeDecomposed, cpuParams) = obj.param;
+
+        std::vector<ngraph::PartialShape> inputShapes;
+        std::vector<ngraph::Shape> targetShapes;
+        std::vector<SizeVector> ranges;
+        std::tie(inputShapes, targetShapes, ranges) = testShapes;
 
         int64_t inDataLowBounds, inDataHighBounds;
         std::vector<float> inputLow, inputHigh, outputLow, outputHigh;
@@ -51,13 +54,13 @@ public:
         std::tie(inDataLowBounds, inDataHighBounds, outputLow, outputHigh, levels) = fqParams;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str(shapes.dynShape) << "_";
+        result << "IS=" << CommonTestUtils::partialShape2str(inputShapes) << "_";
         result << "TS=";
-        for (const auto& shape : shapes.inferShape) {
+        for (const auto& shape : targetShapes) {
             result << "(" << CommonTestUtils::vec2str(shape) << ")_";
         }
         result << "RS=";
-        for (const auto& data : shapes.ranges) {
+        for (const auto& data : ranges) {
             result << "(" << CommonTestUtils::vec2str(data) << ")_";
         }
         result << "inPrec=" << inPrec.name() << "_";
@@ -97,19 +100,22 @@ protected:
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
         fqSpecificParams fqParams;
-        inferShapes shapes;
+        inferShapes testShapes;
         Precision inPrec;
         std::pair<std::vector<float>, std::vector<float>> inputRangesValues;
         bool shouldBeDecomposed;
         CPUSpecificParams cpuParams;
-        std::tie(fqParams, shapes, inPrec, inputRangesValues, shouldBeDecomposed, cpuParams) = this->GetParam();
+        std::tie(fqParams, testShapes, inPrec, inputRangesValues, shouldBeDecomposed, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        for (size_t i = 0; i < shapes.inferShape.size(); i++) {
-            targetStaticShapes.push_back(std::vector<ov::Shape>{shapes.inferShape[i]});
+        std::vector<ngraph::Shape> targetShapes;
+        std::vector<SizeVector> ranges;
+        std::tie(inputDynamicShapes, targetShapes, ranges) = testShapes;
+
+        for (size_t i = 0; i < targetShapes.size(); i++) {
+            targetStaticShapes.push_back(std::vector<ov::Shape>{targetShapes});
         }
-        inputDynamicShapes = shapes.dynShape;
 
         size_t levels;
         std::vector<std::vector<float>> rangesBounds(RANGES_INPUT_NUMBER);
@@ -121,10 +127,10 @@ protected:
         ParameterVector params = builder::makeParams(ngInPrec, {targetStaticShapes[0][0]});
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset5::Parameter>(params));
 
-        auto il = builder::makeConstant(ngInPrec, shapes.ranges[0], rangesBounds[0], rangesBounds[0].empty());
-        auto ih = builder::makeConstant(ngInPrec, shapes.ranges[1], rangesBounds[1], rangesBounds[1].empty());
-        auto ol = builder::makeConstant(ngInPrec, shapes.ranges[2], rangesBounds[2], rangesBounds[2].empty());
-        auto oh = builder::makeConstant(ngInPrec, shapes.ranges[3], rangesBounds[3], rangesBounds[3].empty());
+        auto il = builder::makeConstant(ngInPrec, ranges[0], rangesBounds[0], rangesBounds[0].empty());
+        auto ih = builder::makeConstant(ngInPrec, ranges[1], rangesBounds[1], rangesBounds[1].empty());
+        auto ol = builder::makeConstant(ngInPrec, ranges[2], rangesBounds[2], rangesBounds[2].empty());
+        auto oh = builder::makeConstant(ngInPrec, ranges[3], rangesBounds[3], rangesBounds[3].empty());
         auto fq = std::make_shared<opset5::FakeQuantize>(paramOuts[0], il, ih, ol, oh, levels);
 
         layerName = shouldBeDecomposed ? "" : "FakeQuantize";
@@ -177,22 +183,22 @@ std::vector<CPUSpecificParams> memForm4D_jit = {
 };
 
 std::vector<inferShapes> rangesShapes4D_jit = {
-    {
+    inferShapes{
         {},
         {{4, 5, 6, 7}},
         {{1, 5, 1, 1}, {1, 5, 1, 1}, {1, 5, 1, 1}, {1, 5, 1, 1}}
     },
-    {
+    inferShapes{
         {},
         {{4, 5, 6, 7}},
         {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}
     },
-    {
+    inferShapes{
         {{-1, -1, -1, -1}},
         {{4, 5, 6, 7}, {1, 12, 1, 1}, {4, 1, 8, 2}, {1, 16, 6, 1}},
         {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}
     },
-    {
+    inferShapes{
         {{-1, -1, -1, -1}},
         {{4, 16, 6, 7}, {1, 16, 1, 1}, {7, 16, 1, 2}, {1, 16, 6, 1}},
         {{1, 16, 1, 1}, {1, 16, 1, 1}, {1, 16, 1, 1}, {1, 16, 1, 1}}
@@ -213,12 +219,12 @@ std::vector<CPUSpecificParams> memForm4D_ref = {
 };
 
 std::vector<inferShapes> rangesShapes4D_ref = {
-    {
+    inferShapes{
         {},
         {{4, 5, 6, 7}},
         {{4, 1, 1, 1}, {4, 1, 1, 1}, {4, 1, 1, 1}, {4, 1, 1, 1}}
     },
-    {
+    inferShapes{
         {{-1, -1, -1, -1}},
         {{4, 16, 6, 7}, {4, 1, 1, 1}, {4, 16, 1, 2}, {4, 16, 6, 1}},
         {{4, 1, 1, 1}, {4, 1, 1, 1}, {4, 1, 1, 1}, {4, 1, 1, 1}}
@@ -241,22 +247,22 @@ std::vector<CPUSpecificParams> memForm5D_jit = {
 };
 
 std::vector<inferShapes> rangesShapes5D_jit = {
-    {
+    inferShapes{
         {},
         {{3, 4, 5, 6, 7}},
         {{1, 4, 1, 1, 1}, {1, 4, 1, 1, 1}, {1, 4, 1, 1, 1}, {1, 4, 1, 1, 1}}
     },
-    {
+    inferShapes{
         {},
         {{3, 4, 5, 6, 7}},
         {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}
     },
-    {
+    inferShapes{
         {{-1, -1, -1, -1, -1}},
         {{3, 4, 5, 6, 7}, {1, 12, 1, 1, 1}, {4, 1, 8, 2, 7}, {1, 16, 6, 5, 1}},
         {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}
     },
-    {
+    inferShapes{
         {{-1, -1, -1, -1, -1}},
         {{4, 16, 6, 7, 8}, {1, 16, 1, 1, 1}, {7, 16, 1, 2, 5}, {1, 16, 6, 1, 7}},
         {{1, 16, 1, 1, 1}, {1, 16, 1, 1, 1}, {1, 16, 1, 1, 1}, {1, 16, 1, 1, 1}}
@@ -278,12 +284,12 @@ std::vector<CPUSpecificParams> memForm5D_ref = {
 };
 
 std::vector<inferShapes> rangesShapes5D_ref = {
-    {
+    inferShapes{
         {},
         {{3, 4, 5, 6, 7}},
         {{3, 1, 1, 1, 1}, {3, 1, 1, 1, 1}, {3, 1, 1, 1, 1}, {3, 1, 1, 1, 1}}
     },
-    {
+    inferShapes{
         {{-1, -1, -1, -1, -1}},
         {{3, 16, 6, 7, 8}, {3, 16, 1, 1, 1}, {3, 16, 1, 2, 5}, {3, 16, 6, 1, 7}},
         {{3, 1, 1, 1, 1}, {3, 1, 1, 1, 1}, {3, 1, 1, 1, 1}, {3, 1, 1, 1, 1}}
@@ -299,98 +305,114 @@ const auto testParams5D_ref = ::testing::Combine(specificParams,
 
 INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_5D_ref, FakeQuantizeLayerCPUTest, testParams5D_ref, FakeQuantizeLayerCPUTest::getTestCaseName);
 
+const auto specificParamsBin = ::testing::Combine(::testing::Values(dataLowBounds),
+                                                  ::testing::Values(dataHighBounds),
+                                                  ::testing::Values(std::vector<float>{0.0f}),
+                                                  ::testing::Values(std::vector<float>{1.0f}),
+                                                  ::testing::Values(2));
+
+const auto testParamsBin4D = ::testing::Combine(specificParamsBin,
+                                                 ::testing::ValuesIn(rangesShapes4D_jit),
+                                                 ::testing::Values(Precision::FP32),
+                                                 ::testing::Values(std::pair<std::vector<float>, std::vector<float>>{{3.0f}, {3.f}}),
+                                                 ::testing::Values(false),
+                                                 ::testing::Values(CPUSpecificParams()));
+
+// TODO mandrono: enable
+// INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_4D_bin, FakeQuantizeLayerCPUTest, testParamsBin4D, FakeQuantizeLayerCPUTest::getTestCaseName);
+
 } // namespace fqImpl
 
 namespace fqDecompos {
 
 std::vector<inferShapes> decomposeShapes = {
-    {
+    inferShapes{
         {},
         {{4, 5, 6, 7}},
         {{4, 5, 6, 7}, {4, 5, 6, 7}, {4, 5, 6, 7}, {4, 5, 6, 7}}
     },
-    {
+    inferShapes{
         {},
         {{4, 5, 6, 7}},
         {{1, 5, 1, 1}, {1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}}
     },
-    {
+    inferShapes{
         {},
         {{4, 5, 6, 7}},
         {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}}
     },
-    {
+    inferShapes{
         {},
         {{4, 5, 6, 7}},
         {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 1, 1}, {1, 1, 1, 1}}
     },
-    {
+    inferShapes{
         {},
         {{4, 5, 6, 7}},
         {{1, 1, 6, 1}, {1, 5, 6, 7}, {1, 1, 6, 1}, {1, 1, 6, 1}}
     },
-    {
+    inferShapes{
         {},
         {{3, 4, 5, 6, 7}},
         {{4, 5, 6, 7}, {4, 5, 6, 7}, {4, 5, 6, 7}, {4, 5, 6, 7}}
     },
-    {
+    inferShapes{
         {},
         {{3, 4, 5, 6, 7}},
         {{1, 5, 1, 1}, {1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}}
     },
-    {
+    inferShapes{
         {},
         {{3, 4, 5, 6, 7}},
         {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}}
     },
-    {
+    inferShapes{
         {},
         {{3, 4, 5, 6, 7}},
         {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 1, 1}, {1, 1, 1, 1}}
     },
-    {
+    inferShapes{
         {},
         {{3, 4, 5, 6, 7}},
         {{1, 1, 6, 1}, {1, 5, 6, 7}, {1, 1, 6, 1}, {1, 1, 6, 1}}
     },
-    {
+    inferShapes{
         {},
         {{2, 3, 4, 5, 6, 7}},
         {{4, 5, 6, 7}, {4, 5, 6, 7}, {4, 5, 6, 7}, {4, 5, 6, 7}}
     },
-    {
+    inferShapes{
         {},
         {{2, 3, 4, 5, 6, 7}},
         {{1, 5, 1, 1}, {1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}}
     },
-    {
+    inferShapes{
         {},
         {{2, 3, 4, 5, 6, 7}},
         {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}}
     },
-    {
+    inferShapes{
         {},
         {{2, 3, 4, 5, 6, 7}},
         {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 1, 1}, {1, 1, 1, 1}}
     },
-    {
+    inferShapes{
         {},
         {{2, 3, 4, 5, 6, 7}},
         {{1, 1, 6, 1}, {1, 5, 6, 7}, {1, 1, 6, 1}, {1, 1, 6, 1}}
     },
-    {
+    inferShapes{
         {{-1, -1, -1, -1}},
         {{4, 5, 6, 7}, {1, 5, 6, 7}, {7, 5, 6, 7}},
         {{1, 1, 6, 1}, {1, 5, 6, 7}, {1, 1, 6, 1}, {1, 1, 6, 1}}
     },
-    {
+    inferShapes{
         {{-1, -1, -1, -1, -1}},
         {{8, 4, 5, 6, 7}, {1, 1, 5, 6, 7}, {1, 1, 1, 6, 7}},
         {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 1, 1}, {1, 1, 1, 1}}
     },
     // fix accuracy
-    // {
+    // inferShapes{
     //     {},
     //     {{4, 5, 6, 7}},
     //     {{1, 1, 6, 1}, {1, 5, 6, 1}, {1, 1, 1, 1}, {1, 1, 6, 1}}
