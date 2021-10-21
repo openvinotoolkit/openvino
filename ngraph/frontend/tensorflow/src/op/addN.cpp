@@ -18,11 +18,11 @@ OutputVector TranslateAddNOp(const NodeContext& node) {
     OutputVector ng_arg_vec = node.get_all_ng_inputs();
 
     auto ng_addn = accumulate(next(ng_arg_vec.begin()),
-                                   ng_arg_vec.end(),
-                                   ng_arg_vec.at(0),
-                                   [&node](Output<Node> a, Output<Node> b) {
-                                       return ConstructNgNode<Add>(node.get_name(), a, b);
-                                   });  // accumulation: start with
+                              ng_arg_vec.end(),
+                              ng_arg_vec.at(0),
+                              [&node](Output<Node> a, Output<Node> b) {
+                                  return ConstructNgNode<Add>(node.get_name(), a, b);
+                              });  // accumulation: start with
     // first element. default op is
     // addition
     return {ng_addn};

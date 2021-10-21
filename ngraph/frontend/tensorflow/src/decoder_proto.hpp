@@ -23,8 +23,7 @@ class DecoderTFProto : public DecoderBase {
 public:
     explicit DecoderTFProto(const ::tensorflow::NodeDef* node_def) : m_node_def(node_def) {}
 
-    std::shared_ptr<Variant> get_attribute(const std::string& name,
-                                           const VariantTypeInfo& type_info) const override;
+    std::shared_ptr<Variant> get_attribute(const std::string& name, const VariantTypeInfo& type_info) const override;
 
     size_t get_input_size() const override;
 

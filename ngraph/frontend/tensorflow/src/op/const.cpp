@@ -14,9 +14,9 @@ namespace tf {
 namespace op {
 
 namespace {
-using ConstMap = map<ov::element::Type,
-                          pair<function<Status(const NodeContext&, ov::element::Type, ov::Output<ov::Node>&)>,
-                                    const ov::element::Type>>;
+using ConstMap =
+    map<ov::element::Type,
+        pair<function<Status(const NodeContext&, ov::element::Type, ov::Output<ov::Node>&)>, const ov::element::Type>>;
 
 const ConstMap& TF_NGRAPH_CONST_MAP() {
     static const ConstMap the_map = {

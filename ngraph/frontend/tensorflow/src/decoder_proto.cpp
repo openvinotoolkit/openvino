@@ -14,16 +14,16 @@ namespace tf {
 
 const std::map<::tensorflow::DataType, ov::element::Type>& TYPE_MAP() {
     static const std::map<::tensorflow::DataType, ov::element::Type> type_map{
-            {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
-            {::tensorflow::DataType::DT_INT16, ov::element::i16},
-            {::tensorflow::DataType::DT_INT32, ov::element::i32},
-            {::tensorflow::DataType::DT_INT64, ov::element::i64},
-            {::tensorflow::DataType::DT_HALF, ov::element::f16},
-            {::tensorflow::DataType::DT_FLOAT, ov::element::f32},
-            {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
-            {::tensorflow::DataType::DT_UINT8, ov::element::u8},
-            {::tensorflow::DataType::DT_INT8, ov::element::i8},
-            {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16}};
+        {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
+        {::tensorflow::DataType::DT_INT16, ov::element::i16},
+        {::tensorflow::DataType::DT_INT32, ov::element::i32},
+        {::tensorflow::DataType::DT_INT64, ov::element::i64},
+        {::tensorflow::DataType::DT_HALF, ov::element::f16},
+        {::tensorflow::DataType::DT_FLOAT, ov::element::f32},
+        {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
+        {::tensorflow::DataType::DT_UINT8, ov::element::u8},
+        {::tensorflow::DataType::DT_INT8, ov::element::i8},
+        {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16}};
     return type_map;
 }
 

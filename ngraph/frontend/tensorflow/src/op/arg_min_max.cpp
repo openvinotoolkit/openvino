@@ -42,8 +42,7 @@ OutputVector TranslateArgMinMax(const NodeContext& node, string mode) {
     auto ng_topk = make_shared<TopK>(ng_input, ng_k, k_axis, mode, sort, ng_et);
     auto ng_indices = ng_topk->output(1);
     int axis = ng_topk->get_axis();
-    auto axis_to_remove =
-        ConstructNgNode<Constant>(node.get_name(), element::i64, Shape{1}, vector<int64_t>({axis}));
+    auto axis_to_remove = ConstructNgNode<Constant>(node.get_name(), element::i64, Shape{1}, vector<int64_t>({axis}));
     auto reshaped_indices = ConstructNgNode<Squeeze>(node.get_name(), ng_indices, axis_to_remove);
     SetTracingInfo(node.get_name(), reshaped_indices);
     return {reshaped_indices};

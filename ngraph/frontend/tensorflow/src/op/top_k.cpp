@@ -25,10 +25,10 @@ OutputVector TranslateTopKV2Op(const NodeContext& node) {
     int64_t k_axis = input.get_partial_shape().rank().get_length() - 1;
     bool sorted = node.get_attribute<bool>("sorted", true);
     auto top_k = make_shared<TopK>(input,
-                                        k,
-                                        k_axis,
-                                        TopK::Mode::MAX,
-                                        sorted ? TopK::SortType::SORT_VALUES : TopK::SortType::SORT_INDICES);
+                                   k,
+                                   k_axis,
+                                   TopK::Mode::MAX,
+                                   sorted ? TopK::SortType::SORT_VALUES : TopK::SortType::SORT_INDICES);
     top_k->set_friendly_name(node.get_name());
     return top_k->outputs();
 }

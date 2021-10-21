@@ -24,8 +24,7 @@ OutputVector TranslatePadOp(const NodeContext& node) {
     // Set inputs and pad_val_op
     auto op_type = node.get_op_type();
     if (op_type == "Pad" || op_type == "MirrorPad") {
-        pad_val_op =
-            ConstructNgNode<Constant>(node.get_name(), ng_input.get_element_type(), Shape(), vector<int>({0}));
+        pad_val_op = ConstructNgNode<Constant>(node.get_name(), ng_input.get_element_type(), Shape(), vector<int>({0}));
     } else if (op_type == "PadV2") {
         pad_val_op = node.get_ng_input(2);
     } else {
