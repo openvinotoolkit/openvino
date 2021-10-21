@@ -52,6 +52,7 @@ OP_CONVERTER(TranslateIdentityOp);
 OP_CONVERTER(TranslateInterpolateOp);
 OP_CONVERTER(TranslateIsFiniteOp);
 OP_CONVERTER(TranslateL2LossOp);
+OP_CONVERTER(TranslateLeakyReluOp);
 OP_CONVERTER(TranslateLogSoftmaxOp);
 OP_CONVERTER(TranslateLog1pOp);
 OP_CONVERTER(TranslateLRNOp);
@@ -182,6 +183,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Identity", TranslateIdentityOp},
         {"IsFinite", TranslateIsFiniteOp},
         {"L2Loss", TranslateL2LossOp},
+        {"LeakyRelu", TranslateLeakyReluOp},
         {"LogSoftmax", TranslateLogSoftmaxOp},
         {"Log1p", TranslateLog1pOp},
         {"LRN", TranslateLRNOp},
