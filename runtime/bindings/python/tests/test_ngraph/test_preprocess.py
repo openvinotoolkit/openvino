@@ -6,7 +6,7 @@ import pytest
 
 import openvino.opset8 as ops
 from openvino.impl.preprocess import PrePostProcessor, InputInfo, PreProcessSteps, InputTensorInfo
-from openvino.impl import Function, Node, Type
+from openvino.impl import Function, Output, Node, Type
 from tests.runtime import get_runtime
 
 
@@ -39,8 +39,8 @@ def test_ngraph_preprocess_mean_scale_convert():
     param2 = ops.parameter(shape, dtype=np.float32, name="B")
     function = Function([param1, param2], [param1, param2], "TestFunction")
 
-    def custom_preprocess(node: Node):
-        return ops.abs(node)
+    def custom_preprocess(output: Output):
+        return Output(ops.abs(output))
 
     function = PrePostProcessor() \
         .input(InputInfo(1)
