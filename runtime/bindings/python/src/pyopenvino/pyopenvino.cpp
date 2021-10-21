@@ -34,6 +34,10 @@
 #include "pyopenvino/core/ie_version.hpp"
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/tensor_description.hpp"
+#include "pyopenvino/frontend/frontend.hpp"
+#include "pyopenvino/frontend/frontend_manager.hpp"
+#include "pyopenvino/frontend/inputmodel.hpp"
+#include "pyopenvino/frontend/place.hpp"
 #include "pyopenvino/graph/dimension.hpp"
 #include "pyopenvino/graph/ops/constant.hpp"
 #include "pyopenvino/graph/ops/parameter.hpp"
@@ -47,10 +51,6 @@
 #include "pyopenvino/graph/types/regmodule_graph_types.hpp"
 #include "pyopenvino/graph/util.hpp"
 #include "pyopenvino/graph/variant.hpp"
-#include "pyopenvino/frontend/frontend.hpp"
-#include "pyopenvino/frontend/frontend_manager.hpp"
-#include "pyopenvino/frontend/inputmodel.hpp"
-#include "pyopenvino/frontend/place.hpp"
 
 namespace py = pybind11;
 
