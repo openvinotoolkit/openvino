@@ -680,7 +680,8 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         IE_SET_METRIC_RETURN(GPU_UARCH_VERSION, s.str());
     } else if (name == METRIC_KEY(OPTIMAL_BATCH)) {
         auto network = options.find("MODEL_ADDRESS")->second.as<InferenceEngine::CNNNetwork const*>();
-        auto networkCloned = CloneAndTransformNetwork(*network, _impl->m_config);
+        Config config = _impl->m_configs.GetConfig(device_id);
+        auto networkCloned = CloneAndTransformNetwork(*network, config);
         // DG1
         const float L3_cache_size = 12*1024*1024;
         unsigned int batch = 1;
