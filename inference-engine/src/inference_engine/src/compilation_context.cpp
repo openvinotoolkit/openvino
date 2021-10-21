@@ -18,9 +18,10 @@
 #include "ie_itt.hpp"
 #include "ngraph/opsets/opset6.hpp"
 #include "ngraph/variant.hpp"
-#include "openvino/pass/serialize.hpp"
+#include "openvino/pass/manager.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
+#include "transformations/hash.hpp"
 
 #ifdef _WIN32
 #    define stat _stat
@@ -38,30 +39,6 @@ template <typename T>
 static int32_t as_int32_t(T v) {
     return static_cast<int32_t>(v);
 }
-
-class OstreamHashWrapper final : public std::streambuf {
-    std::size_t m_res = 0;
-
-public:
-    std::size_t getResult() const {
-        return m_res;
-    }
-    std::streamsize xsputn(const char* s, std::streamsize n) override {
-        const std::int64_t* intS = (const std::int64_t*)s;
-        std::streamsize n64 = n / sizeof(std::int64_t);
-        std::streamsize i = 0;
-        // Using 64-bit values executes much faster than char
-        while (i++ < n64) {
-            m_res += *(intS++);
-        }
-
-        std::streamsize rest = n % sizeof(std::int64_t);
-        for (i = 0; i < rest; i++) {
-            m_res += s[n - rest + i];
-        }
-        return n;
-    }
-};
 
 //////////////////////////////////////////////////
 
@@ -88,23 +65,17 @@ std::string NetworkCompilationContext::calculateFileInfo(const std::string& file
 std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
                                                    const std::map<std::string, std::string>& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - CNN");
-    OstreamHashWrapper xmlHash;
-    OstreamHashWrapper binHash;
-    std::ostream xml(&xmlHash);
-    std::ostream bin(&binHash);
 
     IE_ASSERT(network.getFunction());
 
-    // 1. Serialize
+    size_t seed = 0;
+    // 1. Calculate hash on function
     CNNNetwork net(network);
-    ov::pass::Serialize serializer(xml, bin);
-    serializer.run_on_function(net.getFunction());
+    ov::pass::Manager m;
+    m.register_pass<ov::pass::Hash>(seed);
+    m.run_passes(net.getFunction());
 
     // 2. Compute hash on serialized data and options
-    size_t seed = 0;
-    seed = hash_combine(seed, xmlHash.getResult());
-    seed = hash_combine(seed, binHash.getResult());
-
     for (const auto& kvp : compileOptions) {
         seed = hash_combine(seed, kvp.first + kvp.second);
     }

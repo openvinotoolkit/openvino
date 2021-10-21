@@ -164,12 +164,14 @@ protected:
 template <>
 class OPENVINO_API VariantWrapper<Layout> : public VariantImpl<Layout> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::Layout", 0};
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("layout", "0");
+
+    VariantWrapper() = default;
 
     explicit VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
+
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
 };
 
 }  // namespace ov

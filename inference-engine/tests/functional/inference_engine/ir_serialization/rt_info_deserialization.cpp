@@ -205,6 +205,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
                 <port id="0" precision="I64" names="input_tensor">
                     <rt_info>
                         <attribute name="fused_names" version="0" value="test1,test2"/>
+                        <attribute name="layout" version="0" layout="[N,C,H,W]" />
                     </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
@@ -251,6 +252,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
                 <port id="0" precision="I64">
                     <rt_info>
                         <attribute name="fused_names" version="0" value="test5,test6"/>
+                        <attribute name="layout" version="0" layout="[?,C,H,W]" />
                     </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
@@ -285,9 +287,11 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
     check_version(f, 10);
 
     auto param = f->get_parameters()[0];
+    EXPECT_EQ(param->get_layout(), "");
     check_rt_info(param->output(0).get_rt_info());
 
     auto result = f->get_results()[0];
+    EXPECT_EQ(result->get_layout(), "");
     check_rt_info(result->input(0).get_rt_info());
 
     auto add = result->get_input_node_ptr(0);
@@ -559,6 +563,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
                 <port id="0" precision="FP32">
                     <rt_info>
                         <attribute name="fused_names" version="0" value="test1,test2"/>
+                        <attribute name="layout" version="0" layout="[N,C,H,W]" />
                     </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
@@ -608,6 +613,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
                 <port id="0" precision="FP32">
                     <rt_info>
                         <attribute name="fused_names" version="0" value="test5,test6"/>
+                        <attribute name="layout" version="0" layout="[?,C,H,W]" />
                     </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
@@ -657,10 +663,12 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
     auto param = f->get_parameters()[0];
     check_fused_names(param->output(0).get_rt_info(), "test1,test2");
     check_old_api_map(param->get_rt_info(), std::vector<uint64_t>({}), ngraph::element::Type_t::undefined);
+    EXPECT_EQ(param->get_layout(), "NCHW");
 
     auto result = f->get_result();
     check_fused_names(result->input(0).get_rt_info(), "test5,test6");
     check_old_api_map(result->get_rt_info(), std::vector<uint64_t>({}), ngraph::element::Type_t::undefined);
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "?CHW");
 
     auto add = result->get_input_node_ptr(0);
     check_fused_names(add->input(0).get_rt_info(), "test2,test3");

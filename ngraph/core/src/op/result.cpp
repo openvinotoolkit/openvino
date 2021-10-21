@@ -68,17 +68,17 @@ bool op::Result::constant_fold(OutputVector& output_values, const OutputVector& 
 }
 
 ov::Layout op::Result::get_layout() const {
-    auto it = get_output_tensor(0).get_rt_info().find("LAYOUT");
-    if (it == get_output_tensor(0).get_rt_info().end()) {
+    auto it = input(0).get_rt_info().find(VariantWrapper<ov::Layout>::get_type_info_static());
+    if (it == input(0).get_rt_info().end()) {
         return {};
     }
     auto layout = std::dynamic_pointer_cast<VariantWrapper<ov::Layout>>(it->second);
-    OPENVINO_ASSERT(layout, "'LAYOUT' runtime info for node is invalid, use set_layout API");
+    OPENVINO_ASSERT(layout, "'", VariantWrapper<ov::Layout>::get_type_info_static(), "' runtime info for result is invalid, use set_layout API");
     return layout->get();
 }
 
 void op::Result::set_layout(const ov::Layout& layout) {
-    get_output_tensor(0).get_rt_info()["LAYOUT"] = std::make_shared<VariantWrapper<ov::Layout>>(layout);
+    input(0).get_rt_info()[VariantWrapper<ov::Layout>::get_type_info_static()] = std::make_shared<VariantWrapper<ov::Layout>>(layout);
 }
 
 BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ResultVector>);
