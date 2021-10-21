@@ -11,8 +11,12 @@
  * @brief Defines visibility settings for Inference Engine LP Transformations library
  */
 
-#ifdef inference_engine_lp_transformations_EXPORTS
-#define LP_TRANSFORMATIONS_API NGRAPH_HELPER_DLL_EXPORT
+#ifdef OPENVINO_STATIC_LIBRARY
+#define LP_TRANSFORMATIONS_API
 #else
-#define LP_TRANSFORMATIONS_API NGRAPH_HELPER_DLL_IMPORT
-#endif
+#ifdef inference_engine_lp_transformations_EXPORTS
+#define LP_TRANSFORMATIONS_API OPENVINO_CORE_EXPORTS
+#else
+#define LP_TRANSFORMATIONS_API OPENVINO_CORE_IMPORTS
+#endif // inference_engine_lp_transformations_EXPORTS
+#endif // OPENVINO_STATIC_LIBRARY

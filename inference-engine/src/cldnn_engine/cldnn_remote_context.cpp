@@ -199,6 +199,7 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
     m_plugin(plugin),
     m_type(ContextType::OCL),
     m_config(config),
+    m_external_queue(nullptr),
     m_va_display(nullptr) {
     lock.clear(std::memory_order_relaxed);
     gpu_handle_param _context_id = nullptr;
@@ -221,6 +222,9 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
         if (tile_id_itr != params.end()) {
             target_tile_id = tile_id_itr->second.as<int>();
         }
+
+        if (params.find(GPU_PARAM_KEY(OCL_QUEUE)) != params.end())
+            m_external_queue = _ObjFromParamSimple<gpu_handle_param>(params, GPU_PARAM_KEY(OCL_QUEUE));
     }
 
     // TODO: Parameterize this based on plugin config and compilation options
