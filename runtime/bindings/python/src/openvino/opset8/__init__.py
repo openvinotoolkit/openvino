@@ -140,6 +140,7 @@ from openvino.opset1.ops import sigmoid
 from openvino.opset1.ops import sign
 from openvino.opset1.ops import sin
 from openvino.opset1.ops import sinh
+from openvino.opset8.ops import slice
 from openvino.opset1.ops import softmax
 from openvino.opset4.ops import softplus
 from openvino.opset2.ops import space_to_batch
