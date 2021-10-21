@@ -171,7 +171,6 @@ public:
     explicit VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 
     bool visit_attributes(AttributeVisitor& visitor) override;
-
 };
 
 }  // namespace ov

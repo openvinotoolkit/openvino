@@ -86,18 +86,5 @@ private:
     const Serialize::Version m_version;
 };
 
-class OPENVINO_API HashPass : public ov::pass::FunctionPass {
-public:
-    OPENVINO_RTTI("HashPass");
-
-    bool run_on_function(std::shared_ptr<ov::Function> f) override;
-
-    HashPass(std::size_t& hash);
-
-private:
-    std::size_t& m_hash;
-};
-
-
 }  // namespace pass
 }  // namespace ov

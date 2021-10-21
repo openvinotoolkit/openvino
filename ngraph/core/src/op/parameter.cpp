@@ -54,12 +54,16 @@ ov::Layout op::Parameter::get_layout() const {
         return "";
     }
     auto layout = std::dynamic_pointer_cast<VariantWrapper<ov::Layout>>(it->second);
-    OPENVINO_ASSERT(layout, "'", VariantWrapper<ov::Layout>::get_type_info_static(), "' runtime info for parameter is invalid, use set_layout API");
+    OPENVINO_ASSERT(layout,
+                    "'",
+                    VariantWrapper<ov::Layout>::get_type_info_static(),
+                    "' runtime info for parameter is invalid, use set_layout API");
     return layout->get();
 }
 
 void op::Parameter::set_layout(const ov::Layout& layout) {
-    get_output_tensor(0).get_rt_info()[VariantWrapper<ov::Layout>::get_type_info_static()] = std::make_shared<VariantWrapper<ov::Layout>>(layout);
+    get_output_tensor(0).get_rt_info()[VariantWrapper<ov::Layout>::get_type_info_static()] =
+        std::make_shared<VariantWrapper<ov::Layout>>(layout);
 }
 
 BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ParameterVector>);

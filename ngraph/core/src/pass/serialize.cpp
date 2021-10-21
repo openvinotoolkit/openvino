@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/hash.hpp"
-
 #include "openvino/pass/serialize.hpp"
 
 #include <array>
@@ -21,6 +19,7 @@
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "pugixml.hpp"
+#include "transformations/hash.hpp"
 
 using namespace ngraph;
 
@@ -514,11 +513,21 @@ public:
             // to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (m_xml_node) with empty attributes
             // is removed.
             pugi::xml_node xml_body = m_xml_node.parent().append_child(name.c_str());
-            ngfunction_2_ir(xml_body, *adapter.get(), m_custom_opsets, m_constant_write_handler, m_version, m_deterministic);
+            ngfunction_2_ir(xml_body,
+                            *adapter.get(),
+                            m_custom_opsets,
+                            m_constant_write_handler,
+                            m_version,
+                            m_deterministic);
             xml_body.remove_attribute("name");
             xml_body.remove_attribute("version");
         } else if (name == "net") {
-            ngfunction_2_ir(m_xml_node, *adapter.get(), m_custom_opsets, m_constant_write_handler, m_version, m_deterministic);
+            ngfunction_2_ir(m_xml_node,
+                            *adapter.get(),
+                            m_custom_opsets,
+                            m_constant_write_handler,
+                            m_version,
+                            m_deterministic);
         } else {
             NGRAPH_CHECK(false, "Unsupported Function name.");
         }
@@ -674,7 +683,7 @@ std::string generate_unique_name(const std::unordered_set<std::string>& unique_n
     }
 }
 
-template<typename T>
+template <typename T>
 bool is_name_auto_generated(const T& n) {
     return n.get_friendly_name() == n.get_name();
 }
@@ -1071,10 +1080,12 @@ std::string provide_bin_path(const std::string& xmlPath, const std::string& binP
     return bestPath;
 }
 
-void serializeFunc (std::ostream& xml_file, std::ostream& bin_file,
-                    std::shared_ptr<ov::Function> f, ov::pass::Serialize::Version ver,
-                    const std::map<std::string, ngraph::OpSet>& custom_opsets,
-                    bool deterministic = false) {
+void serializeFunc(std::ostream& xml_file,
+                   std::ostream& bin_file,
+                   std::shared_ptr<ov::Function> f,
+                   ov::pass::Serialize::Version ver,
+                   const std::map<std::string, ngraph::OpSet>& custom_opsets,
+                   bool deterministic = false) {
     auto version = static_cast<int64_t>(ver);
 
     auto& rt_info = f->get_rt_info();
@@ -1109,7 +1120,6 @@ void serializeFunc (std::ostream& xml_file, std::ostream& bin_file,
 
 namespace ov {
 bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
-
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, f, m_version, m_custom_opsets);
     } else {
@@ -1121,7 +1131,7 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
         NGRAPH_CHECK(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
 
         try {
-            serializeFunc(xml_file, bin_file,f, m_version, m_custom_opsets);
+            serializeFunc(xml_file, bin_file, f, m_version, m_custom_opsets);
         } catch (const ngraph::CheckFailure&) {
             // optimization decision was made to create .bin file upfront and
             // write to it directly instead of buffering its content in memory,
@@ -1247,8 +1257,8 @@ bool pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Function> f)
 /// -------- Hash calculation pass -------------
 
 namespace {
-template<typename T>
-static std::size_t hash_combine(std::size_t seed, const T &a) {
+template <typename T>
+static std::size_t hash_combine(std::size_t seed, const T& a) {
     // Hash combine formula from boost
     return seed ^ (std::hash<T>()(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
 }
@@ -1261,8 +1271,8 @@ public:
         return m_res;
     }
 
-    std::streamsize xsputn(const char *s, std::streamsize n) override {
-        auto *intS = (const std::int64_t *) s;
+    std::streamsize xsputn(const char* s, std::streamsize n) override {
+        auto* intS = (const std::int64_t*)s;
         std::streamsize n64 = n / static_cast<std::streamsize>(sizeof(std::int64_t));
         std::streamsize i = 0;
         // Using 64-bit values executes much faster than char
@@ -1277,13 +1287,9 @@ public:
         return n;
     }
 };
-}
+}  // namespace
 
 bool pass::Hash::run_on_function(std::shared_ptr<ov::Function> f) {
-    // Debugging serialization
-//    std::stringstream xmls, bins;
-//    serializeFunc(xmls, bins, f, Serialize::Version::UNSPECIFIED, {}, true);
-//    std::cout << "XML:[" << xmls.str() << "]\n";
     OstreamHashWrapper xmlHash;
     OstreamHashWrapper binHash;
     std::ostream xml(&xmlHash);
@@ -1301,7 +1307,6 @@ bool pass::Hash::run_on_function(std::shared_ptr<ov::Function> f) {
     return false;
 }
 
-pass::Hash::Hash(std::size_t& hash): m_hash(hash) {
-}
+pass::Hash::Hash(std::size_t& hash) : m_hash(hash) {}
 
 }  // namespace ov
