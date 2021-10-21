@@ -115,11 +115,18 @@ public:
 };
 
 TEST_P(ConvertReduceToPoolingTests, CompareFunctions) {
-    ngraph::pass::InitNodeInfo().run_on_function(f);
-    ngraph::pass::ConvertReduceToPooling().run_on_function(f);
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    ngraph::pass::Manager m;
+    m.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ngraph::pass::ConvertReduceToPooling>();
+    m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 #define MAX std::make_shared<ngraph::opset1::ReduceMax>()
