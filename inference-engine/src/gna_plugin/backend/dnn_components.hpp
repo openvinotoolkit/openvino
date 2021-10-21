@@ -9,18 +9,13 @@
 #include <utility>
 
 #include <ie_common.h>
-#include <legacy/ie_layers.h>
-#include "dnn.hpp"
 
 namespace GNAPluginNS {
 namespace backend {
-
-
 struct DnnComponentExtra {
     std::string name;
     intel_dnn_component_t dnnComponent;
     bool isDelayed;
-    uint16_t execOrder;
     DnnComponentExtra(std::string name,
                       intel_dnn_component_t dnnComponent,
                       bool isDelayed) :
@@ -45,7 +40,7 @@ struct DnnComponents {
      * @return
      */
     intel_dnn_component_t * findComponent(InferenceEngine::CNNLayerPtr layer);
-    DnnComponentExtra * findFirstComponentWithPtr(const void *ptr);
+
     /**
      * @brief extract components in execution order
      */

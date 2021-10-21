@@ -16,7 +16,7 @@
 #include <iostream>
 #include "gna_lib_ver_selector.hpp"
 #include "memory_solver.hpp"
-#include "backend/dnn_components.hpp"
+#include "gna_plugin_log.hpp"
 
 #ifdef GNA_HEAP_PROFILER
 #include <iomanip>
@@ -71,124 +71,31 @@ class GNAMemory : public GNAMemRequestsQueue {
     }
 
     /**
-     * @brief calculates size required for all requests, allocates memory and updates pointers
+     * @brief enables memory optimization (compact mode). This mode can be enable in plugin configuration (COMPACT_MODE = Yes)
      */
-    void commit() {
-        // 1st stage -- looking for expandable bind requests:
-        auto setOffsets = [&](std::function<bool(MemRequest & request)> filter) {
-            size_t region_offset = 0;
-            for (auto &originated : _future_heap) {
-                if (filter(originated) || originated._ptr_out == nullptr) continue;
-                size_t offset = 0;
-
-                iterate_binded(originated, [&](MemRequest & reference, MemRequest & binded) {
-                    if (&originated == &reference) {
-                        offset = 0;
-                    }
-                    offset += binded._offset;
-                    auto current = offset + ALIGN(binded._num_elements * binded._element_size, binded._alignment);
-                    auto original_no_pad = ALIGN(originated._num_elements * originated._element_size, originated._alignment);
-                    auto original_with_pad = ALIGN(originated._num_elements * originated._element_size + originated._padding, originated._alignment);
-
-                    originated._padding = ALIGN(std::max(original_with_pad, current), originated._alignment) - original_no_pad;
-                });
-                originated._offset = region_offset;
-                region_offset += ALIGN(originated._num_elements * originated._element_size + originated._padding, originated._alignment);
-            }
-        };
-
-        setOffsets([](GNAPluginNS::memory::MemRequest & request) {
-            return (request._region != REGION_RW) || (request._type & REQUEST_BIND);
-        });
-
-        setOffsets([](GNAPluginNS::memory::MemRequest & request) {
-            return (request._region != REGION_RO) || (request._type & REQUEST_BIND);
-        });
-
-
-        // allocation with memory setting to 0 internally
-        heap = allocate(getTotalBytes());
-        auto allocateSection = [&](std::function<bool(MemRequest & request)> filter, size_t section_offset) {
-            for (auto &re : _future_heap) {
-                if (re._type == REQUEST_BIND) continue;
-                if (filter(re)) continue;
-
-                auto sz = re._element_size * re._num_elements;
-
-                size_t offset = section_offset + re._offset;
-                if (re._ptr_out != nullptr) {
-                    auto cptr = heap.get() + offset;
-                    size_t cptr_avail_size = _total - offset;
-                    if (re._type & REQUEST_BIND) {
-                        cptr = reinterpret_cast<uint8_t*>(*reinterpret_cast<void **>(re._ptr_out));
-                        cptr_avail_size = sz;
-                    } else {
-                        *reinterpret_cast<void **>(re._ptr_out) = cptr;
-                    }
-                    iterate_binded(re, [](MemRequest & reference, MemRequest & binded) {
-                        *reinterpret_cast<void **>(binded._ptr_out) =
-                            binded._offset + reinterpret_cast<uint8_t *>(*reinterpret_cast<void **>(reference._ptr_out));
-                        binded._num_elements = reference._num_elements;
-                        binded._element_size = reference._element_size;
-                    });
-
-                    // std::cout << "size=" << ALIGN(sz, re._alignment) << "\n" << std::flush;
-
-                    switch (re._type & ~REQUEST_BIND) {
-                        case REQUEST_ALLOCATE :
-                            break;
-                        case REQUEST_STORE : {
-                            if (re._ptr_in != nullptr) {
-                                ie_memcpy(cptr, cptr_avail_size, re._ptr_in, sz);
-                            } else {
-                                size_t of = 0;
-                                for (int i = 0; i < re._num_elements; i++, of += re._element_size) {
-                                    std::copy(std::begin(re._data), std::end(re._data), cptr + of);
-                                }
-                            }
-                            break;
-                        }
-                        case REQUEST_INITIALIZER : {
-                            re._initializer(cptr, sz);
-                            break;
-                        }
-                    }
-                }
-            }
-        };
-
-        allocateSection([](GNAPluginNS::memory::MemRequest & request) {
-            // TODO: consume bind requests separately from storage type
-            return !(request._type & REQUEST_BIND) && (request._region != REGION_RW);
-        }, 0);
-
-        allocateSection([](GNAPluginNS::memory::MemRequest & request) {
-            return (request._type & REQUEST_BIND) || request._region != REGION_RO;
-        }, _rw_section_size);
+    void setCompactMode(bool isCompact) {
+        _is_compact_mode = isCompact;
     }
 
-    void setExecutionOrder(GNAPluginNS::backend::DnnComponents &dnnComponents) {
-        for (auto &re : _future_heap) {
-            // default execution time from first to the last component
-            std::pair<uint16_t, uint16_t> limits {0, dnnComponents.components.size()};
+    /**
+     * @brief calculates size required for all requests, allocates memory and updates pointers
+     */
+    void commit(bool isCompact = false) {
+        setCompactMode(isCompact);
 
-            // try to find the component with pointer
-            auto dnn_comp = (re._ptr_out != nullptr) ? dnnComponents.findFirstComponentWithPtr(re._ptr_out) : nullptr;
-            if (dnn_comp != nullptr) {
-                limits = {dnn_comp->execOrder, dnn_comp->execOrder};
-            }
+        // 1st stage -- looking for expandable bind requests:
+        expandBindings();
 
-            // looking for bind requests to identify the latest component using this buffer
-            if (!(re._type & REQUEST_BIND)) {
-                iterate_binded(re, [&](MemRequest & reference, MemRequest & binded) {
-                    auto comp_binded = (binded._ptr_out != nullptr) ? dnnComponents.findFirstComponentWithPtr(binded._ptr_out) : nullptr;
-                    uint16_t order_binded = (comp_binded != nullptr) ? comp_binded->execOrder : dnnComponents.components.size();
-                    limits.second = std::max(limits.second, order_binded);
-                });
-            }
-            re._life_limits = limits;
-        }
-        _is_compact_mode = true;
+        // 2nd stage -- setup offsets:
+        setRegionOffsets(REGION_RO);
+        setRegionOffsets(REGION_RW);
+
+        // 3rd stage -- allocation total memory setting to 0 internally
+        heap = allocate(getTotalBytes());
+
+        // 4th stage -- store data and updates pointers
+        allocateRegion(REGION_RW, 0);
+        allocateRegion(REGION_RO, _rw_section_size);
     }
 
     void *getBasePtr() {
@@ -230,7 +137,6 @@ class GNAMemory : public GNAMemRequestsQueue {
         }
     }
 
-
     std::shared_ptr<uint8_t> allocate(size_t bytes) {
         std::shared_ptr<uint8_t> sp(_allocator.allocate(bytes), [=](uint8_t *p) {
             _allocator.deallocate(p, bytes);
@@ -240,6 +146,98 @@ class GNAMemory : public GNAMemRequestsQueue {
     }
 
  protected:
+    /**
+     * @brief expand BIND and (BIND | ) requests. Align size(_padding), set execution order
+     */
+    void expandBindings() {
+        for (auto &originated : _future_heap) {
+            // skipping bind requests to avoid duplications
+            if (originated._type & REQUEST_BIND) continue;
+
+            size_t offset = 0;
+            iterate_binded(originated, [&](MemRequest & reference, MemRequest & binded) {
+                // aligning sizes
+                if (&originated == &reference) offset = 0;
+
+                offset += binded._offset;
+                auto current = offset + ALIGN(binded._num_elements * binded._element_size, binded._alignment);
+                auto original_no_pad = ALIGN(originated._num_elements * originated._element_size, originated._alignment);
+                auto original_with_pad = ALIGN(originated._num_elements * originated._element_size + originated._padding, originated._alignment);
+
+                originated._padding = ALIGN(std::max(original_with_pad, current), originated._alignment) - original_no_pad;
+
+                // set execution order
+                originated._life_limits.first = std::min(originated._life_limits.first, binded._life_limits.first);
+                originated._life_limits.second = std::max(originated._life_limits.second, binded._life_limits.second);
+            });
+        }
+    }
+
+    /**
+     * @brief set offsets for specific region
+     */
+    size_t setRegionOffsets(GNAPluginNS::memory::rRegion regType) {
+        size_t region_offset = 0;
+        for (auto &re : _future_heap) {
+            if (re._region != regType || re._type & REQUEST_BIND || re._ptr_out == nullptr) continue;
+
+            re._offset = region_offset;
+            region_offset += ALIGN(re._num_elements * re._element_size + re._padding, re._alignment);
+        }
+        return region_offset;
+    }
+
+    /**
+     * @brief allocates memory and updates pointers
+     */
+    void allocateRegion(GNAPluginNS::memory::rRegion regType, size_t baseOffset) {
+        for (auto &re : _future_heap) {
+            // skipping Bind, crossregion and empty requests
+            if (re._region != regType || re._type == REQUEST_BIND || re._ptr_out == nullptr) continue;
+
+            size_t offset = baseOffset + re._offset;
+            auto cptr = heap.get() + offset;
+            size_t cptr_avail_size = _total - offset;
+
+            auto sz = re._element_size * re._num_elements;
+            if (re._type & REQUEST_BIND) {
+                cptr = reinterpret_cast<uint8_t*>(*reinterpret_cast<void **>(re._ptr_out));
+                cptr_avail_size = sz;
+            } else {
+                *reinterpret_cast<void **>(re._ptr_out) = cptr;
+            }
+            iterate_binded(re, [](MemRequest & reference, MemRequest & binded) {
+                *reinterpret_cast<void **>(binded._ptr_out) =
+                    binded._offset + reinterpret_cast<uint8_t *>(*reinterpret_cast<void **>(reference._ptr_out));
+                binded._num_elements = reference._num_elements;
+                binded._element_size = reference._element_size;
+            });
+
+            switch (re._type & ~REQUEST_BIND) {
+                case REQUEST_ALLOCATE :
+                    break;
+                case REQUEST_STORE : {
+                    if (re._ptr_in != nullptr) {
+                        ie_memcpy(cptr, cptr_avail_size, re._ptr_in, sz);
+                    } else {
+                        size_t of = 0;
+                        for (int i = 0; i < re._num_elements; i++, of += re._element_size) {
+                            std::copy(std::begin(re._data), std::end(re._data), cptr + of);
+                        }
+                    }
+                    break;
+                }
+                case REQUEST_INITIALIZER : {
+                    re._initializer(cptr, sz);
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * @brief optimize memory region by reusing buffers
+     */
     size_t getSectionSizeOptimized(GNAPluginNS::memory::rRegion regType) {
         size_t memSize = 0;
         switch (regType) {
@@ -247,8 +245,9 @@ class GNAMemory : public GNAMemRequestsQueue {
             case REGION_RW:
             case REGION_RO: {
                     std::vector<MemorySolver::Box> boxes;
-                    for (int i = 0; i < _future_heap.size(); ++i) {
-                        if (_future_heap[i]._type & REQUEST_BIND || _future_heap[i]._region != regType) {
+                    for (size_t i = 0; i < _future_heap.size(); ++i) {
+                        // skipping BIND, cross-region and empty requests
+                        if (_future_heap[i]._type & REQUEST_BIND || _future_heap[i]._region != regType || _future_heap[i]._ptr_out == nullptr) {
                             continue;
                         }
 
@@ -257,13 +256,13 @@ class GNAMemory : public GNAMemRequestsQueue {
                         int start = _future_heap[i]._life_limits.first;
                         int stop = _future_heap[i]._life_limits.second;
 
-                        boxes.push_back({start, stop, static_cast<int64_t>(original_with_pad), i});
+                        boxes.push_back({start, stop, static_cast<int64_t>(original_with_pad), static_cast<int64_t>(i)});
                     }
                     MemorySolver memSolver(boxes);
                     memSize = memSolver.solve();
 
                     // setting offsets
-                    for (auto box : boxes) {
+                    for (auto const & box : boxes) {
                         _future_heap[box.id]._offset = memSolver.getOffset(box.id);
                     }
                 }
@@ -321,18 +320,17 @@ class GNAMemory : public GNAMemRequestsQueue {
         if (_is_compact_mode) {
             _rw_section_size = getSectionSizeOptimized(REGION_RW);
         }
-#ifdef GNA_HEAP_PROFILER
-        std::cout << "ro_section_size: " << _ro_section_size << std::endl;
-        std::cout << "rw_section_size: " << _rw_section_size << std::endl;
-        std::cout << "total: " << _total << std::endl;
-#endif
+
+        gnalog() << "ro_section_size: " << _ro_section_size << std::endl;
+        gnalog() << "rw_section_size: " << _rw_section_size << std::endl;
+        gnalog() << "total: " << _total << std::endl;
+
         _rw_section_size = ALIGN(_rw_section_size, _page_alignment);
         _ro_section_size = ALIGN(_ro_section_size, _page_alignment);
         _total = _rw_section_size + _ro_section_size;
-#ifdef GNA_HEAP_PROFILER
-        std::cout << "Aligned ro_section_size: " << _ro_section_size << std::endl;
-        std::cout << "Aligned rw_section_size: " << _rw_section_size << std::endl;
-#endif
+
+        gnalog() << "Aligned ro_section_size: " << _ro_section_size << std::endl;
+        gnalog() << "Aligned rw_section_size: " << _rw_section_size << std::endl;
     }
 };
 }  // namespace memory

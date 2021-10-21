@@ -77,7 +77,7 @@ public:
      * @param sz - sizeof output blob
      * @param ptr_inputs - sizeof output blob
      */
-    void connectOutput(InferenceEngine::CNNLayerPtr layer, void *ptr_outputs, size_t sz = 0);
+    void connectOutput(InferenceEngine::CNNLayerPtr layer, void *ptr_outputs, size_t sz);
     /**
      * Connects certain input to this layer
      * @param layer - layer that we connect input to

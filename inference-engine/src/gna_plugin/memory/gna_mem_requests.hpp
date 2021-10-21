@@ -83,10 +83,6 @@ struct MemRequest {
     // fields to sort regions by execution availability
     std::pair<uint16_t, uint16_t> _life_limits{0, UINT16_MAX};
 
-    bool operator==(const MemRequest &mReq) const {
-        return (mReq._ptr_in == _ptr_in) && (mReq._ptr_out == _ptr_out);
-    }
-
     MemRequest(rRegion region,
                 rType req,
                 void *ptr_out,
