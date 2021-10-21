@@ -7,6 +7,7 @@
 #include <iostream>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/op_extension.hpp"
 #include "openvino/util/shared_object.hpp"
 
 using namespace ov;
@@ -64,3 +65,4 @@ std::vector<Extension::Ptr> ov::load_extension(const std::wstring& path) {
     return load_extension_impl(path);
 }
 #endif
+ov::BaseOpExtension::~BaseOpExtension() = default;

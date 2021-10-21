@@ -134,7 +134,6 @@ bool evaluate_tile(const ov::runtime::Tensor& arg0, ov::runtime::Tensor& out, st
 }  // namespace
 
 bool Tile::evaluate(ov::runtime::TensorVector& outputs, const ov::runtime::TensorVector& inputs) const {
-    // Doesn't support LP data types
     switch (inputs[0].get_element_type()) {
     case ov::element::Type_t::i8:
     case ov::element::Type_t::i16:
@@ -155,7 +154,6 @@ bool Tile::evaluate(ov::runtime::TensorVector& outputs, const ov::runtime::Tenso
 }
 
 bool Tile::has_evaluate() const {
-    // Doesn't support LP data types
     switch (get_input_element_type(0)) {
     case ov::element::Type_t::i8:
     case ov::element::Type_t::i16:
