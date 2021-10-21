@@ -14,7 +14,7 @@ using namespace ngraph;
 
 const std::vector<InputShapeParams> inStaticShapeParams = {
         // dynamic shape, {{batch, box, 4}, {batch, class, box}}
-        {{}, {{{3, 100, 4}, {3,   5, 100}}}},
+        {{}, {{{3, 100, 4}, {3,   1, 100}}}},
         {{}, {{{1, 10,  4}, {1, 100, 10 }}}},
         {{}, {{{2, 50,  4}, {2,  50, 50 }}}},
 };
@@ -31,7 +31,7 @@ const std::vector<InputShapeParams> inDynamicShapeParams = {
 const std::vector<int32_t> nmsTopK = {-1, 20};
 const std::vector<float> iouThreshold = {0.7f};
 const std::vector<float> scoreThreshold = {0.7f};
-const std::vector<int32_t> backgroundClass = {-1, 0};
+const std::vector<int32_t> backgroundClass = {-1, 1};
 const std::vector<int32_t> keepTopK = {-1, 30};
 const std::vector<element::Type> outType = {element::i32, element::i64};
 

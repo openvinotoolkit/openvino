@@ -13,7 +13,7 @@ using namespace InferenceEngine;
 using namespace ngraph;
 const std::vector<InputShapeParams> inStaticShapeParams = {
         // dynamic shape, {{batch, box, 4}, {batch, class, box}}
-        {{}, {{{3, 100, 4}, {3,   5, 100}}}},
+        {{}, {{{3, 100, 4}, {3,   1, 100}}}},
         {{}, {{{1, 10,  4}, {1, 100, 10 }}}},
         {{}, {{{2, 50,  4}, {2,  50, 50 }}}},
 };
@@ -41,7 +41,7 @@ const std::vector<ThresholdParams> thresholdParams = {
 };
 const std::vector<int> nmsTopK = {-1, 100};
 const std::vector<int> keepTopK = {-1, 5};
-const std::vector<int> backgroudClass = {-1, 0};
+const std::vector<int> backgroudClass = {-1, 1};
 const std::vector<bool> normalized = {true, false};
 const std::vector<op::v8::MatrixNms::DecayFunction> decayFunction = {op::v8::MatrixNms::DecayFunction::GAUSSIAN,
                                                 op::v8::MatrixNms::DecayFunction::LINEAR};
