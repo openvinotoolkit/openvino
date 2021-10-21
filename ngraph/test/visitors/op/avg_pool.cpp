@@ -51,7 +51,6 @@ TEST(attributes, avg_pool_v8_op) {
     bool exclude_pad = false;
     const auto rounding_mode = op::RoundingType::CEIL;
     const auto auto_pad = op::PadType::EXPLICIT;
-    const element::Type& index_element_type = element::i32;
 
     const auto avg_pool =
         make_shared<opset8::AvgPool>(data, strides, pads_begin, pads_end, kernel, exclude_pad, rounding_mode, auto_pad);
