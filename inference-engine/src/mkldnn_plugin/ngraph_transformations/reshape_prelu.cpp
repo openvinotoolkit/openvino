@@ -42,9 +42,12 @@ MKLDNNPlugin::ReshapePRelu::ReshapePRelu() {
         target_shape[channel_dim_idx] = -1;
         const auto target_shape_const = ngraph::opset1::Constant::create(ngraph::element::i64, { target_shape.size() }, target_shape);
         auto new_slope = ngraph::op::util::make_try_fold<ngraph::opset1::Reshape>(slope, target_shape_const, true);
-
         auto new_prelu = prelu->clone_with_new_inputs({ input, new_slope });
-        ngraph::replace_node_update_name(prelu, new_prelu);
+
+        ngraph::replace_node(prelu, new_prelu);
+        new_prelu->set_friendly_name(prelu->get_friendly_name());
+        ngraph::copy_runtime_info(prelu, new_prelu);
+
         return true;
     };
 
