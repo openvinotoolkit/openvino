@@ -299,6 +299,41 @@ const auto StridedSliceParamsBlocked5D = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Blocked_5D, StridedSliceLayerCPUTest, StridedSliceParamsBlocked5D, StridedSliceLayerCPUTest::getTestCaseName);
 
+/* Descriptors check */
+
+class StridedSliceLayerDescriptorCPUTest : public StridedSliceLayerCPUTest {};
+
+const std::vector<StridedSliceSpecificParams> testCasesPlanar4D = {
+        StridedSliceSpecificParams{ {1, 32, 112, 112 }, { 0, -28, 0, 0 }, { 0, 2147483647, 0, 0 }, { 1, 1, 1, 1 }, { 1, 0, 1, 1 },
+                                    { 1, 0, 1, 1 }, { 0, 0, 0, 0 },  { 0, 0, 0, 0 },  { 0, 0, 0, 0 } },
+        StridedSliceSpecificParams{ { 1, 17, 32, 20 }, { 0, 0, 10, 0 }, { 1, 17, 20, 10 }, { 1, 1, 1, 1 },
+                                    { 0, 0, 0, 0 }, { 0, 0, 0, 1 },  { },  { },  { } },
+        StridedSliceSpecificParams{ { 1, 16, 32, 32 }, { 0, 5, 0, 0 }, { 1, 20, 28, 27 }, { 1, 1, 1, 1 },
+                                    { 0, 0, 0, 0 }, { 0, 0, 0, 0 },  { },  { },  { } },
+        StridedSliceSpecificParams{ { 1, 16, 100, 1, 1 }, { 0, -1, 0, 0 }, { 0, 0, 0, 0 }, { 1, 1, 1, 1 },
+                                    { 1, 0, 1, 0 }, { 1, 0, 1, 0 },  { },  { 0, 1, 0, 1 },  {} },
+        StridedSliceSpecificParams{ { 2, 3, 4, 5 }, { 0, 0, 0, 0, 0 }, { 0, 2, 3, 4, 5 }, { 1, 1, 1, 1, 1 },
+                                    { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 },  { 0, 0, 1, 0, 0 },  {},  {} },
+};
+
+const auto StridedSliceParamsDescriptorsCheck4D = ::testing::Combine(
+        ::testing::ValuesIn(testCasesPlanar4D),
+        ::testing::Values(InferenceEngine::Precision::FP32),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(additional_config),
+        ::testing::Values(cpuParams_nChw8c));
+
+TEST_P(StridedSliceLayerDescriptorCPUTest, DescriptorsCheck) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    ASSERT_THROW(LoadNetwork(), InferenceEngine::Exception);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_StridedSliceLayerDescriptorCPUTest,
+                         StridedSliceLayerDescriptorCPUTest,
+                         StridedSliceParamsDescriptorsCheck4D,
+                         StridedSliceLayerDescriptorCPUTest::getTestCaseName);
+
 } // namespace
 } // namespace CPULayerTestsDefinitions
 
