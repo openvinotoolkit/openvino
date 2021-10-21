@@ -5,11 +5,11 @@
 #include <frontend_manager/frontend_manager.hpp>
 #include <tensorflow_frontend/frontend.hpp>
 
-extern "C" NGRAPH_HELPER_DLL_EXPORT ngraph::frontend::FrontEndVersion GetAPIVersion() {
+extern "C" OPENVINO_CORE_EXPORTS ngraph::frontend::FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;
 }
 
-extern "C" NGRAPH_HELPER_DLL_EXPORT void* GetFrontEndData() {
+extern "C" OPENVINO_CORE_EXPORTS void* GetFrontEndData() {
     auto res = new ngraph::frontend::FrontEndPluginInfo();
     res->m_name = "tf";
     res->m_creator = []() {

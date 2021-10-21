@@ -8,10 +8,8 @@
 // INTERPRETER_API is used for the public API symbols. It either DLL imports or DLL exports
 //    (or does nothing for static build)
 
-#ifdef INTERPRETER_BACKEND_EXPORTS  // defined if we are building the INTERPRETER DLL (instead of
-// using
-// it)
-#    define INTERPRETER_BACKEND_API NGRAPH_HELPER_DLL_EXPORT
+#ifdef INTERPRETER_BACKEND_EXPORTS
+#    define INTERPRETER_BACKEND_API OPENVINO_CORE_EXPORTS
 #else
-#    define INTERPRETER_BACKEND_API NGRAPH_HELPER_DLL_IMPORT
+#    define INTERPRETER_BACKEND_API OPENVINO_CORE_IMPORTS
 #endif  // INTERPRETER_DLL_EXPORTS

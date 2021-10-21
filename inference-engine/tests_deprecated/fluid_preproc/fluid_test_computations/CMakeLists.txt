@@ -7,7 +7,7 @@ file(GLOB HDR *.hpp)
 
 set(TARGET_NAME fluid_test_computations)
 
-add_library(${TARGET_NAME} SHARED ${SRC} ${HDR})
+add_library(${TARGET_NAME} STATIC ${SRC} ${HDR})
 
 # Workaround to avoid warnings caused with bug in the avx512intrin.h of GCC5
 if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND
@@ -19,10 +19,4 @@ target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_preproc_s inference_engine fluid)
 
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_FLUID_COMPUTATION_API)
-
 add_dependencies(${TARGET_NAME} inference_engine_preproc)
-
-install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)

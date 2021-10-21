@@ -14,7 +14,11 @@
 namespace ngraph {
 namespace pass {
 
+#ifdef BUILD_AS_IE_SOURCES
+class ConvertNMS5ToLegacyMatcher;
+#else
 class INFERENCE_ENGINE_API_CLASS(ConvertNMS5ToLegacyMatcher);
+#endif
 
 }  // namespace pass
 }  // namespace ngraph

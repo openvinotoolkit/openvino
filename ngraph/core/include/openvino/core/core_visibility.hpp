@@ -16,7 +16,7 @@
 #    pragma warning(disable : 4275)
 #endif
 
-#ifdef NGRAPH_STATIC_LIBRARY  // defined if we are building or calling NGRAPH as a static library
+#ifdef OPENVINO_STATIC_LIBRARY  // defined if we are building or calling NGRAPH as a static library
 #    define OPENVINO_API
 #    define OPENVINO_API_C(...) __VA_ARGS__
 #else
@@ -27,4 +27,4 @@
 #        define OPENVINO_API        OPENVINO_CORE_IMPORTS
 #        define OPENVINO_API_C(...) OPENVINO_EXTERN_C OPENVINO_CORE_IMPORTS __VA_ARGS__ OPENVINO_CDECL
 #    endif  // ngraph_EXPORTS
-#endif      // NGRAPH_STATIC_LIBRARY
+#endif      // OPENVINO_STATIC_LIBRARY

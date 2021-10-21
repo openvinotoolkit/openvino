@@ -15,9 +15,9 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${PUBLIC_HEADERS_DIR}/low_precision/*.hpp)
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
-# Create shared library
+# Create library
 
-add_library(${TARGET_NAME} SHARED
+add_library(${TARGET_NAME}
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 

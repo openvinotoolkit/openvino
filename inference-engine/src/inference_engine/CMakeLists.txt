@@ -28,7 +28,7 @@ set(LEGACY_LIBRARY_SHARED_SRCS
     "${LEGACY_SRC_ROOT}/ngraph_ops/onehot_ie.cpp")
 
 set_source_files_properties(${LEGACY_LIBRARY_SHARED_SRCS} PROPERTIES
-    COMPILE_DEFINITIONS "USE_STATIC_IE")
+    COMPILE_DEFINITIONS "BUILD_AS_IE_SOURCES")
 
 set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
@@ -139,9 +139,9 @@ if (TBBBIND_2_4_FOUND)
     target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
 endif()
 
-# Create shared library file from object library
+# Create library file from object library
 
-add_library(${TARGET_NAME} SHARED
+add_library(${TARGET_NAME}
             ${IE_STATIC_DEPENDENT_FILES}
             ${LEGACY_LIBRARY_SHARED_SRCS}
             ${vs_version_file}
@@ -300,11 +300,13 @@ endif()
 
 # Install cmake scripts
 
-install(EXPORT OpenVINOTargets
-        FILE OpenVINOTargets.cmake
-        NAMESPACE openvino::
-        DESTINATION runtime/cmake
-        COMPONENT core_dev)
+if(BUILD_SHARED_LIBS)
+    install(EXPORT OpenVINOTargets
+            FILE OpenVINOTargets.cmake
+            NAMESPACE openvino::
+            DESTINATION runtime/cmake
+            COMPONENT core_dev)
+endif()
 
 set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/ngraph")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")

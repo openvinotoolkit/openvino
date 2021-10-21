@@ -7,9 +7,9 @@
 #include <frontend_manager/frontend_exceptions.hpp>
 
 #ifdef tensorflow_ngraph_frontend_EXPORTS
-#    define TF_API NGRAPH_HELPER_DLL_EXPORT
+#    define TF_API OPENVINO_CORE_EXPORTS
 #else
-#    define TF_API NGRAPH_HELPER_DLL_IMPORT
+#    define TF_API OPENVINO_CORE_IMPORTS
 #endif  // tensorflow_ngraph_frontend_EXPORTS
 
 #define NGRAPH_VLOG(I) std::ostringstream()

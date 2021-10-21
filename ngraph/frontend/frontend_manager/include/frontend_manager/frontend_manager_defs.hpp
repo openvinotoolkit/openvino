@@ -9,13 +9,13 @@
 // Increment each time when FrontEnd/InputModel/Place interface is changed
 #define OV_FRONTEND_API_VERSION 1
 
-#ifdef USE_STATIC_FRONTEND_MANAGER
+#if defined(USE_STATIC_FRONTEND_MANAGER) || defined(OPENVINO_STATIC_LIBRARY)
 #    define FRONTEND_API
 #else
 // Defined if cmake is building the frontend_manager DLL (instead of using it)
 #    ifdef frontend_manager_EXPORTS
-#        define FRONTEND_API NGRAPH_HELPER_DLL_EXPORT
+#        define FRONTEND_API OPENVINO_CORE_EXPORTS
 #    else
-#        define FRONTEND_API NGRAPH_HELPER_DLL_IMPORT
+#        define FRONTEND_API OPENVINO_CORE_IMPORTS
 #    endif  // frontend_manager_EXPORTS
-#endif      // USE_STATIC_FRONTEND_MANAGER
+#endif      // USE_STATIC_FRONTEND_MANAGER || OPENVINO_STATIC_LIBRARY
