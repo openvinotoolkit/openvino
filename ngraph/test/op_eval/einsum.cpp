@@ -7,13 +7,13 @@
 #include <string>
 #include <vector>
 
+#include "engines_util/interpreter_engine.hpp"
+#include "engines_util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
 #include "runtime/backend.hpp"
-#include "util/engine/interpreter_engine.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
 #include "util/test_tools.hpp"
 
 using namespace std;

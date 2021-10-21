@@ -38,6 +38,7 @@ public:
     InferenceEngine::gpu::ClContext::Ptr m_context;
     Config m_config;
     InferenceEngine::ITaskExecutor::Ptr m_taskExecutor;
+    InferenceEngine::ITaskExecutor::Ptr m_waitExecutor;
 };
 
 };  // namespace CLDNNPlugin

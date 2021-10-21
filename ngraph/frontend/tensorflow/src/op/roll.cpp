@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::opset8;
-using namespace ngraph::frontend::tf;
+using namespace ov;
+using namespace ov::opset8;
+using namespace ov::frontend::tf;
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
-ngraph::OutputVector TranslateRollOp(const NodeContext& node) {
+ov::OutputVector TranslateRollOp(const NodeContext& node) {
     auto data = node.get_ng_input(0);
     auto shift = node.get_ng_input(1);
     auto axis = node.get_ng_input(2);
@@ -25,4 +25,4 @@ ngraph::OutputVector TranslateRollOp(const NodeContext& node) {
 }  // namespace op
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

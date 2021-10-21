@@ -13,8 +13,6 @@
 
 #include "common_test_utils/test_common.hpp"
 
-IE_SUPPRESS_DEPRECATED_START
-
 using namespace InferenceEngine;
 
 using ExtensionTests = ::testing::Test;

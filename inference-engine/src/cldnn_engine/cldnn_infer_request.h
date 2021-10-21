@@ -46,6 +46,14 @@ public:
     void EnableProfiling() { m_useProfiling = true; }
     void EnableStreams() { m_useStreams = true; }
 
+    void preprocess();
+    void enqueue();
+    void wait();
+
+    void preprocess_dynamic();
+    void enqueue_dynamic();
+    void wait_dynamic();
+
 private:
     InferenceEngine::BlobMap _deviceOutputs;
     std::map<std::string, cldnn::primitive_id> inputsMap;
@@ -77,8 +85,9 @@ private:
     void allocate_outputs();
     void allocate_inputs_dynamic();
     void allocate_outputs_dynamic();
-    void exec_and_parse(const std::vector<cldnn::event::ptr>& dependencies);
-    void exec_and_parse_dynamic();
+
+    std::map<cldnn::primitive_id, cldnn::network_output> internal_outputs;
+    std::vector<std::map<cldnn::primitive_id, cldnn::network_output>> internal_outputs_dynamic;
 };
 
 };  // namespace CLDNNPlugin

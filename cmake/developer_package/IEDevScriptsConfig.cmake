@@ -280,8 +280,10 @@ function(ie_check_pip_package full_name message_type)
                 set(installed_version "${CMAKE_MATCH_1}")
             endif()
 
-            message(${message_type} "${name} package is installed, but may have different version (${installed_version}). "
-                "Please use \"${PYTHON_EXECUTABLE} -m pip install ${full_name}\".")
+            if(NOT req_version STREQUAL installed_version)
+                message(${message_type} "${name} package is installed, but may have different version (${installed_version}). "
+                    "Please use \"${PYTHON_EXECUTABLE} -m pip install ${full_name}\".")
+            endif()
         else()
             set(${name}_FOUND ON PARENT_SCOPE)
         endif()

@@ -11,6 +11,7 @@
 #include <openvino/core/strides.hpp>
 #include <openvino/core/type/element_type.hpp>
 
+#include "ngraph/coordinate_transform.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -30,6 +31,11 @@ TEST_F(OVTensorTest, canCreateTensor) {
     ASSERT_EQ(ov::element::f32.size() * totalSize, t.get_byte_size());
     ASSERT_THROW(t.data(ov::element::i64), ov::Exception);
     ASSERT_THROW(t.data<std::int32_t>(), ov::Exception);
+}
+
+TEST_F(OVTensorTest, emptySize) {
+    ov::runtime::Tensor t(ov::element::f32, {0});
+    ASSERT_NE(nullptr, t.data());
 }
 
 TEST_F(OVTensorTest, operators) {
@@ -186,18 +192,12 @@ TEST_F(OVTensorTest, cannotSetShapeOnRoiTensor) {
     ASSERT_THROW(roi_tensor.set_shape(newShape), ov::Exception);
 }
 
-TEST_F(OVTensorTest, makeRangeRoiTensorInt4) {
+TEST_F(OVTensorTest, tensorInt4DataAccess) {
     ov::runtime::Tensor t{ov::element::i4, {1, 6, 5, 3}};  // RGB picture of size (WxH) = 5x6
-    ov::runtime::Tensor roi_tensor{t, {0, 1, 2, 0}, {1, 5, 4, 3}};
-    ov::Shape ref_shape = {1, 4, 2, 3};
-    ptrdiff_t ref_offset = 21;
-    ov::Strides ref_strides = {90, 15, 3, 1};
-    ASSERT_EQ(roi_tensor.get_shape(), ref_shape);
-    ASSERT_EQ(roi_tensor.data<int8_t>() - t.data<int8_t>(), ref_offset);
-    ASSERT_EQ(roi_tensor.get_strides(), ref_strides);
-    ASSERT_EQ(roi_tensor.get_strides(), t.get_strides());
-    ASSERT_EQ(ref_strides, roi_tensor.get_strides());
-    ASSERT_EQ(roi_tensor.get_element_type(), t.get_element_type());
+    ASSERT_THROW((ov::runtime::Tensor{t, {0, 1, 2, 0}, {1, 5, 4, 3}}), ov::Exception);
+    ASSERT_THROW(t.get_strides(), ov::Exception);
+    ASSERT_THROW(t.data<int8_t>(), ov::Exception);
+    ASSERT_NO_THROW(t.data());
 }
 
 TEST_F(OVTensorTest, makeRangeRoiBlobWrongSize) {
@@ -221,17 +221,11 @@ TEST_F(OVTensorTest, readRangeRoiBlob) {
         auto roi = roi_tensor.data<int32_t>();
         ASSERT_NE(nullptr, roi);
         auto strides = roi_tensor.get_strides();
-        for (size_t n = 0; n < roi_tensor.get_shape()[0]; ++n) {
-            for (size_t c = 0; c < roi_tensor.get_shape()[1]; ++c) {
-                for (size_t h = 0; h < roi_tensor.get_shape()[2]; ++h) {
-                    for (size_t w = 0; w < roi_tensor.get_shape()[3]; ++w) {
-                        auto actual = roi[w * strides[3] + h * strides[2] + c * strides[1] + n * strides[0]];
-                        auto expected = t.data<int32_t>()[(w + 4) * strides[3] + (h + 2) * strides[2] +
-                                                          (c + 0) * strides[1] + (n + 0) * strides[0]];
-                        ASSERT_EQ(expected, actual) << ov::Shape{n, c, h, w};
-                    }
-                }
-            }
+        for (auto&& c : ngraph::CoordinateTransformBasic{roi_tensor.get_shape()}) {
+            auto actual = roi[c[3] * strides[3] + c[2] * strides[2] + c[1] * strides[1] + c[0] * strides[0]];
+            auto expected = t.data<int32_t>()[(c[3] + 4) * strides[3] + (c[2] + 2) * strides[2] +
+                                              (c[1] + 0) * strides[1] + (c[0] + 0) * strides[0]];
+            ASSERT_EQ(expected, actual) << c;
         }
     }
 }

@@ -1043,6 +1043,13 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
             outputScale.resize(std::max(outputLowAxisSize, outputHighAxisSize));
             outputShift.resize(outputLowAxisSize);
 
+            cropLowSize = cropLow.size();
+            cropHighSize = cropHigh.size();
+            inputScaleSize = inputScale.size();
+            inputShiftSize = inputShift.size();
+            outputScaleSize = outputScale.size();
+            outputShiftSize = outputShift.size();
+
             bool quantizationOnly = true;
 
             for (int i = 0; i < cropLow.size(); i++) {
@@ -1577,7 +1584,7 @@ void MKLDNNFakeQuantizeNode::execute(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNFakeQuantizeNode::appendPostOps(mkldnn::post_ops& ops) {
+void MKLDNNFakeQuantizeNode::appendPostOps(mkldnn::post_ops& ops, bool initAsBinary, bool initBinaryMemory) {
     // MKLDNN quantization_injectors assumes that quantization data memory is always aligned on 16
     // by length of AVX512 vector register which is also enough for AVX2 and SSE42 implementations.
     // Otherwise it can lead to buffer over-read and performance penalties due to denormals.
@@ -1617,7 +1624,36 @@ void MKLDNNFakeQuantizeNode::appendPostOps(mkldnn::post_ops& ops) {
         mkldnn::algorithm alg = getAlgorithm() == FQCommon ? mkldnn::algorithm::quantization_quantize_dequantize :
                                                              mkldnn::algorithm::quantization_quantize;
 
-        ops.append_quantization(alg, &cropLowData, &cropHighData, &inputScaleData, &inputShiftData, &outputScaleData, &outputShiftData);
+        if (initAsBinary) {
+            auto appendBinary = [&](const mkldnn::algorithm alg, const size_t dataSize, MKLDNNMemoryPtr &memPtr, const void *data) {
+                auto outShape = outputShapes[0].getStaticDims();
+                auto chIdx = outputShapes[0].getRank() > 1 ? 1 : 0;
+
+                std::vector<size_t> binaryShape(outShape.size(), 1);
+                binaryShape[chIdx] = dataSize;
+
+                DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, Shape(binaryShape));
+                ops.append_binary(alg, memoryDesc.getDnnlDesc());
+
+                if (initBinaryMemory) {
+                    memPtr.reset(new MKLDNNMemory(getEngine()));
+                    memPtr->Create(memoryDesc, data);
+                }
+            };
+
+            appendBinary(mkldnn::algorithm::binary_min, cropHighSize, cropHighMemory, &cropHighData.shifts_[0]);
+            appendBinary(mkldnn::algorithm::binary_max, cropLowSize, cropLowMemory, &cropLowData.shifts_[0]);
+            appendBinary(mkldnn::algorithm::binary_mul, inputScaleSize, inputScaleMemory, &inputScaleData.scales_[0]);
+            appendBinary(mkldnn::algorithm::binary_add, inputShiftSize, inputShiftMemory, &inputShiftData.shifts_[0]);
+            if (alg == mkldnn::algorithm::quantization_quantize_dequantize) {
+                ops.append_eltwise(1.0f, mkldnn::algorithm::eltwise_round_half_to_even, 0, 0);
+            }
+            appendBinary(mkldnn::algorithm::binary_mul, outputScaleSize, outputScaleMemory, &outputScaleData.scales_[0]);
+            appendBinary(mkldnn::algorithm::binary_add, outputShiftSize, outputShiftMemory, &outputShiftData.shifts_[0]);
+
+        } else {
+            ops.append_quantization(alg, &cropLowData, &cropHighData, &inputScaleData, &inputShiftData, &outputScaleData, &outputShiftData);
+        }
     }
 
     if (!isPostOpDataInitialized)

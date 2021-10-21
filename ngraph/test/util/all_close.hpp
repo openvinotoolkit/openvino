@@ -11,8 +11,6 @@
 #include "gtest/gtest.h"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "random.hpp"
-#include "test_tools.hpp"
 
 namespace ngraph {
 namespace test {

@@ -13,6 +13,7 @@
 #include "ie_common.h"
 #include "ie_input_info.hpp"
 #include "ie_preprocess_data.hpp"
+#include "so_ptr.hpp"
 
 namespace InferenceEngine {
 
@@ -224,7 +225,7 @@ protected:
                                const Blob::Ptr& userBlob,
                                const Blob::Ptr& deviceBlob = nullptr);
 
-    void addInputPreProcessingFor(const std::string& name, Blob::Ptr const& from, const Blob::Ptr& to);
+    void addInputPreProcessingFor(const std::string& name, const Blob::Ptr& from, const Blob::Ptr& to);
 
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
@@ -248,6 +249,6 @@ private:
 /**
  * @brief SOPointer to IInferRequestInternal.
  */
-using SoIInferRequestInternal = details::SOPointer<IInferRequestInternal>;
+using SoIInferRequestInternal = ov::runtime::SoPtr<IInferRequestInternal>;
 
 }  // namespace InferenceEngine

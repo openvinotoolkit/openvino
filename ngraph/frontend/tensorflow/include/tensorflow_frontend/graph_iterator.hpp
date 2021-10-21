@@ -5,13 +5,14 @@
 #pragma once
 
 #include <tensorflow_frontend/decoder.hpp>
+#include <tensorflow_frontend/utility.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
-class GraphIterator {
+class TF_API GraphIterator {
 public:
-    typedef std::shared_ptr<GraphIterator> Ptr;
+    using Ptr = std::shared_ptr<GraphIterator>;
 
     /// \brief Get a number of operation nodes in the graph
     virtual size_t size() const = 0;
@@ -27,6 +28,9 @@ public:
 
     /// \brief Return a pointer to a decoder of the current node
     virtual std::shared_ptr<DecoderBase> get_decoder() const = 0;
+
+    /// \brief Destructor
+    virtual ~GraphIterator() = default;
 };
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "ngraph/compatibility.hpp"
-#include "ngraph/util.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/function.hpp"
@@ -96,8 +95,8 @@ public:
     ///
     /// Example below show how to set callback for one or multiple passes using this method.
     ///
-    ///     pass_config->set_callback<ngraph::pass::ConvertBatchToSpace,
-    ///                               ngraph::pass::ConvertSpaceToBatch>(
+    ///     pass_config->set_callback<ov::pass::ConvertBatchToSpace,
+    ///                               ov::pass::ConvertSpaceToBatch>(
     ///              [](const_node_ptr &node) -> bool {
     ///                   // Disable transformations for cases when input shape rank is not
     ///                   equal to 4
@@ -145,9 +144,9 @@ public:
     /// \return callback lambda function
     template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     param_callback get_callback() const {
-        NGRAPH_SUPPRESS_DEPRECATED_START
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return get_callback(T::type_info);
-        NGRAPH_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     param_callback get_callback() const {
@@ -165,9 +164,9 @@ public:
     /// \return true if transformation type was disabled and false otherwise
     template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     bool is_disabled() const {
-        NGRAPH_SUPPRESS_DEPRECATED_START
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return is_disabled(T::type_info);
-        NGRAPH_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     bool is_disabled() const {
@@ -185,9 +184,9 @@ public:
     /// \return true if transformation type was force enabled and false otherwise
     template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     bool is_enabled() const {
-        NGRAPH_SUPPRESS_DEPRECATED_START
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return is_enabled(T::type_info);
-        NGRAPH_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     bool is_enabled() const {
@@ -197,7 +196,7 @@ public:
     void add_disabled_passes(const PassConfig& rhs);
 
 private:
-    param_callback m_callback = [](const std::shared_ptr<const ::ngraph::Node>&) {
+    param_callback m_callback = [](const std::shared_ptr<const ::ov::Node>&) {
         return false;
     };
     param_callback_map m_callback_map;

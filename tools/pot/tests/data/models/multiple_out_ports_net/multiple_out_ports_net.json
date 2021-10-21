@@ -1,0 +1,7 @@
+{
+  "name": "multiple_out_ports_net",
+  "framework": "tf",
+  "mo_args": {
+    "input_model": "$model_dir/multiple_out_ports_net/multiple_out_ports_net.pb"
+  }
+}

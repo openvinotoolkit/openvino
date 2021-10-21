@@ -4,19 +4,21 @@
 
 #pragma once
 
-#include <ngraph/variant.hpp>
+#include <openvino/core/variant.hpp>
+#include <tensorflow_frontend/utility.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 
-class DecoderBase {
+class TF_API DecoderBase {
 public:
     /// \brief Get attribute value by name and requested type
     ///
     /// \param name Attribute name
     /// \param type_info Attribute type information
     /// \return Shared pointer to appropriate value if it exists, 'nullptr' otherwise
-    virtual std::shared_ptr<Variant> get_attribute(const std::string& name, const VariantTypeInfo& type_info) const = 0;
+    virtual std::shared_ptr<ov::Variant> get_attribute(const std::string& name,
+                                                       const VariantTypeInfo& type_info) const = 0;
 
     /// \brief Get a number of inputs
     virtual size_t get_input_size() const = 0;
@@ -31,10 +33,13 @@ public:
                                 size_t& producer_output_port_index) const = 0;
 
     /// \brief Get operation type
-    virtual std::string get_op_type() const = 0;
+    virtual const std::string& get_op_type() const = 0;
 
     /// \brief Get node name
-    virtual std::string get_op_name() const = 0;
+    virtual const std::string& get_op_name() const = 0;
+
+    /// \brief Destructor
+    virtual ~DecoderBase() = default;
 };
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

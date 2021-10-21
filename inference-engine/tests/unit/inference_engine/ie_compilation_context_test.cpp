@@ -237,12 +237,12 @@ TEST(NetworkContext_CNNNetwork, HashWithFusedNames) {
 
 TEST(NetworkContext_CNNNetwork, HashWithPrimitivesPriorityType) {
     auto setPrimEmpty = [&](Node::RTMap& rtInfo) {
-        rtInfo[VariantWrapper<ov::PrimitivesPriority>::get_type_info_static()] =
-                std::make_shared<VariantWrapper<ov::PrimitivesPriority>>(ov::PrimitivesPriority());
+        rtInfo[ov::PrimitivesPriority::get_type_info_static()] =
+                std::make_shared<ov::PrimitivesPriority>("");
     };
     auto setPrim = [&](Node::RTMap& rtInfo, const std::string& name) {
-        rtInfo[VariantWrapper<ov::PrimitivesPriority>::get_type_info_static()] =
-                std::make_shared<VariantWrapper<ov::PrimitivesPriority>>(ov::PrimitivesPriority(name));
+        rtInfo[ov::PrimitivesPriority::get_type_info_static()] =
+                std::make_shared<ov::PrimitivesPriority>(name);
     };
     checkCustomRt(setPrimEmpty, setPrim);
 }

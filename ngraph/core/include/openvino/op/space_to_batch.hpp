@@ -37,14 +37,16 @@ public:
     /// input.
     SpaceToBatch(const Output<Node>& data,
                  const Output<Node>& block_shape,
-                 const Output<ngraph::Node>& pads_begin,
-                 const Output<ngraph::Node>& pads_end);
+                 const Output<ov::Node>& pads_begin,
+                 const Output<ov::Node>& pads_end);
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 private:

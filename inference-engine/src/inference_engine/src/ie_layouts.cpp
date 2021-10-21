@@ -186,6 +186,10 @@ Layout TensorDesc::getLayoutByRank(size_t rank) {
 }
 
 Layout TensorDesc::getLayoutByDims(const SizeVector& dims) {
+    // {0} shape is fully dynamic shape with default (BLOCKED) layout
+    if (dims.size() == 1 && dims[0] == 0)
+        return Layout::BLOCKED;
+
     return getLayoutByRank(dims.size());
 }
 

@@ -178,7 +178,7 @@ INSTANTIATE_TEST_SUITE_P(FQInOUt_ones__multiplier_4D_with_channel, FQMulFusion,
                                            ::testing::Values(ngraph::Shape{1, 64, 3, 3}),
                                            ::testing::Values(ngraph::Shape{1, 64, 3, 3})));
 
-INSTANTIATE_TEST_CASE_P(FQInOUt_ones__multiplier_3D, FQMulFusion,
+INSTANTIATE_TEST_SUITE_P(FQInOUt_ones__multiplier_3D, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 128, 512}),
                                            ::testing::Values(ngraph::Shape{1}),
                                            ::testing::Values(ngraph::Shape{1}),

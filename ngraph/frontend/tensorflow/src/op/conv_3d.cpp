@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
-using namespace ngraph::opset8;
+using namespace ov::opset8;
 
 // Translate Conv3D Op
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
@@ -37,11 +37,6 @@ OutputVector TranslateConv3DOp(const NodeContext& node) {
     //       op->type_string());
     // }
 
-    NGRAPH_VLOG(3) << join(tf_strides);
-    NGRAPH_VLOG(3) << join(tf_dilations);
-    NGRAPH_VLOG(3) << tf_padding_type;
-    NGRAPH_VLOG(3) << tf_data_format;
-
     Strides ng_strides(3);
     Strides ng_dilations(3);
     Shape ng_image_shape(3);
@@ -52,18 +47,12 @@ OutputVector TranslateConv3DOp(const NodeContext& node) {
     NHWCtoHW(is_ndhwc, tf_dilations, ng_dilations);
     NHWCtoNCHW(node.get_name(), is_ndhwc, ng_input);
 
-    NGRAPH_VLOG(3) << "ng_strides: " << join(ng_strides);
-    NGRAPH_VLOG(3) << "ng_dilations: " << join(ng_dilations);
-    NGRAPH_VLOG(3) << "ng_image_shape: " << join(ng_image_shape);
-
     auto& ng_filter_shape = ng_filter.get_shape();
     ng_kernel_shape[0] = ng_filter_shape[0];
     ng_kernel_shape[1] = ng_filter_shape[1];
     ng_kernel_shape[2] = ng_filter_shape[2];
     Transpose3D<4, 3, 0, 1, 2>(ng_filter);
     SetTracingInfo(node.get_name(), ng_filter);
-
-    NGRAPH_VLOG(3) << "ng_kernel_shape: " << join(ng_kernel_shape);
 
     CoordinateDiff ng_padding_below;
     CoordinateDiff ng_padding_above;
@@ -89,4 +78,4 @@ OutputVector TranslateConv3DOp(const NodeContext& node) {
 }  // namespace op
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

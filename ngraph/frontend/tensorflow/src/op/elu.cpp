@@ -2,26 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 #include "node_context.hpp"
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::opset8;
+using namespace ov;
+using namespace ov::opset8;
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
 
 OutputVector TranslateEluOp(const NodeContext& node) {
     auto input = node.get_ng_input(0);
-    auto alpha = node.get_attribute<float>("alpha", 1.0);
+    auto alpha = 1.0;  // node.get_attribute<float>("alpha");
     return {ConstructNgNode<Elu>(node.get_name(), input, alpha)};
 }
 }  // namespace op
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

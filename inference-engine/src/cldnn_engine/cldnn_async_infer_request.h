@@ -13,13 +13,17 @@ namespace CLDNNPlugin {
 
 class CLDNNAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
-    CLDNNAsyncInferRequest(const InferenceEngine::IInferRequestInternal::Ptr &inferRequest,
-                           const InferenceEngine::ITaskExecutor::Ptr &taskExecutor,
-                           const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor);
-
-    void Infer_ThreadUnsafe() override;
+    using Parent = InferenceEngine::AsyncInferRequestThreadSafeDefault;
+    CLDNNAsyncInferRequest(const CLDNNInferRequest::Ptr &inferRequest,
+                           const InferenceEngine::ITaskExecutor::Ptr& taskExecutor,
+                           const InferenceEngine::ITaskExecutor::Ptr& waitExecutor,
+                           const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
 
     ~CLDNNAsyncInferRequest();
+
+private:
+    CLDNNInferRequest::Ptr _inferRequest;
+    InferenceEngine::ITaskExecutor::Ptr _waitExecutor;
 };
 
 }  // namespace CLDNNPlugin

@@ -10,14 +10,13 @@
 #include <transformations_visibility.hpp>
 
 namespace ov {
-template <>
-class TRANSFORMATIONS_API VariantWrapper<ngraph::Strides> : public VariantImpl<ngraph::Strides> {
+class TRANSFORMATIONS_API StridesPropagation : public VariantImpl<ngraph::Strides> {
 public:
-    OPENVINO_RTTI("strides", "0");
+    OPENVINO_RTTI("strides_propagation", "0");
 
-    VariantWrapper() = default;
+    StridesPropagation() = default;
 
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
+    StridesPropagation(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
 TRANSFORMATIONS_API bool has_strides_prop(const ngraph::Input<ngraph::Node>& node);

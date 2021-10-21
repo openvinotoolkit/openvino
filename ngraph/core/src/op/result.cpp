@@ -17,9 +17,11 @@ using namespace ngraph;
 
 BWDCMP_RTTI_DEFINITION(op::v0::Result);
 
-op::Result::Result(const Output<Node>& arg, bool needs_default_layout)
-    : Op({arg}),
-      m_needs_default_layout(needs_default_layout) {
+op::Result::Result(const Output<Node>& arg) : Op({arg}) {
+    constructor_validate_and_infer_types();
+}
+
+op::Result::Result(const Output<Node>& arg, bool) : Op({arg}) {
     constructor_validate_and_infer_types();
 }
 
@@ -42,7 +44,7 @@ shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args)
     NGRAPH_OP_SCOPE(v0_Result_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
-    auto res = make_shared<Result>(new_args.at(0), m_needs_default_layout);
+    auto res = make_shared<Result>(new_args.at(0));
     return std::move(res);
 }
 
@@ -63,6 +65,20 @@ bool op::Result::has_evaluate() const {
 
 bool op::Result::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
     return false;
+}
+
+ov::Layout op::Result::get_layout() const {
+    auto it = get_output_tensor(0).get_rt_info().find("LAYOUT");
+    if (it == get_output_tensor(0).get_rt_info().end()) {
+        return {};
+    }
+    auto layout = std::dynamic_pointer_cast<VariantWrapper<ov::Layout>>(it->second);
+    OPENVINO_ASSERT(layout, "'LAYOUT' runtime info for node is invalid, use set_layout API");
+    return layout->get();
+}
+
+void op::Result::set_layout(const ov::Layout& layout) {
+    get_output_tensor(0).get_rt_info()["LAYOUT"] = std::make_shared<VariantWrapper<ov::Layout>>(layout);
 }
 
 BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ResultVector>);

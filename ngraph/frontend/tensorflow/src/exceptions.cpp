@@ -6,7 +6,7 @@
 
 #include "node_context.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 std::string OpValidationFailureTF::get_error_msg_prefix_tf(const tf::NodeContext& node) {
@@ -16,4 +16,4 @@ std::string OpValidationFailureTF::get_error_msg_prefix_tf(const tf::NodeContext
 }
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

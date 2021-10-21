@@ -82,13 +82,15 @@ std::string HeteroSyntheticTest::getTestCaseName(const ::testing::TestParamInfo<
 }
 
 void HeteroSyntheticTest::SetUp() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto& param = GetParam();
     targetDevice = "HETERO:";
     int num = std::get<Plugin>(param).size() - 1;
     for (auto&& pluginParameter : std::get<Plugin>(param)) {
         bool registred = true;
         try {
-            PluginCache::get().ie()->RegisterPlugin(pluginParameter._location, pluginParameter._name);
+            PluginCache::get().ie()->RegisterPlugin(pluginParameter._location
+                + IE_BUILD_POSTFIX, pluginParameter._name);
         } catch (InferenceEngine::Exception& ex) {
             if (std::string{ex.what()}.find("Device with \"" + pluginParameter._name
                                              + "\"  is already registered in the InferenceEngine")

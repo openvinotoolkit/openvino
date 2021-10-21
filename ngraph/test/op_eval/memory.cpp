@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/op/util/variable.hpp"
 #include "ngraph/op/util/variable_context.hpp"
@@ -17,6 +18,8 @@
 using namespace std;
 using namespace ngraph;
 using namespace ngraph::opset7;
+
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 shared_ptr<ngraph::Function> AssignReadGraph() {
     auto p = make_shared<op::Parameter>(element::f32, Shape{3});

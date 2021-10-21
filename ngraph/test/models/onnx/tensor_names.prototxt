@@ -9,6 +9,12 @@ graph {
   }
   node {
     input: "relu_t"
+    output: "abs_t"
+    op_type: "Abs"
+    name: "abs"
+  }
+  node {
+    input: "abs_t"
     output: "final_output"
     name: "ident"
     op_type: "Identity"

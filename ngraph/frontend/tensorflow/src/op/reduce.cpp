@@ -2,30 +2,49 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
-using namespace ngraph::opset8;
+using namespace ov::opset8;
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
 
 OutputVector TranslateReduceOp(const NodeContext& node,
                                std::function<Output<Node>(Output<Node>, Output<Node>, const bool)> create_ng_node) {
-    auto input = node.get_ng_input(0);
-    auto reduction_axes = node.get_ng_input(1);
+    Output<Node> ng_input = node.get_ng_input(0);
     auto tf_keep_dims = node.get_attribute<bool>("keep_dims", false);
-    return {create_ng_node(input, reduction_axes, tf_keep_dims)};
+
+    std::vector<int64_t> axes;
+    GetStaticInputVector(node, 1, &axes);
+
+    Shape input_shape = ng_input.get_shape();
+    size_t input_rank = input_shape.size();
+
+    TF_RETURN_IF_ERROR(CheckAxisDimInRange(axes, input_rank));
+
+    std::vector<size_t> ng_reduction_axes_vect(axes.size());
+    std::transform(axes.begin(), axes.end(), ng_reduction_axes_vect.begin(), [input_rank](int idx) {
+        return idx + (idx < 0 ? (int)input_rank : 0);
+    });
+    auto ng_reduction_axes = ConstructNgNode<Constant>(node.get_name(),
+                                                       element::i64,
+                                                       Shape{ng_reduction_axes_vect.size()},
+                                                       ng_reduction_axes_vect);
+
+    Output<Node> ng_node = create_ng_node(ng_input, ng_reduction_axes, tf_keep_dims);
+
+    return {ng_node};
 }
 
 template <typename T>
 OutputVector TranslateDirectReduceOp(const NodeContext& node) {
     // ensure its either an arithmetic or a logical reduction
-    if (!(std::is_base_of<ngraph::op::util::ArithmeticReduction, T>::value ||
-          std::is_base_of<ngraph::op::util::LogicalReduction, T>::value)) {
+    if (!(std::is_base_of<ov::op::util::ArithmeticReduction, T>::value ||
+          std::is_base_of<ov::op::util::LogicalReduction, T>::value)) {
         throw errors::InvalidArgument("Expected node to be either a valid logical or arithmetic reduction "
                                       "type");
     }
@@ -45,4 +64,4 @@ template OutputVector TranslateDirectReduceOp<ReduceSum>(const NodeContext& node
 }  // namespace op
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

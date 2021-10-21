@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
-using namespace ngraph::opset8;
+using namespace ov::opset8;
 
 // 3 different Pad Ops: Pad, PadV2, MirrorPad
 // See https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/pad
 // See https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/pad-v2
 // See https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/mirror-pad
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
@@ -33,13 +33,13 @@ OutputVector TranslatePadOp(const NodeContext& node) {
     }
 
     // Set pad_mode
-    auto pad_mode = ngraph::op::PadMode::CONSTANT;
+    auto pad_mode = ov::op::PadMode::CONSTANT;
     if (op_type == "MirrorPad") {
         auto pad_mode_str = node.get_attribute<std::string>("mode");
         if (pad_mode_str == "REFLECT") {
-            pad_mode = ngraph::op::PadMode::REFLECT;
+            pad_mode = ov::op::PadMode::REFLECT;
         } else if (pad_mode_str == "SYMMETRIC") {
-            pad_mode = ngraph::op::PadMode::SYMMETRIC;
+            pad_mode = ov::op::PadMode::SYMMETRIC;
         } else {
             throw errors::InvalidArgument(pad_mode_str + " is not an allowed padding mode.");
         }
@@ -48,7 +48,6 @@ OutputVector TranslatePadOp(const NodeContext& node) {
     // Set pads_begin & pads_end (from the pad_val_op)
     std::vector<int64_t> paddings;
     GetStaticInputVector(node, 1, &paddings);
-    NGRAPH_VLOG(3) << node.get_name() << " pads {" << join(paddings) << "}";
     if (paddings.size() % 2 != 0) {
         throw errors::InvalidArgument("Constant node for paddings does not have an even number of "
                                       "elements");
@@ -71,4 +70,4 @@ OutputVector TranslatePadOp(const NodeContext& node) {
 }  // namespace op
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
