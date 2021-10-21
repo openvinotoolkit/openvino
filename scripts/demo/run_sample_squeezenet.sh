@@ -6,7 +6,6 @@
 echo -ne "\e[0;33mWARNING: If you get an error when running the sample in the Docker container, you may need to install additional packages. To do this, run the container as root (-u 0) and run install_openvino_dependencies.sh script. If you get a package-independent error, try setting additional parameters using -sample-options.\e[0m\n"
 
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
-VENV_DIR="$HOME/venv_openvino"
 
 . "$ROOT_DIR/utils.sh"
 
@@ -63,7 +62,8 @@ model_name="squeezenet1.1"
 
 target_image_path="$ROOT_DIR/car.png"
 
-run_again="Then run the script again\n\n"
+run_again="Then run the script again.\n\n"
+omz_tool_error_message="It is required to download and convert a model. Check https://pypi.org/project/openvino-dev/ to install it. ${run_again}"
 
 if [ -e "$ROOT_DIR/../../setupvars.sh" ]; then
     setupvars_path="$ROOT_DIR/../../setupvars.sh"
@@ -107,51 +107,43 @@ if ! command -v $python_binary &>/dev/null; then
     exit 1
 fi
 
-if [ -e "$VENV_DIR" ]; then
-    echo -ne "\n###############|| Using the existing python virtual environment ||###############\n\n"
-else
-    echo -ne "\n###############|| Creating the python virtual environment ||###############\n\n"
-    "$python_binary" -m venv "$VENV_DIR"
+if ! command -v omz_info_dumper &>/dev/null; then
+    echo -ne "\n\nomz_info_dumper was not found. ${omz_tool_error_message}"
+    exit 2
 fi
 
-. "$VENV_DIR/bin/activate"
-python -m pip install -U pip
-python -m pip install -r "$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/downloader/requirements.in"
+if ! command -v omz_downloader &>/dev/null; then
+    echo -ne "\n\nomz_downloader was not found. ${omz_tool_error_message}"
+    exit 3
+fi
+
+if ! command -v omz_converter &>/dev/null; then
+    echo -ne "\n\nomz_converter was not found. ${omz_tool_error_message}"
+    exit 4
+fi
 
 # Step 1. Download the Caffe model and the prototxt of the model
 echo -ne "\n###############|| Downloading the Caffe model and the prototxt ||###############\n\n"
 
-downloader_dir="${INTEL_OPENVINO_DIR}/extras/open_model_zoo/tools/downloader"
-
-model_dir=$(python "$downloader_dir/info_dumper.py" --name "$model_name" |
+model_dir=$(omz_info_dumper --name "$model_name" |
     python -c 'import sys, json; print(json.load(sys.stdin)[0]["subdirectory"])')
 
-downloader_path="$downloader_dir/downloader.py"
-
-print_and_run python "$downloader_path" --name "$model_name" --output_dir "${models_path}" --cache_dir "${models_cache}"
+print_and_run omz_downloader --name "$model_name" --output_dir "${models_path}" --cache_dir "${models_cache}"
 
 ir_dir="${irs_path}/${model_dir}/${target_precision}"
 
 if [ ! -e "$ir_dir" ]; then
-    # Step 2. Configure Model Optimizer
-    echo -ne "\n###############|| Install Model Optimizer dependencies ||###############\n\n"
-    cd "${INTEL_OPENVINO_DIR}/tools/model_optimizer"
-    python -m pip install -r requirements.txt
-    cd "$PWD"
-
-    # Step 3. Convert a model with Model Optimizer
+    # Step 2. Convert a model with Model Optimizer
     echo -ne "\n###############|| Convert a model with Model Optimizer ||###############\n\n"
 
-    mo_path="${INTEL_OPENVINO_DIR}/tools/model_optimizer/mo.py"
-
     export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
-    print_and_run python "$downloader_dir/converter.py" --mo "$mo_path" --name "$model_name" -d "$models_path" -o "$irs_path" --precisions "$target_precision"
+    print_and_run omz_converter --name "$model_name" -d "$models_path" -o "$irs_path" --precisions "$target_precision"
 else
     echo -ne "\n\nTarget folder ${ir_dir} already exists. Skipping IR generation  with Model Optimizer."
     echo -ne "If you want to convert a model again, remove the entire ${ir_dir} folder. ${run_again}"
 fi
 
-# Step 4. Build samples
+# Step 3. Build samples
 echo -ne "\n###############|| Build Inference Engine samples ||###############\n\n"
 
 OS_PATH=$(uname -m)
@@ -175,7 +167,7 @@ cmake -DCMAKE_BUILD_TYPE=Release "$samples_path"
 
 make $NUM_THREADS classification_sample_async
 
-# Step 5. Run samples
+# Step 4. Run sample
 echo -ne "\n###############|| Run Inference Engine classification sample ||###############\n\n"
 
 cd "$binaries_dir"
