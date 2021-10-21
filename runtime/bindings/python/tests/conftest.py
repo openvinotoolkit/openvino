@@ -31,6 +31,12 @@ def model_onnx_path():
     test_onnx = os.path.join(path_to_repo, "models", "test_model", "test_model.onnx")
     return test_onnx
 
+def model_paddle_path():
+    path_to_repo = os.environ["MODELS_PATH"]
+    test_pdmodel = os.path.join(path_to_repo, "models", "test_model", 'paddle', 'test_model.pdmodel')
+    test_pdiparams = os.path.join(path_to_repo, "models", "test_model", 'paddle', 'test_model.pdiparams')
+    test_modeldir = os.path.join(path_to_repo, "models", "test_model", 'paddle', 'paddle_legacy')
+    return test_pdmodel, test_pdiparams, test_modeldir
 
 def plugins_path():
     path_to_repo = os.environ["DATA_PATH"]

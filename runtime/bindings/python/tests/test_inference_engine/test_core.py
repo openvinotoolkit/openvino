@@ -13,10 +13,11 @@ from openvino.impl import Function, Shape, Type
 from openvino.impl.op import Parameter
 from openvino import TensorDesc, Blob
 
-from ..conftest import model_path, model_onnx_path, plugins_path
+from ..conftest import model_path, model_onnx_path, model_paddle_path, plugins_path
 
 test_net_xml, test_net_bin = model_path()
 test_net_onnx = model_onnx_path()
+test_net_pdmodel, test_net_pdiparams, test_net_legacy = model_paddle_path()
 plugins_xml, plugins_win_xml, plugins_osx_xml = plugins_path()
 
 
@@ -135,6 +136,33 @@ def test_read_network_from_onnx_as_path():
     net = ie_core.read_network(model=Path(test_net_onnx))
     assert isinstance(net, IENetwork)
 
+def test_read_network_from_paddle():
+    ie_core = ov.Core()
+
+    # compacted model representation (popular since from paddle2.0)
+    net = ie_core.read_network(model=test_net_pdmodel, weights=test_net_pdiparams)
+    assert isinstance(net, ov.IENetwork)
+
+    net = ie_core.read_network(model=test_net_pdmodel) # pdiparams infered from model file name
+    assert isinstance(net, ov.IENetwork)
+
+    # scattered model representation (popular in paddle1.8)
+    net = ie_core.read_network(model=test_net_legacy)
+    assert isinstance(net, ov.IENetwork)
+
+def test_read_network_from_paddle_as_path():
+    ie_core = ov.Core()
+
+    # compacted
+    net = ie_core.read_network(model=Path(test_net_pdmodel), weights=test_net_pdiparams)
+    assert isinstance(net, ov.IENetwork)
+
+    net = ie_core.read_network(model=Path(test_net_pdmodel))
+    assert isinstance(net, ov.IENetwork)
+
+    # scattered
+    net = ie_core.read_network(model=Path(test_net_legacy))
+    assert isinstance(net, ov.IENetwork)
 
 def test_read_net_from_buffer():
     ie_core = Core()
