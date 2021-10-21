@@ -44,32 +44,32 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
 void EltwiseLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto opType = std::get<1>(GetParam());
-    const auto& params = function->get_parameters();
+    const auto& params = function->inputs();
     for (int i = 0; i < params.size(); ++i) {
         const auto& param = params[i];
         ov::runtime::Tensor tensor;
-        bool isReal = param->get_element_type().is_real();
+        bool isReal = param.get_element_type().is_real();
         switch (opType) {
             case ngraph::helpers::EltwiseTypes::POWER:
             case ngraph::helpers::EltwiseTypes::MOD:
             case ngraph::helpers::EltwiseTypes::FLOOR_MOD:
                 tensor = isReal ?
-                        ov::test::utils::create_and_fill_tensor(param->get_element_type(), targetInputStaticShapes[i], 2, 2, 128) :
-                        ov::test::utils::create_and_fill_tensor(param->get_element_type(), targetInputStaticShapes[i], 4, 2);
+                        ov::test::utils::create_and_fill_tensor(param.get_element_type(), targetInputStaticShapes[i], 2, 2, 128) :
+                        ov::test::utils::create_and_fill_tensor(param.get_element_type(), targetInputStaticShapes[i], 4, 2);
                 break;
             case ngraph::helpers::EltwiseTypes::DIVIDE:
                 tensor = isReal ?
-                         ov::test::utils::create_and_fill_tensor(param->get_element_type(), targetInputStaticShapes[i], 2, 2, 128) :
-                         ov::test::utils::create_and_fill_tensor(param->get_element_type(), targetInputStaticShapes[i], 100, 101);
+                         ov::test::utils::create_and_fill_tensor(param.get_element_type(), targetInputStaticShapes[i], 2, 2, 128) :
+                         ov::test::utils::create_and_fill_tensor(param.get_element_type(), targetInputStaticShapes[i], 100, 101);
                 break;
             case ngraph::helpers::EltwiseTypes::ERF:
-                tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(), targetInputStaticShapes[i], 6, -3);
+                tensor = ov::test::utils::create_and_fill_tensor(param.get_element_type(), targetInputStaticShapes[i], 6, -3);
                 break;
             default:
-                tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(), targetInputStaticShapes[i]);
+                tensor = ov::test::utils::create_and_fill_tensor(param.get_element_type(), targetInputStaticShapes[i]);
                 break;
         }
-        inputs.insert({param->get_friendly_name(), tensor});
+        inputs.insert({param.get_any_name(), tensor});
     }
 }
 
@@ -82,7 +82,7 @@ void EltwiseLayerTest::transformInputShapesAccordingEltwise(const ov::PartialSha
         }
     }
     ASSERT_EQ(inputDynamicShapes.size(), 2) << "Incorrect inputs number!";
-    if (secondInputShape.is_dynamic()) {
+    if (!secondInputShape.is_static()) {
         return;
     }
     if (secondInputShape.get_shape() == ov::Shape{1}) {
@@ -129,7 +129,7 @@ void EltwiseLayerTest::SetUp() {
         secondaryInput = ngraph::builder::makeDynamicParams(netType, {shape_input_secondary}).front();
         parameters.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
     } else {
-        ov::Shape shape = shape_input_secondary.get_shape();
+        ov::Shape shape = inputDynamicShapes.back().get_max_shape();
         switch (eltwiseType) {
             case ngraph::helpers::EltwiseTypes::DIVIDE:
             case ngraph::helpers::EltwiseTypes::MOD:

@@ -149,7 +149,7 @@ std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Functio
     runtime::Backend::set_backend_shared_library_search_directory("");
     auto backend = runtime::Backend::create("INTERPRETER");
 
-    const auto &parameters = function->get_parameters();
+    const auto &parameters = function->inputs();
     const auto &parametersNumber = parameters.size();
     const auto &inputsNumber = inputs.size();
     NGRAPH_CHECK(parametersNumber == inputsNumber,
@@ -159,22 +159,20 @@ std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Functio
     auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
     for (size_t i = 0; i < parametersNumber; ++i) {
         const auto &parameter = parameters[i];
-        const auto &parameterShape = parameter->get_shape();
-        const auto &parameterType = parameter->get_element_type();
+        const auto &parameterShape = parameter.get_shape();
+        const auto &parameterType = parameter.get_element_type();
         const auto &parameterSize = shape_size(parameterShape) * parameterType.size();
-        const auto &parameterIndex = function->get_parameter_index(parameter);
 
-
-        auto inputIt = inputs.find(parameter->get_friendly_name());
+        auto inputIt = inputs.find(parameter.get_any_name());
         if (inputIt == inputs.end()) {
-            throw std::runtime_error("Parameter: " + parameter->get_friendly_name() + "was nor find in input parameters");
+            throw std::runtime_error("Parameter: " + parameter.get_any_name()+ " was not find in input parameters");
         }
         auto input = inputIt->second;
 
         const auto &inputSize = input.get_byte_size();
         NGRAPH_CHECK(parameterSize == inputSize,
-                     "Got parameter (", parameter->get_friendly_name(), ") of size ", parameterSize,
-                     " bytes, but corresponding input with index ", parameterIndex,
+                     "Got parameter (", parameter.get_any_name(), ") of size ", parameterSize,
+                     " bytes, but corresponding input ",
                      " has ", inputSize, " bytes");
 
         auto tensor = backend->create_tensor(parameterType, parameterShape);

@@ -36,7 +36,7 @@ const auto params2D_static = testing::Combine(
     testing::ValuesIn(netPrecisions),
     ::testing::Values(ov::element::undefined),
     ::testing::Values(ov::element::undefined),
-    testing::ValuesIn(ov::test::static_shapes_to_test_representation({inputStaticShape2D})),
+    testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputStaticShape2D)),
     testing::ValuesIn(axis2D),
     testing::Values(CommonTestUtils::DEVICE_CPU),
     testing::Values(std::map<std::string, std::string>())
@@ -84,7 +84,7 @@ const auto params4Dstatic = testing::Combine(
     testing::ValuesIn(netPrecisions),
     ::testing::Values(ov::element::undefined),
     ::testing::Values(ov::element::undefined),
-    testing::ValuesIn(ov::test::static_shapes_to_test_representation({inputStaticShape4D})),
+    testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputStaticShape4D)),
     testing::ValuesIn(axis4D),
     testing::Values(CommonTestUtils::DEVICE_CPU),
     testing::Values(std::map<std::string, std::string>())
