@@ -1189,7 +1189,8 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
                                       const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
     auto parsed = ov::runtime::parseDeviceNameIntoConfig(deviceName, config);
-    auto exec = _impl->GetCPPPluginByName(parsed._deviceName).import_model(modelFileName, parsed._config);
+    auto exec = _impl->GetCPPPluginByName(parsed._deviceName)
+    .import_model(modelFileName, parsed._config);
     return {{exec._so}, exec._ptr};
 }
 
