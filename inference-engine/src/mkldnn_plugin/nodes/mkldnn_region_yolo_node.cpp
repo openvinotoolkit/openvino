@@ -13,7 +13,7 @@
 #include "common/cpu_convert.h"
 #include <cpu/x64/jit_generator.hpp>
 #include <emitters/jit_bf16_emitters.hpp>
-#include <cpu/x64/jit_uni_eltwise_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include "utils/bfloat16.hpp"
 
 using namespace MKLDNNPlugin;

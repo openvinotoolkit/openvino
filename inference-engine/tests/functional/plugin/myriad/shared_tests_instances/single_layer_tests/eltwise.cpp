@@ -15,14 +15,14 @@ namespace {
 
 typedef std::map<std::string, std::string> Config;
 
-std::vector<std::vector<std::vector<size_t>>> inShapes = {
-        {{2}},
-        {{1, 1, 1, 3}},
-        {{1, 2, 4}},
-        {{1, 4, 4}},
-        {{1, 4, 4, 1}},
-        {{16, 16, 96}, {96}},
-        {{52, 1, 52, 3, 2}, {2}}
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>>  inShapes = {
+        {{}, {{{2}}}},
+        {{}, {{{1, 1, 1, 3}}}},
+        {{}, {{{1, 2, 4}}}},
+        {{}, {{{1, 4, 4}}}},
+        {{}, {{{1, 4, 4, 1}}}},
+        {{}, {{{16, 16, 96}, {96}}}},
+        {{}, {{{52, 1, 52, 3, 2}, {2}}}}
 };
 
 std::vector<InferenceEngine::Precision> fpTypes = {
@@ -84,5 +84,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseMathInt,
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                                 ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
                         EltwiseLayerTest::getTestCaseName);
-
 }  // namespace

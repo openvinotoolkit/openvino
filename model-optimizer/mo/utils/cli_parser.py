@@ -19,6 +19,7 @@ from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
 
+
 class DeprecatedStoreTrue(argparse.Action):
     def __init__(self, nargs=0, **kw):
         super().__init__(nargs=nargs, **kw)
@@ -353,10 +354,16 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help='Switch model conversion progress display to a multiline mode.',
                               action='store_true', default=False)
     common_group.add_argument('--transformations_config',
-                          help='Use the configuration file with transformations description.',
-                          action=CanonicalizePathCheckExistenceAction)
+                              help='Use the configuration file with transformations description.',
+                              action=CanonicalizePathCheckExistenceAction)
     common_group.add_argument('--legacy_ir_generation',
                               help=argparse.SUPPRESS, action=DeprecatedStoreTrue, default=False)
+    common_group.add_argument("--use_new_frontend",
+                              help="Use new frontend API for model processing",
+                              action='store_true', default=False)
+    common_group.add_argument("--use_legacy_frontend",
+                              help="Use legacy API for model processing",
+                              action='store_true', default=False)
     return parser
 
 
@@ -378,6 +385,7 @@ def get_common_cli_options(model_name):
     d['disable_gfusing'] = ['- Enable grouped convolutions fusing', lambda x: not x]
     d['move_to_preprocess'] = '- Move mean values to preprocess section'
     d['reverse_input_channels'] = '- Reverse input channels'
+    d['use_legacy_frontend'] = '- Use legacy API for model processing'
     return d
 
 
@@ -1182,7 +1190,18 @@ def isbool(value):
         return False
 
 
+def isdict(value):
+    try:
+        evaluated = ast.literal_eval(value)
+        return isinstance(evaluated, dict)
+    except ValueError:
+        return False
+
+
 def convert_string_to_real_type(value: str):
+    if isdict(value):
+        return ast.literal_eval(value)
+
     values = value.split(',')
     for i in range(len(values)):
         value = values[i]

@@ -199,9 +199,10 @@ static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const
     std::vector<size_t> dims{0, 2, 1};
 
     // SLM size: elemsize * tile_size * tile_size * work_items <= 64K
-    size_t elem_size = params.output.ElementSize();
-    size_t max_local_mem_size = params.engineInfo.maxLocalMemSize;
-    size_t max_num_work_items = std::min((size_t)256, (size_t)max_local_mem_size / (elem_size * tile_size * tile_size));
+    const size_t elem_size = params.output.ElementSize();
+    const size_t max_local_mem_size = params.engineInfo.maxLocalMemSize;
+    const size_t max_work_group_size = params.engineInfo.maxWorkGroupSize;
+    size_t max_num_work_items = std::min(max_work_group_size, max_local_mem_size / (elem_size * tile_size * tile_size));
 
     for (size_t i = 0; i < dims.size(); ++i) {
         size_t dim = dims[i];

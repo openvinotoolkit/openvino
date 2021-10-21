@@ -41,7 +41,15 @@ def test(instance, executable, niter, temp_dir, omz_models_conversion, validate_
     :param omz_models_conversion: custom pytest fixture. Should be declared as test argument to be enabled
     """
     # Prepare model to get model_path
-    model_path = instance["instance"]["model"].get("full_path")
+    model_path = ''
+    cache_model_path = instance["instance"]["model"].get("cache_path")
+    irs_model_path = instance["instance"]["model"].get("irs_out_path")
+
+    if os.path.isfile(irs_model_path):
+        model_path = irs_model_path
+    elif os.path.isfile(cache_model_path):
+        model_path = cache_model_path
+
     assert model_path, "Model path is empty"
     model_path = Path(expand_env_vars(model_path))
 

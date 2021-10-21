@@ -6,111 +6,38 @@
 
 #include <gtest/gtest.h>
 
-#include <memory>
-#include <string>
-#include <tuple>
-#include <typeindex>
-#include <vector>
+#include "ngraph_functions/subgraph_builders.hpp"
 
 #include "common_test_utils/test_common.hpp"
+#include "common_test_utils/test_constants.hpp"
+#include "common_test_utils/common_utils.hpp"
+
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
-#include "openvino/runtime/runtime.hpp"
+#include "functional_test_utils/blob_utils.hpp"
 
 namespace ov {
 namespace test {
+namespace behavior {
 
-using BehaviorParamsEmptyConfig = std::tuple<ov::element::Type,  // element type
-                                             std::string>;       // device
 
-class BehaviorTestsEmptyConfig : public testing::WithParamInterface<BehaviorParamsEmptyConfig>,
-                                 public CommonTestUtils::TestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<BehaviorParamsEmptyConfig> obj) {
-        std::string targetDevice;
-        ov::element::Type elementType;
-        std::tie(elementType, targetDevice) = obj.param;
-        std::ostringstream result;
-        result << "element_type=" << elementType;
-        result << "targetDevice=" << targetDevice;
-        return result.str();
-    }
+typedef std::tuple<
+        std::string,                        // Device name
+        std::map<std::string, std::string>  // Config
+> InferRequestParams;
 
-    void SetUp() override {
-        std::tie(elementType, targetDevice) = this->GetParam();
-        function = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, 32, 32}, elementType);
-    }
-
-    void TearDown() override {
-        function.reset();
-    }
-
-    std::shared_ptr<ov::runtime::Core> ie = PluginCache::get().core();
-    std::shared_ptr<ngraph::Function> function;
-    std::string targetDevice;
-    ov::element::Type elementType;
-};
-
-using BehaviorBasicParams = std::tuple<ov::element::Type,                    // element type
-                                       std::string,                          // device
-                                       std::map<std::string, std::string>>;  // config
-
-class BehaviorTestsBasic : public testing::WithParamInterface<BehaviorBasicParams>,
-                           public CommonTestUtils::TestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<BehaviorBasicParams> obj) {
-        std::string targetDevice;
-        ov::element::Type elementType;
-        std::map<std::string, std::string> configuration;
-        std::tie(elementType, targetDevice, configuration) = obj.param;
-        std::ostringstream result;
-        result << "element_type=" << elementType << "_";
-        result << "targetDevice=" << targetDevice << "_";
-        if (!configuration.empty()) {
-            for (auto& configItem : configuration) {
-                result << "configItem=" << configItem.first << "_" << configItem.second << "_";
-            }
-        }
-        return result.str();
-    }
-
-    void SetUp() override {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        std::tie(elementType, targetDevice, configuration) = this->GetParam();
-        function = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, 32, 32}, elementType);
-    }
-
-    void TearDown() override {
-        if (!configuration.empty()) {
-            PluginCache::get().reset();
-        }
-        function.reset();
-    }
-
-    std::shared_ptr<ov::runtime::Core> ie = PluginCache::get().core();
-    std::shared_ptr<ngraph::Function> function;
-    std::string targetDevice;
-    std::map<std::string, std::string> configuration;
-    ov::element::Type elementType;
-};
-
-using InferRequestParams = std::tuple<ov::element::Type,                    // element type
-                                      std::string,                          // device
-                                      std::map<std::string, std::string>>;  // config
-
-class InferRequestTests : public testing::WithParamInterface<InferRequestParams>, public CommonTestUtils::TestsCommon {
+class OVInferRequestTests : public testing::WithParamInterface<InferRequestParams>,
+                            public CommonTestUtils::TestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string targetDevice;
-        ov::element::Type elementType;
         std::map<std::string, std::string> configuration;
-        std::tie(elementType, targetDevice, configuration) = obj.param;
+        std::tie(targetDevice, configuration) = obj.param;
         std::ostringstream result;
-        result << "element_type=" << elementType;
         result << "targetDevice=" << targetDevice << "_";
         if (!configuration.empty()) {
-            for (auto& configItem : configuration) {
+            using namespace CommonTestUtils;
+            for (auto &configItem : configuration) {
                 result << "configItem=" << configItem.first << "_" << configItem.second << "_";
             }
         }
@@ -120,108 +47,86 @@ public:
     void SetUp() override {
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        std::tie(elementType, targetDevice, configuration) = this->GetParam();
-        function = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, 32, 32}, elementType);
-        // Load CNNNetwork to target plugins
-        execNet = ie->compile_model(function, targetDevice, configuration);
+        std::tie(targetDevice, configuration) = this->GetParam();
+        function = ngraph::builder::subgraph::makeConvPoolRelu();
     }
 
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().reset();
+            utils::PluginCache::get().reset();
         }
-        function.reset();
     }
 
 protected:
     ov::runtime::ExecutableNetwork execNet;
-    std::shared_ptr<ov::runtime::Core> ie = PluginCache::get().core();
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
-    ov::element::Type elementType;
+    std::shared_ptr<ov::Function> function;
 };
 
-using BehaviorParamsSingleOption = std::tuple<ov::element::Type,  // element type
-                                              std::string,        // device
-                                              std::string>;       // key
+inline ov::runtime::Core createCoreWithTemplate() {
+    ov::test::utils::PluginCache::get().reset();
+    ov::runtime::Core core;
+    std::string pluginName = "templatePlugin";
+    pluginName += IE_BUILD_POSTFIX;
+    core.register_plugin(pluginName, CommonTestUtils::DEVICE_TEMPLATE);
+    return core;
+}
 
-class BehaviorTestsSingleOption : public testing::WithParamInterface<BehaviorParamsSingleOption>,
-                                  public CommonTestUtils::TestsCommon {
+class OVClassNetworkTest : public ::testing::Test {
 public:
+    std::shared_ptr<ngraph::Function> actualNetwork, simpleNetwork, multinputNetwork, ksoNetwork;
+
     void SetUp() override {
-        std::tie(elementType, targetDevice, key) = this->GetParam();
-        function = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, 32, 32}, elementType);
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        // Generic network
+        actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
+        // Quite simple network
+        simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
+        // Multinput to substruct network
+        multinputNetwork = ngraph::builder::subgraph::make2InputSubtract();
+        // Network with KSO
+        ksoNetwork = ngraph::builder::subgraph::makeKSOFunction();
     }
 
-    void TearDown() override {
-        function.reset();
-    }
+    virtual void setHeteroNetworkAffinity(const std::string &targetDevice) {
+        const std::map<std::string, std::string> deviceMapping = {{"Split_2",       targetDevice},
+                                                                  {"Convolution_4", targetDevice},
+                                                                  {"Convolution_7", CommonTestUtils::DEVICE_CPU},
+                                                                  {"Relu_5",        CommonTestUtils::DEVICE_CPU},
+                                                                  {"Relu_8",        targetDevice},
+                                                                  {"Concat_9",      CommonTestUtils::DEVICE_CPU}};
 
-    std::shared_ptr<ov::runtime::Core> ie = PluginCache::get().core();
-    std::shared_ptr<ngraph::Function> function;
-    std::string targetDevice;
-    std::string key;
-    ov::element::Type elementType;
+        for (const auto &op : actualNetwork->get_ops()) {
+            auto it = deviceMapping.find(op->get_friendly_name());
+            if (it != deviceMapping.end()) {
+                std::string affinity = it->second;
+                op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
+            }
+        }
+    }
 };
 
-using BehaviorParamsSingleOptionDefault =
-    std::tuple<ov::element::Type,                                  // element type
-               std::string,                                        // Device name
-               std::pair<std::string, InferenceEngine::Parameter>  // Configuration key and its default value
-               >;
-
-class BehaviorTestsSingleOptionDefault : public testing::WithParamInterface<BehaviorParamsSingleOptionDefault>,
-                                         public CommonTestUtils::TestsCommon {
+class OVClassBaseTestP : public OVClassNetworkTest, public ::testing::WithParamInterface<std::string> {
 public:
+    std::string deviceName;
+
     void SetUp() override {
-        std::pair<std::string, InferenceEngine::Parameter> entry;
-        std::tie(elementType, targetDevice, entry) = this->GetParam();
-        std::tie(key, value) = entry;
-        function = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, 32, 32}, elementType);
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        OVClassNetworkTest::SetUp();
+        deviceName = GetParam();
     }
-
-    void TearDown() override {
-        function.reset();
-    }
-
-    std::shared_ptr<ov::runtime::Core> ie = PluginCache::get().core();
-    std::shared_ptr<ngraph::Function> function;
-    std::string targetDevice;
-    std::string key;
-    InferenceEngine::Parameter value;
-    ov::element::Type elementType;
 };
 
-using BehaviorParamsSingleOptionCustom =
-    std::tuple<ov::element::Type,                                                // element type
-               std::string,                                                      // Device name
-               std::tuple<std::string, std::string, InferenceEngine::Parameter>  // Configuration key, value and
-                                                                                 // reference
-               >;
-
-class BehaviorTestsSingleOptionCustom : public testing::WithParamInterface<BehaviorParamsSingleOptionCustom>,
-                                        public CommonTestUtils::TestsCommon {
-public:
-    void SetUp() override {
-        std::tuple<std::string, std::string, InferenceEngine::Parameter> entry;
-        std::tie(elementType, targetDevice, entry) = this->GetParam();
-        std::tie(key, value, reference) = entry;
-        function = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, 32, 32}, elementType);
-    }
-
-    void TearDown() override {
-        function.reset();
-    }
-
-    std::shared_ptr<ov::runtime::Core> ie = PluginCache::get().core();
-    std::shared_ptr<ngraph::Function> function;
-    std::string targetDevice;
-    std::string key;
-    std::string value;
-    ov::runtime::Parameter reference;
-    ov::element::Type elementType;
-};
-
-}  // namespace test
-}  // namespace ov
+#define SKIP_IF_NOT_IMPLEMENTED(...)                   \
+{                                                      \
+    try {                                              \
+        __VA_ARGS__;                                   \
+    } catch (const InferenceEngine::NotImplemented&) { \
+        GTEST_SKIP();                                  \
+    }                                                  \
+}
+} // namespace behavior
+} // namespace test
+} // namespace ov

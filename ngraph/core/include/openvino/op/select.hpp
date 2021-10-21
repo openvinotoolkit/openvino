@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace op {
@@ -60,7 +60,9 @@ public:
     const AutoBroadcastSpec& get_autob() const override {
         return m_auto_broadcast;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 private:

@@ -18,7 +18,7 @@ namespace util {
 using VariableMap = std::unordered_map<Variable::Ptr, VariableValue::Ptr>;
 
 /// VariableContext stores and manages a evaluation context for Variables.
-class NGRAPH_API VariableContext {
+class OPENVINO_API VariableContext {
 public:
     /// \brief Constructs an uninitialized VariableContext.
     VariableContext() = default;
@@ -74,7 +74,7 @@ private:
 }  // namespace util
 }  // namespace op
 template <>
-class NGRAPH_API VariantWrapper<op::util::VariableContext> : public VariantImpl<op::util::VariableContext> {
+class OPENVINO_API VariantWrapper<op::util::VariableContext> : public VariantImpl<op::util::VariableContext> {
 public:
     OPENVINO_RTTI("VariantWrapper<op::util::VariableContext>");
     BWDCMP_RTTI_DECLARATION;

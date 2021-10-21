@@ -263,12 +263,12 @@ Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
 
 bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v5_Loop_evaluate);
-    runtime::reference::loop(m_bodies[0],
-                             m_output_descriptions[0],
-                             m_input_descriptions[0],
-                             m_special_body_ports,
-                             outputs,
-                             inputs);
+    ngraph::runtime::reference::loop(m_bodies[0],
+                                     m_output_descriptions[0],
+                                     m_input_descriptions[0],
+                                     m_special_body_ports,
+                                     outputs,
+                                     inputs);
     return true;
 }
 

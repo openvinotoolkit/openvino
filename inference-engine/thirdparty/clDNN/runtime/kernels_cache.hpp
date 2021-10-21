@@ -93,14 +93,25 @@ class kernels_cache {
 public:
     using source_code = std::vector<std::string>;
     struct batch_program {
-        int32_t bucket_id = 0;
-        int32_t batch_id = 0;
-        source_code source;
+        int32_t bucket_id;
+        int32_t batch_id;
         size_t hash_value;
-        uint32_t kernels_counter = 0;
+        uint32_t kernels_counter;
+        source_code source;
         std::string options;
-        bool dump_custom_program = false;
+        bool dump_custom_program;
         std::map<std::string, std::string> entry_point_to_id;
+
+        explicit batch_program(int32_t _bucket_id, int32_t _batch_id, std::string _options, const std::vector<std::string>& batch_header_str)
+            : bucket_id(_bucket_id),
+              batch_id(_batch_id),
+              hash_value(0),
+              kernels_counter(0),
+              source(std::move(batch_header_str)),
+              options(_options),
+              dump_custom_program(false),
+              entry_point_to_id({}) {
+        }
     };
 
     struct kernel_code {
@@ -141,6 +152,7 @@ private:
 #elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
     std::unique_ptr<thread_pool> pool;
 #endif
+    std::vector<std::string> batch_header_str;
 
     void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>*) const;
     void build_batch(const engine& build_engine, const batch_program& batch);
@@ -154,6 +166,9 @@ public:
     kernel_id set_kernel_source(const std::shared_ptr<kernel_string>& kernel_string,
                                 bool dump_custom_program);
     kernel::ptr get_kernel(kernel_id id) const;
+    void set_batch_header_str(const std::vector<std::string> &batch_headers) {
+        batch_header_str = std::move(batch_headers);
+    }
     // forces compilation of all pending kernels/programs
     void build_all();
     void reset();

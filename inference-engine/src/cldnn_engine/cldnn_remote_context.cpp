@@ -199,10 +199,12 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
     m_plugin(plugin),
     m_type(ContextType::OCL),
     m_config(config),
+    m_external_queue(nullptr),
     m_va_display(nullptr) {
     lock.clear(std::memory_order_relaxed);
     gpu_handle_param _context_id = nullptr;
     gpu_handle_param _va_device = nullptr;
+    int target_tile_id = -1;
 
     if (params.size()) {
         // parameter map is non-empty
@@ -216,13 +218,20 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
         } else {
             IE_THROW() << "Invalid execution context type" << contextTypeStr;
         }
+        auto tile_id_itr = params.find(GPU_PARAM_KEY(TILE_ID));
+        if (tile_id_itr != params.end()) {
+            target_tile_id = tile_id_itr->second.as<int>();
+        }
+
+        if (params.find(GPU_PARAM_KEY(OCL_QUEUE)) != params.end())
+            m_external_queue = _ObjFromParamSimple<gpu_handle_param>(params, GPU_PARAM_KEY(OCL_QUEUE));
     }
 
     // TODO: Parameterize this based on plugin config and compilation options
     auto engine_type = cldnn::engine_types::ocl;
     auto runtime_type = cldnn::runtime_types::ocl;
     // Use actual runtime and engine types
-    cldnn::device_query device_query(engine_type, runtime_type, _context_id, _va_device);
+    cldnn::device_query device_query(engine_type, runtime_type, _context_id, _va_device, target_tile_id);
     auto device_map = device_query.get_available_devices();
 
     auto iter = device_map.find(m_config.device_id);

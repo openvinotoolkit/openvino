@@ -9,10 +9,10 @@
 #include <random>
 #include <string>
 
+#include "engines_util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
 #include "util/test_control.hpp"
 
 using namespace std;
