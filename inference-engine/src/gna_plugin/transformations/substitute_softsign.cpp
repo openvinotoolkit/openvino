@@ -11,6 +11,7 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
+#include <ngraph/rt_info.hpp>
 #include <ops/softsign.hpp>
 
 using namespace GNAPluginNS;
@@ -21,11 +22,12 @@ using Node = std::shared_ptr<ngraph::Node>;
 
 namespace {
 
-// TODO
-
 void DoTransformation(Node start_node, Node last_node)
 {
-    // TODO
+    auto activation = std::make_shared<ov::op::gna::SoftSign>(start_node);
+    activation->set_friendly_name(last_node->get_friendly_name());
+    ngraph::copy_runtime_info(last_node, activation);
+    ngraph::replace_node(last_node, activation);
 }
 
 } // namespace
@@ -36,12 +38,12 @@ SubstituteSoftsign::SubstituteSoftsign() {
     auto root = ngraph::pattern::any_input();
     auto abs = ngraph::pattern::wrap_type<ngraph::opset8::Abs>({root});
 
-    auto add_const = ngraph::pattern::wrap_type<ngraph::opset8::Constant>(); /* TODO: check const the same from MO */
+    auto add_const = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
     auto add = ngraph::pattern::wrap_type<ngraph::opset8::Add>({abs, add_const});
 
     auto add_output = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{abs, add});
 
-    auto power_const = ngraph::pattern::wrap_type<ngraph::opset8::Constant>(); /* TODO: check const = -1 */
+    auto power_const = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
     auto power = ngraph::pattern::wrap_type<ngraph::opset8::Power>({add_output, power_const});
 
     auto multiply = ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({root, power});
@@ -51,9 +53,13 @@ SubstituteSoftsign::SubstituteSoftsign() {
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root_node = pattern_map.at(root).get_node_shared_ptr();
-        auto last_node = pattern_map.at(last).get_node_shared_ptr();
 
-        DoTransformation(root_node, last);
+        auto last_node_it = pattern_map.find(multiply);
+        if (last_node_it == pattern_map.end())
+            last_node_it = pattern_map.find(divide);
+        auto last_node = last_node_it->second.get_node_shared_ptr();
+
+        DoTransformation(root_node, last_node);
 
         return true;
     };
