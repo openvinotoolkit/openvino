@@ -15,15 +15,15 @@ namespace op {
 
 OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
     auto num_args = node.get_attribute<int>("num_args");
-    auto fused_ops = node.get_attribute<std::vector<string>>("fused_ops");
+    auto fused_ops = node.get_attribute<vector<string>>("fused_ops");
 
-    auto tf_data_format = node.get_attribute<std::string>("data_format");
+    auto tf_data_format = node.get_attribute<string>("data_format");
     bool is_nhwc = (tf_data_format == "NHWC");
 
     auto CreateNgConv = [&](Output<Node>& ng_input, Output<Node>& ng_filter) {
-        auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");
-        auto tf_dilations = node.get_attribute<std::vector<int32_t>>("dilations");
-        auto tf_padding_type = node.get_attribute<std::string>("padding");
+        auto tf_strides = node.get_attribute<vector<int32_t>>("strides");
+        auto tf_dilations = node.get_attribute<vector<int32_t>>("dilations");
+        auto tf_padding_type = node.get_attribute<string>("padding");
 
         if (tf_data_format != "NHWC" && tf_data_format != "NCHW") {
             throw errors::InvalidArgument("Conv2D data format is neither NHWC nor NCHW");
@@ -86,7 +86,7 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
             throw errors::InvalidArgument("Bias argument to BiasAdd does not have one dimension");
         }
 
-        std::vector<size_t> reshape_pattern_values(ng_conv_shape.size(), 1U);
+        vector<size_t> reshape_pattern_values(ng_conv_shape.size(), 1U);
         reshape_pattern_values[1] = ng_bias.get_shape().front();
         auto reshape_pattern =
             make_shared<Constant>(element::u64, Shape{reshape_pattern_values.size()}, reshape_pattern_values);

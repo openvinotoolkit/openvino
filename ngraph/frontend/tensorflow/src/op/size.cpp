@@ -13,11 +13,11 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-ngraph::OutputVector TranslateSizeOp(const NodeContext& node) {
+OutputVector TranslateSizeOp(const NodeContext& node) {
     auto data = node.get_ng_input(0);
-    auto out_type = node.get_attribute<ngraph::element::Type>("out_type");
+    auto out_type = node.get_attribute<element::Type>("out_type");
     auto shape_of = make_shared<ShapeOf>(data, out_type);
-    auto axis = make_shared<Constant>(ngraph::element::i64, Shape{}, 0);
+    auto axis = make_shared<Constant>(element::i64, Shape{}, 0);
     auto size = make_shared<ReduceProd>(shape_of, axis);
     size->set_friendly_name(node.get_name());
     return size->outputs();

@@ -17,19 +17,19 @@ OutputVector TranslateConv2DBackpropInputOp(const NodeContext& node) {
     auto ng_filter = node.get_ng_input(1), ng_out_backprop = node.get_ng_input(2);
 
     // TODO: refactor me to be less redundant with other convolution ops
-    auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");
-    auto tf_dilations = node.get_attribute<std::vector<int32_t>>("dilations");
-    auto tf_padding_type = node.get_attribute<std::string>("padding");
-    auto tf_data_format = node.get_attribute<std::string>("data_format");
+    auto tf_strides = node.get_attribute<vector<int32_t>>("strides");
+    auto tf_dilations = node.get_attribute<vector<int32_t>>("dilations");
+    auto tf_padding_type = node.get_attribute<string>("padding");
+    auto tf_data_format = node.get_attribute<string>("data_format");
 
     if (tf_data_format != "NHWC" && tf_data_format != "NCHW") {
         throw errors::InvalidArgument("Conv2DBackpropInput data format is neither NHWC nor NCHW: %s" + tf_data_format);
     }
 
-    std::vector<int64_t> tf_input_sizes;
+    vector<int64_t> tf_input_sizes;
     GetStaticInputVector(node, 0, &tf_input_sizes);
 
-    if (std::any_of(tf_input_sizes.begin(), tf_input_sizes.end(), [](int32_t size) {
+    if (any_of(tf_input_sizes.begin(), tf_input_sizes.end(), [](int32_t size) {
             return size <= 0;
         })) {
         throw errors::InvalidArgument("Conv2DBackpropInput input sizes must be positive integers");

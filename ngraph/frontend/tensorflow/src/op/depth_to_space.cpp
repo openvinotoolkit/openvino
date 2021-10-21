@@ -19,7 +19,7 @@ OutputVector TranslateDepthToSpaceOp(const NodeContext& node) {
 
     // Get the attributes
     auto block_size = node.get_attribute<int64_t>("block_size");
-    std::string tf_data_format = node.get_attribute<std::string>("data_format");
+    string tf_data_format = node.get_attribute<string>("data_format");
 
     if (tf_data_format != "NHWC" && tf_data_format != "NCHW") {
         throw errors::InvalidArgument("DepthToSpace data format is neither NHWC nor NCHW");

@@ -24,7 +24,7 @@ OutputVector TranslateTopKV2Op(const NodeContext& node) {
     // axis along which to compute top k indices
     int64_t k_axis = input.get_partial_shape().rank().get_length() - 1;
     bool sorted = node.get_attribute<bool>("sorted", true);
-    auto top_k = std::make_shared<TopK>(input,
+    auto top_k = make_shared<TopK>(input,
                                         k,
                                         k_axis,
                                         TopK::Mode::MAX,

@@ -16,10 +16,10 @@ namespace op {
 OutputVector TranslateAvgPoolOp(const NodeContext& node) {
     Output<Node> ng_input = node.get_ng_input(0);
 
-    auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");
-    auto tf_ksize = node.get_attribute<std::vector<int32_t>>("ksize");
-    auto tf_padding_type = node.get_attribute<std::string>("padding");
-    auto tf_data_format = node.get_attribute<std::string>("data_format");
+    auto tf_strides = node.get_attribute<vector<int32_t>>("strides");
+    auto tf_ksize = node.get_attribute<vector<int32_t>>("ksize");
+    auto tf_padding_type = node.get_attribute<string>("padding");
+    auto tf_data_format = node.get_attribute<string>("data_format");
     if (tf_data_format != "NHWC" && tf_data_format != "NCHW") {
         throw errors::InvalidArgument("AvgPool data format is neither NHWC nor NCHW");
     }

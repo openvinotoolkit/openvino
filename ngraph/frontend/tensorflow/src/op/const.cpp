@@ -14,8 +14,8 @@ namespace tf {
 namespace op {
 
 namespace {
-using ConstMap = std::map<ov::element::Type,
-                          std::pair<std::function<Status(const NodeContext&, ov::element::Type, ov::Output<ov::Node>&)>,
+using ConstMap = map<ov::element::Type,
+                          pair<function<Status(const NodeContext&, ov::element::Type, ov::Output<ov::Node>&)>,
                                     const ov::element::Type>>;
 
 const ConstMap& TF_NGRAPH_CONST_MAP() {
@@ -56,7 +56,7 @@ OutputVector TranslateConstOp(const NodeContext& node) {
     try {
         const auto& func_param = TF_NGRAPH_CONST_MAP().at(dt);
         TF_RETURN_IF_ERROR(func_param.first(node, func_param.second, ng_node));
-    } catch (const std::out_of_range&) {
+    } catch (const out_of_range&) {
         throw errors::Unimplemented("Failed to translate Constant with target ngraph type:" + dt.get_type_name());
     }
 

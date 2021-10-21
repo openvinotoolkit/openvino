@@ -21,12 +21,12 @@ OutputVector TranslateFakeQuantWithMinMaxVarsOp(const NodeContext& node) {
     auto narrow_range = node.get_attribute<bool>("narrow_range");
     auto num_bits = node.get_attribute<int64_t>("num_bits");
 
-    auto levels = std::pow(2, num_bits) - int(narrow_range);
+    auto levels = pow(2, num_bits) - int(narrow_range);
     auto min_less_max = ConstructNgNode<Less>(node.get_name() + "/if_min_less_max", ng_min, ng_max);
     auto minimum = ConstructNgNode<Select>(node.get_name() + "/minimum", min_less_max, ng_min, ng_max);
     auto maximum = ConstructNgNode<Select>(node.get_name() + "/maximum", min_less_max, ng_max, ng_min);
 
-    auto zero = ConstructNgNode<Constant>(node.get_name(), ng_min.get_element_type(), Shape{}, std::vector<int>({0}));
+    auto zero = ConstructNgNode<Constant>(node.get_name(), ng_min.get_element_type(), Shape{}, vector<int>({0}));
 
     auto min_greater_zero = ConstructNgNode<Greater>(node.get_name() + "/if_minimum_greater_zero", minimum, zero);
     auto max_minus_min = ConstructNgNode<Subtract>(node.get_name() + "/max_minus_min", maximum, minimum);
@@ -40,10 +40,10 @@ OutputVector TranslateFakeQuantWithMinMaxVarsOp(const NodeContext& node) {
 
     auto float_range = ConstructNgNode<Subtract>(node.get_name() + "/float_range", maximum, minimum);
     auto quant_min_value = int(narrow_range);
-    auto quant_max_value = std::pow(2, num_bits) - 1;
+    auto quant_max_value = pow(2, num_bits) - 1;
     auto value = static_cast<float>(quant_max_value - quant_min_value);
     auto int_range =
-        ConstructNgNode<Constant>(node.get_name() + "/int_range", element::f32, Shape{}, std::vector<float>({value}));
+        ConstructNgNode<Constant>(node.get_name() + "/int_range", element::f32, Shape{}, vector<float>({value}));
     auto scale = ConstructNgNode<Divide>(node.get_name() + "/scale", float_range, int_range);
     auto descaled_min = ConstructNgNode<Divide>(node.get_name() + "/descaled_min", minimum, scale);
     auto rounded_descaled_min =

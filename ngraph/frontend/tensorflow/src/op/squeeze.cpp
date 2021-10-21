@@ -17,7 +17,7 @@ OutputVector TranslateSqueezeOp(const NodeContext& node) {
     Output<Node> ng_input = node.get_ng_input(0);
     size_t input_dims = ng_input.get_shape().size();
 
-    auto tf_axis = node.get_attribute<std::vector<int32_t>>("squeeze_dims");
+    auto tf_axis = node.get_attribute<vector<int32_t>>("squeeze_dims");
 
     // If input dimension is negative, make it positive
     for (size_t i = 0; i < tf_axis.size(); i++) {

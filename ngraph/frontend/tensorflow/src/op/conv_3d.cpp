@@ -17,10 +17,10 @@ namespace op {
 OutputVector TranslateConv3DOp(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0), ng_filter = node.get_ng_input(1);
 
-    auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");
-    auto tf_dilations = node.get_attribute<std::vector<int32_t>>("dilations");
-    auto tf_padding_type = node.get_attribute<std::string>("padding");
-    auto tf_data_format = node.get_attribute<std::string>("data_format");
+    auto tf_strides = node.get_attribute<vector<int32_t>>("strides");
+    auto tf_dilations = node.get_attribute<vector<int32_t>>("dilations");
+    auto tf_padding_type = node.get_attribute<string>("padding");
+    auto tf_data_format = node.get_attribute<string>("data_format");
 
     if (tf_data_format != "NDHWC" && tf_data_format != "NCDHW") {
         throw errors::InvalidArgument("Conv3D data format is neither NDHWC nor NCDHW");

@@ -18,11 +18,11 @@ namespace op {
 // Parameters:
 //
 //    TFNodeDecoder* op                   - TF op being translated. Must have one input.
-//    const std::vector<const ov::frontend::tf::detail::TensorWrapper*>& static_input_map
+//    const vector<const ov::frontend::tf::detail::TensorWrapper*>& static_input_map
 //                               - the static input map
 //    Builder::OpMap& ng_op_map  - The TF-to-nGraph op map.
 //
-//    std::function<Output<Node>(Output<Node>>
+//    function<Output<Node>(Output<Node>>
 //      create_unary_op           - Function to construct the graph implementing
 //                                 the unary op, given the input to the unop
 //                                 as an argument.
@@ -36,7 +36,7 @@ namespace op {
 //                           (Output<Multiply>(n,n));
 //                       });
 //  }
-OutputVector TranslateUnaryOp(const NodeContext& op, std::function<Output<Node>(Output<Node>)> create_unary_op) {
+OutputVector TranslateUnaryOp(const NodeContext& op, function<Output<Node>(Output<Node>)> create_unary_op) {
     Output<Node> ng_input = op.get_ng_input(0);
     auto ng_node = create_unary_op(ng_input);
     if (ng_node != ng_input) {

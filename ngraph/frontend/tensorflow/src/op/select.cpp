@@ -20,8 +20,8 @@ OutputVector TranslateSelectOp(const NodeContext& node) {
     if (in_1.get_partial_shape().is_static() && in_2.get_partial_shape().is_static()) {
         // select broadcast
         if (in_1.get_shape().size() == 1 && in_2.get_shape().size() > 1) {
-            std::vector<uint64_t> axes(in_2.get_shape().size() - 1);
-            std::iota(axes.begin(), axes.end(), 1);
+            vector<uint64_t> axes(in_2.get_shape().size() - 1);
+            iota(axes.begin(), axes.end(), 1);
             auto unsqueeze_axes = make_shared<Constant>(ov::element::i64, Shape{in_2.get_shape().size() - 1}, axes);
             auto unsqueeze = make_shared<Unsqueeze>(in_1, unsqueeze_axes);
             auto ng_select = make_shared<Select>(unsqueeze, in_2, in_3);

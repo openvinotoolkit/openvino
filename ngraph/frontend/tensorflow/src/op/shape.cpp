@@ -13,9 +13,9 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-ngraph::OutputVector TranslateShapeOp(const NodeContext& node) {
+OutputVector TranslateShapeOp(const NodeContext& node) {
     auto data = node.get_ng_input(0);
-    auto out_type = node.get_attribute<ngraph::element::Type>("out_type");
+    auto out_type = node.get_attribute<element::Type>("out_type");
     auto shape_of = make_shared<ShapeOf>(data, out_type);
     shape_of->set_friendly_name(node.get_name());
     return shape_of->outputs();

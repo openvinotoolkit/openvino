@@ -17,7 +17,7 @@ OutputVector TranslateRangeOp(const NodeContext& node) {
     auto start = node.get_ng_input(0);
     auto stop = node.get_ng_input(1);
     auto step = node.get_ng_input(2);
-    auto out_type = node.get_attribute<ngraph::element::Type>("Tidx");
+    auto out_type = node.get_attribute<element::Type>("Tidx");
 
     auto range = make_shared<Range>(start, stop, step, out_type);
     range->set_friendly_name(node.get_name());

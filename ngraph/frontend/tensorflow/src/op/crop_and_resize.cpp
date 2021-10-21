@@ -67,7 +67,7 @@ OutputVector TranslateCropAndResizeOp(const NodeContext& node) {
                                            static_cast<unsigned long>(crop_size.at(0)),
                                            static_cast<unsigned long>(crop_size.at(1)),
                                            image_depth},
-                                     std::vector<float>({}))
+                                     vector<float>({}))
             ->outputs();
     } else {
         for (int i = 0; i < box_ind.size(); i++) {
@@ -77,8 +77,8 @@ OutputVector TranslateCropAndResizeOp(const NodeContext& node) {
             y2 = boxes.at(2 + i * 4) * (image_height - 1.);
             x2 = boxes.at(3 + i * 4) * (image_width - 1.);
 
-            int crop_height = std::abs(y2 - y1);
-            int crop_width = std::abs(x2 - x1);
+            int crop_height = abs(y2 - y1);
+            int crop_width = abs(x2 - x1);
 
             // account for flip crops when y1>y2 or x1>x2 with negative striding
             int stride_height = 1, stride_width = 1;
@@ -106,7 +106,7 @@ OutputVector TranslateCropAndResizeOp(const NodeContext& node) {
 
             // crop
             auto ng_crop =
-                make_shared<StridedSlice>(ng_input, begin, end, strides, std::vector<int64_t>{}, std::vector<int64_t>{})
+                make_shared<StridedSlice>(ng_input, begin, end, strides, vector<int64_t>{}, vector<int64_t>{})
                     ->output(0);
 
             Interpolate::InterpolateAttrs interpolate_attrs;
@@ -120,7 +120,7 @@ OutputVector TranslateCropAndResizeOp(const NodeContext& node) {
             auto ng_input_shape = make_shared<Convert>(ng_spatial_shape, element::f32);
             auto ng_crop_size = make_shared<Convert>(ng_size, element::f32);
             auto ng_scales = make_shared<Divide>(ng_crop_size, ng_input_shape);
-            auto ng_axes = make_shared<Constant>(element::i32, Shape{2}, std::vector<int>({2, 3}));
+            auto ng_axes = make_shared<Constant>(element::i32, Shape{2}, vector<int>({2, 3}));
 
             if (resize_method == "bilinear") {
                 interpolate_attrs.mode = Interpolate::InterpolateMode::LINEAR;

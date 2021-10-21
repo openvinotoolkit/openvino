@@ -13,10 +13,10 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateArgMinMax(const NodeContext& node, std::string mode) {
+OutputVector TranslateArgMinMax(const NodeContext& node, string mode) {
     Output<Node> ng_input = node.get_ng_input(0);
 
-    std::vector<int64_t> tf_dim;
+    vector<int64_t> tf_dim;
     GetStaticInputVector(node, 1, &tf_dim);
 
     Shape input_shape = ng_input.get_shape();
@@ -36,14 +36,14 @@ OutputVector TranslateArgMinMax(const NodeContext& node, std::string mode) {
 
     auto ng_et = node.get_attribute<element::Type>("output_type");
 
-    auto ng_k = ConstructNgNode<Constant>(node.get_name(), element::i64, Shape{}, std::vector<int64_t>({1}));
+    auto ng_k = ConstructNgNode<Constant>(node.get_name(), element::i64, Shape{}, vector<int64_t>({1}));
 
-    std::string sort = "none";
-    auto ng_topk = std::make_shared<TopK>(ng_input, ng_k, k_axis, mode, sort, ng_et);
+    string sort = "none";
+    auto ng_topk = make_shared<TopK>(ng_input, ng_k, k_axis, mode, sort, ng_et);
     auto ng_indices = ng_topk->output(1);
     int axis = ng_topk->get_axis();
     auto axis_to_remove =
-        ConstructNgNode<Constant>(node.get_name(), element::i64, Shape{1}, std::vector<int64_t>({axis}));
+        ConstructNgNode<Constant>(node.get_name(), element::i64, Shape{1}, vector<int64_t>({axis}));
     auto reshaped_indices = ConstructNgNode<Squeeze>(node.get_name(), ng_indices, axis_to_remove);
     SetTracingInfo(node.get_name(), reshaped_indices);
     return {reshaped_indices};

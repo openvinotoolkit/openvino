@@ -15,7 +15,7 @@ namespace op {
 
 OutputVector TranslateExpandDimsOp(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0);
-    std::vector<int64_t> dims;
+    vector<int64_t> dims;
     GetStaticInputVector(node, 1, &dims);
     auto ng_dims = ConstructNgNode<Constant>(node.get_name(), element::i64, ov::Shape{dims.size()}, dims);
     return {ConstructNgNode<Unsqueeze>(node.get_name(), ng_input, ng_dims)};

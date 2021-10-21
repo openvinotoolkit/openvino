@@ -16,7 +16,7 @@ namespace op {
 OutputVector TranslateL2LossOp(const NodeContext& node) {
     auto input = node.get_ng_input(0);
 
-    std::vector<float> val;
+    vector<float> val;
     val.push_back(2.0);
     auto const_2 = make_shared<Constant>(input.get_element_type(), Shape{}, 2);
     auto pow = make_shared<Multiply>(input, input);
@@ -24,8 +24,8 @@ OutputVector TranslateL2LossOp(const NodeContext& node) {
 
     Output<Node> reduction_axes;
     if (p_shape.rank().is_static()) {
-        std::vector<int64_t> axes(p_shape.size());
-        std::iota(axes.begin(), axes.end(), 0);
+        vector<int64_t> axes(p_shape.size());
+        iota(axes.begin(), axes.end(), 0);
         reduction_axes = make_shared<Constant>(element::i64, Shape{axes.size()}, axes);
     } else {
         auto shape = make_shared<ShapeOf>(input);

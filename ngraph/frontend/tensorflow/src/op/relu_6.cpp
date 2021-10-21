@@ -14,7 +14,7 @@ namespace tf {
 namespace op {
 ov::OutputVector TranslateRelu6Op(const NodeContext& node) {
     auto data = node.get_ng_input(0);
-    auto clamp = std::make_shared<Clamp>(data, 0.0, 6.0f);
+    auto clamp = make_shared<Clamp>(data, 0.0, 6.0f);
     clamp->set_friendly_name(node.get_name());
     return clamp->outputs();
 }

@@ -25,7 +25,7 @@ OutputVector TranslatePadOp(const NodeContext& node) {
     auto op_type = node.get_op_type();
     if (op_type == "Pad" || op_type == "MirrorPad") {
         pad_val_op =
-            ConstructNgNode<Constant>(node.get_name(), ng_input.get_element_type(), Shape(), std::vector<int>({0}));
+            ConstructNgNode<Constant>(node.get_name(), ng_input.get_element_type(), Shape(), vector<int>({0}));
     } else if (op_type == "PadV2") {
         pad_val_op = node.get_ng_input(2);
     } else {
@@ -35,7 +35,7 @@ OutputVector TranslatePadOp(const NodeContext& node) {
     // Set pad_mode
     auto pad_mode = ov::op::PadMode::CONSTANT;
     if (op_type == "MirrorPad") {
-        auto pad_mode_str = node.get_attribute<std::string>("mode");
+        auto pad_mode_str = node.get_attribute<string>("mode");
         if (pad_mode_str == "REFLECT") {
             pad_mode = ov::op::PadMode::REFLECT;
         } else if (pad_mode_str == "SYMMETRIC") {
@@ -46,14 +46,14 @@ OutputVector TranslatePadOp(const NodeContext& node) {
     }
 
     // Set pads_begin & pads_end (from the pad_val_op)
-    std::vector<int64_t> paddings;
+    vector<int64_t> paddings;
     GetStaticInputVector(node, 1, &paddings);
     if (paddings.size() % 2 != 0) {
         throw errors::InvalidArgument("Constant node for paddings does not have an even number of "
                                       "elements");
     }
-    std::vector<int64_t> pad_begin(paddings.size() / 2);
-    std::vector<int64_t> pad_end(paddings.size() / 2);
+    vector<int64_t> pad_begin(paddings.size() / 2);
+    vector<int64_t> pad_end(paddings.size() / 2);
     for (size_t i = 0; i < paddings.size() / 2; i++) {
         pad_begin[i] = paddings[2 * i];
         pad_end[i] = paddings[2 * i + 1];

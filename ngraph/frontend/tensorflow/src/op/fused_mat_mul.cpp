@@ -15,7 +15,7 @@ namespace op {
 
 OutputVector TranslateFusedMatMulOp(const NodeContext& node) {
     // auto num_args = node.get_attribute<int>("num_args"); // TODO: it is unused but why?
-    auto fused_ops = node.get_attribute<std::vector<string>>("fused_ops");
+    auto fused_ops = node.get_attribute<vector<string>>("fused_ops");
 
     // Transpose arguments if requested.
     auto transpose_a = node.get_attribute<bool>("transpose_a", false);

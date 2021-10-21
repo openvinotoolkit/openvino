@@ -18,7 +18,7 @@ ov::OutputVector TranslateRollOp(const NodeContext& node) {
     auto data = node.get_ng_input(0);
     auto shift = node.get_ng_input(1);
     auto axis = node.get_ng_input(2);
-    auto roll = std::make_shared<Roll>(data, shift, axis);
+    auto roll = make_shared<Roll>(data, shift, axis);
     roll->set_friendly_name(node.get_name());
     return roll->outputs();
 }

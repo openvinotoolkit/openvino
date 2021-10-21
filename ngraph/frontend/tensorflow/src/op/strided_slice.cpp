@@ -28,7 +28,7 @@ OutputVector TranslateStridedSliceOp(const NodeContext& node) {
     // TODO (itikhono): check algorithm
     auto mask_to_vec = [](int32_t mask) {
         auto length = sizeof(mask) * CHAR_BIT;
-        std::vector<int64_t> vec(length, 0);
+        vector<int64_t> vec(length, 0);
         if (mask == 0) {
             return vec;
         }

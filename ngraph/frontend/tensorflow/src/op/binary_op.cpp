@@ -13,8 +13,8 @@ using namespace ov::opset8;
 //
 //    TFNodeDecoder* op               - TF op being translated. Must have only two
 //    inputs.
-//    const std::vector<const ov::frontend::tf::detail::TensorWrapper*>& static_input_map - the static input
-//    map Builder::OpMap& ng_op_map  - The TF-to-nGraph op map. std::function<Output<Node>(Output<Node>,
+//    const vector<const ov::frontend::tf::detail::TensorWrapper*>& static_input_map - the static input
+//    map Builder::OpMap& ng_op_map  - The TF-to-nGraph op map. function<Output<Node>(Output<Node>,
 //    Output<Node>)>
 //    create_binary_op           - Function to construct the graph implementing
 //                                 the binary op, given the 2 ng_inputs to the
@@ -37,7 +37,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 OutputVector TranslateBinaryOp(const NodeContext& node,
-                               std::function<Output<Node>(Output<Node>&, Output<Node>&)> create_binary_op) {
+                               function<Output<Node>(Output<Node>&, Output<Node>&)> create_binary_op) {
     Output<Node> ng_lhs = node.get_ng_input(0), ng_rhs = node.get_ng_input(1);
     auto ng_node = create_binary_op(ng_lhs, ng_rhs);
 

@@ -18,7 +18,7 @@ OutputVector TranslateFusedBatchNormOp(const NodeContext& node) {
          ng_mean = node.get_ng_input(3), ng_variance = node.get_ng_input(4);
     bool is_v3 = node.get_op_type() == "FusedBatchNormV3";
 
-    auto tf_data_format = node.get_attribute<std::string>("data_format");
+    auto tf_data_format = node.get_attribute<string>("data_format");
 
     if (tf_data_format != "NHWC" && tf_data_format != "NCHW") {
         throw errors::InvalidArgument("Conv2D data format is neither NHWC nor NCHW");

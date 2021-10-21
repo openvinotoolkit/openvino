@@ -16,7 +16,7 @@ namespace op {
 OutputVector TranslateBiasAddOp(const NodeContext& node) {
     Output<Node> ng_input = node.get_ng_input(0), ng_bias = node.get_ng_input(1);
 
-    std::string tf_data_format = node.get_attribute<std::string>("data_format", "NHWC");
+    string tf_data_format = node.get_attribute<string>("data_format", "NHWC");
 
     if (tf_data_format != "NHWC" && tf_data_format != "NCHW") {
         throw errors::InvalidArgument("BiasAdd data format is neither NHWC nor NCHW");
@@ -33,7 +33,7 @@ OutputVector TranslateBiasAddOp(const NodeContext& node) {
     Output<Node> ng_bias_reshaped = ng_bias;
     if (tf_data_format == "NCHW") {
         auto channel_dim = ng_input_shape[1];
-        std::vector<int64_t> target_shape(ng_input_shape.size());
+        vector<int64_t> target_shape(ng_input_shape.size());
         for (int64_t i = 0; i < ng_input_shape.size(); i++) {
             if (i == 1) {
                 target_shape[i] = channel_dim;

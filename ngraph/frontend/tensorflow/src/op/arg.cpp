@@ -15,7 +15,7 @@ namespace tf {
 namespace op {
 
 OutputVector ArgOp(const NodeContext& node) {
-    auto ng_et = node.get_attribute<ngraph::element::Type>("T");
+    auto ng_et = node.get_attribute<element::Type>("T");
     auto overridden_shape = node.get_overridden_shapes().find(node.get_name());
     auto index = node.get_attribute<int>("index");
     auto shape = node.get_indexed_shapes().at(index);
