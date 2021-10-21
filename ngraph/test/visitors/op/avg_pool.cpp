@@ -26,14 +26,8 @@ TEST(attributes, avg_pool_op) {
     auto rounding_mode = op::RoundingType::FLOOR;
     auto auto_pad = op::PadType::EXPLICIT;
 
-    auto avg_pool = make_shared<opset1::AvgPool>(data,
-                                                 strides,
-                                                 pads_begin,
-                                                 pads_end,
-                                                 kernel,
-                                                 exclude_pad,
-                                                 rounding_mode,
-                                                 auto_pad);
+    auto avg_pool =
+        make_shared<opset1::AvgPool>(data, strides, pads_begin, pads_end, kernel, exclude_pad, rounding_mode, auto_pad);
 
     NodeBuilder builder(avg_pool);
     auto g_avg_pool = ov::as_type_ptr<opset1::AvgPool>(builder.create());
@@ -59,14 +53,8 @@ TEST(attributes, avg_pool_v8_op) {
     const auto auto_pad = op::PadType::EXPLICIT;
     const element::Type& index_element_type = element::i32;
 
-    const auto avg_pool = make_shared<opset8::AvgPool>(data,
-                                                       strides,
-                                                       pads_begin,
-                                                       pads_end,
-                                                       kernel,
-                                                       exclude_pad,
-                                                       rounding_mode,
-                                                       auto_pad);
+    const auto avg_pool =
+        make_shared<opset8::AvgPool>(data, strides, pads_begin, pads_end, kernel, exclude_pad, rounding_mode, auto_pad);
     NodeBuilder builder(avg_pool);
     auto g_avg_pool = ov::as_type_ptr<opset8::AvgPool>(builder.create());
 
