@@ -1214,10 +1214,10 @@ private:
             jl(tail_loop_end_label, T_NEAR);
 
             // get idx for input
-            movss(Xmm(vmm_tbl_y.getIdx()), ptr[reg_tbl_y]);
+            uni_vmovss(Xmm(vmm_tbl_y.getIdx()), ptr[reg_tbl_y]);
             gather_i32_indices(vmm_index_in_y, reg_index_y, 0, vmm_tbl_y, 1, Precision::I32, true);
 
-            movss(Xmm(vmm_val.getIdx()), ptr[reg_tbl_x]);
+            uni_vmovss(Xmm(vmm_val.getIdx()), ptr[reg_tbl_x]);
             gather_i32_indices(vmm_index_in_x, reg_index, 0, vmm_val, 1, Precision::I32, true);
             // gather weightX by input idx, used in y0-y3
             gather_i32_indices(vmm_weightX0, reg_weight_x, 0, vmm_val, grid_len, Precision::FP32, true);
