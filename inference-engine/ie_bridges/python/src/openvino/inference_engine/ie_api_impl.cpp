@@ -682,3 +682,7 @@ InferenceEngine::Blob::Ptr InferenceEnginePython::CVariableState::getState() {
 void InferenceEnginePython::CVariableState::setState(InferenceEngine::Blob::Ptr state) {
     variableState.SetState(state);
 }
+
+const size_t InferenceEnginePython::product(const InferenceEngine::SizeVector& dims) {
+    return std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>{});
+}
