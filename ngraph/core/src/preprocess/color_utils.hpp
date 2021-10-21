@@ -70,9 +70,18 @@ protected:
 };
 
 // --- Derived classes ---
-class ColorFormatInfoNV12_Single : public ColorFormatInfo {
+class ColorFormatNHWC : public ColorFormatInfo {
 public:
-    explicit ColorFormatInfoNV12_Single(ColorFormat format) : ColorFormatInfo(format) {}
+    explicit ColorFormatNHWC(ColorFormat format) : ColorFormatInfo(format) {}
+
+    Layout default_layout() const override {
+        return "NHWC";
+    }
+};
+
+class ColorFormatInfoNV12_Single : public ColorFormatNHWC {
+public:
+    explicit ColorFormatInfoNV12_Single(ColorFormat format) : ColorFormatNHWC(format) {}
 
 protected:
     PartialShape calculate_shape(size_t plane_num, const PartialShape& image_shape) const override {
@@ -85,15 +94,11 @@ protected:
         }
         return result;
     }
-
-    Layout default_layout() const override {
-        return "NHWC";
-    }
 };
 
-class ColorFormatInfoNV12_TwoPlanes : public ColorFormatInfo {
+class ColorFormatInfoNV12_TwoPlanes : public ColorFormatNHWC {
 public:
-    explicit ColorFormatInfoNV12_TwoPlanes(ColorFormat format) : ColorFormatInfo(format) {}
+    explicit ColorFormatInfoNV12_TwoPlanes(ColorFormat format) : ColorFormatNHWC(format) {}
 
     size_t planes_count() const override {
         return 2;
@@ -118,10 +123,6 @@ protected:
             }
         }
         return result;
-    }
-
-    Layout default_layout() const override {
-        return "NHWC";
     }
 };
 

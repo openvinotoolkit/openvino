@@ -697,6 +697,27 @@ TEST(pre_post_process, preprocess_convert_layout_same) {
     EXPECT_EQ(size_old, f->get_ordered_ops().size());
 }
 
+TEST(pre_post_process, preprocess_reverse_channels_multiple_planes) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    EXPECT_THROW(
+        f = PrePostProcessor()
+                .input(InputInfo()
+                           .tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES, {"Y", "UV"}))
+                           .preprocess(PreProcessSteps().reverse_channels()))
+                .build(f),
+        ov::AssertFailure);
+}
+
+TEST(pre_post_process, preprocess_reverse_channels_no_c_dim) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo()
+                                    .tensor(InputTensorInfo().set_layout("N?HW"))
+                                    .preprocess(PreProcessSteps().reverse_channels()))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
 // --- PostProcess - set/convert element type ---
 
 TEST(pre_post_process, postprocess_convert_element_type_explicit) {
