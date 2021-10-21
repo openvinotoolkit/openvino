@@ -23,9 +23,9 @@ Following the OpenVINO notions of “devices”, the Auto-device has “AUTO” 
 
 | Parameter name     | Parameter values      | Default            |             Description                                                      |
 | :---               | :---                  | :---               |:-----------------------------------------------------------------------------|
-| "AUTO_DEVICE_LIST" | comma-separated device names <span style="color:red">with no spaces</span>| N/A | Device candidate list to be selected    |
+| "MULTI_DEVICE_PRIORITIES" | comma-separated device names <span style="color:red">with no spaces</span>| N/A | Device candidate list to be selected    |
 
-You can use the configuration name directly as a string or use <code>IE::KEY_AUTO_DEVICE_LIST</code> from <code>ie_plugin_config.hpp</code>,
+You can use the configuration name directly as a string or use <code>InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES</code> from <code>multi-device/multi_device_config.hpp</code>,
 which defines the same string.
 
 There are two ways to use Auto-device:

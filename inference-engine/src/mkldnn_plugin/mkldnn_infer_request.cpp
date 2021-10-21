@@ -29,6 +29,18 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
                                                      MKLDNNExecNetwork::Ptr             execNetwork_)
 : IInferRequestInternal(networkInputs, networkOutputs)
 , execNetwork(execNetwork_) {
+    CreateInferRequest();
+}
+
+MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                                     const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                                                     MKLDNNExecNetwork::Ptr             execNetwork_)
+: IInferRequestInternal(inputs, outputs)
+, execNetwork(execNetwork_) {
+    CreateInferRequest();
+}
+
+void MKLDNNPlugin::MKLDNNInferRequest::CreateInferRequest() {
     auto id = (execNetwork->_numRequests)++;
     profilingTask = openvino::itt::handle("MKLDNN_INFER_" + execNetwork->_name + "_" + std::to_string(id));
 
@@ -351,20 +363,23 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
 
     if (!data)
         IE_THROW(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
+    InferenceEngine::InputInfo::Ptr foundInput;
+    InferenceEngine::DataPtr foundOutput;
+    const bool isInput = findInputAndOutputBlobByName(name, foundInput, foundOutput);
     const bool compoundBlobPassed = data->is<InferenceEngine::CompoundBlob>();
     if (!compoundBlobPassed && data->buffer() == nullptr)
         IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
-    if (data->size() == 0) {
+    IE_SUPPRESS_DEPRECATED_START
+    if (data->size() == 0 &&
+        !((foundInput && foundInput->getInputData()->isDynamic()) || (foundOutput && foundOutput->isDynamic()))) {
         IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
+    IE_SUPPRESS_DEPRECATED_END
 
-    InferenceEngine::InputInfo::Ptr foundInput;
-    InferenceEngine::DataPtr foundOutput;
     size_t dataSize = data->size();
-    findInputAndOutputBlobByName(name, foundInput, foundOutput);
     const auto &blobDesc = data->getTensorDesc();
 
-    if (foundInput) {
+    if (isInput) {
         if (foundInput->getPrecision() != blobDesc.getPrecision()) {
             IE_THROW(ParameterMismatch) << "Failed to set input blob with precision: "
                                << blobDesc.getPrecision() << ", if CNNNetwork input blob precision is: " << foundInput->getPrecision();

@@ -7,9 +7,11 @@ import onnx.mapping
 import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
-from ngraph.exceptions import NgraphTypeError
+from openvino.exceptions import NgraphTypeError
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
+
+from tests import skip_issue_67415
 
 
 @pytest.mark.parametrize(
@@ -331,6 +333,7 @@ def test_cast_to_bool(val_type, input_data):
     assert np.allclose(result, expected)
 
 
+@skip_issue_67415
 @pytest.mark.parametrize(
     "val_type, range_start, range_end, in_dtype",
     [
@@ -483,3 +486,34 @@ def test_constant_err():
 
     ng_results = run_node(node, [])
     assert np.allclose(ng_results, [values])
+
+
+@pytest.mark.parametrize(
+    "shape, shift",
+    [
+        ((4, 4), 0),
+        ((4, 4), 1),
+        ((4, 4), -1),
+        ((4, 4), 2),
+        ((4, 4), -2),
+        ((4, 4), 3),
+        ((4, 4), -3),
+        ((3, 4), 0),
+        ((3, 4), 1),
+        ((3, 4), -1),
+        ((3, 4), 2),
+        ((3, 4), -2),
+        ((5, 3), 0),
+        ((5, 3), 1),
+        ((5, 3), -1),
+        ((5, 3), 2),
+        ((5, 3), -2),
+    ],
+)
+def test_eye_like(shape, shift):
+    input_tensor = np.arange(np.prod(shape)).reshape(shape)
+
+    node = onnx.helper.make_node("EyeLike", inputs=["x"], outputs=["y"], k=shift)
+    result = run_node(node, [input_tensor])[0]
+
+    assert np.allclose(result, np.eye(shape[0], shape[1], k=shift))

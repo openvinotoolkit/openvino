@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "ie_infer_async_request_base.hpp"
 #include "ie_ngraph_utils.hpp"
@@ -16,6 +17,24 @@
 #include "openvino/runtime/infer_request.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace {
+
+inline bool getPort(ov::Output<const ov::Node>& port,
+                    const std::string& name,
+                    const std::vector<std::vector<std::shared_ptr<const ov::Node>>>& ports) {
+    for (const auto& nodes : ports) {
+        for (const auto& node : nodes) {
+            const auto& names = node->get_output_tensor(0).get_names();
+            if (names.find(name) != names.end()) {
+                port = node->output(0);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+}  // namespace
 namespace InferenceEngine {
 
 #define INFER_REQ_CALL_STATEMENT(...)                                     \
@@ -204,6 +223,18 @@ bool InferRequest::operator==(const InferRequest& r) const noexcept {
 
 }  // namespace InferenceEngine
 
+namespace {
+
+std::string get_legacy_name_from_port(const ov::Output<const ov::Node>& port) {
+    ov::Output<ngraph::Node> p(std::const_pointer_cast<ov::Node>(port.get_node_shared_ptr()), port.get_index());
+    if (auto node = std::dynamic_pointer_cast<ov::op::v0::Result>(p.get_node_shared_ptr())) {
+        p = node->input_value(0);
+    }
+    return ngraph::op::util::create_ie_output_name(p);
+}
+
+}  // namespace
+
 namespace ov {
 namespace runtime {
 
@@ -213,23 +244,114 @@ InferRequest::InferRequest(const std::shared_ptr<void>& so, const ie::IInferRequ
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
 }
 
-void InferRequest::set_tensor(const std::string& name, const Tensor& tensor){
-    OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlob(name, tensor._impl); })}
+void InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const Tensor& tensor) {
+    OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlob(get_legacy_name_from_port(port), tensor._impl); });
+}
+
+void InferRequest::set_tensor(const ov::Output<ov::Node>& port, const Tensor& tensor) {
+    set_tensor(ov::Output<const ov::Node>(port.get_node(), port.get_index()), tensor);
+}
+
+void InferRequest::set_tensor(const std::string& name, const Tensor& tensor) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        ov::Output<const ov::Node> port;
+        OPENVINO_ASSERT(::getPort(port, name, {_impl->GetInputs(), _impl->GetOutputs()}),
+                        "Port for tensor name " + name + " was not found.");
+        set_tensor(port, tensor);
+    });
+}
+
+void InferRequest::set_input_tensor(size_t idx, const Tensor& tensor) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        const auto& inputs = _impl->GetInputs();
+        OPENVINO_ASSERT(inputs.size() > idx,
+                        "Input port for index ",
+                        idx,
+                        " was not found! The model has only ",
+                        inputs.size(),
+                        " inputs.");
+        set_tensor(inputs.at(idx)->output(0), tensor);
+    });
+}
+
+void InferRequest::set_input_tensor(const Tensor& tensor) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        const auto inputs = _impl->GetInputs();
+        OPENVINO_ASSERT(inputs.size() == 1,
+                        "set_input_tensor() must be called on a function with exactly one parameter.");
+        set_tensor(inputs.at(0)->output(0), tensor);
+    });
+}
+
+void InferRequest::set_output_tensor(size_t idx, const Tensor& tensor) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        const auto& outputs = _impl->GetOutputs();
+        OPENVINO_ASSERT(outputs.size() > idx,
+                        "Output port for index ",
+                        idx,
+                        " was not found! The model has only ",
+                        outputs.size(),
+                        " outputs.");
+        set_tensor(outputs.at(idx)->output(0), tensor);
+    });
+}
+
+void InferRequest::set_output_tensor(const Tensor& tensor) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        const auto outputs = _impl->GetOutputs();
+        OPENVINO_ASSERT(outputs.size() == 1,
+                        "set_output_tensor() must be called on a function with exactly one parameter.");
+        set_tensor(outputs.at(0)->output(0), tensor);
+    });
+}
+
+Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
+    OV_INFER_REQ_CALL_STATEMENT({
+        const auto& name = get_legacy_name_from_port(port);
+        auto blob = _impl->GetBlob(name);
+        return {_so, blob};
+    });
+}
+
+Tensor InferRequest::get_tensor(const ov::Output<ov::Node>& port) {
+    return get_tensor(ov::Output<const ov::Node>(port.get_node(), port.get_index()));
+}
 
 Tensor InferRequest::get_tensor(const std::string& name) {
     OV_INFER_REQ_CALL_STATEMENT({
-        auto blob = _impl->GetBlob(name);
-        const bool remoteBlobPassed = blob->is<ie::RemoteBlob>();
-        if (blob == nullptr) {
-            IE_THROW(NotAllocated) << "Internal tensor implementation with name `" << name << "` is not allocated!";
+        ov::Output<const ov::Node> port;
+        OPENVINO_ASSERT(::getPort(port, name, {_impl->GetInputs(), _impl->GetOutputs()}),
+                        "Port for tensor name " + name + " was not found.");
+        return get_tensor(port);
+    });
+}
+
+Tensor InferRequest::get_input_tensor(size_t idx) {
+    OV_INFER_REQ_CALL_STATEMENT({ return get_tensor(_impl->GetInputs().at(idx)->output(0)); });
+}
+
+Tensor InferRequest::get_output_tensor(size_t idx) {
+    OV_INFER_REQ_CALL_STATEMENT({ return get_tensor(_impl->GetOutputs().at(idx)->output(0)); });
+}
+
+Tensor InferRequest::get_input_tensor() {
+    OV_INFER_REQ_CALL_STATEMENT({
+        const auto inputs = _impl->GetInputs();
+        if (inputs.size() != 1) {
+            throw ov::Exception("get_input_tensor() must be called on a function with exactly one parameter.");
         }
-        if (!remoteBlobPassed && blob->buffer() == nullptr) {
-            IE_THROW(NotAllocated) << "Internal tensor implementation with name `" << name << "` is not allocated!";
+        return get_tensor(inputs.at(0)->output(0));
+    });
+}
+
+Tensor InferRequest::get_output_tensor() {
+    OV_INFER_REQ_CALL_STATEMENT({
+        const auto outputs = _impl->GetOutputs();
+        if (outputs.size() != 1) {
+            throw ov::Exception("get_output_tensor() must be called on a function with exactly one parameter.");
         }
-        auto tensorDesc = blob->getTensorDesc();
-        auto dims = tensorDesc.getDims();
-        return {_so, blob};
-    })
+        return get_tensor(outputs.at(0)->output(0));
+    });
 }
 
 void InferRequest::infer() {

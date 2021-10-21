@@ -181,9 +181,9 @@ static RefPreprocessParams custom_preprocessing() {
     res.function = []() {
         auto f = create_simple_function(element::i32, Shape{1, 3, 1, 1});
         f = PrePostProcessor()
-            .input(InputInfo().preprocess(PreProcessSteps().custom([](const std::shared_ptr<Node>& node) {
+            .input(InputInfo().preprocess(PreProcessSteps().custom([](const Output<Node>& node) {
                 auto abs = std::make_shared<op::v0::Abs>(node);
-                abs->set_friendly_name(node->get_friendly_name() + "/abs");
+                abs->set_friendly_name(node.get_node_shared_ptr()->get_friendly_name() + "/abs");
                 return abs;
             })))
             .build(f);
@@ -221,9 +221,9 @@ static RefPreprocessParams test_lvalue() {
             preprocessSteps.scale(2.f);
             preprocessSteps.mean({1.f, 2.f, 3.f});
             preprocessSteps.scale({2.f, 3.f, 4.f});
-            preprocessSteps.custom([](const std::shared_ptr<Node> &node) {
+            preprocessSteps.custom([](const Output<Node> &node) {
                 auto abs = std::make_shared<op::v0::Abs>(node);
-                abs->set_friendly_name(node->get_friendly_name() + "/abs");
+                abs->set_friendly_name(node.get_node_shared_ptr()->get_friendly_name() + "/abs");
                 return abs;
             });
             auto &same = preprocessSteps.convert_element_type(element::i8);
@@ -243,13 +243,22 @@ static RefPreprocessParams test_2_inputs_basic() {
     RefPreprocessParams res("test_2_inputs_basic");
     res.function = []() {
         auto f = create_2inputs(element::f32, Shape{1, 3, 1, 1});
-        { f = PrePostProcessor().input(InputInfo(1).preprocess(PreProcessSteps().mean(1.f).scale(2.0f))).build(f); }
+        f = PrePostProcessor().input(InputInfo(0)
+                                             .preprocess(
+                                                     PreProcessSteps()
+                                                             .mean(1.f)))
+                .input(
+                        InputInfo("tensor_input2")
+                                .preprocess(PreProcessSteps()
+                                                    .mean(1.f)
+                                                    .scale(2.0f)))
+                .build(f);
         return f;
     };
 
     res.inputs.emplace_back(Shape{1, 3, 1, 1}, element::f32, std::vector<float>{3., 5., 7.});
     res.inputs.emplace_back(Shape{1, 3, 1, 1}, element::f32, std::vector<float>{3., 5., 7.});
-    res.expected.emplace_back(Shape{1, 3, 1, 1}, element::f32, std::vector<float>{3., 5., 7.});
+    res.expected.emplace_back(Shape{1, 3, 1, 1}, element::f32, std::vector<float>{2., 4., 6.});
     res.expected.emplace_back(Shape{1, 3, 1, 1}, element::f32, std::vector<float>{1., 2., 3.});
     return res;
 }
@@ -543,7 +552,7 @@ static RefPreprocessParams resize_and_convert_layout() {
 
 static RefPreprocessParams convert_color_nv12_to_bgr_two_planes() {
     RefPreprocessParams res("convert_color_nv12_to_bgr_two_planes");
-    res.abs_threshold = 2.f; // Allow small color conversion deviations
+    res.abs_threshold = 1.f; // Allow small color conversion deviations
     res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
     res.function = []() {
         auto f = create_simple_function(element::u8, PartialShape{1, 4, 4, 3});
@@ -563,10 +572,10 @@ static RefPreprocessParams convert_color_nv12_to_bgr_two_planes() {
                                          41, 41, 81, 81,        // BBRR
                                          41, 41, 81, 81};       // BBRR
     auto input_shape_y = Shape{1, 4, 4, 1};
-    auto input_uv = std::vector<uint8_t> {240, 90,      // R (2x2)
-                                          34, 54,       // G (2x2)
-                                          110, 240,     // B (2x2)
-                                          240, 90};     // R (2x2)
+    auto input_uv = std::vector<uint8_t> {90, 240,      // R (2x2)
+                                          54, 34,       // G (2x2)
+                                          240, 110,     // B (2x2)
+                                          90, 240};     // R (2x2)
     auto input_shape_uv = Shape{1, 2, 2, 2};
     auto exp_out = std::vector<uint8_t> {0, 0, 255,  0, 0, 255,  0, 255, 0,  0, 255, 0,
                                          0, 0, 255,  0, 0, 255,  0, 255, 0,  0, 255, 0,
@@ -582,7 +591,7 @@ static RefPreprocessParams convert_color_nv12_to_bgr_two_planes() {
 
 static RefPreprocessParams convert_color_nv12_single_plane() {
     RefPreprocessParams res("convert_color_nv12_single_plane");
-    res.abs_threshold = 2.f; // Allow small color conversion deviations
+    res.abs_threshold = 1.f; // Allow small color conversion deviations
     res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
@@ -601,7 +610,7 @@ static RefPreprocessParams convert_color_nv12_single_plane() {
                                        81, 81, 145, 145,      // RRGG
                                        41, 41, 81, 81,        // BBRR
                                        41, 41, 81, 81,        // BBRR
-                                       240, 90, 34, 54, 110, 240, 240, 90};     // UV (RGBR)
+                                       90, 240, 54, 34, 240, 110, 90, 240};     // UV (RGBR)
     auto input_shape = Shape{1, 6, 4, 1};
     auto exp_out = std::vector<float> {255, 0, 0,  255, 0, 0,  0, 255, 0,  0, 255, 0,    // RRGG
                                        255, 0, 0,  255, 0, 0,  0, 255, 0,  0, 255, 0,    // RRGG
@@ -617,7 +626,7 @@ static RefPreprocessParams convert_color_nv12_single_plane() {
 
 static RefPreprocessParams convert_color_nv12_layout_resize() {
     RefPreprocessParams res("convert_color_nv12_layout_resize");
-    res.abs_threshold = 2.f; // Allow small color conversion deviations
+    res.abs_threshold = 1.f; // Allow small color conversion deviations
     res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 3, 2, 2});
@@ -643,7 +652,7 @@ static RefPreprocessParams convert_color_nv12_layout_resize() {
                                        81, 81, 145, 145,      // RRGG
                                        41, 41, 81, 81,        // BBRR
                                        41, 41, 81, 81,        // BBRR
-                                       240, 90, 34, 54, 110, 240, 240, 90};     // UV (RGBR)
+                                       90, 240, 54, 34, 240, 110, 90, 240};     // UV (RGBR)
     auto input_shape = Shape{1, 6, 4, 1};
     auto exp_out = std::vector<float> {255, 0, 0, 255,     // R channel
                                        0, 255, 0, 0,       // G channel
@@ -657,7 +666,7 @@ static RefPreprocessParams convert_color_nv12_layout_resize() {
 
 static RefPreprocessParams element_type_before_convert_color_nv12() {
     RefPreprocessParams res("element_type_before_convert_color_nv12");
-    res.abs_threshold = 2.f; // Allow small color conversion deviations
+    res.abs_threshold = 1.f; // Allow small color conversion deviations
     res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 2, 2, 3});
@@ -677,7 +686,7 @@ static RefPreprocessParams element_type_before_convert_color_nv12() {
     // clang-format off
     auto input_y = std::vector<uint8_t> {81, 81, 81, 81};
     auto input_shape_y = Shape{1, 2, 2, 1};
-    auto input_uv = std::vector<uint8_t> {240, 90};
+    auto input_uv = std::vector<uint8_t> {90, 240};
     auto input_shape_uv = Shape{1, 1, 1, 2};
     auto exp_out = std::vector<float> {255, 0, 0,  255, 0, 0,  255, 0, 0,  255, 0,  0};
     auto out_shape = Shape{1, 2, 2, 3};

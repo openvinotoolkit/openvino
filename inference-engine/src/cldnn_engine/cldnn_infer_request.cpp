@@ -228,7 +228,9 @@ void CLDNNInferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) 
     bool is_remote = remote_ptr != nullptr;
     if (is_remote) {
         auto impl = getBlobImpl(remote_ptr);
-        impl->allocate();
+        if (!impl->is_allocated()) {
+            impl->allocate();
+        }
     }
     if (is_input) {
         if (is_remote) {
@@ -449,6 +451,16 @@ void CLDNNInferRequest::SetBatch(int new_batch) {
 CLDNNInferRequest::CLDNNInferRequest(InputsDataMap networkInputs, OutputsDataMap networkOutputs,
                                      const CLDNNExecNetwork::Ptr& execNetwork)
         : IInferRequestInternal(networkInputs, networkOutputs)
+        , m_useProfiling(false)
+        , m_useStreams(false) {
+    IE_ASSERT(nullptr != execNetwork);
+    streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
+}
+
+CLDNNInferRequest::CLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                     const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                                     const CLDNNExecNetwork::Ptr& execNetwork)
+        : IInferRequestInternal(inputs, outputs)
         , m_useProfiling(false)
         , m_useStreams(false) {
     IE_ASSERT(nullptr != execNetwork);

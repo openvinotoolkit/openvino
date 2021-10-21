@@ -9,15 +9,7 @@
 #include <string>
 #include <vector>
 
-#ifndef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#    ifdef _WIN32
-#        if defined __INTEL_COMPILER || defined _MSC_VER
-#            define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#        endif
-#    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
-#        define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#    endif
-#endif
+#include "openvino/util/util.hpp"
 
 namespace ov {
 namespace util {
