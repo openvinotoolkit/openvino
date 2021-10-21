@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
+#include <snippets/itt.hpp>
 
 #include "snippets/pass/vector_to_scalar.hpp"
 #include "snippets/snippets_isa.hpp"

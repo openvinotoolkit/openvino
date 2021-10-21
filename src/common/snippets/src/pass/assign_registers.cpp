@@ -3,7 +3,7 @@
 //
 
 // #include <openvino/cc/selective_build.h>
-#include "itt.hpp"
+#include <snippets/itt.hpp>
 #include "remarks.hpp"
 
 #include "snippets/pass/assign_registers.hpp"

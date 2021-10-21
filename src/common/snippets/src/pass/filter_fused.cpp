@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "snippets/pass/filter_fused.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/register_info.hpp"

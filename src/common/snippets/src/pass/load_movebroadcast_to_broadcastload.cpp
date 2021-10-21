@@ -3,7 +3,7 @@
 //
 
 #include "remarks.hpp"
-#include "itt.hpp"
+#include <snippets/itt.hpp>
 
 #include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/snippets_isa.hpp"

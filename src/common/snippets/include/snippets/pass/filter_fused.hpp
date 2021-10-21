@@ -6,6 +6,7 @@
 
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/pass.hpp>
+#include <snippets/itt.hpp>
 
 namespace ngraph {
 namespace snippets {

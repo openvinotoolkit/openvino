@@ -3,7 +3,7 @@
 //
 
 #include "remarks.hpp"
-#include "itt.hpp"
+#include <snippets/itt.hpp>
 
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/filter_fused.hpp"
