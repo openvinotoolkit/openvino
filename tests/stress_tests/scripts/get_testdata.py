@@ -208,7 +208,6 @@ def main():
         converter_path = omz_path / "tools" / "model_tools" / "converter.py"
         # NOTE: remove --precisions if both precisions (FP32 & FP16) required
         cmd = '"{executable}" {converter_path} --name {model_name}' \
-
               ' -p "{executable}"' \
               ' --precisions={precision}' \
               ' --output_dir {irs_dir}' \
