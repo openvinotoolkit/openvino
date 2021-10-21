@@ -1,0 +1,98 @@
+%{
+--------------------------------------------------------------------------------
+--
+--  This file is part of the Doxyrest toolkit.
+--
+--  Doxyrest is distributed under the MIT license.
+--  For details see accompanying license.txt file,
+--  the public copy of which is also available at:
+--  http://tibbo.com/downloads/archive/doxyrest/license.txt
+--
+--------------------------------------------------------------------------------
+
+local argArray = table.pack(...)
+local compound = argArray[1]
+local sectionName = argArray[2]
+}
+$(getTitle(sectionName, 3))
+
+%{
+for i = 1, #compound.variableArray do
+	local item = compound.variableArray[i]
+	if not isUnnamedItem(item) and isItemInCompoundDetails(item, compound) then
+		local modifiers = ""
+		local suffix = ""
+
+		if item.modifiers ~= "" then
+			modifiers = " " .. item.modifiers
+		end
+
+		if item.argString ~= "" then
+			suffix = g_preParamSpace .. item.argString
+		elseif item.bitField  ~= "" then
+			suffix = g_preParamSpace .. ":" .. item.bitField
+		end
+
+		local type = getLinkedTextString(item.type, true)
+		if string.find(type, "@") then
+			type = "unnamed-" .. string.match(type, "[a-z]+")
+			-- e.g.: unnamed-struct
+		end
+
+		local static = ""
+		if string.find(item.flags, "static") then
+			static = "static "
+		end
+
+		local initializer = getLinkedTextString(item.initializer, true)
+		if string.len(initializer) > 0 then
+			initializer = " " .. initializer
+		end
+}
+$(getItemRefTargetString(item))
+.. ref-code-block:: $LANGUAGE
+	:class: doxyrest-title-code-block
+
+	$static$type$modifiers $(getItemName(item))$suffix$initializer
+%{
+		if item.isSubGroupHead then
+			for j = 1, #item.subGroupSlaveArray do
+				slaveItem = item.subGroupSlaveArray[j]
+				if not isUnnamedItem(slaveItem) then
+					local modifiers = ""
+					local suffix = ""
+
+					if slaveItem.modifiers ~= "" then
+						modifiers = " " .. slaveItem.modifiers
+					end
+
+					if slaveItem.argString ~= "" then
+						suffix = " " .. slaveItem.argString
+					elseif slaveItem.bitField  ~= "" then
+						suffix = " :" .. slaveItem.bitField
+					end
+
+					local type = getLinkedTextString(slaveItem.type, true)
+					if string.find(type, "@") then
+						type = "unnamed-" .. string.match(type, "[a-z]+")
+						-- e.g.: unnamed-struct
+					end
+
+					local static = ""
+					if string.find(item.flags, "static") then
+						static = "static "
+					end
+}
+	$static$type$modifiers $(getItemName(slaveItem))$suffix
+%{
+				end -- if
+			end -- for
+		end -- if
+}
+
+$(getItemDetailedDocumentation(item))
+
+%{
+	end -- if
+end -- for
+}

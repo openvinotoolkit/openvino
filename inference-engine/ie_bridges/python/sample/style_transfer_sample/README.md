@@ -15,7 +15,7 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 
 | Options                    | Values                                                                                                                                                                      |
 | :------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Validated Models           | [fast-neural-style-mosaic-onnx](@ref omz_models_model_fast_neural_style_mosaic_onnx) |
+| Validated Models           | [fast-neural-style-mosaic-onnx](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/fast-neural-style-mosaic-onnx/fast-neural-style-mosaic-onnx.md) |
 | Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx)                                                                                                    |
 | Supported devices          | [All](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                                                                                                     |
 | Other language realization | [C++](../../../../samples/style_transfer_sample/README.md)                                                                                                                            |
@@ -30,15 +30,15 @@ each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with
 
 ## Running
 
-Run the application with the `-h` option to see the usage message:
+Run the application with the <code>-h</code> option to see the usage message:
 
-```
-python <path_to_sample>/style_transfer_sample.py -h
+```sh
+python style_transfer_sample.py -h
 ```
 
 Usage message:
 
-```
+```sh
 usage: style_transfer_sample.py [-h] -m MODEL -i INPUT [INPUT ...]
                                 [-l EXTENSION] [-c CONFIG] [-d DEVICE]
                                 [--original_size] [--mean_val_r MEAN_VAL_R]
@@ -84,41 +84,29 @@ To run the sample, you need specify a model and image:
 
 > **NOTES**:
 >
-> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
 > - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-### Example
-1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
-```
-python <path_to_omz_tools>/downloader.py --name fast-neural-style-mosaic-onnx
-```
+You can do inference of an image using a pre-trained model on a GPU using the following command:
 
-2. `fast-neural-style-mosaic-onnx` model does not need to be converted, because it is already in necessary format, so you can skip this step. If you want to use a other model that is not in the Inference Engine IR or ONNX format, you can convert it using the model converter script:
-
-```
-python <path_to_omz_tools>/converter.py --name <model_name>
-```
-
-3. Perform inference of `car.bmp` and `cat.jpg` using `fast-neural-style-mosaic-onnx` model on a `GPU`, for example:
-
-```
-python <path_to_sample>/style_transfer_sample.py -m <path_to_model>/fast-neural-style-mosaic-onnx.onnx -i <path_to_image>/car.bmp <path_to_image>/cat.jpg -d GPU
+```sh
+python style_transfer_sample.py -m <path_to_model>/fast-neural-style-mosaic-onnx.onnx -i <path_to_image>/car.png <path_to_image>/cat.jpg -d GPU
 ```
 
 ## Sample Output
 
 The sample application logs each step in a standard output stream and creates an output image (`out_0.bmp`) or a sequence of images (`out_0.bmp`, .., `out_<n>.bmp`) that are redrawn in the style of the style transfer model used.
 
-```
+```sh
 [ INFO ] Creating Inference Engine
-[ INFO ] Reading the network: c:\openvino\deployment_tools\open_model_zoo\tools\downloader\public\fast-neural-style-mosaic-onnx\fast-neural-style-mosaic-onnx.onnx
+[ INFO ] Reading the network: models\fast-neural-style-mosaic-onnx.onnx
 [ INFO ] Configuring input and output blobs
 [ INFO ] Loading the model to the plugin
-[ WARNING ] Image c:\images\car.bmp is resized from (637, 749) to (224, 224)
-[ WARNING ] Image c:\images\cat.jpg is resized from (300, 300) to (224, 224)
+[ WARNING ] Image images\car.bmp is resized from (259, 787) to (224, 224)
+[ WARNING ] Image images\cat.bmp is resized from (300, 300) to (224, 224)
 [ INFO ] Starting inference in synchronous mode
 [ INFO ] Image out_0.bmp created!
 [ INFO ] Image out_1.bmp created!

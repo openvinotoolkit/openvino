@@ -1,0 +1,28 @@
+%{
+--------------------------------------------------------------------------------
+--
+--  This file is part of the Doxyrest toolkit.
+--
+--  Doxyrest is distributed under the MIT license.
+--  For details see accompanying license.txt file,
+--  the public copy of which is also available at:
+--  http://tibbo.com/downloads/archive/doxyrest/license.txt
+--
+--------------------------------------------------------------------------------
+
+local argArray = table.pack(...)
+local itemArray = argArray[1]
+
+for i = 1, #itemArray do
+	local item = itemArray[i]
+	if not isUnnamedItem(item) then
+}
+	'$(getItemQualifiedName(item))' : 'doxid-$(item.id)',
+%{
+	end
+
+	if item.compoundKind then
+		includeFile("crefdb_members.py.in", item)
+	end
+end -- for
+}

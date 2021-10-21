@@ -1,0 +1,40 @@
+%{
+--------------------------------------------------------------------------------
+--
+--  This file is part of the Doxyrest toolkit.
+--
+--  Doxyrest is distributed under the MIT license.
+--  For details see accompanying license.txt file,
+--  the public copy of which is also available at:
+--  http://tibbo.com/downloads/archive/doxyrest/license.txt
+--
+--------------------------------------------------------------------------------
+
+local argArray = table.pack(...)
+local compound = argArray[1]
+}
+Construction
+------------
+
+%{
+includeFile(
+	"details.rst.in",
+	compound,
+	compound.constructorArray,
+	getVoidFunctionDeclString
+	)
+
+if not EXCLUDE_DESTRUCTORS and compound.destructor and compound.destructor.hasDocumentation then
+	item = compound.destructor
+}
+.. _doxid-$(item.id):
+.. ref-code-block:: $LANGUAGE
+	:class: doxyrest-title-code-block
+
+	$(getVoidFunctionDeclString(item, g_simpleItemNameTemplate, "\t"))
+
+$(getItemDetailedDocumentation(item))
+
+%{
+end -- if
+}

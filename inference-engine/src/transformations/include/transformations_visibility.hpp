@@ -12,6 +12,7 @@
  */
 
 /**
+ * @ingroup ie_cpp_api
  * @defgroup ie_transformation_api Inference Engine Transformation API
  * @brief Defines Inference Engine Transformations API which is used to transform ngraph::Function
  *

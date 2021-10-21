@@ -13,7 +13,7 @@ The following Inference Engine Python API is used in the application:
 
 | Options                    | Values                                                                                                    |
 | :------------------------- | :-------------------------------------------------------------------------------------------------------- |
-| Validated Models           | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1) |
+| Validated Models           | [alexnet](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/alexnet/alexnet.md) |
 | Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx)                                  |
 | Supported devices          | [All](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                                   |
 | Other language realization | [C++](../../../../samples/hello_classification/README.md), [C](../../../c/samples/hello_classification/README.md)             |
@@ -29,13 +29,13 @@ each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with
 
 Run the application with the `-h` option to see the usage message:
 
-```
-python <path_to_sample>/hello_classification.py -h
+```sh
+python hello_classification.py -h
 ```
 
 Usage message:
 
-```
+```sh
 usage: hello_classification.py [-h] -m MODEL -i INPUT [-d DEVICE]
                                [--labels LABELS] [-nt NUMBER_TOP]
 
@@ -62,55 +62,43 @@ To run the sample, you need specify a model and image:
 
 > **NOTES**:
 >
-> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
 > - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-### Example
-1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
-```
-python <path_to_omz_tools>/downloader.py --name alexnet
-```
+For example, to perform inference of an image using a pre-trained model on a GPU, run the following command:
 
-2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
-
-```
-python <path_to_omz_tools>/converter.py --name alexnet
-```
-
-3. Perform inference of `car.bmp` using `alexnet` model on a `GPU`, for example:
-
-```
-python <path_to_sample>/hello_classification.py -m <path_to_model>/alexnet.xml -i <path_to_image>/car.bmp -d GPU
+```sh
+python hello_classification.py -m <path_to_model>/alexnet.xml -i <path_to_image>/cat.bmp -d GPU
 ```
 
 ## Sample Output
 
 The sample application logs each step in a standard output stream and outputs top-10 inference results.
 
-```
+```sh
 [ INFO ] Creating Inference Engine
-[ INFO ] Reading the network: c:\openvino\deployment_tools\open_model_zoo\tools\downloader\public\alexnet\FP32\alexnet.xml
+[ INFO ] Reading the network: models\alexnet.xml
 [ INFO ] Configuring input and output blobs
 [ INFO ] Loading the model to the plugin
-[ WARNING ] Image c:\images\car.bmp is resized from (637, 749) to (227, 227)
+[ WARNING ] Image images\cat.bmp is resized from (300, 300) to (227, 227)
 [ INFO ] Starting inference in synchronous mode
-[ INFO ] Image path: c:\images\car.bmp
-[ INFO ] Top 10 results:    
+[ INFO ] Image path: images\cat.bmp
+[ INFO ] Top 10 results:
 [ INFO ] classid probability
 [ INFO ] -------------------
-[ INFO ] 656     0.6645315
-[ INFO ] 654     0.1121185
-[ INFO ] 581     0.0698451
-[ INFO ] 874     0.0334973
-[ INFO ] 436     0.0259718
-[ INFO ] 817     0.0173190
-[ INFO ] 675     0.0109321
-[ INFO ] 511     0.0109075
-[ INFO ] 569     0.0083093
-[ INFO ] 717     0.0063173
+[ INFO ] 435     0.0996890
+[ INFO ] 876     0.0900242
+[ INFO ] 999     0.0691449
+[ INFO ] 587     0.0390189
+[ INFO ] 666     0.0360393
+[ INFO ] 419     0.0308307
+[ INFO ] 285     0.0306287
+[ INFO ] 700     0.0293009
+[ INFO ] 696     0.0202707
+[ INFO ] 631     0.0199126
 [ INFO ]
 [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```

@@ -15,7 +15,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 
 | Options  | Values |
 |:---                              |:---
-| Validated Models                 | [alexnet](@ref omz_models_model_alexnet)
+| Validated Models                 | AlexNet (image classification network)
 | Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
 | Validated images                 | An uncompressed image in the NV12 color format - \*.yuv
 | Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
@@ -59,34 +59,22 @@ ffmpeg -i cat.jpg -pix_fmt nv12 cat.yuv
 >   model to work with RGB order, you need to reconvert your model using the Model Optimizer tool
 >   with `--reverse_input_channels` argument specified. For more information about the argument,
 >   refer to **When to Reverse Input Channels** section of
->   [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+>   [Converting a Model to Intermediate Representation (IR)](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 > - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-### Example
-1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
-```
-python <path_to_omz_tools>/downloader.py --name alexnet
-```
+You can perform inference on an NV12 image using a trained AlexNet network on CPU with the following command:
 
-2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
-
-```
-python <path_to_omz_tools>/converter.py --name alexnet
-```
-
-3. Perform inference of NV12 image using `alexnet` model on a `CPU`, for example:
-
-```
-<path_to_sample>/hello_nv12_input_classification <path_to_model>/alexnet.xml <path_to_image>/cat.yuv 300x300 CPU
+```sh
+./hello_nv12_input_classification <path_to_model>/alexnet_fp32.xml <path_to_image>/cat.yuv 300x300 CPU
 ```
 
 ## Sample Output
 
 The application outputs top-10 inference results.
 
-```
+```sh
 [ INFO ] Files were added: 1
 [ INFO ]     ./cat.yuv
 Batch size is 1

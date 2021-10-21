@@ -48,8 +48,19 @@ The script generates ONNX* model file `bert-ner.onnx`.
 
 ## Convert ONNX* BERT-NER model to IR
 
-```bash
-python mo.py --input_model bert-ner.onnx --input "input_mask[1 128],segment_ids[1 128],input_ids[1 128]"
-```
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      python3 mo.py --input_model bert-ner.onnx --input "input_mask[1 128],segment_ids[1 128],input_ids[1 128]"
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --input_model bert-ner.onnx --input "input_mask[1 128],segment_ids[1 128],input_ids[1 128]"
+
+@endsphinxdirective
 
 where `1` is `batch_size` and `128` is `sequence_length`.

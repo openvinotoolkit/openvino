@@ -1,4 +1,4 @@
-@mainpage Overview of Inference Engine Plugin Library
+# Overview of Inference Engine Plugin Library {#openvino_docs_ie_plugin_dg_overview}
 
 The plugin architecture of the Inference Engine allows to develop and plug independent inference 
 solutions dedicated to different devices. Physically, a plugin is represented as a dynamic library 

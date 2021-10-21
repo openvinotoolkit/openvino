@@ -1,6 +1,12 @@
 # Auto-Device Plugin {#openvino_docs_IE_DG_supported_plugins_AUTO}
 
-## Auto-Device Plugin Execution
+## Auto-Device Plugin Execution (C++)
+
+@sphinxdirective
+.. raw:: html
+
+    <div id="switcher-cpp" class="switcher-anchor">C++</div>
+@endsphinxdirective
 
 Auto-device is a new special "virtual" or "proxy" device in the OpenVINO™ toolkit. 
 
@@ -15,8 +21,7 @@ With the 2021.4 release, Auto-device setup is done in three major steps:
 * Step 1: Configure each device as usual (for example, via the conventional <code>SetConfig</code> method)
 * Step 2: Load a network to the Auto-device plugin. This is the only change needed in your application
 * Step 3: Just like with any other executable network (resulted from <code>LoadNetwork</code>), create as many requests as needed to saturate the devices. 
-These steps are covered below in details.
-
+These steps are covered below in detail.
 
 ## Defining and Configuring the Auto-Device Plugin
 Following the OpenVINO notions of “devices”, the Auto-device has “AUTO” name. The only configuration option for Auto-device is a limited device list:
@@ -37,7 +42,9 @@ There are two ways to use Auto-device:
 
 @snippet snippets/AUTO1.cpp part1
 
-Auto-device supports query device optimization capabilities in metric;
+**NOTE:** The Inference Engine lets you use "GPU" as an alias for "GPU.0" in function calls. 
+
+Auto-device supports query device optimization capabilities in metric:
 
 | Parameter name                 | Parameter values         |
 | :---                           | :---                     |
@@ -61,14 +68,16 @@ Available devices:
     Device: GPU.1
 ```
 
-###	Default Auto-Device selecting logic
+### Default Auto-Device selecting logic
 
 With the 2021.4 release, Auto-Device selects the most suitable device with following default logic:
-1.	Check if dGPU, iGPU and CPU device are available
-2.	Get the precision of the input model, such as FP32
-3.	According to the priority of dGPU, iGPU and CPU (in this order), if the device supports the precision of input network, select it as the most suitable device
+1.	Check if dGPU (discrete Intel® GPU), iGPU (integrated Intel® GPU) and CPU device are available.
+2.	Get the precision of the input model, such as FP32.
+3.	According to the priority of dGPU, iGPU and CPU (in this order), if the device supports the precision of input network, select it as the most suitable device.
 
-For example, CPU, dGPU and iGPU can support below precision and optimization capabilities:
+#### Examples
+
+For example, CPU, dGPU, and iGPU can support the precision and optimization capabilities below:
 
 | Device   | OPTIMIZATION_CAPABILITIES       |
 | :---     | :---                            |
@@ -76,22 +85,22 @@ For example, CPU, dGPU and iGPU can support below precision and optimization cap
 | dGPU     | FP32 BIN BATCHED_BLOB FP16 INT8 |
 | iGPU     | FP32 BIN BATCHED_BLOB FP16 INT8 |
 
-When application use Auto-device to run FP16 IR on system with CPU, dGPU and iGPU, Auto-device will offload this workload to dGPU.
+When an application uses Auto-device to run FP16 IR on system with CPU, dGPU and iGPU, the plugin will offload this workload to dGPU.
 
-When application use Auto-device to run FP16 IR on system with CPU and iGPU, Auto-device will offload this workload to iGPU.
+When an application uses Auto-device to run FP16 IR on system with CPU and iGPU, the plugin will offload this workload to iGPU.
 
-When application use Auto-device to run WINOGRAD-enabled IR on system with CPU, dGPU and iGPU, Auto-device will offload this workload to CPU.
+When an application uses Auto-device to run WINOGRAD-enabled IR on system with CPU, dGPU and iGPU, the plugin will offload this workload to CPU.
 
-In any case, when loading the network to dGPU or iGPU fails, the networks falls back to CPU as the last choice.
+Whenever loading a network to dGPU or iGPU fails, the plugin falls back to CPU as the last choice.
 
 ### Limit Auto Target Devices Logic
 
-According to the Auto-device selection logic from the previous section, 
-the most suitable device from available devices to load mode as follows:
+According to the Auto-device selection logic from the previous section, tell the Inference Engine 
+to use the most suitable device from available devices as follows:
 
 @snippet snippets/AUTO2.cpp part2
 
-Another way to load mode to device from limited choice of devices is with Auto-device:
+You can also use the Auto-device plugin to choose a device from a limited choice of devices, in this example CPU and GPU:
 
 @snippet snippets/AUTO3.cpp part3
 
@@ -108,21 +117,22 @@ allowing the Auto-device plugin to parse and apply it to the right devices. See 
 
 ## Using the Auto-Device with OpenVINO Samples and Benchmark App
 
-Note that every OpenVINO sample that supports "-d" (which stands for "device") command-line option transparently accepts the Auto-device. 
-The Benchmark Application is the best example of the optimal usage of the Auto-device. 
+Note that every OpenVINO sample that supports the "-d" (which stands for "device") command-line option transparently accepts the Auto-device. 
+The Benchmark Application is the best example of optimal usage of the Auto-device. 
 You do not need to set the number of requests and CPU threads, as the application provides optimal out-of-the-box performance. 
-Below is the example command-line to evaluate AUTO performance with that:
+Below is an example command to evaluate AUTO performance with the Benchmark application:
 
 ```sh
 ./benchmark_app –d AUTO –m <model> -i <input> -niter 1000
 ```
-You can also use the auto-device with limit device choice:
+You can also use the Auto-device plugin with limited device choice:
 
 ```sh
 ./benchmark_app –d AUTO:CPU,GPU –m <model> -i <input> -niter 1000
 ```
-Note that the default CPU stream is 1 if using “-d AUTO”.
 
-Note that you can use the FP16 IR to work with auto-device.
-Also note that no demos are (yet) fully optimized for the auto-device, by means of selecting the most suitable device, 
-using the GPU streams/throttling, and so on.
+**NOTES**
+* The default CPU stream is 1 if using “-d AUTO”. 
+* You can use the FP16 IR to work with Auto-device.
+* No demos are fully optimized for Auto-device yet to select the most suitable device, 
+use GPU streams/throttling, and so on.

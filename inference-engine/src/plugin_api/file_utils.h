@@ -16,6 +16,8 @@
 #include "ie_api.h"
 #include "details/ie_so_pointer.hpp"
 
+
+/// @ingroup ie_dev_api_file_utils
 namespace FileUtils {
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
@@ -43,11 +45,13 @@ template <typename T> struct FileTraits;
 /// @brief File path separator
 const char FileSeparator = '\\';
 
+/// @ingroup ie_dev_api_file_utils
 template<> struct FileTraits<char> {
     constexpr static const auto FileSeparator = ::FileUtils::FileSeparator;
     static std::string PluginLibraryPrefix() { return { }; }
     static std::string PluginLibraryExt() { return { "dll" }; }
 };
+/// @ingroup ie_dev_api_file_utils
 template<> struct FileTraits<wchar_t> {
     constexpr static const auto FileSeparator = L'\\';
     static std::wstring PluginLibraryPrefix() { return { }; }
@@ -56,11 +60,13 @@ template<> struct FileTraits<wchar_t> {
 #elif defined __APPLE__
 /// @brief File path separator
 const char FileSeparator = '/';
+/// @ingroup ie_dev_api_file_utils
 template<> struct FileTraits<char> {
     constexpr static const auto FileSeparator = ::FileUtils::FileSeparator;
     static std::string PluginLibraryPrefix() { return { "lib" }; }
     static std::string PluginLibraryExt() { return { "so" }; }
 };
+/// @ingroup ie_dev_api_file_utils
 template<> struct FileTraits<wchar_t> {
     constexpr static const auto FileSeparator = L'/';
     static std::wstring PluginLibraryPrefix() { return { L"lib" }; }
@@ -69,11 +75,13 @@ template<> struct FileTraits<wchar_t> {
 #else
 /// @brief File path separator
 const char FileSeparator = '/';
+/// @ingroup ie_dev_api_file_utils
 template<> struct FileTraits<char> {
     constexpr static const auto FileSeparator = ::FileUtils::FileSeparator;
     static std::string PluginLibraryPrefix() { return { "lib" }; }
     static std::string PluginLibraryExt() { return { "so" }; }
 };
+/// @ingroup ie_dev_api_file_utils
 template<> struct FileTraits<wchar_t> {
     constexpr static const auto FileSeparator = L'/';
     static std::wstring PluginLibraryPrefix() { return { L"lib" }; }
@@ -178,8 +186,11 @@ inline std::basic_string<C> makePath(const std::basic_string<C> &folder, const s
     return folder + FileTraits<C>::FileSeparator + file;
 }
 
+/// @ingroup ie_dev_api_file_utils
 template <typename C> struct DotSymbol;
+/// @ingroup ie_dev_api_file_utils
 template <> struct DotSymbol<char> { constexpr static const char value = '.'; };
+/// @ingroup ie_dev_api_file_utils
 template <> struct DotSymbol<wchar_t> { constexpr static const wchar_t value = L'.'; };
 
 /**

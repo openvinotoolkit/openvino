@@ -27,8 +27,8 @@ To build the sample, please use instructions available at [Build the Sample Appl
 
 To see quired information, run the following:
 
-```
-<path_to_sample>/hello_query_device -h
+```sh
+./hello_query_device -h
 Usage : hello_query_device
 ```
 
@@ -36,7 +36,8 @@ Usage : hello_query_device
 
 The application prints all available devices with their supported metrics and default values for configuration parameters:
 
-```
+```sh
+./hello_query_device
 Available devices:
         Device: CPU
         Metrics:

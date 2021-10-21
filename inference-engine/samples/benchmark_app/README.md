@@ -14,7 +14,7 @@ This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learn
 
 Upon start-up, the application reads command-line parameters and loads a network and images/binary files to the Inference Engine plugin, which is chosen depending on a specified device. The number of infer requests and execution approach depend on the mode defined with the `-api` command-line parameter.
 
-> **NOTE**: By default, Inference Engine samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> **NOTE**: By default, Inference Engine samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 
 If you run the application in the synchronous mode, it creates one infer request and executes the `Infer` method.
 If you run the application in the asynchronous mode, it creates as many infer requests as specified in the `-nireq` command-line parameter and executes the `StartAsync` method for each of them. If `-nireq` is not set, the application will use the default value for specified device.
@@ -143,20 +143,28 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
 
 > **NOTE:** The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 
-1. Download the model. Go to the the Model Downloader directory and run the `downloader.py` script with specifying the model name and directory to download the model to:
+1. Download the model. Go to the the Model Downloader directory and run the `downloader.py` script with the model name and directory to download the model to:
    ```sh
    cd <INSTAL_DIR>/deployment_tools/open_model_zoo/tools/downloader
    ```
    ```sh
    python3 downloader.py --name googlenet-v1 -o <models_dir>
    ```
-2. Convert the model to the Inference Engine IR format. Go to the Model Optimizer directory and run the `mo.py` script with specifying the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
-   ```sh
-   cd <INSTALL_DIR>/deployment_tools/model_optimizer
-   ```
-   ```sh
-   python3 mo.py --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
-   ```
+2. Convert the model to the Inference Engine IR format. Run Model Optimizer with the path to the model, model format (which must be FP32 for CPU) and output directory to generate the IR files:
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      python3 <INSTALL_DIR>/deployment_tools/model_optimizer/mo.py --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
+@endsphinxdirective
+
 3. Run the tool with specifying the `<INSTALL_DIR>/deployment_tools/demo/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and FPGA devices:
 
    * On CPU:

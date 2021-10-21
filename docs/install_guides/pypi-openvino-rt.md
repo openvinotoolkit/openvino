@@ -86,7 +86,7 @@ Run the command below:
 python -c "from openvino.inference_engine import IECore"
 ```
    
-If installation was successful, you will not see any error messages (no console output).
+You will not see any error messages if installation finished successfully.
 
 ## Troubleshooting
 

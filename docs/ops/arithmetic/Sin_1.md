@@ -1,4 +1,4 @@
-## Sin <a name="Sin"></a> {#openvino_docs_ops_arithmetic_Sin_1}
+# Sin {#openvino_docs_ops_arithmetic_Sin_1}
 
 **Versioned name**: *Sin-1*
 

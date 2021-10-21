@@ -1,4 +1,4 @@
-## ReduceProd <a name="ReduceProd"></a> {#openvino_docs_ops_reduction_ReduceProd_1}
+# ReduceProd {#openvino_docs_ops_reduction_ReduceProd_1}
 
 **Versioned name**: *ReduceProd-1*
 

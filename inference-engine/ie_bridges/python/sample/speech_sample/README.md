@@ -68,15 +68,15 @@ In addition to performing inference directly from a GNA model file, this option 
 
 ## Running
 
-Run the application with the `-h` option to see the usage message:
+Run the application with the <code>-h</code> option to see the usage message:
 
-```
-python <path_to_sample>/speech_sample.py -h
+```sh
+python speech_sample.py -h
 ```
 
 Usage message:
 
-```
+```sh
 usage: speech_sample.py [-h] (-m MODEL | -rg IMPORT_GNA_MODEL) -i INPUT       
                         [-o OUTPUT] [-r REFERENCE] [-d DEVICE]
                         [-bs BATCH_SIZE] [-qb QUANTIZATION_BITS]
@@ -131,9 +131,20 @@ Options:
 
 You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural network to Inference Engine Intermediate Representation format:
 
-```
-python <path_to_mo>/mo.py --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <path_to_dir>
-```
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      python3 mo.py --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>
+
+@endsphinxdirective
 
 The following pre-trained models are available:
 
@@ -147,8 +158,8 @@ All of them can be downloaded from [https://storage.openvinotoolkit.org/models_c
 
 You can do inference on Intel® Processors with the GNA co-processor (or emulation library):
 
-```
-python <path_to_sample>/speech_sample.py -m <path_to_model>/wsj_dnn5b.xml -i <path_to_ark>/dev93_10.ark -r <path_to_ark>/dev93_scores_10.ark -d GNA_AUTO -o result.npz
+```sh
+python speech_sample.py -d GNA_AUTO -m wsj_dnn5b.xml -i dev93_10.ark -r dev93_scores_10.ark -o result.npz
 ```
 
 > **NOTES**:
@@ -161,7 +172,7 @@ python <path_to_sample>/speech_sample.py -m <path_to_model>/wsj_dnn5b.xml -i <pa
 
 The sample application logs each step in a standard output stream.
 
-```
+```sh
 [ INFO ] Creating Inference Engine
 [ INFO ] Reading the network: wsj_dnn5b.xml
 [ INFO ] Configuring input and output blobs
