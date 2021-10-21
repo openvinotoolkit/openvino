@@ -25,9 +25,6 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
 
     std::tie(inShapeParams, inPrecisions, nmsTopK, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice) = obj.param;
 
-    size_t numBatches, numBoxes, numClasses;
-    std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
-
     Precision paramsPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
 
@@ -38,7 +35,11 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
     std::tie(sortResCB, normalized) = inboolVar;
 
     std::ostringstream result;
-    result << "numBatches=" << numBatches << "_numBoxes=" << numBoxes << "_numClasses=" << numClasses << "_";
+    result << "IS=" << CommonTestUtils::partialShape2str(inShapeParams.first) << "_";
+    result << "TS=";
+    for (const auto& item : inShapeParams.second) {
+        result << CommonTestUtils::vec2str(item) << "_";
+    }
     result << "paramsPrec=" << paramsPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
     result << "nmsTopK=" << nmsTopK << "_";
     result << "iouThr=" << iouThr << "_scoreThr=" << scoreThr << "_backgroundClass=" << backgroundClass << "_";
@@ -48,27 +49,57 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
     return result.str();
 }
 
-void MulticlassNmsLayerTest::GenerateInputs() {
+InferenceEngine::Blob::Ptr MulticlassNmsLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    if (inputs.empty()) {
+        return LayerTestsCommon::GenerateInput(info);
+    } else {
+        Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
+        blob->allocate();
+        CommonTestUtils::fill_data_random_float<Precision::FP32>(blob, 1, 0, 100000);
+        return blob;
+    }
+}
+
+void MulticlassNmsLayerTest::GetOutputParams(size_t& numBatches, size_t& maxOutputBoxesPerBatch) {
     size_t it = 0;
-    for (const auto& input : cnnNetwork.getInputsInfo()) {
-        const auto& info = input.second;
-        Blob::Ptr blob;
+    size_t numBoxes = 0, numClasses = 0;
+    for (const auto &input : inputs) {
+        const auto& dims = input->getTensorDesc().getDims();
 
         if (it == 1) {
-            blob = make_blob_with_precision(info->getTensorDesc());
-            blob->allocate();
-            CommonTestUtils::fill_data_random_float<Precision::FP32>(blob, 1, 0, 1000);
+            numClasses = dims[1];
         } else {
-            blob = GenerateInput(*info);
+            numBatches = dims[0];
+            numBoxes = dims[1];
         }
-        inputs.push_back(blob);
         it++;
     }
+
+    ASSERT_TRUE(numBatches > 0 && numBoxes > 0 && numClasses > 0)
+        << "Expected numBatches, numBoxes, numClasses > 0, got:" << numBatches << ", " << numBoxes << ", " << numClasses;
+
+    auto realClasses = numClasses;
+    if (m_attrs.background_class >= 0 && m_attrs.background_class < numClasses) {
+       realClasses = realClasses - 1;
+    }
+
+    size_t maxOutputBoxesPerClass = 0;
+    if (m_attrs.nms_top_k >= 0)
+       maxOutputBoxesPerClass = std::min(numBoxes, static_cast<size_t>(m_attrs.nms_top_k));
+    else
+       maxOutputBoxesPerClass = numBoxes;
+
+    maxOutputBoxesPerBatch  = maxOutputBoxesPerClass * realClasses;
+    if (m_attrs.keep_top_k >= 0)
+       maxOutputBoxesPerBatch =
+               std::min(maxOutputBoxesPerBatch, static_cast<size_t>(m_attrs.keep_top_k));
 }
 
 void MulticlassNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
                                      const std::vector<Blob::Ptr>& actualOutputs) {
     auto batchIndex = -1;
+    size_t numBatches, maxOutputBoxesPerBatch;
+    GetOutputParams(numBatches, maxOutputBoxesPerBatch);
     std::vector<int32_t> numPerBatch(numBatches);
     for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0; outputIndex--) {
         const auto& actual = actualOutputs[outputIndex];
@@ -127,10 +158,12 @@ void MulticlassNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element
                         break;
                     }
 
-                    const auto fBuffer = lockedMemory.as<const float*>();
-                    for (size_t tailing = validNums * 6; tailing < maxOutputBoxesPerBatch * 6; tailing++) {
-                        ASSERT_TRUE(std::abs(fBuffer[(actual_offset * 6 + tailing)] - -1.f) < 1e-5)
-                            << "Invalid default value: " << fBuffer[i] << " at index: " << i;
+                    if (targetDevice != CommonTestUtils::DEVICE_CPU) {
+                        const auto fBuffer = lockedMemory.as<const float*>();
+                        for (size_t tailing = validNums * 6; tailing < maxOutputBoxesPerBatch * 6; tailing++) {
+                            ASSERT_TRUE(std::abs(fBuffer[(actual_offset * 6 + tailing)] - -1.f) < 1e-5)
+                                << "Invalid default value: " << fBuffer[i] << " at index: " << i;
+                        }
                     }
                     break;
                 }
@@ -147,17 +180,24 @@ void MulticlassNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element
                     default:
                         break;
                     }
-                    const auto iBuffer = lockedMemory.as<const int*>();
-                    for (size_t tailing = validNums; tailing < maxOutputBoxesPerBatch; tailing++) {
-                        ASSERT_TRUE(iBuffer[actual_offset + tailing] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;
+                    if (targetDevice != CommonTestUtils::DEVICE_CPU) {
+                        const auto iBuffer = lockedMemory.as<const int*>();
+                        for (size_t tailing = validNums; tailing < maxOutputBoxesPerBatch; tailing++) {
+                            ASSERT_TRUE(iBuffer[actual_offset + tailing] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;
+                        }
                     }
                     break;
                 }
                 default:
                     FAIL() << "Comparator for " << precision << " precision isn't supported";
                 }
-                expected_offset += validNums;
-                actual_offset += maxOutputBoxesPerBatch;
+                if (targetDevice == CommonTestUtils::DEVICE_CPU) {
+                    expected_offset += validNums;
+                    actual_offset += validNums;
+                } else {
+                    expected_offset += validNums;
+                    actual_offset += maxOutputBoxesPerBatch;
+                }
             }
         } else {
             const auto& expectedBuffer = expected.second.data();
@@ -205,7 +245,6 @@ void MulticlassNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element
 void MulticlassNmsLayerTest::SetUp() {
     InputShapeParams inShapeParams;
     InputPrecisions inPrecisions;
-    op::v8::MulticlassNms::Attributes attrs;
     size_t maxOutBoxesPerClass, backgroundClass, keepTopK;
     element::Type outType;
 
@@ -217,22 +256,8 @@ void MulticlassNmsLayerTest::SetUp() {
     std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice) =
         this->GetParam();
 
-    // size_t numBatches, numBoxes, numClasses;
-    std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
-    auto realClasses = numClasses;
-    if (backgroundClass >= 0 && backgroundClass <= numClasses) {
-        realClasses = realClasses - 1;
-    }
-
-    maxOutputBoxesPerClass = 0;
-    if (maxOutBoxesPerClass >= 0)
-        maxOutputBoxesPerClass = std::min(numBoxes, static_cast<size_t>(maxOutBoxesPerClass));
-    else
-        maxOutputBoxesPerClass = numBoxes;
-
-    maxOutputBoxesPerBatch = maxOutputBoxesPerClass * realClasses;
-    if (keepTopK >= 0)
-        maxOutputBoxesPerBatch = std::min(maxOutputBoxesPerBatch, static_cast<size_t>(keepTopK));
+    targetStaticShapes = inShapeParams.second;
+    inputDynamicShapes = inShapeParams.first;
 
     Precision paramsPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
@@ -243,28 +268,32 @@ void MulticlassNmsLayerTest::SetUp() {
     bool sortResCB, normalized;
     std::tie(sortResCB, normalized) = inboolVar;
 
-    const std::vector<size_t> boxesShape {numBatches, numBoxes, 4}, scoresShape {numBatches, numClasses, numBoxes};
     auto ngPrc = convertIE2nGraphPrc(paramsPrec);
-    auto params = builder::makeParams(ngPrc, {boxesShape, scoresShape});
-    auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
+    const auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShapes[0][0], targetStaticShapes[0][1]});
+    const auto paramOuts =
+            ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    attrs.iou_threshold = iouThr;
-    attrs.score_threshold = scoreThr;
-    attrs.nms_eta = nmsEta;
-    attrs.sort_result_type = sortResultType;
-    attrs.sort_result_across_batch = sortResCB;
-    attrs.output_type = outType;
-    attrs.nms_top_k = maxOutBoxesPerClass;
-    attrs.keep_top_k = keepTopK;
-    attrs.background_class = backgroundClass;
-    attrs.normalized = normalized;
+    m_attrs.iou_threshold = iouThr;
+    m_attrs.score_threshold = scoreThr;
+    m_attrs.nms_eta = nmsEta;
+    m_attrs.sort_result_type = sortResultType;
+    m_attrs.sort_result_across_batch = sortResCB;
+    m_attrs.output_type = outType;
+    m_attrs.nms_top_k = maxOutBoxesPerClass;
+    m_attrs.keep_top_k = keepTopK;
+    m_attrs.background_class = backgroundClass;
+    m_attrs.normalized = normalized;
 
-    auto nms = std::make_shared<opset8::MulticlassNms>(paramOuts[0], paramOuts[1], attrs);
+    auto nms = std::make_shared<opset8::MulticlassNms>(paramOuts[0], paramOuts[1], m_attrs);
 
-    auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(ngPrc, Shape {1}, {1}));
-    auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(outType, Shape {1}, {1}));
-    auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(outType, Shape {1}, {1}));
-    function = std::make_shared<Function>(OutputVector {nms_0_identity, nms_1_identity, nms_2_identity}, params, "MulticlassNMS");
+    if (targetDevice == CommonTestUtils::DEVICE_CPU) {
+        function = std::make_shared<Function>(nms, params, "MulticlassNMS");
+    } else {
+        auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(ngPrc, Shape {1}, {1}));
+        auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(outType, Shape {1}, {1}));
+        auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(outType, Shape {1}, {1}));
+        function = std::make_shared<Function>(OutputVector {nms_0_identity, nms_1_identity, nms_2_identity}, params, "MulticlassNMS");
+    }
 }
 
 }  // namespace LayerTestsDefinitions

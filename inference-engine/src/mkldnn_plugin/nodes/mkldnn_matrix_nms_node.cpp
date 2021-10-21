@@ -12,25 +12,19 @@
 
 #include "ie_parallel.hpp"
 #include "ngraph/opsets/opset8.hpp"
-#include "ngraph_ops/nms_static_shape_ie.hpp"
 #include "utils/general_utils.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
-using MatrixNmsIEInternal = ngraph::op::internal::NmsStaticShapeIE<ngraph::op::v8::MatrixNms>;
 
 using ngNmsSortResultType = ngraph::op::util::NmsBase::SortResultType;
 using ngNmseDcayFunction = ngraph::op::v8::MatrixNms::DecayFunction;
 
 bool MKLDNNMatrixNmsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
-        const auto nms = std::dynamic_pointer_cast<const MatrixNmsIEInternal>(op);
+        const auto nms = std::dynamic_pointer_cast<const ngraph::op::v8::MatrixNms>(op);
         if (!nms) {
-            errorMessage = "Only internal MatrixNms operation is supported";
+            errorMessage = "Only MatrixNms operation is supported";
             return false;
         }
         const auto& attrs = nms->get_attrs();
@@ -57,36 +51,9 @@ MKLDNNMatrixNmsNode::MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    errorPrefix = "MatrixNMS layer with name '" + getName() + "' ";
-    const auto matrix_nms = std::dynamic_pointer_cast<const MatrixNmsIEInternal>(op);
+    m_errorPrefix = "MatrixNMS layer with name '" + getName() + "' ";
+    const auto matrix_nms = std::dynamic_pointer_cast<const ngraph::op::v8::MatrixNms>(op);
 
-    if (getOriginalInputsNumber() != 2)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
-
-    if (getOriginalOutputsNumber() != 3)
-        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
-
-    const SizeVector& boxes_dims = inputShapes[NMS_BOXES].getStaticDims();
-    const SizeVector& scores_dims = inputShapes[NMS_SCORES].getStaticDims();
-    if (!(boxes_dims[0] == scores_dims[0] && boxes_dims[1] == scores_dims[2])) {
-        IE_THROW() << errorPrefix << "has incompatible 'boxes' and 'scores' input dmensions";
-    }
-
-    m_numBatches = boxes_dims[0];
-    m_numBoxes = boxes_dims[1];
-    if (boxes_dims.size() != 3)
-        IE_THROW() << errorPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
-    if (boxes_dims[2] != 4)
-        IE_THROW() << errorPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
-
-    m_numClasses = scores_dims[1];
-    if (scores_dims.size() != 3)
-        IE_THROW() << errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
-
-    if (m_numBatches != scores_dims[0])
-        IE_THROW() << errorPrefix << " num_batches is different in 'boxes' and 'scores' inputs";
-    if (m_numBoxes != scores_dims[2])
-        IE_THROW() << errorPrefix << " num_boxes is different in 'boxes' and 'scores' inputs";
     auto& attrs = matrix_nms->get_attrs();
     if (attrs.sort_result_type == ngraph::op::util::NmsBase::SortResultType::CLASSID)
         m_sortResultType = MatrixNmsSortResultType::CLASSID;
@@ -109,35 +76,6 @@ MKLDNNMatrixNmsNode::MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op
     m_gaussianSigma = attrs.gaussian_sigma;
     m_postThreshold = attrs.post_threshold;
     m_normalized = attrs.normalized;
-    int64_t max_output_boxes_per_class = 0;
-    size_t real_num_classes = m_backgroundClass == -1 ? m_numClasses : m_numClasses - 1;
-    if (m_nmsTopk >= 0)
-        max_output_boxes_per_class = std::min(m_numBoxes, static_cast<size_t>(m_nmsTopk));
-    else
-        max_output_boxes_per_class = m_numBoxes;
-
-    m_maxBoxesPerBatch = max_output_boxes_per_class * real_num_classes;
-    if (m_keepTopk >= 0)
-        m_maxBoxesPerBatch = std::min(m_maxBoxesPerBatch, static_cast<size_t>(m_keepTopk));
-}
-
-void MKLDNNMatrixNmsNode::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
-        return;
-
-    m_realNumClasses = m_backgroundClass == -1 ? m_numClasses : m_numClasses - 1;
-    m_realNumBoxes = m_nmsTopk == -1 ? m_numBoxes : std::min(m_nmsTopk, static_cast<int>(m_numBoxes));
-    m_numPerBatch.resize(m_numBatches);
-    m_filteredBoxes.resize(m_numBatches * m_realNumClasses * m_realNumBoxes);
-    m_numPerBatchClass.resize(m_numBatches, std::vector<int64_t>(m_numClasses, 0));
-    m_classOffset.resize(m_numClasses, 0);
-
-    for (size_t i = 0, count = 0; i < m_numClasses; i++) {
-        if (i == m_backgroundClass)
-            continue;
-        m_classOffset[i] = (count++) * m_realNumBoxes;
-    }
-
     if (m_decayFunction == MatrixNmsDecayFunction::LINEAR) {
         m_decay_fn = [](float iou, float max_iou, float sigma) -> float {
             return (1. - iou) / (1. - max_iou + 1e-10f);
@@ -147,17 +85,21 @@ void MKLDNNMatrixNmsNode::initSupportedPrimitiveDescriptors() {
             return std::exp((max_iou * max_iou - iou * iou) * sigma);
         };
     }
+}
+
+void MKLDNNMatrixNmsNode::initSupportedPrimitiveDescriptors() {
+    if (!supportedPrimitiveDescriptors.empty())
+        return;
 
     const std::vector<Precision> supportedFloatPrecision = {Precision::FP32};
     const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32, Precision::I64};
 
-    checkPrecision(getOriginalInputPrecisionAtPort(NMS_BOXES), supportedFloatPrecision, "boxes", inType);
+    checkPrecision(getOriginalInputPrecisionAtPort(NMS_BOXES), supportedFloatPrecision, "boxes", m_inType);
+    checkPrecision(getOriginalInputPrecisionAtPort(NMS_SCORES), supportedFloatPrecision, "scores", m_inType);
 
-    checkPrecision(getOriginalInputPrecisionAtPort(NMS_SCORES), supportedFloatPrecision, "scores", inType);
-
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_INDICES), supportedIntOutputPrecision, "selected_indices", outType);
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_OUTPUTS), supportedFloatPrecision, "selected_outputs", outType);
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_VALID_OUTPUTS), supportedIntOutputPrecision, "valid_outputs", outType);
+    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_INDICES), supportedIntOutputPrecision, "selected_indices", m_outType);
+    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_OUTPUTS), supportedFloatPrecision, "selected_outputs", m_outType);
+    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_VALID_OUTPUTS), supportedIntOutputPrecision, "valid_outputs", m_outType);
 
     addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
                           {LayoutType::ncsp, Precision::FP32}},
@@ -282,6 +224,70 @@ size_t MKLDNNMatrixNmsNode::nmsMatrix(const float* boxesData, const float* score
     return numDet;
 }
 
+void MKLDNNMatrixNmsNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
+}
+
+void MKLDNNMatrixNmsNode::prepareParams() {
+    if (!inputShapesDefined()) {
+        IE_THROW() << "Can't prepare params for MKLDNNMatrixNmsNode node with name: " << getName();
+    }
+
+    if (getOriginalInputsNumber() != 2)
+        IE_THROW() << m_errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
+
+    if (getOriginalOutputsNumber() != 3)
+        IE_THROW() << m_errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
+
+    const auto& boxes_dims = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
+    const auto& scores_dims = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
+    if (!(boxes_dims[0] == scores_dims[0] && boxes_dims[1] == scores_dims[2])) {
+        IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' input dmensions";
+    }
+
+    if (boxes_dims.size() != 3)
+        IE_THROW() << m_errorPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
+    if (boxes_dims[2] != 4)
+        IE_THROW() << m_errorPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
+    m_numBatches = boxes_dims[0];
+    m_numBoxes = boxes_dims[1];
+
+    if (scores_dims.size() != 3)
+        IE_THROW() << m_errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
+    m_numClasses = scores_dims[1];
+
+    int64_t max_output_boxes_per_class = 0;
+    size_t real_num_classes = m_backgroundClass == -1 ? m_numClasses : m_numClasses - 1;
+    if (m_nmsTopk >= 0)
+        max_output_boxes_per_class = std::min(m_numBoxes, static_cast<size_t>(m_nmsTopk));
+    else
+        max_output_boxes_per_class = m_numBoxes;
+
+    m_maxBoxesPerBatch = max_output_boxes_per_class * real_num_classes;
+    if (m_keepTopk >= 0)
+        m_maxBoxesPerBatch = std::min(m_maxBoxesPerBatch, static_cast<size_t>(m_keepTopk));
+
+    m_realNumClasses = m_backgroundClass == -1 ? m_numClasses : m_numClasses - 1;
+    m_realNumBoxes = m_nmsTopk == -1 ? m_numBoxes : std::min(m_nmsTopk, static_cast<int>(m_numBoxes));
+    m_numPerBatch.resize(m_numBatches);
+    m_filteredBoxes.resize(m_numBatches * m_realNumClasses * m_realNumBoxes);
+    m_numPerBatchClass.resize(m_numBatches);
+    for (auto &numPerBatch : m_numPerBatchClass) {
+        numPerBatch.resize(m_numClasses, 0);
+    }
+    m_classOffset.resize(m_numClasses, 0);
+
+    for (size_t i = 0, count = 0; i < m_numClasses; i++) {
+        if (i == m_backgroundClass)
+            continue;
+        m_classOffset[i] = (count++) * m_realNumBoxes;
+    }
+}
+
 void MKLDNNMatrixNmsNode::execute(mkldnn::stream strm) {
     const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
     const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
@@ -352,9 +358,19 @@ void MKLDNNMatrixNmsNode::execute(mkldnn::stream strm) {
         }
     }
 
-    float* selectedOutputs = reinterpret_cast<float*>(getChildEdgesAtPort(NMS_SELECTED_OUTPUTS)[0]->getMemoryPtr()->GetPtr());
-    int* selectedIndices = reinterpret_cast<int*>(getChildEdgesAtPort(NMS_SELECTED_INDICES)[0]->getMemoryPtr()->GetPtr());
-    int* validOutputs = reinterpret_cast<int*>(getChildEdgesAtPort(NMS_VALID_OUTPUTS)[0]->getMemoryPtr()->GetPtr());
+    auto selectedOutputsMemPtr = getChildEdgesAtPort(NMS_SELECTED_OUTPUTS)[0]->getMemoryPtr();
+    auto selectedIndicesMemPtr = getChildEdgesAtPort(NMS_SELECTED_INDICES)[0]->getMemoryPtr();
+    auto validOutputsMemPtr = getChildEdgesAtPort(NMS_VALID_OUTPUTS)[0]->getMemoryPtr();
+
+    if (isDynamicNode()) {
+        size_t totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), 0);
+        selectedOutputsMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTED_OUTPUTS)->cloneWithNewDims({totalBox, 6}));
+        selectedIndicesMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTED_INDICES)->cloneWithNewDims({totalBox, 1}));
+        validOutputsMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_VALID_OUTPUTS)->cloneWithNewDims({m_numBatches}));
+    }
+    float* selectedOutputs = reinterpret_cast<float*>(selectedOutputsMemPtr->GetPtr());
+    int* selectedIndices = reinterpret_cast<int*>(selectedIndicesMemPtr->GetPtr());
+    int* validOutputs = reinterpret_cast<int*>(validOutputsMemPtr->GetPtr());
     std::copy(m_numPerBatch.begin(), m_numPerBatch.end(), validOutputs);
 
     int64_t outputOffset = 0;
@@ -372,16 +388,21 @@ void MKLDNNMatrixNmsNode::execute(mkldnn::stream strm) {
             selectedBase[4] = m_filteredBoxes[originalIndex].box.x2;
             selectedBase[5] = m_filteredBoxes[originalIndex].box.y2;
         }
-        std::fill_n(selectedOutputs + (outputOffset + real_boxes) * 6, (m_maxBoxesPerBatch - real_boxes) * 6, -1);
-        std::fill_n(selectedIndices + (outputOffset + real_boxes), m_maxBoxesPerBatch - real_boxes, -1);
-        outputOffset += m_maxBoxesPerBatch;
-        originalOffset += real_boxes;
+        if (!isDynamicNode()) {
+            std::fill_n(selectedOutputs + (outputOffset + real_boxes) * 6, (m_maxBoxesPerBatch - real_boxes) * 6, -1);
+            std::fill_n(selectedIndices + (outputOffset + real_boxes), m_maxBoxesPerBatch - real_boxes, -1);
+            outputOffset += m_maxBoxesPerBatch;
+            originalOffset += real_boxes;
+        } else {
+            outputOffset += real_boxes;
+            originalOffset += real_boxes;
+        }
     }
 }
 
 void MKLDNNMatrixNmsNode::checkPrecision(const Precision prec, const std::vector<Precision> precList, const std::string name, const std::string type) {
     if (std::find(precList.begin(), precList.end(), prec) == precList.end())
-        IE_THROW() << errorPrefix << "has unsupported '" << name << "' " << type << " precision: " << prec;
+        IE_THROW() << m_errorPrefix << "has unsupported '" << name << "' " << type << " precision: " << prec;
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNMatrixNmsNode, MatrixNms);

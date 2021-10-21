@@ -11,11 +11,20 @@
 using namespace LayerTestsDefinitions;
 using namespace InferenceEngine;
 using namespace ngraph;
+const std::vector<InputShapeParams> inStaticShapeParams = {
+        // dynamic shape, {{batch, box, 4}, {batch, class, box}}
+        {{}, {{{3, 100, 4}, {3,   5, 100}}}},
+        {{}, {{{1, 10,  4}, {1, 100, 10 }}}},
+        {{}, {{{2, 50,  4}, {2,  50, 50 }}}},
+};
 
-const std::vector<InputShapeParams> inShapeParams = {
-    InputShapeParams{3, 100, 5},
-    InputShapeParams{1, 10, 50},
-    InputShapeParams{2, 50, 50}
+const std::vector<InputShapeParams> inDynamicShapeParams = {
+        {{{ngraph::Dimension::dynamic(), 100, 4}, {ngraph::Dimension::dynamic(), 5, 100}},
+            {{{1, 100, 4}, {1, 5, 100}}, {{2, 100, 4}, {2, 5, 100}}, {{3, 100, 4}, {3, 5, 100}}}},
+        {{{1, ngraph::Dimension::dynamic(), 4}, {1, 5, ngraph::Dimension::dynamic()}},
+            {{{1, 80, 4},  {1, 5, 80}}, {{1, 90, 4}, {1, 5, 90}}, {{1, 100, 4}, {1, 5, 100}}}},
+        {{{1, 100, 4}, {1, ngraph::Dimension::dynamic(), 100}},
+            {{{1, 100, 4}, {1, 5, 100}}, {{1, 100, 4}, {1, 6, 100}}, {{1, 100, 4}, {1, 7, 100}}}},
 };
 
 const std::vector<op::v8::MatrixNms::SortResultType> sortResultType = {op::v8::MatrixNms::SortResultType::CLASSID,
@@ -37,18 +46,33 @@ const std::vector<bool> normalized = {true, false};
 const std::vector<op::v8::MatrixNms::DecayFunction> decayFunction = {op::v8::MatrixNms::DecayFunction::GAUSSIAN,
                                                 op::v8::MatrixNms::DecayFunction::LINEAR};
 
-const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
-                                          ::testing::Combine(::testing::Values(Precision::FP32),
-                                                             ::testing::Values(Precision::I32),
-                                                             ::testing::Values(Precision::FP32)),
-                                          ::testing::ValuesIn(sortResultType),
-                                          ::testing::ValuesIn(outType),
-                                          ::testing::ValuesIn(topKParams),
-                                          ::testing::ValuesIn(thresholdParams),
-                                          ::testing::ValuesIn(backgroudClass),
-                                          ::testing::ValuesIn(normalized),
-                                          ::testing::ValuesIn(decayFunction),
-                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)
+const auto nmsParamsStatic = ::testing::Combine(::testing::ValuesIn(inStaticShapeParams),
+                                                ::testing::Combine(::testing::Values(Precision::FP32),
+                                                                    ::testing::Values(Precision::I32),
+                                                                    ::testing::Values(Precision::FP32)),
+                                                ::testing::ValuesIn(sortResultType),
+                                                ::testing::ValuesIn(outType),
+                                                ::testing::ValuesIn(topKParams),
+                                                ::testing::ValuesIn(thresholdParams),
+                                                ::testing::ValuesIn(backgroudClass),
+                                                ::testing::ValuesIn(normalized),
+                                                ::testing::ValuesIn(decayFunction),
+                                                ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_MatrixNmsLayerTest, MatrixNmsLayerTest, nmsParams, MatrixNmsLayerTest::getTestCaseName);
+const auto nmsParamsDynamic = ::testing::Combine(::testing::ValuesIn(inDynamicShapeParams),
+                                                 ::testing::Combine(::testing::Values(Precision::FP32),
+                                                                    ::testing::Values(Precision::I32),
+                                                                    ::testing::Values(Precision::FP32)),
+                                                 ::testing::ValuesIn(sortResultType),
+                                                 ::testing::ValuesIn(outType),
+                                                 ::testing::ValuesIn(topKParams),
+                                                 ::testing::ValuesIn(thresholdParams),
+                                                 ::testing::ValuesIn(backgroudClass),
+                                                 ::testing::ValuesIn(normalized),
+                                                 ::testing::ValuesIn(decayFunction),
+                                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatrixNmsLayerTest_static, MatrixNmsLayerTest, nmsParamsStatic, MatrixNmsLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MatrixNmsLayerTest_dynamic, MatrixNmsLayerTest, nmsParamsDynamic, MatrixNmsLayerTest::getTestCaseName);

@@ -12,9 +12,7 @@
 
 namespace LayerTestsDefinitions {
 
-using InputShapeParams = std::tuple<size_t,   // Number of batches
-                                    size_t,   // Number of boxes
-                                    size_t>;  // Number of classes
+using InputShapeParams = std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>;
 
 using InputPrecisions = std::tuple<InferenceEngine::Precision,   // boxes and scores precisions
                                    InferenceEngine::Precision,   // max_output_boxes_per_class
@@ -43,7 +41,7 @@ using MulticlassNmsParams = std::tuple<InputShapeParams,                        
 class MulticlassNmsLayerTest : public testing::WithParamInterface<MulticlassNmsParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MulticlassNmsParams>& obj);
-    void GenerateInputs() override;
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
     void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
                  const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) override;
 
@@ -51,9 +49,8 @@ protected:
     void SetUp() override;
 
 private:
-    size_t numBatches, numBoxes, numClasses;
-    size_t maxOutputBoxesPerClass;
-    size_t maxOutputBoxesPerBatch;
+    void GetOutputParams(size_t& numBatches, size_t& maxOutputBoxesPerBatch);
+    ngraph::op::v8::MulticlassNms::Attributes m_attrs;
 };
 
 }  // namespace LayerTestsDefinitions
