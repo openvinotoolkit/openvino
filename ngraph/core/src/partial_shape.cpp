@@ -386,8 +386,4 @@ void ov::AttributeAdapter<ov::PartialShape>::set(const std::vector<int64_t>& val
     m_buffer_valid = false;
 }
 
-namespace ov {
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::PartialShape>);
-
-} // namespace ov
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::PartialShape>);
