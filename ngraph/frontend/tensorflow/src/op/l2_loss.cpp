@@ -6,9 +6,9 @@
 #include <op_table.hpp>
 
 using namespace std;
-using namespace ngraph::opset8;
+using namespace ov::opset8;
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
@@ -44,4 +44,4 @@ OutputVector TranslateL2LossOp(const NodeContext& node) {
 }  // namespace op
 }  // namespace tf
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
