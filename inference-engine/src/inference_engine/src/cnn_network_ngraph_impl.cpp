@@ -396,10 +396,6 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, SizeVector>
 void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::reshape");
 
-    ::ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::RemoveConcatZeroDimInput>();
-    manager.register_pass<ngraph::pass::RemoveLoopDanglingParameters>();
-    manager.run_passes(_ngraph_function);
     auto params = _ngraph_function->get_parameters();
 
     bool parameter_replaced = false;
@@ -427,6 +423,8 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
             {
                 OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
                 ::ngraph::pass::Manager manager;
+                manager.register_pass<ngraph::pass::RemoveConcatZeroDimInput>();
+                manager.register_pass<ngraph::pass::RemoveLoopDanglingParameters>();
                 manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
                 manager.register_pass<::ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
                 manager.register_pass<::ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
