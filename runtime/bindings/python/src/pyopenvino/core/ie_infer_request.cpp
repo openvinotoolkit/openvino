@@ -10,7 +10,7 @@
 
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/core/containers.hpp"
-#include "pyopenvino/core/ie_executable_network.hpp"
+#include "pyopenvino/core/executable_network.hpp"
 #include "pyopenvino/core/ie_preprocess_info.hpp"
 
 namespace py = pybind11;

@@ -32,22 +32,6 @@ def get_runtime():
         return runtime()
 
 
-def _convert_inputs(cnn_network: IENetwork) -> None:
-    """WA converts unsupported input images formats."""
-    precision_map = {
-        "FP64": "FP32",
-        "I64": "I32",
-        "U32": "I32",
-    }
-
-    for cnn_input in cnn_network.input_info:
-        try:
-            _precision = precision_map[cnn_network.input_info[cnn_input].precision]
-            cnn_network.input_info[cnn_input].precision = _precision
-        except KeyError:
-            pass
-
-
 def _convert_val(val):
     """WA converts unsupported input values."""
     if type(val) is np.ndarray:
@@ -58,18 +42,6 @@ def _convert_val(val):
         return np.array(val)
 
     return np.array(val, dtype=np.float32)
-
-
-def apply_ng_type(output: DataPtr, ng_type: Type):
-    ng_ie_supported_type_map = {
-        Type.boolean.get_type_name(): "BOOL",
-        Type.f32.get_type_name(): "FP32",
-        Type.i8.get_type_name(): "I8",
-        Type.i32.get_type_name(): "I32",
-        Type.u8.get_type_name(): "U8",
-    }
-    if ng_type.get_type_name() in ng_ie_supported_type_map:
-        output.precision = ng_ie_supported_type_map[ng_type.get_type_name()]
 
 
 class Runtime(object):
@@ -166,21 +138,15 @@ class Computation(object):
         param_names = [param.friendly_name for param in self.parameters]
 
         if self.network_cache.get(str(input_shapes)) is None:
-            cnn_network = IENetwork(self.function)
+            function = self.function
             if self.function.is_dynamic():
-                cnn_network.reshape(dict(zip(param_names, input_shapes)))
+                function.reshape(dict(zip(param_names, input_shapes)))
             # Convert unsupported inputs of the network
-            _convert_inputs(cnn_network)
-            self.network_cache[str(input_shapes)] = cnn_network
+            self.network_cache[str(input_shapes)] = function
         else:
-            cnn_network = self.network_cache[str(input_shapes)]
+            function = self.network_cache[str(input_shapes)]
 
-        # set output blobs precission based on nG results
-        for ng_result in self.results:
-            ie_out_name = self._get_ie_output_blob_name(cnn_network.outputs, ng_result)
-            apply_ng_type(cnn_network.outputs[ie_out_name], ng_result.get_output_element_type(0))
-
-        executable_network = self.runtime.backend.load_network(cnn_network, self.runtime.backend_name)
+        executable_network = self.runtime.backend.compile_model(function, self.runtime.backend_name)
 
         for parameter, input in zip(self.parameters, input_values):
             parameter_shape = parameter.get_output_partial_shape(0)
