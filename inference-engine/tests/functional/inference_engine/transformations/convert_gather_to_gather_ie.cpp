@@ -21,22 +21,15 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, ConvertGatherToGatherIEStatic1) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertGatherToGatherIEStatic1) {
     {
         auto input = std::make_shared<opset1::Parameter>(element::f32, Shape{6, 12, 10, 24});
         auto indices = std::make_shared<opset1::Parameter>(element::f32, Shape{15, 4, 20, 28});
         auto axis_const = opset1::Constant::create(element::i64, Shape{}, {1});
         auto gather = std::make_shared<opset1::Gather>(input, indices, axis_const);
 
-        f = std::make_shared<Function>(NodeVector{gather}, ParameterVector{input, indices});
-
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
+        function = std::make_shared<Function>(NodeVector{gather}, ParameterVector{input, indices});
         manager.register_pass<pass::ConvertGatherToGatherIEMatcher>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
-        ASSERT_TRUE(f->get_output_partial_shape(0).is_static()) << "Shape " << f->get_output_partial_shape(0) << " should be static";
     }
 
     {
@@ -44,29 +37,19 @@ TEST(TransformationTests, ConvertGatherToGatherIEStatic1) {
         auto indices = std::make_shared<opset1::Parameter>(element::f32, Shape{15, 4, 20, 28});
         auto gather = std::make_shared<op::GatherIE>(input, indices, 1);
 
-        f_ref = std::make_shared<Function>(NodeVector{gather}, ParameterVector{input, indices});
+        function_ref = std::make_shared<Function>(NodeVector{gather}, ParameterVector{input, indices});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertGatherToGatherIEStatic2) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertGatherToGatherIEStatic2) {
     {
         auto input = std::make_shared<opset1::Parameter>(element::f32, Shape{6, 12, 10, 24});
         auto indices = std::make_shared<opset1::Parameter>(element::f32, Shape{});
         auto axis_const = opset1::Constant::create(element::i64, Shape{}, {1});
         auto gather = std::make_shared<opset1::Gather>(input, indices, axis_const);
 
-        f = std::make_shared<Function>(NodeVector{gather}, ParameterVector{input, indices});
-
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
+        function = std::make_shared<Function>(NodeVector{gather}, ParameterVector{input, indices});
         manager.register_pass<pass::ConvertGatherToGatherIEMatcher>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
-        ASSERT_TRUE(f->get_output_partial_shape(0).is_static()) << "Shape " << f->get_output_partial_shape(0) << " should be static";
     }
 
     {
@@ -76,28 +59,19 @@ TEST(TransformationTests, ConvertGatherToGatherIEStatic2) {
         auto gather = std::make_shared<op::GatherIE>(input, unsqueeze, 1);
         auto squeeze = std::make_shared<opset1::Squeeze>(gather, opset1::Constant::create(element::i64, Shape{1}, {1}));
 
-        f_ref = std::make_shared<Function>(NodeVector{squeeze}, ParameterVector{input, indices});
+        function_ref = std::make_shared<Function>(NodeVector{squeeze}, ParameterVector{input, indices});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertGatherToGatherIEDynamic1) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertGatherToGatherIEDynamic1) {
     {
         auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{DYN, DYN, DYN, DYN});
         auto indices = std::make_shared<opset1::Parameter>(element::f32, PartialShape{DYN, DYN});
         auto axis_const = opset1::Constant::create(element::i64, Shape{}, {1});
         auto gather = std::make_shared<opset1::Gather>(input, indices, axis_const);
 
-        f = std::make_shared<Function>(NodeVector{gather}, ParameterVector{input, indices});
-
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
+        function = std::make_shared<Function>(NodeVector{gather}, ParameterVector{input, indices});
         manager.register_pass<pass::ConvertGatherToGatherIEMatcher>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -105,28 +79,19 @@ TEST(TransformationTests, ConvertGatherToGatherIEDynamic1) {
         auto indices = std::make_shared<opset1::Parameter>(element::f32, PartialShape{DYN, DYN});
         auto gather = std::make_shared<op::GatherIE>(input, indices, 1);
 
-        f_ref = std::make_shared<Function>(NodeVector{gather}, ParameterVector{input, indices});
+        function_ref = std::make_shared<Function>(NodeVector{gather}, ParameterVector{input, indices});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertGatherToGatherIEDynamic2) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertGatherToGatherIEDynamic2) {
     {
         auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{DYN, DYN});
         auto indices = std::make_shared<opset1::Parameter>(element::f32, Shape{});
         auto axis_const = opset1::Constant::create(element::i64, Shape{}, {1});
         auto gather = std::make_shared<opset1::Gather>(input, indices, axis_const);
 
-        f = std::make_shared<Function>(NodeVector{gather}, ParameterVector{input, indices});
-
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
+        function = std::make_shared<Function>(NodeVector{gather}, ParameterVector{input, indices});
         manager.register_pass<pass::ConvertGatherToGatherIEMatcher>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -136,9 +101,6 @@ TEST(TransformationTests, ConvertGatherToGatherIEDynamic2) {
         auto gather = std::make_shared<op::GatherIE>(input, unsqueeze, 1);
         auto squeeze = std::make_shared<opset1::Squeeze>(gather, opset1::Constant::create(element::i64, Shape{1}, {1}));
 
-        f_ref = std::make_shared<Function>(NodeVector{squeeze}, ParameterVector{input, indices});
+        function_ref = std::make_shared<Function>(NodeVector{squeeze}, ParameterVector{input, indices});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }

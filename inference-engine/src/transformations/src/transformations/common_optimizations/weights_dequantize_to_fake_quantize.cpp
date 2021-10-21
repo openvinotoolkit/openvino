@@ -62,6 +62,7 @@ ngraph::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize()
 
         ngraph::copy_runtime_info(nodes_to_copy_RT_info_from, fq);
         multiply_node->output(0).replace(fq->output(0));
+        fq->set_friendly_name(multiply_node->get_friendly_name());
 
         if (ov::constant_folding_is_disabled(convert_node))
             ov::enable_constant_folding(convert_node);
