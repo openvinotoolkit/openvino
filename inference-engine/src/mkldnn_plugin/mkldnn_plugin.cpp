@@ -499,13 +499,10 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         return false;
     });
 
-    postLPTPassManager.run_passes(nGraphFunc);
-    // bool has_fake_quantize = ::ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
-    const bool enableInt8 = _enableLPT && ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
     // todo: implement a more precise check for BF16? Traverse graph and check precisions?
     const bool enableBF16  = _enforceBF16 && with_cpu_x86_avx512_core();
 
-     if (enableBF16 || enableInt8) {
+     if (enableBF16 || useLpt) {
         // forse disable subgraph tokenization. SS doesn't support bf16 & int8 yet.
         tokenizeSubgraphs = Config::TokenizationMode::Disabled;
     }

@@ -13,12 +13,22 @@
 #include <snippets/op/subgraph.hpp>
 
 #include <transformations/init_node_info.hpp>
+//#include <transformations/serialize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 using namespace testing;
 using namespace ngraph;
+
+// todo: reuse SetSnippetsNodeType from filter fused. Need to modify Cmake file appropriately
+namespace {
+void SetStartSubgraph(std::shared_ptr<Node> node) {
+    auto &rt = node->get_rt_info();
+    const auto nodeType = ngraph::snippets::pass::SnippetsNodeType::SubgraphStart;
+    rt["MayBeFusedInPlugin"] = std::make_shared<VariantWrapper<int64_t>>(static_cast<int64_t>(nodeType));
+}
+}
 
 TEST(TransformationTests, DoNotStartAfterInputs) {
     // Do not start Subgraph after input parameters to avoid U8->FP32 and FP32->U8 conversion pairs
@@ -101,6 +111,7 @@ TEST(TransformationTests, DontStartSubgraphSingleOutput) {
 
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<snippets::pass::FilterFused>();
         m.register_pass<snippets::pass::StartSubgraph>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -132,9 +143,12 @@ TEST(TransformationTests, AttachToSubgraph) {
         auto neg = std::make_shared<opset1::Negative>(add);
         auto concat = std::make_shared<opset1::Concat>(NodeVector{add, neg}, 0);
         f = std::make_shared<Function>(NodeVector{concat}, ParameterVector{data0, data1});
-
+        // It's important to set appropriate SnippetsNodeType to the existing subgraph.
+        // The FilterFused pass won't work correctly otherwise.
+        SetStartSubgraph(add);
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<snippets::pass::FilterFused>();
         m.register_pass<snippets::pass::AttachToSubgraph>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -170,11 +184,14 @@ TEST(TransformationTests, DontAttachToSubgraphIfLoop) {
         auto mul = std::make_shared<opset1::Multiply>(add, log);
         f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data0, data1});
 
+        SetStartSubgraph(add);
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<snippets::pass::FilterFused>();
         m.register_pass<snippets::pass::AttachToSubgraph>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
+//        ngraph::pass::Serialize("subgraph.xml", "subgraph.bin").run_on_function(f);
     }
 
     {
@@ -185,8 +202,19 @@ TEST(TransformationTests, DontAttachToSubgraphIfLoop) {
         auto add = std::make_shared<snippets::op::Subgraph>(NodeVector{data0, data1},
             std::make_shared<Function>(NodeVector{std::make_shared<opset1::Add>(indata0, indata1)}, ParameterVector{indata0, indata1}));
         auto log = std::make_shared<opset1::Log>(add);
-        auto mul = std::make_shared<opset1::Multiply>(add, log);
+        /*
+         * Note that log is not currently supported by snippets, so it won't be converted to subgraph.
+         * Mul will be converted for the "reset" continuation strategy, (present case)
+         * or left as-is for the "abort" continuation strategy
+        */
+        //auto mul = std::make_shared<opset1::Multiply>(add, log);
+        auto add_param = std::make_shared<opset1::Parameter>(element::f32, add->get_output_shape(0));
+        auto log_param = std::make_shared<opset1::Parameter>(element::f32, log->get_output_shape(0));
+        auto mul = std::make_shared<snippets::op::Subgraph>(NodeVector{add, log},
+                   std::make_shared<Function>(NodeVector{std::make_shared<opset1::Multiply>(add_param, log_param)},
+                                                ParameterVector{add_param, log_param}));
         f_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data0, data1});
+//        ngraph::pass::Serialize("reference.xml", "reference.bin").run_on_function(f_ref);
     }
 
     auto res = compare_functions(f, f_ref);
