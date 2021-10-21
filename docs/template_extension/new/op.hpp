@@ -24,6 +24,7 @@ public:
     int64_t getAddAttr() const {
         return add;
     }
+
 private:
     int64_t add;
 };
