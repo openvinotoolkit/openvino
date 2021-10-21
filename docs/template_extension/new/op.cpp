@@ -7,7 +7,7 @@
 using namespace TemplateExtension;
 
 //! [op:ctor]
-Operation::Operation(const ngraph::Output<ngraph::Node>& arg, int64_t add) : Op({arg}), add(add) {
+Operation::Operation(const ov::Output<ov::Node>& arg, int64_t add) : Op({arg}), add(add) {
     constructor_validate_and_infer_types();
 }
 //! [op:ctor]
@@ -20,10 +20,8 @@ void Operation::validate_and_infer_types() {
 //! [op:validate]
 
 //! [op:copy]
-std::shared_ptr<ngraph::Node> Operation::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    if (new_args.size() != 1) {
-        throw ngraph::ngraph_error("Incorrect number of new arguments");
-    }
+std::shared_ptr<ov::Node> Operation::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+    OPENVINO_ASSERT(new_args.size() != 1,"Incorrect number of new arguments")
 
     return std::make_shared<Operation>(new_args.at(0), add);
 }
@@ -46,7 +44,7 @@ void implementation(const T* input, T* output, int64_t add, size_t size) {
     }
 }
 
-template <ngraph::element::Type_t ET>
+template <ov::element::Type_t ET>
 bool evaluate_op(const ov::runtime::Tensor& arg0, ov::runtime::Tensor& out, int64_t add) {
     size_t size = ov::shape_size(arg0.get_shape());
     implementation(arg0.data<typename ov::element_type_traits<ET>::value_type>(),
@@ -100,7 +98,7 @@ bool Operation::has_evaluate() const {
     case ov::element::Type_t::u64:
     case ov::element::Type_t::bf16:
     case ov::element::Type_t::f16:
-    case ngraph::element::Type_t::f32:
+    case ov::element::Type_t::f32:
         return true;
     default:
         break;
