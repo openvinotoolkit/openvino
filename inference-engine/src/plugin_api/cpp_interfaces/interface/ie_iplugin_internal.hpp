@@ -322,7 +322,9 @@ protected:
     std::weak_ptr<ICore> _core;                  //!< A pointer to ICore interface
 };
 
-#define IE_CREATE_PLUGIN CreatePluginEngine
+#ifndef IE_CREATE_PLUGIN
+#    define IE_CREATE_PLUGIN CreatePluginEngine
+#endif
 
 constexpr static const auto create_plugin_function = OV_PP_TOSTRING(IE_CREATE_PLUGIN);
 
@@ -330,7 +332,7 @@ namespace details {
 template <>
 class SOCreatorTrait<IInferencePlugin> {
 public:
-    static constexpr auto name = OV_PP_TOSTRING(IE_CREATE_PLUGIN);
+    static constexpr auto name = create_plugin_function;
 };
 }  // namespace details
 }  // namespace InferenceEngine

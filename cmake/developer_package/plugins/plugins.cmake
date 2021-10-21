@@ -62,7 +62,13 @@ function(ie_add_plugin)
         endif()
 
         add_library(${IE_PLUGIN_NAME} ${library_type} ${input_files})
+
         target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+        if(NOT BUILD_SHARED_LIBS)
+            # to distinguish functions creating plugin objects
+            target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE
+                IE_CREATE_PLUGIN=CreatePluginEngine${IE_PLUGIN_DEVICE_NAME})
+        endif()
 
         ie_add_vs_version_file(NAME ${IE_PLUGIN_NAME}
             FILEDESCRIPTION "Inference Engine ${IE_PLUGIN_DEVICE_NAME} device plugin library")

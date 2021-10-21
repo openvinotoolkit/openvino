@@ -42,7 +42,7 @@
 
 #ifdef OPENVINO_STATIC_LIBRARY
 // hard WA for now
-INFERENCE_PLUGIN_API(void) CreatePluginEngine(::std::shared_ptr<::InferenceEngine::IInferencePlugin>&) noexcept(false);
+INFERENCE_PLUGIN_API(void) CreatePluginEngineCPU(::std::shared_ptr<::InferenceEngine::IInferencePlugin>&) noexcept(false);
 #endif
 
 using namespace InferenceEngine::PluginConfigParams;
@@ -744,7 +744,7 @@ public:
                 std::shared_ptr<ie::IInferencePlugin> plugin_impl;
                 // TODO: creare a map with plugins
                 // std::map<std::string, CreateF> plugins_xml;
-                CreatePluginEngine(plugin_impl);
+                CreatePluginEngineCPU(plugin_impl);
                 auto plugin = InferencePlugin{nullptr, plugin_impl};
 #else
                 auto so = ov::util::load_shared_object(desc.libraryLocation.c_str());
