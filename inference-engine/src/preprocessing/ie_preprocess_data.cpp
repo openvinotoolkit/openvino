@@ -39,9 +39,7 @@ public:
     void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) override;
 };
 
-INFERENCE_PRERPOC_PLUGIN_API(void) CreatePreProcessData(std::shared_ptr<IPreProcessData>& data);
-
-INFERENCE_PRERPOC_PLUGIN_API(void) CreatePreProcessData(std::shared_ptr<IPreProcessData>& data) {
+void CreatePreProcessData(std::shared_ptr<IPreProcessData>& data) {
     data = std::make_shared<PreProcessData>();
 }
 
