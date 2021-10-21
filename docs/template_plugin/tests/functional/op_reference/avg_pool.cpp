@@ -262,9 +262,10 @@ std::vector<AvgPoolParams> generateCombinedParamsForAvgPool() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_With_Hardcoded_Refs,
-                         ReferenceAvgPoolLayerTest,
-                         ::testing::ValuesIn(generateCombinedParamsForAvgPool()),
-                         ReferenceAvgPoolLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_AvgPool_With_Hardcoded_Refs,
+    ReferenceAvgPoolLayerTest,
+    ::testing::ValuesIn(generateCombinedParamsForAvgPool()),
+    ReferenceAvgPoolLayerTest::getTestCaseName);
 
 }  // namespace
