@@ -302,6 +302,8 @@ set(SRC
     visitors/op/greater_equal.cpp
     visitors/op/greater.cpp
     visitors/op/grn.cpp
+    visitors/op/gru_cell.cpp
+    visitors/op/gru_sequence.cpp
     visitors/op/group_conv.cpp
     visitors/op/hard_sigmoid.cpp
     visitors/op/hsigmoid.cpp
