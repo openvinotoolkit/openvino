@@ -13,15 +13,15 @@ void shape_infer(ExperimentalDetectronPriorGridGenerator* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 1);
-    auto priors_shape = input_shapes[0];
-    auto featmap_shape = input_shapes[1];
-    auto im_data_shape = input_shapes[2];
+    const auto& priors_shape = input_shapes[0];
+    const auto& featmap_shape = input_shapes[1];
+    const auto& im_data_shape = input_shapes[2];
 
     auto& output_shape = output_shapes[0];
     size_t output_size = op->m_attrs.flatten ? 2 : 4;
 
     output_shape.resize(output_size);
-    output_shape[output_shape.size() - 1] = 4;
+    output_shape[output_size - 1] = 4;
 
     if (priors_shape.rank().is_dynamic() || featmap_shape.rank().is_dynamic()) {
         return;

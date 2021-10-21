@@ -64,7 +64,6 @@ private:
     friend void shape_infer(ExperimentalDetectronPriorGridGenerator* op,
                             const std::vector<T>& input_shapes,
                             std::vector<T>& output_shapes);
-    void validate();
 };
 }  // namespace v6
 }  // namespace op
