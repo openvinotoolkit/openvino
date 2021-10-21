@@ -21,7 +21,7 @@ struct AdaptiveMaxPoolParams {
                           const element::Type& output_type,
                           const std::vector<IT>& input_values,
                           const std::vector<IT>& output_values,
-                          std::vector<int64_t>& output_indices,
+                          const std::vector<int64_t>& output_indices,
                           const Shape& adaptive_shape,
                           const std::vector<int64_t>& adaptive_values)
         : m_input_shape(input_shape),
@@ -133,7 +133,7 @@ std::vector<AdaptiveMaxPoolParams> generateParamsForAdaptiveMaxPoolWithExpectedR
                            4,
                            4},
                       ov::Shape{1},
-                      {3}),
+            std::vector<int64_t>{3}),
         AdaptiveMaxPoolParams(
             ov::Shape{1, 3, 7, 10},
             ov::Shape{1, 3, 3, 3},
@@ -157,7 +157,7 @@ std::vector<AdaptiveMaxPoolParams> generateParamsForAdaptiveMaxPoolWithExpectedR
                                  1,  6, 6,  20, 25, 49, 50, 43, 49,
                                  11, 6, 7,  41, 25, 36, 41, 66, 66},
             ov::Shape{2},
-            {3, 3}),
+            std::vector<int64_t>{3, 3}),
         AdaptiveMaxPoolParams(
             ov::Shape{2, 2, 3, 3, 3},
             ov::Shape{2, 2, 2, 2, 2},
@@ -183,7 +183,7 @@ std::vector<AdaptiveMaxPoolParams> generateParamsForAdaptiveMaxPoolWithExpectedR
                                  0, 13, 12, 13, 12, 13, 12, 13,
                                  3, 2,  7,  7,  22, 22, 24, 22},
             ov::Shape{3},
-            {2, 2, 2})
+            std::vector<int64_t>{2, 2, 2})
     };
     return params;
 }
