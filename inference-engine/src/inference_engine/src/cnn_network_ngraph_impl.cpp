@@ -32,6 +32,7 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
+#include <transformations/common_optimizations/remove_loop_dangling_parameters.hpp>
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
 #include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
@@ -395,6 +396,10 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, SizeVector>
 void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::reshape");
 
+    ::ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::RemoveConcatZeroDimInput>();
+    manager.register_pass<ngraph::pass::RemoveLoopDanglingParameters>();
+    manager.run_passes(_ngraph_function);
     auto params = _ngraph_function->get_parameters();
 
     bool parameter_replaced = false;
@@ -422,7 +427,6 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
             {
                 OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
                 ::ngraph::pass::Manager manager;
-                manager.register_pass<ngraph::pass::RemoveConcatZeroDimInput>();
                 manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
                 manager.register_pass<::ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
                 manager.register_pass<::ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
