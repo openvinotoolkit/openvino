@@ -86,7 +86,7 @@ extern template class MLKDNNMemoryFormatsHelper<ngraph::MLKDNNInputMemoryFormats
 template<>
 class VariantWrapper<ngraph::MLKDNNInputMemoryFormats> : public MLKDNNMemoryFormatsHelper<ngraph::MLKDNNInputMemoryFormats> {
 public:
-    OPENVINO_RTTI("MLKDNNInputMemoryFormatsAttr");
+    OPENVINO_RTTI(ngraph::MLKDNNInputMemoryFormatsAttr);
 
     VariantWrapper(const ngraph::MLKDNNInputMemoryFormats &value) : MLKDNNMemoryFormatsHelper<ngraph::MLKDNNInputMemoryFormats>(value) {}
 };
@@ -96,7 +96,7 @@ extern template class MLKDNNMemoryFormatsHelper<ngraph::MLKDNNOutputMemoryFormat
 template<>
 class VariantWrapper<ngraph::MLKDNNOutputMemoryFormats> : public MLKDNNMemoryFormatsHelper<ngraph::MLKDNNOutputMemoryFormats> {
 public:
-    OPENVINO_RTTI("MLKDNNOutputMemoryFormatsAttr");
+    OPENVINO_RTTI(ngraph::MLKDNNOutputMemoryFormatsAttr);
 
     VariantWrapper(const ngraph::MLKDNNOutputMemoryFormats &value) : MLKDNNMemoryFormatsHelper<ngraph::MLKDNNOutputMemoryFormats>(value) {}
 };
