@@ -415,11 +415,6 @@ DECLARE_CONFIG_KEY(CACHE_DIR);
 
 #define DECLARE_AUTO_CONFIG_KEY(name) DECLARE_CONFIG_KEY(AUTO_##name)
 
-/**
- * @brief Limit device list config option, with comma-separated devices listed
- */
-DECLARE_AUTO_CONFIG_KEY(DEVICE_LIST);
-
 }  // namespace InferenceEngine
 
 #include "hetero/hetero_plugin_config.hpp"

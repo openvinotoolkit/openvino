@@ -552,7 +552,7 @@ static RefPreprocessParams resize_and_convert_layout() {
 
 static RefPreprocessParams convert_color_nv12_to_bgr_two_planes() {
     RefPreprocessParams res("convert_color_nv12_to_bgr_two_planes");
-    res.abs_threshold = 2.f; // Allow small color conversion deviations
+    res.abs_threshold = 1.f; // Allow small color conversion deviations
     res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
     res.function = []() {
         auto f = create_simple_function(element::u8, PartialShape{1, 4, 4, 3});
@@ -572,10 +572,10 @@ static RefPreprocessParams convert_color_nv12_to_bgr_two_planes() {
                                          41, 41, 81, 81,        // BBRR
                                          41, 41, 81, 81};       // BBRR
     auto input_shape_y = Shape{1, 4, 4, 1};
-    auto input_uv = std::vector<uint8_t> {240, 90,      // R (2x2)
-                                          34, 54,       // G (2x2)
-                                          110, 240,     // B (2x2)
-                                          240, 90};     // R (2x2)
+    auto input_uv = std::vector<uint8_t> {90, 240,      // R (2x2)
+                                          54, 34,       // G (2x2)
+                                          240, 110,     // B (2x2)
+                                          90, 240};     // R (2x2)
     auto input_shape_uv = Shape{1, 2, 2, 2};
     auto exp_out = std::vector<uint8_t> {0, 0, 255,  0, 0, 255,  0, 255, 0,  0, 255, 0,
                                          0, 0, 255,  0, 0, 255,  0, 255, 0,  0, 255, 0,
@@ -591,7 +591,7 @@ static RefPreprocessParams convert_color_nv12_to_bgr_two_planes() {
 
 static RefPreprocessParams convert_color_nv12_single_plane() {
     RefPreprocessParams res("convert_color_nv12_single_plane");
-    res.abs_threshold = 2.f; // Allow small color conversion deviations
+    res.abs_threshold = 1.f; // Allow small color conversion deviations
     res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
@@ -610,7 +610,7 @@ static RefPreprocessParams convert_color_nv12_single_plane() {
                                        81, 81, 145, 145,      // RRGG
                                        41, 41, 81, 81,        // BBRR
                                        41, 41, 81, 81,        // BBRR
-                                       240, 90, 34, 54, 110, 240, 240, 90};     // UV (RGBR)
+                                       90, 240, 54, 34, 240, 110, 90, 240};     // UV (RGBR)
     auto input_shape = Shape{1, 6, 4, 1};
     auto exp_out = std::vector<float> {255, 0, 0,  255, 0, 0,  0, 255, 0,  0, 255, 0,    // RRGG
                                        255, 0, 0,  255, 0, 0,  0, 255, 0,  0, 255, 0,    // RRGG
@@ -626,7 +626,7 @@ static RefPreprocessParams convert_color_nv12_single_plane() {
 
 static RefPreprocessParams convert_color_nv12_layout_resize() {
     RefPreprocessParams res("convert_color_nv12_layout_resize");
-    res.abs_threshold = 2.f; // Allow small color conversion deviations
+    res.abs_threshold = 1.f; // Allow small color conversion deviations
     res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 3, 2, 2});
@@ -652,7 +652,7 @@ static RefPreprocessParams convert_color_nv12_layout_resize() {
                                        81, 81, 145, 145,      // RRGG
                                        41, 41, 81, 81,        // BBRR
                                        41, 41, 81, 81,        // BBRR
-                                       240, 90, 34, 54, 110, 240, 240, 90};     // UV (RGBR)
+                                       90, 240, 54, 34, 240, 110, 90, 240};     // UV (RGBR)
     auto input_shape = Shape{1, 6, 4, 1};
     auto exp_out = std::vector<float> {255, 0, 0, 255,     // R channel
                                        0, 255, 0, 0,       // G channel
@@ -666,7 +666,7 @@ static RefPreprocessParams convert_color_nv12_layout_resize() {
 
 static RefPreprocessParams element_type_before_convert_color_nv12() {
     RefPreprocessParams res("element_type_before_convert_color_nv12");
-    res.abs_threshold = 2.f; // Allow small color conversion deviations
+    res.abs_threshold = 1.f; // Allow small color conversion deviations
     res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 2, 2, 3});
@@ -686,7 +686,7 @@ static RefPreprocessParams element_type_before_convert_color_nv12() {
     // clang-format off
     auto input_y = std::vector<uint8_t> {81, 81, 81, 81};
     auto input_shape_y = Shape{1, 2, 2, 1};
-    auto input_uv = std::vector<uint8_t> {240, 90};
+    auto input_uv = std::vector<uint8_t> {90, 240};
     auto input_shape_uv = Shape{1, 1, 1, 2};
     auto exp_out = std::vector<float> {255, 0, 0,  255, 0, 0,  255, 0, 0,  255, 0,  0};
     auto out_shape = Shape{1, 2, 2, 3};
@@ -746,6 +746,101 @@ static RefPreprocessParams pre_and_post_processing() {
     return res;
 }
 
+static RefPreprocessParams rgb_to_bgr() {
+    RefPreprocessParams res("rgb_to_bgr");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, Shape{2, 1, 1, 3});
+        f = PrePostProcessor().input(InputInfo()
+                                             .tensor(InputTensorInfo().set_color_format(ColorFormat::RGB))
+                                             .preprocess(PreProcessSteps().convert_color(ColorFormat::BGR))).build(f);
+        return f;
+    };
+
+    res.inputs.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6});
+    res.expected.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{3, 2, 1, 6, 5, 4});
+    return res;
+}
+
+static RefPreprocessParams bgr_to_rgb() {
+    RefPreprocessParams res("bgr_to_rgb");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, Shape{2, 1, 1, 3});
+        f = PrePostProcessor().input(InputInfo()
+                .tensor(InputTensorInfo().set_color_format(ColorFormat::BGR))
+                .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB))).build(f);
+        return f;
+    };
+
+    res.inputs.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6});
+    res.expected.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{3, 2, 1, 6, 5, 4});
+    return res;
+}
+
+static RefPreprocessParams reverse_channels_nchw() {
+    RefPreprocessParams res("reverse_channels_nchw");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{1, 2, 2, 2});
+        f = PrePostProcessor().input(InputInfo()
+                                             .tensor(InputTensorInfo().set_layout("NCHW"))
+                                             .preprocess(PreProcessSteps().reverse_channels())).build(f);
+        return f;
+    };
+
+    res.inputs.emplace_back(Shape{1, 2, 2, 2}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
+    res.expected.emplace_back(Shape{1, 2, 2, 2}, element::f32, std::vector<float>{5, 6, 7, 8, 1, 2, 3, 4});
+    return res;
+}
+
+static RefPreprocessParams reverse_channels_dyn_layout() {
+    RefPreprocessParams res("reverse_channels_dyn_layout");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{1, 1, 3, 2});
+        f = PrePostProcessor().input(InputInfo()
+                .tensor(InputTensorInfo().set_color_format(ColorFormat::BGR).set_layout("...CN"))
+                .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB))).build(f);
+        return f;
+    };
+
+    res.inputs.emplace_back(Shape{1, 1, 3, 2}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6});
+    res.expected.emplace_back(Shape{1, 1, 3, 2}, element::f32, std::vector<float>{5, 6, 3, 4, 1, 2});
+    return res;
+}
+
+static RefPreprocessParams reverse_dyn_shape() {
+    RefPreprocessParams res("reverse_dyn_shape");
+    res.function = []() {
+        auto f = create_simple_function(element::u8, PartialShape{Dimension::dynamic(),
+                                                                   Dimension::dynamic(),
+                                                                   Dimension::dynamic(),
+                                                                   Dimension::dynamic()});
+        f = PrePostProcessor().input(InputInfo()
+                                             .tensor(InputTensorInfo().set_layout("NCHW"))
+                                             .preprocess(PreProcessSteps().reverse_channels())).build(f);
+        return f;
+    };
+
+    res.inputs.emplace_back(element::u8, Shape{2, 2, 1, 3}, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    res.expected.emplace_back(Shape{2, 2, 1, 3}, element::u8, std::vector<uint8_t>{4, 5, 6, 1, 2, 3, 10, 11, 12, 7, 8, 9});
+    return res;
+}
+
+static RefPreprocessParams reverse_fully_dyn_shape() {
+    RefPreprocessParams res("reverse_fully_dyn_shape");
+    res.function = []() {
+        auto f = create_simple_function(element::u8, PartialShape::dynamic());
+        auto p = PreProcessSteps();
+        p.reverse_channels();
+        f = PrePostProcessor().input(InputInfo()
+                                             .tensor(InputTensorInfo().set_layout("...C??"))
+                                             .preprocess(std::move(p))).build(f);
+        return f;
+    };
+
+    res.inputs.emplace_back(element::u8, Shape{2, 2, 1, 3}, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    res.expected.emplace_back(Shape{2, 2, 1, 3}, element::u8, std::vector<uint8_t>{4, 5, 6, 1, 2, 3, 10, 11, 12, 7, 8, 9});
+    return res;
+}
+
 std::vector<RefPreprocessParams> allPreprocessTests() {
     return std::vector<RefPreprocessParams> {
         simple_mean_scale(),
@@ -773,7 +868,13 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
         convert_color_nv12_layout_resize(),
         element_type_before_convert_color_nv12(),
         postprocess_2_inputs_basic(),
-        pre_and_post_processing()
+        pre_and_post_processing(),
+        rgb_to_bgr(),
+        bgr_to_rgb(),
+        reverse_channels_nchw(),
+        reverse_channels_dyn_layout(),
+        reverse_dyn_shape(),
+        reverse_fully_dyn_shape()
              };
 }
 
