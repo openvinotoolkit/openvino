@@ -18,13 +18,13 @@ for example, precisions. Then Auto-device assigns inference requests to the sele
 From the application point of view, this is just another device that handles all accelerators in full system. 
 
 With the 2021.4 release, Auto-device setup is done in three major steps:
-* Step 1: Configure each device as usual (for example, via the conventional <code>SetConfig</code> method)
-* Step 2: Load a network to the Auto-device plugin. This is the only change needed in your application
-* Step 3: Just like with any other executable network (resulted from <code>LoadNetwork</code>), create as many requests as needed to saturate the devices. 
+1. Step 1: Configure each device as usual (for example, via the conventional <code>SetConfig</code> method)
+2. Step 2: Load a network to the Auto-device plugin. This is the only change needed in your application
+3. Step 3: Just like with any other executable network (resulted from <code>LoadNetwork</code>), create as many requests as needed to saturate the devices. 
 These steps are covered below in detail.
 
 ## Defining and Configuring the Auto-Device Plugin
-Following the OpenVINO notions of “devices”, the Auto-device has “AUTO” name. The only configuration option for Auto-device is a limited device list:
+Following the OpenVINO notions of "devices", the Auto-device has "AUTO" name. The only configuration option for Auto-device is a limited device list:
 
 | Parameter name     | Parameter values      | Default            |             Description                                                      |
 | :---               | :---                  | :---               |:-----------------------------------------------------------------------------|
@@ -42,7 +42,7 @@ There are two ways to use Auto-device:
 
 @snippet snippets/AUTO1.cpp part1
 
-**NOTE:** The Inference Engine lets you use "GPU" as an alias for "GPU.0" in function calls. 
+> **NOTE:** The Inference Engine lets you use "GPU" as an alias for "GPU.0" in function calls. 
 
 Auto-device supports query device optimization capabilities in metric:
 
@@ -131,7 +131,7 @@ You can also use the Auto-device plugin with limited device choice:
 ./benchmark_app –d AUTO:CPU,GPU –m <model> -i <input> -niter 1000
 ```
 
-**NOTES**
+**NOTES:**
 * The default CPU stream is 1 if using “-d AUTO”. 
 * You can use the FP16 IR to work with Auto-device.
 * No demos are fully optimized for Auto-device yet to select the most suitable device, 
