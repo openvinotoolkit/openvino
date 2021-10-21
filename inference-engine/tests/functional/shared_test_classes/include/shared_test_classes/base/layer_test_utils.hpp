@@ -16,6 +16,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/type/bfloat16.hpp>
+#include <ngraph/pass/serialize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -55,7 +56,7 @@ public:
 
     virtual void Run();
 
-    virtual void Serialize();
+    virtual void Serialize(ngraph::pass::Serialize::Version ir_version = ngraph::pass::Serialize::Version::UNSPECIFIED);
 
     virtual void QueryNetwork();
 
