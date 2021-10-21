@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "embeddingbag.hpp"
+#include <gtest/gtest.h>
+
+#include <shared_test_classes/base/layer_test_utils.hpp>
+
+#include "base_reference_test.hpp"
 
 using namespace reference_tests;
 using namespace ngraph;
@@ -16,8 +20,8 @@ struct EmbeddingBagPackedSumParams {
                                 const ov::PartialShape& oShape,
                                 const ov::element::Type& oType,
                                 const std::vector<IT>& oValues,
-                                const ConstantPtr& indices,
-                                const ConstantPtr& per_sample_weights = nullptr)
+                                const std::shared_ptr<ngraph::opset1::Constant>& indices,
+                                const std::shared_ptr<ngraph::opset1::Constant>& per_sample_weights = nullptr)
         : _iShape(iShape),
           _iType(iType),
           _iData(CreateTensor(iType, iValues)),
@@ -35,8 +39,8 @@ struct EmbeddingBagPackedSumParams {
     ov::element::Type _refType;
     ov::runtime::Tensor _refData;
 
-    ConstantPtr _indices;
-    ConstantPtr _perSampleWeights;  // Optional, default is tensor of ones.
+    std::shared_ptr<ngraph::opset1::Constant> _indices;
+    std::shared_ptr<ngraph::opset1::Constant> _perSampleWeights;  // Optional, default is tensor of ones.
 };
 
 class ReferenceEmbeddingBagPackedSumLayerTest : public testing::TestWithParam<EmbeddingBagPackedSumParams>,
@@ -59,10 +63,11 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape,
-                                                    const element::Type& input_type,
-                                                    const ConstantPtr indices,
-                                                    const ConstantPtr per_sample_weights) {
+    static std::shared_ptr<Function> CreateFunction(
+        const PartialShape& input_shape,
+        const element::Type& input_type,
+        const std::shared_ptr<ngraph::opset1::Constant> indices,
+        const std::shared_ptr<ngraph::opset1::Constant> per_sample_weights) {
         const auto in = std::make_shared<op::Parameter>(input_type, input_shape);
 
         if (per_sample_weights) {
@@ -80,9 +85,11 @@ TEST_P(ReferenceEmbeddingBagPackedSumLayerTest, CompareWithRefs) {
 }
 
 template <class T>
-inline ConstantPtr GetConstantVV(const std::vector<std::vector<T>>& val, const ov::element::Type& element_type) {
+inline std::shared_ptr<ngraph::opset1::Constant> CreateConstantVV(const std::vector<std::vector<T>>& val,
+                                                                  const ov::element::Type& element_type) {
     if (val.size() > 0) {
         std::vector<size_t> i_shape({val.size(), val[0].size()});
+
         size_t i_size = ov::shape_size(i_shape);
         std::vector<T> i_values(i_size);
 
@@ -92,9 +99,9 @@ inline ConstantPtr GetConstantVV(const std::vector<std::vector<T>>& val, const o
             }
         }
 
-        return MakeConstantPtr(element_type, i_shape, i_values);
+        return std::make_shared<ngraph::opset1::Constant>(element_type, i_shape, i_values);
     } else {
-        return MakeConstantPtr(element_type, std::vector<size_t>(), std::vector<T>());
+        return std::make_shared<ngraph::opset1::Constant>(element_type, std::vector<size_t>(), std::vector<T>());
     }
 }
 
@@ -108,56 +115,56 @@ INSTANTIATE_TEST_SUITE_P(
                                     ov::PartialShape{3, 2},
                                     ov::element::f32,
                                     std::vector<float>{-1.05f, -1.2f, -1.f, -1.1f, -0.1f, 0.4f},
-                                    GetConstantVV<int32_t>({{0, 2}, {1, 2}, {3, 4}}, element::i32),
-                                    GetConstantVV<float>({{0.5, 0.5}, {0.5, 0.5}, {0.5, 0.5}}, element::f32)),
+                                    CreateConstantVV<int32_t>({{0, 2}, {1, 2}, {3, 4}}, element::i32),
+                                    CreateConstantVV<float>({{0.5, 0.5}, {0.5, 0.5}, {0.5, 0.5}}, element::f32)),
         EmbeddingBagPackedSumParams(ov::PartialShape{5, 2},
                                     ov::element::f64,
                                     std::vector<double>{-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7},
                                     ov::PartialShape{3, 2},
                                     ov::element::f64,
                                     std::vector<double>{-2.1, -2.4, -2.0, -2.2, -0.2, 0.8},
-                                    GetConstantVV<int32_t>({{0, 2}, {1, 2}, {3, 4}}, element::i32)),
+                                    CreateConstantVV<int32_t>({{0, 2}, {1, 2}, {3, 4}}, element::i32)),
         EmbeddingBagPackedSumParams(ov::PartialShape{5, 2},
                                     ov::element::i32,
                                     std::vector<int32_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
                                     ov::PartialShape{3, 2},
                                     ov::element::i32,
                                     std::vector<int32_t>{-6, -4, -2, -2, 2, 18},
-                                    GetConstantVV<int32_t>({{0, 2}, {1, 2}, {3, 4}}, element::i32)),
+                                    CreateConstantVV<int32_t>({{0, 2}, {1, 2}, {3, 4}}, element::i32)),
         EmbeddingBagPackedSumParams(ov::PartialShape{5, 2},
                                     ov::element::u32,
                                     std::vector<uint32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
                                     ov::PartialShape{3, 2},
                                     ov::element::u32,
                                     std::vector<uint32_t>{6, 8, 8, 10, 16, 18},
-                                    GetConstantVV<int32_t>({{0, 2}, {1, 2}, {3, 4}}, element::i32)),
+                                    CreateConstantVV<int32_t>({{0, 2}, {1, 2}, {3, 4}}, element::i32)),
         EmbeddingBagPackedSumParams(ov::PartialShape{5, 2},
                                     ov::element::f16,
                                     std::vector<float16>{-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7},
                                     ov::PartialShape{3, 2},
                                     ov::element::f16,
                                     std::vector<float16>{-2.1, -2.4, -2.0, -2.2, -0.2, 0.8},
-                                    GetConstantVV<int64_t>({{0, 2}, {1, 2}, {3, 4}}, element::i64)),
+                                    CreateConstantVV<int64_t>({{0, 2}, {1, 2}, {3, 4}}, element::i64)),
         EmbeddingBagPackedSumParams(ov::PartialShape{5, 2},
                                     ov::element::i64,
                                     std::vector<int64_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
                                     ov::PartialShape{3, 2},
                                     ov::element::i64,
                                     std::vector<int64_t>{-6, -4, -2, -2, 2, 18},
-                                    GetConstantVV<int64_t>({{0, 2}, {1, 2}, {3, 4}}, element::i64)),
+                                    CreateConstantVV<int64_t>({{0, 2}, {1, 2}, {3, 4}}, element::i64)),
         EmbeddingBagPackedSumParams(ov::PartialShape{5, 2},
                                     ov::element::i8,
                                     std::vector<int8_t>{-1, 2, 3, 4, -5, -6, -7, 8, 9, 10},
                                     ov::PartialShape{3, 2},
                                     ov::element::i8,
                                     std::vector<int8_t>{-12, -8, -4, -4, 4, 36},
-                                    GetConstantVV<int64_t>({{0, 2}, {1, 2}, {3, 4}}, element::i64),
-                                    GetConstantVV<int8_t>({{2, 2}, {2, 2}, {2, 2}}, element::i8)),
+                                    CreateConstantVV<int64_t>({{0, 2}, {1, 2}, {3, 4}}, element::i64),
+                                    CreateConstantVV<int8_t>({{2, 2}, {2, 2}, {2, 2}}, element::i8)),
         EmbeddingBagPackedSumParams(ov::PartialShape{5, 2},
                                     ov::element::u8,
                                     std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
                                     ov::PartialShape{3, 2},
                                     ov::element::u8,
                                     std::vector<uint8_t>{6, 8, 8, 10, 16, 18},
-                                    GetConstantVV<int64_t>({{0, 2}, {1, 2}, {3, 4}}, element::i64))),
+                                    CreateConstantVV<int64_t>({{0, 2}, {1, 2}, {3, 4}}, element::i64))),
     ReferenceEmbeddingBagPackedSumLayerTest::getTestCaseName);
