@@ -521,7 +521,7 @@ std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, const Co
         }
         // Activation function
         if (graph_data.af && graph_data.conv_count == 1) {
-            last_conv_block_op = graph_data.af->copy_with_new_inputs({last_conv_block_op});
+            last_conv_block_op = graph_data.af->clone_with_new_inputs({last_conv_block_op});
             InsertFQLayer(graph_data.fq_af, last_conv_block_op);
         }
 
@@ -673,7 +673,7 @@ std::shared_ptr<ngraph::opset7::Result> Decompose(const GraphData& graph_data, C
 
     // Activation function after trailing Transpose NCHW->NHWC
     if (graph_data.af && graph_data.conv_count > 1) {
-        auto af_result = graph_data.af->copy_with_new_inputs({conv_result});
+        auto af_result = graph_data.af->clone_with_new_inputs({conv_result});
         conv_result = af_result;
     }
     // We need to put the same name as before for the Convolution layer, so its output can be used as network result
