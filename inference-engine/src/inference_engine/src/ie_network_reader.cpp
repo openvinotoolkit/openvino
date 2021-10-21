@@ -37,8 +37,6 @@
 
 namespace InferenceEngine {
 
-#define ENABLE_IR_V7_READER
-
 #ifdef ENABLE_IR_V7_READER
 
 namespace details {
