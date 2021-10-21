@@ -23,6 +23,8 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 
 
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
+skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type for when filling blob!")
+xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "MaxUnpool")
 xfail_issue_33538 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
@@ -65,9 +67,6 @@ xfail_issue_38713 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "ai.onnx.preview.training.Momentum")
 xfail_issue_45457 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::Loop "
                                       "Not constant termination condition body output is not supported")
-xfail_issue_38722 = xfail_test(reason="RuntimeError: While validating ONNX nodes MatMulInteger "
-                                      "and QLinearMatMul "
-                                      "Input0 scale and input0 zero point shape must be same and 1")
 xfail_issue_38724 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Resize): Y>': "
                                       "tf_crop_and_resize - this type of coordinate transformation mode "
                                       "is not supported. Choose one of the following modes: "
@@ -107,7 +106,6 @@ xfail_issue_36536 = xfail_test(reason="RuntimeError: can't protect")
 xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadcast_merge_into( pshape, "
                                       "node->get_input_partial_shape(i), autob)' failed at "
                                       "/openvino/ngraph/src/ngraph/op/util/elementwise_args.cpp:48:")
-xfail_issue_39656 = xfail_test(reason="RuntimeError: Reshape reshaped has dynamic second input!")
 xfail_issue_39658 = xfail_test(reason="RuntimeError: Tile operation has a form that is not supported."
                                       " z should be converted to TileIE operation.")
 xfail_issue_39659 = xfail_test(reason="RuntimeError: Broadcast operation has a form that is not supported."

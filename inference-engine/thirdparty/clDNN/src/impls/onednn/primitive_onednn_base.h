@@ -12,6 +12,7 @@
 #include "utils.hpp"
 
 #include "quantize_inst.h"
+#include "reorder_inst.h"
 
 #include "reorder/reorder_weights_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
@@ -778,8 +779,10 @@ protected:
                         }
                     }
                 }
+            } else if (node->is_type<reorder>()) {
+                continue;
             } else {
-                throw std::runtime_error("Unsupported fused op for onednn prim");
+                throw std::runtime_error("Unsupported fused op of " + node->get_primitive()->type_string() + " type for oneDNN primitive");
             }
         }
 
@@ -795,7 +798,12 @@ protected:
         }
 
         // Update total onednn post-ops info
-        onednn_fusing_map.emplace(arg.id(), std::move(fused_ops));
+        auto it = onednn_fusing_map.find(arg.id());
+        if (it != onednn_fusing_map.end()) {
+            it->second = std::move(fused_ops);
+        } else {
+            onednn_fusing_map.emplace(arg.id(), std::move(fused_ops));
+        }
 
         // Trying to optimize more than 1 post-ops
         auto post_ops_size = onednn_fusing_map[arg.id()].size();

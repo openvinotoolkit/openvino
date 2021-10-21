@@ -13,10 +13,20 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {}
 };
 
+const std::vector<std::map<std::string, std::string>> HeteroConfigs = {
+    {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_CPU}}
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferenceChaining,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::ValuesIn(configs)),
+                        OVInferenceChaining::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferenceChaining,
+                        ::testing::Combine(
+                                ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                ::testing::ValuesIn(HeteroConfigs)),
                         OVInferenceChaining::getTestCaseName);
 
 }  // namespace

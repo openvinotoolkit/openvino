@@ -160,9 +160,9 @@ public:
     explicit operator bool() const noexcept;
 
     /**
-     * @brief Checks if the RemoteTensor object can be cast to the type T
+     * @brief Checks if the Tensor object can be cast to the type T
      *
-     * @tparam T Type to be checked. Must represent a class derived from the RemoteTensor
+     * @tparam T Type to be checked. Must represent a class derived from the Tensor
      * @return true if this object can be dynamically cast to the type const T*. Otherwise, false
      */
     template <typename T>
@@ -177,7 +177,7 @@ public:
     }
 
     /**
-     * @brief Casts this RemoteTensor object to the type T.
+     * @brief Casts this Tensor object to the type T.
      *
      * @tparam T Type to cast to. Must represent a class derived from the Tensor
      * @return T object
@@ -190,9 +190,9 @@ public:
     }
 
     /**
-     * @brief Casts this RemoteTensor object to the type T.
+     * @brief Casts this Tensor object to the type T.
      *
-     * @tparam T Type to cast to. Must represent a class derived from the RemoteTensor
+     * @tparam T Type to cast to. Must represent a class derived from the Tensor
      * @return T object
      */
     template <typename T>

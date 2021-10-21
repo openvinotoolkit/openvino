@@ -11,6 +11,7 @@ from tests.test_onnx.utils import OpenVinoOnnxBackend
 from tests.test_onnx.utils.model_importer import ModelImportRunner
 
 from tests import (
+    xfail_issue_67415,
     xfail_issue_38701,
     xfail_issue_45457,
     xfail_issue_37957,
@@ -157,6 +158,12 @@ if len(zoo_models) > 0:
     test_cases = backend_test.test_cases["OnnxBackendModelExecutionTest"]
     if tests.MODEL_ZOO_XFAIL:
         execution_xfail_list = [
+            # New Python API - fp16 blob
+            (xfail_issue_67415, "test_MSFT_opset7_fp16_inception_v1_onnxzoo_lotus_inception_v1_cpu"),
+            (xfail_issue_67415, "test_MSFT_opset7_fp16_shufflenet_onnxzoo_lotus_shufflenet_cpu"),
+            (xfail_issue_67415, "test_MSFT_opset8_fp16_inception_v1_onnxzoo_lotus_inception_v1_cpu"),
+            (xfail_issue_67415, "test_MSFT_opset8_fp16_shufflenet_onnxzoo_lotus_shufflenet_cpu"),
+
             # ONNX Model Zoo
             (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_encoder_12_t5_encoder_cpu"),
             (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_decoder_with_lm_head_12_t5_decoder_with_lm_head_cpu"),
