@@ -43,7 +43,7 @@ TEST(StaticShapeInferenceTest, ConvolutionTest) {
 }
 
 TEST(StaticShapeInferenceTest, AssignTest) {
-  auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 64, 64});
+  auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
   auto read_value = std::make_shared<op::v3::ReadValue>(input, "variable_id");
   auto assign = std::make_shared<op::v3::Assign>(read_value, "variable_id");
   //Test PartialShape
@@ -59,7 +59,7 @@ TEST(StaticShapeInferenceTest, AssignTest) {
 }
 
 TEST(StaticShapeInferenceTest, ReadValueTest) {
-  auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 64, 64});
+  auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
   auto read_value = std::make_shared<op::v3::ReadValue>(input, "variable_id");
   //Test PartialShape
   std::vector<PartialShape> input_shapes = {PartialShape{1, 2, 64, 64}},
