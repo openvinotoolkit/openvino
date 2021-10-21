@@ -22,14 +22,12 @@ public:
 
 template <class T>
 class OPENVINO_EXTENSION_API OpExtension : public BaseOpExtension {
-    template <typename TYPE,
-             typename std::enable_if<!ngraph::HasTypeInfoMember<TYPE>::value, bool>::type = true>
+    template <typename TYPE, typename std::enable_if<!ngraph::HasTypeInfoMember<TYPE>::value, bool>::type = true>
     ov::DiscreteTypeInfo get_type_info() {
         return TYPE::get_type_info_static();
     }
 
-    template <typename TYPE,
-             typename std::enable_if<ngraph::HasTypeInfoMember<TYPE>::value, bool>::type = true>
+    template <typename TYPE, typename std::enable_if<ngraph::HasTypeInfoMember<TYPE>::value, bool>::type = true>
     ov::DiscreteTypeInfo get_type_info() {
         NGRAPH_SUPPRESS_DEPRECATED_START
         return TYPE::type_info;
