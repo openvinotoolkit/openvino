@@ -450,7 +450,6 @@ endif()
 
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
-    backend/abs.in.cpp
     backend/adaptive_avg_pool.in.cpp
     backend/adaptive_max_pool.in.cpp
     backend/aliased_output.in.cpp
@@ -461,7 +460,6 @@ set(MULTI_TEST_SRC
     backend/batch_to_space.in.cpp
     backend/broadcast.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
-    backend/ceiling.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
     backend/ctc_greedy_decoder.in.cpp
@@ -478,14 +476,12 @@ set(MULTI_TEST_SRC
     backend/experimental_detectron_detection_output.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
     backend/fake_quantize.in.cpp
-    backend/floor.in.cpp
     backend/function_name.in.cpp
     backend/gather.in.cpp
     backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
     backend/idft.in.cpp
     backend/interpolate.in.cpp
-    backend/log.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
     backend/matrix_nms.in.cpp
@@ -493,7 +489,6 @@ set(MULTI_TEST_SRC
     backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
-    backend/negative.in.cpp
     backend/node_name.in.cpp
     backend/normalize_l2.in.cpp
     backend/non_max_suppression.in.cpp
@@ -512,7 +507,6 @@ set(MULTI_TEST_SRC
     backend/result.in.cpp
     backend/reverse.in.cpp
     backend/roll.in.cpp
-    backend/round.in.cpp
     backend/scatter_nd_update.in.cpp
     backend/space_to_depth.in.cpp
     backend/shape_of.in.cpp
