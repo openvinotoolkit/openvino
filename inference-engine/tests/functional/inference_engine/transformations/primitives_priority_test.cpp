@@ -63,7 +63,7 @@ TEST(TransformationTests, ConvBiasFusion) {
             auto& nodeInfo = op->get_rt_info();
             auto itInfo = nodeInfo.find("PrimitivesPriority");
             ASSERT_TRUE(pp.find(op->get_friendly_name()) != pp.end());
-            ASSERT_TRUE(pp[op->get_friendly_name()] == "test");
+            ASSERT_EQ(pp[op->get_friendly_name()], "test");
         }
     }
 }
