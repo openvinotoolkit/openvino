@@ -4,15 +4,15 @@
 import numpy as np
 import pytest
 
-import ngraph as ng
-from ngraph.impl.preprocess import PrePostProcessor, InputInfo, PreProcessSteps, InputTensorInfo
-from ngraph import Function, Node, Type
+import openvino.opset8 as ops
+from openvino.impl.preprocess import PrePostProcessor, InputInfo, PreProcessSteps, InputTensorInfo
+from openvino.impl import Function, Node, Type
 from tests.runtime import get_runtime
 
 
 def test_ngraph_preprocess_mean():
     shape = [2, 2]
-    parameter_a = ng.parameter(shape, dtype=np.float32, name="A")
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
     function = Function(model, [parameter_a], "TestFunction")
 
@@ -35,12 +35,12 @@ def test_ngraph_preprocess_mean():
 
 def test_ngraph_preprocess_mean_scale_convert():
     shape = [2, 2]
-    param1 = ng.parameter(shape, dtype=np.float32, name="A")
-    param2 = ng.parameter(shape, dtype=np.float32, name="B")
+    param1 = ops.parameter(shape, dtype=np.float32, name="A")
+    param2 = ops.parameter(shape, dtype=np.float32, name="B")
     function = Function([param1, param2], [param1, param2], "TestFunction")
 
     def custom_preprocess(node: Node):
-        return ng.abs(node)
+        return ops.abs(node)
 
     function = PrePostProcessor() \
         .input(InputInfo(1)
@@ -71,17 +71,3 @@ def test_ngraph_preprocess_mean_scale_convert():
 
     assert np.equal(output1, expected_output1).all()
     assert np.equal(output2, expected_output2).all()
-
-
-def test_ngraph_invalid_element_type():
-    shape = [2, 2]
-    param1 = ng.parameter(shape, dtype=np.float32, name="A")
-    function = Function([param1], [param1], "TestFunction")
-    with pytest.raises(Exception):
-        function = PrePostProcessor() \
-            .input(InputInfo()
-                   .preprocess(PreProcessSteps()
-                               .convert_element_type(Type.i32)
-                               )
-                   ) \
-            .build(function)
