@@ -15,6 +15,10 @@ std::unique_ptr<ColorFormatInfo> ColorFormatInfo::get(ColorFormat format) {
     case ColorFormat::NV12_TWO_PLANES:
         res.reset(new ColorFormatInfoNV12_TwoPlanes(format));
         break;
+    case ColorFormat::RGB:
+    case ColorFormat::BGR:
+        res.reset(new ColorFormatNHWC(format));
+        break;
     default:
         res.reset(new ColorFormatInfo(format));
         break;

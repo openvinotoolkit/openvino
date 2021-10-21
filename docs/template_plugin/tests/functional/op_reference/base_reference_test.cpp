@@ -57,27 +57,25 @@ void CommonReferenceTest::Infer() {
     const auto& functionParams = function->get_parameters();
 
     for (size_t i = 0; i < functionParams.size(); ++i) {
-        const auto& param = functionParams[i];
-        inferRequest.set_tensor(param->get_friendly_name(), inputData[i]);
+        inferRequest.set_tensor(executableNetwork.input(i), inputData[i]);
     }
     inferRequest.infer();
 }
 
 void CommonReferenceTest::Validate() {
     ASSERT_EQ(executableNetwork.outputs().size(), refOutData.size());
-    std::vector<ov::runtime::Tensor> outputs;
-    for (const auto& result : function->get_results()) {
-        auto name = ngraph::op::util::create_ie_output_name(result->input_value(0));
-        outputs.emplace_back(inferRequest.get_tensor(name));
+    for (const auto& output : executableNetwork.outputs()) {
+        actualOutData.emplace_back(inferRequest.get_tensor(output));
     }
 
-    ASSERT_EQ(refOutData.size(), outputs.size());
+    ASSERT_EQ(refOutData.size(), actualOutData.size());
     for (size_t i = 0; i < refOutData.size(); i++) {
-        ValidateBlobs(refOutData[i], outputs[i]);
+        ValidateBlobs(refOutData[i], actualOutData[i], threshold, abs_threshold);
     }
 }
 
-void CommonReferenceTest::ValidateBlobs(const ov::runtime::Tensor& refBlob, const ov::runtime::Tensor& outBlob) {
+void CommonReferenceTest::ValidateBlobs(const ov::runtime::Tensor& refBlob, const ov::runtime::Tensor& outBlob,
+                                        float threshold, float abs_threshold) {
     ASSERT_EQ(refBlob.get_element_type(), outBlob.get_element_type());
     ASSERT_EQ(refBlob.get_byte_size(), outBlob.get_byte_size());
 
