@@ -31,7 +31,7 @@ MKLDNNPlugin::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         auto shape_a = fc_input_a.get_partial_shape();
         auto shape_b = fc_input_b.get_partial_shape();
-        NGRAPH_CHECK(shape_b.is_static()); // requested 2nd input with static shape in the matcher
+        NGRAPH_CHECK(shape_b.is_static());
 
         auto rank_a = shape_a.rank().get_length();
         auto rank_b = shape_b.rank().get_length();
@@ -141,7 +141,7 @@ MKLDNNPlugin::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         if (rank_b != 2) {
             ngraph::Dimension K = *(shape_b_aligned.rbegin() + 1);
-            NGRAPH_CHECK(K.is_static());  // requested 2nd input with static shape in the matcher
+            NGRAPH_CHECK(K.is_static());
             std::vector<int64_t> reshape_shape_values = { -1ll, static_cast<int64_t>(K.get_length()) };
             auto reshape_shape = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, reshape_shape_values);
             fc_input_b = ngraph::op::util::make_try_fold<ngraph::opset1::Reshape>(fc_input_b, reshape_shape, false);
