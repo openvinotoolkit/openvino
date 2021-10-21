@@ -17,6 +17,14 @@ void regclass_graph_Layout(py::module m) {
     // operator overloading
     layout.def(py::self == py::self);
     layout.def(py::self != py::self);
+    layout.def("__eq__", [](ov::Layout& self, std::string& dims) {
+        ov::Layout other(dims);
+        return self == other;
+    }, py::is_operator());
+    layout.def("__ne__", [](ov::Layout& self, std::string& dims) {
+        ov::Layout other(dims);
+        return self != other;
+    }, py::is_operator());
 
     layout.def("scalar", &ov::Layout::scalar);
     layout.def("has_name", &ov::Layout::has_name, py::arg("dimension_name"));
