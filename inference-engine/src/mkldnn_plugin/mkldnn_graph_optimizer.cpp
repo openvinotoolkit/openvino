@@ -1139,10 +1139,9 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
 
         if (isSuitableParent1 && isSuitableParent2) {
             // not merged operation (peerNode) has to be in low precision
-            auto isBranchQuantized = [](const MKLDNNNodePtr branchParent) {
-                //const auto branch2Parent = graphNode->getParentEdgesAtPort(1)[0]->getParent();
-                const auto fused = branchParent->getFusedWith();
-                auto branchPrecision = fused.empty() ?
+            const auto isBranchQuantized = [](const MKLDNNNodePtr& branchParent) {
+                const auto& fused = branchParent->getFusedWith();
+                const auto branchPrecision = fused.empty() ?
                         branchParent->getOriginalOutputPrecisionAtPort(0) :
                         fused[fused.size() - 1]->getOriginalOutputPrecisionAtPort(0);
                 return (branchPrecision == Precision::I8) || (branchPrecision == Precision::U8);
