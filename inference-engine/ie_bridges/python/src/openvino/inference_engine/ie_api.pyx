@@ -206,10 +206,9 @@ cdef class Blob:
         elif tensor_desc is not None and self._array_data is not None:
             c_tensor_desc = tensor_desc.impl
             precision = tensor_desc.precision
-            size_arr = np.prod(array.shape)
-            size_td = np.prod(tensor_desc.dims)
-            if size_arr != size_td:
-                raise AttributeError(f"Number of elements in provided numpy array {size_arr} and "
+            size_td = C.product(c_tensor_desc.getDims())
+            if array.size != size_td:
+                raise AttributeError(f"Number of elements in provided numpy array {array.size} and "
                                      f"required by TensorDesc {size_td} are not equal")
             if self._array_data.dtype != format_map[precision]:
                 raise ValueError(f"Data type {self._array_data.dtype} of provided numpy array "
