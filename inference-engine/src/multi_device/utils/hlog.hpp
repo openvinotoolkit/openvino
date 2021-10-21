@@ -31,10 +31,6 @@ inline void setLogLevel(uint32_t logLevel) {
     HLogger->setLogLevel(logLevel);
 }
 
-inline void setLogName(std::string logName) {
-    HLogger->setLogName(logName);
-}
-
 } // namespace MultiDevicePlugin
 
 #endif //MULTIDEVICEPLUGIN_HLOG_H

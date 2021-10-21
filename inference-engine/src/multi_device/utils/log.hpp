@@ -72,7 +72,6 @@ enum class LogLevel : uint32_t {
 
 class Log : public Singleton<Log> {
 public:
-    void setLogName(std::string logName);
     void setPrefix(std::string prefix);
     void setSuffix(std::string suffix);
     void setLogLevel(uint32_t logLevel);
@@ -94,13 +93,64 @@ private:
     std::string prefix;
     std::string suffix;
     uint32_t logLevel;
-    char buffer[100];
     static uint32_t defaultLogLevel;
 };
 
 inline Log::Log()
     : logLevel(defaultLogLevel) {
     setPriority(0);
+    switch (debug_level) {
+        case 1: {
+                    logLevel = static_cast<uint32_t>(LogLevel::FATAL);
+                    break;
+                }
+        case 2: {
+                    logLevel = static_cast<uint32_t>(LogLevel::ERROR) | static_cast<uint32_t>(LogLevel::FATAL);
+                    break;
+                }
+        case 3: {
+                    logLevel = static_cast<uint32_t>(LogLevel::WARN) |
+                        static_cast<uint32_t>(LogLevel::ERROR) |
+                        static_cast<uint32_t>(LogLevel::FATAL);
+                    break;
+                }
+        case 4: {
+                    logLevel = static_cast<uint32_t>(LogLevel::INFO) |
+                        static_cast<uint32_t>(LogLevel::WARN) |
+                        static_cast<uint32_t>(LogLevel::ERROR) |
+                        static_cast<uint32_t>(LogLevel::FATAL);
+                    break;
+                }
+        case 5: {
+                    logLevel = static_cast<uint32_t>(LogLevel::DEBUG) |
+                        static_cast<uint32_t>(LogLevel::INFO) |
+                        static_cast<uint32_t>(LogLevel::WARN) |
+                        static_cast<uint32_t>(LogLevel::ERROR) |
+                        static_cast<uint32_t>(LogLevel::FATAL);
+                    break;
+                }
+        case 6: {
+                    logLevel = static_cast<uint32_t>(LogLevel::PROCESS) |
+                        static_cast<uint32_t>(LogLevel::DEBUG) |
+                        static_cast<uint32_t>(LogLevel::INFO) |
+                        static_cast<uint32_t>(LogLevel::WARN) |
+                        static_cast<uint32_t>(LogLevel::ERROR) |
+                        static_cast<uint32_t>(LogLevel::FATAL);
+                    break;
+                }
+        case 7: {
+                    logLevel = static_cast<uint32_t>(LogLevel::FREQUENT) |
+                        static_cast<uint32_t>(LogLevel::PROCESS) |
+                        static_cast<uint32_t>(LogLevel::INFO) |
+                        static_cast<uint32_t>(LogLevel::DEBUG) |
+                        static_cast<uint32_t>(LogLevel::WARN) |
+                        static_cast<uint32_t>(LogLevel::ERROR) |
+                        static_cast<uint32_t>(LogLevel::FATAL);
+                    break;
+                }
+        default:
+                break;
+    }
 }
 
 inline void Log::setPrefix(std::string prefix_) {
@@ -120,64 +170,10 @@ inline void Log::setLogLevel(uint32_t logLevel_) {
 template <typename... Args>
 inline void Log::doLog(bool on, bool isTraceCallStack, LogLevel level, const char* levelStr, const char* file,
     const char* func, const long line, const char* tag, const char* fmt, Args... args) {
-    switch (debug_level) {
-    case 1: {
-        logLevel = static_cast<uint32_t>(LogLevel::FATAL);
-        break;
-    }
-    case 2: {
-        logLevel = static_cast<uint32_t>(LogLevel::ERROR) | static_cast<uint32_t>(LogLevel::FATAL);
-        break;
-    }
-    case 3: {
-        logLevel = static_cast<uint32_t>(LogLevel::WARN) |
-                   static_cast<uint32_t>(LogLevel::ERROR) |
-                   static_cast<uint32_t>(LogLevel::FATAL);
-        break;
-    }
-    case 4: {
-        logLevel = static_cast<uint32_t>(LogLevel::INFO) |
-                   static_cast<uint32_t>(LogLevel::WARN) |
-                   static_cast<uint32_t>(LogLevel::ERROR) |
-                   static_cast<uint32_t>(LogLevel::FATAL);
-        break;
-    }
-    case 5: {
-        logLevel = static_cast<uint32_t>(LogLevel::DEBUG) |
-                   static_cast<uint32_t>(LogLevel::INFO) |
-                   static_cast<uint32_t>(LogLevel::WARN) |
-                   static_cast<uint32_t>(LogLevel::ERROR) |
-                   static_cast<uint32_t>(LogLevel::FATAL);
-        break;
-    }
-    case 6: {
-        logLevel = static_cast<uint32_t>(LogLevel::PROCESS) |
-                   static_cast<uint32_t>(LogLevel::DEBUG) |
-                   static_cast<uint32_t>(LogLevel::INFO) |
-                   static_cast<uint32_t>(LogLevel::WARN) |
-                   static_cast<uint32_t>(LogLevel::ERROR) |
-                   static_cast<uint32_t>(LogLevel::FATAL);
-        break;
-    }
-    case 7: {
-        logLevel = static_cast<uint32_t>(LogLevel::FREQUENT) |
-                   static_cast<uint32_t>(LogLevel::PROCESS) |
-                   static_cast<uint32_t>(LogLevel::INFO) |
-                   static_cast<uint32_t>(LogLevel::DEBUG) |
-                   static_cast<uint32_t>(LogLevel::WARN) |
-                   static_cast<uint32_t>(LogLevel::ERROR) |
-                   static_cast<uint32_t>(LogLevel::FATAL);
-        break;
-    }
-    default:
-        break;
-    }
 
-    if (!on || !(static_cast<uint32_t>(level) & static_cast<uint32_t>(logLevel))) {
+    if (!(static_cast<uint32_t>(level) & static_cast<uint32_t>(logLevel)) || !on) {
         return;
     }
-
-    std::lock_guard<std::mutex> autoLock(mutex);
 
     std::stringstream stream;
     stream << colorBegin(level) << prefix << '[' << TimeUtils::getCurrentTime() << ']';
@@ -201,8 +197,10 @@ inline void Log::doLog(bool on, bool isTraceCallStack, LogLevel level, const cha
     if (tag) {
         stream << '[' << tag << ']';
     }
+    char buffer[255];
     snprintf (&buffer[0], sizeof(buffer), fmt, args...);
     stream << ' ' << buffer << suffix << colorEnd(level);
+    std::lock_guard<std::mutex> autoLock(mutex);
     std::cout << stream.str() << std::endl;
 }
 
