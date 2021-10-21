@@ -85,7 +85,6 @@ TEST(function, get_output_by_tensor_index_without_name) {
     EXPECT_EQ(output.get_partial_shape(), ov::PartialShape{1});
 }
 
-
 TEST(function, get_incorrect_output_by_tensor_name) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
