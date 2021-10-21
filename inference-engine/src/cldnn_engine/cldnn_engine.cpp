@@ -23,6 +23,7 @@
 #include "cldnn_custom_layer.h"
 #include "cldnn_itt.h"
 #include "gpu/gpu_config.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
@@ -61,17 +62,25 @@ void clDNNEngine::RegisterPrimitives() {
 }
 
 struct clDNNEngine::impl {
-    CLDNNPlugin::Config m_config;
+    CLDNNPlugin::Configs m_configs;
 };
+
+std::string clDNNEngine::GetDeviceIDFromConfig(const std::map<std::string, std::string>& config) const {
+    std::string device_id;
+    if (config.find(PluginConfigParams::KEY_DEVICE_ID) != config.end()) {
+        device_id = config.at(PluginConfigParams::KEY_DEVICE_ID);
+    }
+    return device_id;
+}
 
 cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::string> &config) const {
     auto device_info = device_map.begin()->second->get_info();
-    if (config.find(PluginConfigParams::KEY_DEVICE_ID) != config.end()) {
-        auto val = config.at(PluginConfigParams::KEY_DEVICE_ID);
-        if (device_map.find(val) == device_map.end()) {
-            IE_THROW() << "Invalid device ID: " << val;
+    std::string device_id = GetDeviceIDFromConfig(config);
+    if (!device_id.empty()) {
+        if (device_map.find(device_id) == device_map.end()) {
+            IE_THROW() << "Invalid device ID: " << device_id;
         }
-        device_info = device_map.at(val)->get_info();
+        device_info = device_map.at(device_id)->get_info();
     }
 
     return device_info;
@@ -109,6 +118,11 @@ clDNNEngine::clDNNEngine() : m_defaultContext(nullptr) {
         // Set OCL runtime which should be always available
         cldnn::device_query device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl);
         device_map = device_query.get_available_devices();
+
+        // Set default configs for each device
+        for (auto& device : device_map) {
+            _impl->m_configs.CreateConfig(device.first);
+        }
     }
     // locate global custom kernel config
     // and auto-load kernels from it
@@ -133,7 +147,9 @@ clDNNEngine::clDNNEngine() : m_defaultContext(nullptr) {
         config_path = configFile.substr(0, dir_split_pos);
     }
     config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
-    CLDNNCustomLayer::LoadFromFile(config_path, _impl->m_config.customLayers, true);
+    for (auto& config : _impl->m_configs) {
+        CLDNNCustomLayer::LoadFromFile(config_path, config.second.customLayers, true);
+    }
 }
 
 auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
@@ -201,7 +217,10 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
 
-    CLDNNPlugin::Config conf = _impl->m_config;
+    CLDNNPlugin::Configs confs = _impl->m_configs;
+    std::string device_id = GetDeviceIDFromConfig(orig_config);
+    CLDNNPlugin::Config conf = confs.GetConfig(device_id);
+
     auto config = ConvertPerfHintsToConfig(orig_config, conf);
     UpdateConfig(conf, network, config);
 
@@ -270,12 +289,12 @@ RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
     std::string contextTypeStr = _StrFromParams(params, GPU_PARAM_KEY(CONTEXT_TYPE));
 
     if (GPU_PARAM_VALUE(OCL) == contextTypeStr) {
-        return std::make_shared<CLDNNRemoteCLContext>(shared_from_this(), params, _impl->m_config);
+        return std::make_shared<CLDNNRemoteCLContext>(shared_from_this(), params, _impl->m_configs.GetDefaultDeviceConfig());
     } else if (GPU_PARAM_VALUE(VA_SHARED) == contextTypeStr) {
 #ifdef _WIN32
-        return std::make_shared<CLDNNRemoteD3DContext>(shared_from_this(), params, _impl->m_config);
+        return std::make_shared<CLDNNRemoteD3DContext>(shared_from_this(), params, _impl->m_configs.GetDefaultDeviceConfig());
 #else
-        return std::make_shared<CLDNNRemoteVAContext>(shared_from_this(), params, _impl->m_config);
+        return std::make_shared<CLDNNRemoteVAContext>(shared_from_this(), params, _impl->m_configs.GetDefaultDeviceConfig());
 #endif
     } else {
         IE_THROW() << "Invalid remote context type" << contextTypeStr;
@@ -284,7 +303,7 @@ RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
 
 RemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
     if (nullptr == m_defaultContext) {
-        m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), params, _impl->m_config));
+        m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), params, _impl->m_configs.GetDefaultDeviceConfig()));
     }
     return m_defaultContext;
 }
@@ -292,15 +311,32 @@ RemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
 void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
     streamsSet = (config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) != config.end());
     throttlingSet = config.find(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) != config.end() ||
-            config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end();
-    _impl->m_config.UpdateFromMap(config);
+                    config.find(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) != config.end();
+    std::string device_id;
+    if (config.find(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID) != config.end()) {
+        device_id = config.at(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID);
+        _impl->m_configs.GetConfig(device_id).UpdateFromMap(config);
+    } else {
+        device_id = GetDeviceIDFromConfig(config);
+        if (!device_id.empty()) {
+            _impl->m_configs.SetDefaultDeviceID(device_id);
+            _impl->m_configs.GetConfig(device_id).UpdateFromMap(config);
+        } else {
+            for (auto& conf : _impl->m_configs) {
+                conf.second.UpdateFromMap(config);
+            }
+        }
+    }
 }
 
 QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
                                              const std::map<std::string, std::string>& config) const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::QueryNetwork");
     QueryNetworkResult res;
-    CLDNNPlugin::Config conf = _impl->m_config;
+    CLDNNPlugin::Configs confs = _impl->m_configs;
+    std::string device_id = GetDeviceIDFromConfig(config);
+    CLDNNPlugin::Config conf = confs.GetConfig(device_id);
+
     UpdateConfig(conf, network, config);
 
     if (m_defaultContext == nullptr) {
@@ -516,12 +552,18 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
     return res;
 }
 
-Parameter clDNNEngine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
+Parameter clDNNEngine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::GetConfig");
     Parameter result;
-    auto option = _impl->m_config.key_config_map.find(name);
-    if (option != _impl->m_config.key_config_map.end()) {
-        result = option->second;
+
+    std::string device_id;
+    if (options.find(PluginConfigParams::KEY_DEVICE_ID) != options.end()) {
+        device_id = options.find(PluginConfigParams::KEY_DEVICE_ID)->second.as<std::string>();
+    }
+    Config config = _impl->m_configs.GetConfig(device_id);
+
+    if (config.key_config_map.find(name) != config.key_config_map.end()) {
+        result = config.key_config_map.find(name)->second;
     } else {
         IE_THROW() << "Unsupported config key : " << name;
     }
@@ -583,9 +625,7 @@ static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
 
 Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::GetMetric");
-    auto device_id = GetConfig(CONFIG_KEY(DEVICE_ID), {});
-    if (options.find(CONFIG_KEY(DEVICE_ID)) != options.end())
-        device_id = options.at(CONFIG_KEY(DEVICE_ID)).as<std::string>();
+    std::string device_id = GetConfig(CONFIG_KEY(DEVICE_ID), options);
 
     auto iter = device_map.find(device_id);
     auto device_info = iter != device_map.end() ?
@@ -643,7 +683,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, deviceName);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto opt : _impl->m_config.key_config_map)
+        for (auto opt : _impl->m_configs.GetConfig(device_id).key_config_map)
             configKeys.push_back(opt.first);
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {

@@ -7,7 +7,8 @@ import numpy as np
 import os
 
 from openvino.inference_engine import TensorDesc, Blob, IECore
-from conftest import image_path
+from conftest import image_path, create_encoder
+import ngraph as ng
 
 
 path_to_image = image_path()
@@ -105,7 +106,6 @@ def test_incompatible_input_precision():
 
 
 # issue 49903
-@pytest.mark.ngraph_dependent_test
 @pytest.mark.skip(reason="Test will enable when CPU fix will be merge")
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_buffer_values_after_add_outputs(device):
@@ -145,11 +145,8 @@ def test_cannot_set_shape_preallocated_memory():
     assert "Cannot call setShape for Blobs created on top of preallocated memory" in str(e.value)
 
 
-@pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_blob_set_shape_after_async_infer():
-    from conftest import create_encoder
-    import ngraph as ng
     function = create_encoder([1, 4, 20, 20])
     net = ng.function_to_cnn(function)
     net.reshape({"data": [(1, 5), 4, 20, 20]})
