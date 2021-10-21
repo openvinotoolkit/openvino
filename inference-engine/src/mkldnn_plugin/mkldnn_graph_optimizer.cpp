@@ -263,7 +263,8 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndBias(MKLDNNGraph &graph) {
                 graphEdges.push_back(newEdge);
                 parent->addEdge(newEdge);
 
-                parent->outputShapes[inNum] = Shape(VectorDims{parentEltwise->outputShapes[0].getStaticDims()[1]});
+                auto partialShape = { parentEltwise->outputShapes[0].toPartialShape()[1] };
+                parent->outputShapes[inNum] = Shape(partialShape);
                 parentEltwise->inputShapes.push_back(parent->outputShapes[0]);
             }
         }
