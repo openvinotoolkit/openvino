@@ -109,7 +109,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
             dequantization.multiplyConstant->cast_vector<float>()[0]);
         auto inputs = convolutionBackpropData->input_values();
         inputs[0] = dequantization.multiply->input_value(0);
-        const auto copyNode = convolutionBackpropData->copy_with_new_inputs(inputs);
+        const auto copyNode = convolutionBackpropData->clone_with_new_inputs(inputs);
 
         const auto relaxedConvolutionBackpropData = std::make_shared<op::TypeRelaxed<opset1::ConvolutionBackpropData>>(
             *ov::as_type_ptr<opset1::ConvolutionBackpropData>(copyNode),
@@ -126,7 +126,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
         convolutionBackpropData = newMultiplyAfter->get_input_node_shared_ptr(0);
         inputs[0] = convolutionBackpropData->get_input_node_ptr(0)->input_value(0);
         if (ov::is_type<opset1::Convert>(convolutionBackpropData->get_input_node_ptr(0))) {
-            auto newConvolution = convolutionBackpropData->copy_with_new_inputs(inputs);
+            auto newConvolution = convolutionBackpropData->clone_with_new_inputs(inputs);
             replace_node(convolutionBackpropData, newConvolution);
             convolutionBackpropData = newConvolution;
         }
@@ -155,7 +155,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
             auto inputs = convolutionBackpropData->input_values();
             inputs[1] = multiplyFromWeights->input_value(0);
             auto newMultiplyAfter = std::make_shared<opset1::Multiply>(
-                convolutionBackpropData->copy_with_new_inputs(inputs),
+                convolutionBackpropData->clone_with_new_inputs(inputs),
                 foldConvert(
                     fold_reshape<opset1::Reshape>(
                         multiplyFromWeights->input_value(1),

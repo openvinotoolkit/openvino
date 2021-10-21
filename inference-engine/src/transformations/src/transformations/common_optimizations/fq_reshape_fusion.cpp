@@ -59,7 +59,7 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
                     if (new_limit_shape == limit_input.get_shape())
                         renewed_inputs.push_back(limit_input);
                     else
-                        renewed_inputs.push_back(reshape_node->copy_with_new_inputs(
+                        renewed_inputs.push_back(reshape_node->clone_with_new_inputs(
                                 {limit_input, opset4::Constant::create(element::i64, {new_limit_shape.size()}, new_limit_shape)}));
                     continue;
                 }
@@ -71,7 +71,7 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
             copy_runtime_info({reshape_node, fq_node}, new_input.get_node_shared_ptr());
         const auto new_fq_node = fq_node->clone_with_new_inputs(renewed_inputs);
         replace_node(reshape_node, new_fq_node);
-        new_fq_node->set_friendly_name(fq_node->get_friendly_name());
+        new_fq_node->set_friendly_name(reshape_node->get_friendly_name());
         copy_runtime_info({fq_node, reshape_node}, new_fq_node);
         return true;
     };

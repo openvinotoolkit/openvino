@@ -93,7 +93,7 @@ ngraph::pass::TransposeReduction::TransposeReduction() {
         auto new_axes = ngraph::op::util::make_try_fold<ngraph::opset6::Gather>(
                 transpose_order, reduction_axes, ngraph::opset6::Constant::create(ngraph::element::i64, {}, {0}));
         new_ops.push_back(new_axes);
-        auto new_reduce = reduction->copy_with_new_inputs({transpose->input_value(0), new_axes});
+        auto new_reduce = reduction->clone_with_new_inputs({transpose->input_value(0), new_axes});
         new_ops.push_back(new_reduce);
 
         auto updated_order = transpose_order;
@@ -158,7 +158,7 @@ ngraph::pass::TransposeFQReduction::TransposeFQReduction() {
             new_ops.push_back(transposed_input);
             fq_inputs.push_back(transposed_input);
         }
-        auto new_fq = fq->copy_with_new_inputs(fq_inputs);
+        auto new_fq = fq->clone_with_new_inputs(fq_inputs);
         new_ops.push_back(new_fq);
 
         auto new_transpose = std::make_shared<ngraph::opset6::Transpose>(new_fq, transpose_order);

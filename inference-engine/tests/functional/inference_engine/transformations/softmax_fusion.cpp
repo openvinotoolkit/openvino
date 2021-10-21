@@ -9,6 +9,7 @@
 #include <transformations/common_optimizations/softmax_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <transformations/serialize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -37,9 +38,12 @@ TEST_P(SoftmaxFusionFixture, SoftmaxFusion) {
         auto div = std::make_shared<opset6::Divide>(exp, reduce_sum);
         f = std::make_shared<Function>(NodeVector{div}, ParameterVector{data});
 
+        auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
         pass::Manager m;
+        m.register_pass<pass::InitUniqueNames>(unh);
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::SoftmaxFusion>();
+        m.register_pass<pass::CheckUniqueNames>(unh);
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -51,8 +55,9 @@ TEST_P(SoftmaxFusionFixture, SoftmaxFusion) {
         f_ref = std::make_shared<Function>(NodeVector{softmax}, ParameterVector{data});
     }
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 INSTANTIATE_TEST_SUITE_P(SoftmaxFusionTests, SoftmaxFusionFixture,
@@ -87,9 +92,12 @@ TEST_P(NegativeSoftmaxFusionFixture, NegativeSoftmaxFusion) {
         auto div = std::make_shared<opset6::Divide>(exp, reduce_sum);
         f = std::make_shared<Function>(NodeVector{div}, ParameterVector{data});
 
+        auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
         pass::Manager m;
+        m.register_pass<pass::InitUniqueNames>(unh);
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::SoftmaxFusion>();
+        m.register_pass<pass::CheckUniqueNames>(unh);
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -105,8 +113,9 @@ TEST_P(NegativeSoftmaxFusionFixture, NegativeSoftmaxFusion) {
         f_ref = std::make_shared<Function>(NodeVector{div}, ParameterVector{data});
     }
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 INSTANTIATE_TEST_SUITE_P(NegativeSoftmaxFusionTests, NegativeSoftmaxFusionFixture,

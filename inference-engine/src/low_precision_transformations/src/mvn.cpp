@@ -147,9 +147,9 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
 
     std::shared_ptr<Node> newMVN;
     if (ov::is_type<op::MVN>(mvn)) {
-        newMVN = mvn->copy_with_new_inputs({dequantization.data});
+        newMVN = mvn->clone_with_new_inputs({dequantization.data});
     } else {
-        newMVN = mvn->copy_with_new_inputs({dequantization.data, mvn->input_value(1)});
+        newMVN = mvn->clone_with_new_inputs({dequantization.data, mvn->input_value(1)});
     }
     NetworkHelper::setOutDataPrecisionForTypeRelaxed(newMVN, deqPrecision);
     NetworkHelper::copyInfo(mvn, newMVN);

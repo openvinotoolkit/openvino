@@ -22,7 +22,7 @@ void processBinaryEltwise(std::shared_ptr<ngraph::Node> eltwise, size_t lhsIndex
     const auto lhsRank = eltwise->input_value(lhsIndex).get_partial_shape().rank();
     const auto rhsRank = eltwise->input_value(rhsIndex).get_partial_shape().rank();
 
-    const auto copied = eltwise->copy_with_new_inputs(eltwise->input_values());
+    const auto copied = eltwise->clone_with_new_inputs(eltwise->input_values());
 
     const auto lhsDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(eltwise->input_value(lhsIndex).get_node_shared_ptr());
     const auto rhsDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(eltwise->input_value(rhsIndex).get_node_shared_ptr());

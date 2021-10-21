@@ -23,8 +23,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, GeluFusionPatternOne) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, GeluFusionPatternOne) {
     {
         auto data =
             std::make_shared<opset7::Parameter>(element::f32, Shape{2, 2});
@@ -42,29 +41,21 @@ TEST(TransformationTests, GeluFusionPatternOne) {
         auto mul_first = std::make_shared<opset7::Multiply>(data, mul_const);
         auto mul = std::make_shared<opset7::Multiply>(mul_first, add);
 
-        f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::GeluFusionWithErfOne>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::GeluFusionWithErfOne>();
     }
 
     {
         auto data =
             std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
         auto gelu = std::make_shared<opset7::Gelu>(data);
-        f_ref =
+        function_ref =
             std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, GeluFusionPatternTwo) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, GeluFusionPatternTwo) {
     {
         auto data =
             std::make_shared<opset7::Parameter>(element::f32, Shape{2, 2});
@@ -82,29 +73,21 @@ TEST(TransformationTests, GeluFusionPatternTwo) {
         auto mul_first = std::make_shared<opset7::Multiply>(data, add);
         auto mul = std::make_shared<opset7::Multiply>(mul_first, mul_const);
 
-        f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::GeluFusionWithErfTwo>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::GeluFusionWithErfTwo>();
     }
 
     {
         auto data =
             std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
         auto gelu = std::make_shared<opset7::Gelu>(data);
-        f_ref =
+        function_ref =
             std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, GeluFusionPatternThree) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, GeluFusionPatternThree) {
     {
         auto data =
             std::make_shared<opset7::Parameter>(element::f32, Shape{2, 2});
@@ -122,29 +105,21 @@ TEST(TransformationTests, GeluFusionPatternThree) {
         auto mul_first = std::make_shared<opset7::Multiply>(add, mul_const);
         auto mul = std::make_shared<opset7::Multiply>(data, mul_first);
 
-        f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::GeluFusionWithErfThree>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::GeluFusionWithErfThree>();
     }
 
     {
         auto data =
             std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
         auto gelu = std::make_shared<opset7::Gelu>(data);
-        f_ref =
+        function_ref =
             std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, GeluFusionPatternIncorrectDivConstValue) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, GeluFusionPatternIncorrectDivConstValue) {
     {
         auto data =
             std::make_shared<opset7::Parameter>(element::f32, Shape{2, 2});
@@ -162,23 +137,15 @@ TEST(TransformationTests, GeluFusionPatternIncorrectDivConstValue) {
         auto mul_first = std::make_shared<opset7::Multiply>(data, add);
         auto mul = std::make_shared<opset7::Multiply>(mul_first, mul_const);
 
-        f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
-        f_ref =
+        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        function_ref =
             std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::GeluFusionWithErfTwo>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::GeluFusionWithErfTwo>();
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, GeluFusionPatternTooShortDivConstValue) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, GeluFusionPatternTooShortDivConstValue) {
     {
         auto data =
             std::make_shared<opset7::Parameter>(element::f32, Shape{2, 2});
@@ -196,17 +163,10 @@ TEST(TransformationTests, GeluFusionPatternTooShortDivConstValue) {
         auto mul_first = std::make_shared<opset7::Multiply>(data, add);
         auto mul = std::make_shared<opset7::Multiply>(mul_first, mul_const);
 
-        f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
-        f_ref =
+        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+        function_ref =
             std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::GeluFusionWithErfTwo>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<pass::GeluFusionWithErfTwo>();
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }

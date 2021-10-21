@@ -19,8 +19,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, HSwishFusionWithReluDivF16) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, HSwishFusionWithReluDivF16) {
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
@@ -32,28 +31,20 @@ TEST(TransformationTests, HSwishFusionWithReluDivF16) {
         auto div_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {6.0});
         auto div = std::make_shared<ngraph::opset7::Divide>(mul, div_constant);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::HSwishFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto hswish = std::make_shared<ngraph::opset7::HSwish>(input);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hswish}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hswish}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithReluDivF32) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, HSwishFusionWithReluDivF32) {
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{});
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{}, {3.0});
@@ -65,28 +56,20 @@ TEST(TransformationTests, HSwishFusionWithReluDivF32) {
         auto div_constant = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{}, {6.0});
         auto div = std::make_shared<ngraph::opset7::Divide>(mul, div_constant);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::HSwishFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{});
         auto hswish = std::make_shared<ngraph::opset7::HSwish>(input);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hswish}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hswish}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithReluMul) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, HSwishFusionWithReluMul) {
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
@@ -98,28 +81,20 @@ TEST(TransformationTests, HSwishFusionWithReluMul) {
         auto mul_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.1666666716});
         auto mul_second = std::make_shared<ngraph::opset7::Multiply>(mul_first, mul_constant);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::HSwishFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto hswish = std::make_shared<ngraph::opset7::HSwish>(input);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hswish}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hswish}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithoutRelu) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, HSwishFusionWithoutRelu) {
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
@@ -132,30 +107,22 @@ TEST(TransformationTests, HSwishFusionWithoutRelu) {
         auto div = std::make_shared<ngraph::opset7::Divide>(min, div_constant);
         auto mul = std::make_shared<ngraph::opset7::Multiply>(input, div);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
         gr->add_matcher<ngraph::pass::HSigmoidFusion>();
         gr->add_matcher<ngraph::pass::HSwishFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto hswish = std::make_shared<ngraph::opset7::HSwish>(input);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hswish}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hswish}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithClampMul) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, HSwishFusionWithClampMul) {
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
@@ -165,30 +132,22 @@ TEST(TransformationTests, HSwishFusionWithClampMul) {
         auto mul_first = std::make_shared<ngraph::opset7::Multiply>(clamp, mul_constant);
         auto mul_second = std::make_shared<ngraph::opset7::Multiply>(input, mul_first);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
         gr->add_matcher<ngraph::pass::HSigmoidFusion>();
         gr->add_matcher<ngraph::pass::HSwishFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto hswish = std::make_shared<ngraph::opset7::HSwish>(input);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hswish}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hswish}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithClampDiv) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, HSwishFusionWithClampDiv) {
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
@@ -198,30 +157,22 @@ TEST(TransformationTests, HSwishFusionWithClampDiv) {
         auto div = std::make_shared<ngraph::opset7::Divide>(clamp, div_constant);
         auto mul = std::make_shared<ngraph::opset7::Multiply>(input, div);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
         gr->add_matcher<ngraph::pass::HSigmoidFusion>();
         gr->add_matcher<ngraph::pass::HSwishFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto hswish = std::make_shared<ngraph::opset7::HSwish>(input);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hswish}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hswish}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithReluMulWrongConstValue) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, HSwishFusionWithReluMulWrongConstValue) {
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
@@ -233,13 +184,9 @@ TEST(TransformationTests, HSwishFusionWithReluMulWrongConstValue) {
         auto mul_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.167});
         auto mul_second = std::make_shared<ngraph::opset7::Multiply>(mul_first, mul_constant);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::HSwishFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -253,15 +200,11 @@ TEST(TransformationTests, HSwishFusionWithReluMulWrongConstValue) {
         auto mul_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.167});
         auto mul_second = std::make_shared<ngraph::opset7::Multiply>(mul_first, mul_constant);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithReluDivWrongConstValue) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, HSwishFusionWithReluDivWrongConstValue) {
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::Shape{});
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.01});
@@ -273,13 +216,9 @@ TEST(TransformationTests, HSwishFusionWithReluDivWrongConstValue) {
         auto div_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.0});
         auto div = std::make_shared<ngraph::opset7::Divide>(mul, div_constant);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::HSwishFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -293,15 +232,11 @@ TEST(TransformationTests, HSwishFusionWithReluDivWrongConstValue) {
         auto div_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.0});
         auto div = std::make_shared<ngraph::opset7::Divide>(mul, div_constant);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithoutReluWrongConstValue) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, HSwishFusionWithoutReluWrongConstValue) {
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.11});
@@ -314,15 +249,11 @@ TEST(TransformationTests, HSwishFusionWithoutReluWrongConstValue) {
         auto div = std::make_shared<ngraph::opset7::Divide>(min, div_constant);
         auto mul = std::make_shared<ngraph::opset7::Multiply>(input, div);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
         gr->add_matcher<ngraph::pass::HSigmoidFusion>();
         gr->add_matcher<ngraph::pass::HSwishFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -337,15 +268,11 @@ TEST(TransformationTests, HSwishFusionWithoutReluWrongConstValue) {
         auto div = std::make_shared<ngraph::opset7::Divide>(min, div_constant);
         auto mul = std::make_shared<ngraph::opset7::Multiply>(input, div);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithClampWrongConstValue) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, HSwishFusionWithClampWrongConstValue) {
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.11});
@@ -355,15 +282,11 @@ TEST(TransformationTests, HSwishFusionWithClampWrongConstValue) {
         auto mul_first = std::make_shared<ngraph::opset7::Multiply>(clamp, mul_constant);
         auto mul_second = std::make_shared<ngraph::opset7::Multiply>(input, mul_first);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
         gr->add_matcher<ngraph::pass::HSigmoidFusion>();
         gr->add_matcher<ngraph::pass::HSwishFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -375,43 +298,31 @@ TEST(TransformationTests, HSwishFusionWithClampWrongConstValue) {
         auto mul_first = std::make_shared<ngraph::opset7::Multiply>(clamp, mul_constant);
         auto mul_second = std::make_shared<ngraph::opset7::Multiply>(input, mul_first);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithHSigmoidMul) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, HSwishFusionWithHSigmoidMul) {
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto hsigmoid = std::make_shared<ngraph::opset7::HSigmoid>(input);
         auto mul = std::make_shared<ngraph::opset7::Multiply>(input, hsigmoid);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::HSwishFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto hswish = std::make_shared<ngraph::opset7::HSwish>(input);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hswish}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hswish}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
 
-TEST(TransformationTests, HSwishFusionWithClamp) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, HSwishFusionWithClamp) {
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
@@ -419,14 +330,10 @@ TEST(TransformationTests, HSwishFusionWithClamp) {
         auto clamp = std::make_shared<ngraph::opset7::Clamp>(add, 0.0f, 6.0f);
         auto mul = std::make_shared<ngraph::opset7::Multiply>(input, clamp);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
         gr->add_matcher<ngraph::pass::HSwishFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -435,15 +342,11 @@ TEST(TransformationTests, HSwishFusionWithClamp) {
         auto mul_const = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {6.0});
         auto mul = std::make_shared<ngraph::opset7::Multiply>(hswish, mul_const);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithClampWithWrongConstant) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, HSwishFusionWithClampWithWrongConstant) {
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.11});
@@ -451,14 +354,10 @@ TEST(TransformationTests, HSwishFusionWithClampWithWrongConstant) {
         auto clamp = std::make_shared<ngraph::opset7::Clamp>(add, 0.11f, 6.32f);
         auto mul = std::make_shared<ngraph::opset7::Multiply>(input, clamp);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
         gr->add_matcher<ngraph::pass::HSwishFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -468,9 +367,6 @@ TEST(TransformationTests, HSwishFusionWithClampWithWrongConstant) {
         auto clamp = std::make_shared<ngraph::opset7::Clamp>(add, 0.11f, 6.32f);
         auto mul = std::make_shared<ngraph::opset7::Multiply>(input, clamp);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }

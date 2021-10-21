@@ -251,7 +251,7 @@ std::shared_ptr<ngraph::opset5::Loop> makeLoop(ngraph::Node* root, ngraph::Node*
         const auto& currentInputs = source->input_values();
         std::transform(currentInputs.cbegin(), currentInputs.cend(), std::back_inserter(newInputs), getInput);
 
-        auto cloned = source->copy_with_new_inputs(newInputs);
+        auto cloned = source->clone_with_new_inputs(newInputs);
         cloned->set_friendly_name(source->get_friendly_name());
         VPU_THROW_UNLESS(cloned->get_output_size() == source->get_output_size(),
                          "Encountered mismatch in output count between original node {} and copy without batch {}", source, cloned);
