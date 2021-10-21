@@ -422,6 +422,7 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
             specialized_ngraph_function = ngraph::clone_function(*_ngraph_function);
             {
                 OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
+                // resolves dynamism by replacing dynamic operation with static version
                 ::ngraph::pass::Manager manager;
                 manager.register_pass<ngraph::pass::RemoveConcatZeroDimInput>();
                 manager.register_pass<ngraph::pass::RemoveLoopDanglingParameters>();
