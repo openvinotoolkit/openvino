@@ -69,7 +69,7 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
         auto weights_multiply = std::make_shared<opset4::Multiply>(m_weights, final_const);
 
         // Replace Convolution->Multiply with Convolution with new inputs
-        auto new_conv = m_conv->copy_with_new_inputs({m_input, weights_multiply});
+        auto new_conv = m_conv->clone_with_new_inputs({m_input, weights_multiply});
         new_conv->set_friendly_name(m_mul->get_friendly_name());
         copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
         replace_node(m_mul, new_conv);
@@ -220,7 +220,7 @@ ngraph::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMult
         auto weights_multiply = std::make_shared<opset4::Multiply>(m_weights, final_const);
 
         // Replace Convolution->Multiply with Convolution with new inputs
-        auto new_conv = m_conv->copy_with_new_inputs({m_input, weights_multiply});
+        auto new_conv = m_conv->clone_with_new_inputs({m_input, weights_multiply});
         new_conv->set_friendly_name(m_mul->get_friendly_name());
         copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
         replace_node(m_mul, new_conv);
@@ -286,7 +286,7 @@ ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpr
         auto weights_multiply = std::make_shared<opset4::Multiply>(m_weights, final_const);
 
         // Replace Convolution->Multiply with Convolution with new inputs
-        auto new_conv = m_conv->copy_with_new_inputs({m_input, weights_multiply});
+        auto new_conv = m_conv->clone_with_new_inputs({m_input, weights_multiply});
         new_conv->set_friendly_name(m_mul->get_friendly_name());
         copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
         replace_node(m_mul, new_conv);
