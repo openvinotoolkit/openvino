@@ -46,7 +46,7 @@ public:
 };
 
 TEST_F(ReferenceConvertColorNV12LayerTest, CompareWithHardcodedRefs_r_u8_single_rgb) {
-    auto input = std::vector<uint8_t> {0x51, 0x51, 0x51, 0x51, 0xf0, 0x5a};
+    auto input = std::vector<uint8_t> {0x51, 0x51, 0x51, 0x51, 0x5a, 0xf0};
     auto input_shape = Shape{1, 3, 2, 1};
     auto exp_out = std::vector<uint8_t> {0xff, 0, 0, 0xff, 0, 0, 0xff, 0, 0, 0xff, 0, 0};
     auto out_shape = Shape{1, 2, 2, 3};
@@ -59,7 +59,7 @@ TEST_F(ReferenceConvertColorNV12LayerTest, CompareWithHardcodedRefs_r_u8_single_
 }
 
 TEST_F(ReferenceConvertColorNV12LayerTest, CompareWithHardcodedRefs_color_u8_single_bgr) {
-    auto input = std::vector<uint8_t> {0xeb, 0x51, 0xeb, 0x51, 0xb8, 0x6d};
+    auto input = std::vector<uint8_t> {0x51, 0xeb, 0x51, 0xeb, 0x6d, 0xb8};
     auto input_shape = Shape{1, 3, 2, 1};
     auto exp_out = std::vector<uint8_t> {37, 37, 164, 215, 216, 255, 37, 37, 164, 215, 216, 255};
     auto out_shape = Shape{1, 2, 2, 3};
@@ -76,7 +76,7 @@ TEST_F(ReferenceConvertColorNV12LayerTest, CompareWithHardcodedRefs_color_u8_sin
 }
 
 TEST_F(ReferenceConvertColorNV12LayerTest, CompareWithHardcodedRefs_g_fp32_single_rgb) {
-    auto input = std::vector<float> {145.f, 145.f, 145.f, 145.f, 34.f, 54.f};
+    auto input = std::vector<float> {145.f, 145.f, 145.f, 145.f, 54.f, 34.f};
     auto input_shape = Shape{1, 3, 2, 1};
     auto exp_out = std::vector<float> {0, 255.f, 0, 0, 255.f, 0, 0, 255.f, 0, 0, 255.f, 0};
     auto out_shape = Shape{1, 2, 2, 3};
@@ -98,9 +98,9 @@ TEST_F(ReferenceConvertColorNV12LayerTest, CompareWithHardcodedRefs_batch_fp32_t
                                        41.f, 41.f, 41.f, 41.f};
     auto input_shape_y = Shape{3, 2, 2, 1};
 
-    auto input_uv = std::vector<float> {240., 90.,
-                                        34., 54.,
-                                        110., 240.};
+    auto input_uv = std::vector<float> {90., 240.,
+                                        54., 34.,
+                                        240., 110.};
     auto input_shape_uv = Shape{3, 1, 1, 2};
 
     auto exp_out = std::vector<float> {0, 0, 255., 0, 0, 255., 0, 0, 255., 0, 0, 255.,
@@ -121,10 +121,10 @@ TEST_F(ReferenceConvertColorNV12LayerTest, CompareWithHardcodedRefs_batch_fp32_t
 }
 
 TEST_F(ReferenceConvertColorNV12LayerTest, CompareWithHardcodedRefs_color2x2_f32_two_rgb) {
-    auto input_y = std::vector<float> {235, 81, 235, 81};
+    auto input_y = std::vector<float> {81, 235, 81, 235};
     auto input_shape_y = Shape{1, 2, 2, 1};
 
-    auto input_uv = std::vector<float> {184, 109};
+    auto input_uv = std::vector<float> {109, 184};
     auto input_shape_uv = Shape{1, 1, 1, 2};
 
     auto exp_out = std::vector<float> {164, 37, 37, 255, 216, 215, 164, 37, 37, 255, 216, 215};
