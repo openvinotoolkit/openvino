@@ -98,7 +98,7 @@ ie_faster_build(${TARGET_NAME}_obj
     UNITY
 )
 
-target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_PREPROC_PLUGIN
+target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN
                                                       $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>
                                                       $<TARGET_PROPERTY:fluid,INTERFACE_COMPILE_DEFINITIONS>)
 
