@@ -88,7 +88,7 @@ template <class T>
 inline std::shared_ptr<ngraph::opset1::Constant> CreateConstantVV(const std::vector<std::vector<T>>& val,
                                                                   const ov::element::Type& element_type) {
     if (val.size() > 0) {
-        std::vector<size_t> i_shape({val.size(), val[0].size()});
+        ov::Shape i_shape({val.size(), val[0].size()});
 
         size_t i_size = ov::shape_size(i_shape);
         std::vector<T> i_values(i_size);
@@ -101,7 +101,7 @@ inline std::shared_ptr<ngraph::opset1::Constant> CreateConstantVV(const std::vec
 
         return std::make_shared<ngraph::opset1::Constant>(element_type, i_shape, i_values);
     } else {
-        return std::make_shared<ngraph::opset1::Constant>(element_type, std::vector<size_t>(), std::vector<T>());
+        return std::make_shared<ngraph::opset1::Constant>(element_type, ov::Shape(), std::vector<T>());
     }
 }
 
