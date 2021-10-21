@@ -12,18 +12,21 @@
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ReshapePRelu, "ReshapePRelu", 0);
 
 MKLDNNPlugin::ReshapePRelu::ReshapePRelu() {
-    auto input = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
-    auto slope = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
-    auto prelu = ngraph::pattern::wrap_type<ngraph::opset1::PRelu>({ input, slope });
+    auto input_m = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
+    auto slope_m = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
+    auto prelu_m = ngraph::pattern::wrap_type<ngraph::opset1::PRelu>({ input_m, slope_m });
 
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
-        auto prelu = std::dynamic_pointer_cast<ngraph::opset1::PRelu>(m.get_match_root());
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto prelu = pattern_map.at(prelu_m).get_node_shared_ptr();
+        const auto input = pattern_map.at(input_m);
+        const auto slope = pattern_map.at(slope_m);
 
-        const auto prelu_pshape = prelu->input_value(0).get_partial_shape();
+        const auto prelu_pshape = prelu->get_input_partial_shape(0);
         const auto prelu_rank = prelu_pshape.rank();
-        const auto slope_pshape = prelu->input_value(1).get_partial_shape();
+        const auto slope_pshape = prelu->get_input_partial_shape(1);
         const auto slope_rank = slope_pshape.rank();
-        if (!prelu || prelu_rank.get_length() == 1 || slope_rank.get_length() != 1) {
+        if (prelu_rank.get_length() == 1 || slope_rank.get_length() != 1) {
             return false;
         }
 
@@ -35,19 +38,16 @@ MKLDNNPlugin::ReshapePRelu::ReshapePRelu() {
             }
         }
 
-        ngraph::Shape target_shape(prelu_rank.get_length(), 1);
+        std::vector<std::int64_t> target_shape(prelu_rank.get_length(), 1);
         target_shape[channel_dim_idx] = -1;
         const auto target_shape_const = ngraph::opset1::Constant::create(ngraph::element::i64, { target_shape.size() }, target_shape);
-        auto new_slope = ngraph::op::util::make_try_fold<ngraph::opset1::Reshape>(prelu->input_value(1), target_shape_const, true);
+        auto new_slope = ngraph::op::util::make_try_fold<ngraph::opset1::Reshape>(slope, target_shape_const, true);
 
-        auto new_prelu = prelu->clone_with_new_inputs({ prelu->input_value(0), new_slope });
-        new_prelu->set_friendly_name(prelu->get_friendly_name());
-
-        ngraph::copy_runtime_info(prelu, new_prelu);
-        ngraph::replace_node(prelu, new_prelu);
+        auto new_prelu = prelu->clone_with_new_inputs({ input, new_slope });
+        ngraph::replace_node_update_name(prelu, new_prelu);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(prelu, "ReshapePRelu");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(prelu_m, "ReshapePRelu");
     this->register_matcher(m, callback);
 }
