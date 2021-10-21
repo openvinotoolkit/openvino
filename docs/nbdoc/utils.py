@@ -131,3 +131,12 @@ def remove_existing(notebooks_path: str) -> None:
             rmtree(notebooks_path)
         else:
             remove(notebooks_path)
+
+def split_notebooks_into_sections(notebooks: list) -> list:
+    series = [list() for _ in range(5)]
+    for notebook in notebooks:
+        try:
+            series[int(notebook.name[0])].append(notebook)
+        except IndexError:
+            pass
+    return series

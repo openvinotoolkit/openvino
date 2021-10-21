@@ -1,11 +1,10 @@
 # OpenVINO™ Deployment Manager Guide {#openvino_docs_install_guides_deployment_manager_tool}
 
-The Deployment Manager is a Python* command-line tool that creates a deployment package by assembling the model, IR files, your application, and associated dependencies into a runtime package for your target device. This tool is delivered within the Intel® Distribution of OpenVINO™ toolkit for Linux\* and Windows\* release packages and is available after installation in the `<INSTALL_DIR>/deployment_tools/tools/deployment_manager` directory.
+The Deployment Manager is a Python* command-line tool that creates a deployment package by assembling the model, IR files, your application, and associated dependencies into a runtime package for your target device. This tool is delivered within the Intel® Distribution of OpenVINO™ toolkit for Linux*, Windows* and macOS* release packages and is available after installation in the `<INSTALL_DIR>/deployment_tools/tools/deployment_manager` directory.
 
 ## Prerequisites
 
-* Intel® Distribution of OpenVINO™ toolkit for Linux\* (version 2019 R3 or higher) or Intel® Distribution of OpenVINO™ toolkit for Windows\* (version 2019 R4 or higher) installed on your development machine.
-* Python\* 3.6 or higher is required to run the Deployment Manager.
+* Intel® Distribution of OpenVINO™ toolkit
 * To run inference on a target device other than CPU, device drivers must be pre-installed:
    * **For Linux**, see the following sections in the [installation instructions for Linux](../install_guides/installing-openvino-linux.md): 
      * Steps for Intel® Processor Graphics (GPU) section 
@@ -35,7 +34,7 @@ There are two ways to create a deployment package that includes inference-relate
   
 Interactive mode provides a user-friendly command-line interface that will guide you through the process with text prompts.
 
-1. To launch the Deployment Manager in the interactive mode, open a new terminal window, go to the Deployment Manager tool directory and run the tool script without parameters:
+1. To launch the Deployment Manager in interactive mode, open a new terminal window, go to the Deployment Manager tool directory and run the tool script without parameters:
   
 @sphinxdirective
 
@@ -75,7 +74,7 @@ Interactive mode provides a user-friendly command-line interface that will guide
 
    The target devices you have selected at the previous step appear on the screen. To go back and change the selection, type **b** and press **Enter**. Use the options provided to configure the generation process, or use the default settings.
    
-   *	`o. Change output directory` (optional): Path to the output directory. By default, it set to your home directory.
+   *	`o. Change output directory` (optional): Path to the output directory. By default, it's set to your home directory.
 
    *	`u. Provide (or change) path to folder with user data` (optional): Path to a directory with user data (IRs, models, datasets, etc.) files and subdirectories required for inference, which will be added to the deployment archive. By default, it's set to `None`, which means you will separately copy the user data to the target system.
 
@@ -83,7 +82,7 @@ Interactive mode provides a user-friendly command-line interface that will guide
  
 4. Once all the parameters are set, type **g** and press **Enter** to generate the package for the selected target devices. To interrupt the generation process and exit the program, type **q** and press **Enter**.
 
-   The script successfully completes and the deployment package is generated in the output directory specified. 
+   The script successfully completes and the deployment package is generated in the specified output directory. 
 
 @sphinxdirective
 

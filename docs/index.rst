@@ -8,22 +8,10 @@ OpenVINO™ Documentation
 
 .. raw:: html
 
-   <div class="section" id="welcome-to-openvino-toolkit-s-documentation">
-      <link rel="stylesheet" type="text/css" href="_static/css/homepage_style.css">
-      <div id="HP_head_banner">
-         <p>Write Once, Deploy Anywhere</p>
-         <div>
-            <a href=""> GET STARTED </a>
-            <a href="https://software.seek.intel.com/openvino-toolkit" title="Download OpenVINO"> <img
-                  src="_static/images/download_btn_installer.svg" alt="download OpenVINO" /> </a>
-            <a href="https://github.com/openvinotoolkit/openvino" title="Open OpenVINO on GitHub"> <img src="_static/images/download_btn_github.svg"
-                  alt="OpenVINO GitHub" /> </a>
-         </div>
-      </div>
       <div style="clear:both;"> </div>
 
       <p>
-         OpenVINO™ Toolkit is an open-source framework for optimizing and deploying AI inference.
+         OpenVINO™ is an open-source toolkit for optimizing and deploying AI inference.
          <ul>
             <li>Boost deep learning performance in computer vision, automatic speech recognition, natural language processing and other common tasks </li>
             <li>Use models trained with popular frameworks like TensorFlow, PyTorch and more </li>
@@ -31,16 +19,14 @@ OpenVINO™ Documentation
          </ul>
      </p>
       
-      
       <img class="HP_img_chart" src="_static/images/ov_chart.png"
          alt="OpenVINO allows to process models built with Caffe, Keras, mxnet, TensorFlow, ONNX, and PyTorch. They can be easily optimized and deployed on devices running Windows, Linux, or MacOS." />
       <div style="clear:both;"> </div>
       <p>Check the full range of supported hardware in the 
-         <a href="openvino_docs_IE_DG_supported_plugins_Supported_Devices.html"> Supported Devices page</a> <br /> and see how it stacks up in our
-         <a href="openvino_docs_performance_benchmarks.html"> Performance Benchmarks page.</a>
-      </p>
-      <p>Supports deployment on Windows, Linux, and macOS.</p>
-      
+         <a href="openvino_docs_IE_DG_supported_plugins_Supported_Devices.html"> Supported Devices page</a> and see how it stacks up in our
+         <a href="openvino_docs_performance_benchmarks.html"> Performance Benchmarks page.</a> <br />
+	 Supports deployment on Windows, Linux, and macOS.
+      </p>      
       <div class="HP_separator-header">
          <p> Train, Optimize, Deploy </p>
       </div>
@@ -82,7 +68,7 @@ OpenVINO™ Documentation
 	 </a>
 	 <a href="openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html" >
 	    <h3>Inference Engine </h3>
-	    <p> Learn about the key mechanism OpenVINO which executes the IR and ONNX models on target devices. </p>  
+	    <p> Learn about OpenVINO's inference mechanism which executes the IR and ONNX models on target devices. </p>  
 	 </a>
 	 <a href="openvino_docs_optimization_guide_dldt_optimization_guide.html" >
 	    <h3>Tune & Optimize </h3>
@@ -95,19 +81,6 @@ OpenVINO™ Documentation
       </div>
       <div style="clear:both;"> </div>
    </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
