@@ -59,7 +59,7 @@ std::vector<Extension::Ptr> ov::load_extension(const std::string& path) {
     return load_extension_impl(path);
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::vector<Extension::Ptr> ov::load_extension(const std::wstring& path) {
     return load_extension_impl(path);
 }

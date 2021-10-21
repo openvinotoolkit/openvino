@@ -184,6 +184,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
     mutable std::unordered_set<std::string> opsetNames;
     mutable std::vector<ie::IExtensionPtr> extensions;
+    mutable std::vector<ov::Extension::Ptr> ov_extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
@@ -940,12 +941,22 @@ public:
         AddExtensionUnsafe(extension);
     }
 
+    void AddOVExtensions(const std::vector<ov::Extension::Ptr>& extensions) {
+        std::lock_guard<std::mutex> lock(pluginsMutex);
+        for (const auto& ext : extensions)
+            ov_extensions.emplace_back(ext);
+    }
+
     /**
      * @brief Provides a list of extensions
      * @return A list of registered extensions
      */
     const std::vector<ie::IExtensionPtr>& GetExtensions() const {
         return extensions;
+    }
+
+    const std::vector<ov::Extension::Ptr>& GetOVExtensions() const {
+        return ov_extensions;
     }
 
     std::map<std::string, ie::Version> GetVersions(const std::string& deviceName) const {
@@ -1424,6 +1435,18 @@ ExecutableNetwork Core::compile_model(const std::shared_ptr<const ov::Function>&
 
 void Core::add_extension(const ie::IExtensionPtr& extension) {
     OV_CORE_CALL_STATEMENT(_impl->AddExtension(extension););
+}
+
+void Core::add_extension(const std::string& library_path) {
+    OV_CORE_CALL_STATEMENT(_impl->AddOVExtensions(ov::load_extension(library_path)););
+}
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+void Core::add_extension(const std::wstring& library_path) {
+    OV_CORE_CALL_STATEMENT(_impl->AddOVExtensions(ov::load_extension(library_path)););
+}
+#endif
+void Core::add_extension(const std::vector<ov::Extension::Ptr>& extensions) {
+    OV_CORE_CALL_STATEMENT(_impl->AddOVExtensions(extensions););
 }
 
 ExecutableNetwork Core::import_model(std::istream& modelStream,

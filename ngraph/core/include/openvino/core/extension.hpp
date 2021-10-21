@@ -31,7 +31,7 @@ protected:
 };
 
 OPENVINO_API std::vector<Extension::Ptr> load_extension(const std::string& path);
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 OPENVINO_API std::vector<Extension::Ptr> load_extension(const std::wstring& path);
 #endif
 

@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "ie_plugin_config.hpp"
+#include "openvino/core/extension.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/executable_network.hpp"
@@ -147,9 +148,28 @@ public:
 
     /**
      * @brief Registers extension
+     * @deprecated This method is deprecated. Please use other add_extension methods
      * @param extension Pointer to already loaded extension
      */
+    OPENVINO_DEPRECATED("Please use add_extension(ov::Extension) or add_extension(path_to_library) instead.")
     void add_extension(const std::shared_ptr<ie::IExtension>& extension);
+    /**
+     * @brief Registers extension
+     * @param library_path path to library with ov::Extension
+     */
+    void add_extension(const std::string& library_path);
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    /**
+     * @brief Registers extension
+     * @param library_path path to library with ov::Extension
+     */
+    void add_extension(const std::wstring& library_path);
+#endif
+    /**
+     * @brief Registers extensions
+     * @param extensions Vector of pointers to already loaded extension
+     */
+    void add_extension(const std::vector<ov::Extension::Ptr>& extensions);
 
     /**
      * @brief Creates an executable network from a previously exported network
