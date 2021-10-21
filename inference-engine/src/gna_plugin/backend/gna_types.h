@@ -6,6 +6,7 @@
 
 #if GNA_LIB_VER == 1
 #include "gna_lib_ver_selector.hpp"
+testForCI;
 #else
 #include <cstdint>
 
