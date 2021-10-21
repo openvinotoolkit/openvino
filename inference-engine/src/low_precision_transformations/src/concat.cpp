@@ -43,7 +43,6 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
     if (!canBeTransformed(context, concat)) {
         return false;
     }
-    const size_t axis = ngraph::normalize_axis(concat->get_friendly_name(), concat->get_axis(), concat->get_output_partial_shape(0).rank());
 
     std::vector<FakeQuantizeDequantization> layerDequantizations;
     layerDequantizations.reserve(concat->get_input_size());
@@ -108,7 +107,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
         }
 
         Shape targetShape(concat->get_input_partial_shape(i).rank().get_length(), 1ul);
-        targetShape[axis] = concat->get_input_partial_shape(i)[axis].get_length();
+        targetShape[1] = concat->get_input_partial_shape(i)[1].get_length();
 
         if (!allDequantizationShiftAreZero) {
             subtractNodes.push_back(dequantization.subtract == nullptr ?
@@ -140,19 +139,20 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
             lastDequantization,
             NetworkHelper::toScalarIfPossible(subtractNodes.size() == 1ul ?
                 subtractNodes[0] :
-                ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(subtractNodes, axis)));
+                ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(subtractNodes, 1)));
 
         NetworkHelper::copyInfo({ concat, subtract }, subtract);
         subtract->set_friendly_name(concat->get_friendly_name() + "/DequantizationSubtract");
         lastDequantization = subtract;
     }
+
     if (!multiplyNodes.empty()) {
         const auto multiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
             opset1::Multiply(
                 lastDequantization,
                 NetworkHelper::toScalarIfPossible(multiplyNodes.size() == 1ul ?
                     multiplyNodes[0] :
-                    ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(multiplyNodes, axis))),
+                    ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(multiplyNodes, 1))),
             layerDequantizations[0].multiply->get_output_element_type(0));
 
         NetworkHelper::copyInfo({ concat, multiply }, multiply);
@@ -184,6 +184,10 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
     }
 
     const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, outRank);
+
+    if (normalizedAxis != 1ul) {
+        return false;
+    }
 
     if (outPShape[normalizedAxis].is_dynamic()) {
         return false;
@@ -309,7 +313,8 @@ bool ConcatTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& 
         return false;
     }
 
-    return true;
+    const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), concat->get_axis(), outputRank);
+    return normalizedAxis == 1ul;
 }
 
 } // namespace low_precision
