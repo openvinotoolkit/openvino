@@ -84,6 +84,10 @@ ngraph::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationF
         const auto& input_1 = pattern_value_map.at(input_1_pattern);
         const auto& input_2 = pattern_value_map.at(input_2_pattern);
 
+        // this transformation supports only static shapes
+        if (input_1.get_partial_shape().is_dynamic() || input_2.get_partial_shape().is_dynamic())
+            return false;
+
         auto matmul = std::dynamic_pointer_cast<opset1::MatMul>(pattern_value_map.at(matmul_pattern).get_node_shared_ptr());
         const bool transposed_a = matmul->get_transpose_a();
         const bool transposed_b = matmul->get_transpose_b();
