@@ -45,9 +45,6 @@ if (LINUX)
     file (GLOB LIBRARY_HEADERS
          ${LIBRARY_HEADERS}
          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
-elseif (UNIX)
-    list (APPEND LIBRARY_SRC
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_shared_object_loader.cpp)
 endif()
 
 if (WIN32)

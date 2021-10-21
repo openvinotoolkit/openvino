@@ -11,8 +11,8 @@
 #include "frontend_manager_defs.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/opsets/opset.hpp"
-#include "openvino/core/variant.hpp"
 #include "openvino/core/rtti.hpp"
+#include "openvino/core/variant.hpp"
 
 namespace ov {
 
@@ -48,8 +48,7 @@ public:
 using Weights = std::shared_ptr<ngraph::runtime::AlignedBuffer>;
 
 template <>
-class FRONTEND_API VariantWrapper<Weights>
-    : public VariantImpl<Weights> {
+class FRONTEND_API VariantWrapper<Weights> : public VariantImpl<Weights> {
 public:
     OPENVINO_RTTI("Variant::Weights");
     BWDCMP_RTTI_DECLARATION;
@@ -62,8 +61,7 @@ using WeightsVariant = VariantWrapper<Weights>;
 using Extensions = std::map<std::string, ngraph::OpSet>;
 
 template <>
-class FRONTEND_API VariantWrapper<Extensions>
-    : public VariantImpl<Extensions> {
+class FRONTEND_API VariantWrapper<Extensions> : public VariantImpl<Extensions> {
 public:
     OPENVINO_RTTI("Variant::Extensions");
     BWDCMP_RTTI_DECLARATION;
