@@ -9,8 +9,8 @@
 #include <tensorflow_frontend/graph_iterator.hpp>
 
 #include "graph_iterator_proto.hpp"
-#include "ngraph_conversions.hpp"
 #include "model.hpp"
+#include "ngraph_conversions.hpp"
 #include "node_context.hpp"
 #include "place.hpp"
 #include "utils.hpp"
