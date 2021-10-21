@@ -16,9 +16,9 @@ Tile::Tile(const ov::Output<ov::Node>& arg, std::vector<int64_t> repeats) : Op({
 void Tile::validate_and_infer_types() {
     auto out_shape = get_input_partial_shape(0);
     if (out_shape.rank().is_static()) {
-        OPENVINO_ASSERT(out_shape.rank().get_length() == repeats.size(),
+        OPENVINO_ASSERT(out_shape.rank().get_length() == static_cast<int64_t>(repeats.size()),
                         "The number of Tile repeats should be aligned with input rank.");
-        for (size_t i = 0; i < out_shape.rank().get_length(); i++) {
+        for (int64_t i = 0; i < out_shape.rank().get_length(); i++) {
             if (out_shape[i].is_static()) {
                 out_shape[i] *= repeats[i];
             }
