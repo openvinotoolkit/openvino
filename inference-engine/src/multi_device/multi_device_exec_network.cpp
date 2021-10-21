@@ -21,6 +21,7 @@
 #include "ngraph/opsets/opset1.hpp"
 #include "transformations/utils/utils.hpp"
 
+#include "multi_itt.hpp"
 // ------------------------------MultiDeviceExecutableNetwork----------------------------
 namespace MultiDevicePlugin {
 using namespace InferenceEngine;
@@ -147,6 +148,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                                            , _needPerfCounters(needPerfCounters)
                                                            , _multiPlugin(plugin)
                                                            , _workModeIsAUTO(true) {
+    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork:AutoMode");
     if (_multiPlugin->GetCore() == nullptr) {
         IE_THROW() << "Please, work with MULTI device via InferencEngine::Core object";
     }
@@ -226,6 +228,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
 }
 
 void MultiDeviceExecutableNetwork::WaitFirstNetworkReady() {
+    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceExecutableNetwork::WaitFirstNetworkReady");
     if (_alreadyActualNetwork) {
         return;
     }
@@ -254,6 +257,7 @@ void MultiDeviceExecutableNetwork::WaitFirstNetworkReady() {
 void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
     // Maybe different API will call this function, so add call once here
     // for every MultiDeviceExecutableNetwork instance
+    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceExecutableNetwork::WaitActualNetworkReady");
     std::call_once(_oc, [&] () {
             if (_acceleratorFuture.valid()) {
                 _networkActualNeeded = _acceleratorFuture.get();
@@ -305,6 +309,7 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
 bool MultiDeviceExecutableNetwork::RunPipelineTask(Task& inferPipelineTask,
                                             NotBusyWorkerRequests& idleWorkerRequests,
                                             const DeviceName& preferred_device) {
+  OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceExecutableNetwork::RunPipelineTask");
   WorkerInferRequest *workerRequestPtr = nullptr;
   if (idleWorkerRequests.try_pop(workerRequestPtr)) {
       IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
@@ -347,10 +352,11 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
 
 std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::GetContext() const {
     if (_workModeIsAUTO) {
+        OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceExecutableNetwork::GetContext:AutoMode");
         WaitActualNetworkReady();
         return _networkActualNeeded->GetContext();
     }
-
+    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceExecutableNetwork::GetContext");
     auto devices = [&] {
         std::lock_guard<std::mutex> lock(_mutex);
         return _devicePriorities;
@@ -462,6 +468,7 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
 
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::string &name) const {
     if (_workModeIsAUTO) {
+        OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceExecutableNetwork::GetMetric:AutoMode");
         // fixme: should we wait actual device? meanwhile it will block inference, how to fix?
         if (_alreadyActualNetwork) {
             WaitActualNetworkReady();
