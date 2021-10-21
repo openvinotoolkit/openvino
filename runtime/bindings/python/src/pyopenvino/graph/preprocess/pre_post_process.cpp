@@ -9,17 +9,17 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "pyngraph/preprocess/pre_post_process.hpp"
+#include "pyopenvino/graph/preprocess/pre_post_process.hpp"
 
 namespace py = pybind11;
 
 PYBIND11_MAKE_OPAQUE(const std::vector<float>);
 
-static void regclass_pyngraph_PreProcessSteps(py::module m) {
+static void regclass_graph_PreProcessSteps(py::module m) {
     py::class_<ov::preprocess::PreProcessSteps, std::shared_ptr<ov::preprocess::PreProcessSteps>> steps(
         m,
         "PreProcessSteps");
-    steps.doc() = "ngraph.impl.preprocess.PreProcessSteps wraps ov::preprocess::PreProcessSteps";
+    steps.doc() = "openvino.impl.preprocess.PreProcessSteps wraps ov::preprocess::PreProcessSteps";
 
     steps.def(py::init<>());
     steps.def(
@@ -137,11 +137,11 @@ static void regclass_pyngraph_PreProcessSteps(py::module m) {
               )");
 }
 
-static void regclass_pyngraph_InputTensorInfo(py::module m) {
+static void regclass_graph_InputTensorInfo(py::module m) {
     py::class_<ov::preprocess::InputTensorInfo, std::shared_ptr<ov::preprocess::InputTensorInfo>> info(
         m,
         "InputTensorInfo");
-    info.doc() = "ngraph.impl.preprocess.InputTensorInfo wraps ov::preprocess::InputTensorInfo";
+    info.doc() = "openvino.impl.preprocess.InputTensorInfo wraps ov::preprocess::InputTensorInfo";
 
     info.def(py::init<>());
     info.def(
@@ -169,9 +169,9 @@ static void regclass_pyngraph_InputTensorInfo(py::module m) {
     });
 }
 
-static void regclass_pyngraph_InputInfo(py::module m) {
+static void regclass_graph_InputInfo(py::module m) {
     py::class_<ov::preprocess::InputInfo, std::shared_ptr<ov::preprocess::InputInfo>> inp(m, "InputInfo");
-    inp.doc() = "ngraph.impl.preprocess.InputInfo wraps ov::preprocess::InputInfo";
+    inp.doc() = "openvino.impl.preprocess.InputInfo wraps ov::preprocess::InputInfo";
 
     inp.def(py::init<>(), R"(Default constructor, can be used only for networks with exactly one input)");
     inp.def(py::init<size_t>(), R"(Constructor with parameter index as argument)");
@@ -217,14 +217,14 @@ static void regclass_pyngraph_InputInfo(py::module m) {
               )");
 }
 
-void regclass_pyngraph_PrePostProcessor(py::module m) {
-    regclass_pyngraph_PreProcessSteps(m);
-    regclass_pyngraph_InputInfo(m);
-    regclass_pyngraph_InputTensorInfo(m);
+void regclass_graph_PrePostProcessor(py::module m) {
+    regclass_graph_PreProcessSteps(m);
+    regclass_graph_InputInfo(m);
+    regclass_graph_InputTensorInfo(m);
     py::class_<ov::preprocess::PrePostProcessor, std::shared_ptr<ov::preprocess::PrePostProcessor>> proc(
         m,
         "PrePostProcessor");
-    proc.doc() = "ngraph.impl.preprocess.PrePostProcessor wraps ov::preprocess::PrePostProcessor";
+    proc.doc() = "openvino.impl.preprocess.PrePostProcessor wraps ov::preprocess::PrePostProcessor";
 
     proc.def(py::init<>());
     proc.def(
