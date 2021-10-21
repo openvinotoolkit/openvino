@@ -29,6 +29,18 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
                                                      MKLDNNExecNetwork::Ptr             execNetwork_)
 : IInferRequestInternal(networkInputs, networkOutputs)
 , execNetwork(execNetwork_) {
+    CreateInferRequest();
+}
+
+MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                                     const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                                                     MKLDNNExecNetwork::Ptr             execNetwork_)
+: IInferRequestInternal(inputs, outputs)
+, execNetwork(execNetwork_) {
+    CreateInferRequest();
+}
+
+void MKLDNNPlugin::MKLDNNInferRequest::CreateInferRequest() {
     auto id = (execNetwork->_numRequests)++;
     profilingTask = openvino::itt::handle("MKLDNN_INFER_" + execNetwork->_name + "_" + std::to_string(id));
 

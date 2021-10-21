@@ -8,7 +8,7 @@ file(GLOB_RECURSE SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 add_executable(${TARGET_NAME} ${SRC})
 
-target_link_libraries(${TARGET_NAME} PRIVATE frontend_shared_test_classes)
+target_link_libraries(${TARGET_NAME} PRIVATE frontend_shared_test_classes tensorflow_ngraph_frontend)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
@@ -64,3 +64,6 @@ endif()
 
 add_dependencies(${TARGET_NAME} tensorflow_test_models)
 add_dependencies(${TARGET_NAME} tensorflow_ngraph_frontend)
+
+get_target_property(TENSORFLOW_FRONTEND_SRC_DIR tensorflow_ngraph_frontend SOURCE_DIR)
+target_include_directories(${TARGET_NAME} PRIVATE ${TENSORFLOW_FRONTEND_SRC_DIR}/src/pass/)

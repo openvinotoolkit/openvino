@@ -145,11 +145,11 @@ std::vector<ov::Output<const ov::Node>> ExecutableNetwork::inputs() const {
 
 ov::Output<const ov::Node> ExecutableNetwork::input() const {
     OV_EXEC_NET_CALL_STATEMENT({
-        const auto params = _impl->getInputs();
-        if (params.size() != 1) {
+        const auto inputs = _impl->getInputs();
+        if (inputs.size() != 1) {
             throw ov::Exception("input() must be called on a function with exactly one parameter.");
         }
-        return params.at(0);
+        return inputs.at(0);
     });
 }
 
@@ -179,11 +179,11 @@ std::vector<ov::Output<const ov::Node>> ExecutableNetwork::outputs() const {
 }
 ov::Output<const ov::Node> ExecutableNetwork::output() const {
     OV_EXEC_NET_CALL_STATEMENT({
-        const auto result = _impl->getOutputs();
-        if (result.size() != 1) {
+        const auto outputs = _impl->getOutputs();
+        if (outputs.size() != 1) {
             throw ov::Exception("output() must be called on a function with exactly one parameter.");
         }
-        return result.at(0);
+        return outputs.at(0);
     });
 }
 ov::Output<const ov::Node> ExecutableNetwork::output(size_t i) const {
