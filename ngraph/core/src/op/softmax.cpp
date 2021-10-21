@@ -102,7 +102,7 @@ bool op::v1::Softmax::has_evaluate() const {
 
 // *** SOFTMAX OP SET V8 ***
 
-op::v8::Softmax::Softmax(const Output<Node> &arg, const int axis) : Op({arg}), m_axis(axis) {
+op::v8::Softmax::Softmax(const Output<Node> &arg, const int64_t axis) : Op({arg}), m_axis(axis) {
     constructor_validate_and_infer_types();
 }
 
@@ -115,7 +115,7 @@ bool op::v8::Softmax::visit_attributes(AttributeVisitor &visitor) {
 void op::v8::Softmax::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v8_Softmax_validate_and_infer_types);
     auto input_shape = get_input_partial_shape(0);
-    int rank = static_cast<int>(input_shape.rank().get_length());
+    int64_t rank = static_cast<int64_t>(input_shape.rank().get_length());
     if (input_shape.rank().is_static())
         NODE_VALIDATION_CHECK(this,
                               -rank <= m_axis < rank,
@@ -138,8 +138,8 @@ bool op::v8::Softmax::evaluate(const HostTensorVector &outputs, const HostTensor
     NGRAPH_OP_SCOPE(v8_Softmax_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     outputs[0]->set_unary(inputs[0]);
-    int rank = static_cast<int>(get_input_partial_shape(0).rank().get_length());
-    size_t axis = m_axis < 0 ? static_cast<size_t>(rank - m_axis) : static_cast<size_t>(m_axis);
+    int64_t rank = static_cast<int64_t>(get_input_partial_shape(0).rank().get_length());
+    size_t axis = m_axis < 0 ? static_cast<size_t>(rank + m_axis) : static_cast<size_t>(m_axis);
     return evaluate_softmax(inputs[0], outputs[0], AxisSet{axis});
 }
 

@@ -62,17 +62,17 @@ public:
     ///
     /// Output `[d0, ...]`
     ///
-    Softmax(const Output<Node>& arg, const int axis = 1);
+    Softmax(const Output<Node>& arg, const int64_t axis = 1);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    int get_axis() const {
+    int64_t get_axis() const {
         return m_axis;
     }
-    void set_axis(const int axis) {
+    void set_axis(const int64_t axis) {
         m_axis = axis;
     }
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -81,7 +81,7 @@ public:
     bool has_evaluate() const override;
 
 private:
-    int m_axis{0};
+    int64_t m_axis{0};
 };
 }  // namespace v8
 }  // namespace op
