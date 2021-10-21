@@ -12,6 +12,8 @@ namespace subgraph {
 
 using SoftMaxTestParams = std::tuple<
         ElementType,                                    // netPrecision
+        ElementType,                                    // inPrecision
+        ElementType,                                    // outPrecision
         InputShape,                                     // Dynamic shape + Target static shapes
         size_t,                                         // axis
         TargetDevice,                                   // targetDevice

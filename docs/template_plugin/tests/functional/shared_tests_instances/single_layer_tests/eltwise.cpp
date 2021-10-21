@@ -79,6 +79,8 @@ const auto multiply_params = ::testing::Combine(
         ::testing::ValuesIn(secondaryInputTypes),
         ::testing::ValuesIn(opTypes),
         ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
         ::testing::Values(additional_config));
 
@@ -88,6 +90,8 @@ const auto multiply_params_dynamic = ::testing::Combine(
         ::testing::ValuesIn(secondaryInputTypesDynamic),
         ::testing::ValuesIn(opTypesDynamic),
         ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
         ::testing::Values(additional_config));
 
@@ -116,6 +120,8 @@ const auto single_thread_params = ::testing::Combine(
         ::testing::ValuesIn(secondaryInputTypes),
         ::testing::ValuesIn(opTypes),
         ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
         ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
         ::testing::Values(additional_config_single_thread));
 

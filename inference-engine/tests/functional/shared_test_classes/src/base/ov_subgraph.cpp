@@ -46,7 +46,7 @@ void SubgraphBaseTest::run() {
     try {
         compile_model();
         for (const auto& targetStaticShapeVec : targetStaticShapes) {
-//            try {
+            try {
                 if (!inputDynamicShapes.empty()) {
                     // resize ngraph function according new target shape
                     ngraph::helpers::resize_function(functionRefs, targetStaticShapeVec);
@@ -54,9 +54,9 @@ void SubgraphBaseTest::run() {
                 generate_inputs(targetStaticShapeVec);
                 infer();
                 validate();
-//            } catch (const std::exception &ex) {
-//                throw std::runtime_error("Incorrect target static shape: " + CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
-//            }
+            } catch (const std::exception &ex) {
+                throw std::runtime_error("Incorrect target static shape: " + CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
+            }
         }
         status = LayerTestsUtils::PassRate::Statuses::PASSED;
     } catch (const std::exception &ex) {
@@ -123,7 +123,27 @@ void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor> &expected,
     }
 }
 
-void SubgraphBaseTest::configure_model() {}
+void SubgraphBaseTest::configure_model() {
+    // configure input precision
+    {
+        auto params = function->get_parameters();
+        for (auto& param : params) {
+            if (inType != ov::element::Type_t::undefined) {
+                param->get_output_tensor(0).set_element_type(inType);
+            }
+        }
+    }
+
+    // configure output precision
+    {
+        auto results = function->get_results();
+        for (auto& result : results) {
+            if (outType != ov::element::Type_t::undefined) {
+                result->get_output_tensor(0).set_element_type(outType);
+            }
+        }
+    }
+}
 
 void SubgraphBaseTest::compile_model() {
     configure_model();

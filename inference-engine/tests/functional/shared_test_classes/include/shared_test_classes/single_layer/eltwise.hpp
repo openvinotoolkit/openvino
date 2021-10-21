@@ -17,6 +17,8 @@ typedef std::tuple<
     ngraph::helpers::InputLayerType,   // secondary input type
     CommonTestUtils::OpType,           // op type
     ElementType,                       // Net precision
+    ElementType,                       // In precision
+    ElementType,                       // Out precision
     TargetDevice,                      // Device name
     Config                             // Additional network configuration
 > EltwiseTestParams;

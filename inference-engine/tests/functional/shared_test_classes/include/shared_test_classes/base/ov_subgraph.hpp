@@ -50,6 +50,7 @@ protected:
     std::map<std::string, ov::runtime::Tensor> inputs;
     std::vector<ngraph::PartialShape> inputDynamicShapes;
     std::vector<std::vector<ngraph::Shape>> targetStaticShapes;
+    ElementType inType = ov::element::undefined, outType = ov::element::undefined;
 
     ov::runtime::ExecutableNetwork executableNetwork;
     ov::runtime::InferRequest inferRequest;
