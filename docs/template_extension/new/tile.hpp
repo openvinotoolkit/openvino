@@ -9,24 +9,24 @@
 //! [op:header]
 namespace TemplateExtension {
 
-class Operation : public ov::op::Op {
+class Tile : public ov::op::Op {
 public:
-    OPENVINO_OP("Operation");
+    OPENVINO_OP("Tile");
 
-    Operation() = default;
-    Operation(const ov::Output<ov::Node>& arg, int64_t add);
+    Tile() = default;
+    Tile(const ov::Output<ov::Node>& arg, std::vector<int64_t> repeats);
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     bool evaluate(ov::runtime::TensorVector& outputs, const ov::runtime::TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
-    int64_t getAddAttr() const {
-        return add;
+    std::vector<int64_t> get_repeats() const {
+        return repeats;
     }
 
 private:
-    int64_t add;
+    std::vector<int64_t> repeats;
 };
 //! [op:header]
 

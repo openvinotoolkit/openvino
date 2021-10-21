@@ -5,7 +5,7 @@
 #include <openvino/core/extension.hpp>
 #include <openvino/core/op_extension.hpp>
 
-#include "op.hpp"
+#include "tile.hpp"
 
 OPENVINO_CREATE_EXTENSIONS(
-    std::vector<ov::Extension::Ptr>({std::make_shared<ov::OpExtension<TemplateExtension::Operation>>()}));
+    std::vector<ov::Extension::Ptr>({std::make_shared<ov::OpExtension<TemplateExtension::Tile>>()}));
