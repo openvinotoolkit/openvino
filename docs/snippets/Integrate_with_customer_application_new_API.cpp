@@ -88,7 +88,7 @@ infer_request2.SetBlob(input_name, roiBlob);
 
 //! [part11]
 /** Iterate over all input blobs **/
-for (auto & item : input_info) {
+for (auto & item : network.getInputsInfo()) {
     auto input_data = item.second;
     /** Create input blob **/
     InferenceEngine::TBlob<unsigned char>::Ptr input;
@@ -116,7 +116,7 @@ sync_infer_request.Infer();
 //! [part13]
 
 //! [part14]
-    for (auto &item : output_info) {
+    for (auto &item : network.getOutputsInfo()) {
         auto output_name = item.first;
         auto output = infer_request.GetBlob(output_name);
         {

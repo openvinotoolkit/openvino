@@ -1,11 +1,12 @@
+import os
+import sys
 from sphinx.errors import ExtensionError
 import jinja2
-import os
 import json
 from json import JSONDecodeError
-import sys
 from pathlib import Path
 from sphinx.util import logging
+
 
 SPHINX_LOGGER = logging.getLogger(__name__)
 
@@ -96,9 +97,13 @@ def get_theme_path():
 
 def setup(app):
     theme_path = get_theme_path()
+    templates_path = os.path.join(theme_path, 'templates')
+    static_path = os.path.join(theme_path, 'static')
+    app.config.templates_path.append(templates_path)
+    app.config.html_static_path.append(static_path)
     app.connect('config-inited', read_doxygen_mapping)
     app.connect("html-page-context", setup_edit_url, priority=sys.maxsize)
     app.add_config_value('repositories', dict(), rebuild=True)
     app.add_config_value('doxygen_mapping_file', dict(), rebuild=True)
     app.add_html_theme('openvino_sphinx_theme', theme_path)
-    return {"parallel_read_safe": True, "parallel_write_safe": True}
+    return {'parallel_read_safe': True, 'parallel_write_safe': True}

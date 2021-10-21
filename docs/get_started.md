@@ -74,7 +74,7 @@
    
 @sphinxdirective
  .. raw:: html
-
+   <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
    <p id="GSG_introtext">To get started with OpenVINO, the first thing to do is to actually install it. If you haven't done it yet, choose the installation type that best suits your needs and follow the instructions:<br />
       <a href="openvino_docs_install_guides_installing_openvino_linux.html" >Install<br /> Package </a>
       <a href="openvino_docs_install_guides_installing_openvino_images.html" >Install from <br /> images or repositories</a>

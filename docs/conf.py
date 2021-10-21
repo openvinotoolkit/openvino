@@ -16,9 +16,8 @@ import shutil
 from sphinx.util import logging
 from sphinx.ext.autodoc import ClassDocumenter
 
-sys.path.insert(0, os.path.abspath('_themes'))
+
 sys.path.insert(0, os.path.abspath('doxyrest-sphinx'))
-# sys.path.insert(0, os.path.abspath('.'))
 
 # -- Project information -----------------------------------------------------
 
@@ -34,7 +33,6 @@ language = 'en'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'openvino_sphinx_theme',
     'sphinx_inline_tabs',
     'sphinx_copybutton',
     'doxyrest',
