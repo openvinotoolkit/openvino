@@ -201,4 +201,58 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassHeteroExecutableNetworkGetMetricTest, IEClassLoadNetworkAfterCoreRecreateTest,
         ::testing::Values("GPU")
 );
+
+// GetConfig / SetConfig for specific device
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassSpecificDevice0Test, IEClassSpecificDeviceTestGetConfig,
+        ::testing::Values("GPU.0")
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassSpecificDevice1Test, IEClassSpecificDeviceTestGetConfig,
+        ::testing::Values("GPU.1")
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassSpecificDevice0Test, IEClassSpecificDeviceTestSetConfig,
+        ::testing::Values("GPU.0")
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassSpecificDevice1Test, IEClassSpecificDeviceTestSetConfig,
+        ::testing::Values("GPU.1")
+);
+
+// Several devices case
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassSeveralDevicesTest, IEClassSeveralDevicesTestLoadNetwork,
+        ::testing::Values(std::vector<std::string>({"GPU.0", "GPU.1"}))
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassSeveralDevicesTest, IEClassSeveralDevicesTestQueryNetwork,
+        ::testing::Values(std::vector<std::string>({"GPU.0", "GPU.1"}))
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassSeveralDevicesTest, IEClassSeveralDevicesTestDefaultCore,
+        ::testing::Values(std::vector<std::string>({"GPU.0", "GPU.1"}))
+);
+
+// Set default device ID
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassSetDefaultDeviceIDTest, IEClassSetDefaultDeviceIDTest,
+        ::testing::Values(std::make_pair("GPU", "1"))
+);
+
+// Set config for all GPU devices
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassSetGlobalConfigTest, IEClassSetGlobalConfigTest,
+        ::testing::Values("GPU")
+);
+
 } // namespace
