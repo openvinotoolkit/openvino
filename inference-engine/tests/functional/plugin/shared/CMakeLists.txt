@@ -32,6 +32,7 @@ addIeTarget(
             PUBLIC
                 pugixml::static
                 funcTestUtils
+                ngraph_test_util
                 ngraphFunctions
                 lptNgraphFunctions
                 sharedTestClasses

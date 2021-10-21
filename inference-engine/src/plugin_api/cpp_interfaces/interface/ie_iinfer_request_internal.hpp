@@ -13,6 +13,7 @@
 #include "ie_common.h"
 #include "ie_input_info.hpp"
 #include "ie_preprocess_data.hpp"
+#include "openvino/core/node_output.hpp"
 #include "so_ptr.hpp"
 
 namespace InferenceEngine {
@@ -41,6 +42,14 @@ public:
      * @param[in]  networkOutputs  The network outputs data
      */
     IInferRequestInternal(const InputsDataMap& networkInputs, const OutputsDataMap& networkOutputs);
+
+    /**
+     * @brief      Constructs a new instance.
+     * @param[in]  inputs   The network inputs
+     * @param[in]  outputs  The network outputs
+     */
+    IInferRequestInternal(const std::vector<std::shared_ptr<const ov::Node>>& networkInputs,
+                          const std::vector<std::shared_ptr<const ov::Node>>& networkOutputs);
 
     /**
      * @brief Infers specified input(s) in synchronous mode
@@ -190,6 +199,9 @@ public:
     INFERENCE_ENGINE_DEPRECATED("The method will be removed")
     void SetUserData(void* userData) noexcept;
 
+    const std::vector<std::shared_ptr<const ov::Node>>& GetInputs() const;
+    const std::vector<std::shared_ptr<const ov::Node>>& GetOutputs() const;
+
 protected:
     /**
      * @brief Destroys the object.
@@ -232,8 +244,10 @@ protected:
     InferenceEngine::BlobMap _inputs;                 //!< A map of user passed blobs for network inputs
     InferenceEngine::BlobMap _deviceInputs;           //!< A map of actual network inputs, in plugin specific format
     InferenceEngine::BlobMap _outputs;                //!< A map of user passed blobs for network outputs
-    std::map<std::string, PreProcessDataPtr> _preProcData;  //!< A map of pre-process data per input
-    int m_curBatch = -1;                                    //!< Current batch value used in dynamic batching
+    std::vector<std::shared_ptr<const ov::Node>> _parameters;  //!< A vector of function inputs
+    std::vector<std::shared_ptr<const ov::Node>> _results;     //!< A vector of function outputs
+    std::map<std::string, PreProcessDataPtr> _preProcData;     //!< A map of pre-process data per input
+    int m_curBatch = -1;                                       //!< Current batch value used in dynamic batching
 
     /**
      * @brief A shared pointer to IInferRequestInternal

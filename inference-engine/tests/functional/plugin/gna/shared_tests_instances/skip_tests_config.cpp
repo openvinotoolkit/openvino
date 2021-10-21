@@ -51,6 +51,20 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_MemoryTest.*iteration_count=4.*IS=\(1.10\).*)",
         R"(.*smoke_MemoryTest.*iteration_count=10.*IS=\(1.10\).*)",
         R"(.*smoke_MemoryTest.*LOW_LATENCY.*iteration_count=10.*IS=\(1.2\).*)",
+        // Not implemented yet
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*(canSetConfigToExecNet|canSetConfigToExecNetWithIncorrectConfig).*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution|CheckExecGraphInfoSerialization).*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*(CanCreateTwoExeNetworksAndCheckFunction).*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
+        // Not expected behavior
+        R"(.*Behavior.*ExecNetSetPrecision.*canSetInputPrecisionForNetwork.*FP16.*)",
+        R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
+        R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
+        R"(.*OVExecutableNetworkBaseTest.*CanGetInputsInfoAndCheck.*)",
+        R"(.*OVExecutableNetworkBaseTest.*getOutputsFromSplitFunctionWithSeveralOutputs.*)",
+        R"(.*OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
+        R"(.*Behavior.*OVExecutableNetworkBaseTest.*get(Inputs|Outputs)FromFunctionWithSeveral(Inputs|Outputs).*)",
         // TODO: Issue: 29577
         R"(.*QueryNetwork.*)",
         // TODO: GNA plugin does not support ExecGraph

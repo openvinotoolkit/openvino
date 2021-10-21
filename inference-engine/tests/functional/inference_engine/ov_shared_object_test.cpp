@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <file_utils.h>
 #include <gtest/gtest.h>
 
-#include <cpp/ie_plugin.hpp>
-
+#include <file_utils.h>
 #include "openvino/util/shared_object.hpp"
+#include <cpp/ie_plugin.hpp>
 
 using namespace ::testing;
 using namespace std;
@@ -19,7 +18,7 @@ protected:
                                                       std::string("mock_engine") + IE_BUILD_POSTFIX);
     }
 
-    void loadDll(const string& libraryName) {
+    void loadDll(const string &libraryName) {
         shared_object = ov::util::load_shared_object(libraryName.c_str());
     }
     std::shared_ptr<void> shared_object;
@@ -27,8 +26,7 @@ protected:
     using CreateF = void(std::shared_ptr<InferenceEngine::IInferencePlugin>&);
 
     std::function<CreateF> make_std_function(const std::string& functionName) {
-        std::function<CreateF> ptr(
-            reinterpret_cast<CreateF*>(ov::util::get_symbol(shared_object, functionName.c_str())));
+        std::function<CreateF> ptr(reinterpret_cast<CreateF*>(ov::util::get_symbol(shared_object, functionName.c_str())));
         return ptr;
     }
 };

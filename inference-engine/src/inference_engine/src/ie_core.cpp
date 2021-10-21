@@ -543,6 +543,54 @@ public:
                                                   const std::map<std::string, std::string>& config) override {
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto exec = GetCPPPluginByName(parsed._deviceName).import_model(networkModel, parsed._config);
+
+        if (isNewAPI()) {
+            // create getInputs() based on GetInputsInfo()
+            using namespace InferenceEngine::details;
+
+            if (exec->getInputs().empty()) {
+                const auto& inputsInfo = exec->GetInputsInfo();
+                OPENVINO_ASSERT(!inputsInfo.empty(), "inputsInfo is empty after network import");
+
+                std::vector<std::shared_ptr<const ov::Node>> params;
+                params.reserve(inputsInfo.size());
+                for (auto&& input : inputsInfo) {
+                    auto param = std::make_shared<ov::op::v0::Parameter>(
+                        convertPrecision(input.second->getPrecision()),
+                        ov::PartialShape(input.second->getTensorDesc().getDims()));
+                    param->set_friendly_name(input.first);
+                    param->get_output_tensor(0).add_names({input.first});
+                    params.emplace_back(std::move(param));
+                }
+
+                exec->setInputs(params);
+            }
+
+            if (exec->getOutputs().empty()) {
+                const auto& outputsInfo = exec->GetOutputsInfo();
+                OPENVINO_ASSERT(!outputsInfo.empty(), "outputsInfo is empty after network import");
+
+                std::vector<std::shared_ptr<const ov::Node>> results;
+                results.reserve(outputsInfo.size());
+                for (auto&& output : outputsInfo) {
+                    auto fake_param = std::make_shared<ov::op::v0::Parameter>(
+                        convertPrecision(output.second->getPrecision()),
+                        ov::PartialShape(output.second->getTensorDesc().getDims()));
+                    fake_param->set_friendly_name(output.first);
+                    auto result = std::make_shared<ov::op::v0::Result>(fake_param);
+                    result->get_output_tensor(0).add_names({output.first});
+                    results.emplace_back(std::move(result));
+                }
+                exec->setOutputs(results);
+            }
+
+            // but for true support plugins need:
+            // 1. ensure order or parameters and results as in ov::Function
+            // 2. provide tensor names for inputs and outputs
+            // 3. precisions for getInputs and getOutputs should be taken from GetInputsInfo / GetOutputsInfo
+            //    not from ngraph. Plugins should use SetExeNetworkInfo
+        }
+
         return {{exec._so}, exec._ptr};
     }
 
@@ -638,6 +686,8 @@ public:
                 // plugin is not created by e.g. invalid env
             } catch (ov::Exception&) {
                 // plugin is not created by e.g. invalid env
+            } catch (std::runtime_error&) {
+                // plugin is not created by e.g. invalid env
             } catch (const std::exception& ex) {
                 IE_THROW() << "An exception is thrown while trying to create the " << deviceName
                            << " device and call GetMetric: " << ex.what();
@@ -708,6 +758,24 @@ public:
                         }
                     }
                     allowNotImplemented([&]() {
+                        // Add device specific value to support device_name.device_id cases
+                        std::vector<std::string> supportedConfigKeys =
+                            plugin.get_metric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {});
+                        auto config_iter = std::find(supportedConfigKeys.begin(),
+                                                     supportedConfigKeys.end(),
+                                                     CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID));
+                        const bool supportsConfigDeviceID = config_iter != supportedConfigKeys.end();
+                        const std::string deviceKey =
+                            supportsConfigDeviceID ? CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID) : CONFIG_KEY(DEVICE_ID);
+
+                        for (auto pluginDesc : pluginRegistry) {
+                            InferenceEngine::DeviceIDParser parser(pluginDesc.first);
+                            if (pluginDesc.first.find(deviceName) != std::string::npos &&
+                                !parser.getDeviceID().empty()) {
+                                pluginDesc.second.defaultConfig[deviceKey] = parser.getDeviceID();
+                                plugin.set_config(pluginDesc.second.defaultConfig);
+                            }
+                        }
                         plugin.set_config(desc.defaultConfig);
                     });
 
@@ -798,15 +866,24 @@ public:
      * @param deviceName A device name to set config to
      *        If empty, config is set for all the plugins / plugin's meta-data
      * @note  `deviceName` is not allowed in form of MULTI:CPU, HETERO:GPU,CPU, AUTO:CPU
-     *        just simple forms like CPU, GPU, MULTU, GPU.0, etc
+     *        just simple forms like CPU, GPU, MULTI, GPU.0, etc
      */
     void SetConfigForPlugins(const std::map<std::string, std::string>& configMap, const std::string& deviceName) {
         auto config = configMap;
+
+        InferenceEngine::DeviceIDParser parser(deviceName);
+        std::string clearDeviceName = parser.getDeviceName();
 
         std::lock_guard<std::mutex> lock(pluginsMutex);
 
         if (deviceName.empty()) {
             coreConfig.setAndUpdate(config);
+        }
+
+        auto base_desc = pluginRegistry.find(clearDeviceName);
+        if (pluginRegistry.find(deviceName) == pluginRegistry.end() && base_desc != pluginRegistry.end()) {
+            PluginDescriptor desc = {base_desc->second.libraryLocation, config, base_desc->second.listOfExtentions};
+            pluginRegistry[deviceName] = desc;
         }
 
         // set config for plugins in registry
@@ -826,7 +903,7 @@ public:
 
         // set config for already created plugins
         for (auto& plugin : plugins) {
-            if (deviceName.empty() || deviceName == plugin.first) {
+            if (deviceName.empty() || clearDeviceName == plugin.first) {
                 allowNotImplemented([&]() {
                     auto configCopy = config;
                     if (DeviceSupportsCacheDir(plugin.second)) {
@@ -834,6 +911,19 @@ public:
                         if (cacheConfig._cacheManager) {
                             configCopy[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
                         }
+                    }
+                    // Add device specific value to support device_name.device_id cases
+                    std::vector<std::string> supportedConfigKeys =
+                        plugin.second.get_metric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {});
+                    auto config_iter = std::find(supportedConfigKeys.begin(),
+                                                 supportedConfigKeys.end(),
+                                                 CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID));
+                    const bool supportsConfigDeviceID = config_iter != supportedConfigKeys.end();
+                    const std::string deviceKey =
+                        supportsConfigDeviceID ? CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID) : CONFIG_KEY(DEVICE_ID);
+
+                    if (!parser.getDeviceID().empty()) {
+                        configCopy[deviceKey] = parser.getDeviceID();
                     }
                     plugin.second.set_config(configCopy);
                 });
@@ -1177,18 +1267,10 @@ void Core::SetConfig(const std::map<std::string, std::string>& config, const std
                       "You can configure the devices with SetConfig before creating the AUTO on top.";
     }
 
-    // GPU.0, GPU.1 cases
-    if (deviceName.find(".") != std::string::npos) {
-        IE_THROW()
-            << "SetConfig is supported only for device family itself (without particular device .#). "
-               "You can pass .# as a particular device instance to QueryNetwork, LoadNetwork, ImportNetwork only";
-    }
-
     if (deviceName.empty()) {
         _impl->SetConfigForPlugins(config, std::string());
     } else {
-        auto parsed = ov::runtime::parseDeviceNameIntoConfig(deviceName, config);
-        _impl->SetConfigForPlugins(parsed._config, parsed._deviceName);
+        _impl->SetConfigForPlugins(config, deviceName);
     }
 }
 
@@ -1350,50 +1432,6 @@ ExecutableNetwork Core::import_model(std::istream& modelStream,
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->ImportNetwork(modelStream, deviceName, config);
-
-        // create getInputs() based on GetInputsInfo()
-        using namespace InferenceEngine::details;
-
-        if (exec->getInputs().empty()) {
-            const auto& inputsInfo = exec->GetInputsInfo();
-            OPENVINO_ASSERT(!inputsInfo.empty(), "inputsInfo is empty after network import");
-
-            std::vector<std::shared_ptr<const ov::Node>> params;
-            params.reserve(inputsInfo.size());
-            for (auto&& input : inputsInfo) {
-                auto param =
-                    std::make_shared<ov::op::v0::Parameter>(convertPrecision(input.second->getPrecision()),
-                                                            ov::PartialShape(input.second->getTensorDesc().getDims()));
-                param->get_output_tensor(0).add_names({input.first});
-                params.emplace_back(std::move(param));
-            }
-
-            exec->setInputs(params);
-        }
-
-        if (exec->getOutputs().empty()) {
-            const auto& outputsInfo = exec->GetOutputsInfo();
-            OPENVINO_ASSERT(!outputsInfo.empty(), "outputsInfo is empty after network import");
-
-            std::vector<std::shared_ptr<const ov::Node>> results;
-            results.reserve(outputsInfo.size());
-            for (auto&& output : outputsInfo) {
-                auto fake_param =
-                    std::make_shared<ov::op::v0::Parameter>(convertPrecision(output.second->getPrecision()),
-                                                            ov::PartialShape(output.second->getTensorDesc().getDims()));
-                auto result = std::make_shared<ov::op::v0::Result>(fake_param);
-                result->get_output_tensor(0).add_names({output.first});
-                results.emplace_back(std::move(result));
-            }
-            exec->setOutputs(results);
-        }
-
-        // but for true support plugins need:
-        // 1. ensure order or parameters and results as in ov::Function
-        // 2. provide tensor names for inputs and outputs
-        // 3. precisions for getInputs and getOutputs should be taken from GetInputsInfo / GetOutputsInfo
-        //    not from ngraph. Plugins should use SetExeNetworkInfo
-
         return {exec._so, exec._ptr};
     });
 }
@@ -1443,17 +1481,11 @@ void Core::set_config(const ConfigMap& config, const std::string& deviceName) {
                     "set_config is supported only for AUTO itself (without devices). "
                     "You can configure the devices with set_config before creating the AUTO on top.");
 
-    // GPU.0, GPU.1 cases
-    OPENVINO_ASSERT(deviceName.find(".") == std::string::npos,
-                    "set_config is supported only for device family itself (without particular device .#). "
-                    "You can pass .# as a particular device instance to query_model, compile_model, import_model only");
-
     OV_CORE_CALL_STATEMENT({
         if (deviceName.empty()) {
             _impl->SetConfigForPlugins(config, std::string());
         } else {
-            auto parsed = parseDeviceNameIntoConfig(deviceName, config);
-            _impl->SetConfigForPlugins(parsed._config, parsed._deviceName);
+            _impl->SetConfigForPlugins(config, deviceName);
         }
     });
 }

@@ -68,9 +68,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     auto clonedFunction = ngraph::clone_function(*function);
     auto itDumpDotFile = _config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
     bool dumpDotFile = itDumpDotFile != _config.end() ? (itDumpDotFile->second == YES) : false;
-#ifndef NDEBUG
-    dumpDotFile  = true;
-#endif
+//#ifndef NDEBUG
+//    dumpDotFile  = true;
+//#endif
 
     QueryNetworkResult queryNetworkResult;
     auto orderedOps = clonedFunction->get_ordered_ops();
@@ -730,6 +730,25 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
             heteroModel.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
         }
     }
+}
+
+IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
+    const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+    const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
+    if (!this->_plugin || !this->_plugin->GetCore() || !this->_plugin->GetCore()->isNewAPI())
+        return nullptr;
+    HeteroInferRequest::SubRequestsList inferRequests;
+    int index = 0;
+    for (auto&& subnetwork : _networks) {
+        HeteroInferRequest::SubRequestDesc desc;
+        desc._network = subnetwork._network;
+        desc._profilingTask = openvino::itt::handle("Infer" + std::to_string(index++));
+        inferRequests.push_back(desc);
+    }
+    return std::make_shared<HeteroInferRequest>(inputs,
+                                                outputs,
+                                                inferRequests,
+                                                _blobNameMap);
 }
 
 IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(

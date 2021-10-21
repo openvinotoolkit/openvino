@@ -15,6 +15,7 @@
 
 namespace ov {
 namespace util {
+
 /**
  * @brief Loads a library with the name specified.
  * @param path Full or relative path to the plugin library
@@ -38,5 +39,6 @@ std::shared_ptr<void> load_shared_object(const wchar_t* path);
  * @throws Exception if the function is not found
  */
 void* get_symbol(const std::shared_ptr<void>& shared_object, const char* symbolName);
+
 }  // namespace util
 }  // namespace ov

@@ -30,20 +30,6 @@ onnx_model_conv_integer_zero_point_zero
 onnx_model_conv_integer_no_zero_point
 onnx_model_conv_integer_pads
 
-# Unsupported operator detected in the graph: QuantizedDot
-onnx_model_matmul_integer_2d_simple_zero_point
-onnx_model_matmul_integer_int8
-onnx_model_matmul_integer_vectorized_zero_point
-onnx_model_matmul_integer_no_zero_point
-onnx_model_matmul_integer_2d_x_3d
-onnx_model_matmul_integer_3d_x_2d
-onnx_model_matmul_integer_3d
-onnx_model_matmul_integer_4d
-onnx_model_matmul_integer_4d_zero_point
-onnx_model_matmul_integer_matrix_zero_point
-onnx_model_qlinear_matmul
-onnx_model_qlinear_matmul_3d
-
 # No support yet for RandomUniform
 onnx_model_random_uniform
 onnx_model_random_uniform_like
@@ -235,6 +221,8 @@ onnx_model_rnn_defaults_fwd_const_dynamic
 onnx_model_depth_to_space_dynamic_input
 onnx_model_space_to_depth_dynamic_input
 squeeze_dynamic
+onnx_model_eye_like_dyn_shape
+onnx_model_eye_like_dyn_rank
 
 
 # Constant network
