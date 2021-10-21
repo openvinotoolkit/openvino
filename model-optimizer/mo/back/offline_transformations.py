@@ -9,31 +9,29 @@ from mo.utils.cli_parser import parse_transform
 
 def get_available_transformations():
     try:
-
-        from openvino.offline_transformations import apply_low_latency_transformation  # pylint: disable=import-error,no-name-in-module
-        from openvino.offline_transformations import apply_make_stateful_transformation  # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations import ApplyLowLatencyTransformation, ApplyMakeStatefulTransformation # pylint: disable=import-error,no-name-in-module
 
         return {
-            'MakeStateful': apply_make_stateful_transformation,
-            'LowLatency2': apply_low_latency_transformation,
+            'MakeStateful': ApplyMakeStatefulTransformation,
+            'LowLatency2': ApplyLowLatencyTransformation,
         }
     except Exception as e:
         return {}
 
-
-def apply_user_transformations(ng_function: object, transforms: list):
+# net should be openvino.inference_engine.IENetwork type, but IE Engine is still optional dependency
+def apply_user_transformations(net: object, transforms: list):
     available_transformations = get_available_transformations()
 
     for name, args in transforms:
         if name not in available_transformations.keys():
             raise Error("Transformation {} is not available.".format(name))
 
-        available_transformations[name](ng_function, **args)
+        available_transformations[name](net, **args)
 
 
-def apply_moc_transformations(ng_function: object):
-    from openvino.offline_transformations import apply_moc_transformations  # pylint: disable=import-error,no-name-in-module
-    apply_moc_transformations(ng_function, False)
+def apply_moc_transformations(net: object):
+    from openvino.offline_transformations import ApplyMOCTransformations  # pylint: disable=import-error,no-name-in-module
+    ApplyMOCTransformations(net, False)
 
 
 def apply_offline_transformations(input_model: str, framework: str, transforms: list):
@@ -41,17 +39,15 @@ def apply_offline_transformations(input_model: str, framework: str, transforms: 
     # to produce correct mapping
     extract_names = framework in ['tf', 'mxnet', 'kaldi']
 
-    from openvino import Core # pylint: disable=import-error,no-name-in-module
-    from openvino.offline_transformations import generate_mapping_file  # pylint: disable=import-error,no-name-in-module
+    from openvino.inference_engine import read_network  # pylint: disable=import-error,no-name-in-module
+    from openvino.offline_transformations import GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
 
-    core = Core()
-    net = core.read_network(input_model + "_tmp.xml", input_model + "_tmp.bin")
-    ng_function = net.get_function()
-    apply_user_transformations(ng_function, transforms)
-    apply_moc_transformations(ng_function)
+    net = read_network(input_model + "_tmp.xml", input_model + "_tmp.bin")
+    apply_user_transformations(net, transforms)
+    apply_moc_transformations(net)
     net.serialize(input_model + ".xml", input_model + ".bin")
     path_to_mapping = input_model + ".mapping"
-    generate_mapping_file(ng_function, path_to_mapping.encode('utf-8'), extract_names)
+    GenerateMappingFile(net, path_to_mapping.encode('utf-8'), extract_names)
 
 
 if __name__ == "__main__":
