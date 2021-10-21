@@ -37,7 +37,7 @@
 
 namespace InferenceEngine {
 
-#ifndef OPENVINO_STATIC_LIBRARY
+#if !defined(OPENVINO_STATIC_LIBRARY) || 1
 
 namespace details {
 
@@ -423,7 +423,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::string& binPath,
                                 const std::vector<IExtensionPtr>& exts,
                                 bool newAPI) {
-#ifndef OPENVINO_STATIC_LIBRARY
+#if !defined(OPENVINO_STATIC_LIBRARY) || 1
     // IR v7 obsolete code
     {
         // Register readers if it is needed
@@ -487,7 +487,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     std::istringstream modelStringStream(model);
     std::istream& modelStream = modelStringStream;
 
-#ifndef OPENVINO_STATIC_LIBRARY
+#if !defined(OPENVINO_STATIC_LIBRARY) || 1
     // IR v7 obsolete code
     {
         // Register readers if it is needed
