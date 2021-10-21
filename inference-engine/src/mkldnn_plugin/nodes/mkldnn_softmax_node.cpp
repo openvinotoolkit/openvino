@@ -130,6 +130,9 @@ void MKLDNNSoftMaxNode::prepareParams() {
     while (itpd) {
         impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
         if (impl_type == selected_pd->getImplementationType() ||
+            // At least for oneDNN v2.4 the softmax primitive is optimized for the cases where the dimension of the softmax axis is physically dense.
+            // There could be situations where it is not possible to detect the optimized case in advance in case of dynamic shapes, but
+            // in runtime the shape could be suitable for the optimized implementation, so we have to select the optimized one.
             (ref_any == selected_pd->getImplementationType() && (impl_type & jit))) {
             prim_desc = itpd.get();
             break;
