@@ -62,8 +62,9 @@ public:
             const build_options& options,
             bool is_internal);
 
-    network(program::ptr program,
-            uint16_t stream_id = 0);
+    network(program::ptr program, uint16_t stream_id = 0);
+
+    network(program::ptr program, stream::ptr stream, uint16_t stream_id);
 
     ~network();
 

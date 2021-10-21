@@ -21,6 +21,9 @@ public:
 
     ~CLDNNAsyncInferRequest();
 
+    void Infer_ThreadUnsafe() override;
+    void StartAsync_ThreadUnsafe() override;
+
 private:
     CLDNNInferRequest::Ptr _inferRequest;
     InferenceEngine::ITaskExecutor::Ptr _waitExecutor;

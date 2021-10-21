@@ -94,6 +94,7 @@ public:
  */
 class D3DContext : public ClContext {
     using RemoteContext::create_tensor;
+    static constexpr const char* device_name = "GPU";
 
 public:
     /**
@@ -117,16 +118,15 @@ public:
     /**
      * @brief Constructs D3DContext remote context object from ID3D11Device
      * @param core OpenVINO Runtime Core object instance
-     * @param deviceName A name of to create a remote context for
      * @param device A pointer to ID3D11Device to be used to create a remote context
      */
-    D3DContext(Core& core, std::string deviceName, ID3D11Device* device) {
+    D3DContext(Core& core, ID3D11Device* device) {
         // clang-format off
         ParamMap context_params = {
             {GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
             {GPU_PARAM_KEY(VA_DEVICE), static_cast<gpu_handle_param>(device)}
         };
-        *this = core.create_context(deviceName, context_params);
+        *this = core.create_context(device_name, context_params);
     }
 
     /**
