@@ -387,7 +387,12 @@ Optionally, configure input and output of the model using the steps below:
       
       .. code-block:: python
          
-         // TBD
+         #Basic example of nGraph model creation
+         param = Parameter(Type.f32, Shape([1, 3, 22, 22]))
+         relu = ng.relu(param)
+         func = Function([relu], [param], 'test')
+         caps = Function.to_capsule(func)
+         net = IENetwork(caps)
    
    @endsphinxdirective
 
@@ -443,12 +448,6 @@ Load the model to the device using `load_network()`:
    .. code-block:: python
       
       exec_net = ie.load_network(network= "model.onnx", device_name="CPU") 
-
-.. tab:: nGraph
-   
-   .. code-block:: python
-      
-      // TBD
 
 .. tab:: Model from step 2
    

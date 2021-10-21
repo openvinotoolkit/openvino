@@ -305,71 +305,127 @@ Before running the Model Optimizer, you must install the Model Optimizer pre-req
       
          .. tab:: Install globally
 
-            TBD
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               ./install_prerequisites.sh
          
          .. tab:: Install to virtualenv
 
-            TBD
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               ./install_prerequisites.shs
 
       .. tab:: Caffe
       
          .. tab:: Install globally
 
-            TBD
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisitess
+               install_prerequisites_caffe.sh
          
          .. tab:: Install to virtualenv
 
-            TBD
+            .. code-block:: sh
+
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_caffe.shs
 
       .. tab:: Tensorflow 1.x
       
          .. tab:: Install globally
 
-            TBD
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_tf.sh
          
          .. tab:: Install to virtualenv
 
-            TBD
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_tf.sh
 
       .. tab:: Tensorflow 2.x
       
          .. tab:: Install globally
 
-            TBD
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_tf2.sh
          
          .. tab:: Install to virtualenv
 
-            TBDs
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_tf2.sh
 
       .. tab:: MXNet
       
          .. tab:: Install globally
 
-            TBD
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_mxnet.sh
          
          .. tab:: Install to virtualenv
 
-            TBD
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_mxnet.sh
 
       .. tab:: ONNX
       
          .. tab:: Install globally
 
-            TBD
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_onnx.sh
          
          .. tab:: Install to virtualenv
 
-            TBD
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_onnx.sh
 
       .. tab:: Kaldi
       
          .. tab:: Install globally
 
-            TBD
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               install_prerequisites_kaldi.sh
          
          .. tab:: Install to virtualenv
 
-            TBD
+            .. code-block:: sh
+               
+               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
+               virtualenv --system-site-packages -p python3 ./venv
+               source ./venv/bin/activate  # sh, bash, ksh, or zsh
+               install_prerequisites_kaldi.sh
 
 .. tab:: Using manual configuration process
 
@@ -377,92 +433,196 @@ Before running the Model Optimizer, you must install the Model Optimizer pre-req
 
       .. tab:: All frameworks
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements.txt
 
       .. tab:: Caffe
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_caffe.txt
 
       .. tab:: Tensorflow 1.x
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_tf.txt
 
       .. tab:: Tensorflow 2.x
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_tf2.txt
 
       .. tab:: MXNet
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_mxnet.txt
 
       .. tab:: ONNX
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_onnx.txt
 
       .. tab:: Kaldi
       
-         TBD
-
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_kaldi.txt
 
    .. tab:: Windows
 
       .. tab:: All frameworks
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>\deployment_tools\model_optimizer
+            virtualenv --system-site-packages -p python .\env
+            env\Scripts\activate.bat
+            pip install -r requirements.txt
 
       .. tab:: Caffe
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>\deployment_tools\model_optimizer
+            virtualenv --system-site-packages -p python .\env
+            env\Scripts\activate.bat
+            pip install -r requirements_caffe.txt
 
       .. tab:: Tensorflow 1.x
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>\deployment_tools\model_optimizer
+            virtualenv --system-site-packages -p python .\env
+            env\Scripts\activate.bat
+            pip install -r requirements_tf.txt
 
       .. tab:: Tensorflow 2.x
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>\deployment_tools\model_optimizer
+            virtualenv --system-site-packages -p python .\env
+            env\Scripts\activate.bat
+            pip install -r requirements_tf2.txt
 
       .. tab:: MXNet
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>\deployment_tools\model_optimizer
+            virtualenv --system-site-packages -p python .\env
+            env\Scripts\activate.bat
+            pip install -r requirements_mxnet.txt
 
       .. tab:: ONNX
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>\deployment_tools\model_optimizer
+            virtualenv --system-site-packages -p python .\env
+            env\Scripts\activate.bat
+            pip install -r requirements_onnx.txt
 
       .. tab:: Kaldi
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>\deployment_tools\model_optimizer
+            virtualenv --system-site-packages -p python .\env
+            env\Scripts\activate.bat
+            pip install -r requirements_kaldi.txt
 
    .. tab:: macOS
 
       .. tab:: All frameworks
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements.txt
 
       .. tab:: Caffe
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_caffe.txt
 
       .. tab:: Tensorflow 1.x
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_tf.txt
 
       .. tab:: Tensorflow 2.x
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_tf2.txt
 
       .. tab:: MXNet
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_mxnet.txt
 
       .. tab:: ONNX
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_onnx.txt
 
       .. tab:: Kaldi
       
-         TBD
+         .. code-block:: sh
+               
+            cd <INSTALL_DIR>/deployment_tools/model_optimizer/
+            virtualenv --system-site-packages -p python3 ./venv
+            source ./venv/bin/activate
+            pip3 install -r requirements_kaldi.txt
 
 @endsphinxdirective
 
