@@ -301,6 +301,9 @@ ocl_stream::ocl_stream(const ocl_engine &engine, void *handle)
     auto casted_handle = static_cast<cl_command_queue>(handle);
     _command_queue = ocl_queue_type(casted_handle, true);
 
+    if (ocl_stream::detect_queue_type(handle) != engine.configuration().queue_type)
+        throw std::runtime_error("Inconsistent engine config and external user queue are passed to ocl_stream");
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto config = engine.configuration();
     if (config.queue_type == queue_types::in_order) {
@@ -317,6 +320,17 @@ dnnl::stream& ocl_stream::get_onednn_stream() {
     return *_onednn_stream;
 }
 #endif
+
+queue_types ocl_stream::detect_queue_type(void *queue_handle) {
+    cl_command_queue queue = static_cast<cl_command_queue>(queue_handle);
+    cl_command_queue_properties properties;
+    auto status = clGetCommandQueueInfo(queue, CL_QUEUE_PROPERTIES, sizeof(cl_command_queue_properties), &properties, nullptr);
+    if (status != CL_SUCCESS) {
+        throw std::runtime_error("Can't get queue properties for user handle\n");
+    }
+
+    return (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) ? queue_types::out_of_order : queue_types::in_order;
+}
 
 void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) {
     static std::mutex m;
