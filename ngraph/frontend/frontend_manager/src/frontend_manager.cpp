@@ -205,7 +205,7 @@ void InputModel::set_name_for_dimension(Place::Ptr place, size_t shape_dim_index
 }
 
 void InputModel::cut_and_add_new_input(Place::Ptr place, const std::string& new_name_optional) {
-    FRONT_END_NOT_IMPLEMENTED(cut_and_add_new_input);
+    //FRONT_END_NOT_IMPLEMENTED(cut_and_add_new_input);
 }
 
 void InputModel::cut_and_add_new_output(Place::Ptr place, const std::string& new_name_optional) {
@@ -247,7 +247,7 @@ void InputModel::set_element_type(Place::Ptr place, const ngraph::element::Type&
 }
 
 void InputModel::set_tensor_value(Place::Ptr place, const void* value) {
-    FRONT_END_NOT_IMPLEMENTED(set_tensor_value);
+    //FRONT_END_NOT_IMPLEMENTED(set_tensor_value);
 }
 
 void InputModel::set_tensor_partial_value(Place::Ptr place, const void* min_value, const void* max_value) {

@@ -16,6 +16,7 @@
 #include "onnx_common/parser.hpp"
 #include "onnx_common/utils.hpp"
 #include "utils/onnx_internal.hpp"
+#include "utils/common.hpp"
 
 using namespace ngraph;
 using namespace ngraph::onnx_editor;
@@ -79,6 +80,32 @@ void modify_input_type(ValueInfoProto& onnx_input, const element::Type_t elem_ty
         throw ngraph_error("The input type for input '" + onnx_input.name() + "' cannot be set to: " +
                            element::Type(elem_type).get_type_name() + ". This type is not allowed in ONNX.");
     }
+}
+
+element::Type_t get_input_element_type(ValueInfoProto& onnx_input) {
+    if (!onnx_input.has_type()) {
+        throw ngraph_error("The input is malformed - it doesn't contain the 'type' field. Cannot change the "
+                           "data type. Input name: " +
+                           onnx_input.name());
+    }
+
+    auto* type_proto = onnx_input.mutable_type();
+    if (!type_proto->has_tensor_type()) {
+        throw ngraph_error("The input is malformed - it doesn't contain the 'tensor_type' field. Cannot "
+                           "change the data type. Input name: " +
+                           onnx_input.name());
+    }
+
+    const auto* tensor_type = type_proto->mutable_tensor_type();
+    const auto element_type = tensor_type->elem_type();
+
+    /*if (!onnx_common::is_supported_ng_type(onnx_common::onnx_to_ng_data_type(element_type))) {
+        throw ngraph_error("The input type for input '" + onnx_input.name() + "' cannot be set to: " +
+                           element::Type(element_type).get_type_name() + ". This type is not allowed in ONNX.");
+    }*/
+
+    //return onnx_common::ng_to_onnx_data_type(element_type);
+    return ngraph::onnx_import::common::get_ngraph_element_type(element_type);
 }
 
 void add_dim_to_onnx_shape(const Dimension& dim, ONNX_NAMESPACE::TensorShapeProto& onnx_shape) {
@@ -254,6 +281,13 @@ void onnx_editor::ONNXModelEditor::set_input_types(const std::map<std::string, e
                                ". Such input was not found in the original ONNX model.");
         }
     }
+}
+
+element::Type_t onnx_editor::ONNXModelEditor::get_element_type(const std::string& tensor_name) {
+    auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
+    auto* onnx_input = find_graph_input(*onnx_graph, tensor_name);
+
+    return get_input_element_type(*onnx_input);
 }
 
 void onnx_editor::ONNXModelEditor::set_input_shapes(const std::map<std::string, ngraph::PartialShape>& input_shapes) {

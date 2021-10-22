@@ -37,10 +37,15 @@ public:
     std::shared_ptr<Function> decode();
     std::shared_ptr<Function> convert();
 
+    void cut_and_add_new_input(Place::Ptr place, const std::string& new_name_optional = "") override;
+
     // Editor features
     void override_all_outputs(const std::vector<Place::Ptr>& outputs) override;
     void override_all_inputs(const std::vector<Place::Ptr>& inputs) override;
     void extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override;
+
+    // Editor tensor features
+    void set_tensor_value(Place::Ptr place, const void* value) override;
 
 private:
     std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;

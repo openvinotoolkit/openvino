@@ -986,3 +986,63 @@ def test_remove_output_when_place_is_input():
 
     in_names = [place.get_names()[0] for place in model.get_inputs()]
     assert in_names == ["in1", "in2", "in3"]
+
+def test_cut_and_add_new_input():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model.onnx")
+    assert model
+
+    out4_tensor = model.get_place_by_tensor_name(tensorName="out4")
+    place1 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
+    place2 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=1)
+    place3 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
+    #model.extract_subgraph(inputs=[place1, place2], outputs=[place3])
+
+    add_out_tensor = model.get_place_by_tensor_name(tensorName="add_out")
+    place4 = add_out_tensor.get_consuming_operations(outputPortIndex=1)
+
+    out4_tensor = model.get_place_by_tensor_name(tensorName="out4")
+    place1 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
+
+    place = model.get_place_by_tensor_name(tensorName="add_out")
+    #place = model.get_place_by_operation_name(operationName="split1")
+    #place = model.get_place_by_tensor_name(tensorName="add_out").get_output_port(inputPortIndex=0)
+    model.cut_and_add_new_input(place1)
+
+    in_names = [place.get_names()[0] for place in model.get_inputs()]
+    assert in_names == ["add_out", "in3"]
+
+
+def test_set_tensor_value():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model.onnx")
+    assert model
+
+    data = 5
+
+    orig_place = model.get_place_by_tensor_name(tensorName="in1")
+    out4_tensor = model.get_place_by_tensor_name(tensorName="out4")
+    place1 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
+    place2 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=1)
+    place3 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
+    #model.extract_subgraph(inputs=[place1, place2], outputs=[place3])
+
+    add_out_tensor = model.get_place_by_tensor_name(tensorName="add_out")
+    place4 = add_out_tensor.get_consuming_operations(outputPortIndex=1)
+
+    out4_tensor = model.get_place_by_tensor_name(tensorName="out4")
+    place1 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
+
+    place = model.get_place_by_tensor_name(tensorName="out4")
+    #place = model.get_place_by_operation_name(operationName="split1")
+    #place = model.get_place_by_tensor_name(tensorName="add_out").get_output_port(inputPortIndex=0)
+    model.set_tensor_value(orig_place, None)
+
+    #in_names = [place.get_names()[0] for place in model.get_inputs()]
+    #assert in_names == ["add_out", "in3"]

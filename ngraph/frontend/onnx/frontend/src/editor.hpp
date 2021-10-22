@@ -67,6 +67,12 @@ public:
     ///
     PartialShape get_tensor_shape(const std::string& tensor_name) const;
 
+    /// \brief Get element_type of ONNX tensor indicated by the tensor_name.
+    ///
+    /// \param tensor_name The name of ONNX tensor.
+    ///
+    element::Type_t get_tensor_element_type(const std::string& tensor_name) const;
+
     /// \brief Extracts a subgraph constrained by input edges and output edges. In the end
     ///        the underlying ModelProto is modified - obsolete inputs, initializers, nodes
     ///        and outputs are removed from the in-memory model.
@@ -234,6 +240,8 @@ public:
     std::shared_ptr<Function> decode();
 
     void add_output(const OutputEdge& output_edge) const;
+
+    element::Type_t get_element_type(const std::string& tensor_name);
 
 private:
     void update_mapper_if_needed() const;

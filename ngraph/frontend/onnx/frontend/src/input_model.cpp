@@ -148,6 +148,7 @@ void InputModelONNX::extract_subgraph(const std::vector<Place::Ptr>& inputs, con
         onnx_outputs.push_back(onnx_output_edge->get_output_edge());
     }
     m_editor->cut_graph_fragment(onnx_inputs, onnx_outputs);
+    m_editor->serialize("extracted_subgraph.onnx");
 }
 
 Place::Ptr InputModelONNX::add_output(Place::Ptr place) {
@@ -191,11 +192,80 @@ void InputModelONNX::remove_output(Place::Ptr place) {
     if (find_output != output_names.end()) {
         outputs.erase(std::remove_if(outputs.begin(),
                                      outputs.end(),
-                                     [&](Place::Ptr const& output) {
+                                     [&place](Place::Ptr const& output) {
                                          return output->is_equal(place);
                                      }),
                       outputs.end());
 
         extract_subgraph({}, {outputs});
     }
+}
+
+void InputModelONNX::cut_and_add_new_input(Place::Ptr place, const std::string& new_name_optional) {
+    //std::string name = place->get_names().at(0);
+    std::vector<Place::Ptr> inputs = get_inputs();
+    std::vector<Place::Ptr> outputs = get_outputs();
+    const auto& input_names = m_editor->model_inputs();
+    std::vector<Place::Ptr> place_vector;
+
+    for(auto & input : inputs) {
+        std::cout << input->get_names().at(0) << std::endl;
+    }
+
+    //auto find_output = std::find(input_names.begin(), input_names.end(), name);
+
+    //if (find_output == input_names.end()) {
+        std::cout << "editing subgraph" << std::endl;
+        place_vector.push_back(place);
+        /*std::cout << "looking for non input." << std::endl;
+        inputs.erase(std::remove_if(inputs.begin(),
+                                     inputs.end(),
+                                     [&place](Place::Ptr const& input) {
+                                         return place->is_equal_data(input);
+                                     }),
+                      inputs.end());
+        for (auto & input : inputs) {
+            std::cout << input->get_names().at(0) << std::endl;
+        }*/
+
+        /*extract_subgraph({place_vector}, {outputs});
+
+        inputs = get_inputs();
+        for(auto & input : inputs) {
+            std::cout << "input name: " << input->get_names().at(0) << std::endl;
+        }*/
+    //}
+
+    m_editor->serialize("testing_subgraph.onnx");
+}
+
+void InputModelONNX::set_tensor_value(Place::Ptr place, const void* value) {
+    std::cout << "editing set_tensor_value" << std::endl;
+    std::map<std::string, std::shared_ptr<ngraph::op::Constant>> map;
+
+    if (const auto var_place = std::dynamic_pointer_cast<PlaceTensorONNX>(place)) {
+        std::cout << "found  PlaceTensorONNX" << std::endl;
+        auto name = place->get_names().at(0);
+        auto p_shape = m_editor->get_tensor_shape(name);
+        auto el_type = m_editor->get_element_type(name);
+        //auto constant = ngraph::op::Constant::create(el_type, p_shape.to_shape(), value);
+        //constant->set_friendly_name(name);
+        std::shared_ptr<ngraph::op::Constant> constant = ngraph::op::Constant::create(el_type, p_shape.to_shape(), value);
+        constant->set_friendly_name(name);
+        map[name] = constant;
+        m_editor->set_input_values(map);
+    }
+
+
+    /*
+    auto tensor_place = pdpd::castToTensorPlace(place);
+    auto p_shape = tensor_place->get_partial_shape();
+    auto p_shape1 = place_type->get_source_tensor
+    place_type->
+    auto type = tensor_place->get_element_type();
+    auto constant = opset7::Constant::create(type, p_shape.to_shape(), value);
+    auto name = tensor_place->get_names()[0];
+    constant->set_friendly_name(name);
+    m_tensor_values[name] = constant;*/
+
 }

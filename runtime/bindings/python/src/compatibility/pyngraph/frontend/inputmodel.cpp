@@ -5,6 +5,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
+#include <pybind11/numpy.h>
 
 #include "frontend_manager/frontend_exceptions.hpp"
 #include "frontend_manager/frontend_manager.hpp"
@@ -360,5 +361,43 @@ void regclass_pyngraph_InputModel(py::module m) {
 
                 type : ngraph.Type
                     New element type.
+            )");
+    
+    /*im.def("set_tensor_value",
+           &ngraph::frontend::InputModel::set_tensor_value,
+           py::arg("place"),
+           py::arg("value"),
+           R"(
+                Sets new element type for a place.
+
+                Parameters
+                ----------
+                place : Place
+                    Model place.
+
+                value : void*
+                    New value to assign.
+            )");*/
+
+    im.def(
+            "set_tensor_value",
+           /*[](ngraph::frontend::InputModel& self, py::object place, py::array& value) {
+               self.set_tensor_value(place, (const void*)value.data());
+           });*/
+           [](ngraph::frontend::InputModel& self, ngraph::frontend::Place::Ptr place, const void* value) {
+               return self.set_tensor_value(place, value);
+           },
+           py::arg("place"),
+           py::arg("value"),
+            R"(
+                Sets new element type for a place.
+
+                Parameters
+                ----------
+                place : Place
+                    Model place.
+
+                value : void*
+                    New value to assign.
             )");
 }
