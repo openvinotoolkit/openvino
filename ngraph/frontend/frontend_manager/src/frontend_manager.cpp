@@ -149,7 +149,7 @@ void FrontEnd::normalize(std::shared_ptr<ngraph::Function> function) const {
     FRONT_END_NOT_IMPLEMENTED(normalize);
 }
 
-void FrontEnd::add_extensions(const std::vector<ov::Extension::Ptr>& extensions) {}
+void FrontEnd::add_extensions(const std::vector<ov::Extension>& extensions) {}
 
 std::string FrontEnd::get_name() const {
     return std::string();

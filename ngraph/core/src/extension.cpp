@@ -15,37 +15,36 @@ using namespace ov;
 namespace {
 
 template <class C>
-inline std::vector<Extension::Ptr> load_extension_impl(const std::basic_string<C>& path) {
+inline std::vector<Extension> load_extension_impl(const std::basic_string<C>& path) {
     auto so = ov::util::load_shared_object(path.c_str());
     using CreateFunction = void(std::vector<BaseExtension::Ptr>&);
     std::vector<BaseExtension::Ptr> extensions;
     reinterpret_cast<CreateFunction*>(ov::util::get_symbol(so, "create_extensions"))(extensions);
 
-    std::vector<Extension::Ptr> result;
+    std::vector<Extension> result;
     result.reserve(extensions.size());
     for (auto&& ex : extensions) {
-        result.emplace_back(std::make_shared<Extension>(ex, so));
+        result.emplace_back(Extension(ex, so));
     }
     return result;
 }
 }  // namespace
 
-std::vector<Extension::Ptr> ov::load_extension(const std::string& path) {
+std::vector<Extension> ov::load_extension(const std::string& path) {
     return load_extension_impl(path);
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-std::vector<Extension::Ptr> ov::load_extension(const std::wstring& path) {
+std::vector<Extension> ov::load_extension(const std::wstring& path) {
     return load_extension_impl(path);
 }
 #endif
 
-ov::BaseOpExtension::~BaseOpExtension() = default;
 ov::BaseExtension::~BaseExtension() = default;
 
 ov::Extension::Extension(ov::BaseExtension::Ptr ext, std::shared_ptr<void> so) : so(so), ext(std::move(ext)) {}
 
-const ov::BaseExtension::Ptr& ov::Extension::extension() const {
+const ov::BaseExtension::Ptr& ov::Extension::get() const {
     OPENVINO_ASSERT(ext != nullptr, "Extension doesn't contain pointer to base extension.");
     return ext;
 }

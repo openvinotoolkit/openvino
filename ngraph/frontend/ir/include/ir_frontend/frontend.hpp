@@ -29,7 +29,7 @@ public:
 
     /// \brief Register extensions in the FrontEnd
     /// \param extensions vector of extensions
-    void add_extensions(const std::vector<ov::Extension::Ptr>& extensions) override;
+    void add_extensions(const std::vector<ov::Extension>& extensions) override;
 
 protected:
     /// \brief Check if FrontEndIR can recognize model from given parts
@@ -43,7 +43,7 @@ protected:
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override;
 
 private:
-    std::vector<ov::Extension::Ptr> extensions;
+    std::vector<ov::Extension> extensions;
 };
 
 }  // namespace frontend

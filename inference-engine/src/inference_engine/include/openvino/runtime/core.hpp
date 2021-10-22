@@ -169,7 +169,7 @@ public:
      * @brief Registers extensions
      * @param extensions Vector of pointers to already loaded extension
      */
-    void add_extension(const std::vector<ov::Extension::Ptr>& extensions);
+    void add_extension(const std::vector<ov::Extension>& extensions);
 
     /**
      * @brief Creates an executable network from a previously exported network

@@ -622,9 +622,6 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
     if (extensionIt != m_extensions.end()) {
         XmlDeserializer visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
         ngraphNode = (*extensionIt->second).create(inputs, visitor).at(0).get_node_shared_ptr();
-        // WTF ?!
-        // // To be sure that all default values will be initialized:
-        // ngraphNode = ngraphNode->clone_with_new_inputs(ngraphNode->input_values());
     }
 
     // Find registered opset

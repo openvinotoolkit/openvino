@@ -16,7 +16,6 @@ namespace ov {
 class OPENVINO_EXTENSION_API BaseOpExtension : public BaseExtension {
 public:
     using Ptr = std::shared_ptr<BaseOpExtension>;
-    ~BaseOpExtension() override;
     virtual const ov::DiscreteTypeInfo& type() = 0;
     virtual ov::OutputVector create(const ov::OutputVector& inputs, ov::AttributeVisitor& visitor) = 0;
 };

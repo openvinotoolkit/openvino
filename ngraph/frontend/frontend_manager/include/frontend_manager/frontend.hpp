@@ -91,7 +91,7 @@ public:
 
     /// \brief Register extensions in the FrontEnd
     /// \param extensions vector of extensions
-    virtual void add_extensions(const std::vector<ov::Extension::Ptr>& extensions);
+    virtual void add_extensions(const std::vector<ov::Extension>& extensions);
 
 protected:
     virtual bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const;

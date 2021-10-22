@@ -36,15 +36,14 @@ private:
     BaseExtension::Ptr ext;
 
 public:
-    using Ptr = std::shared_ptr<Extension>;
     Extension(BaseExtension::Ptr ext, std::shared_ptr<void> so = {});
 
-    const BaseExtension::Ptr& extension() const;
+    const BaseExtension::Ptr& get() const;
 };
 
-OPENVINO_API std::vector<Extension::Ptr> load_extension(const std::string& path);
+OPENVINO_API std::vector<Extension> load_extension(const std::string& path);
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-OPENVINO_API std::vector<Extension::Ptr> load_extension(const std::wstring& path);
+OPENVINO_API std::vector<Extension> load_extension(const std::wstring& path);
 #endif
 
 OPENVINO_EXTENSION_C_API

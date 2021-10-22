@@ -184,7 +184,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
     mutable std::unordered_set<std::string> opsetNames;
     mutable std::vector<ie::IExtensionPtr> extensions;
-    mutable std::vector<ov::Extension::Ptr> ov_extensions;
+    mutable std::vector<ov::Extension> ov_extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
@@ -941,7 +941,7 @@ public:
         AddExtensionUnsafe(extension);
     }
 
-    void AddOVExtensions(const std::vector<ov::Extension::Ptr>& extensions) {
+    void AddOVExtensions(const std::vector<ov::Extension>& extensions) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
         for (const auto& ext : extensions)
             ov_extensions.emplace_back(ext);
@@ -955,7 +955,7 @@ public:
         return extensions;
     }
 
-    const std::vector<ov::Extension::Ptr>& GetOVExtensions() const {
+    const std::vector<ov::Extension>& GetOVExtensions() const {
         return ov_extensions;
     }
 
@@ -1445,7 +1445,7 @@ void Core::add_extension(const std::wstring& library_path) {
     OV_CORE_CALL_STATEMENT(_impl->AddOVExtensions(ov::load_extension(library_path)););
 }
 #endif
-void Core::add_extension(const std::vector<ov::Extension::Ptr>& extensions) {
+void Core::add_extension(const std::vector<ov::Extension>& extensions) {
     OV_CORE_CALL_STATEMENT(_impl->AddOVExtensions(extensions););
 }
 
