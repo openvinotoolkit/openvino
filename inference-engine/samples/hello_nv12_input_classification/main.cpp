@@ -197,6 +197,7 @@ int main(int argc, char* argv[]) {
         std::string output_tensor_name = model->output().get_any_name();
 
         // -------- Step 3. Add preprocessing  --------
+        // clang-format off
         model = PrePostProcessor().
             // 1) Select input with 'input_tensor_name' tensor name
             input(InputInfo(input_tensor_name).
@@ -226,6 +227,7 @@ int main(int argc, char* argv[]) {
                     set_layout("NCHW"))).
         // 5) Apply preprocessing to a input with 'input_tensor_name' name of loaded model
         build(model);
+        // clang-format on
 
         // -------- Step 4. Loading a model to the device --------
         ov::runtime::ExecutableNetwork executable_network = core.compile_model(model, device_name);

@@ -4,6 +4,7 @@
 
 #include <iterator>
 #include <memory>
+#include <samples/slog.hpp>
 #include <string>
 #include <vector>
 
@@ -12,7 +13,6 @@
 #include "samples/classification_results.h"
 #include "samples/common.hpp"
 #include "samples/ocv_common.hpp"
-#include <samples/slog.hpp>
 
 using namespace ov::preprocess;
 

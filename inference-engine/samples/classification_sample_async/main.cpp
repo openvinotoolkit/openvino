@@ -70,7 +70,7 @@ int main(int argc, char* argv[]) {
         if (!ParseAndCheckCommandLine(argc, argv)) {
             return EXIT_SUCCESS;
         }
-    
+
         // -------- Read input --------
         // This vector stores paths to the processed images
         std::vector<std::string> image_names;

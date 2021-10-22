@@ -271,7 +271,7 @@ int main(int argc, char* argv[]) {
         // -------- Step 2. Create network using ov::Function --------
 
         auto model = createNgraphFunction();
-        
+
         // -------- Step 3. Apply preprocessing --------
         const Layout tensor_layout{"NHWC"};
 
@@ -353,7 +353,8 @@ int main(int argc, char* argv[]) {
         for (size_t image_id = 0; image_id < imagesData.size(); ++image_id) {
             const size_t image_size = shape_size(input_shape) / batch_size;
             std::memcpy(input_tensor.data<std::uint8_t>() + image_id * image_size,
-                        imagesData[image_id].get(), image_size);
+                        imagesData[image_id].get(),
+                        image_size);
         }
 
         // -------- Step 7. Do sync inference --------
