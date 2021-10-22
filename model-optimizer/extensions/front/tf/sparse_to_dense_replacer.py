@@ -35,9 +35,10 @@ class SparseToDenseReplacer(FrontReplacementOp):
             # TODO: remove casting once we start to support I64 model input
             # cast default value to I32 due limitation about I64 input support
             # so that input parameter and default value will be of the same I32 type as required ScatterNDUpdate
-            cast_default_value = Cast(graph, {'name': node_name + '/CastDefaultValue', 'dst_type': np.int32}).create_node()
-            node.in_port(3).get_connection().set_destination(cast_default_value.in_port(0))
-            broadcast_node.in_port(0).connect(cast_default_value.out_port(0))
+            #cast_default_value = Cast(graph, {'name': node_name + '/CastDefaultValue', 'dst_type': np.int32}).create_node()
+            #node.in_port(3).get_connection().set_destination(cast_default_value.in_port(0))
+            #broadcast_node.in_port(0).connect(cast_default_value.out_port(0))
+            node.in_port(3).get_connection().set_destination(broadcast_node.in_port(0))
         else:
             broadcast_node.in_port(0).connect(Const(graph, {'name': broadcast_node.name + '/FillValue_',
                                                             'value': np.float32(0)}
