@@ -15,7 +15,7 @@ namespace ngraph { namespace vpu { namespace op {
 
 class StaticShapeReshape : public ngraph::opset3::Reshape {
 public:
-    OPENVINO_OP("StaticShapeReshape", "VPUOpset", ngraph::opset3::Reshape);
+    OPENVINO_OP("StaticShapeReshape", "VPUOpset");
 
     StaticShapeReshape(const Output<Node>& arg, const Output<Node>& pattern, bool special_zero);
     explicit StaticShapeReshape(const std::shared_ptr<ngraph::opset3::Reshape>& reshape);
