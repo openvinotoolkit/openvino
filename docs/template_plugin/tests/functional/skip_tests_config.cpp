@@ -77,6 +77,12 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferencePadTest.*pad_exterior_2d_3x0)",
         // CVS-70975
         R"(.*ReferencePadTestParamsTooLarge.*)",
+        // CVS-64006
+        R"(.*ReferenceBatchToSpaceLayerTest.*_input_with_shape_with_crop_4x1x2x3)",
+        R"(.*ReferenceBatchToSpaceLayerTest.*_input_with_shape_with_crop_4x1x2x3_1)",
+        // CVS-64050
+        R"(.*ReferenceSpaceToBatchLayerTest.*_space_to_batch_5D)",
+        R"(.*ReferenceSpaceToBatchLayerTest.*_space_to_batch_4x4)",
     };
 
 #ifdef _WIN32
