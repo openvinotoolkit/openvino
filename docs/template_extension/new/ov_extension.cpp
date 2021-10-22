@@ -8,4 +8,4 @@
 #include "tile.hpp"
 
 OPENVINO_CREATE_EXTENSIONS(
-    std::vector<ov::Extension::Ptr>({std::make_shared<ov::OpExtension<TemplateExtension::Tile>>()}));
+    std::vector<ov::BaseExtension::Ptr>({std::make_shared<ov::OpExtension<TemplateExtension::Tile>>()}));

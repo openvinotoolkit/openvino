@@ -52,8 +52,7 @@ TEST(extension, load_extension) {
 TEST(extension, load_extension_and_cast) {
     auto extensions = ov::load_extension(get_extension_path());
     ASSERT_EQ(1, extensions.size());
-    ASSERT_NE(nullptr, ov::as_type<ov::BaseOpExtension>(extensions[0].get()));
-    ASSERT_NE(nullptr, ov::as_type<ov::BaseOpExtension*>(extensions[0].get()));
-    ASSERT_NE(nullptr, ov::as_type_ptr<ov::BaseOpExtension>(extensions[0]));
+    ASSERT_NE(nullptr, dynamic_cast<ov::BaseOpExtension*>(extensions[0]->extension().get()));
+    ASSERT_NE(nullptr, std::dynamic_pointer_cast<ov::BaseOpExtension>(extensions[0]->extension()));
     extensions.clear();
 }

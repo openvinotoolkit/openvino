@@ -22,12 +22,24 @@
 
 namespace ov {
 
-class OPENVINO_API Extension : public std::enable_shared_from_this<Extension> {
+class OPENVINO_API BaseExtension : public std::enable_shared_from_this<BaseExtension> {
 public:
-    using Ptr = std::shared_ptr<Extension>;
+    using Ptr = std::shared_ptr<BaseExtension>;
 
 protected:
-    virtual ~Extension();
+    virtual ~BaseExtension();
+};
+
+class OPENVINO_API Extension final {
+private:
+    std::shared_ptr<void> so;
+    BaseExtension::Ptr ext;
+
+public:
+    using Ptr = std::shared_ptr<Extension>;
+    Extension(BaseExtension::Ptr ext, std::shared_ptr<void> so = {});
+
+    const BaseExtension::Ptr& extension() const;
 };
 
 OPENVINO_API std::vector<Extension::Ptr> load_extension(const std::string& path);
@@ -36,40 +48,12 @@ OPENVINO_API std::vector<Extension::Ptr> load_extension(const std::wstring& path
 #endif
 
 OPENVINO_EXTENSION_C_API
-void create_extensions(std::vector<Extension::Ptr>&);
+void create_extensions(std::vector<BaseExtension::Ptr>&);
 
-OPENVINO_API Extension* _get_extension(Extension*);
-OPENVINO_API Extension::Ptr _get_extension(Extension::Ptr);
-
-template <class T,
-          typename std::enable_if<std::is_base_of<Extension, typename std::remove_pointer<T>::type>::value,
-                                  bool>::type = true>
-typename std::remove_pointer<T>::type* as_type(Extension* ext) {
-    auto* extension = _get_extension(ext);
-
-    return dynamic_cast<typename std::remove_pointer<T>::type*>(extension);
-}
-template <class T,
-          typename std::enable_if<std::is_base_of<Extension, typename std::remove_pointer<T>::type>::value,
-                                  bool>::type = true>
-typename std::remove_pointer<T>::type* as_type(Extension& ext) {
-    return as_type<T>(&ext);
-}
-template <class T,
-          typename std::enable_if<std::is_base_of<Extension, typename std::remove_pointer<T>::type>::value,
-                                  bool>::type = true>
-typename std::remove_pointer<T>::type* as_type(const Extension::Ptr& ext) {
-    return as_type<T>(ext.get());
-}
-
-template <class T, typename std::enable_if<std::is_base_of<Extension, T>::value, bool>::type = true>
-typename std::shared_ptr<T> as_type_ptr(const Extension::Ptr& ext) {
-    return std::dynamic_pointer_cast<T>(_get_extension(ext));
-}
 }  // namespace ov
 
-#define OPENVINO_CREATE_EXTENSIONS(extensions)                             \
-    OPENVINO_EXTENSION_C_API                                               \
-    void ::ov::create_extensions(std::vector<::ov::Extension::Ptr>& ext) { \
-        ext = extensions;                                                  \
+#define OPENVINO_CREATE_EXTENSIONS(extensions)                                 \
+    OPENVINO_EXTENSION_C_API                                                   \
+    void ::ov::create_extensions(std::vector<::ov::BaseExtension::Ptr>& ext) { \
+        ext = extensions;                                                      \
     }

@@ -13,7 +13,7 @@
 
 namespace ov {
 
-class OPENVINO_EXTENSION_API BaseOpExtension : public Extension {
+class OPENVINO_EXTENSION_API BaseOpExtension : public BaseExtension {
 public:
     using Ptr = std::shared_ptr<BaseOpExtension>;
     ~BaseOpExtension() override;
