@@ -18,8 +18,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, ConvertMaxPool8ToMaxPool1) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertMaxPool8ToMaxPool1) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3});
         ngraph::Strides strides{1}, dilations{1};
@@ -28,13 +27,8 @@ TEST(TransformationTests, ConvertMaxPool8ToMaxPool1) {
                                                                    kernel);
         auto result = std::make_shared<ngraph::opset1::Result>(maxpool_8->output(0));
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{result}, ngraph::ParameterVector{data});
-
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{result}, ngraph::ParameterVector{data});
         manager.register_pass<ngraph::pass::ConvertMaxPool8ToMaxPool1>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -45,8 +39,6 @@ TEST(TransformationTests, ConvertMaxPool8ToMaxPool1) {
                                                                    kernel);
         auto result = std::make_shared<ngraph::opset1::Result>(maxpool_1->output(0));
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{result}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{result}, ngraph::ParameterVector{data});
     }
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
