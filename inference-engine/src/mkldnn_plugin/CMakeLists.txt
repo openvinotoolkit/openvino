@@ -39,6 +39,10 @@ if(SELECTIVE_BUILD STREQUAL "ON")
     endif()
 endif()
 
+if (UNIX AND ENABLE_PARALLEL_LINKING)
+    target_compile_options(${TARGET_NAME} PRIVATE -fuse-ld=lld)
+endif()
+
 target_link_libraries(${TARGET_NAME} PRIVATE mkldnn
                                              inference_engine
                                              inference_engine_transformations

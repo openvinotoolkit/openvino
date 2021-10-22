@@ -28,6 +28,10 @@ addIeTargetTest(
             CPU
 )
 
+if (UNIX AND ENABLE_PARALLEL_LINKING)
+    target_compile_options(${TARGET_NAME} PRIVATE -fuse-ld=lld)
+endif()
+
 ie_faster_build(${TARGET_NAME}
     UNITY
 )

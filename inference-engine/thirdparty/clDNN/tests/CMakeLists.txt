@@ -101,6 +101,10 @@ endif()
 
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
 
+if (UNIX AND ENABLE_PARALLEL_LINKING)
+    target_compile_options("${CLDNN_BUILD__PROJ}" PRIVATE -fuse-ld=lld)
+endif()
+
 # Set library dependencies
 target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
   "${CLDNN_BUILD__PROJ__clDNN}" OpenCL gtest gtest_main gmock)
