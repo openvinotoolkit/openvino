@@ -52,4 +52,44 @@ OpenVINO™ 2.0 API:
 
 @snippet snippets/ov_common.cpp ov_api_2_0:compile_model
 
-## 5. TBD
+## 4. Create an Inference Request
+
+Inference Engine API:
+
+@snippet snippets/ie_common.cpp ie:create_infer_request
+
+OpenVINO™ 2.0 API:
+
+@snippet snippets/ov_common.cpp ov_api_2_0:create_infer_request
+
+## 5. Prepare input
+
+Inference Engine API:
+
+@snippet snippets/ie_common.cpp ie:get_input_tensor
+
+OpenVINO™ 2.0 API:
+
+@snippet snippets/ov_common.cpp ov_api_2_0:get_input_tensor
+
+## 6. Start Inference
+
+Inference Engine API:
+
+@snippet snippets/ie_common.cpp ie:inference
+
+OpenVINO™ 2.0 API:
+
+@snippet snippets/ov_common.cpp ov_api_2_0:inference
+
+
+## 6. Process the Inference Results
+
+Inference Engine API:
+
+@snippet snippets/ie_common.cpp ie:get_output_tensor
+
+OpenVINO™ 2.0 API:
+
+@snippet snippets/ov_common.cpp ov_api_2_0:get_output_tensor
+
