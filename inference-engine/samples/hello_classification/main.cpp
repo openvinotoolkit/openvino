@@ -143,9 +143,7 @@ int main(int argc, char* argv[]) {
         cv::Mat image = imread_t(input_image_path);
         ov::runtime::Tensor input = wrapMat2Tensor(image);  // just wrap Mat data by Blob::Ptr
                                                             // without allocating of new memory
-        // TODO: use set_input_tensor
-        infer_request.set_tensor(model->get_parameters().front()->get_friendly_name(),
-                                 input);  // infer_request accepts input blob of any size
+        infer_request.set_input_tensor(input);  // infer_request accepts input blob of any size
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Step 7. Do inference
@@ -156,9 +154,7 @@ int main(int argc, char* argv[]) {
 
         // --------------------------- Step 8. Process output
         // ------------------------------------------------------
-        // TODO: use get_output_tensor
-        ov::runtime::Tensor output =
-            infer_request.get_tensor(model->get_result()->input_value(0).get_node_shared_ptr()->get_friendly_name());
+        ov::runtime::Tensor output = infer_request.get_output_tensor();
         // Print classification results
         ClassificationResult_t classificationResult(output, {input_image_path});
         classificationResult.print();

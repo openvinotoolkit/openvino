@@ -11,7 +11,7 @@
 #include <tuple>
 #include <vector>
 
-#include "ie_plugin_config.hpp"  // TODO: move to OpenVINO
+#include "ie_plugin_config.hpp"
 #include "openvino/openvino.hpp"
 
 namespace {

@@ -165,8 +165,7 @@ int main(int argc, char* argv[]) {
         /** Setting batch size using image count **/
         const size_t batchSize = imagesData.size();
         input_shape[ov::layout::batch(tensorLayout)] = batchSize;
-        // TODO: model->input().get_any_name()
-        model->reshape({{*model->input().get_tensor().get_names().begin(), input_shape}});
+        model->reshape({{model->input().get_any_name(), input_shape}});
         slog::info << "Batch size is " << std::to_string(batchSize) << slog::endl;
 
         // -----------------------------------------------------------------------------------------------------
@@ -187,9 +186,7 @@ int main(int argc, char* argv[]) {
         // --------------------------------------------------------
         /** Filling input tensor with images with BGR **/
         const size_t image_size = shape_size(input_shape) / batchSize;
-
-        const std::string inputName = model->get_parameters()[0]->get_friendly_name();
-        ov::runtime::Tensor input_tensor = infer_request.get_tensor(inputName);
+        ov::runtime::Tensor input_tensor = infer_request.get_input_tensor();
 
         // /** Iterate over all input images **/
         for (size_t image_id = 0; image_id < imagesData.size(); ++image_id) {
@@ -237,9 +234,7 @@ int main(int argc, char* argv[]) {
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Step 8. Process output
-        // TODO: get_output_tensor
-        ov::runtime::Tensor output =
-            infer_request.get_tensor(model->get_result()->input_value(0).get_node_shared_ptr()->get_friendly_name());
+        ov::runtime::Tensor output = infer_request.get_output_tensor();
 
         /** Validating -nt value **/
         const size_t resultsCnt = output.get_size() / batchSize;

@@ -192,8 +192,8 @@ int main(int argc, char* argv[]) {
         // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and
         // .bin files) or ONNX (.onnx file) format
         auto function = ie.read_model(input_model);
-        std::string input_name = function->get_parameters()[0]->get_friendly_name();
-        std::string output_name = function->get_result()->get_input_source_output(0).get_node()->get_friendly_name();
+        std::string input_name = function->input().get_any_name();
+        std::string output_name = function->output().get_any_name();
 
         // --------- Step 3. Add preprocessing  ---------
         // 1) Set input type as 'u8' precision and set color format to NV12 (single plane)
