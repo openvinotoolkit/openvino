@@ -302,6 +302,8 @@ set(SRC
     visitors/op/greater_equal.cpp
     visitors/op/greater.cpp
     visitors/op/grn.cpp
+    visitors/op/gru_cell.cpp
+    visitors/op/gru_sequence.cpp
     visitors/op/group_conv.cpp
     visitors/op/hard_sigmoid.cpp
     visitors/op/hsigmoid.cpp
@@ -637,6 +639,10 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
     elseif(APPLE)
         target_link_options(unit-test PRIVATE -Wl,-dead_strip)
     endif()
+endif()
+
+if(NGRAPH_IR_FRONTEND_ENABLE)
+    add_dependencies(unit-test ir_ngraph_frontend)
 endif()
 
 install(TARGETS unit-test
