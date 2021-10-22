@@ -704,6 +704,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_fsv16_to_bfyx_conv, ::te
     bc_test_params{ CASE_CONV_FP16_13, 3, 4 },
 }));
 
+
 class conv_fp32_activation : public ConvFusingTest {};
 TEST_P(conv_fp32_activation, basic) {
     auto p = GetParam();
@@ -5070,6 +5071,137 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, deconv_activation_eltwise_diff_sizes,
                                 conv_eltw_test_params{CASE_DECONV_ELTW_i8_5, 2, 4},
                         }));
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+/* ----------------------------------------------------------------------------------------------------- */
+/* --------------------------------------- Concat cases ------------------------------------------------ */
+/* ----------------------------------------------------------------------------------------------------- */
+struct concat_test_params {
+    tensor in_shape;
+    data_types data_type;
+    format input_format;
+    data_types default_type;
+    format default_format;
+    size_t expected_fused_primitives;
+    size_t expected_not_fused_primitives;
+    std::string kernel_name;
+};
+
+#define CASE_CONCAT_F32_1 {1, 8, 4, 4}, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONCAT_F16_1 {1, 8, 4, 4}, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+
+class ConcatOneDNNFusingTest : public ::BaseFusingTest<concat_test_params> {
+public:
+    void execute(concat_test_params& p) {
+        // Onednn post operation has issue in a machine that does not support imad.
+        if (!engine.get_device_info().supports_imad)
+            return;
+
+        auto input0_prim = get_mem(get_input_layout(p));
+        auto input1_prim = get_mem(get_input_layout(p));
+
+        build_options onednn_options;
+        build_options cldnn_options;
+
+        onednn_options.set_option(build_option::optimize_data(true));
+        cldnn_options.set_option(build_option::optimize_data(true));
+
+        implementation_desc onednn_impl = {p.input_format, "", impl_types::onednn};
+        implementation_desc cldnn_impl = {p.input_format, "", impl_types::ocl};
+        onednn_options.set_option(build_option::force_implementations({{"concat", onednn_impl}}));
+        cldnn_options.set_option(build_option::force_implementations({{"concat", cldnn_impl}}));
+
+        // for onednn fusing test, topology_non_fused means cldnn, topology_fused is onednn
+        network network_fused_cldnn(this->engine, this->topology_non_fused, cldnn_options);
+        network network_fused_onednn(this->engine, this->topology_fused, onednn_options);
+
+        network_fused_cldnn.set_input_data("input0", input0_prim);
+        network_fused_cldnn.set_input_data("input1", input1_prim);
+        network_fused_onednn.set_input_data("input0", input0_prim);
+        network_fused_onednn.set_input_data("input1", input1_prim);
+
+        ASSERT_FALSE(network_fused_cldnn.get_primitives_info().empty());
+        ASSERT_FALSE(network_fused_onednn.get_primitives_info().empty());
+
+        auto find_and_check = [&](primitive_info& p) -> bool {
+            if (p.original_id == "concat" || p.original_id == "reorder_bfyx")
+                return true;
+            return false;
+        };
+
+        auto pi_fused_onednn = network_fused_onednn.get_primitives_info();
+        auto pi_fused_cldnn = network_fused_cldnn.get_primitives_info();
+        auto info_fused_onednn = std::find_if(pi_fused_onednn.begin(), pi_fused_onednn.end(), find_and_check);
+        auto info_fused_cldnn = std::find_if(pi_fused_cldnn.begin(), pi_fused_cldnn.end(), find_and_check);
+
+        ASSERT_TRUE(info_fused_onednn != pi_fused_onednn.end());
+        ASSERT_TRUE(info_fused_cldnn != pi_fused_cldnn.end());
+
+        compare(network_fused_cldnn, network_fused_onednn, p);
+    }
+
+    layout get_input_layout(concat_test_params& p) { return layout{p.data_type, p.input_format, p.in_shape}; }
+    layout get_per_channel_layout(concat_test_params& p) {
+        return layout{p.default_type, p.default_format, tensor{1, p.in_shape.feature[0], 1, 1}};
+    }
+};
+
+class concat_onednn_activation : public ConcatOneDNNFusingTest {};
+TEST_P(concat_onednn_activation, along_f) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input0", get_input_layout(p)),
+        input_layout("input1", get_input_layout(p)),
+        concatenation("concat",
+                        { "input0", "input1" },
+                        concatenation::concatenation_axis::along_f,
+                        data_types::f16,
+                        "",
+                        padding{ { 0, 0, 0, 0 }, 0 }),
+        activation("act", "concat", activation_func::relu),
+        reorder("reorder_bfyx", "act", cldnn::format::bfyx, p.default_type)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+class concat_onednn_eltwise : public ConcatOneDNNFusingTest {};
+TEST_P(concat_onednn_eltwise, along_f) {
+    auto p = GetParam();
+    layout data_layout(p.default_type, p.default_format, tensor{1, p.in_shape.feature[0]*2, 1, 1});
+
+    create_topologies(
+        input_layout("input0", get_input_layout(p)),
+        input_layout("input1", get_input_layout(p)),
+        data("scale_data", get_mem(data_layout, 1.0f / tensor{1, 1, 4, 4}.count())),
+        concatenation("concat",
+                        { "input0", "input1" },
+                        concatenation::concatenation_axis::along_f,
+                        data_types::f16,
+                        "",
+                        padding{ { 0, 0, 0, 0 }, 0 }),
+        eltwise("scale", {"concat", "scale_data"}, eltwise_mode::prod, p.default_type),
+        reorder("reorder_bfyx", "scale", cldnn::format::bfyx, p.default_type)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
+                        concat_onednn_activation,
+                        ::testing::ValuesIn(std::vector<concat_test_params>{
+                            concat_test_params{CASE_CONCAT_F16_1, 3, 3, ""},
+                        }));
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
+                        concat_onednn_eltwise,
+                        ::testing::ValuesIn(std::vector<concat_test_params>{
+                            concat_test_params{CASE_CONCAT_F32_1, 4, 4, ""},
+                            concat_test_params{CASE_CONCAT_F16_1, 4, 4, ""},
+                        }));
+#endif
+
 /* ----------------------------------------------------------------------------------------------------- */
 /* --------------------------------------- Pooling cases ----------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
@@ -5095,6 +5227,7 @@ struct pooling_test_params {
 #define CASE_POOLING_F32_8 {16, 32, 10, 10}, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 #define CASE_POOLING_F32_9 {16, 32, 10, 10}, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::bfyx
 #define CASE_POOLING_F32_10 {16, 32, 10, 10, 10}, data_types::f32, format::bs_fs_zyx_bsv16_fsv16, data_types::f32, format::bfyx
+#define CASE_POOLING_F32_11 {1, 1, 3, 3}, data_types::f32, format::bfyx, data_types::f32, format::bfyx
 
 #define CASE_POOLING_F32_F16_1 {1, 16, 8, 8}, data_types::f32, format::bfyx, data_types::f16, format::bfyx
 #define CASE_POOLING_F32_F16_2 {2, 16, 8, 8}, data_types::f32, format::bfyx, data_types::f16, format::bfyx
@@ -5510,6 +5643,107 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                             pooling_test_params{CASE_POOLING_U8_FP16_6, 2, 4, pooling_mode::average, "pooling_gpu_int8_ref"},
                             pooling_test_params{CASE_POOLING_U8_FP16_6, 2, 4, pooling_mode::max, "pooling_gpu_int8_ref"},
                      }));
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+class PoolingOneDNNFusingTest : public ::BaseFusingTest<pooling_test_params> {
+public:
+    void execute(pooling_test_params& p) {
+        // Onednn post operation has issue in a machine that does not support imad.
+        if (!engine.get_device_info().supports_imad)
+            return;
+
+        auto input_prim = get_mem(get_input_layout(p));
+
+        build_options onednn_options;
+        build_options cldnn_options;
+
+        onednn_options.set_option(build_option::optimize_data(true));
+        cldnn_options.set_option(build_option::optimize_data(true));
+
+        implementation_desc onednn_impl = {p.input_format, "", impl_types::onednn};
+        implementation_desc cldnn_impl = {p.input_format, "", impl_types::ocl};
+        onednn_options.set_option(build_option::force_implementations({{"pooling", onednn_impl}}));
+        cldnn_options.set_option(build_option::force_implementations({{"pooling", cldnn_impl}}));
+
+        // for onednn fusing test, topology_non_fused means cldnn, topology_fused is onednn
+        network network_fused_cldnn(this->engine, this->topology_non_fused, cldnn_options);
+        network network_fused_onednn(this->engine, this->topology_fused, onednn_options);
+
+        network_fused_cldnn.set_input_data("input", input_prim);
+        network_fused_onednn.set_input_data("input", input_prim);
+
+        ASSERT_FALSE(network_fused_cldnn.get_primitives_info().empty());
+        ASSERT_FALSE(network_fused_onednn.get_primitives_info().empty());
+
+        auto find_and_check = [&](primitive_info& p) -> bool {
+            if (p.original_id == "pooling" || p.original_id == "output_reorder")
+                return true;
+            return false;
+        };
+
+        auto pi_fused_onednn = network_fused_onednn.get_primitives_info();
+        auto pi_fused_cldnn = network_fused_onednn.get_primitives_info();
+        auto info_fused_onednn = std::find_if(pi_fused_onednn.begin(), pi_fused_onednn.end(), find_and_check);
+        auto info_fused_cldnn = std::find_if(pi_fused_cldnn.begin(), pi_fused_cldnn.end(), find_and_check);
+
+        ASSERT_TRUE(info_fused_onednn != pi_fused_onednn.end());
+        ASSERT_TRUE(info_fused_cldnn != pi_fused_cldnn.end());
+
+        compare(network_fused_cldnn, network_fused_onednn, p);
+    }
+
+    layout get_input_layout(pooling_test_params& p) { return layout{p.data_type, p.input_format, p.in_shape}; }
+    layout get_per_channel_layout(pooling_test_params& p) {
+        return layout{p.default_type, p.default_format, tensor{1, p.in_shape.feature[0], 1, 1}};
+    }
+};
+
+class pooling_onednn_activation1 : public PoolingOneDNNFusingTest {};
+TEST_P(pooling_onednn_activation1, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        pooling("pooling", "input", p.pool_mode, tensor{1, 1, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, 0, 0}),
+        activation("act", "pooling", activation_func::relu),
+        reorder("output_reorder", "act", format::bfyx, data_types::f32));
+
+    tolerance = 1e-05f;
+    execute(p);
+}
+
+class pooling_onednn_activation2 : public PoolingOneDNNFusingTest {};
+TEST_P(pooling_onednn_activation2, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        pooling("pooling", "input", p.pool_mode, { 1, 1, 3, 3 }, { 1, 1, 1, 1 }),
+        activation("act", "pooling", activation_func::relu),
+        reorder("output_reorder", "act", format::bfyx, data_types::f32));
+
+    tolerance = 1e-05f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
+                        pooling_onednn_activation1,
+                        ::testing::ValuesIn(std::vector<pooling_test_params>{
+                            // pooling_test_params{CASE_POOLING_F32_1, 2, 2, pooling_mode::max, ""},
+                            pooling_test_params{CASE_POOLING_F16_1, 2, 2, pooling_mode::max, ""},
+                            pooling_test_params{CASE_POOLING_I8_1, 2, 2, pooling_mode::max, ""},
+                            pooling_test_params{CASE_POOLING_U8_1, 2, 2, pooling_mode::max, ""},
+                            pooling_test_params{CASE_POOLING_U8_2, 2, 2, pooling_mode::max, ""},
+                            pooling_test_params{CASE_POOLING_I8_1, 2, 2, pooling_mode::max, ""},
+                            pooling_test_params{CASE_POOLING_I8_2, 2, 2, pooling_mode::max, ""},
+                        }));
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
+                        pooling_onednn_activation2,
+                        ::testing::ValuesIn(std::vector<pooling_test_params>{
+                            pooling_test_params{CASE_POOLING_F32_11, 2, 2, pooling_mode::max, ""},
+                            pooling_test_params{CASE_POOLING_F32_11, 2, 2, pooling_mode::average, ""},
+                            pooling_test_params{CASE_POOLING_F32_11, 2, 2, pooling_mode::average_no_padding, ""},
+                        }));
+#endif
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* -------------------------------- DepthToSpace cases ------------------------------------------------- */
@@ -9108,3 +9342,146 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_shift_swish_onednn,
                                 bc_test_params{CASE_CONV_S8S8_15, 2, 7},
                         }));
 #endif
+
+
+// reorder(bfyx to fs_b_yx_fsv32) + conv
+#define FSV32_CASE_CONV_FP32_1 {1, 32, 4, 5}, {1, 32, 2, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
+
+class conv_fp32_reorder_bfyx_to_fsv32_conv_basic : public ConvFusingTest {};
+TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_basic, basic) {
+    auto p = GetParam();
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p), -127, 127)),
+        reorder("reorder_fsv32", "input", format::fs_b_yx_fsv32, data_types::f32),
+        convolution("conv_output", "reorder_fsv32", { "weights" }, 1, tensor{ 0, 0, 1, 1 }, p.pad, p.dilation),
+        activation("activation", "conv_output", activation_func::abs)
+    );
+
+    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
+    bo_fused.set_option(build_option::force_implementations({ {"conv_output", conv_impl} }));
+
+    execute(p);
+}
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_basic, ::testing::ValuesIn(std::vector<bc_test_params>{
+    bc_test_params{ FSV32_CASE_CONV_FP32_1,  3, 3 }
+}));
+
+
+class conv_fp32_reorder_bfyx_to_fsv32_conv_mean : public ConvFusingTest {};
+TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_mean, have_mean) {
+    auto p = GetParam();
+    memory::ptr mul = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 3, 1, 2 } });
+    set_values<float>(mul, { 0.5f, 2.5f, -5.0f, 4.3f, 1.2f, -3.5f });
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("mul", mul),
+        data("weights", get_mem(get_weights_layout(p), -127, 127)),
+        reorder("reorder_fsv32", "input", format::fs_b_yx_fsv32, data_types::f32, "mul", reorder_mean_mode::mul),
+        convolution("conv_output", "reorder_fsv32", { "weights" }, 1, tensor{ 0, 0, 1, 1 }, p.pad, p.dilation),
+        activation("activation", "conv_output", activation_func::abs)
+    );
+
+    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
+    bo_fused.set_option(build_option::force_implementations({ {"conv_output", conv_impl} }));
+
+    execute(p);
+}
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_mean, ::testing::ValuesIn(std::vector<bc_test_params>{
+    bc_test_params{ FSV32_CASE_CONV_FP32_1,  3, 3 }
+}));
+
+
+class conv_fp32_reorder_bfyx_to_fsv32_conv_subtract : public ConvFusingTest {};
+TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_subtract, have_subtract_per_feature) {
+    auto p = GetParam();
+    const std::vector<float>& values_to_subtract = {
+        0.1f, 0.2f, 0.1f, 0.1f, 0.1f, 0.2f, 0.1f, 0.1f,
+        0.1f, 0.2f, 0.1f, 0.1f, 0.1f, 0.2f, 0.1f, 0.1f,
+        0.1f, 0.2f, 0.1f, 0.1f, 0.1f, 0.2f, 0.1f, 0.1f,
+        0.1f, 0.2f, 0.1f, 0.1f, 0.1f, 0.2f, 0.1f, 0.1f
+    };
+
+    auto dw_tensor = cldnn::tensor(group(p.out_shape.feature[0]), batch(1), feature(1), spatial(3, 3));
+    auto dw_weights_layout = layout{ p.default_type, format::goiyx, dw_tensor };
+    auto dw_stride = tensor{ 0, 0, 1, 1 };
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p), -127, 127)),
+        data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
+        convolution("conv_prim", "input", { "weights" }, p.groups, p.stride, p.pad, p.dilation),
+        reorder("reorder_fsv32", "conv_prim", format::fs_b_yx_fsv32, data_types::f32, values_to_subtract),
+        convolution("conv_output", "reorder_fsv32", { "weights_dw" }, 1, dw_stride, p.pad, p.dilation),
+        activation("activation", "conv_output", activation_func::abs)
+    );
+
+    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
+    bo_fused.set_option(build_option::force_implementations({ {"conv_output", conv_impl} }));
+
+    execute(p);
+}
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_subtract, ::testing::ValuesIn(std::vector<bc_test_params>{
+    bc_test_params{ FSV32_CASE_CONV_FP32_1,  4, 4 }
+}));
+
+
+class conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation : public ConvFusingTest {};
+TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, have_fused_activation) {
+    auto p = GetParam();
+
+    auto dw_tensor = cldnn::tensor(group(p.out_shape.feature[0]), batch(1), feature(1), spatial(3, 3));
+    auto dw_weights_layout = layout{ p.default_type, format::goiyx, dw_tensor };
+    auto dw_stride = tensor{ 0, 0, 1, 1 };
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p), -127, 127)),
+        data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
+        convolution("conv_prim", "input", { "weights" }, p.groups, p.stride, p.pad, p.dilation),
+        reorder("reorder_fsv32", "conv_prim", format::fs_b_yx_fsv32, data_types::f32),
+        activation("activation_quantize", "reorder_fsv32", activation_func::relu),
+        convolution("conv_output", "activation_quantize", { "weights_dw" }, 1, dw_stride, p.pad, p.dilation),
+        activation("activation", "conv_output", activation_func::abs)
+    );
+
+    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
+    bo_fused.set_option(build_option::force_implementations({ {"conv_output", conv_impl} }));
+
+    execute(p);
+}
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, ::testing::ValuesIn(std::vector<bc_test_params>{
+    bc_test_params{ FSV32_CASE_CONV_FP32_1,  4, 5 }
+}));
+
+
+class conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding : public ConvFusingTest {};
+TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, have_data_padding) {
+    auto p = GetParam();
+
+    auto dw_tensor = cldnn::tensor(group(p.out_shape.feature[0]), batch(1), feature(1), spatial(3, 3));
+    auto dw_weights_layout = layout{ p.default_type, format::goiyx, dw_tensor };
+    auto dw_stride = tensor{ 0, 0, 1, 1 };
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p), -127, 127)),
+        data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
+        convolution("conv_prim", "input", { "weights" }, p.groups, p.stride, p.pad, p.dilation),
+        reorder("reorder_fsv32", "conv_prim", layout(data_types::f32, format::fs_b_yx_fsv32, dw_tensor, padding{ {0, 0, 1, 1}, 0 })),
+        convolution("conv_output", "reorder_fsv32", { "weights_dw" }, 1, dw_stride, p.pad, p.dilation),
+        activation("activation", "conv_output", activation_func::abs),
+        activation("activation2", "conv_prim", activation_func::abs),
+        eltwise("add_bias", { "activation", "activation2" }, eltwise_mode::sum)
+    );
+
+    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
+    bo_fused.set_option(build_option::force_implementations({ {"conv_output", conv_impl} }));
+
+    execute(p);
+}
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, ::testing::ValuesIn(std::vector<bc_test_params>{
+    bc_test_params{ FSV32_CASE_CONV_FP32_1,  5, 6 }
+}));

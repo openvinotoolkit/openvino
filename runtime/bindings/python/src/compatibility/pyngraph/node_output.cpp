@@ -14,7 +14,8 @@ namespace py = pybind11;
 void regclass_pyngraph_Output(py::module m) {
     py::class_<ngraph::Output<ngraph::Node>, std::shared_ptr<ngraph::Output<ngraph::Node>>> output(m,
                                                                                                    "Output",
-                                                                                                   py::dynamic_attr());
+                                                                                                   py::dynamic_attr(),
+                                                                                                   py::module_local());
     output.doc() = "ngraph.impl.Output wraps ngraph::Output<Node>";
 
     output.def("get_node",

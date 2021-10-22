@@ -131,6 +131,8 @@ public:
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                        InferenceEngine::OutputsDataMap networkOutputs) override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                                                       const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
     std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override;
     std::shared_ptr<InferenceEngine::ICore> GetCore() const;
     ~MultiDeviceExecutableNetwork() override;

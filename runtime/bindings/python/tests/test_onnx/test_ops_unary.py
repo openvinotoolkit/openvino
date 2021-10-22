@@ -7,9 +7,11 @@ import onnx.mapping
 import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
-from ngraph.exceptions import NgraphTypeError
+from openvino.exceptions import NgraphTypeError
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
+
+from tests import skip_issue_67415
 
 
 @pytest.mark.parametrize(
@@ -331,6 +333,7 @@ def test_cast_to_bool(val_type, input_data):
     assert np.allclose(result, expected)
 
 
+@skip_issue_67415
 @pytest.mark.parametrize(
     "val_type, range_start, range_end, in_dtype",
     [

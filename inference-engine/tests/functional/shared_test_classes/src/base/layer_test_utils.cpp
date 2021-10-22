@@ -94,7 +94,7 @@ void LayerTestsCommon::Run() {
     }
 }
 
-void LayerTestsCommon::Serialize() {
+void LayerTestsCommon::Serialize(ngraph::pass::Serialize::Version ir_version) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     std::string output_name = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + GetTimestamp();
@@ -103,7 +103,7 @@ void LayerTestsCommon::Serialize() {
     std::string out_bin_path = output_name + ".bin";
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(out_xml_path, out_bin_path);
+    manager.register_pass<ov::pass::Serialize>(out_xml_path, out_bin_path, ir_version);
     manager.run_passes(function);
     function->validate_nodes_and_infer_types();
 

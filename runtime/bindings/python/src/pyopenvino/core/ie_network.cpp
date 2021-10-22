@@ -10,12 +10,9 @@
 
 #include <ie_input_info.hpp>
 
-#include "ngraph/function.hpp"
+#include "openvino/core/function.hpp"
+#include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/ie_input_info.hpp"
-
-// using PyInputsDataMap = std::map<std::string, std::shared_ptr<InferenceEngine::InputInfo>>;
-//
-// PYBIND11_MAKE_OPAQUE(PyInputsDataMap);
 
 namespace py = pybind11;
 
@@ -23,7 +20,7 @@ void regclass_IENetwork(py::module m) {
     py::class_<InferenceEngine::CNNNetwork, std::shared_ptr<InferenceEngine::CNNNetwork>> cls(m, "IENetwork");
     cls.def(py::init());
 
-    cls.def(py::init([](std::shared_ptr<ngraph::Function>& function) {
+    cls.def(py::init([](std::shared_ptr<ov::Function>& function) {
         InferenceEngine::CNNNetwork cnnNetwork(function);
         return std::make_shared<InferenceEngine::CNNNetwork>(cnnNetwork);
     }));
@@ -82,14 +79,8 @@ void regclass_IENetwork(py::module m) {
                      &InferenceEngine::CNNNetwork::getBatchSize,
                      &InferenceEngine::CNNNetwork::setBatchSize);
 
-    // auto py_inputs_data_map = py::bind_map<PyInputsDataMap>(m, "PyInputsDataMap");
-
-    //    py_inputs_data_map.def("keys", [](PyInputsDataMap& self) {
-    //        return py::make_key_iterator(self.begin(), self.end());
-    //    });
-
     cls.def_property_readonly("input_info", [](InferenceEngine::CNNNetwork& self) {
-        std::map<std::string, std::shared_ptr<InferenceEngine::InputInfo>> inputs;
+        Containers::PyInputsDataMap inputs;
         const InferenceEngine::InputsDataMap& inputsInfo = self.getInputsInfo();
         for (auto& in : inputsInfo) {
             inputs[in.first] = in.second;
