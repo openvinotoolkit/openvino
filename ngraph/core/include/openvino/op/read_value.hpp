@@ -79,6 +79,10 @@ public:
     bool has_evaluate() const override;
 
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
+
+private:
+    template <class T>
+    friend void shape_infer(ReadValue* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
 }  // namespace v6
 }  // namespace op

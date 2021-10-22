@@ -80,7 +80,10 @@ op::v6::Assign::Assign(const Output<Node>& new_value, const std::shared_ptr<Vari
 void op::v6::Assign::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v6_Assign_validate_and_infer_types);
     m_variable->update({get_input_partial_shape(0), get_input_element_type(0), m_variable->get_info().variable_id});
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0)};
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 shared_ptr<Node> op::v6::Assign::clone_with_new_inputs(const OutputVector& new_args) const {
