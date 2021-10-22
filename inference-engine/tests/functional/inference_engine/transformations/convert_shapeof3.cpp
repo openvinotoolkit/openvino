@@ -18,67 +18,40 @@
 
 using namespace testing;
 
-TEST(TransformationTests, ConvertShapeOf3WithI64) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertShapeOf3WithI64) {
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3});
         auto shapeof = std::make_shared<ngraph::opset3::ShapeOf>(input, ngraph::element::i64);
         shapeof->set_friendly_name("shapeof");
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{shapeof}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{shapeof}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConvertShapeOf3>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3});
         auto shapeof = std::make_shared<ngraph::opset1::ShapeOf>(input);
-        shapeof->set_friendly_name("shapeof");
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{shapeof}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{shapeof}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-
-    auto result_node_of_converted_f = f->get_output_op(0);
-    auto output_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    ASSERT_TRUE(output_node->get_friendly_name() == "shapeof") << "Transformation ConvertShapeOf3 should keep output names.\n";
 }
 
-TEST(TransformationTests, ConvertShapeOf3WithI32) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertShapeOf3WithI32) {
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3});
         auto shapeof = std::make_shared<ngraph::opset3::ShapeOf>(input, ngraph::element::i32);
-        shapeof->set_friendly_name("shapeof");
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{shapeof}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{shapeof}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConvertShapeOf3>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3});
         auto shapeof = std::make_shared<ngraph::opset1::ShapeOf>(input);
         auto convert = std::make_shared<ngraph::opset1::Convert>(shapeof, ngraph::element::i32);
-        convert->set_friendly_name("shapeof");
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{convert}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{convert}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-
-    auto result_node_of_converted_f = f->get_output_op(0);
-    auto output_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    ASSERT_TRUE(output_node->get_friendly_name() == "shapeof") << "Transformation ConvertShapeOf3 should keep output names.\n";
 }
