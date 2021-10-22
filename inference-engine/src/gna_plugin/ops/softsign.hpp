@@ -9,7 +9,7 @@
 namespace ov {
 namespace op {
 namespace gna {
-/// \brief A Self Regularized Non-Monotonic Neural Activation Function
+/// \brief Neural Activation Function
 /// f(x) =  x/(1.0 + |x|)
 ///
 class OPENVINO_API SoftSign : public Op {

@@ -29,6 +29,10 @@ namespace GNAPluginNS {
  * - Add, Power, Divide layers are more perfomance expensive in GNA
  *   than SoftSign PWL
  * 
+ * Legacy SubstituteSoftSignPass supports irv7 model where SoftSign subgraph
+ * could have been without add layer. Current ModelOptimezer always generates
+ * SoftSign subgraph with that layer.
+ * 
  * SubstituteSoftsign transformation does backward substitution to SoftSign.
  * TODO: remove that pass as soon as ModelOptimizer will not substitute SoftSign activation
  */

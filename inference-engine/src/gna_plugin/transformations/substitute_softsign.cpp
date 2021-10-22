@@ -40,13 +40,11 @@ SubstituteSoftsign::SubstituteSoftsign() {
     auto add_const = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
     auto add = ngraph::pattern::wrap_type<ngraph::opset8::Add>({abs, add_const});
 
-    auto add_output = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{abs, add});
-
     auto power_const = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
-    auto power = ngraph::pattern::wrap_type<ngraph::opset8::Power>({add_output, power_const});
+    auto power = ngraph::pattern::wrap_type<ngraph::opset8::Power>({add, power_const});
 
     auto multiply = ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({root, power});
-    auto divide = ngraph::pattern::wrap_type<ngraph::opset8::Divide>({root, add_output});
+    auto divide = ngraph::pattern::wrap_type<ngraph::opset8::Divide>({root, add});
     auto last =  std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{multiply, divide});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
