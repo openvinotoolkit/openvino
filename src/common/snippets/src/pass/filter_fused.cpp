@@ -193,7 +193,7 @@ bool isSuitableChildForFusingSimple(std::shared_ptr<Node> node) {
     // Note: Fusing child is allowed to have several users, but that must be the end of the chain
     return SupportsFusingWithConvolution_Simple(node) && getNumNonConstInputs(node) == 1;
 }
-bool isSuitableChildForFusingMatMul(std::shared_ptr<Node> node) {
+bool isSuitableChildForFusingMatMul(std::shared_ptr<Node> node, SnippetsNodeType &updatedChainType) {
     if (!ov::is_type<ngraph::opset1::Add>(node))
         return false;
     int num_non_const_inputs = 0;
@@ -213,16 +213,24 @@ bool isSuitableChildForFusingMatMul(std::shared_ptr<Node> node) {
     }
     if (num_non_const_inputs != 1)
         return false;
+
+    // FuseMatMulAndSimpleOperation or FuseFullyConnectedAndSimpleOperation
     // Invoke SupportsFusingWithConvolution_Simple directly instead of isSuitableChildForFusingSimple to
     // eliminate getNumNonConstInputs() check
-    if (SupportsFusingWithConvolution_Simple(node))
-        return true;
-
+    if (SupportsFusingWithConvolution_Simple(node) &&
+        (!can_be_converted_to_FC || matmul_shape.size() != 3)) {
+            updatedChainType = SnippetsNodeType::FusedWithMisc;
+            return true;
+    }
+    //    FullyConnectedBiasFusion
     if (!can_be_converted_to_FC ||
         bias_shape.back() != matmul_shape.back() ||
         bias_shape.back() != shape_size(bias_shape)) {
         return false;
     }
+    // Fusing chain must be interrupted after the node, since reshape will be inserted
+    if (bias_shape.size() >= 2)
+        updatedChainType = SnippetsNodeType::FusedTerminator;
     return true;
 }
 bool isSuitableParentForFusingSumActivation(std::shared_ptr<Node> node) {
@@ -344,9 +352,11 @@ bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
                         isSuitableChildForFusingSumActivation(node)) {
                 // Set FusedWithConvolution, so the fusing chain could be propagated
                 PropagateIfHasOnlyChild(node, SnippetsNodeType::FusedWithConvolution);
-            } else if (fusingChainType == SnippetsNodeType::FusedWithMatMul &&
-                                    isSuitableChildForFusingMatMul(node)) {
-                PropagateIfHasOnlyChild(node, SnippetsNodeType::FusedWithMisc);
+            } else if (fusingChainType == SnippetsNodeType::FusedWithMatMul) {
+                // Handle fusings for both MatMul and FullyConnected
+                SnippetsNodeType updatedChainType = fusingChainType;
+                if (isSuitableChildForFusingMatMul(node, updatedChainType))
+                    PropagateIfHasOnlyChild(node, updatedChainType);
             }
         }
         if (AppropriateForSubgraph(node)) {
