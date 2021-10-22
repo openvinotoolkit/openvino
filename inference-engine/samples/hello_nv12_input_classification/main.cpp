@@ -147,11 +147,9 @@ std::vector<UString> readImagesDataFromFiles(const std::vector<std::string>& fil
 ov::runtime::TensorVector readInputTensors(std::vector<UString>& data, size_t width, size_t height) {
     ov::runtime::TensorVector tensors;
     for (auto& buf : data) {
-        // ---------- Create a tensor to hold the NV12 input data -------------------
-        auto ptr = &buf[0];
-
-        // Create tensor for Y plane from raw data
-        ov::runtime::Tensor yuv{ov::element::u8, {1, height * 3 / 2, width, 1}, ptr};
+        // Create tensor for NV12 tensor from raw data
+        // this tensor is a single channel
+        ov::runtime::Tensor yuv{ov::element::u8, {1, height * 3 / 2, width, 1}, &buf[0]};
         tensors.emplace_back(yuv);
     }
 
