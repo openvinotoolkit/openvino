@@ -18,8 +18,22 @@
 #include <legacy/ie_layers.h>
 #include "xml_parse_utils.h"
 
-namespace InferenceEngine {
+void InferenceEngine::details::validateLayer(const CNNLayer * layer) {
+    try {
+        LayerValidator::Ptr validator = LayerValidators::getInstance()->getValidator(layer->type);
+        validator->checkParams(layer);
+        InOutDims shapes;
+        getInOutShapes(layer, shapes);
+        validator->checkShapes(layer, shapes.inDims);
+    } catch (const Exception& ie_e) {
+        IE_THROW() << "Error of validate layer: " << layer->name << " with type: " << layer->type << ". "
+                           << ie_e.what();
+    }
+}
 
+namespace {
+
+using namespace InferenceEngine;
 using namespace details;
 using std::map;
 using std::string;
@@ -32,19 +46,6 @@ inline bool one_of(T val, P item) {
 template <typename T, typename P, typename... Args>
 inline bool one_of(T val, P item, Args... item_others) {
     return val == item || one_of(val, item_others...);
-}
-
-void details::validateLayer(const CNNLayer * layer) {
-    try {
-        LayerValidator::Ptr validator = LayerValidators::getInstance()->getValidator(layer->type);
-        validator->checkParams(layer);
-        InOutDims shapes;
-        getInOutShapes(layer, shapes);
-        validator->checkShapes(layer, shapes.inDims);
-    } catch (const Exception& ie_e) {
-        IE_THROW() << "Error of validate layer: " << layer->name << " with type: " << layer->type << ". "
-                           << ie_e.what();
-    }
 }
 
 struct WeightableParams {
@@ -154,18 +155,6 @@ void checkDeformableConv(const DeformableConvolutionLayer* deformableConvLayer,
         IE_THROW() << "Failed with invalid shapes: trans input channel dimension is invalid. Actual value is: "
                            << TC
                            << ". Expected value: " << deformableConvLayer->_deformable_group * 2 * krn[0] * krn[1];
-}
-
-void checkDims(const std::vector<SizeVector>& shapes, const vector<int>& expected_shape_size) {
-    for (auto i : shapes) {
-        if (i.empty()) {
-            IE_THROW() << " Failed with invalid shapes: dimension is empty";
-        }
-        auto iter = std::find(expected_shape_size.begin(), expected_shape_size.end(), i.size());
-        if (iter == expected_shape_size.end()) {
-            IE_THROW() << " Failed with invalid shapes: dimension is invalid";
-        }
-    }
 }
 
 void checkNumOfInput(const std::vector<SizeVector>& inShapes, const vector<size_t>& expected_num_of_shapes) {
@@ -1428,9 +1417,9 @@ void RNNSequenceValidator<CELL>::checkShapes(const CNNLayer* layer, const vector
     }
 }
 
-template class details::RNNSequenceValidator<RNNSequenceLayer::RNN>;
-template class details::RNNSequenceValidator<RNNSequenceLayer::GRU>;
-template class details::RNNSequenceValidator<RNNSequenceLayer::LSTM>;
+template class RNNSequenceValidator<RNNSequenceLayer::RNN>;
+template class RNNSequenceValidator<RNNSequenceLayer::GRU>;
+template class RNNSequenceValidator<RNNSequenceLayer::LSTM>;
 
 template <RNNSequenceLayer::CellType CELL>
 RNNCellValidator<CELL>::RNNCellValidator(const std::string& _type): RNNBaseValidator(_type, CELL) {}
@@ -1459,9 +1448,9 @@ void RNNCellValidator<CELL>::checkShapes(const CNNLayer* layer, const vector<Siz
     //                         << " Expected " << expected_state_shape << " but provided " << inShapes[2];
 }
 
-template class details::RNNCellValidator<RNNSequenceLayer::RNN>;
-template class details::RNNCellValidator<RNNSequenceLayer::GRU>;
-template class details::RNNCellValidator<RNNSequenceLayer::LSTM>;
+template class RNNCellValidator<RNNSequenceLayer::RNN>;
+template class RNNCellValidator<RNNSequenceLayer::GRU>;
+template class RNNCellValidator<RNNSequenceLayer::LSTM>;
 
 void ArgMaxValidator::checkParams(const CNNLayer* layer) {
     unsigned int top_k_ = layer->GetParamAsUInt("top_k");
@@ -2301,7 +2290,10 @@ LayerValidators::LayerValidators() : _validators() {
     REG_LAYER_VALIDATOR_FOR_TYPE(SparseSegmentReduceValidator, SparseSegmentMean);
     REG_LAYER_VALIDATOR_FOR_TYPE(SparseSegmentReduceValidator, SparseSegmentSqrtN);
     REG_LAYER_VALIDATOR_FOR_TYPE(SparseSegmentReduceValidator, SparseSegmentSum);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ExperimentalSparseWeightedReduceValidator, ExperimentalSparseWeightedReduceLayer);
     REG_LAYER_VALIDATOR_FOR_TYPE(ReverseSequenceValidator, ReverseSequence);
+    REG_LAYER_VALIDATOR_FOR_TYPE(BucketizeValidator, BucketizeLayer);
+    REG_LAYER_VALIDATOR_FOR_TYPE(SparseToDenseValidator, SparseToDenseLayer);
     REG_LAYER_VALIDATOR_FOR_TYPE(RNNCellValidator<RNNSequenceLayer::RNN>, RNNCell);
     REG_LAYER_VALIDATOR_FOR_TYPE(RNNCellValidator<RNNSequenceLayer::GRU>, GRUCell);
     REG_LAYER_VALIDATOR_FOR_TYPE(RNNCellValidator<RNNSequenceLayer::LSTM>, LSTMCell);
@@ -2364,4 +2356,4 @@ LayerValidators::LayerValidators() : _validators() {
     REG_LAYER_VALIDATOR_FOR_TYPE(ScatterElementsUpdateValidator, ScatterElementsUpdate);
 }
 
-}  // namespace InferenceEngine
+}  // namespace
