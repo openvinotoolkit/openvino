@@ -7,10 +7,12 @@
 #include <string>
 #include <vector>
 
+#include "openvino/core/layout.hpp"
 #include "openvino/openvino.hpp"
 #include "samples/classification_results.h"
 #include "samples/common.hpp"
 #include "samples/ocv_common.hpp"
+#include <samples/slog.hpp>
 
 using namespace ov::preprocess;
 
@@ -78,8 +80,10 @@ int wmain(int argc, wchar_t* argv[]) {
 int main(int argc, char* argv[]) {
 #endif
     try {
-        // ------------------------------ Parsing and validation of input arguments
-        // ---------------------------------
+        // -------- Get OpenVINO Runtime version --------
+        slog::info << "OpenVINO runtime: " << ov::get_openvino_version() << slog::endl;
+
+        // -------- Parsing and validation of input arguments --------
         if (argc != 4) {
             tcout << "Usage : " << argv[0] << " <path_to_model> <path_to_image> <device_name>" << std::endl;
             return EXIT_FAILURE;
@@ -92,72 +96,77 @@ int main(int argc, char* argv[]) {
 #else
         const std::string device_name{argv[3]};
 #endif
-        // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- Step 1. Initialize inference engine core
-        // -------------------------------------
-        ov::runtime::Core ie;
-        // -----------------------------------------------------------------------------------------------------
+        // -------- Step 1. Initialize OpenVINO Runtime Core --------
+        ov::runtime::Core core;
 
-        // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and
-        // .bin files) or ONNX (.onnx file) format
-        auto model = ie.read_model(input_model);
+        // -------- Step 2. Read a model --------
+        auto model = core.read_model(input_model);
 
-        OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports topologies with 1 input only");
-        OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports topologies with 1 output only");
-        // -----------------------------------------------------------------------------------------------------
+        OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
+        OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports models with 1 output only");
 
-        // --------------------------- Step 3. Apply preprocessing
+        // -------- Step 3. Initialize inference engine core
+
+        // Read input image to a tensor and set it to an infer request
+        // without resize and layout conversions
+        cv::Mat image = imread_t(input_image_path);
+        // just wrap Mat data by ov::runtime::Tensor without allocating of new memory
+        ov::runtime::Tensor input_tensor = wrapMat2Tensor(image);
+        const ov::Shape tensor_shape = input_tensor.get_shape();
+
+        // -------- Step 4. Apply preprocessing --------
+        const ov::Layout tensor_layout{"NHWC"};
 
         // clang-format off
         model = PrePostProcessor().
+            // InputInfo() with no args assumes a model has a single input
             input(InputInfo().
+                // Set input tensor information:
+                // - precision of tensor is supposed to be 'u8'
+                // - layout of data is 'NHWC'
                 tensor(InputTensorInfo().
                     set_element_type(ov::element::u8).
-                    set_layout("NHWC")).
+                    set_spatial_static_shape(
+                        tensor_shape[ov::layout::height(tensor_layout)],
+                        tensor_shape[ov::layout::width(tensor_layout)]).
+                    set_layout(tensor_layout)).
+                // Adding explicit preprocessing steps:
+                // - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
+                // - apply linear resize from tensor spatial dims to model spatial dims
                 preprocess(PreProcessSteps().
                     convert_layout("NCHW"). // WA for CPU plugin
                     resize(ResizeAlgorithm::RESIZE_LINEAR)).
+                // Here we suppose model has 'NCHW' layout for input
                 network(InputNetworkInfo().
                     set_layout("NCHW"))).
             output(OutputInfo().
+                // Set output tensor information:
+                // - precision of tensor is supposed to be 'f32'
                 tensor(OutputTensorInfo().
                     set_element_type(ov::element::f32))).
         build(model);
         // clang-format on
 
-        // --------------------------- Step 4. Loading a model to the device
-        // ------------------------------------------
-        ov::runtime::ExecutableNetwork executable_network = ie.compile_model(model, device_name);
-        // -----------------------------------------------------------------------------------------------------
+        // -------- Step 5. Loading a model to the device --------
+        ov::runtime::ExecutableNetwork executable_network = core.compile_model(model, device_name);
 
-        // --------------------------- Step 5. Create an infer request
-        // -------------------------------------------------
+        // -------- Step 6. Create an infer request --------
         ov::runtime::InferRequest infer_request = executable_network.create_infer_request();
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- Step 6. Prepare input
-        // --------------------------------------------------------
-        /* Read input image to a blob and set it to an infer request without resize
-         * and layout conversions. */
-        cv::Mat image = imread_t(input_image_path);
-        ov::runtime::Tensor input = wrapMat2Tensor(image);  // just wrap Mat data by Blob::Ptr
-                                                            // without allocating of new memory
-        infer_request.set_input_tensor(input);  // infer_request accepts input blob of any size
-        // -----------------------------------------------------------------------------------------------------
+        // -------- Step 7. Prepare input --------
+        infer_request.set_input_tensor(input_tensor);
 
-        // --------------------------- Step 7. Do inference
-        // --------------------------------------------------------
-        /* Running the request synchronously */
+        // -------- Step 8. Do inference synchronously --------
         infer_request.infer();
-        // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- Step 8. Process output
-        // ------------------------------------------------------
-        ov::runtime::Tensor output = infer_request.get_output_tensor();
+        // -------- Step 9. Process output
+        ov::runtime::Tensor output_tensor = infer_request.get_output_tensor();
+
         // Print classification results
-        ClassificationResult_t classificationResult(output, {input_image_path});
-        classificationResult.print();
+        ClassificationResult_t classification_result(output_tensor, {input_image_path});
+        classification_result.print();
         // -----------------------------------------------------------------------------------------------------
     } catch (const std::exception& ex) {
         std::cerr << ex.what() << std::endl;

@@ -16,6 +16,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+
 #ifdef _WIN32
 #    include <samples/os/windows/w_dirent.h>
 #else
@@ -25,7 +26,7 @@
 using namespace InferenceEngine;
 
 /**
- * \brief Parse image size provided as string in format WIDTHxHEIGHT
+ * @brief Parse image size provided as string in format WIDTHxHEIGHT
  * @param string of image size in WIDTHxHEIGHT format
  * @return parsed width and height
  */
@@ -105,7 +106,7 @@ std::vector<std::string> readInputFileNames(const std::string& path) {
 using UString = std::basic_string<uint8_t>;
 
 /**
- * \brief Read image data from file
+ * @brief Read image data from file
  * @param vector files paths
  * @param size of file paths vector
  * @return buffers containing the images data
@@ -158,11 +159,11 @@ ov::runtime::TensorVector readInputTensors(std::vector<UString>& data, size_t wi
 }
 
 /**
- * @brief The entry point of the Inference Engine sample application
+ * @brief The entry point of the OpenVINO Runtime sample application
  */
 int main(int argc, char* argv[]) {
     try {
-        // ------------ Parsing and validation input arguments--------
+        // -------- Parsing and validation input arguments --------
         if (argc != 5) {
             std::cout << "Usage : " << argv[0] << " <path_to_model> <path_to_image(s)> <image_size> <device_name>"
                       << std::endl;
@@ -174,28 +175,28 @@ int main(int argc, char* argv[]) {
         size_t input_width = 0, input_height = 0;
         std::tie(input_width, input_height) = parseImageSize(argv[3]);
         const std::string device_name{argv[4]};
-        // ------------------------------------------------------------
 
-        // --------------------- Read image names ---------------------
+        // -------- Read image names --------
         auto image_names = readInputFileNames(input_image_path);
 
         size_t netInputSize = 1;
         if (image_names.empty()) {
             throw std::invalid_argument("images not found");
         }
-        // -----------------------------------------------------------
 
-        // -------- Step 1. Initialize inference engine core ---------
-        ov::runtime::Core ie;
-        // -----------------------------------------------------------
+        // -------- Step 1. Initialize OpenVINO Runtime Core ---------
+        ov::runtime::Core core;
 
-        // Step 2. Read a model in OpenVINO Intermediate Representation (.xml and
-        // .bin files) or ONNX (.onnx file) format
-        auto function = ie.read_model(input_model);
-        std::string input_name = function->input().get_any_name();
-        std::string output_name = function->output().get_any_name();
+        // -------- Step 2. Read a model --------
+        auto model = core.read_model(input_model);
 
-        // --------- Step 3. Add preprocessing  ---------
+        OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
+        OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports models with 1 output only");
+
+        std::string input_tensor_name = model->input().get_any_name();
+        std::string output_tensor_name = model->output().get_any_name();
+
+        // -------- Step 3. Add preprocessing  --------
         // 1) Set input type as 'u8' precision and set color format to NV12 (single plane)
         ov::preprocess::PrePostProcessor p;
         auto tensor = ov::preprocess::InputTensorInfo()
@@ -205,37 +206,34 @@ int main(int argc, char* argv[]) {
         // 2) Pre-processing steps:
         //    a) Convert to 'float'. This is to have color conversion more accurate
         //    b) Convert to RGB: Assumes that model accepts images in RGB format. For BGR, change it manually
-        //    c) Convert layout to network's one. It is done before 'resize' in this sample, as there can be plugin
+        //    c) Convert layout to model's one. It is done before 'resize' in this sample, as there can be plugin
         //       limitation with support of resize in NHWC format
-        //    d) Resize image from tensor's dimensions to network ones
+        //    d) Resize image from tensor's dimensions to model ones
         auto steps = ov::preprocess::PreProcessSteps()
                          .convert_element_type(ov::element::f32)
                          .convert_color(ov::preprocess::ColorFormat::RGB)
                          .convert_layout()
                          .resize(ov::preprocess::ResizeAlgorithm::RESIZE_CUBIC);
-        // 3) Set network data layout (Assuming model accepts images in NCHW layout)
-        auto netInfo = ov::preprocess::InputNetworkInfo().set_layout("NCHW");
-        // 4) Apply preprocessing to a first input of loaded function
-        function = p.input(ov::preprocess::InputInfo(0)
-                               .tensor(std::move(tensor))
-                               .preprocess(std::move(steps))
-                               .network(std::move(netInfo)))
-                       .build(function);
+        // 3) Set model data layout (Assuming model accepts images in NCHW layout)
+        auto modelInfo = ov::preprocess::InputNetworkInfo().set_layout("NCHW");
+        // 4) Apply preprocessing to a input with 'input_tensor_name' name of loaded model
+        model = p.input(ov::preprocess::InputInfo(input_tensor_name)
+                            .tensor(std::move(tensor))
+                            .preprocess(std::move(steps))
+                            .network(std::move(modelInfo)))
+                    .build(model);
 
-        // -------------- Step 4. Loading a model to the device ---------------
-        ov::runtime::ExecutableNetwork executable_network = ie.compile_model(function, device_name);
-        // --------------------------------------------------------------------
+        // -------- Step 4. Loading a model to the device --------
+        ov::runtime::ExecutableNetwork executable_network = core.compile_model(model, device_name);
 
-        // -------------- Step 5. Create an infer request ---------------------
+        // -------- Step 5. Create an infer request --------
         ov::runtime::InferRequest infer_request = executable_network.create_infer_request();
-        // --------------------------------------------------------------------
 
-        // -------------- Step 6. Prepare input -------------------------------
+        // -------- Step 6. Prepare input data  --------
         auto image_bufs = readImagesDataFromFiles(image_names, input_width * (input_height * 3 / 2));
+        auto input_tensors = readInputTensors(image_bufs, input_width, input_height);
 
-        auto inputs = readInputTensors(image_bufs, input_width, input_height);
-
-        /** Read labels from file (e.x. AlexNet.labels) **/
+        // Read labels from file (e.x. AlexNet.labels)
         std::string labelFileName = fileNameNoExt(input_model) + ".labels";
         std::vector<std::string> labels;
 
@@ -249,27 +247,27 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        for (size_t i = 0; i < inputs.size(); i++) {
-            const auto& input = inputs[i];
-            // ----------- Set the input tensor to the InferRequest ----
-            infer_request.set_tensor(input_name, input);
-            // -------------------------------------------------------
+        // iterate over input tensors
+        for (size_t i = 0; i < input_tensors.size(); i++) {
+            const auto& input_tensor = input_tensors[i];
 
-            // ------------ Step 7. Do inference ---------------------
-            /* Running the request synchronously */
+            // -------- Step 6. Set input tensor  --------
+            // Set the input tensor by tensor name to the InferRequest
+            infer_request.set_tensor(input_tensor_name, input_tensor);
+
+            // -------- Step 7. Do inference --------
+            // Running the request synchronously
             infer_request.infer();
-            // -------------------------------------------------------
 
-            // ------------ Step 8. Process output -------------------
-            ov::runtime::Tensor output = infer_request.get_tensor(output_name);
+            // -------- Step 8. Process output --------
+            ov::runtime::Tensor output = infer_request.get_tensor(output_tensor_name);
 
             // Print classification results
             const auto names_offset = image_names.begin() + netInputSize * i;
             std::vector<std::string> names(names_offset, names_offset + netInputSize);
 
-            ClassificationResult classificationResult(output, names, netInputSize, 10, labels);
-            classificationResult.print();
-            // -------------------------------------------------------
+            ClassificationResult classification_result(output, names, netInputSize, 10, labels);
+            classification_result.print();
         }
     } catch (const std::exception& ex) {
         std::cerr << ex.what() << std::endl;
@@ -278,5 +276,6 @@ int main(int argc, char* argv[]) {
     std::cout << "This sample is an API example, for any performance measurements "
                  "please use the dedicated benchmark_app tool"
               << std::endl;
+
     return EXIT_SUCCESS;
 }

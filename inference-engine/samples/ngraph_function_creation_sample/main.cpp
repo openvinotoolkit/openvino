@@ -66,19 +66,19 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
  * @return none
  */
 void readFile(const std::string& file_name, void* buffer, size_t maxSize) {
-    std::ifstream inputFile;
+    std::ifstream input_file;
 
-    inputFile.open(file_name, std::ios::binary | std::ios::in);
-    if (!inputFile.is_open()) {
+    input_file.open(file_name, std::ios::binary | std::ios::in);
+    if (!input_file.is_open()) {
         throw std::logic_error("Cannot open weights file");
     }
 
-    if (!inputFile.read(reinterpret_cast<char*>(buffer), maxSize)) {
-        inputFile.close();
+    if (!input_file.read(reinterpret_cast<char*>(buffer), maxSize)) {
+        input_file.close();
         throw std::logic_error("Cannot read bytes from weights file");
     }
 
-    inputFile.close();
+    input_file.close();
 }
 
 /**
@@ -92,7 +92,7 @@ ov::runtime::Tensor ReadWeights(const std::string& filepath) {
     int64_t fileSize = weightFile.tellg();
     OPENVINO_ASSERT(fileSize == 1724336,
                     "Incorrect weights file. This sample works only with LeNet "
-                    "classification network.");
+                    "classification model.");
 
     ov::runtime::Tensor weights(ov::element::u8, {static_cast<size_t>(fileSize)});
     readFile(filepath, weights.data(), weights.get_byte_size());
@@ -248,57 +248,60 @@ std::shared_ptr<ov::Function> createNgraphFunction() {
  */
 int main(int argc, char* argv[]) {
     try {
-        // ------------------------------ Get OpenVINO runtime version
+        // -------- Get OpenVINO runtime version --------
         slog::info << "OpenVINO Runtime: " << ov::get_openvino_version() << slog::endl;
 
-        // ------------------------------ Parsing and validation of input arguments
+        // -------- Parsing and validation of input arguments --------
         if (!ParseAndCheckCommandLine(argc, argv)) {
-            return 0;
+            return EXIT_SUCCESS;
         }
 
-        // ------------------------------ Read input
+        // -------- Read input --------
         std::vector<std::string> images;
         parseInputFilesArguments(images);
         OPENVINO_ASSERT(!images.empty(), "No suitable images were found");
 
-        // --------------------------- Step 1. Initialize OpenVINO Runtime Core object
+        // -------- Step 1. Initialize OpenVINO Runtime Core object --------
         slog::info << "Loading OpenVINO runtime" << slog::endl;
         runtime::Core core;
 
         slog::info << "Device info: " << slog::endl;
         std::cout << core.get_versions(FLAGS_d) << std::endl;
 
-        //--------------------------- Step 2. Create network using ov::Function
+        // -------- Step 2. Create network using ov::Function --------
 
         auto model = createNgraphFunction();
-        const Layout tensorLayout{"NHWC"};
+        
+        // -------- Step 3. Apply preprocessing --------
+        const Layout tensor_layout{"NHWC"};
 
         // apply preprocessing
-        {
-            // clang-format off
-            using namespace ov::preprocess;
-            model = PrePostProcessor()
-                .input(InputInfo()
-                    .tensor(
-                        InputTensorInfo()
-                            .set_layout(tensorLayout)
-                            .set_element_type(element::u8))
-                    .network(
-                        InputNetworkInfo()
-                            .set_layout("NCHW")))
-                .build(model);
-            // clang-format on
-        }
+        // clang-format off
+        using namespace ov::preprocess;
+        model = PrePostProcessor()
+            // InputInfo() with no args assumes a model has a single input
+            .input(InputInfo()
+                // Set input tensor information:
+                // - precision of tensor is supposed to be 'u8'
+                // - layout of data is 'NHWC'
+                .tensor(InputTensorInfo()
+                    .set_layout(tensor_layout)
+                    .set_element_type(element::u8))
+                // Here we suppose model has 'NCHW' layout for input
+                .network(InputNetworkInfo()
+                    .set_layout("NCHW")))
+                // Once the build() method is called, the preprocessing steps
+                // for layout and precision conversions are inserted automatically
+            .build(model);
+        // clang-format on
 
-        // --------------------------- Step 3. Configure input & output
+        // -------- Step 4. Read input images --------
 
-        const auto inputs = model->inputs();
-        OPENVINO_ASSERT(inputs.size() == 1, "Sample supports topologies only with 1 input");
+        const auto input = model->input();
 
-        const auto input_port = inputs[0];
-        auto input_shape = input_port.get_shape();
-        const size_t width = input_shape[layout::width(tensorLayout)];
-        const size_t height = input_shape[layout::height(tensorLayout)];
+        auto input_shape = input.get_shape();
+        const size_t width = input_shape[layout::width(tensor_layout)];
+        const size_t height = input_shape[layout::height(tensor_layout)];
 
         std::vector<std::shared_ptr<unsigned char>> imagesData;
         for (auto& i : images) {
@@ -312,7 +315,7 @@ int main(int argc, char* argv[]) {
                 throw std::logic_error("Not supported format. Only MNist ubyte images supported.");
             }
 
-            /** Store image data **/
+            // Store image data
             std::shared_ptr<unsigned char> data(reader->getData(width, height));
             if (data.get() != nullptr) {
                 imagesData.push_back(data);
@@ -321,75 +324,73 @@ int main(int argc, char* argv[]) {
 
         OPENVINO_ASSERT(!imagesData.empty(), "Valid input images were not found");
 
-        /** Setting batch size using image count **/
-        const size_t batchSize = imagesData.size();
-        input_shape[0] = batchSize;
-        model->reshape({{input_port.get_any_name(), input_shape}});
-        slog::info << "Batch size is " << std::to_string(batchSize) << slog::endl;
+        // -------- Step 4. Reshape a model --------
+        // Setting batch size using image count
+        const size_t batch_size = imagesData.size();
+        input_shape[layout::batch(tensor_layout)] = batch_size;
+        model->reshape({{input.get_any_name(), input_shape}});
+        slog::info << "Batch size is " << std::to_string(batch_size) << slog::endl;
 
         const auto outputShape = model->output().get_shape();
         OPENVINO_ASSERT(outputShape.size() == 2, "Incorrect output dimensions for LeNet");
 
         const int classCount = outputShape[1];
-        OPENVINO_ASSERT(classCount <= 10, "Incorrect number of output classes for LeNet network");
+        OPENVINO_ASSERT(classCount <= 10, "Incorrect number of output classes for LeNet model");
 
-        // --------------------------- Step 4. Compiling model for the device
+        // -------- Step 4. Compiling model for the device --------
         slog::info << "Compiling a model for the " << FLAGS_d << " device" << slog::endl;
         runtime::ExecutableNetwork exeNetwork = core.compile_model(model, FLAGS_d);
 
-        // --------------------------- Step 5. Create infer request
+        // -------- Step 5. Create infer request --------
         slog::info << "Create infer request" << slog::endl;
         runtime::InferRequest infer_request = exeNetwork.create_infer_request();
 
-        // --------------------------- Step 6. Prepare input
-        slog::info << "Prepare input tensor" << slog::endl;
+        // -------- Step 6. Combine multiple input images as batch --------
+        slog::info << "Combining a batch and set input tensor" << slog::endl;
         runtime::Tensor input_tensor = infer_request.get_input_tensor();
 
-        /** Filling input tensor with images with BGR **/
-        const size_t image_size = shape_size(input_shape) / batchSize;
-
-        // /** Iterate over all input images **/
+        // Iterate over all input images
         for (size_t image_id = 0; image_id < imagesData.size(); ++image_id) {
+            const size_t image_size = shape_size(input_shape) / batch_size;
             std::memcpy(input_tensor.data<std::uint8_t>() + image_id * image_size,
-                        imagesData[image_id].get(),
-                        image_size);
+                        imagesData[image_id].get(), image_size);
         }
 
-        // --------------------------- Step 7. Do inference
+        // -------- Step 7. Do sync inference --------
         slog::info << "Start sync inference" << slog::endl;
         infer_request.infer();
 
-        // --------------------------- Step 8. Process output
+        // -------- Step 8. Process output --------
         slog::info << "Processing output tensor" << slog::endl;
         const runtime::Tensor output_tensor = infer_request.get_output_tensor();
 
-        /** Validating -nt value **/
-        const size_t resultsCnt = output_tensor.get_size() / batchSize;
-        if (FLAGS_nt > resultsCnt || FLAGS_nt < 1) {
-            slog::warn << "-nt " << FLAGS_nt << " is not available for this network (-nt should be less than "
-                       << resultsCnt + 1 << " and more than 0).\n           Maximal value " << resultsCnt
+        // Validating -nt value
+        const size_t results_cnt = output_tensor.get_size() / batch_size;
+        if (FLAGS_nt > results_cnt || FLAGS_nt < 1) {
+            slog::warn << "-nt " << FLAGS_nt << " is not available for this model (-nt should be less than "
+                       << results_cnt + 1 << " and more than 0).\n           Maximal value " << results_cnt
                        << " will be used.";
-            FLAGS_nt = resultsCnt;
+            FLAGS_nt = results_cnt;
         }
 
-        /** Read labels from file (e.x. LeNet.labels) **/
-        std::string labelFileName = fileNameNoExt(FLAGS_m) + ".labels";
+        // Read labels from file (e.x. LeNet.labels) **/
+        std::string label_file_name = fileNameNoExt(FLAGS_m) + ".labels";
         std::vector<std::string> labels;
 
-        std::ifstream inputFile;
-        inputFile.open(labelFileName, std::ios::in);
-        if (inputFile.is_open()) {
+        std::ifstream input_file;
+        input_file.open(label_file_name, std::ios::in);
+        if (input_file.is_open()) {
             std::string strLine;
-            while (std::getline(inputFile, strLine)) {
+            while (std::getline(input_file, strLine)) {
                 trim(strLine);
                 labels.push_back(strLine);
             }
-            inputFile.close();
+            input_file.close();
         }
 
         // Prints formatted classification results
-        ClassificationResult classificationResult(output_tensor, images, batchSize, FLAGS_nt, labels);
-        classificationResult.print();
+        ClassificationResult classification_result(output_tensor, images, batch_size, FLAGS_nt, labels);
+        classification_result.print();
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
         return EXIT_FAILURE;

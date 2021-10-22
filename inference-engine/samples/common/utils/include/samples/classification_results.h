@@ -15,10 +15,7 @@
 #include <utility>
 #include <vector>
 
-#include "openvino/core/except.hpp"
-#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/openvino.hpp"
-#include "openvino/runtime/tensor.hpp"
 
 /**
  * @class ClassificationResult
