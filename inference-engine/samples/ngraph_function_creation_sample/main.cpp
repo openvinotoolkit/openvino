@@ -279,20 +279,20 @@ int main(int argc, char* argv[]) {
         // clang-format off
         using namespace ov::preprocess;
         model = PrePostProcessor()
-            // InputInfo() with no args assumes a model has a single input
+            // 1) InputInfo() with no args assumes a model has a single input
             .input(InputInfo()
-                // Set input tensor information:
+                // 2) Set input tensor information:
                 // - precision of tensor is supposed to be 'u8'
                 // - layout of data is 'NHWC'
                 .tensor(InputTensorInfo()
                     .set_layout(tensor_layout)
                     .set_element_type(element::u8))
-                // Here we suppose model has 'NCHW' layout for input
+                // 3) Here we suppose model has 'NCHW' layout for input
                 .network(InputNetworkInfo()
                     .set_layout("NCHW")))
-                // Once the build() method is called, the preprocessing steps
-                // for layout and precision conversions are inserted automatically
-            .build(model);
+        // 4) Once the build() method is called, the preprocessing steps
+        // for layout and precision conversions are inserted automatically
+        .build(model);
         // clang-format on
 
         // -------- Step 4. Read input images --------

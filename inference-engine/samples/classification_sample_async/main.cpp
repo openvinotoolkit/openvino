@@ -108,23 +108,23 @@ int main(int argc, char* argv[]) {
 
         // clang-format off
         model = PrePostProcessor().
-            // InputInfo() with no args assumes a model has a single input
+            // 1) InputInfo() with no args assumes a model has a single input
             input(InputInfo().
-                // Set input tensor information:
+                // 2) Set input tensor information:
                 // - precision of tensor is supposed to be 'u8'
                 // - layout of data is 'NHWC'
                 tensor(InputTensorInfo().
                     set_element_type(ov::element::u8).
                     set_layout(tensor_layout)).
-                // Here we suppose model has 'NCHW' layout for input
+                // 3) Here we suppose model has 'NCHW' layout for input
                 network(InputNetworkInfo().
                     set_layout("NCHW"))).
             output(OutputInfo().
-                // Set output tensor information:
+                // 4) Set output tensor information:
                 // - precision of tensor is supposed to be 'f32'
                 tensor(OutputTensorInfo().
                     set_element_type(ov::element::f32))).
-            // Once the build() method is called, the preprocessing steps
+            // 5) Once the build() method is called, the preprocessing steps
             // for layout and precision conversions are inserted automatically
         build(model);
         // clang-format on

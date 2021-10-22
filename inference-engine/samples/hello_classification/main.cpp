@@ -120,31 +120,33 @@ int main(int argc, char* argv[]) {
 
         // clang-format off
         model = PrePostProcessor().
-            // InputInfo() with no args assumes a model has a single input
+            // 1) InputInfo() with no args assumes a model has a single input
             input(InputInfo().
-                // Set input tensor information:
+                // 2) Set input tensor information:
                 // - precision of tensor is supposed to be 'u8'
                 // - layout of data is 'NHWC'
+                // - set static spatial dimensions to input tensor to resize from
                 tensor(InputTensorInfo().
                     set_element_type(ov::element::u8).
                     set_spatial_static_shape(
                         tensor_shape[ov::layout::height(tensor_layout)],
                         tensor_shape[ov::layout::width(tensor_layout)]).
                     set_layout(tensor_layout)).
-                // Adding explicit preprocessing steps:
+                // 3) Adding explicit preprocessing steps:
                 // - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
                 // - apply linear resize from tensor spatial dims to model spatial dims
                 preprocess(PreProcessSteps().
                     convert_layout("NCHW"). // WA for CPU plugin
                     resize(ResizeAlgorithm::RESIZE_LINEAR)).
-                // Here we suppose model has 'NCHW' layout for input
+                // 4) Here we suppose model has 'NCHW' layout for input
                 network(InputNetworkInfo().
                     set_layout("NCHW"))).
             output(OutputInfo().
-                // Set output tensor information:
+                // 5) Set output tensor information:
                 // - precision of tensor is supposed to be 'f32'
                 tensor(OutputTensorInfo().
                     set_element_type(ov::element::f32))).
+        // 6) Apply preprocessing modifing the original 'model'
         build(model);
         // clang-format on
 

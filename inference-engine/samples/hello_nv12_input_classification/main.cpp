@@ -23,7 +23,7 @@
 #    include <dirent.h>
 #endif
 
-using namespace InferenceEngine;
+using namespace ov::preprocess;
 
 /**
  * @brief Parse image size provided as string in format WIDTHxHEIGHT
@@ -197,31 +197,35 @@ int main(int argc, char* argv[]) {
         std::string output_tensor_name = model->output().get_any_name();
 
         // -------- Step 3. Add preprocessing  --------
-        // 1) Set input type as 'u8' precision and set color format to NV12 (single plane)
-        ov::preprocess::PrePostProcessor p;
-        auto tensor = ov::preprocess::InputTensorInfo()
-                          .set_element_type(ov::element::u8)
-                          .set_color_format(ov::preprocess::ColorFormat::NV12_SINGLE_PLANE)
-                          .set_spatial_static_shape(input_height, input_width);
-        // 2) Pre-processing steps:
-        //    a) Convert to 'float'. This is to have color conversion more accurate
-        //    b) Convert to RGB: Assumes that model accepts images in RGB format. For BGR, change it manually
-        //    c) Convert layout to model's one. It is done before 'resize' in this sample, as there can be plugin
-        //       limitation with support of resize in NHWC format
-        //    d) Resize image from tensor's dimensions to model ones
-        auto steps = ov::preprocess::PreProcessSteps()
-                         .convert_element_type(ov::element::f32)
-                         .convert_color(ov::preprocess::ColorFormat::RGB)
-                         .convert_layout()
-                         .resize(ov::preprocess::ResizeAlgorithm::RESIZE_CUBIC);
-        // 3) Set model data layout (Assuming model accepts images in NCHW layout)
-        auto modelInfo = ov::preprocess::InputNetworkInfo().set_layout("NCHW");
-        // 4) Apply preprocessing to a input with 'input_tensor_name' name of loaded model
-        model = p.input(ov::preprocess::InputInfo(input_tensor_name)
-                            .tensor(std::move(tensor))
-                            .preprocess(std::move(steps))
-                            .network(std::move(modelInfo)))
-                    .build(model);
+        model = PrePostProcessor().
+            // 1) Select input with 'input_tensor_name' tensor name
+            input(InputInfo(input_tensor_name).
+                // 2) Set input type
+                // - as 'u8' precision
+                // - set color format to NV12 (single plane)
+                // - static spatial dimensions for resize preprocessing operation
+                tensor(InputTensorInfo().
+                    set_element_type(ov::element::u8).
+                    set_color_format(ColorFormat::NV12_SINGLE_PLANE).
+                    set_spatial_static_shape(input_height, input_width)).
+                // 3) Pre-processing steps:
+                //    a) Convert to 'float'. This is to have color conversion more accurate
+                //    b) Convert to RGB: Assumes that model accepts images in RGB format.
+                //       For BGR, change it manually
+                //    c) Convert layout to model's one. It is done before 'resize' in this
+                //       sample, as there can be plugin limitation with support of resize in
+                //       NHWC format
+                //    d) Resize image from tensor's dimensions to model ones
+                preprocess(PreProcessSteps().
+                    convert_element_type(ov::element::f32).
+                    convert_color(ColorFormat::RGB).
+                    convert_layout().
+                    resize(ResizeAlgorithm::RESIZE_CUBIC)).
+                // 4) Set model data layout (Assuming model accepts images in NCHW layout)
+                network(InputNetworkInfo().
+                    set_layout("NCHW"))).
+        // 5) Apply preprocessing to a input with 'input_tensor_name' name of loaded model
+        build(model);
 
         // -------- Step 4. Loading a model to the device --------
         ov::runtime::ExecutableNetwork executable_network = core.compile_model(model, device_name);
