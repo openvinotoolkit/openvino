@@ -34,7 +34,7 @@ set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
 
 if(ENABLE_IR_V7_READER)
-    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/ie_network_reader.cpp PROPERTIES
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/ie_network_reader.cpp PROPERTIES
         COMPILE_DEFINITIONS "ENABLE_IR_V7_READER")
 endif()
 

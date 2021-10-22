@@ -78,7 +78,7 @@ if (ENABLE_GNA)
     endif()
 endif()
 
-ie_dependent_option (ENABLE_IR_V7_READER "Enables IR v7 reader" ON "NOT BUILD_SHARED_LIBS" ON)
+ie_dependent_option (ENABLE_IR_V7_READER "Enables IR v7 reader" ON "ENABLE_TESTS;NOT BUILD_SHARED_LIBS" ON)
 
 ie_dependent_option (ENABLE_MULTI "Enables Multi Device Plugin" ON "NOT BUILD_SHARED_LIBS" ON)
 
