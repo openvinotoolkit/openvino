@@ -395,7 +395,9 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                 std::cout << "...." << std::endl;
         }
 
-        throw std::runtime_error("Program build failed. You may enable OCL source dump to see the error log.\n");
+        throw std::runtime_error("Program build failed(" + std::to_string(batch.bucket_id) + + "_part_"
+                                 + std::to_string(batch.batch_id)
+                                 + "): You may enable OCL source dump to see the error log.\n");
     }
 }
 
