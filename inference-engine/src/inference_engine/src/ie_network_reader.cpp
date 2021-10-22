@@ -59,11 +59,11 @@ public:
  * @brief This class is a wrapper for reader interfaces
  */
 class Reader : public IReader {
-    #ifdef OPENVINO_STATIC_LIBRARY
+#    ifdef OPENVINO_STATIC_LIBRARY
     using ReaderPtr = std::shared_ptr<IReader>;
-    #else
+#    else
     using ReaderPtr = InferenceEngine::details::SOPointer<IReader>;
-    #endif
+#    endif
     ReaderPtr ptr;
     std::once_flag readFlag;
     std::string name;
@@ -71,11 +71,11 @@ class Reader : public IReader {
 
     ReaderPtr getReaderPtr() {
         std::call_once(readFlag, [&]() {
-#ifdef OPENVINO_STATIC_LIBRARY
+#    ifdef OPENVINO_STATIC_LIBRARY
             // call libraru creator directly, since we are in the same application
             InferenceEngine::CreateReader(ptr);
             OPENVINO_ASSERT(ptr != nullptr, "Failed to create static version of IR v7 reader");
-#else
+#    else
             ov::util::FilePath libraryName = ov::util::to_file_path(location);
             ov::util::FilePath readersLibraryPath =
                 FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
@@ -86,7 +86,7 @@ class Reader : public IReader {
                            << getIELibraryPath();
             }
             ptr = {readersLibraryPath};
-#endif // OPENVINO_STATIC_LIBRARY
+#    endif  // OPENVINO_STATIC_LIBRARY
         });
 
         return ptr;
@@ -138,14 +138,14 @@ void registerReaders() {
         return;
 
     auto create_if_exists = [](const std::string name, const std::string library_name) {
-#ifndef OPENVINO_STATIC_LIBRARY
+#    ifndef OPENVINO_STATIC_LIBRARY
         ov::util::FilePath libraryName = ov::util::to_file_path(library_name);
         ov::util::FilePath readersLibraryPath =
             FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
         if (!FileUtils::fileExist(readersLibraryPath))
             return std::shared_ptr<Reader>();
-#endif // !OPENVINO_STATIC_LIBRARY
+#    endif  // !OPENVINO_STATIC_LIBRARY
         return std::make_shared<Reader>(name, library_name);
     };
 
@@ -518,7 +518,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
             }
         }
     }
-#endif // ENABLE_IR_V7_READER
+#endif  // ENABLE_IR_V7_READER
 
     // Try to load with FrontEndManager
     auto& manager = get_frontend_manager();

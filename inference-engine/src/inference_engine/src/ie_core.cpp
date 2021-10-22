@@ -42,7 +42,8 @@
 
 #ifdef OPENVINO_STATIC_LIBRARY
 // hard WA for now
-INFERENCE_PLUGIN_API(void) CreatePluginEngineCPU(::std::shared_ptr<::InferenceEngine::IInferencePlugin>&) noexcept(false);
+INFERENCE_PLUGIN_API(void)
+CreatePluginEngineCPU(::std::shared_ptr<::InferenceEngine::IInferencePlugin>&) noexcept(false);
 #endif
 
 using namespace InferenceEngine::PluginConfigParams;
@@ -752,7 +753,7 @@ public:
                 std::shared_ptr<ie::IInferencePlugin> plugin_impl;
                 reinterpret_cast<CreateF*>(ov::util::get_symbol(so, OV_PP_TOSTRING(IE_CREATE_PLUGIN)))(plugin_impl);
                 auto plugin = InferencePlugin{so, plugin_impl};
-#endif // OPENVINO_STATIC_LIBRARY
+#endif  // OPENVINO_STATIC_LIBRARY
 
                 {
                     plugin.set_name(deviceName);
