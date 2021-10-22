@@ -960,7 +960,7 @@ void MKLDNNGraph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEn
         }
     };
 
-    for (int i = 1; i < graphNodes.size(); i++) {
+    for (int i = 0; i < graphNodes.size(); i++) {
         getPerfMapFor(perfMap, graphNodes[i]);
     }
 }
