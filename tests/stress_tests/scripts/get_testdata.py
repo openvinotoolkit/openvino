@@ -193,7 +193,7 @@ def main():
 
         # prepare models
 
-        downloader_path = omz_path / "tools" / "downloader" / "downloader.py"
+        downloader_path = omz_path / "tools" / "model_tools" / "downloader.py"
         cmd = '"{executable}" {downloader_path} --name {model_name}' \
               ' --precisions={precision}' \
               ' --num_attempts {num_attempts}' \
