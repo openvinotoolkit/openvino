@@ -32,7 +32,6 @@ def pdpd_rnn_lstm(input_size, hidden_size, layers, direction, seq_len):
         exe.run(startup_program)
 
         if seq_len:
-            print(len(seq_len))
             outs = exe.run(
                 feed={'x': np.ones([4, 3, input_size]).astype(
                     np.float32), 'sl': np.array(seq_len).astype(np.int32)},
