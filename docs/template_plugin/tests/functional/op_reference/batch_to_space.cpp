@@ -63,7 +63,7 @@ private:
         const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto blockShape = std::make_shared<op::v0::Constant>(element::i64, params.blockShapeTensor.shape, params.blockShapeTensor.data.data());
         const auto cropsBegin = std::make_shared<op::v0::Constant>(element::i64, params.cropsBeginTensor.shape, params.cropsBeginTensor.data.data());
-        const auto cropsEnd = std::make_shared<op::v0::Constant>(element::i64, params.cropsEndTensor.shape, params.cropsBeginTensor.data.data());
+        const auto cropsEnd = std::make_shared<op::v0::Constant>(element::i64, params.cropsEndTensor.shape, params.cropsEndTensor.data.data());
         const auto batchToSpace = std::make_shared<op::v1::BatchToSpace>(data, blockShape, cropsBegin, cropsEnd);
         return std::make_shared<ov::Function>(NodeVector {batchToSpace}, ParameterVector {data});
     }

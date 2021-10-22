@@ -63,7 +63,7 @@ private:
         const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto blockShape = std::make_shared<op::v0::Constant>(element::i64, params.blockShapeTensor.shape, params.blockShapeTensor.data.data());
         const auto padsBegin = std::make_shared<op::v0::Constant>(element::i64, params.padsBeginTensor.shape, params.padsBeginTensor.data.data());
-        const auto padsEnd = std::make_shared<op::v0::Constant>(element::i64, params.padsEndTensor.shape, params.padsBeginTensor.data.data());
+        const auto padsEnd = std::make_shared<op::v0::Constant>(element::i64, params.padsEndTensor.shape, params.padsEndTensor.data.data());
         const auto batchToSpace = std::make_shared<op::v1::SpaceToBatch>(data, blockShape, padsBegin, padsEnd);
         return std::make_shared<ov::Function>(NodeVector {batchToSpace}, ParameterVector {data});
     }
@@ -87,17 +87,17 @@ std::vector<SpaceToBatchParams> generateParams() {
             "space_to_batch_4D"),
 
         // space_to_batch_5D
-        // SpaceToBatchParams(
-        //     Tensor({1, 1, 3, 2, 1}, IN_ET, std::vector<T>{1, 1, 1, 1, 1, 1}),
-        //     Tensor({5}, element::i64, std::vector<int64_t>{1, 1, 3, 2, 2}),
-        //     Tensor({5}, element::i64, std::vector<int64_t>{0, 0, 1, 0, 3}),
-        //     Tensor({5}, element::i64, std::vector<int64_t>{0, 0, 2, 0, 0}),
-        //     Tensor({12, 1, 2, 1, 2}, IN_ET, std::vector<T>{
-        //         0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-        //         0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0,
-        //         0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
-        //         0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0}),
-        //     "space_to_batch_5D"),
+         SpaceToBatchParams(
+             Tensor({1, 1, 3, 2, 1}, IN_ET, std::vector<T>{1, 1, 1, 1, 1, 1}),
+             Tensor({5}, element::i64, std::vector<int64_t>{1, 1, 3, 2, 2}),
+             Tensor({5}, element::i64, std::vector<int64_t>{0, 0, 1, 0, 3}),
+             Tensor({5}, element::i64, std::vector<int64_t>{0, 0, 2, 0, 0}),
+             Tensor({12, 1, 2, 1, 2}, IN_ET, std::vector<T>{
+                 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+                 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0,
+                 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+                 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0}),
+             "space_to_batch_5D"),
 
         // space_to_batch_4x4
         SpaceToBatchParams(
