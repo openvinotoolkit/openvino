@@ -34,7 +34,6 @@ public:
         ov::OpSet::insert<OP_TYPE>(name);
     }
 
-#ifndef OPENVINO_STATIC_LIBRARY
     /// \brief Insert OP_TYPE into the opset with the default name and factory
     template <typename OP_TYPE, typename std::enable_if<ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
     void insert() {
@@ -42,7 +41,6 @@ public:
         ov::OpSet::insert<OP_TYPE>(OP_TYPE::type_info.name);
         NGRAPH_SUPPRESS_DEPRECATED_END
     }
-#endif
 
     template <typename OP_TYPE, typename std::enable_if<!ngraph::HasTypeInfoMember<OP_TYPE>::value, bool>::type = true>
     void insert() {
