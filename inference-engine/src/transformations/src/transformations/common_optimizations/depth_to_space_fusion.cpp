@@ -111,9 +111,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::DepthToSpaceFusion, "DepthToSpaceFusion", 0
 ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
     MATCHER_SCOPE(DepthToSpaceFusion);
     auto input0 = ngraph::pattern::any_input(pattern::rank_equals(4));
-    auto input1 = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
-    auto input2 = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
-    auto input3 = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
+    auto input1 = ngraph::pattern::any_input();
+    auto input2 = ngraph::pattern::any_input();
+    auto input3 = ngraph::pattern::any_input();
     auto reshape_before = ngraph::pattern::wrap_type<ngraph::opset3::Reshape>({ input0, input1 }, pattern::consumers_count(1));
     auto permute = ngraph::pattern::wrap_type<ngraph::opset3::Transpose>({ reshape_before, input2 }, pattern::consumers_count(1));
     auto reshape_after = ngraph::pattern::wrap_type<ngraph::opset3::Reshape>({ permute, input3 });
