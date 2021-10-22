@@ -17,7 +17,7 @@ namespace ngraph { namespace vpu { namespace op {
 
 class StaticShapeBroadcast : public ::ngraph::op::v3::Broadcast {
 public:
-    OPENVINO_OP("StaticShapeBroadcast", "VPUOpset", ngraph::op::v3::Broadcast);
+    OPENVINO_OP("StaticShapeBroadcast", "VPUOpset");
 
     StaticShapeBroadcast(const Output<Node>& arg,
                          const Output<Node>& targetShape,

@@ -15,7 +15,7 @@ namespace ngraph { namespace vpu { namespace op {
 
 class StaticShapeNonMaxSuppression : public ngraph::op::NonMaxSuppressionIE3 {
 public:
-    OPENVINO_OP("StaticShapeNonMaxSuppression", "VPUOpset", ngraph::op::NonMaxSuppressionIE3);
+    OPENVINO_OP("StaticShapeNonMaxSuppression", "VPUOpset");
 
     explicit StaticShapeNonMaxSuppression(const ngraph::opset5::NonMaxSuppression& nms);
 
