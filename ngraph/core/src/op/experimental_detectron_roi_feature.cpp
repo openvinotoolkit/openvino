@@ -48,7 +48,6 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
 
     shape_infer(this, input_shapes, output_shapes);
 
-    auto rois_shape = get_input_partial_shape(0);
     auto input_et = get_input_element_type(0);
 
     set_output_size(output_shapes.size());

@@ -18,7 +18,7 @@ template <class T>
 void shape_infer(ExperimentalDetectronROIFeatureExtractor* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes) {
-    using DimensionType = typename std::decay<decltype(output_shapes[0][0])>::type;
+    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
 
     NODE_VALIDATION_CHECK(op, input_shapes.size() >= 2 && output_shapes.size() == 2);
 
@@ -36,9 +36,10 @@ void shape_infer(ExperimentalDetectronROIFeatureExtractor* op,
     out_rois_shape[1] = 4;
 
     // infer number_of_ROIs (which may be dynamic/static)
-    NODE_VALIDATION_CHECK(op, rois_shape.rank().compatible(2), "Input rois rank must be equal to 2.");
+    auto rois_shape_rank = rois_shape.rank();
+    NODE_VALIDATION_CHECK(op, rois_shape_rank.compatible(2), "Input rois rank must be equal to 2.");
 
-    if (rois_shape.rank().is_static()) {
+    if (rois_shape_rank.is_static()) {
         NODE_VALIDATION_CHECK(op,
                               rois_shape[1].compatible(4),
                               "The last dimension of the 'input_rois' input must be equal to 4. "
@@ -51,7 +52,7 @@ void shape_infer(ExperimentalDetectronROIFeatureExtractor* op,
 
     // infer number_of_channels;
     // by definition, all shapes starting from input 2 must have same number_of_channels
-    DimensionType channels_intersection;
+    DimType channels_intersection;
     bool channels_intersection_initialized = false;
     for (size_t i = 1; i < input_shapes.size(); i++) {
         auto& current_shape = input_shapes[i];
@@ -72,7 +73,7 @@ void shape_infer(ExperimentalDetectronROIFeatureExtractor* op,
             if (channels_intersection_initialized) {
                 NODE_VALIDATION_CHECK(
                     op,
-                    DimensionType::merge(channels_intersection, channels_intersection, current_shape[1]),
+                    DimType::merge(channels_intersection, channels_intersection, current_shape[1]),
                     "The number of channels must be the same for all layers of the pyramid.");
             } else {
                 channels_intersection = current_shape[1];
