@@ -414,7 +414,7 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
         mean_size: size of the mean file
     """
     net = Element('net')
-    net.set('name', graph.name)
+    net.set('name', "")
     net.set('version', str((graph.graph['ir_version'])))
 
     if mean_size or mean_offset:
