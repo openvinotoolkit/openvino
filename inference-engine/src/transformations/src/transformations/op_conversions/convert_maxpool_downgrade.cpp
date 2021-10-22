@@ -13,8 +13,6 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(pass::ConvertMaxPool8ToMaxPool1, "ConvertMaxPool8ToMaxPool1", 0);
-
 
 pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
     MATCHER_SCOPE(ConvertMaxPool8ToMaxPool1);

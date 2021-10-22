@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertMaxPool8ToMaxPool1;
  */
 class ngraph::pass::ConvertMaxPool8ToMaxPool1 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertMaxPool8ToMaxPool1");
     ConvertMaxPool8ToMaxPool1();
 };
