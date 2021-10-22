@@ -34,12 +34,12 @@ public:
     /// \brief Constructor for particular output index of model
     ///
     /// \param output_index Index to address specified output parameter of model
-    OutputInfo(size_t output_index);
+    explicit OutputInfo(size_t output_index);
 
     /// \brief Constructor for particular output of model addressed by it's output name
     ///
     /// \param output_tensor_name Name of output tensor name
-    OutputInfo(const std::string& output_tensor_name);
+    explicit OutputInfo(const std::string& output_tensor_name);
 
     /// \brief Default move constructor
     OutputInfo(OutputInfo&&) noexcept;

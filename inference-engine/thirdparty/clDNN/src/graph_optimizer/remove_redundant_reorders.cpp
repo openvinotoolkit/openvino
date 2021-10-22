@@ -54,8 +54,13 @@ void remove_redundant_reorders::run(program& p) {
             if (!node.get_fused_activations_funcs().empty())
                 continue;
 
+            // Avoid different data types between input and output
             auto same_data_type = input.get_output_layout().data_type == output_layout.data_type;
             if (!same_data_type)
+                continue;
+
+            // Avoid optimization of nv12 reorder
+            if (node.get_dependencies().size() != 1)
                 continue;
 
             bool all_users_fuse = true;
@@ -334,24 +339,30 @@ void remove_redundant_reorders::run(program& p) {
         p.remove_if_dangling(node);
     }
 
-    // Remove reorder for Convolution bfyx -> fs_b_yx_fsv32
-    auto try_fuse_reorder_bfyx_to_fsv32 = [&](reorder_node* node) {
+    // Remove reorder for Convolution bfyx -> fs_b_yx_fsv32 (+ onednn: bfyx -> b_fs_yx_fsv32)
+    auto try_fuse_reorder_bfyx_to_fsv32 = [&](reorder_node* node) -> bool {
         if (node->get_users().size() != 1)
-            return;
+            return false;
 
         auto& usr = node->get_users().front();
         auto& dep = node->get_dependency(0);
+
         if (!(usr->is_type<convolution>()) ||
-             (usr->get_output_layout().data_type != dep.get_output_layout().data_type) ||
-             (dep.get_output_layout().format != format::bfyx) ||
-             (usr->get_output_layout().format != format::fs_b_yx_fsv32))
-            return;
+            usr->get_output_layout().data_type != dep.get_output_layout().data_type ||
+            dep.get_output_layout().format != format::bfyx)
+            return false;
+        if (usr->as<convolution>().get_preferred_impl_type() != impl_types::onednn &&
+            usr->get_output_layout().format != format::fs_b_yx_fsv32)
+            return false;
+        if (usr->as<convolution>().get_preferred_impl_type() == impl_types::onednn &&
+            usr->get_output_layout().format != format::b_fs_yx_fsv32)
+            return false;
 
         if (dep.is_type<input_layout>())
-            return;
+            return false;
 
         if (usr->as<convolution>().get_primitive()->groups != 1)
-            return;
+            return false;
 
         dep.merge_output_padding(node->get_output_layout().data_padding);
         p.replace_all_usages(*node, dep);
@@ -359,32 +370,33 @@ void remove_redundant_reorders::run(program& p) {
         p.add_optimized_primitive_info(node->id());
         p.remove_all_connections(*node);
         p.remove_if_dangling(*node);
+        return true;
     };
 
     // Remove reorder for Convolution b_fs_yx_fsv16 -> bfyx
-    auto try_fuse_reorder_fsv16_to_bfyx = [&](reorder_node* node) {
-        if (!node->get_fused_activations_funcs().empty() ||
-            !node->get_fused_primitives().empty())
-            return;
-
+    auto try_fuse_reorder_fsv16_to_bfyx = [&](reorder_node* node) -> bool {
         auto& input = node->input();
 
         if (!(input.is_type<convolution>()) ||
             !(input.get_output_layout().format == format::b_fs_yx_fsv16) ||
             !(node->get_output_layout().format == format::bfyx))
-            return;
+            return false;
 
         if (input.as<convolution>().get_primitive()->groups != 1)
-            return;
+            return false;
+
+        // Avoid onednn convolution selects ref kernel for fsv16 -> bfyx
+        if (input.as<convolution>().get_preferred_impl_type() == impl_types::onednn)
+            return false;
 
         if (input.get_users().size() != 1)
-            return;
+            return false;
 
         auto& input_dep = input.get_dependency(0);
         if (input_dep.get_output_layout().format != format::b_fs_yx_fsv16 ||
             input_dep.get_output_layout().data_type == data_types::u8 ||
             input_dep.get_output_layout().data_type == data_types::i8)
-            return;
+            return false;
 
         for (auto& user : node->get_users()) {
             // if concat is reorder's user and concat's axis is 0(Batch) or 1(Feature), conv's output would have padding.
@@ -393,7 +405,7 @@ void remove_redundant_reorders::run(program& p) {
                 auto& concat_node = user->as<concatenation>();
                 auto concat_axis = concat_node.get_primitive()->axis;
                 if (concat_axis == 0 || concat_axis == 1)
-                    return;
+                    return false;
             }
         }
 
@@ -417,6 +429,7 @@ void remove_redundant_reorders::run(program& p) {
             p.add_optimized_primitive_info(node->id());
             p.extract_and_remove(*node);
         }
+        return true;
     };
 
     if (enable_reorder_fusing) {
@@ -426,15 +439,27 @@ void remove_redundant_reorders::run(program& p) {
             if (!node->is_type<reorder>())
                 continue;
 
-            if (!node->is_in_data_flow() || node->get_dependencies().size() != 1)
-                continue;
-
             auto& r_node = node->as<reorder>();
 
+            if (!r_node.is_in_data_flow() || r_node.get_dependencies().size() != 1)
+                continue;
+
+            if (r_node.has_mean() ||
+                !r_node.get_primitive()->subtract_per_feature.empty())
+                continue;
+
+            if (!r_node.get_fused_activations_funcs().empty() ||
+                !r_node.get_fused_primitives().empty())
+                continue;
+
             // Remove reorder for Convolution bfyx -> fs_b_yx_fsv32
-            try_fuse_reorder_bfyx_to_fsv32(&r_node);
+            // Process remaining patterns here that are not removed at the first while loop
+            // e.g., reorder with otuput padding
+            if (try_fuse_reorder_bfyx_to_fsv32(&r_node))
+                continue;
             // Remove reorder for Convolution b_fs_yx_fsv16 -> bfyx
-            try_fuse_reorder_fsv16_to_bfyx(&r_node);
+            if (try_fuse_reorder_fsv16_to_bfyx(&r_node))
+                continue;
         }
     }
 
@@ -473,6 +498,13 @@ void remove_redundant_reorders::run(program& p) {
             reshape_node.can_be_optimized(true);
             p.add_optimized_primitive_info(reshape_node.id());
             p.extract_and_remove(reshape_node);
+        }
+    }
+
+    for (auto n : p.get_processing_order()) {
+        if (n->is_in_data_flow() && n->is_type<reorder>()) {
+            auto preferred_impl = lo.get_preferred_impl_type(*n, n->get_dependency(0).get_output_layout().format);
+            n->set_preferred_impl_type(preferred_impl);
         }
     }
 }

@@ -15,6 +15,8 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 TEST(op_eval, matmul_dynamic_1D_arg) {
     auto arg0 = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
     auto arg1 = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());

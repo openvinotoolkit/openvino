@@ -243,6 +243,9 @@ namespace layout {
 std::vector<int64_t> find_permutation(const Layout& src_layout, const Rank& rank, const Layout& dst) {
     // Basic implementation so far, can support partially-specified layouts later (shape rank will be needed for dynamic
     // layouts)
+    if (src_layout == dst) {
+        return {};  // No permutation is needed
+    }
     OPENVINO_ASSERT(!src_layout.m_dynamic && !dst.m_dynamic, "Conversion is not supported for dynamic layouts");
     OPENVINO_ASSERT(src_layout.m_left_size == src_layout.m_left_size,
                     "Conversion is not supported for layouts with different sizes");

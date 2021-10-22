@@ -5,12 +5,15 @@
 #pragma once
 
 #include <memory>
+
+#include <transformations_visibility.hpp>
+
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class DisableRandomUniformConstantFolding;
+class TRANSFORMATIONS_API DisableRandomUniformConstantFolding;
 
 }  // namespace pass
 }  // namespace ngraph

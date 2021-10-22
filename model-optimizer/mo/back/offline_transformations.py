@@ -9,8 +9,9 @@ from mo.utils.cli_parser import parse_transform
 
 def get_available_transformations():
     try:
-        from openvino.offline_transformations import ApplyLowLatencyTransformation  # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations import ApplyLowLatencyTransformation, ApplyMakeStatefulTransformation # pylint: disable=import-error,no-name-in-module
         return {
+            'MakeStateful': ApplyMakeStatefulTransformation,
             'LowLatency2': ApplyLowLatencyTransformation,
         }
     except Exception as e:
