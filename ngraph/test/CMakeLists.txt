@@ -599,6 +599,10 @@ if(UNIT_TESTS_DEPENDENCIES)
     add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
 endif()
 
+if (UNIX AND ENABLE_PARALLEL_LINKING)
+    target_compile_options(unit-test PRIVATE -fuse-ld=lld)
+endif()
+
 target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         engines_test_util
                                         ngraph::builder
