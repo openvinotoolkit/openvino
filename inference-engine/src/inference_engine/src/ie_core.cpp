@@ -41,30 +41,7 @@
 #include "xml_parse_utils.h"
 
 #ifdef OPENVINO_STATIC_LIBRARY
-
-INFERENCE_PLUGIN_API(void) CreatePluginEngineCPU
-(::std::shared_ptr<::InferenceEngine::IInferencePlugin>&) noexcept(false);
-
-INFERENCE_PLUGIN_API(void) CreatePluginEngineTEMPLATE
-(::std::shared_ptr<::InferenceEngine::IInferencePlugin>&) noexcept(false);
-
-INFERENCE_PLUGIN_API(void) CreatePluginEngineMULTI
-(::std::shared_ptr<::InferenceEngine::IInferencePlugin>&) noexcept(false);
-
-INFERENCE_PLUGIN_API(void) CreatePluginEngineHETERO
-(::std::shared_ptr<::InferenceEngine::IInferencePlugin>&) noexcept(false);
-
-INFERENCE_PLUGIN_API(void) CreatePluginEngineGNA
-(::std::shared_ptr<::InferenceEngine::IInferencePlugin>&) noexcept(false);
-
-std::map<std::string, InferenceEngine::CreatePluginEngineFunc> plugins_xml = {
-    { "CPU", CreatePluginEngineCPU },
-    { "TEMPLATE", CreatePluginEngineTEMPLATE },
-    { "MULTI", CreatePluginEngineMULTI },
-    { "HETERO", CreatePluginEngineHETERO },
-    { "GNA", CreatePluginEngineGNA },
-};
-
+#    include "ie_plugins.hpp"
 #endif
 
 using namespace InferenceEngine::PluginConfigParams;
@@ -396,6 +373,7 @@ public:
         opsetNames.insert("opset5");
         opsetNames.insert("opset6");
         opsetNames.insert("opset7");
+        opsetNames.insert("opset8");
     }
 
     ~CoreImpl() override = default;

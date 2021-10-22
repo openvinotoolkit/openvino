@@ -359,3 +359,12 @@ public:
         }                                                                                              \
         plugin->SetVersion(version);                                                                   \
     }
+
+/**
+ * @def IE_DEFINE_PLUGIN_CREATE_FUNCTION_DEFINITION(_IE_CREATE_PLUGIN_FUNC)
+ * @brief Declares the exported `CreatePluginEngine` function which is used to create a plugin instance
+ * @ingroup ie_dev_api_plugin_api
+ */
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION_DECLARATION(_IE_CREATE_PLUGIN_FUNC)                                     \
+    INFERENCE_PLUGIN_API(void)                                                                        \
+    _IE_CREATE_PLUGIN_FUNC(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) noexcept(false);
