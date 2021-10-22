@@ -4,15 +4,12 @@
 
 #include "utils/shape_inference/static_shape.hpp"
 #include <convolution_shape_inference.hpp>
-#include <assign_shape_inference.hpp>
 #include <experimental_detectron_detection_output_shape_inference.hpp>
-#include <read_value_shape_inference.hpp>
 #include <gtest/gtest.h>
 #include <openvino/core/coordinate_diff.hpp>
 #include <openvino/op/convolution.hpp>
 #include <openvino/op/parameter.hpp>
 #include <openvino/op/ops.hpp>
-#include <openvino/op/parameter.hpp>
 
 using namespace ov;
 
