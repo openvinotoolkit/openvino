@@ -21,7 +21,14 @@ DECLARE_VPU_CONFIG(MYRIAD_TILING_CMX_LIMIT_KB);
 
 DECLARE_VPU_CONFIG(MYRIAD_TENSOR_STRIDES);
 
-DECLARE_VPU_CONFIG(MYRIAD_IR_WITH_SCALES_DIRECTORY);
+/**
+ * @brief Used to set the scale value on scaled layers
+ * Usage: this key should look like the following line: "substr1:value1;substr2:value2"
+ * To apply scale to all scalable layers, use "any:scale"
+ * Examples: "Conv1:1.3;Conv4:2.0" means scale value for all layers containing Conv1
+ * will be 1.3, for all layers containing Conv4 the scale value is 2.0
+ */
+DECLARE_VPU_CONFIG(MYRIAD_SCALES_PATTERN);
 DECLARE_VPU_CONFIG(MYRIAD_DETECT_NETWORK_BATCH);
 DECLARE_VPU_CONFIG(MYRIAD_COPY_OPTIMIZATION);
 DECLARE_VPU_CONFIG(MYRIAD_HW_INJECT_STAGES);

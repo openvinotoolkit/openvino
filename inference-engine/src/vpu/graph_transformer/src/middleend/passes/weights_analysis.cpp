@@ -9,7 +9,7 @@
 #include <vpu/model/data_contents/replicated_data_content.hpp>
 #include <vpu/model/data_contents/scaled_content.hpp>
 
-#include <vpu/configuration/options/ir_with_scales_directory.hpp>
+#include <vpu/configuration/options/vpu_scales_option.hpp>
 #include <vpu/configuration/options/check_preprocessing_inside_model.hpp>
 
 #include <precision_utils.h>
@@ -206,6 +206,19 @@ void scaleWeightableStage(const Model& model, const Stage& stage, float factor) 
     stage->attrs().set<float>("scaleFactor", factor);
 }
 
+double getScaleValue(const std::string layerName, const std::map<std::string, double>& vpuScalemap) {
+    double scaleForAnyLayer = 0.0;
+    for (const auto& pair : vpuScalemap) {
+        if (std::strstr(layerName.c_str(), pair.first.c_str())) {
+            return pair.second;
+        }
+        if (pair.first == "any") {
+            scaleForAnyLayer = pair.second;
+        }
+    }
+    return scaleForAnyLayer;
+}
+
 class PassImpl final : public Pass {
 public:
     void run(const Model& model) override;
@@ -227,9 +240,9 @@ void PassImpl::run(const Model& model) {
             continue;
         }
         IE_ASSERT(stage->origLayer() != nullptr);
-
-        // Get scale from IR, compute if it was absent
-        auto scale = stage->origLayer()->GetParamAsFloat("vpu_scale", 0);
+        // Get scale from config, compute if it was absent
+        const auto map = env.config.get<VPUScalesOption>();
+        auto scale = getScaleValue(stage->origLayerName(), map);
         if (!scale) {
             auto weights = stage->input(1);
 
@@ -259,10 +272,6 @@ void PassImpl::run(const Model& model) {
             scale = 1;
             if (shift >= scaleThreshold) {
                 scale = static_cast<float>(1ULL << static_cast<std::uint32_t>(shift));
-            }
-
-            if (!env.config.get<IRWithScalesDirectoryOption>().empty()) {
-                stage->origLayer()->params["vpu_scale"] = toString(scale);
             }
         }
         scaleWeightableStage(model, stage, scale);
