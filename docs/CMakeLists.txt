@@ -100,10 +100,6 @@ function(build_docs)
     set(SPHINX_CONF_OUT "${RST_OUTPUT}/conf.py")
     set(SPHINX_STATIC_IN "${DOCS_SOURCE_DIR}/_static")
     set(SPHINX_STATIC_OUT "${RST_OUTPUT}/_static")
-    set(SPHINX_TEMPLATES_IN "${DOCS_SOURCE_DIR}/_templates")
-    set(SPHINX_TEMPLATES_OUT "${RST_OUTPUT}/_templates")
-    set(SPHINX_THEMES_IN "${DOCS_SOURCE_DIR}/_themes")
-    set(SPHINX_THEMES_OUT "${RST_OUTPUT}/_themes")
     set(SPHINX_INDEX_IN "${DOCS_SOURCE_DIR}/index.rst")
     set(SPHINX_INDEX_OUT "${RST_OUTPUT}/index.rst")
     set(API_DOCS_IN "${DOCS_SOURCE_DIR}/api")
@@ -214,8 +210,6 @@ function(build_docs)
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_SPHINX_IN} ${DOXYREST_SPHINX_OUT}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_STATIC_IN} ${SPHINX_STATIC_OUT}
-                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_TEMPLATES_IN} ${SPHINX_TEMPLATES_OUT}
-                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_THEMES_IN} ${SPHINX_THEMES_OUT}
                        COMMENT "Prepare xml"
                        VERBATIM)
 

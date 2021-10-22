@@ -38,8 +38,13 @@ extensions = [
     'doxyrest',
     'cpplexer',
     'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary'
+    'sphinx.ext.autosummary',
+    'sphinx_sitemap'
 ]
+
+html_baseurl = 'https://docs.openvino.ai/latest/'
+
+sitemap_url_scheme = "{link}"
 
 html_favicon = '_static/favicon.ico'
 autodoc_default_flags = ['members']

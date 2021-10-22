@@ -28,3 +28,4 @@ sphinxcontrib-jsmath
 sphinxcontrib-qthelp
 sphinxcontrib-serializinghtml
 urllib3
+sphinx_sitemap
