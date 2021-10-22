@@ -73,18 +73,30 @@ def assert_that_is_castable_to_fp16(node: Node):
         val = node.in_port(i).data.get_value()
         if val is None:
             return
-        if np.any(val > np.finfo(np.float16).max) or np.any(val < np.finfo(np.float16).min):
-            # some models have -Inf values but nevertheless are correctly inferred in FP16
-            # we should not raise an Error here but instead show a warning
-            log.error("value '{}' of '{}' node exceeds FP16 limits: [{}, {}]. "
-                      "This may lead to incorrect results of inference or may not be a problem, "
-                      "depending on the model.".format(
-                val, node_name, np.finfo(np.float16).min, np.finfo(np.float16).max), extra={'is_warning': True})
         # further this input values will be rewritten since force_shape_inference=True
         node.in_port(i).data.set_value(val.astype(np.float16))
 
     original_output = node.out_port(0).data.get_value()
-    node.infer(node)
+
+    converted_blob = original_output.astype(dtype=np.float16, casting="unsafe")
+    infinite_match_count = np.count_nonzero(np.isfinite(original_output) != np.isfinite(converted_blob))
+    zero_match_count = np.count_nonzero((original_output == 0) != (converted_blob == 0))
+
+    if infinite_match_count:
+        # some models have -Inf values but nevertheless are correctly inferred in FP16
+        # we should not raise an Error here but instead show a warning
+        log.error("{} of {} elements of '{}' were clipped to infinity while converting into FP16. "
+                  "This may lead to incorrect results during inference or may not be a problem, "
+                  "depending on the model.".format(infinite_match_count, original_output.size, node_name,
+                                                   extra={'is_warning': True}))
+    if zero_match_count:
+        # some values are clipped into zero but nevertheless are correctly inferred
+        log.error("{} of {} elements of '{}' were clipped to zero while converting into FP16. "
+                  "This may lead to incorrect results during inference or may not be a problem, "
+                  "depending on the model.".format(zero_match_count, original_output.size, node_name,
+                                                   extra={'is_warning': True}))
+
+    node.infer(node)  # is needed for Range
     casted_output = node.out_port(0).data.get_value()
     original_output_len = len(original_output) if hasattr(original_output, '__len__') else None
     casted_output_len = len(casted_output) if hasattr(casted_output, '__len__') else None

@@ -70,6 +70,9 @@ class Range(Op):
         start = node.in_port(0).data.get_value()
         limit = node.in_port(1).data.get_value()
         delta = node.in_port(2).data.get_value()
+        if any(np.isinf((start, limit, delta))):
+            raise Error("Range node's '{}' input values must be finite, but instead "
+                        "it contain infinities: start={}, stop={}, step={}".format(name, start, limit, delta))
 
         for input in (start, limit, delta):
             if input is not None and not node.has_valid('output_type'):
