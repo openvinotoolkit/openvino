@@ -810,38 +810,6 @@ TEST(function_reshape, ReshapeBatchReLUByPort) {
     EXPECT_EQ(ngraph->get_results()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
 }
 
-TEST(function_reshape, ReshapeBatchReLUByConstPort) {
-    std::shared_ptr<ov::Function> ngraph;
-    ov::Output<const ov::Node> port;
-    {
-        ov::PartialShape shape({1, 3, 22, 22});
-        ov::element::Type type(ov::element::Type_t::f32);
-        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
-        param->get_output_tensor(0).set_names({"tensor", "tensor2"});
-        auto param_port = param->output(0);
-        port = ov::Output<const ov::Node>(param_port.get_node(), param_port.get_index());
-        auto relu = std::make_shared<ov::op::v0::Relu>(param);
-        auto result = std::make_shared<ov::op::v0::Result>(relu);
-
-        ov::ParameterVector params = {param};
-        ov::ResultVector results = {result};
-
-        ngraph = std::make_shared<ov::Function>(results, params);
-    }
-
-    EXPECT_EQ(ngraph->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
-    EXPECT_EQ(ngraph->get_results()[0]->get_shape(), ov::Shape({1, 3, 22, 22}));
-
-    {
-        std::map<ov::Output<const ov::Node>, ov::PartialShape> new_shape;
-        new_shape[port] = ov::PartialShape{2, 3, 22, 22};
-        EXPECT_NO_THROW(ngraph->reshape(new_shape));
-    }
-
-    EXPECT_EQ(ngraph->get_parameters()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
-    EXPECT_EQ(ngraph->get_results()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
-}
-
 TEST(function, add_output_tensor_name) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");

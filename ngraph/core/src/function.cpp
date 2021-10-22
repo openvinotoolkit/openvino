@@ -730,19 +730,11 @@ ov::Output<ov::Node> ov::Function::input(const std::string& tensor_name) {
     throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
 }
 
-void ov::Function::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes) {
-    std::map<ov::Output<const ov::Node>, ov::PartialShape> const_pshape;
-    for (const auto& it : partial_shapes) {
-        const_pshape[ov::Output<const ov::Node>(it.first.get_node(), it.first.get_index())] = it.second;
-    }
-    reshape(const_pshape);
-}
 void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partial_shapes) {
-    std::map<ov::Output<const ov::Node>, ov::PartialShape> const_pshape;
-    std::unordered_map<const ov::Node*, std::string> port_tensor_map;
-    const ov::Function* const_this = this;
+    std::map<ov::Output<ov::Node>, ov::PartialShape> const_pshape;
+    std::unordered_map<ov::Node*, std::string> port_tensor_map;
     for (const auto& it : partial_shapes) {
-        const auto port = const_this->input(it.first);
+        const auto port = input(it.first);
         if (port_tensor_map.find(port.get_node()) != port_tensor_map.end()) {
             OPENVINO_ASSERT(it.second == const_pshape.at(port),
                             "Tensor with names {'",
@@ -761,7 +753,8 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
     }
     reshape(const_pshape);
 }
-void ov::Function::reshape(const std::map<ov::Output<const ov::Node>, ov::PartialShape>& partial_shapes) {
+
+void ov::Function::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes) {
     if (partial_shapes.empty())
         return;
 
@@ -774,7 +767,7 @@ void ov::Function::reshape(const std::map<ov::Output<const ov::Node>, ov::Partia
         bool shape_is_used = false;
 
         for (const auto& param : params) {
-            const ov::Output<const ov::Node> port(param->output(0).get_node(), param->output(0).get_index());
+            const auto port = param->output(0);
             if (port == partial_shape.first) {
                 shape_is_used = true;
 
