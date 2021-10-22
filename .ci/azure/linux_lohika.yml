@@ -37,6 +37,7 @@ jobs:
 
   steps:
   - script: |
+      echo hello
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
