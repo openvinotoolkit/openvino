@@ -322,6 +322,9 @@ protected:
     std::weak_ptr<ICore> _core;                  //!< A pointer to ICore interface
 };
 
+using CreatePluginEngineFunc =
+    std::function<void(std::shared_ptr<InferenceEngine::IInferencePlugin>&)>;
+
 #ifndef IE_CREATE_PLUGIN
 #    define IE_CREATE_PLUGIN CreatePluginEngine
 #endif

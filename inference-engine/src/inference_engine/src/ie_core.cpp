@@ -41,9 +41,30 @@
 #include "xml_parse_utils.h"
 
 #ifdef OPENVINO_STATIC_LIBRARY
-// hard WA for now
-INFERENCE_PLUGIN_API(void)
-CreatePluginEngineCPU(::std::shared_ptr<::InferenceEngine::IInferencePlugin>&) noexcept(false);
+
+INFERENCE_PLUGIN_API(void) CreatePluginEngineCPU
+(::std::shared_ptr<::InferenceEngine::IInferencePlugin>&) noexcept(false);
+
+INFERENCE_PLUGIN_API(void) CreatePluginEngineTEMPLATE
+(::std::shared_ptr<::InferenceEngine::IInferencePlugin>&) noexcept(false);
+
+INFERENCE_PLUGIN_API(void) CreatePluginEngineMULTI
+(::std::shared_ptr<::InferenceEngine::IInferencePlugin>&) noexcept(false);
+
+INFERENCE_PLUGIN_API(void) CreatePluginEngineHETERO
+(::std::shared_ptr<::InferenceEngine::IInferencePlugin>&) noexcept(false);
+
+INFERENCE_PLUGIN_API(void) CreatePluginEngineGNA
+(::std::shared_ptr<::InferenceEngine::IInferencePlugin>&) noexcept(false);
+
+std::map<std::string, InferenceEngine::CreatePluginEngineFunc> plugins_xml = {
+    { "CPU", CreatePluginEngineCPU },
+    { "TEMPLATE", CreatePluginEngineTEMPLATE },
+    { "MULTI", CreatePluginEngineMULTI },
+    { "HETERO", CreatePluginEngineHETERO },
+    { "GNA", CreatePluginEngineGNA },
+};
+
 #endif
 
 using namespace InferenceEngine::PluginConfigParams;
@@ -741,11 +762,10 @@ public:
             PluginDescriptor desc = it->second;
             try {
 #ifdef OPENVINO_STATIC_LIBRARY
-                // using CreateF = void(std::shared_ptr<ie::IInferencePlugin>&);
                 std::shared_ptr<ie::IInferencePlugin> plugin_impl;
-                // TODO: creare a map with plugins
-                // std::map<std::string, CreateF> plugins_xml;
-                CreatePluginEngineCPU(plugin_impl);
+                OPENVINO_ASSERT(plugins_xml.find(deviceName) != plugins_xml.end(),
+                    "No such plugin ", deviceName);
+                plugins_xml[deviceName](plugin_impl);
                 auto plugin = InferencePlugin{nullptr, plugin_impl};
 #else
                 auto so = ov::util::load_shared_object(desc.libraryLocation.c_str());
