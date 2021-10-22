@@ -75,6 +75,7 @@ public:
         std::ostringstream result;
         result << "imageInputShape=" << param.imageShape << "_";
         result << "coordsInputShape=" << param.coordsShape << "_";
+        result << "outputDim=" << param.outputDim << "_";
         result << "iType=" << param.imageInputType << "_";
         if (param.testcaseName != "") {
             result << "mode=" << param.mode << "_";
