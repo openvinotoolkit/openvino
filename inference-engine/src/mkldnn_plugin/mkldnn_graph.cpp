@@ -19,7 +19,7 @@
 #include "mkldnn_graph_optimizer.h"
 #include "mkldnn_extension_utils.h"
 #include "mkldnn_extension_mngr.h"
-#include "mkldnn_memory_solver.hpp"
+#include "memory_solver.hpp"
 #include "mkldnn_itt.h"
 #include "mkldnn_infer_request.h"
 #include <nodes/mkldnn_input_node.h>
@@ -228,12 +228,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
         if (op->get_type_info() == ngraph::op::v0::Result::type_info) {
             const auto &input = op->input_value(0);
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            auto name = input.get_tensor().get_name();
-            NGRAPH_SUPPRESS_DEPRECATED_END
-            if (name.empty()) {
-                name = ngraph::op::util::create_ie_output_name(input);
-            }
+            auto name = ngraph::op::util::get_ie_output_name(input);
 
             if (outputsInfo.count(name) != 0) {
                 outputNodesMap[name] = node;
@@ -754,13 +749,13 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         auto node = outputMap.second;
         const MKLDNNMemory& intr_blob = node->getParentEdgeAt(0)->getMemory();
 
-        const auto ext_blob = out.find(name);
+        auto ext_blob = out.find(name);
         if (ext_blob == out.end()) {
             IE_THROW(Unexpected) << "The network outputs do not contain mkldnn graph output node name: \"" << name << "\"";
         }
 
         const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
-        const auto &expectedDesc = ext_blob->second->getTensorDesc();
+        auto &expectedDesc = ext_blob->second->getTensorDesc();
 
         // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
         // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar
@@ -778,6 +773,12 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         if (out[name]->getTensorDesc().getDims() != intr_blob.getStaticDims() && !isScalarOutput) {
             if (!node->isDynamicNode())
                 IE_THROW() << "Output blob and node dims mismatch for node with name: \"" << name << "\"";
+
+            // WA: because input/output info initially contains non empty dims, order etc.
+            // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
+            if (expectedDesc.getLayout() == Layout::BLOCKED) {
+                expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
+            }
             out[name]->setShape(intr_blob.getStaticDims());
         }
 
@@ -959,7 +960,7 @@ void MKLDNNGraph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEn
         }
     };
 
-    for (int i = 1; i < graphNodes.size(); i++) {
+    for (int i = 0; i < graphNodes.size(); i++) {
         getPerfMapFor(perfMap, graphNodes[i]);
     }
 }

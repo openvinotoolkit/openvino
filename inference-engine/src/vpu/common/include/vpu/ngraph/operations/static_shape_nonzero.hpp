@@ -26,8 +26,10 @@ public:
 
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& output_values,
                   const HostTensorVector& input_values) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     element::Type get_output_type() const { return m_output_type; }
     void set_output_type(element::Type output_type) { m_output_type = output_type; }

@@ -24,15 +24,16 @@ std::string toString(const kernel_selector::CommonDispatchData& dispatchData) {
     return os.str();
 }
 
-void KernelBase::CheckDispatchData(const std::string& kernelName, const kernel_selector::CommonDispatchData& dispatchData) {
+void KernelBase::CheckDispatchData(const std::string& kernelName, const kernel_selector::CommonDispatchData& dispatchData,
+                                   const size_t maxWorkGroupSize) {
     if (dispatchData.gws.size() != 3 || dispatchData.lws.size() != 3)
         throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName + ": " +
                                  ": LWS and GWS size is expected to be equal to 3. Actual: " +
                                  toString(dispatchData));
 
-    if (dispatchData.lws[0] * dispatchData.lws[1] * dispatchData.lws[2] > 256) {
+    if (dispatchData.lws[0] * dispatchData.lws[1] * dispatchData.lws[2] > maxWorkGroupSize) {
         throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
-                                 ": LWS cannot be greater than 256. Actual: " +
+                                 ": LWS cannot be greater than " + std::to_string(static_cast<int>(maxWorkGroupSize)) + ". Actual: " +
                                  toString(dispatchData));
     }
     for (size_t i = 0; i < dispatchData.gws.size(); i++) {
@@ -96,6 +97,14 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) c
     jit.AddConstant(MakeJitConstant("LayerID", params.layerID));
 #endif
     return jit;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IsSIMDSizeSupported
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+bool KernelBase::IsSIMDSizeSupported(const EngineInfo &info, size_t simd_size) const {
+    auto supported_sizes = info.supportedSimdSizes;
+    return std::find(supported_sizes.begin(), supported_sizes.end(), simd_size) != supported_sizes.end();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

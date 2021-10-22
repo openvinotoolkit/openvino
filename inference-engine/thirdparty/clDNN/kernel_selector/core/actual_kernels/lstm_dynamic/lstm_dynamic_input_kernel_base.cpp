@@ -26,11 +26,17 @@ JitConstants LSTM_DynamicInputKernelBase::GetJitConstants(const lstm_dynamic_inp
 LSTM_DynamicInputKernelBase::DispatchData LSTM_DynamicInputKernelBase::SetDefault(
     const lstm_dynamic_input_params& params) {
     DispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
+                                                                     { Tensor::DataChannelName::Y, Tensor::DataChannelName::BATCH },
+                                                                     { Tensor::DataChannelName::FEATURE }};
+
     const auto& out = params.output;
 
     // 4 * hidden, batch * dir, seq_len
     dispatchData.gws = { out.X().v, out.Batch().v * out.Y().v, out.Feature().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }

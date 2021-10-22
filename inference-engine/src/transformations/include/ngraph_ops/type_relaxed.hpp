@@ -218,7 +218,9 @@ public:
     }
 
     void validate_and_infer_types() override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -232,6 +234,7 @@ private:
     init_rt_result init_rt = init_rt_info(*this);
 };
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename BaseOp>
 bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     std::shared_ptr<ngraph::op::v0::Convert> convert;
@@ -286,6 +289,7 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
 
     return true;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <typename BaseOp>
 void TypeRelaxed<BaseOp>::validate_and_infer_types() {

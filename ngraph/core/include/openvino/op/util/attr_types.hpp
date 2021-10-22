@@ -206,7 +206,7 @@ class OPENVINO_API AttributeAdapter<op::PadMode> : public EnumAttributeAdapterBa
 public:
     AttributeAdapter(op::PadMode& value) : EnumAttributeAdapterBase<op::PadMode>(value) {}
 
-    OPENVINO_RTTI("AttributeAdapter<op::op::PadMode>");
+    OPENVINO_RTTI("AttributeAdapter<PadMode>");
     BWDCMP_RTTI_DECLARATION;
 };
 
@@ -215,7 +215,7 @@ class OPENVINO_API AttributeAdapter<op::PadType> : public EnumAttributeAdapterBa
 public:
     AttributeAdapter(op::PadType& value) : EnumAttributeAdapterBase<op::PadType>(value) {}
 
-    OPENVINO_RTTI("AttributeAdapter<op::op::PadType>");
+    OPENVINO_RTTI("AttributeAdapter<PadType>");
     BWDCMP_RTTI_DECLARATION;
 };
 
@@ -224,7 +224,7 @@ class OPENVINO_API AttributeAdapter<op::RoundingType> : public EnumAttributeAdap
 public:
     AttributeAdapter(op::RoundingType& value) : EnumAttributeAdapterBase<op::RoundingType>(value) {}
 
-    OPENVINO_RTTI("AttributeAdapter<op::op::RoundingType>");
+    OPENVINO_RTTI("AttributeAdapter<RoundingType>");
     BWDCMP_RTTI_DECLARATION;
 };
 
@@ -233,7 +233,7 @@ class OPENVINO_API AttributeAdapter<op::AutoBroadcastType> : public EnumAttribut
 public:
     AttributeAdapter(op::AutoBroadcastType& value) : EnumAttributeAdapterBase<op::AutoBroadcastType>(value) {}
 
-    OPENVINO_RTTI("AttributeAdapter<op::op::AutoBroadcastType>");
+    OPENVINO_RTTI("AttributeAdapter<AutoBroadcastType>");
     BWDCMP_RTTI_DECLARATION;
 };
 
@@ -242,7 +242,7 @@ class OPENVINO_API AttributeAdapter<op::BroadcastType> : public EnumAttributeAda
 public:
     AttributeAdapter(op::BroadcastType& value) : EnumAttributeAdapterBase<op::BroadcastType>(value) {}
 
-    OPENVINO_RTTI("AttributeAdapter<op::op::BroadcastType>");
+    OPENVINO_RTTI("AttributeAdapter<BroadcastType>");
     BWDCMP_RTTI_DECLARATION;
 };
 
@@ -251,7 +251,7 @@ class OPENVINO_API AttributeAdapter<op::EpsMode> : public EnumAttributeAdapterBa
 public:
     AttributeAdapter(op::EpsMode& value) : EnumAttributeAdapterBase<op::EpsMode>(value) {}
 
-    OPENVINO_RTTI("AttributeAdapter<op::op::EpsMode>");
+    OPENVINO_RTTI("AttributeAdapter<EpsMode>");
     BWDCMP_RTTI_DECLARATION;
 };
 
@@ -260,7 +260,7 @@ class OPENVINO_API AttributeAdapter<op::TopKSortType> : public EnumAttributeAdap
 public:
     AttributeAdapter(op::TopKSortType& value) : EnumAttributeAdapterBase<op::TopKSortType>(value) {}
 
-    OPENVINO_RTTI("AttributeAdapter<op::op::TopKSortType>");
+    OPENVINO_RTTI("AttributeAdapter<TopKSortType>");
     BWDCMP_RTTI_DECLARATION;
 };
 
@@ -269,17 +269,17 @@ class OPENVINO_API AttributeAdapter<op::TopKMode> : public EnumAttributeAdapterB
 public:
     AttributeAdapter(op::TopKMode& value) : EnumAttributeAdapterBase<op::TopKMode>(value) {}
 
-    OPENVINO_RTTI("AttributeAdapter<op::op::TopKMode>");
+    OPENVINO_RTTI("AttributeAdapter<TopKMode>");
     BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
-class AttributeAdapter<op::AutoBroadcastSpec> : public VisitorAdapter {
+class OPENVINO_API AttributeAdapter<op::AutoBroadcastSpec> : public VisitorAdapter {
 public:
     AttributeAdapter(op::AutoBroadcastSpec& value) : m_ref(value) {}
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    OPENVINO_RTTI("AttributeAdapter<op::op::AutoBroadcastSpec>");
+    OPENVINO_RTTI("AttributeAdapter<AutoBroadcastSpec>");
     BWDCMP_RTTI_DECLARATION;
 
 protected:
@@ -287,12 +287,12 @@ protected:
 };
 
 template <>
-class AttributeAdapter<op::BroadcastModeSpec> : public VisitorAdapter {
+class OPENVINO_API AttributeAdapter<op::BroadcastModeSpec> : public VisitorAdapter {
 public:
     AttributeAdapter(op::BroadcastModeSpec& value) : m_ref(value) {}
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    OPENVINO_RTTI("AttributeAdapter<op::op::BroadcastModeSpec>");
+    OPENVINO_RTTI("AttributeAdapter<BroadcastModeSpec>");
     BWDCMP_RTTI_DECLARATION;
 
 protected:
@@ -306,7 +306,7 @@ public:
     AttributeAdapter(op::RecurrentSequenceDirection& value)
         : EnumAttributeAdapterBase<op::RecurrentSequenceDirection>(value) {}
 
-    OPENVINO_RTTI("AttributeAdapter<op::op::RecurrentSequenceDirection>");
+    OPENVINO_RTTI("AttributeAdapter<RecurrentSequenceDirection>");
     BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

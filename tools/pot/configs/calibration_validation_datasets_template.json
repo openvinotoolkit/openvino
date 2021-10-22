@@ -1,0 +1,84 @@
+{
+    "model": {
+        "model_name": "model_name",
+        "model": "<MODEL_PATH>",
+        "weights": "<PATH_TO_WEIGHTS>"
+    },
+    "engine": {
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": "classification"
+            }
+        ],
+        "datasets": {
+            /* Global dataset preprocessing that will be used for all datasets
+            if no local configuration is spesified */
+
+            "preprocessing": [
+                {
+                    "type": "crop",
+                    "central_fraction": 0.875
+                },
+                {
+                    "type": "resize",
+                    "size": 224
+                }
+            ],
+
+            /* Dataset for statistics collection */
+
+            "optimization": {
+                "name": "classification_dataset",
+                "data_source": "<DATASET_PATH>"
+            },
+
+            /* Dataset for final evaluation */
+
+            "evaluation": {
+                "name": "classification_dataset",
+                "data_source": "<DATASET_PATH>",
+                "annotation_conversion": {
+                    "converter": "imagenet",
+                    "annotation_file": "<ANNOTATION_FILE_PATH>"
+                },
+
+                /* Local preprocessing config. Overwrites global config */
+
+                "preprocessing": [
+                    {
+                        "type": "crop",
+                        "central_fraction": 0.875
+                    },
+                    {
+                        "type": "resize",
+                        "size": 224
+                    }
+                ],
+                "metrics": [
+                    {
+                        "name": "accuracy@top1",
+                        "type": "accuracy",
+                        "top_k": 1
+                    }
+                ]
+            }
+        },
+        "stat_requests_number": 8,
+        "eval_requests_number": 8
+    },
+    "compression": {
+        "target_device": "ANY", // Target device, the specificity of which will be taken
+                                // into account during optimization
+        "algorithms": [
+            {
+                "name": "DefaultQuantization",
+                "params": {
+                    "preset": "performance",
+                    "stat_subset_size": 300
+                }
+            }
+        ]
+    }
+}
