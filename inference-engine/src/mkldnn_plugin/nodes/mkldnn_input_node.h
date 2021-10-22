@@ -25,6 +25,7 @@ public:
     void withMeanImage();
     MKLDNNMemoryCPtr getMemoryPtr() const;
 
+    void executeDynamicImpl(mkldnn::stream strm) override {}
     bool isExecutable() const override {
         return false;
     }

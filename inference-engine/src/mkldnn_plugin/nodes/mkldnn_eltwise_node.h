@@ -95,6 +95,8 @@ public:
     bool needPrepareParams() const override;
     void prepareParams() override;
 
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
     void fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align = -1);
