@@ -46,7 +46,7 @@ TEST_P(FrontEndConvertModelTest, test_convert_partially_equal_convert) {
     ASSERT_NE(function, nullptr);
 
     FunctionsComparator func_comparator = FunctionsComparator::with_default();
-    // todo: enable name comparison for tf when TransposeSinking is fixed
+    // TODO: enable name comparison for tf when TransposeSinking is fixed, ticket 68960
     if (m_frontEnd->get_name() != "tf") {
         func_comparator.enable(FunctionsComparator::NAMES);
     }
@@ -65,7 +65,7 @@ TEST_P(FrontEndConvertModelTest, test_decode_convert_equal_convert) {
     ASSERT_NE(function, nullptr);
 
     FunctionsComparator func_comparator = FunctionsComparator::with_default();
-    // todo: enable name comparison for tf when TransposeSinking is fixed
+    // TODO: enable name comparison for tf when TransposeSinking is fixed, ticket 68960
     if (m_frontEnd->get_name() != "tf") {
         func_comparator.enable(FunctionsComparator::NAMES);
     }
