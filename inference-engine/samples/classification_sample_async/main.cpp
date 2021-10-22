@@ -240,7 +240,7 @@ int main(int argc, char* argv[]) {
 
         // Prints formatted classification results
         ClassificationResult classificationResult(output, valid_image_names, batchSize, FLAGS_nt, labels);
-        classificationResult.print();
+        classificationResult.show();
     } catch (const std::exception& error) {
         slog::err << error.what() << slog::endl;
         return EXIT_FAILURE;

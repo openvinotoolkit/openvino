@@ -391,7 +391,7 @@ int main(int argc, char* argv[]) {
 
         // Prints formatted classification results
         ClassificationResult classification_result(output_tensor, images, batch_size, FLAGS_nt, labels);
-        classification_result.print();
+        classification_result.show();
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
         return EXIT_FAILURE;

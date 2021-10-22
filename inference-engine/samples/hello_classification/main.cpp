@@ -168,7 +168,7 @@ int main(int argc, char* argv[]) {
 
         // Print classification results
         ClassificationResult_t classification_result(output_tensor, {input_image_path});
-        classification_result.print();
+        classification_result.show();
         // -----------------------------------------------------------------------------------------------------
     } catch (const std::exception& ex) {
         std::cerr << ex.what() << std::endl;

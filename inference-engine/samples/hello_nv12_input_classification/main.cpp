@@ -271,7 +271,7 @@ int main(int argc, char* argv[]) {
             std::vector<std::string> names(names_offset, names_offset + netInputSize);
 
             ClassificationResult classification_result(output, names, netInputSize, 10, labels);
-            classification_result.print();
+            classification_result.show();
         }
     } catch (const std::exception& ex) {
         std::cerr << ex.what() << std::endl;
