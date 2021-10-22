@@ -80,7 +80,7 @@ std::pair<std::shared_ptr<ngraph::opset8::Split>, uint64_t> get_split_before_con
     if (sizes_of_groups.size() != 1) return {};
     uint64_t size_of_group = *(sizes_of_groups.begin());
 
-    // The transformation is applicable iff output port 0 of 'split' goes to ports [0, ..., m-1] of next node,
+    // The transformation is applicable if output port 0 of 'split' goes to ports [0, ..., m-1] of next node,
     // output port 1 of 'split' goes to ports [m, ..., m + (m-1)] of next node, ..., output port i of 'split'
     // goes to ports [i * m, ..., i * m + (m - 1)], and so on.
     for (uint64_t i = 0; i < static_cast<uint64_t>(grouped_idx.size()); ++i) {
@@ -127,8 +127,6 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
     // Detect only concat, because we don't know how many inputs will go into concat.
     auto concat_pattern = ngraph::pattern::wrap_type<ngraph::opset8::Concat>();
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        using namespace ngraph;
-
         auto concat = std::dynamic_pointer_cast<opset8::Concat>(m.get_match_root());
         if (!concat) return false;
 
@@ -151,7 +149,9 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
 
         int64_t axis = split_axis_const->cast_vector<int64_t>()[0];
 
-        if (split->get_input_partial_shape(0).is_static() && split->get_input_shape(0)[axis] != split->outputs().size()) return false;
+        if (split->get_input_partial_shape(0)[axis].is_static() &&
+            split->get_input_partial_shape(0)[axis].get_length() != static_cast<int64_t>(split->outputs().size()))
+            return false;
 
         opset8::Interpolate::InterpolateAttrs attrs;
 
@@ -193,8 +193,8 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
         auto interpolate = register_new_node<opset8::Interpolate>(split->input_value(0), sizes_node, scales_node, axis_node, attrs);
 
         interpolate->set_friendly_name(concat->get_friendly_name());
-        copy_runtime_info(concat, {scales_node, axis_node, shape_node, sslice_begin, sslice_end, strided_slice_node, cast_shape_to_float, mul_node,
-                                   floor_node, sizes_node, interpolate});
+        copy_runtime_info({split, concat}, {scales_node, axis_node, shape_node, sslice_begin, sslice_end, strided_slice_node, cast_shape_to_float, mul_node,
+                                            floor_node, sizes_node, interpolate});
         replace_node(concat, interpolate);
 
         return true;

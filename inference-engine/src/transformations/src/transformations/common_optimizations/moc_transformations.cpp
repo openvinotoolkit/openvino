@@ -121,7 +121,7 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     common_fusions->add_matcher<ngraph::pass::GeluFusion>();
     common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
     common_fusions->add_matcher<ngraph::pass::RandomUniformFusion>();
-    common_fusions->add_matcher<ngraph::pass::SplitConcatPairToInterpolateFusion>();
+    common_fusions->add_matcher<ngraph::pass::SplitConcatPairToInterpolateFusion>(m_use_shapes);
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::BinarizeWeights>();
