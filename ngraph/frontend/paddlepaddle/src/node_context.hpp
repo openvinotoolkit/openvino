@@ -71,8 +71,8 @@ class NodeContext {
 public:
     NodeContext(const DecoderBase& _decoder, const NamedInputs& _name_map) : decoder(_decoder), name_map(_name_map) {}
 
-    /// Returns node attribute by name. Returns 'def' value if attribute does not exist
-    #ifndef OPENVINO_STATIC_LIBRARY
+/// Returns node attribute by name. Returns 'def' value if attribute does not exist
+#ifndef OPENVINO_STATIC_LIBRARY
     template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<VariantWrapper<T>>::value, bool>::type = true>
     T get_attribute(const std::string& name, const T& def) const {
         std::shared_ptr<Variant> res;
@@ -87,7 +87,7 @@ public:
             return def;
         }
     }
-    #endif
+#endif
     template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<VariantWrapper<T>>::value, bool>::type = true>
     T get_attribute(const std::string& name, const T& def) const {
         std::shared_ptr<Variant> res;
@@ -101,7 +101,7 @@ public:
         }
     }
 
-    #ifndef OPENVINO_STATIC_LIBRARY
+#ifndef OPENVINO_STATIC_LIBRARY
     template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<VariantWrapper<T>>::value, bool>::type = true>
     T get_attribute(const std::string& name) const {
         std::shared_ptr<Variant> res;
@@ -113,7 +113,7 @@ public:
         FRONT_END_GENERAL_CHECK(ret, "Attribute with name '", name, "' has invalid type");
         return ret->get();
     }
-    #endif
+#endif
 
     template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<VariantWrapper<T>>::value, bool>::type = true>
     T get_attribute(const std::string& name) const {
@@ -125,7 +125,7 @@ public:
         return ret->get();
     }
 
-    #ifndef OPENVINO_STATIC_LIBRARY
+#ifndef OPENVINO_STATIC_LIBRARY
     template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<VariantWrapper<T>>::value, bool>::type = true>
     bool has_attribute(const std::string& name) const {
         std::shared_ptr<Variant> res;
@@ -134,7 +134,7 @@ public:
         OPENVINO_SUPPRESS_DEPRECATED_END
         return res != nullptr;
     }
-    #endif
+#endif
 
     template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<VariantWrapper<T>>::value, bool>::type = true>
     bool has_attribute(const std::string& name) const {
