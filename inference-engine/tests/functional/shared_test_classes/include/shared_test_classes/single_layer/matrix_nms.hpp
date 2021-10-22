@@ -12,8 +12,8 @@
 
 namespace LayerTestsDefinitions {
 
-// Dynamic shape + Target static shapes
-using InputShapeParams = std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>;
+// Dynamic shape + Target static shapes + output is static shape
+using ShapeParams = std::tuple<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>, bool>;
 
 using InputPrecisions = std::tuple<InferenceEngine::Precision,  // boxes and scores precisions
                                    InferenceEngine::Precision,  // max_output_boxes_per_class precision
@@ -26,7 +26,7 @@ using ThresholdParams = std::tuple<float,   // minimum score to consider box for
                                    float,   // gaussian_sigma parameter for gaussian decay_function
                                    float>;  // filter out boxes with low confidence score after decaying
 
-using NmsParams = std::tuple<InputShapeParams,                                   // Params using to create 1st and 2nd inputs
+using NmsParams = std::tuple<ShapeParams,                                        // Params using to create 1st and 2nd inputs
                              InputPrecisions,                                    // Input precisions
                              ngraph::op::v8::MatrixNms::SortResultType,          // Order of output elements
                              ngraph::element::Type,                              // Output type
@@ -51,6 +51,7 @@ protected:
 private:
     void GetOutputParams(size_t& numBatches, size_t& maxOutputBoxesPerBatch);
     ngraph::op::v8::MatrixNms::Attributes m_attrs;
+    bool m_outStaticShape;
 };
 
 }  // namespace LayerTestsDefinitions

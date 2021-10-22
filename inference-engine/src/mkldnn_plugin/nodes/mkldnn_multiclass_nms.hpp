@@ -31,7 +31,7 @@ public:
 
     void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
 
-    bool needShapeInfer() const override { return false; }
+    bool needShapeInfer() const override { return m_outStaticShape; }
     void prepareParams() override;
 
 private:
@@ -53,12 +53,12 @@ private:
     size_t m_maxBoxesPerBatch;
 
     int m_nmsTopk = 0;
-    float m_iou_threshold = 0.0f;
-    float m_score_threshold = 0.0f;
+    float m_iouThreshold = 0.0f;
+    float m_scoreThreshold = 0.0f;
 
-    int32_t m_background_class = 0;
-    int32_t m_keep_top_k = 0;
-    float m_nms_eta = 0.0f;
+    int32_t m_backgroundClass = 0;
+    int32_t m_keepTopK = 0;
+    float m_nmsEta = 0.0f;
     bool m_normalized = true;
 
     std::string m_errorPrefix;
@@ -84,6 +84,7 @@ private:
     };
 
     std::vector<filteredBoxes> m_filtBoxes;
+    bool m_outStaticShape = false;
 
     void checkPrecision(const InferenceEngine::Precision prec, const std::vector<InferenceEngine::Precision> precList, const std::string name,
                         const std::string type);

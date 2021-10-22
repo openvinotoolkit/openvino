@@ -11,7 +11,7 @@ using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;
 
 std::string MatrixNmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams>& obj) {
-    InputShapeParams inShapeParams;
+    ShapeParams inShapeParams;
     InputPrecisions inPrecisions;
     op::v8::MatrixNms::SortResultType sortResultType;
     element::Type outType;
@@ -32,11 +32,12 @@ std::string MatrixNmsLayerTest::getTestCaseName(const testing::TestParamInfo<Nms
 
     float score_threshold, gaussian_sigma, post_threshold;
     std::tie(score_threshold, gaussian_sigma, post_threshold) = thresholdParams;
+    bool outStaticShape = std::get<2>(inShapeParams);
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::partialShape2str(inShapeParams.first) << "_";
+    result << "outStaticShape=" << outStaticShape << "_IS=" << CommonTestUtils::partialShape2str(std::get<0>(inShapeParams)) << "_";
     result << "TS=";
-    for (const auto& item : inShapeParams.second) {
+    for (const auto& item : std::get<1>(inShapeParams)) {
         result << CommonTestUtils::vec2str(item) << "_";
     }
     result << "paramsPrec=" << paramsPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
@@ -157,7 +158,7 @@ void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Ty
                             default:
                                 break;
                         }
-                        if (targetDevice != CommonTestUtils::DEVICE_CPU) {
+                        if (m_outStaticShape) {
                             const auto fBuffer = lockedMemory.as<const float *>();
                             for (size_t tailing = validNums * 6; tailing < maxOutputBoxesPerBatch * 6; tailing++) {
                                 ASSERT_TRUE(std::abs(fBuffer[(actual_offset * 6 + tailing)] - -1.f) < 1e-5)
@@ -181,7 +182,7 @@ void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Ty
                             default:
                                 break;
                         }
-                        if (targetDevice != CommonTestUtils::DEVICE_CPU) {
+                        if (m_outStaticShape) {
                             const auto iBuffer = lockedMemory.as<const int *>();
                             for (size_t tailing = validNums; tailing < maxOutputBoxesPerBatch; tailing++) {
                                 ASSERT_TRUE(iBuffer[actual_offset + tailing] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;
@@ -192,7 +193,7 @@ void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Ty
                     default:
                         FAIL() << "Comparator for " << precision << " precision isn't supported";
                 }
-                if (targetDevice == CommonTestUtils::DEVICE_CPU) {
+                if (!m_outStaticShape) {
                     expected_offset += validNums;
                     actual_offset += validNums;
                 } else {
@@ -245,7 +246,7 @@ void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Ty
 }
 
 void MatrixNmsLayerTest::SetUp() {
-    InputShapeParams inShapeParams;
+    ShapeParams inShapeParams;
     InputPrecisions inPrecisions;
     TopKParams topKParams;
     ThresholdParams thresholdParams;
@@ -256,8 +257,9 @@ void MatrixNmsLayerTest::SetUp() {
     std::tie(m_attrs.nms_top_k, m_attrs.keep_top_k) = topKParams;
     std::tie(m_attrs.score_threshold, m_attrs.gaussian_sigma, m_attrs.post_threshold) = thresholdParams;
 
-    targetStaticShapes = inShapeParams.second;
-    inputDynamicShapes = inShapeParams.first;
+    inputDynamicShapes = std::get<0>(inShapeParams);
+    targetStaticShapes = std::get<1>(inShapeParams);
+    m_outStaticShape = std::get<2>(inShapeParams);
 
     Precision paramsPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
@@ -266,7 +268,7 @@ void MatrixNmsLayerTest::SetUp() {
     const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto nms = std::make_shared<opset8::MatrixNms>(paramOuts[0], paramOuts[1], m_attrs);
-    if (targetDevice == CommonTestUtils::DEVICE_CPU) {
+    if (!m_outStaticShape) {
         function = std::make_shared<Function>(nms, params, "NMS");
     } else {
         auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(element::f32, Shape{1}, {1}));

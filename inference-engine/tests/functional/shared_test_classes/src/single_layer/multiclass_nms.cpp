@@ -11,7 +11,7 @@ using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;
 
 std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo<MulticlassNmsParams>& obj) {
-    InputShapeParams inShapeParams;
+    ShapeParams inShapeParams;
     InputPrecisions inPrecisions;
     int32_t nmsTopK, backgroundClass, keepTopK;
     element::Type outType;
@@ -33,11 +33,12 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
 
     bool sortResCB, normalized;
     std::tie(sortResCB, normalized) = inboolVar;
+    bool outStaticShape = std::get<2>(inShapeParams);
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::partialShape2str(inShapeParams.first) << "_";
+    result << "outStaticShape=" << outStaticShape << "_IS=" << CommonTestUtils::partialShape2str(std::get<0>(inShapeParams)) << "_";
     result << "TS=";
-    for (const auto& item : inShapeParams.second) {
+    for (const auto& item : std::get<1>(inShapeParams)) {
         result << CommonTestUtils::vec2str(item) << "_";
     }
     result << "paramsPrec=" << paramsPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
@@ -158,7 +159,7 @@ void MulticlassNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element
                         break;
                     }
 
-                    if (targetDevice != CommonTestUtils::DEVICE_CPU) {
+                    if (m_outStaticShape) {
                         const auto fBuffer = lockedMemory.as<const float*>();
                         for (size_t tailing = validNums * 6; tailing < maxOutputBoxesPerBatch * 6; tailing++) {
                             ASSERT_TRUE(std::abs(fBuffer[(actual_offset * 6 + tailing)] - -1.f) < 1e-5)
@@ -180,7 +181,7 @@ void MulticlassNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element
                     default:
                         break;
                     }
-                    if (targetDevice != CommonTestUtils::DEVICE_CPU) {
+                    if (m_outStaticShape) {
                         const auto iBuffer = lockedMemory.as<const int*>();
                         for (size_t tailing = validNums; tailing < maxOutputBoxesPerBatch; tailing++) {
                             ASSERT_TRUE(iBuffer[actual_offset + tailing] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;
@@ -191,7 +192,7 @@ void MulticlassNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element
                 default:
                     FAIL() << "Comparator for " << precision << " precision isn't supported";
                 }
-                if (targetDevice == CommonTestUtils::DEVICE_CPU) {
+                if (!m_outStaticShape) {
                     expected_offset += validNums;
                     actual_offset += validNums;
                 } else {
@@ -243,7 +244,7 @@ void MulticlassNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element
 }
 
 void MulticlassNmsLayerTest::SetUp() {
-    InputShapeParams inShapeParams;
+    ShapeParams inShapeParams;
     InputPrecisions inPrecisions;
     size_t maxOutBoxesPerClass, backgroundClass, keepTopK;
     element::Type outType;
@@ -256,8 +257,9 @@ void MulticlassNmsLayerTest::SetUp() {
     std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice) =
         this->GetParam();
 
-    targetStaticShapes = inShapeParams.second;
-    inputDynamicShapes = inShapeParams.first;
+    inputDynamicShapes = std::get<0>(inShapeParams);
+    targetStaticShapes = std::get<1>(inShapeParams);
+    m_outStaticShape = std::get<2>(inShapeParams);
 
     Precision paramsPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
@@ -286,7 +288,7 @@ void MulticlassNmsLayerTest::SetUp() {
 
     auto nms = std::make_shared<opset8::MulticlassNms>(paramOuts[0], paramOuts[1], m_attrs);
 
-    if (targetDevice == CommonTestUtils::DEVICE_CPU) {
+    if (!m_outStaticShape) {
         function = std::make_shared<Function>(nms, params, "MulticlassNMS");
     } else {
         auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(ngPrc, Shape {1}, {1}));

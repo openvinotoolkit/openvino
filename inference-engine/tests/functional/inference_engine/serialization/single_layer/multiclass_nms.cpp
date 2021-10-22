@@ -17,11 +17,11 @@ TEST_P(MulticlassNmsLayerTest, Serialize) {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
 
-const std::vector<InputShapeParams> inStaticShapeParams = {
-        // dynamic shape, {{batch, box, 4}, {batch, class, box}}
-        {{}, {{{3, 100, 4}, {3,   5, 100}}}},
-        {{{ngraph::Dimension::dynamic(), 100, 4}, {ngraph::Dimension::dynamic(), 5, 100}},
-            {{{1, 100, 4}, {1, 5, 100}}, {{2, 100, 4}, {2, 5, 100}}, {{3, 100, 4}, {3, 5, 100}}}}
+const std::vector<ShapeParams> shapeParams = {
+    // dynamic shape, {{batch, box, 4}, {batch, class, box}}, out is static shape
+    {{}, {{{3, 100, 4}, {3,   5, 100}}}, false},
+    {{{ngraph::Dimension::dynamic(), 100, 4}, {ngraph::Dimension::dynamic(), 5, 100}},
+        {{{1, 100, 4}, {1, 5, 100}}, {{2, 100, 4}, {2, 5, 100}}, {{3, 100, 4}, {3, 5, 100}}}, false}
 };
 
 const std::vector<int32_t> nmsTopK = {-1, 20};
@@ -40,7 +40,7 @@ const std::vector<float> nmsEta = {0.6f, 1.0f};
 const std::vector<bool> normalized = {true, false};
 
 const auto nmsParams = ::testing::Combine(
-    ::testing::ValuesIn(inStaticShapeParams),
+    ::testing::ValuesIn(shapeParams),
     ::testing::Combine(::testing::Values(InferenceEngine::Precision::FP32),
                        ::testing::Values(InferenceEngine::Precision::I32),
                        ::testing::Values(InferenceEngine::Precision::FP32)),

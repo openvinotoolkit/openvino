@@ -12,10 +12,12 @@
 
 #include "ie_parallel.hpp"
 #include "ngraph/opsets/opset8.hpp"
+#include "ngraph_ops/nms_static_shape_ie.hpp"
 #include "utils/general_utils.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+using MatrixNmsIEInternal = ngraph::op::internal::NmsStaticShapeIE<ngraph::op::v8::MatrixNms>;
 
 using ngNmsSortResultType = ngraph::op::util::NmsBase::SortResultType;
 using ngNmseDcayFunction = ngraph::op::v8::MatrixNms::DecayFunction;
@@ -52,6 +54,8 @@ MKLDNNMatrixNmsNode::MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op
     }
 
     m_errorPrefix = "MatrixNMS layer with name '" + getName() + "' ";
+    if (std::dynamic_pointer_cast<const MatrixNmsIEInternal>(op))
+        m_outStaticShape = true;
     const auto matrix_nms = std::dynamic_pointer_cast<const ngraph::op::v8::MatrixNms>(op);
 
     auto& attrs = matrix_nms->get_attrs();
@@ -363,7 +367,7 @@ void MKLDNNMatrixNmsNode::execute(mkldnn::stream strm) {
     auto selectedIndicesMemPtr = getChildEdgesAtPort(NMS_SELECTED_INDICES)[0]->getMemoryPtr();
     auto validOutputsMemPtr = getChildEdgesAtPort(NMS_VALID_OUTPUTS)[0]->getMemoryPtr();
 
-    if (isDynamicNode()) {
+    if (!m_outStaticShape) {
         size_t totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), 0);
         selectedOutputsMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTED_OUTPUTS)->cloneWithNewDims({totalBox, 6}));
         selectedIndicesMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTED_INDICES)->cloneWithNewDims({totalBox, 1}));
@@ -389,7 +393,7 @@ void MKLDNNMatrixNmsNode::execute(mkldnn::stream strm) {
             selectedBase[4] = m_filteredBoxes[originalIndex].box.x2;
             selectedBase[5] = m_filteredBoxes[originalIndex].box.y2;
         }
-        if (!isDynamicNode()) {
+        if (m_outStaticShape) {
             std::fill_n(selectedOutputs + (outputOffset + real_boxes) * 6, (m_maxBoxesPerBatch - real_boxes) * 6, -1);
             std::fill_n(selectedIndices + (outputOffset + real_boxes), m_maxBoxesPerBatch - real_boxes, -1);
             outputOffset += m_maxBoxesPerBatch;

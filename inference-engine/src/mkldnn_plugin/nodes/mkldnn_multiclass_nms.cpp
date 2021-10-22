@@ -9,6 +9,7 @@
 #include <chrono>
 #include <cmath>
 #include <ie_ngraph_utils.hpp>
+#include <ngraph_ops/nms_static_shape_ie.hpp>
 #include <queue>
 #include <string>
 #include <utility>
@@ -21,6 +22,7 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
 using ngNmsSortResultType = ngraph::op::util::NmsBase::SortResultType;
+using MulticlassNmsIEInternal = ngraph::op::internal::NmsStaticShapeIE<ngraph::op::v8::MulticlassNms>;
 
 bool MKLDNNMultiClassNmsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -48,22 +50,24 @@ MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::N
         IE_THROW(NotImplemented) << errorMessage;
     }
     m_errorPrefix = "MultiClassNms layer with name '" + getName() + "' ";
+    if (std::dynamic_pointer_cast<const MulticlassNmsIEInternal>(op))
+        m_outStaticShape = true;
     const auto nms = std::dynamic_pointer_cast<const ngraph::op::v8::MulticlassNms>(op);
 
     auto& atrri = nms->get_attrs();
     m_sort_result_across_batch = atrri.sort_result_across_batch;
     m_nmsTopk = atrri.nms_top_k;
-    m_iou_threshold = atrri.iou_threshold;
-    m_score_threshold = atrri.score_threshold;
-    m_background_class = atrri.background_class;
-    m_keep_top_k = atrri.keep_top_k;
+    m_iouThreshold = atrri.iou_threshold;
+    m_scoreThreshold = atrri.score_threshold;
+    m_backgroundClass = atrri.background_class;
+    m_keepTopK = atrri.keep_top_k;
     if (atrri.sort_result_type == ngNmsSortResultType::CLASSID)
         m_sort_result_type = MulticlassNmsSortResultType::CLASSID;
     else if (atrri.sort_result_type == ngNmsSortResultType::SCORE)
         m_sort_result_type = MulticlassNmsSortResultType::SCORE;
     else if (atrri.sort_result_type == ngNmsSortResultType::NONE)
         m_sort_result_type = MulticlassNmsSortResultType::NONE;
-    m_nms_eta = atrri.nms_eta;
+    m_nmsEta = atrri.nms_eta;
     m_normalized = atrri.normalized;
 }
 
@@ -126,16 +130,16 @@ void MKLDNNMultiClassNmsNode::prepareParams() {
     m_numClasses = scores_dims[1];
 
     int64_t max_output_boxes_per_class = 0;
-    size_t real_num_classes = m_background_class == -1 ? m_numClasses :
-        m_background_class < m_numClasses ? m_numClasses - 1 : m_numClasses;
+    size_t real_num_classes = m_backgroundClass == -1 ? m_numClasses :
+        m_backgroundClass < m_numClasses ? m_numClasses - 1 : m_numClasses;
     if (m_nmsTopk >= 0)
         max_output_boxes_per_class = std::min(m_numBoxes, static_cast<size_t>(m_nmsTopk));
     else
         max_output_boxes_per_class = m_numBoxes;
 
     m_maxBoxesPerBatch = max_output_boxes_per_class * real_num_classes;
-    if (m_keep_top_k >= 0)
-        m_maxBoxesPerBatch = std::min(m_maxBoxesPerBatch, static_cast<size_t>(m_keep_top_k));
+    if (m_keepTopK >= 0)
+        m_maxBoxesPerBatch = std::min(m_maxBoxesPerBatch, static_cast<size_t>(m_keepTopK));
 
     m_numFiltBox.resize(m_numBatches);
     for (auto &numPerBatch : m_numFiltBox) {
@@ -165,7 +169,7 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
     auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
     auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
 
-    if ((m_nms_eta >= 0) && (m_nms_eta < 1)) {
+    if ((m_nmsEta >= 0) && (m_nmsEta < 1)) {
         nmsWithEta(boxes, scores, boxesStrides, scoresStrides);
     } else {
         nmsWithoutEta(boxes, scores, boxesStrides, scoresStrides);
@@ -195,19 +199,19 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
                                                       ((std::fabs(l.score - r.score) < 1e-6) && l.class_index == r.class_index && l.box_index < r.box_index))));
     });
 
-    if (m_keep_top_k > -1) {
+    if (m_keepTopK > -1) {
         startOffset = 0;
         size_t offset = 0;
         for (size_t b = 0; b < m_numFiltBox.size(); b++) {
-            if (m_numBoxOffset[b] > m_keep_top_k) {
+            if (m_numBoxOffset[b] > m_keepTopK) {
                 if (startOffset == offset) {
-                    startOffset += m_keep_top_k;
+                    startOffset += m_keepTopK;
                     offset += m_numBoxOffset[b];
                 } else {
-                    for (size_t i = 0; i < m_keep_top_k; i++) {
+                    for (size_t i = 0; i < m_keepTopK; i++) {
                         m_filtBoxes[startOffset + i] = m_filtBoxes[offset + i];
                     }
-                    startOffset += m_keep_top_k;
+                    startOffset += m_keepTopK;
                     offset += m_numBoxOffset[b];
                 }
             } else {
@@ -259,7 +263,7 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
         m_selected_num[m_filtBoxes[idx].batch_index]++;
     }
 
-    if (isDynamicNode()) {
+    if (!m_outStaticShape) {
         size_t totalBox = std::accumulate(m_selected_num.begin(), m_selected_num.end(), 0);
         selectedOutputsMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTEDOUTPUTS)->cloneWithNewDims({totalBox, 6}));
         selectedIndicesMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTEDINDICES)->cloneWithNewDims({totalBox, 1}));
@@ -286,7 +290,7 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
             selected_base[4] = boxes[selected_indices[j + output_offset] * 4 + 2];
             selected_base[5] = boxes[selected_indices[j + output_offset] * 4 + 3];
         }
-        if (!isDynamicNode()) {
+        if (m_outStaticShape) {
             std::fill_n(selected_outputs + (output_offset + real_boxes) * 6, (selectedBoxesNum_perBatch - real_boxes) * 6, -1);
             std::fill_n(selected_indices + (output_offset + real_boxes), selectedBoxesNum_perBatch - real_boxes, -1);
             output_offset += selectedBoxesNum_perBatch;
@@ -336,19 +340,19 @@ void MKLDNNMultiClassNmsNode::nmsWithEta(const float* boxes, const float* scores
     };
 
     parallel_for2d(m_numBatches, m_numClasses, [&](int batch_idx, int class_idx) {
-        if (class_idx != m_background_class) {
+        if (class_idx != m_backgroundClass) {
             std::vector<filteredBoxes> fb;
             const float* boxesPtr = boxes + batch_idx * boxesStrides[0];
             const float* scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];
 
             std::priority_queue<boxInfo, std::vector<boxInfo>, decltype(less)> sorted_boxes(less);
             for (int box_idx = 0; box_idx < m_numBoxes; box_idx++) {
-                if (scoresPtr[box_idx] >= m_score_threshold)  // algin with ref
+                if (scoresPtr[box_idx] >= m_scoreThreshold)  // algin with ref
                     sorted_boxes.emplace(boxInfo({scoresPtr[box_idx], box_idx, 0}));
             }
             fb.reserve(sorted_boxes.size());
             if (sorted_boxes.size() > 0) {
-                auto adaptive_threshold = m_iou_threshold;
+                auto adaptive_threshold = m_iouThreshold;
                 int max_out_box = (m_nmsTopk > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsTopk;
                 while (max_out_box && !sorted_boxes.empty()) {
                     boxInfo currBox = sorted_boxes.top();
@@ -364,20 +368,20 @@ void MKLDNNMultiClassNmsNode::nmsWithEta(const float* boxes, const float* scores
                             box_is_selected = false;
                             break;
                         }
-                        if (currBox.score <= m_score_threshold)
+                        if (currBox.score <= m_scoreThreshold)
                             break;
                     }
 
                     currBox.suppress_begin_index = fb.size();
                     if (box_is_selected) {
-                        if (m_nms_eta < 1 && adaptive_threshold > 0.5) {
-                            adaptive_threshold *= m_nms_eta;
+                        if (m_nmsEta < 1 && adaptive_threshold > 0.5) {
+                            adaptive_threshold *= m_nmsEta;
                         }
                         if (currBox.score == origScore) {
                             fb.push_back({currBox.score, batch_idx, class_idx, currBox.idx});
                             continue;
                         }
-                        if (currBox.score > m_score_threshold) {
+                        if (currBox.score > m_scoreThreshold) {
                             sorted_boxes.push(currBox);
                         }
                     }
@@ -394,13 +398,13 @@ void MKLDNNMultiClassNmsNode::nmsWithEta(const float* boxes, const float* scores
 
 void MKLDNNMultiClassNmsNode::nmsWithoutEta(const float* boxes, const float* scores, const SizeVector& boxesStrides, const SizeVector& scoresStrides) {
     parallel_for2d(m_numBatches, m_numClasses, [&](int batch_idx, int class_idx) {
-        if (class_idx != m_background_class) {
+        if (class_idx != m_backgroundClass) {
             const float* boxesPtr = boxes + batch_idx * boxesStrides[0];
             const float* scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];
 
             std::vector<std::pair<float, int>> sorted_boxes;
             for (int box_idx = 0; box_idx < m_numBoxes; box_idx++) {
-                if (scoresPtr[box_idx] >= m_score_threshold)  // algin with ref
+                if (scoresPtr[box_idx] >= m_scoreThreshold)  // algin with ref
                     sorted_boxes.emplace_back(std::make_pair(scoresPtr[box_idx], box_idx));
             }
 
@@ -418,7 +422,7 @@ void MKLDNNMultiClassNmsNode::nmsWithoutEta(const float* boxes, const float* sco
                     for (int idx = io_selection_size - 1; idx >= 0; idx--) {
                         float iou = intersectionOverUnion(&boxesPtr[sorted_boxes[box_idx].second * 4],
                             &boxesPtr[m_filtBoxes[offset + idx].box_index * 4], m_normalized);
-                        if (iou >= m_iou_threshold) {
+                        if (iou >= m_iouThreshold) {
                             box_is_selected = false;
                             break;
                         }

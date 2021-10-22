@@ -18,13 +18,13 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE, "ConvertMulticlassNmsToMulticlassNmsIE", 0);
 
-ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNmsIE() {
+ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNmsIE(bool force_i32_output_type) {
     MATCHER_SCOPE(ConvertMulticlassNmsToMulticlassNmsIE);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset8::MulticlassNms>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
         auto nms = std::dynamic_pointer_cast<ngraph::opset8::MulticlassNms>(m.get_match_root());
-        if (!nms) {
+        if (!nms || transformation_callback(nms)) {
             return false;
         }
 
@@ -32,7 +32,7 @@ ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulti
         // vector of new nGraph operations
         NodeVector new_ops;
         auto attrs = nms->get_attrs();
-        attrs.output_type = element::i32;
+        attrs.output_type = force_i32_output_type ? element::i32 : nms->get_output_type();
 
         auto nms_new = std::make_shared<op::internal::NmsStaticShapeIE<ngraph::opset8::MulticlassNms>>(
                 new_args.at(0),

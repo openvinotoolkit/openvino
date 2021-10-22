@@ -12,7 +12,8 @@
 
 namespace LayerTestsDefinitions {
 
-using InputShapeParams = std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>;
+// Dynamic shape + Target static shapes + output is static shape
+using ShapeParams = std::tuple<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>, bool>;
 
 using InputPrecisions = std::tuple<InferenceEngine::Precision,   // boxes and scores precisions
                                    InferenceEngine::Precision,   // max_output_boxes_per_class
@@ -27,7 +28,7 @@ using InputfloatVar = std::tuple<float,   // iouThreshold
 using InputboolVar = std::tuple<bool,   // nmsEta
                                 bool>;  // normalized
 
-using MulticlassNmsParams = std::tuple<InputShapeParams,                           // Params using to create 1st and 2nd inputs
+using MulticlassNmsParams = std::tuple<ShapeParams,                                // Params using to create 1st and 2nd inputs
                                        InputPrecisions,                            // Input precisions
                                        int32_t,                                    // Max output boxes per class
                                        InputfloatVar,                              // iouThreshold, scoreThreshold, nmsEta
@@ -51,6 +52,7 @@ protected:
 private:
     void GetOutputParams(size_t& numBatches, size_t& maxOutputBoxesPerBatch);
     ngraph::op::v8::MulticlassNms::Attributes m_attrs;
+    bool m_outStaticShape;
 };
 
 }  // namespace LayerTestsDefinitions
