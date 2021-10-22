@@ -905,37 +905,37 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
             return axisIdx;
         };
 
-        const size_t dataNDims = getInputShapeAtPort(0).getRank();
-        axis = dataNDims == 1 ? 0 : 1;
+        const size_t dataRank = getInputShapeAtPort(0).getRank();
+        axis = dataRank == 1 ? 0 : 1;
         int axisSize = -1;
 
-        const auto ilShape = getNormalizedDimsBySize(getInputShapeAtPort(1).getStaticDims(), dataNDims);
+        const auto ilShape = getNormalizedDimsBySize(fq->get_input_shape(1), dataRank);
         auto inputLowAxis = initAxisIdx(ilShape);
-        isInputLowBroadcasted = ilShape[inputLowAxis] == 1;
+        isInputLowBroadcasted = (ngraph::is_scalar(ilShape) || ilShape[inputLowAxis] == 1);
         if (!isInputLowBroadcasted) {
             axis = inputLowAxis;
             axisSize = ilShape[inputLowAxis];
         }
 
-        const auto ihShape = getNormalizedDimsBySize(getInputShapeAtPort(2).getStaticDims(), dataNDims);
+        const auto ihShape = getNormalizedDimsBySize(fq->get_input_shape(2), dataRank);
         auto inputHighAxis = initAxisIdx(ihShape);
-        isInputHighBroadcasted = ihShape[inputHighAxis] == 1;
+        isInputHighBroadcasted = (ngraph::is_scalar(ihShape) || ihShape[inputHighAxis] == 1);
         if (!isInputHighBroadcasted) {
             axis = inputHighAxis;
             axisSize = ihShape[inputHighAxis];
         }
 
-        const auto olShape = getNormalizedDimsBySize(getInputShapeAtPort(3).getStaticDims(), dataNDims);
+        const auto olShape = getNormalizedDimsBySize(fq->get_input_shape(3), dataRank);
         auto outputLowAxis = initAxisIdx(olShape);
-        isOutputLowBroadcasted = olShape[outputLowAxis] == 1;
+        isOutputLowBroadcasted = (ngraph::is_scalar(olShape) || olShape[outputLowAxis] == 1);
         if (!isOutputLowBroadcasted) {
             axis = outputLowAxis;
             axisSize = olShape[outputLowAxis];
         }
 
-        const auto ohShape = getNormalizedDimsBySize(getInputShapeAtPort(4).getStaticDims(), dataNDims);
+        const auto ohShape = getNormalizedDimsBySize(fq->get_input_shape(4), dataRank);
         auto outputHighAxis = initAxisIdx(ohShape);
-        isOutputHighBroadcasted = ohShape[outputHighAxis] == 1;
+        isOutputHighBroadcasted = (ngraph::is_scalar(ohShape) || ohShape[outputHighAxis] == 1);
         if (!isOutputHighBroadcasted) {
             axis = outputHighAxis;
             axisSize = ohShape[outputHighAxis];
@@ -946,9 +946,8 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
         auto outputLowAxisSize = olShape[outputLowAxis];
         auto outputHighAxisSize = ohShape[outputHighAxis];
 
-        if (getInputShapeAtPort(0).getDims()[axis] != Shape::UNDEFINED_DIM) {
-            if (axisSize != -1 && axisSize != static_cast<int>(getInputShapeAtPort(0).getDims()[axis]))
-                IE_THROW() << errorPrefix << "has different quantization axis size on 'data' and 'range' inputs";
+        if (axisSize != -1 && !dimsEqualWeak(axisSize, getInputShapeAtPort(0).getDims()[axis])) {
+            IE_THROW() << errorPrefix << "has different quantization axis size on 'data' and 'range' inputs";
         }
 
         const auto inputLowNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(1));
@@ -1242,7 +1241,6 @@ void MKLDNNFakeQuantizeNode::initSupportedPrimitiveDescriptors() {
 
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     }
-    currentInBlkDims.resize(1);
 }
 
 bool MKLDNNFakeQuantizeNode::needPrepareParams() const {
@@ -1250,8 +1248,7 @@ bool MKLDNNFakeQuantizeNode::needPrepareParams() const {
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
 
-    if (internalBlobMemory.empty() || (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref &&
-            getParentEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims() != currentInBlkDims)) {
+    if (internalBlobMemory.empty() || (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref && inputShapesModified())) {
         return true;
     }
 
@@ -1264,19 +1261,13 @@ bool MKLDNNFakeQuantizeNode::needPrepareParams() const {
 }
 
 void MKLDNNFakeQuantizeNode::prepareParams() {
-    if (!inputShapesDefined()) {
-        IE_THROW() << "Can't prepare params for eltwise node with name: " << getName();
-    }
-
-    currentInBlkDims = getParentEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
-
     const size_t axisSize = getParentEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims()[getAxis()];
     const size_t newPaddedSize = rnd_up(axisSize, 16);
     IE_ASSERT(newPaddedSize != 0);
 
     if (internalBlobMemory.empty() || newPaddedSize != rnd_up(currentAxisSize, 16) ||
             (isBinarization() && (isInputLowBroadcasted || isOutputHighBroadcasted) && axisSize != currentAxisSize)) {
-        DnnlBlockedMemoryDesc weightsDataDesc(Shape(InferenceEngine::SizeVector{newPaddedSize}), memory::data_type::f32, memory::format_tag::x);
+        DnnlBlockedMemoryDesc weightsDataDesc(Shape(VectorDims{newPaddedSize}), memory::data_type::f32, memory::format_tag::x);
 
         if (isBinarization()) {
             constexpr size_t numBinFqIntBlob = 2;
@@ -1356,9 +1347,9 @@ void MKLDNNFakeQuantizeNode::prepareParams() {
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU quantize node with name '" << getName() << "' doesn't have primitive descriptors.";
     if (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref) {
-        auto config = getSelectedPrimitiveDescriptor()->getConfig();
+        const auto& config = getSelectedPrimitiveDescriptor()->getConfig();
 
-        auto inDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
+        const auto& inDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
 
         jit_quantize_params jqp = {};
         jqp.c = inDims.size() > 1 ? inDims[1] : 1;
@@ -1505,7 +1496,7 @@ void MKLDNNFakeQuantizeNode::executeReference() {
     }
 }
 
-void MKLDNNFakeQuantizeNode::executeBinarization(const std::shared_ptr<jit_uni_quantize_kernel> &pKernel) const {
+void MKLDNNFakeQuantizeNode::executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
     auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
@@ -1545,7 +1536,7 @@ void MKLDNNFakeQuantizeNode::executeBinarization(const std::shared_ptr<jit_uni_q
     });
 }
 
-void MKLDNNFakeQuantizeNode::executeQuantization(const std::shared_ptr<jit_uni_quantize_kernel> &pKernel) const {
+void MKLDNNFakeQuantizeNode::executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
     auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
     auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
@@ -1658,7 +1649,7 @@ void MKLDNNFakeQuantizeNode::execute(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNFakeQuantizeNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, bool initAsBinary, bool initBinaryMemory) {
+void MKLDNNFakeQuantizeNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align, bool initAsBinary, bool initBinaryMemory) {
     // MKLDNN quantization_injectors assumes that quantization data memory is always aligned on 16
     // by length of AVX512 vector register which is also enough for AVX2 and SSE42 implementations.
     // Otherwise it can lead to buffer over-read and performance penalties due to denormals.
@@ -1714,7 +1705,7 @@ void MKLDNNFakeQuantizeNode::appendPostOps(mkldnn::post_ops& ops, const VectorDi
 
         if (initAsBinary) {
             auto appendBinary = [&](const mkldnn::algorithm alg, const size_t dataSize, MKLDNNMemoryPtr &memPtr, const void *data) {
-                const auto rank = outputShapes[0].getRank();
+                const auto rank = getOutputShapeAtPort(0).getRank();
                 auto chIdx = rank > 1 ? 1 : 0;
 
                 std::vector<size_t> binaryShape(rank, 1);
@@ -1781,12 +1772,6 @@ void MKLDNNFakeQuantizeNode::FakeQuantizeJitExecutor::exec(const MKLDNNFakeQuant
     } else {
         node.executeQuantization(pKernel);
     }
-}
-
-const jit_quantize_params& MKLDNNFakeQuantizeNode::FakeQuantizeJitExecutor::getJqp() const {
-    if (!pKernel)
-        IE_THROW() << "Can't get jit fake quantize params, kernel for fake quantize node is not compiled";
-    return pKernel->jqp_;
 }
 
 bool MKLDNNFakeQuantizeNode::created() const {

@@ -32,9 +32,17 @@ inline std::vector<size_t> getNormalizedDimsBySize(const InferenceEngine::SizeVe
 * shape on which should be broadcastable
 * @param secondInputDims
 * shape which should be broadcastable
+* @param weakCompare
+* flag which specify how we compare C dims if value is undefined (weak or strong)
 * @return true if broadcastable, false otherwise.
 */
-inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims, const InferenceEngine::SizeVector& secondInputDims) {
+inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims, const InferenceEngine::SizeVector& secondInputDims,
+                                                 bool weakCompare = false) {
+    bool (*dimsEqual)(size_t, size_t) = dimsEqualWeak;
+    if (!weakCompare) {
+        dimsEqual = dimsEqualStrong;
+    }
+
     if (secondInputDims.size() > firstInputDims.size())
         return false;
     if (std::accumulate(secondInputDims.begin(), secondInputDims.end(), 1, std::multiplies<size_t>()) == 1)
@@ -42,7 +50,7 @@ inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVect
 
     std::vector<size_t> normalizedSecondInputDims = getNormalizedDimsBySize(secondInputDims, firstInputDims.size());
     for (size_t i = 0; i < normalizedSecondInputDims.size(); i++) {
-        if ((i == 1 && !dimsEqualWeak(normalizedSecondInputDims[i], firstInputDims[1])) || (i != 1 && normalizedSecondInputDims[i] != 1))
+        if ((i == 1 && !dimsEqual(normalizedSecondInputDims[i], firstInputDims[1])) || (i != 1 && normalizedSecondInputDims[i] != 1))
             return false;
     }
     return true;
@@ -88,19 +96,6 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
         }
     }
     return precision;
-}
-
-/**
-* @brief Extract channel dim from dims passed as argument and create dims [1, C, 1, ... 1] or [C] for 1D
-* @param dims
-* dims used for creation per channel broadcasted dims 
-* @return per channel broadcasted dims 
-*/
-inline VectorDims getPerChannelBroadcastedDims(const VectorDims &dims) {
-    VectorDims result(dims.size(), 1);
-    const auto axis = dims.size() > 1 ? 1 : 0;
-    result[axis] = dims[axis];
-    return result;
 }
 
 }  // namespace MKLDNNPlugin

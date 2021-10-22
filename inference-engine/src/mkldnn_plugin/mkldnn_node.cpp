@@ -505,6 +505,7 @@ void MKLDNNNode::execute(mkldnn::stream strm) {
 void MKLDNNNode::executeDynamic(mkldnn::stream strm) {
     if (needShapeInfer()) {
         redefineOutputMemory(shapeInfer());
+    }
     if (needPrepareParams()) {
         IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<
             " since the input shapes are not defined.";
@@ -1045,7 +1046,7 @@ Layout MKLDNNNode::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
     }
 }
 
-void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, bool initAsBinary, bool initBinaryMemory) {
+void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align, bool initAsBinary, bool initBinaryMemory) {
     IE_THROW() << "Fusing of " << this->getType() << " operation is not implemented";
 }
 
@@ -1192,7 +1193,7 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
             if (i == fusingPort)
                 continue;
             auto& weightShape = getInputShapeAtPort(i).getDims();
-            if (getParentEdgesAtPort(i)[0]->getParent()->getChildEdges().size() != 1 || !isPerTensorOrPerChannelBroadcastable(dataShape, weightShape))
+            if (getParentEdgesAtPort(i)[0]->getParent()->getChildEdges().size() != 1 || !isPerTensorOrPerChannelBroadcastable(dataShape, weightShape, true))
                 return false;
         }
         return true;
@@ -1211,6 +1212,100 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
 
     return (one_of(getAlgorithm(), EltwiseAdd, EltwiseMultiply, EltwiseSubtract, EltwiseDivide, EltwisePrelu, EltwiseMulAdd) && isBroadcastableToDataInput())
             || isConvertablePowerStatic();
+}
+
+std::pair<std::vector<float>, std::vector<float>> MKLDNNNode::getScalesAndShifts(const MKLDNNNode *parentNode) const {
+    std::vector<float> scales, shifts;
+
+    const auto fillValuesFrom = [&](const MKLDNNNodePtr& constInput, std::vector<float>& buffer) {
+        auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(constInput.get());
+        auto constBlob = constInputNode->getMemoryPtr();
+        const auto elementsCount = constBlob->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+        buffer.resize(elementsCount);
+        cpu_convert(constBlob->GetPtr(),
+                    &buffer[0],
+                    MKLDNNExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
+                    Precision::FP32,
+                    elementsCount);
+    };
+
+    const auto constPort = getParentEdgesAtPort(0)[0]->getParent().get() == parentNode ? 1 : 0;
+
+    if (one_of(getAlgorithm(), EltwiseMultiply, EltwiseDivide, EltwisePrelu)) {
+        fillValuesFrom(getParentEdgesAtPort(constPort)[0]->getParent(), scales);
+    } else if (one_of(getAlgorithm(), EltwiseAdd, EltwiseSubtract)) {
+        fillValuesFrom(getParentEdgesAtPort(constPort)[0]->getParent(), shifts);
+    } else if (one_of(getAlgorithm(), EltwiseMulAdd)) {
+        fillValuesFrom(getParentEdgesAtPort(1)[0]->getParent(), scales);
+        fillValuesFrom(getParentEdgesAtPort(2)[0]->getParent(), shifts);
+    } else if (one_of(getAlgorithm(), EltwisePowerStatic)) {
+        const auto power = dynamic_cast<const MKLDNNEltwiseNode *>(this);
+        if (!power) {
+            IE_THROW() << "Cannot cast " << getName() << " to MKLDNNEltwiseNode";
+        }
+        scales.push_back(power->getBeta());
+        shifts.push_back(power->getGamma());
+    } else {
+        IE_THROW() << "Can't fill scale and shifts for node: " << getName() << " with type: " << NameFromType(getType());
+    }
+
+    switch (getAlgorithm()) {
+        case EltwiseAdd: {
+            scales.resize(shifts.size(), 1.0f);
+            break;
+        }
+        case EltwiseSubtract: {
+            scales.resize(shifts.size(), 1.0f);
+            std::transform(shifts.begin(), shifts.end(), shifts.begin(), [](float shift){ return -1.0f * shift; });
+            break;
+        }
+        case EltwiseMultiply: {
+            shifts.resize(scales.size(), 0.0f);
+            break;
+        }
+        case EltwiseDivide: {
+            shifts.resize(scales.size(), 0.0f);
+            std::transform(scales.begin(), scales.end(), scales.begin(), [](float scale){ return 1.0f / scale; });
+            break;
+        }
+        default: break;
+    }
+
+    return {scales, shifts};
+}
+
+std::pair<std::vector<float>, std::vector<float>> MKLDNNNode::getAlignedScalesAndShifts(const VectorDims &postOpDims,
+                                                                                        const std::vector<float> &scales,
+                                                                                        const std::vector<float> &shifts,
+                                                                                        int align) {
+    if (scales.empty() || shifts.empty()) {
+        IE_THROW() << "Can't align scales and shifts, becuase one of this buffers is empty";
+    }
+
+    auto alignmentScales = scales;
+    auto alignmentShifts = shifts;
+
+    const size_t bufferSize = static_cast<size_t>(postOpDims[postOpDims.size() > 1 ? 1 : 0]);
+    if (align == -1) {
+        align = bufferSize;
+    }
+    const size_t bufferSizeAligned = rnd_up(bufferSize, align);
+
+    if (scales.size() > 0) {
+        alignmentScales.resize(bufferSizeAligned, 0);
+        if (scales.size() == 1) {
+            std::fill(alignmentScales.begin() + 1, alignmentScales.begin() + bufferSize, scales[0]);
+        }
+    }
+
+    if (shifts.size() > 0) {
+        alignmentShifts.resize(bufferSizeAligned, 0);
+        if (shifts.size() == 1) {
+            std::fill(alignmentShifts.begin() + 1, alignmentShifts.begin() + bufferSize, shifts[0]);
+        }
+    }
+
+    return {alignmentScales, alignmentShifts};
 }
 
 bool MKLDNNNode::inputShapesDefined() const {

@@ -191,7 +191,7 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
             // no need to fill post ops dims for fq, make sense only for bin fq
-            fakeQuantizeNode->appendPostOps(ops, VectorDims{}, initAsBinary, initBinaryMemory);
+            fakeQuantizeNode->appendPostOps(ops, VectorDims{}, -1, initAsBinary, initBinaryMemory);
             if (initBinaryMemory) {
                 if (fakeQuantizeNode->cropHighMemory)
                     binaryPostOpsArgs.push_back(fakeQuantizeNode->cropHighMemory->GetPrimitive());
@@ -212,7 +212,8 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
             // TODO [DS]: change to shape from memory
-            eltwiseNode->appendPostOps(ops, getPerChannelBroadcastedDims(getOutputShapeAtPort(0).getStaticDims()), initAsBinary, initBinaryMemory);
+            constexpr int align = 16;
+            eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), align, initAsBinary, initBinaryMemory);
             if (initBinaryMemory) {
                 if (eltwiseNode->scalesMemory)
                     binaryPostOpsArgs.push_back(eltwiseNode->scalesMemory->GetPrimitive());

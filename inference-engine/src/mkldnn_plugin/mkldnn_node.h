@@ -556,6 +556,32 @@ public:
         return outputShapes[port];
     }
 
+    /**
+    * @brief Return scales and shift if nodes can be executed as ScaleShift, else raise exception
+    * If node has only scale or shift value, fill missing value with default values
+    * i.e. EltwiseAdd: fill shifts from constant, fill scales with default values = 1.0f
+    * @param parentNode
+    * node from which data comes 
+    * @return pair scales and shifts
+    */
+    std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const MKLDNNNode *parentNode) const;
+    /**
+    * @brief Return aligned scales and shift by postOpDims[C] dimension
+    * @param postOpDims
+    * dims from which get postOpDims[C] dimension
+    * @param scales
+    * scales to be aligned
+    * @param shifts
+    * shifts to be aligned
+    * @param align
+    * alignment for postOpDims[C]
+    * @return pair scales and shifts
+    */
+    static std::pair<std::vector<float>, std::vector<float>> getAlignedScalesAndShifts(const VectorDims &postOpDims,
+                                                                                       const std::vector<float> &scales,
+                                                                                       const std::vector<float> &shifts,
+                                                                                       int align = -1);
+
 protected:
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
 
@@ -576,7 +602,7 @@ protected:
      * Seed node should call this routine and pass its post operations list as parameter.
      * @param ops List of fused post operations
      */
-    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, bool initAsBinary = false, bool initBinaryMemory = false);
+    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align = -1, bool initAsBinary = false, bool initBinaryMemory = false);
     virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() const { return nullptr; }
 
     typedef std::function<DnnlMemoryDescPtr (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>

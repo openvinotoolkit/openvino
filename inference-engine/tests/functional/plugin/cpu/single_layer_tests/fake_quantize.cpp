@@ -54,7 +54,9 @@ public:
         std::tie(inDataLowBounds, inDataHighBounds, outputLow, outputHigh, levels) = fqParams;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str(inputShapes) << "_";
+        if (!inputShapes.empty()) {
+            result << "IS=" << CommonTestUtils::partialShape2str(inputShapes) << "_";
+        }
         result << "TS=";
         for (const auto& shape : targetShapes) {
             result << "(" << CommonTestUtils::vec2str(shape) << ")_";
@@ -151,6 +153,7 @@ private:
 };
 
 TEST_P(FakeQuantizeLayerCPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Run();
 
     CheckPluginRelatedResults(executableNetwork, layerName);
@@ -318,8 +321,7 @@ const auto testParamsBin4D = ::testing::Combine(specificParamsBin,
                                                  ::testing::Values(false),
                                                  ::testing::Values(CPUSpecificParams()));
 
-// TODO mandrono: enable
-// INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_4D_bin, FakeQuantizeLayerCPUTest, testParamsBin4D, FakeQuantizeLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_4D_bin, FakeQuantizeLayerCPUTest, testParamsBin4D, FakeQuantizeLayerCPUTest::getTestCaseName);
 
 } // namespace fqImpl
 
@@ -411,12 +413,6 @@ std::vector<inferShapes> decomposeShapes = {
         {{8, 4, 5, 6, 7}, {1, 1, 5, 6, 7}, {1, 1, 1, 6, 7}},
         {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 1, 1}, {1, 1, 1, 1}}
     },
-    // fix accuracy
-    // inferShapes{
-    //     {},
-    //     {{4, 5, 6, 7}},
-    //     {{1, 1, 6, 1}, {1, 5, 6, 1}, {1, 1, 1, 1}, {1, 1, 6, 1}}
-    // },
 };
 
 const auto testParams = ::testing::Combine(specificParams,

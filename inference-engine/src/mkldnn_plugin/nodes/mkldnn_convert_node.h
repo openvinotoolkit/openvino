@@ -21,6 +21,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
     bool created() const override;
     bool canBeInPlace() const override {
         return false;

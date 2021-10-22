@@ -80,6 +80,7 @@ public:
     void createPrimitive() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
     bool canBeInPlace() const override {
         return false;
     }
@@ -97,32 +98,6 @@ public:
     void prepareParams() override;
 
 private:
-    struct MvnPrim {
-        virtual void exec(const jit_mvn_call_args &args) = 0;
-        virtual const jit_mvn_config_params& getJcp() const = 0;
-    };
-    using primPtr = std::shared_ptr<MvnPrim>;
-    primPtr pPrim = nullptr;
-
-    struct MvnKerPrim : public MvnPrim {
-        MvnKerPrim(const jit_mvn_config_params &_jcp, const mkldnn_primitive_attr &_attr);
-        void exec(const jit_mvn_call_args &args) override;
-        const jit_mvn_config_params& getJcp() const override;
-
-        std::shared_ptr<jit_uni_mvn_kernel> pKernel;
-    };
-
-    struct MvnMeanVarPrim : public MvnPrim {
-        MvnMeanVarPrim(const jit_mvn_config_params &_jcp);
-        void exec(const jit_mvn_call_args &args) override;
-        const jit_mvn_config_params& getJcp() const override;
-
-        std::shared_ptr<jit_uni_mvn_mean_variance_kernel> pKernel;
-    };
-
-    enum { KER, MEAN, VAR, KER_NUM };
-    primPtr primitives[KER_NUM] = { nullptr, nullptr, nullptr };
-
     void mvn_pln(const uint8_t *src_data, uint8_t *dst_data);
 
     void mvn_blk(const uint8_t *src_data, uint8_t *dst_data);
@@ -150,6 +125,10 @@ private:
     size_t src_data_size, dst_data_size;
 
     mkldnn::primitive_attr attr;
+
+    std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_mean_kernel;
+    std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_variance_kernel;
+    std::shared_ptr<jit_uni_mvn_kernel> mvn_kernel;
 };
 
 }  // namespace MKLDNNPlugin

@@ -46,7 +46,9 @@ public:
         std::tie(inputShapes, netPrecision, axes, acrossChanels, normalizeVariance, eps) = basicParamsSet;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str(inputShapes.first) << "_";
+        if (!inputShapes.first.empty()) {
+            result << "IS=" << CommonTestUtils::partialShape2str(inputShapes.first) << "_";
+        }
         result << "TS=";
         for (const auto& shape : inputShapes.second) {
             result << "(" << CommonTestUtils::vec2str(shape) << ")_";

@@ -15,8 +15,9 @@ namespace CPULayerTestsDefinitions {
 using convertLayerShapeDefinition = std::pair<std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>>;
 
 using convertLayerTestParamsSet = std::tuple<convertLayerShapeDefinition,  // input shapes
-                                        InferenceEngine::Precision,   // input precision
-                                        InferenceEngine::Precision>;  // output precision
+                                        InferenceEngine::Precision,        // input precision
+                                        InferenceEngine::Precision,        // output precision
+                                        CPUSpecificParams>;
 
 class ConvertCPULayerTest : public testing::WithParamInterface<convertLayerTestParamsSet>,
                             virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
@@ -24,16 +25,20 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<convertLayerTestParamsSet> obj) {
         convertLayerShapeDefinition shapes;
         InferenceEngine::Precision inPrc, outPrc;
-        std::tie(shapes, inPrc, outPrc) = obj.param;
+        CPUSpecificParams cpuParams;
+        std::tie(shapes, inPrc, outPrc, cpuParams) = obj.param;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str(shapes.first) << "_";
+        if (!shapes.first.empty()) {
+            result << "IS=" << CommonTestUtils::partialShape2str(shapes.first) << "_";
+        }
         result << "TS=";
         for (const auto& shape : shapes.second) {
             result << CommonTestUtils::vec2str(shape) << "_";
         }
         result << "inputPRC=" << inPrc.name() << "_";
         result << "targetPRC=" << outPrc.name() << "_";
+        result << CPUTestsBase::getTestCaseName(cpuParams);
 
         return result.str();
     }
@@ -44,7 +49,10 @@ protected:
 
         convertLayerShapeDefinition shapes;
         InferenceEngine::Precision inPrc, outPrc;
-        std::tie(shapes, inPrc, outPrc) = GetParam();
+        CPUSpecificParams cpuParams;
+        std::tie(shapes, inPrc, outPrc, cpuParams) = GetParam();
+
+        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         selectedType = std::string("unknown_") + (inPrc == InferenceEngine::Precision::U8 ? "I8" : inPrc.name());
 
@@ -57,6 +65,8 @@ protected:
         auto targetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
         auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShapes[0][0]});
         auto conversion = ngraph::builder::makeConversion(params.front(), targetPrc, helpers::ConversionTypes::CONVERT);
+
+        conversion->get_rt_info() = getCPUInfo();
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(conversion)};
         function = std::make_shared<ngraph::Function>(results, params, "ConversionCPU");
@@ -94,11 +104,19 @@ const std::vector<Precision> precisions = {
         Precision::BF16
 };
 
+std::vector<CPUSpecificParams> memForm4D = {
+        CPUSpecificParams({nchw}, {nchw}, {}, {}),
+        CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
+        CPUSpecificParams({nChw8c}, {nChw8c}, {}, {}),
+        CPUSpecificParams({nChw16c}, {nChw16c}, {}, {})
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest, ConvertCPULayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes_4D),
                                 ::testing::ValuesIn(precisions),
-                                ::testing::ValuesIn(precisions)),
+                                ::testing::ValuesIn(precisions),
+                                ::testing::ValuesIn(memForm4D)),
                         ConvertCPULayerTest::getTestCaseName);
 
 } // namespace CPULayerTestsDefinitions

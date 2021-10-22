@@ -124,10 +124,6 @@ void MKLDNNSelectNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNSelectNode::prepareParams() {
-    if (!inputShapesDefined()) {
-        IE_THROW() << "Can't prepare params for eltwise node with name: " << getName();
-    }
-
     const auto &_conditionDims = getParentEdgesAtPort(CONDITION)[0]->getMemory().getStaticDims();
     const auto &_thenDims = getParentEdgesAtPort(THEN)[0]->getMemory().getStaticDims();
     const auto &_elseDims = getParentEdgesAtPort(ELSE)[0]->getMemory().getStaticDims();

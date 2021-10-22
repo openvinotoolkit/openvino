@@ -813,7 +813,7 @@ void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr &attr, bool initWe
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
             // TODO [DS]: change to shape from memory
-            eltwiseNode->appendPostOps(ops, getPerChannelBroadcastedDims(getOutputShapeAtPort(0).getStaticDims()));
+            eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims());
             continue;
         }
 

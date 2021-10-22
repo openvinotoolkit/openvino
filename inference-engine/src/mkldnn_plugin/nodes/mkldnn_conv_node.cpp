@@ -329,6 +329,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
 void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false, bool initAsBinary = false) {
     bool initBinaryMemory = initWeights;
     mkldnn::post_ops ops;
+    constexpr int align = -1;
 
     for (auto &node : fusedWith) {
         if (node->getType() == Split || node->getType() == Concatenation)
@@ -339,7 +340,7 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
             if (eltwiseNode->isSpecialConvolutionAddFusing()) {
                 ops.append_sum(1.0, MKLDNNExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
             } else {
-                eltwiseNode->appendPostOps(ops, getPerChannelBroadcastedDims(getOutputShapeAtPort(0).getStaticDims()), initAsBinary, initBinaryMemory);
+                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), align, initAsBinary, initBinaryMemory);
                 if (initBinaryMemory) {
                     if (eltwiseNode->scalesMemory)
                         binaryPostOpsArgs.push_back(eltwiseNode->scalesMemory->GetPrimitive());
@@ -353,7 +354,7 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
             // no need to fill post ops dims for fq, make sense only for bin fq
-            fakeQuantizeNode->appendPostOps(ops, VectorDims{}, initAsBinary, initBinaryMemory);
+            fakeQuantizeNode->appendPostOps(ops, VectorDims{}, align, initAsBinary, initBinaryMemory);
             if (initBinaryMemory) {
                 if (fakeQuantizeNode->cropHighMemory)
                     binaryPostOpsArgs.push_back(fakeQuantizeNode->cropHighMemory->GetPrimitive());

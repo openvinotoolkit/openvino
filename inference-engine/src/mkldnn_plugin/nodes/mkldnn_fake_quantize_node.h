@@ -73,6 +73,7 @@ public:
     void createPrimitive() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
 
     size_t getAxis() const { return axis; }
 
@@ -120,7 +121,8 @@ public:
     InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
     InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
 
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims = {}, bool initAsBinary = false, bool initBinaryMemory = false) override;
+    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims = {}, int align = -1, bool initAsBinary = false,
+                       bool initBinaryMemory = false) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -134,7 +136,6 @@ public:
 private:
     struct FakeQuantizeExecutor {
         virtual void exec(const MKLDNNFakeQuantizeNode& node) = 0;
-        virtual const jit_quantize_params& getJqp() const = 0;
         virtual ~FakeQuantizeExecutor() = default;
     };
     using executorPtr = std::shared_ptr<FakeQuantizeExecutor>;
@@ -143,15 +144,14 @@ private:
     struct FakeQuantizeJitExecutor : public FakeQuantizeExecutor {
         FakeQuantizeJitExecutor(const jit_quantize_params &_jqp);
         void exec(const MKLDNNFakeQuantizeNode& node) override;
-        const jit_quantize_params& getJqp() const override;
-        std::shared_ptr<jit_uni_quantize_kernel> pKernel;
+        std::unique_ptr<jit_uni_quantize_kernel> pKernel;
     };
 
     void init() override;
     std::vector<LayoutType> getDataFormats() const;
     void executeReference();
-    void executeBinarization(const std::shared_ptr<jit_uni_quantize_kernel> &pKernel) const;
-    void executeQuantization(const std::shared_ptr<jit_uni_quantize_kernel> &pKernel) const;
+    void executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const;
+    void executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const;
 
     size_t levels = 0;
 
@@ -188,7 +188,6 @@ private:
     bool isOutputLowBroadcasted = false;
     bool isOutputHighBroadcasted = false;
 
-    VectorDims currentInBlkDims;
     size_t currentAxisSize = 0;
     size_t axis = 0;
 
