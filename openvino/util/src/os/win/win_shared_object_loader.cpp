@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_common.h"
-#include "details/ie_so_loader.h"
-#include "file_utils.h"
-#include "shared_object.hpp"
+#include <sstream>
+
+#include "openvino/util/file_util.hpp"
+#include "openvino/util/shared_object.hpp"
 
 //
 // LoadLibraryA, LoadLibraryW:
@@ -58,23 +58,24 @@
 //
 
 #if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
-# error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibrary[A|W]"
+#    error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibrary[A|W]"
 #endif
 
-#include <mutex>
 #include <direct.h>
 
+#include <mutex>
+
 #ifndef NOMINMAX
-# define NOMINMAX
+#    define NOMINMAX
 #endif
 
 #include <windows.h>
 
 namespace ov {
-namespace runtime {
+namespace util {
 std::shared_ptr<void> load_shared_object(const char* path) {
     void* shared_object = nullptr;
-    using GetDllDirectoryA_Fnc = DWORD(*)(DWORD, LPSTR);
+    using GetDllDirectoryA_Fnc = DWORD (*)(DWORD, LPSTR);
     GetDllDirectoryA_Fnc IEGetDllDirectoryA = nullptr;
     if (HMODULE hm = GetModuleHandleW(L"kernel32.dll")) {
         IEGetDllDirectoryA = reinterpret_cast<GetDllDirectoryA_Fnc>(GetProcAddress(hm, "GetDllDirectoryA"));
@@ -99,7 +100,7 @@ std::shared_ptr<void> load_shared_object(const char* path) {
             std::string original(path);
             original[pos - path] = 0;
             return original;
-        } ();
+        }();
 
         SetDllDirectoryA(dirname.c_str());
         shared_object = LoadLibraryA(path);
@@ -113,11 +114,11 @@ std::shared_ptr<void> load_shared_object(const char* path) {
 
     if (!shared_object) {
         char cwd[1024];
-        IE_THROW() << "Cannot load library '" << path << "': " << GetLastError()
-            << " from cwd: " << _getcwd(cwd, sizeof(cwd));
+        std::stringstream ss;
+        ss << "Cannot load library '" << path << "': " << GetLastError() << " from cwd: " << _getcwd(cwd, sizeof(cwd));
+        throw std::runtime_error(ss.str());
     }
-    return {shared_object,
-            [] (void* shared_object) {
+    return {shared_object, [](void* shared_object) {
                 FreeLibrary(reinterpret_cast<HMODULE>(shared_object));
             }};
 }
@@ -125,13 +126,13 @@ std::shared_ptr<void> load_shared_object(const char* path) {
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<void> load_shared_object(const wchar_t* path) {
     void* shared_object = nullptr;
-    using GetDllDirectoryW_Fnc = DWORD(*)(DWORD, LPWSTR);
+    using GetDllDirectoryW_Fnc = DWORD (*)(DWORD, LPWSTR);
     static GetDllDirectoryW_Fnc IEGetDllDirectoryW = nullptr;
     if (HMODULE hm = GetModuleHandleW(L"kernel32.dll")) {
         IEGetDllDirectoryW = reinterpret_cast<GetDllDirectoryW_Fnc>(GetProcAddress(hm, "GetDllDirectoryW"));
     }
     // ExcludeCurrentDirectory
-#if !WINAPI_PARTITION_SYSTEM
+#    if !WINAPI_PARTITION_SYSTEM
     if (IEGetDllDirectoryW && IEGetDllDirectoryW(0, NULL) <= 1) {
         SetDllDirectoryW(L"");
     }
@@ -147,23 +148,24 @@ std::shared_ptr<void> load_shared_object(const wchar_t* path) {
             std::wstring original(path);
             original[pos - path] = 0;
             return original;
-        } ();
+        }();
         SetDllDirectoryW(dirname.c_str());
         shared_object = LoadLibraryW(path);
 
         SetDllDirectoryW(&lpBuffer.front());
     }
-#endif
+#    endif
     if (!shared_object) {
         shared_object = LoadLibraryW(path);
     }
     if (!shared_object) {
         char cwd[1024];
-        IE_THROW() << "Cannot load library '" << ov::util::wstring_to_string(std::wstring(path)) << "': " << GetLastError()
-                            << " from cwd: " << _getcwd(cwd, sizeof(cwd));
+        std::stringstream ss;
+        ss << "Cannot load library '" << ov::util::wstring_to_string(std::wstring(path)) << "': " << GetLastError()
+           << " from cwd: " << _getcwd(cwd, sizeof(cwd));
+        throw std::runtime_error(ss.str());
     }
-    return {shared_object,
-            [] (void* shared_object) {
+    return {shared_object, [](void* shared_object) {
                 FreeLibrary(reinterpret_cast<HMODULE>(shared_object));
             }};
 }
@@ -171,62 +173,18 @@ std::shared_ptr<void> load_shared_object(const wchar_t* path) {
 
 void* get_symbol(const std::shared_ptr<void>& shared_object, const char* symbol_name) {
     if (!shared_object) {
-        IE_THROW() << "Cannot get '" << symbol_name << "' content from unknown library!";
+        std::stringstream ss;
+        ss << "Cannot get '" << symbol_name << "' content from unknown library!";
+        throw std::runtime_error(ss.str());
     }
-    auto procAddr = reinterpret_cast<void*>(GetProcAddress(
-        reinterpret_cast<HMODULE>(const_cast<void*>(shared_object.get())), symbol_name));
+    auto procAddr = reinterpret_cast<void*>(
+        GetProcAddress(reinterpret_cast<HMODULE>(const_cast<void*>(shared_object.get())), symbol_name));
     if (procAddr == nullptr) {
-        IE_THROW(NotFound)
-            << "GetProcAddress cannot locate method '" << symbol_name << "': " << GetLastError();
+        std::stringstream ss;
+        ss << "GetProcAddress cannot locate method '" << symbol_name << "': " << GetLastError();
+        throw std::runtime_error(ss.str());
     }
     return procAddr;
 }
-}  // namespace runtime
+}  // namespace util
 }  // namespace ov
-
-namespace InferenceEngine {
-namespace details {
-struct SharedObjectLoader::Impl {
-    std::shared_ptr<void> shared_object = nullptr;
-
-    explicit Impl(const std::shared_ptr<void>& shared_object_) : shared_object{shared_object_} {}
-
-    explicit Impl(const char* pluginName) : shared_object{ov::runtime::load_shared_object(pluginName)} {}
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    explicit Impl(const wchar_t* pluginName) : shared_object{ov::runtime::load_shared_object(pluginName)} {}
-#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
-    void* get_symbol(const char* symbolName) const {
-        return ov::runtime::get_symbol(shared_object, symbolName);
-    }
-};
-
-SharedObjectLoader::SharedObjectLoader(const std::shared_ptr<void>& shared_object) {
-    _impl.reset(new Impl(shared_object));
-}
-
-SharedObjectLoader::~SharedObjectLoader() {}
-
-SharedObjectLoader::SharedObjectLoader(const char * pluginName) {
-    _impl = std::make_shared<Impl>(pluginName);
-}
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName) {
-    _impl = std::make_shared<Impl>(pluginName);
-}
-#endif
-
-void* SharedObjectLoader::get_symbol(const char* symbolName) const {
-    if (_impl == nullptr) {
-        IE_THROW(NotAllocated) << "SharedObjectLoader is not initialized";
-    }
-    return _impl->get_symbol(symbolName);
-}
-
-std::shared_ptr<void> SharedObjectLoader::get() const {
-    return _impl->shared_object;
-}
-
-}  // namespace details
-}  // namespace InferenceEngine

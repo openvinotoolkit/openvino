@@ -155,6 +155,7 @@ public:
     void add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_width);
     void add_convert_layout_impl(const Layout& layout);
     void add_convert_color_impl(const ColorFormat& dst_format);
+    void add_reverse_channels();
 
     const std::list<InternalPreprocessOp>& actions() const {
         return m_actions;
@@ -162,6 +163,11 @@ public:
     std::list<InternalPreprocessOp>& actions() {
         return m_actions;
     }
+
+private:
+    static std::tuple<std::vector<Output<Node>>, bool> reverse_channels(const std::vector<Output<Node>>& nodes,
+                                                                        const std::shared_ptr<Function>& function,
+                                                                        PreprocessingContext& context);
 
 private:
     std::list<InternalPreprocessOp> m_actions;
