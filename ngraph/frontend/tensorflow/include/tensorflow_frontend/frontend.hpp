@@ -10,7 +10,6 @@
 #include <map>
 #include <openvino/core/node_vector.hpp>
 #include <openvino/core/variant.hpp>
-#include <tensorflow_frontend/model.hpp>
 #include <tensorflow_frontend/utility.hpp>
 
 namespace ov {
@@ -74,7 +73,7 @@ protected:
         const std::vector<std::shared_ptr<ov::Variant>>& variants) const override;
 
 private:
-    void translate_graph(const std::shared_ptr<InputModelTF>& model,
+    void translate_graph(const ngraph::frontend::InputModel::Ptr& model,
                          const std::string& model_name,
                          bool fail_fast,
                          bool no_conversion,

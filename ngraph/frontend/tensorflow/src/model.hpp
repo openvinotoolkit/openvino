@@ -7,7 +7,6 @@
 #include <frontend_manager/input_model.hpp>
 #include <frontend_manager/place.hpp>
 #include <tensorflow_frontend/graph_iterator.hpp>
-#include <tensorflow_frontend/utility.hpp>
 
 namespace ov {
 namespace frontend {
@@ -15,7 +14,7 @@ namespace frontend {
 class OpPlaceTF;
 class TensorPlaceTF;
 
-class TF_API InputModelTF : public ngraph::frontend::InputModel {
+class InputModelTF : public ngraph::frontend::InputModel {
     friend class FrontEndTF;
     class InputModelTFImpl;
     std::shared_ptr<InputModelTFImpl> _impl;

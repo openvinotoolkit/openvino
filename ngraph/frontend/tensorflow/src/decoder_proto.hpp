@@ -7,8 +7,6 @@
 #include <ngraph/ngraph.hpp>
 #include <string>
 #include <tensorflow_frontend/decoder.hpp>
-#include <tensorflow_frontend/frontend.hpp>
-#include <tensorflow_frontend/place.hpp>
 #include <vector>
 
 #include "attr_value.pb.h"

@@ -4,8 +4,9 @@
 
 #include <openvino/util/common_util.hpp>
 #include <tensorflow_frontend/frontend.hpp>
-#include <tensorflow_frontend/model.hpp>
+#include <tensorflow_frontend/graph_iterator.hpp>
 
+#include "model.hpp"
 #include "op_table.hpp"
 #include "pass/transpose_sinking.hpp"
 #include "tf_framework_node.hpp"
@@ -47,7 +48,7 @@ void translate_framework_node(const std::shared_ptr<TFFrameworkNode>& node,
 
 FrontEndTF::FrontEndTF() : m_op_translators(tf::op::get_supported_ops()) {}
 
-void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
+void FrontEndTF::translate_graph(const ngraph::frontend::InputModel::Ptr& model,
                                  const std::string& model_name,
                                  bool fail_fast,
                                  bool no_conversion,
@@ -57,10 +58,12 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
 
     ov::ParameterVector params;
     ov::ResultVector results;
-    const auto& operation_places = model->get_op_places();
-    const auto& model_inputs = model->get_inputs();
-    const auto& model_outputs = model->get_outputs();
-    const auto& model_frozen_inputs = model->get_tensor_values();
+    const auto& model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
+    FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into nGraph function");
+    const auto& operation_places = model_tf->get_op_places();
+    const auto& model_inputs = model_tf->get_inputs();
+    const auto& model_outputs = model_tf->get_outputs();
+    const auto& model_frozen_inputs = model_tf->get_tensor_values();
 
     std::map<const std::string, const std::function<ov::OutputVector(const NodeContext&)>> translate_map;
 
@@ -282,6 +285,8 @@ bool FrontEndTF::supported_impl(const std::vector<std::shared_ptr<ov::Variant>>&
         if (ov::util::ends_with(model_path, suffix.c_str())) {
             return true;
         }
+    } else if (ov::is_type<VariantWrapper<GraphIterator::Ptr>>(variants[0])) {
+        return true;
     }
     return false;
 }
@@ -298,6 +303,9 @@ ngraph::frontend::InputModel::Ptr FrontEndTF::load_impl(
                 return std::make_shared<InputModelTF>(
                     std::make_shared<::ov::frontend::tf::GraphIteratorProto>(model_path));
             }
+        } else if (ov::is_type<VariantWrapper<GraphIterator::Ptr>>(variants[0])) {
+            auto graph_iterator = ov::as_type_ptr<VariantWrapper<GraphIterator::Ptr>>(variants[0])->get();
+            return std::make_shared<InputModelTF>(graph_iterator);
         }
     }
     return nullptr;
