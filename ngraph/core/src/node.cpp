@@ -151,16 +151,6 @@ void ov::Node::set_arguments(const NodeVector& arguments) {
     set_arguments(outputs);
 }
 
-void ov::Node::set_arguments(const ConstNodeVector& arguments) {
-    ConstOutputVector outputs;
-    for (const auto& arg : arguments) {
-        for (auto& output : arg->outputs()) {
-            outputs.push_back(output);
-        }
-    }
-    set_arguments(outputs);
-}
-
 void ov::Node::set_arguments(const OutputVector& arguments) {
     // Remove existing inputs of this node
     m_inputs.clear();
@@ -169,19 +159,6 @@ void ov::Node::set_arguments(const OutputVector& arguments) {
     size_t i = 0;
     for (auto& output : arguments) {
         auto output_node = output.get_node();
-        auto& output_descriptor = output_node->m_outputs.at(output.get_index());
-        m_inputs.emplace_back(this, i++, output_descriptor);
-    }
-}
-
-void ov::Node::set_arguments(const ConstOutputVector& arguments) {
-    // Remove existing inputs of this node
-    m_inputs.clear();
-
-    // Add this node as a user of each argument.
-    size_t i = 0;
-    for (auto& output : arguments) {
-        auto output_node = const_cast<Node*>(output.get_node());
         auto& output_descriptor = output_node->m_outputs.at(output.get_index());
         m_inputs.emplace_back(this, i++, output_descriptor);
     }

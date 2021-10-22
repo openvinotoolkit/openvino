@@ -249,10 +249,8 @@ public:
     }
     /// Sets/replaces the arguments with new arguments.
     void set_arguments(const NodeVector& arguments);
-    void set_arguments(const ConstNodeVector& arguments);
     /// Sets/replaces the arguments with new arguments.
     void set_arguments(const OutputVector& arguments);
-    void set_arguments(const ConstOutputVector& arguments);
     /// Sets/replaces the arguments with new arguments.
     void set_argument(size_t position, const Output<Node>& argument);
 

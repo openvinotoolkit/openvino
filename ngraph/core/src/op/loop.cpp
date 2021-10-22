@@ -285,15 +285,6 @@ bool op::v5::Loop::has_evaluate() const {
 }
 
 void op::v5::Loop::clone_to(op::v5::Loop& dst, const OutputVector& new_args) const {
-    ConstOutputVector args;
-    args.reserve(new_args.size());
-    for (const auto arg : new_args) {
-        args.push_back(Output<const Node>(arg.get_node(), arg.get_index()));
-    }
-    return clone_to(dst, args);
-}
-
-void op::v5::Loop::clone_to(op::v5::Loop& dst, const ConstOutputVector& new_args) const {
     dst.set_arguments(new_args);
     dst.set_output_size(m_output_descriptions.size());
 
@@ -312,7 +303,7 @@ void op::v5::Loop::clone_to(op::v5::Loop& dst, const ConstOutputVector& new_args
 }
 
 op::v5::Loop::Loop(const op::v5::Loop& other) : SubGraphOp() {
-    other.clone_to(*this, other.input_values());
+    other.clone_to(*this, const_cast<op::v5::Loop&>(other).input_values());
 }
 
 BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>);

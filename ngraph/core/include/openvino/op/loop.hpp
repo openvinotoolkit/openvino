@@ -71,7 +71,6 @@ protected:
 
 private:
     void clone_to(Loop& dst, const OutputVector& new_args) const;
-    void clone_to(Loop& dst, const ConstOutputVector& new_args) const;
 
     SpecialBodyPorts m_special_body_ports;
 };
