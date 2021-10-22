@@ -22,7 +22,13 @@ public:
 
     bool run_on_function(std::shared_ptr<ov::Function> f) override;
 
-    Hash(std::size_t& hash);
+    /**
+     * @brief Hash pass constructor
+     *
+     * @param output_hash_value Reference to output value. By applying hash pass on function, resulting hash value
+     * will be set to this variable
+     */
+    Hash(std::size_t& output_hash_value);
 
 private:
     std::size_t& m_hash;

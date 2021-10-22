@@ -161,14 +161,13 @@ protected:
     std::string m_dump;
 };
 
-template <>
-class OPENVINO_API VariantWrapper<Layout> : public VariantImpl<Layout> {
+class OPENVINO_API LayoutAttribute : public VariantImpl<Layout> {
 public:
     OPENVINO_RTTI("layout", "0");
 
-    VariantWrapper() = default;
+    LayoutAttribute() = default;
 
-    explicit VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
+    explicit LayoutAttribute(const Layout& value) : VariantImpl<Layout>(value) {}
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 };

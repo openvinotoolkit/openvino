@@ -308,7 +308,12 @@ TEST(NetworkContext_CNNNetwork, HashWithLayout) {
     auto net2 = createNetworkWithLayout("nchw");
     auto net3 = createNetworkWithLayout("?CHW");
     auto net4 = createNetworkWithLayout("");
-    auto net5 = createNetwork();
+    auto fun5 = create_simple_function();
+    fun5->get_parameters()[0]->set_layout("NCHW");
+    fun5->get_parameters()[0]->set_layout("");
+    fun5->get_results()[0]->set_layout("NHCW");
+    fun5->get_results()[0]->set_layout(ov::Layout());
+    auto net5 = CNNNetwork(fun5);
 
     EXPECT_EQ(NetworkCompilationContext::computeHash(net1, {}),
               NetworkCompilationContext::computeHash(net2, {}));
@@ -319,7 +324,7 @@ TEST(NetworkContext_CNNNetwork, HashWithLayout) {
     EXPECT_NE(NetworkCompilationContext::computeHash(net3, {}),
               NetworkCompilationContext::computeHash(net4, {}));
 
-    EXPECT_NE(NetworkCompilationContext::computeHash(net3, {}),
+    EXPECT_EQ(NetworkCompilationContext::computeHash(net4, {}),
               NetworkCompilationContext::computeHash(net5, {}));
 }
 

@@ -1307,6 +1307,6 @@ bool pass::Hash::run_on_function(std::shared_ptr<ov::Function> f) {
     return false;
 }
 
-pass::Hash::Hash(std::size_t& hash) : m_hash(hash) {}
+pass::Hash::Hash(std::size_t& output_hash_value) : m_hash(hash) {}
 
 }  // namespace ov
