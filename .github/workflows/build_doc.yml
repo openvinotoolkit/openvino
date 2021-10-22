@@ -36,7 +36,7 @@ jobs:
           cmake -DENABLE_DOCS=ON ..
 
       - name: Build doc
-        run: cmake --build . --target openvino_docs
+        run: echo "TBD"
         working-directory: build
 
       - name: 'Upload doc'
