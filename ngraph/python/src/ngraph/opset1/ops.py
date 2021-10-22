@@ -879,7 +879,7 @@ def fake_quantize(
             output = output_high
         else:
             output = fake_quantize(output)
-    
+
     Fake quantize uses the following logic:
 
     .. math::
@@ -1921,7 +1921,7 @@ def prior_box_clustered(
             'clip': False,
             'step_widths': [1.5, 2.0, 2.5]
         }
-    
+
     Optional attributes which are absent from dictionary will be set with corresponding default.
     """
     requirements = [
@@ -2033,7 +2033,7 @@ def prior_box(
             'clip': True,
             'fixed_size': [32, 64, 128]
         }
-    
+
     Optional attributes which are absent from dictionary will be set with corresponding default.
     """
     requirements = [

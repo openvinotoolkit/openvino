@@ -580,7 +580,7 @@ def shuffle_channels(data: Node, axis: int, group: int, name: Optional[str] = No
     For example:
 
     .. code-block:: python
-    
+
         Inputs: tensor of shape [1, 6, 2, 2]
 
                 data = [[[[ 0.,  1.], [ 2.,  3.]],

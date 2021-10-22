@@ -284,7 +284,7 @@ def proposal(
                     Required: no
 
     Example of attribute dictionary:
-    
+
     .. code-block:: python
 
         # just required ones
