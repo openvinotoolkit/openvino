@@ -17,8 +17,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, RandomUniformMulFusing) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, RandomUniformMulFusing) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
         auto min_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.0});
@@ -33,13 +32,9 @@ TEST(TransformationTests, RandomUniformMulFusing) {
         auto mul_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1}, {30.0});
         auto mul = std::make_shared<ngraph::opset8::Multiply>(ru, mul_const);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::RandomUniformFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -53,15 +48,11 @@ TEST(TransformationTests, RandomUniformMulFusing) {
                                                                   100,
                                                                   200);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ru}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ru}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, RandomUniformAddFusing) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, RandomUniformAddFusing) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
         auto min_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.0});
@@ -76,13 +67,9 @@ TEST(TransformationTests, RandomUniformAddFusing) {
         auto add_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1, 1}, {-10.0});
         auto add = std::make_shared<ngraph::opset8::Add>(ru, add_const);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::RandomUniformFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -96,15 +83,11 @@ TEST(TransformationTests, RandomUniformAddFusing) {
                                                                   100,
                                                                   200);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ru}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ru}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, RandomUniformWithConvertMulFusing) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, RandomUniformWithConvertMulFusing) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
         auto min_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.0});
@@ -120,13 +103,9 @@ TEST(TransformationTests, RandomUniformWithConvertMulFusing) {
         auto mul_const = ngraph::opset8::Constant::create(ngraph::element::f16, ngraph::Shape{}, {30.0});
         auto mul = std::make_shared<ngraph::opset8::Multiply>(conv, mul_const);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::RandomUniformFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -142,15 +121,11 @@ TEST(TransformationTests, RandomUniformWithConvertMulFusing) {
                                                                   200);
         auto conv = std::make_shared<ngraph::opset8::Convert>(ru, ngraph::element::f16);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, RandomUniformWithConvertAddFusing) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, RandomUniformWithConvertAddFusing) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
         auto min_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.0});
@@ -166,13 +141,9 @@ TEST(TransformationTests, RandomUniformWithConvertAddFusing) {
         auto add_const = ngraph::opset8::Constant::create(ngraph::element::f16, ngraph::Shape{}, {-10.0});
         auto add = std::make_shared<ngraph::opset8::Add>(conv, add_const);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::RandomUniformFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -188,16 +159,12 @@ TEST(TransformationTests, RandomUniformWithConvertAddFusing) {
                                                                   200);
         auto conv = std::make_shared<ngraph::opset8::Convert>(ru, ngraph::element::f16);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
 
-TEST(TransformationTests, RandomUniformFusingInvalidRUType) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, RandomUniformFusingInvalidRUType) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
         auto min_const = ngraph::opset8::Constant::create(ngraph::element::i32, ngraph::Shape{}, {0});
@@ -212,13 +179,9 @@ TEST(TransformationTests, RandomUniformFusingInvalidRUType) {
         auto mul_const = ngraph::opset8::Constant::create(ngraph::element::i32, ngraph::Shape{}, {30});
         auto mul = std::make_shared<ngraph::opset8::Multiply>(ru, mul_const);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::RandomUniformFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -235,16 +198,12 @@ TEST(TransformationTests, RandomUniformFusingInvalidRUType) {
         auto mul_const = ngraph::opset8::Constant::create(ngraph::element::i32, ngraph::Shape{}, {30});
         auto mul = std::make_shared<ngraph::opset8::Multiply>(ru, mul_const);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
 
-TEST(TransformationTests, RandomUniformFusingInvalidConstShape) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, RandomUniformFusingInvalidConstShape) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
         auto min_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.0});
@@ -259,13 +218,9 @@ TEST(TransformationTests, RandomUniformFusingInvalidConstShape) {
         auto mul_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {30, 20, 15});
         auto mul = std::make_shared<ngraph::opset8::Multiply>(ru, mul_const);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::RandomUniformFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -282,9 +237,6 @@ TEST(TransformationTests, RandomUniformFusingInvalidConstShape) {
         auto mul_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {30, 20, 15});
         auto mul = std::make_shared<ngraph::opset8::Multiply>(ru, mul_const);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
