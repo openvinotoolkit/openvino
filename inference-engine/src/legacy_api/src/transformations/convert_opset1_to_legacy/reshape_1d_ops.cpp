@@ -106,6 +106,8 @@ std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<opset1:
                                              node->get_auto_pad());
 }
 
+namespace {
+
 matcher_pass_callback get_callback() {
     return [](pattern::Matcher& m) {
         auto node = m.get_match_root();
@@ -148,6 +150,8 @@ matcher_pass_callback get_callback() {
         return true;
     };
 }
+
+} // namespace
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DOps, "Reshape1DOps", 0);
 

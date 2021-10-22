@@ -98,6 +98,7 @@ std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data,
                                              node->get_auto_pad());
 }
 
+namespace {
 ngraph::matcher_pass_callback get_callback() {
     return [](ngraph::pattern::Matcher& m) {
         auto node = m.get_match_root();
@@ -177,6 +178,7 @@ ngraph::matcher_pass_callback get_callback() {
         return true;
     };
 }
+} // namespace
 } // namespace Reshape1DOps
 
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::Reshape1DConvolution, "Reshape1DConvolution", 0);

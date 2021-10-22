@@ -37,11 +37,10 @@ namespace InferenceEngine {
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class InferencePlugin {
+struct InferencePlugin {
     std::shared_ptr<void> _so;
     std::shared_ptr<InferenceEngine::IInferencePlugin> _ptr;
 
-public:
     void SetName(const std::string & deviceName) {
         PLUGIN_CALL_STATEMENT(_ptr->SetName(deviceName));
     }
