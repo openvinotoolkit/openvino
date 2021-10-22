@@ -146,9 +146,10 @@ TEST(opset, opset8_dump) {
 
 class MyOpOld : public ov::op::Op {
 public:
-    OPENVINO_RTTI("MyOpOld", "custom_opset");
-    BWDCMP_RTTI_DECLARATION;
-
+    static constexpr ov::DiscreteTypeInfo type_info{"MyOpOld", 0};
+    const ov::DiscreteTypeInfo& get_type_info() const override {
+        return type_info;
+    }
     MyOpOld() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
@@ -156,7 +157,7 @@ public:
     }
 };
 
-BWDCMP_RTTI_DEFINITION(MyOpOld);
+constexpr ov::DiscreteTypeInfo MyOpOld::type_info;
 
 class MyOpNewFromOld : public MyOpOld {
 public:
@@ -183,7 +184,7 @@ public:
 
 class MyOpNew : public ov::op::Op {
 public:
-    OPENVINO_OP("MyOpNew", "custom_opset");
+    OPENVINO_OP("MyOpNew", "custom_opset", MyOpOld);
     MyOpNew() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
