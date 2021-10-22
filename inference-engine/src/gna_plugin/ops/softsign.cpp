@@ -21,14 +21,13 @@ namespace gna {
 template <typename T>
 void softsign(const T* arg, T* out, size_t count) {
     for (size_t i = 0; i < count; i++) {
-        out[i] = 1 / (1 + std::abs(arg[i])); // FIXME: check max or min
+        out[i] = 1 / (1 + std::abs(arg[i]));
     }
 }
 }  // namespace gna
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph
-
 
 ov::op::gna::SoftSign::SoftSign(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
@@ -82,7 +81,6 @@ bool evaluate_softsign(const ngraph::HostTensorPtr& arg, const ngraph::HostTenso
     size_t count = shape_size(arg->get_shape());
 
     switch (arg->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_softsign, bf16, arg, out, count);
         NGRAPH_TYPE_CASE(evaluate_softsign, f16, arg, out, count);
         NGRAPH_TYPE_CASE(evaluate_softsign, f32, arg, out, count);
     default:
@@ -99,7 +97,6 @@ bool ov::op::gna::SoftSign::evaluate(const ngraph::HostTensorVector& outputs, co
 
 bool ov::op::gna::SoftSign::has_evaluate() const {
     switch (get_input_element_type(0)) {
-    case ngraph::element::bf16:
     case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
