@@ -135,7 +135,12 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue 67910
         R"(.*smoke_PrePostProcess.*two_inputs_trivial.*)",
         // TODO: CVS-67255
-        R"(smoke_If.*SimpleIf2OutTest.*)"
+        R"(smoke_If.*SimpleIf2OutTest.*)",
+        // TODO: CVS-68525
+        R"(.*CanSetInBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
+        R"(.*CanSetInBlobWithDifferentPrecision/netPRC=BIN.*)",
+        R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
+        R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=BIN.*)",
     };
 
 #define FIX_62820 0

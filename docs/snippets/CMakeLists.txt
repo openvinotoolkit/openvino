@@ -11,7 +11,8 @@ file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 if(NOT CLDNN__IOCL_ICD_INCDIRS OR TRUE)
     list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/GPU_RemoteBlob_API0.cpp"
                              "${CMAKE_CURRENT_SOURCE_DIR}/GPU_RemoteBlob_API1.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/GPU_RemoteBlob_API2.cpp")
+                             "${CMAKE_CURRENT_SOURCE_DIR}/GPU_RemoteBlob_API2.cpp"
+                             "${CMAKE_CURRENT_SOURCE_DIR}/GPU_RemoteBlob_API3.cpp")
 endif()
 
 # remove OpenCV related sources
