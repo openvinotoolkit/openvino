@@ -334,7 +334,7 @@ int main(int argc, char* argv[]) {
         const auto outputShape = model->output().get_shape();
         OPENVINO_ASSERT(outputShape.size() == 2, "Incorrect output dimensions for LeNet");
 
-        const int classCount = outputShape[1];
+        const auto classCount = outputShape[1];
         OPENVINO_ASSERT(classCount <= 10, "Incorrect number of output classes for LeNet model");
 
         // -------- Step 4. Compiling model for the device --------
