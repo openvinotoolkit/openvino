@@ -55,7 +55,7 @@ MKLDNNGatherNode::MKLDNNGatherNode(const std::shared_ptr<ov::Node>& op, const mk
         IE_THROW() << errorPrefix << "has incorrect batch_dims " << batchDims << "!";
 
     if (op->get_input_node_shared_ptr(GATHER_AXIS)->get_type_info() == ov::op::v0::Constant::type_info) {
-        constMap[GATHER_AXIS] = true;
+        isAxisInputConst = true;
         axis = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_AXIS))->cast_vector<int>()[0];
         if (axis < 0)
             axis += dataSrcRank;
@@ -72,7 +72,7 @@ void MKLDNNGatherNode::initSupportedPrimitiveDescriptors() {
     Precision dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
     addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
                           {LayoutType::ncsp, Precision::I32},
-                          {LayoutType::ncsp, Precision::I32, constMap[GATHER_AXIS]}},
+                          {LayoutType::ncsp, Precision::I32, isAxisInputConst}},
                          {{LayoutType::ncsp, dataPrecision}},
                          impl_desc_type::ref_any);
 }
@@ -84,11 +84,11 @@ void MKLDNNGatherNode::prepareParams() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << errorPrefix << " has unidentified preferable primitive descriptor.";
 
-    const SizeVector& srcDims = srcMemPtr->getStaticDims();
-    const SizeVector& idxDims = getParentEdgeAt(GATHER_INDEXES)->getMemory().getStaticDims();
-    const SizeVector& dstDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const auto& srcDims = srcMemPtr->getStaticDims();
+    const auto& idxDims = getParentEdgeAt(GATHER_INDEXES)->getMemory().getStaticDims();
+    const auto& dstDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
 
-    if (!constMap[GATHER_AXIS]) {
+    if (!isAxisInputConst) {
         axis = (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->GetPtr()))[0];
         if (axis < 0)
             axis += dataSrcRank;
@@ -110,7 +110,7 @@ void MKLDNNGatherNode::prepareParams() {
 
 bool MKLDNNGatherNode::needPrepareParams() const {
     bool result = MKLDNNNode::needPrepareParams();
-    if (!constMap[GATHER_AXIS])
+    if (!isAxisInputConst)
         result = result || axis != (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->GetPtr()))[0];
     return result;
 }

@@ -43,7 +43,7 @@ private:
     size_t dataSize = 1;
     size_t len = 1;
     int dataSrcRank = 1;
-    bool constMap[3] = { false };
+    bool isAxisInputConst = false;
 
     static constexpr size_t GATHER_DATA = 0;
     static constexpr size_t GATHER_INDEXES = 1;
