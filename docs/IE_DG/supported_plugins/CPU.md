@@ -14,8 +14,8 @@ OpenVINO™ toolkit, including the CPU plugin, is officially supported and valid
 
 | Host              | OS (64-bit)                              |
 | :---              | :---                                     |
-| Development       | Ubuntu* 18.04 or 20.04, CentOS* 7.5, MS Windows* 10, macOS* 10.15 |
-| Target            | Ubuntu* 18.04 or 20.04, CentOS* 7.5, MS Windows* 10, macOS* 10.15 |
+| Development       | Ubuntu* 18.04 or 20.04, CentOS* 7.6, MS Windows* 10, macOS* 10.15 |
+| Target            | Ubuntu* 18.04 or 20.04, CentOS* 7.6, MS Windows* 10, macOS* 10.15 |
 
 The CPU plugin supports inference on Intel® Xeon® with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel® Core™
 Processors with Intel® AVX2, Intel Atom® Processors with Intel® Streaming SIMD Extensions (Intel® SSE).
@@ -103,7 +103,7 @@ CPU plugin removes a Power layer from a topology if it has the following paramet
 ## Supported Configuration Parameters
 
 The plugin supports the configuration parameters listed below.
-All parameters must be set with the ```InferenceEngine::Core::LoadNetwork()``` method.
+All parameters must be set with the `InferenceEngine::Core::LoadNetwork()` method.
 When specifying key values as raw strings (that is, when using Python API), omit the `KEY_` prefix.
 Refer to the OpenVINO samples for usage examples: [Benchmark App](../../../inference-engine/samples/benchmark_app/README.md).
 

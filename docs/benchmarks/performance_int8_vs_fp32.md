@@ -14,7 +14,7 @@ The table below illustrates the speed-up factor for the performance gain by swit
   <tr align="left">
     <th>OpenVINO <br>benchmark <br>model name</th>
     <th>Dataset</th>
-    <th colspan="3" align="center">Throughput speed-up FP16-INT8 vs FP32</th>
+    <th colspan="4" align="center">Throughput speed-up FP16-INT8 vs FP32</th>
   </tr>
   <tr>
     <td>bert-large-<br>uncased-whole-word-<br>masking-squad-0001</td>
