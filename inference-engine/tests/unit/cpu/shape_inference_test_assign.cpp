@@ -9,7 +9,6 @@
 #include <openvino/op/convolution.hpp>
 #include <openvino/op/ops.hpp>
 #include <openvino/op/parameter.hpp>
-#include <read_value_shape_inference.hpp>
 #include "utils/shape_inference/static_shape.hpp"
 
 using namespace ov;
