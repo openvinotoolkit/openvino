@@ -398,20 +398,7 @@ bool fuse_type_to_matrix_nms(const std::shared_ptr<ngraph::Node>& node, ngraph::
         return true;
     }
 
-    if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
-        type_relaxed->set_overridden_output_type(to, idx);
-        return true;
-    }
-
-    element::TypeVector output_types;
-    for (const auto& output : nms->outputs()) {
-        output_types.emplace_back(output.get_element_type());
-    }
-    output_types[idx] = to;
-    auto relaxed_op =
-        std::make_shared<ngraph::op::TypeRelaxed<opset8::MatrixNms>>(*nms, element::TypeVector{}, output_types);
-    replace_node(node, relaxed_op);
-    return true;
+    return false;
 }
 
 bool fuse_type_to_multiclass_nms(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
@@ -425,20 +412,7 @@ bool fuse_type_to_multiclass_nms(const std::shared_ptr<ngraph::Node>& node, ngra
         return true;
     }
 
-    if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
-        type_relaxed->set_overridden_output_type(to, idx);
-        return true;
-    }
-
-    element::TypeVector output_types;
-    for (const auto& output : nms->outputs()) {
-        output_types.emplace_back(output.get_element_type());
-    }
-    output_types[idx] = to;
-    auto relaxed_op =
-        std::make_shared<ngraph::op::TypeRelaxed<opset8::MulticlassNms>>(*nms, element::TypeVector{}, output_types);
-    replace_node(node, relaxed_op);
-    return true;
+    return false;
 }
 
 bool fuse_type_to_topk(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {

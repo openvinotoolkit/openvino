@@ -129,8 +129,8 @@ TEST(TransformationTests, ConvertPrecision_NMS5) {
 TEST(TransformationTests, ConvertPrecision_MatrixNms) {
     std::shared_ptr<ngraph::Function> f;
     {
-        auto boxes = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1000, 4});
-        auto scores = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1000});
+        auto boxes = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f16, ngraph::Shape{1, 1000, 4});
+        auto scores = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f16, ngraph::Shape{1, 1, 1000});
         op::v8::MatrixNms::Attributes attrs;
         attrs.output_type = ngraph::element::i64;
         auto nms = std::make_shared<ngraph::opset8::MatrixNms>(boxes, scores, attrs);
@@ -144,19 +144,19 @@ TEST(TransformationTests, ConvertPrecision_MatrixNms) {
     pass::Manager manager;
     static const precisions_array precisions = {
             { ngraph::element::i64, ngraph::element::i32 },
-            { ngraph::element::f32, ngraph::element::f16 }
+            { ngraph::element::f16, ngraph::element::f32 }
     };
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
     manager.run_passes(f);
     ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(f));
-    ASSERT_FALSE(has_type<ngraph::element::Type_t::f32>(f));
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
 }
 
 TEST(TransformationTests, ConvertPrecision_MulticlassNms) {
     std::shared_ptr<ngraph::Function> f;
     {
-        auto boxes = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1000, 4});
-        auto scores = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1000});
+        auto boxes = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f16, ngraph::Shape{1, 1000, 4});
+        auto scores = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f16, ngraph::Shape{1, 1, 1000});
         op::v8::MulticlassNms::Attributes attrs;
         attrs.output_type = ngraph::element::i64;
         auto nms = std::make_shared<ngraph::opset8::MulticlassNms>(boxes, scores, attrs);
@@ -170,12 +170,12 @@ TEST(TransformationTests, ConvertPrecision_MulticlassNms) {
     pass::Manager manager;
     static const precisions_array precisions = {
             { ngraph::element::i64, ngraph::element::i32 },
-            { ngraph::element::f32, ngraph::element::f16 }
+            { ngraph::element::f16, ngraph::element::f32 }
     };
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
     manager.run_passes(f);
     ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(f));
-    ASSERT_FALSE(has_type<ngraph::element::Type_t::f32>(f));
+    ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
 }
 
 TEST(TransformationTests, ConvertPrecision_ShapeOf) {

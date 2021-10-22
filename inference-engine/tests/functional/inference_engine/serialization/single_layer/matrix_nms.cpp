@@ -21,8 +21,8 @@ namespace {
 
     const std::vector<ShapeParams> shapeParams = {
             // dynamic shape, {{batch, box, 4}, {batch, class, box}}, out is static shape
-            {{}, {{{3, 100, 4}, {3,   5, 100}}}, false},
-            {{{ngraph::Dimension::dynamic(), 100, 4}, {ngraph::Dimension::dynamic(), 5, 100}},
+            ShapeParams{{}, {{{3, 100, 4}, {3,   5, 100}}}, false},
+            ShapeParams{{{ngraph::Dimension::dynamic(), 100, 4}, {ngraph::Dimension::dynamic(), 5, 100}},
                 {{{1, 100, 4}, {1, 5, 100}}, {{2, 100, 4}, {2, 5, 100}}, {{3, 100, 4}, {3, 5, 100}}}, false}
     };
 

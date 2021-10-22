@@ -14,16 +14,16 @@ using namespace ngraph;
 
 const std::vector<ShapeParams> inStaticShapeParams = {
     // dynamic shape, {{batch, box, 4}, {batch, class, box}}, out is static shape
-    {{}, {{{3, 100, 4}, {3,   1, 100}}}, true},
-    {{}, {{{1, 10,  4}, {1, 100, 10 }}}, false}
+    ShapeParams{{}, {{{3, 100, 4}, {3,   1, 100}}}, true},
+    ShapeParams{{}, {{{1, 10,  4}, {1, 100, 10 }}}, false}
 };
 
 const std::vector<ShapeParams> inDynamicShapeParams = {
-    {{{ngraph::Dimension::dynamic(), 100, 4}, {ngraph::Dimension::dynamic(), 5, 100}},
+    ShapeParams{{{ngraph::Dimension::dynamic(), 100, 4}, {ngraph::Dimension::dynamic(), 5, 100}},
         {{{1, 100, 4}, {1, 5, 100}}, {{2, 100, 4}, {2, 5, 100}}, {{3, 100, 4}, {3, 5, 100}}}, true},
-    {{{1, ngraph::Dimension::dynamic(), 4}, {1, 5, ngraph::Dimension::dynamic()}},
+    ShapeParams{{{1, ngraph::Dimension::dynamic(), 4}, {1, 5, ngraph::Dimension::dynamic()}},
         {{{1, 80, 4},  {1, 5, 80}}, {{1, 90, 4}, {1, 5, 90}}, {{1, 100, 4}, {1, 5, 100}}}, false},
-    {{{1, 100, 4}, {1, ngraph::Dimension::dynamic(), 100}},
+    ShapeParams{{{1, 100, 4}, {1, ngraph::Dimension::dynamic(), 100}},
         {{{1, 100, 4}, {1, 5, 100}}, {{1, 100, 4}, {1, 6, 100}}, {{1, 100, 4}, {1, 7, 100}}}, false},
 };
 

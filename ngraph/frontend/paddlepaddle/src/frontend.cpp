@@ -135,6 +135,50 @@ std::istream* variant_to_stream_ptr(const std::shared_ptr<Variant>& variant, std
 }  // namespace
 }  // namespace pdpd
 
+static bool TrySkipScale(std::map<ngraph::frontend::pdpd::TensorName, ov::Output<ov::Node>>& nodes_dict,
+                         const std::shared_ptr<ngraph::frontend::OpPlacePDPD>& op_place) {
+    const auto& op_desc = op_place->get_desc();
+    if (op_desc.type() != "scale") {
+        return false;
+    }
+
+    pdpd::NamedInputs named_inputs;
+    for (const auto& input_port : op_desc.inputs()) {
+        for (const auto& in_tensor_name : input_port.arguments()) {
+            auto node_it = nodes_dict.find(in_tensor_name);
+            // general check, because in case of error partial conversion should fail
+            FRONT_END_GENERAL_CHECK(node_it != nodes_dict.end(),
+                                    "Input ",
+                                    in_tensor_name,
+                                    " for node with type ",
+                                    op_desc.type(),
+                                    " wasn't found. It may happen if model was cut incorrectly.");
+            named_inputs[input_port.parameter()].push_back(node_it->second);
+        }
+    }
+
+    DecoderPDPDProto decoder(op_place);
+    pdpd::NodeContext context(decoder, named_inputs);
+    auto scale_val = context.get_attribute<float>("scale");
+    auto bias_val = context.get_attribute<float>("bias");
+    // x * 1 + 0 = x, we can skip this op safely
+    if (std::abs(bias_val) > 0.000001f || std::abs(scale_val - 1.0f) > 0.000001f)
+        return false;
+
+    const auto& out_ports = op_desc.outputs();
+    for (const auto& port : out_ports) {
+        for (size_t idx = 0; idx < port.arguments_size(); ++idx) {
+            const auto& var_name = port.arguments()[idx];
+            // if nodes_dict already has node mapped to this tensor name it
+            // usually means that it was overwritten using setTensorValue
+            if (!nodes_dict.count(var_name))
+                nodes_dict[var_name] = named_inputs[named_inputs.begin()->first][0];
+        }
+    }
+
+    return true;
+}
+
 std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
     const std::shared_ptr<InputModelPDPD>& model,
     std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
@@ -162,6 +206,8 @@ std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
             // inputs and outputs are stored in the model already
             continue;
         } else {
+            if (TrySkipScale(nodes_dict, op_place))
+                continue;
             pdpd::NamedOutputs named_outputs = func(nodes_dict, op_place);
 
             if (!named_outputs.empty()) {
