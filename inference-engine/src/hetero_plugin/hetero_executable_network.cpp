@@ -303,8 +303,12 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             auto output = input.get_source_output();
             output.remove_target_input(input);
             auto result = std::make_shared<ngraph::op::Result>(output);
+            result->set_friendly_name(output.get_node()->get_friendly_name()
+                + "_" + std::to_string(output.get_index()) + "_result");
             ngraph::copy_runtime_info(output.get_node_shared_ptr(), result);
             auto parameter = std::make_shared<ngraph::op::Parameter>(output.get_element_type(), output.get_partial_shape());
+            parameter->set_friendly_name(input.get_node()->get_friendly_name()
+                + "_" + std::to_string(input.get_index()) + "_parameter");
             ngraph::copy_runtime_info(input.get_node()->shared_from_this(), parameter);
             input.replace_source_output(parameter->output(0));
             results.push_back(result);
@@ -406,6 +410,40 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             if (itClonedOutput != clonedOutputs.end() && nullptr != itClonedOutput->second) {
                 itClonedOutput->second->setPrecision(externalOutput.second->getPrecision());
                 itClonedOutput->second->setLayout(externalOutput.second->getLayout());
+            }
+        }
+
+        auto toLegacyType = [] (const ngraph::element::Type& ngraph_type) {
+            return (ngraph_type == ngraph::element::f16 || ngraph_type == ngraph::element::bf16) ?
+                ngraph::element::f32 : ngraph_type;
+        };
+
+        // CNNNetwork converts input and output types to preserve legacy behaviour
+        // Here io types are reverted to ngraph types with some common plugin behaviour assumption
+        // defined in `toLegacyType()`
+        for (auto&& input : clonedInputs) {
+            if (!InferenceEngine::details::contains(externalInputsData, input.first)) {
+                for (auto&& parameter : subgraph._parameters) {
+                    auto name = parameter->get_friendly_name();
+                    if (parameter->get_friendly_name() == input.first) {
+                        input.second->setPrecision(
+                            InferenceEngine::details::convertPrecision(
+                                toLegacyType(parameter->get_element_type())));
+                    }
+                }
+            }
+        }
+        for (auto&& output : clonedOutputs) {
+            if (!InferenceEngine::details::contains(externalOutputsData, output.first)) {
+                for (auto&& result : subgraph._results) {
+                    auto source_output = result->input_value(0);
+                    auto output_name = ngraph::op::util::create_ie_output_name(source_output);
+                    if (output_name == output.first) {
+                        output.second->setPrecision(
+                            InferenceEngine::details::convertPrecision(
+                                toLegacyType(source_output.get_element_type())));
+                    }
+                }
             }
         }
         ++id;

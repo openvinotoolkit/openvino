@@ -47,8 +47,47 @@ inline std::shared_ptr<ngraph::Function> makeConvPoolRelu(std::vector<size_t> in
     return fnPtr;
 }
 
+inline std::shared_ptr<ngraph::Function> makeConvPoolReluNonZero(std::vector<size_t> inputShape = {1, 1, 32, 32},
+                                                                 ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
+    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    params.front()->set_friendly_name("Param_1");
+    params.front()->output(0).get_tensor().set_names({"data"});
+    auto conv1 = ngraph::builder::makeConvolution(params.front(), ngPrc, {1, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
+                                                  ngraph::op::PadType::EXPLICIT, 4);
+    conv1->set_friendly_name("Conv_1");
+    conv1->output(0).get_tensor().set_names({"conv"});
+    std::vector<size_t> stride{1, 1}, padB{0, 0}, padE = padB, kernel{1, 2};
+    auto pool1 = std::make_shared<ngraph::opset1::MaxPool>(conv1, stride, padB, padE, kernel,
+                                                               ngraph::op::RoundingType::FLOOR,
+                                                               ngraph::op::PadType::EXPLICIT);
+    pool1->output(0).get_tensor().set_names({"pool"});
+    pool1->set_friendly_name("Pool_1");
+    auto relu1 = std::make_shared<ngraph::opset1::Relu>(pool1);
+    relu1->set_friendly_name("Relu_1");
+    relu1->output(0).get_tensor().set_names({"relu"});
+    auto nonZero = std::make_shared<ngraph::op::NonZero>(relu1);
+    nonZero->set_friendly_name("nonZero_1");
+    nonZero->output(0).get_tensor().set_names({"nonZero"});
+    auto gatherIndices = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
+                                                                ngraph::Shape{1},
+                                                                std::vector<int64_t>{0});
+    gatherIndices->set_friendly_name("gatherIndices_1");
+    gatherIndices->output(0).get_tensor().set_names({"gatherIndices"});
+    auto gatherAxis = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
+                                                             ngraph::Shape{1},
+                                                             std::vector<int64_t>{1});
+    gatherAxis->set_friendly_name("gatherAxis_1");
+    gatherAxis->output(0).get_tensor().set_names({"gatherAxis"});
+    auto gather = std::make_shared<ngraph::opset1::Gather>(nonZero->output(0), gatherIndices, gatherAxis);
+    gather->set_friendly_name("gather_1");
+    gather->output(0).get_tensor().set_names({"gather"});
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gather)};
+    std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
+    return fnPtr;
+}
+
 inline std::shared_ptr<ngraph::Function> makeSplitConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20},
-                                                            ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
+                                                             ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     params.front()->set_friendly_name("Param_1");
     params.front()->get_output_tensor(0).set_names({"input_tensor"});
