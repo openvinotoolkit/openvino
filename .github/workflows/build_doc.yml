@@ -33,7 +33,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DENABLE_DOCS=ON ..
+          echo "TBD"
 
       - name: Build doc
         run: echo "TBD"
