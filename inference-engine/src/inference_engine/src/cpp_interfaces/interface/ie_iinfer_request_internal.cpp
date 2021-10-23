@@ -167,7 +167,7 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
         // ROI blob is returned only if it was set previously. Otherwise default blob is returned.
         auto it = _preProcData.find(name);
         if (it != _preProcData.end()) {
-            data = it->second->getRoiBlob();
+            data = it->second.getRoiBlob();
         } else {
             data = _inputs[name];
             const auto& dims = foundInput->getTensorDesc().getDims();
@@ -240,7 +240,7 @@ void IInferRequestInternal::execDataPreprocessing(InferenceEngine::BlobMap& prep
         // using preconfigured resize algorithm.
         auto it = _preProcData.find(input.first);
         if (it != _preProcData.end()) {
-            it->second->execute(input.second, _networkInputs[input.first]->getPreProcess(), serial, m_curBatch);
+            it->second.execute(input.second, _networkInputs[input.first]->getPreProcess(), serial, m_curBatch);
         }
     }
 }
@@ -393,16 +393,10 @@ bool IInferRequestInternal::preProcessingRequired(const InputInfo::Ptr& info,
 void IInferRequestInternal::addInputPreProcessingFor(const std::string& name,
                                                      const Blob::Ptr& from,
                                                      const Blob::Ptr& to) {
-    auto ppDataIt = _preProcData.find(name);
-    if (ppDataIt == _preProcData.end()) {
-        ppDataIt = (_preProcData.emplace(name, CreatePreprocDataHelper())).first;
-    }
-
-    auto& preproc_ptr = ppDataIt->second;
-    preproc_ptr->isApplicable(from, to);
+    _preProcData[name].isApplicable(from, to);
     // Stores the given blob as ROI blob. It will be used to fill in network input
     // during pre-processing
-    preproc_ptr->setRoiBlob(from);
+    _preProcData[name].setRoiBlob(from);
 }
 
 void* IInferRequestInternal::GetUserData() noexcept {

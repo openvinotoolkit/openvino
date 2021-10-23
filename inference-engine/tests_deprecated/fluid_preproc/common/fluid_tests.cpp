@@ -802,19 +802,19 @@ TEST_P(ResizeTestIE, AccuracyTest)
     in_blob  = make_blob_with_precision(in_desc , in_mat1.data);
     out_blob = make_blob_with_precision(out_desc, out_mat.data);
 
-    PreProcessDataPtr preprocess = CreatePreprocDataHelper();
-    preprocess->setRoiBlob(in_blob);
+    PreProcessData preprocess;
+    preprocess.setRoiBlob(in_blob);
 
     ResizeAlgorithm algorithm = cv::INTER_AREA == interp ? RESIZE_AREA : RESIZE_BILINEAR;
     PreProcessInfo info;
     info.setResizeAlgorithm(algorithm);
 
     // test once to warm-up cache
-    preprocess->execute(out_blob, info, false);
+    preprocess.execute(out_blob, info, false);
 
 #if PERF_TEST
     // iterate testing, and print performance
-    test_ms([&](){ preprocess->execute(out_blob, info, false); },
+    test_ms([&](){ preprocess.execute(out_blob, info, false); },
             100, "Resize IE %s %s %dx%d -> %dx%d",
             interpToString(interp).c_str(), typeToString(type).c_str(),
             sz_in.width, sz_in.height, sz_out.width, sz_out.height);
@@ -921,14 +921,14 @@ TEST_P(ColorConvertTestIE, AccuracyTest)
         FAIL() << "Unsupported configuration";
     }
 
-    PreProcessDataPtr preprocess = CreatePreprocDataHelper();
-    preprocess->setRoiBlob(in_blob);
+    PreProcessData preprocess;
+    preprocess.setRoiBlob(in_blob);
 
     PreProcessInfo info;
     info.setColorFormat(in_fmt);
 
     // test once to warm-up cache
-    preprocess->execute(out_blob, info, false);
+    preprocess.execute(out_blob, info, false);
 
     switch (precision)
     {
@@ -941,7 +941,7 @@ TEST_P(ColorConvertTestIE, AccuracyTest)
 
 #if PERF_TEST
     // iterate testing, and print performance
-    test_ms([&](){ preprocess->execute(out_blob, info, false); },
+    test_ms([&](){ preprocess.execute(out_blob, info, false); },
             100, "Color Convert IE %s %s %s %dx%d %s->%s",
             depthToString(depth).c_str(),
             layoutToString(in_layout).c_str(), layoutToString(out_layout).c_str(),
@@ -1020,20 +1020,20 @@ TEST_P(ColorConvertYUV420TestIE, AccuracyTest)
     Blob::Ptr in_blob = (in_fmt == ColorFormat::NV12) ?  Blob::Ptr{make_nv12_blob()} :  Blob::Ptr {make_I420_blob()};
     auto out_blob = img2Blob<Precision::U8>(out_mat, out_layout);
 
-    PreProcessDataPtr preprocess = CreatePreprocDataHelper();
-    preprocess->setRoiBlob(in_blob);
+    PreProcessData preprocess;
+    preprocess.setRoiBlob(in_blob);
 
     PreProcessInfo info;
     info.setColorFormat(in_fmt);
 
     // test once to warm-up cache
-    preprocess->execute(out_blob, info, false);
+    preprocess.execute(out_blob, info, false);
 
     Blob2Img<Precision::U8>(out_blob, out_mat, out_layout);
 
 #if PERF_TEST
     // iterate testing, and print performance
-    test_ms([&](){ preprocess->execute(out_blob, info, false); },
+    test_ms([&](){ preprocess.execute(out_blob, info, false); },
             100, "Color Convert IE %s %s %s %dx%d %s->%s",
             depthToString(depth).c_str(),
             layoutToString(in_layout).c_str(), layoutToString(out_layout).c_str(),
@@ -1286,15 +1286,15 @@ TEST_P(PreprocTest, Performance)
     auto in_blob  = create_blob(in_prec, in_fmt, in_layout, in_mat1, cv::util::make_optional(in_mat2));
     auto out_blob = create_blob(out_prec, out_fmt, out_layout, out_mat);
 
-    PreProcessDataPtr preprocess = CreatePreprocDataHelper();
-    preprocess->setRoiBlob(in_blob);
+    PreProcessData preprocess;
+    preprocess.setRoiBlob(in_blob);
 
     PreProcessInfo info;
     info.setResizeAlgorithm(interp);
     info.setColorFormat(in_fmt);
 
     // test once to warm-up cache
-    preprocess->execute(out_blob, info, false);
+    preprocess.execute(out_blob, info, false);
 
     switch (out_prec)
     {
@@ -1332,7 +1332,7 @@ TEST_P(PreprocTest, Performance)
     const auto in_layout_str = layoutToString(in_layout);
     const auto out_layout_str = layoutToString(out_layout);
 
-    test_ms([&]() { preprocess->execute(out_blob, info, false); },
+    test_ms([&]() { preprocess.execute(out_blob, info, false); },
             300,
             "Preproc %s %s %s %d %s %dx%d %d %s %dx%d %s->%s",
             in_type_str.c_str(),

@@ -9,6 +9,8 @@
 #include <memory>
 
 #include "openvino/runtime/common.hpp"
+#include "openvino/util/file_util.hpp"
+#include "openvino/util/shared_object.hpp"
 
 #include <ie_blob.h>
 #include <file_utils.h>
@@ -71,22 +73,59 @@ public:
 
 }  // namespace details
 
-/**
- * @brief A C++ helper to work with objects created by the plugin.
- * Implements different interfaces.
- */
-using PreProcessDataPtr = InferenceEngine::details::SOPointer<IPreProcessData>;
-
-inline PreProcessDataPtr CreatePreprocDataHelper() {
-    ov::util::FilePath libraryName = ov::util::to_file_path(std::string("inference_engine_preproc") + std::string(IE_BUILD_POSTFIX));
-    ov::util::FilePath preprocLibraryPath = FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
-
-    if (!FileUtils::fileExist(preprocLibraryPath)) {
-        IE_THROW() << "Please, make sure that pre-processing library "
-            << ov::util::from_file_path(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
-            << getIELibraryPath();
+#define OV_PREPROC_PLUGIN_CALL_STATEMENT(...)                                                      \
+    if (!_ptr)                                                                                     \
+        IE_THROW() << "Wrapper used in the OV_PREPROC_PLUGIN_CALL_STATEMENT was not initialized."; \
+    try {                                                                                          \
+        __VA_ARGS__;                                                                               \
+    } catch (...) {                                                                                \
+        ::InferenceEngine::details::Rethrow();                                                     \
     }
-    return {preprocLibraryPath};
-}
+
+class PreProcessData {
+    std::shared_ptr<void> _so;
+    std::shared_ptr<IPreProcessData> _ptr;
+
+public:
+    PreProcessData() {
+#ifndef OPENVINO_STATIC_LIBRARY
+        CreatePreProcessData(_ptr);
+        if (!_ptr)
+            IE_THROW() << "Failed to create IPreProcessData for G-API based preprocessing";
+#else
+        ov::util::FilePath libraryName = ov::util::to_file_path(std::string("inference_engine_preproc") + std::string(IE_BUILD_POSTFIX));
+        ov::util::FilePath preprocLibraryPath = FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
+
+        if (!FileUtils::fileExist(preprocLibraryPath)) {
+            IE_THROW() << "Please, make sure that pre-processing library "
+                << ov::util::from_file_path(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
+                << getIELibraryPath();
+        }
+
+        using CreateF = void(std::shared_ptr<IPreProcessData>& data);
+        _so = ov::util::load_shared_object(preprocLibraryPath);
+        reinterpret_cast<CreateF *>(ov::util::get_symbol(_so,
+            details::SOCreatorTrait<IPreProcessData>::name))(_ptr);
+#endif
+    }
+
+    void setRoiBlob(const Blob::Ptr &blob) {
+        OV_PREPROC_PLUGIN_CALL_STATEMENT(_ptr->setRoiBlob(blob));
+    }
+
+    Blob::Ptr getRoiBlob() const {
+        OV_PREPROC_PLUGIN_CALL_STATEMENT(return _ptr->getRoiBlob());
+    }
+
+    void execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo& info, bool serial, int batchSize = -1) {
+        OV_PREPROC_PLUGIN_CALL_STATEMENT(_ptr->execute(preprocessedBlob, info, serial, batchSize));
+    }
+
+    void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) {
+        OV_PREPROC_PLUGIN_CALL_STATEMENT(return _ptr->isApplicable(src, dst));
+    }
+};
+
+#undef OV_PREPROC_PLUGIN_CALL_STATEMENT
 
 }  // namespace InferenceEngine

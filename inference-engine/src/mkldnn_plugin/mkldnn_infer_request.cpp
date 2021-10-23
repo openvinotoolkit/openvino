@@ -243,7 +243,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
         // ROI blob is returned only if it was set previously.
         auto it = _preProcData.find(name);
         if (it != _preProcData.end()) {
-            data = it->second->getRoiBlob();
+            data = it->second.getRoiBlob();
             return data;
         }
 
@@ -279,9 +279,8 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
             InferenceEngine::DataPtr foundOutput;
             findInputAndOutputBlobByName(name, foundInput, foundOutput);
             if (preProcessingRequired(foundInput, data)) {
-                _preProcData.emplace(name, InferenceEngine::CreatePreprocDataHelper());
-                _preProcData[name]->isApplicable(data, _inputs[name]);
-                _preProcData[name]->setRoiBlob(data);
+                _preProcData[name].isApplicable(data, _inputs[name]);
+                _preProcData[name].setRoiBlob(data);
             }
         }
     }
@@ -392,13 +391,10 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
         }
 
         if (preProcRequired) {
-            if (_preProcData.find(name) == _preProcData.end()) {
-                _preProcData.emplace(name, InferenceEngine::CreatePreprocDataHelper());
-            }
-            _preProcData[name]->isApplicable(data, _inputs[name]);
+            _preProcData[name].isApplicable(data, _inputs[name]);
             // Stores the given blob as ROI blob. It will be used to fill in network input during
             // pre-processing
-            _preProcData[name]->setRoiBlob(data);
+            _preProcData[name].setRoiBlob(data);
         } else {
             size_t inputSize = foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
                 ? InferenceEngine::details::product(foundInput->getTensorDesc().getDims())

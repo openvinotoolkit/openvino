@@ -246,7 +246,7 @@ protected:
     InferenceEngine::BlobMap _outputs;                //!< A map of user passed blobs for network outputs
     std::vector<std::shared_ptr<const ov::Node>> _parameters;  //!< A vector of function inputs
     std::vector<std::shared_ptr<const ov::Node>> _results;     //!< A vector of function outputs
-    std::map<std::string, PreProcessDataPtr> _preProcData;     //!< A map of pre-process data per input
+    std::map<std::string, PreProcessData> _preProcData;        //!< A map of pre-process data per input
     int m_curBatch = -1;                                       //!< Current batch value used in dynamic batching
 
     /**
