@@ -23,6 +23,8 @@
 #include <utility>
 #include <vector>
 
+#include "openvino/openvino.hpp"
+
 #ifndef UNUSED
 #    if defined(_MSC_VER) && !defined(__clang__)
 #        define UNUSED
@@ -98,6 +100,16 @@ inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Version
     return os;
 }
 
+inline std::ostream& operator<<(std::ostream& os, const ov::Version& version) {
+    os << "\t" << version.description << " version ......... ";
+    os << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
+
+    os << "\n\tBuild ........... ";
+    os << version.buildNumber;
+
+    return os;
+}
+
 inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Version* version) {
     if (nullptr != version) {
         os << std::endl << *version;
@@ -106,6 +118,15 @@ inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Version
 }
 
 inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, InferenceEngine::Version>& versions) {
+    for (auto&& version : versions) {
+        os << "\t" << version.first << std::endl;
+        os << version.second << std::endl;
+    }
+
+    return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, ov::Version>& versions) {
     for (auto&& version : versions) {
         os << "\t" << version.first << std::endl;
         os << version.second << std::endl;

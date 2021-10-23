@@ -79,11 +79,9 @@ int main(int argc, char* argv[]) {
         std::cout << ie.GetVersions(FLAGS_d) << std::endl;
 
         if (!FLAGS_l.empty()) {
-            // Custom CPU extension is loaded as a shared library and passed as a
-            // pointer to base extension
             IExtensionPtr extension_ptr = std::make_shared<Extension>(FLAGS_l);
             ie.AddExtension(extension_ptr);
-            slog::info << "Custom Extension loaded: " << FLAGS_l << slog::endl;
+            slog::info << "Extension loaded: " << FLAGS_l << slog::endl;
         }
         if (!FLAGS_c.empty() && (FLAGS_d == "GPU" || FLAGS_d == "MYRIAD" || FLAGS_d == "HDDL")) {
             // Config for device plugin custom extension is loaded from an .xml

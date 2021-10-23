@@ -9,12 +9,14 @@
 #pragma once
 
 #include <algorithm>
-#include <inference_engine.hpp>
 #include <iomanip>
 #include <iostream>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "inference_engine.hpp"
+#include "openvino/openvino.hpp"
 
 /**
  * @class ClassificationResult
@@ -27,6 +29,7 @@ private:
     const std::string _probabilityStr = "probability";
     const std::string _labelStr = "label";
     size_t _nTop;
+    ov::runtime::Tensor _outTensor;
     InferenceEngine::Blob::Ptr _outBlob;
     const std::vector<std::string> _labels;
     const std::vector<strType> _imageNames;
@@ -47,12 +50,41 @@ private:
     }
 
     /**
-     * @brief Gets the top n results from a tblob
+     * @brief Gets the top n results from a tensor
      *
      * @param n Top n count
-     * @param input 1D tblob that contains probabilities
+     * @param input 1D tensor that contains probabilities
      * @param output Vector of indexes for the top n places
      */
+    template <class T>
+    void topResults(unsigned int n, const ov::runtime::Tensor& input, std::vector<unsigned>& output) {
+        ov::Shape shape = input.get_shape();
+        size_t input_rank = shape.size();
+        OPENVINO_ASSERT(input_rank != 0 && shape[0] != 0, "Input tensor has incorrect dimensions!");
+        size_t batchSize = shape[0];
+        std::vector<unsigned> indexes(input.get_size() / batchSize);
+
+        n = static_cast<unsigned>(std::min<size_t>((size_t)n, input.get_size()));
+        output.resize(n * batchSize);
+
+        for (size_t i = 0; i < batchSize; i++) {
+            const size_t offset = i * (input.get_size() / batchSize);
+            const T* batchData = input.data<const T>();
+            batchData += offset;
+
+            std::iota(std::begin(indexes), std::end(indexes), 0);
+            std::partial_sort(std::begin(indexes),
+                              std::begin(indexes) + n,
+                              std::end(indexes),
+                              [&batchData](unsigned l, unsigned r) {
+                                  return batchData[l] > batchData[r];
+                              });
+            for (unsigned j = 0; j < n; j++) {
+                output.at(i * n + j) = indexes.at(j);
+            }
+        }
+    }
+
     template <class T>
     void topResults(unsigned int n, InferenceEngine::Blob::Ptr& input, std::vector<unsigned>& output) {
         InferenceEngine::SizeVector dims = input->getTensorDesc().getDims();
@@ -97,6 +129,33 @@ private:
      * @param input 1D blob that contains probabilities
      * @param output Vector of indexes for the top n places
      */
+    void topResults(unsigned int n, const ov::runtime::Tensor& input, std::vector<unsigned>& output) {
+#define TENSOR_TOP_RESULT(elem_type)                                                  \
+    case ov::element::Type_t::elem_type: {                                            \
+        using tensor_type = ov::fundamental_type_for<ov::element::Type_t::elem_type>; \
+        topResults<tensor_type>(n, input, output);                                    \
+        break;                                                                        \
+    }
+
+        switch (input.get_element_type()) {
+            TENSOR_TOP_RESULT(f32);
+            TENSOR_TOP_RESULT(f64);
+            TENSOR_TOP_RESULT(f16);
+            TENSOR_TOP_RESULT(i16);
+            TENSOR_TOP_RESULT(u8);
+            TENSOR_TOP_RESULT(i8);
+            TENSOR_TOP_RESULT(u16);
+            TENSOR_TOP_RESULT(i32);
+            TENSOR_TOP_RESULT(u32);
+            TENSOR_TOP_RESULT(i64);
+            TENSOR_TOP_RESULT(u64);
+        default:
+            OPENVINO_ASSERT(false, "cannot locate tensor with element type: ", input.get_element_type());
+        }
+
+#undef TENSOR_TOP_RESULT
+    }
+
     void topResults(unsigned int n, InferenceEngine::Blob::Ptr& input, std::vector<unsigned>& output) {
 #define TBLOB_TOP_RESULT(precision)                                                                            \
     case InferenceEngine::Precision::precision: {                                                              \
@@ -143,9 +202,54 @@ public:
         topResults(_nTop, _outBlob, _results);
     }
 
+    explicit ClassificationResultT(const ov::runtime::Tensor& output_tensor,
+                                   const std::vector<strType>& image_names = {},
+                                   size_t batch_size = 1,
+                                   size_t num_of_top = 10,
+                                   const std::vector<std::string>& labels = {})
+        : _nTop(num_of_top),
+          _outTensor(output_tensor),
+          _labels(labels),
+          _imageNames(image_names),
+          _batchSize(batch_size),
+          _results() {
+        OPENVINO_ASSERT(_imageNames.size() == _batchSize, "Batch size should be equal to the number of images.");
+
+        topResults(_nTop, _outTensor, _results);
+    }
+
     /**
      * @brief prints formatted classification results
      */
+    void show() {
+        /** Print the result iterating over each batch **/
+        std::cout << std::endl << "Top " << _nTop << " results:" << std::endl << std::endl;
+        for (unsigned int image_id = 0; image_id < _batchSize; ++image_id) {
+            std::wstring out(_imageNames[image_id].begin(), _imageNames[image_id].end());
+            std::wcout << L"Image " << out;
+            std::wcout.flush();
+            std::wcout.clear();
+            std::wcout << std::endl << std::endl;
+            printHeader();
+
+            for (size_t id = image_id * _nTop, cnt = 0; id < (image_id + 1) * _nTop; ++cnt, ++id) {
+                std::cout.precision(7);
+                /** Getting probability for resulting class **/
+                const auto index = _results.at(id) + image_id * (_outTensor.get_size() / _batchSize);
+                const auto result = _outTensor.data<const float>()[index];
+
+                std::cout << std::setw(static_cast<int>(_classidStr.length())) << std::left << _results.at(id) << " ";
+                std::cout << std::left << std::setw(static_cast<int>(_probabilityStr.length())) << std::fixed << result;
+
+                if (!_labels.empty()) {
+                    std::cout << " " + _labels[_results.at(id)];
+                }
+                std::cout << std::endl;
+            }
+            std::cout << std::endl;
+        }
+    }
+
     void print() {
         /** Print the result iterating over each batch **/
         std::cout << std::endl << "Top " << _nTop << " results:" << std::endl << std::endl;
