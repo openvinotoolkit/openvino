@@ -93,33 +93,74 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     return true;
 }
 
-void parseInputArguments(std::vector<std::string>& files) {
-    std::vector<std::string> args = gflags::GetArgvs();
-    const auto is_image_arg = [](const std::string& s) {
-        return s == "-i" || s == "--images";
-    };
-    const auto is_arg = [](const std::string& s) {
-        return s.front() == '-';
-    };
-    const auto img_start = std::find_if(begin(args), end(args), is_image_arg);
-    if (img_start == end(args)) {
-        return;
-    }
-    const auto img_begin = std::next(img_start);
-    const auto img_end = std::find_if(img_begin, end(args), is_arg);
-    for (auto img = img_begin; img != img_end; ++img) {
-        readInputFilesArguments(files, *img);
+std::vector<std::string> parseInputFileNames(const std::string& file_names_string) {
+    size_t coma_pos = 0;
+    auto names = file_names_string;
+    std::vector<std::string> file_names;
+    while (coma_pos != std::string::npos) {
+        coma_pos = names.find_first_of(',');
+        auto file_name = names.substr(0, coma_pos);
+        names = names.substr(coma_pos == std::string::npos ? names.size() : coma_pos);
+        if (!names.empty() && names.front() == ',')
+            names = names.substr(1);
+        file_names.push_back(file_name);
     }
 
-    size_t max_files = 20;
-    if (files.size() < max_files) {
-        slog::info << "Files were added: " << files.size() << slog::endl;
-        for (const auto& filePath : files) {
-            slog::info << "    " << filePath << slog::endl;
+    if (!names.empty())
+        throw std::logic_error("Can't parse file names in input parameter string: " + file_names_string);
+
+
+    return file_names;
+}
+
+std::map<std::string, std::vector<std::string>> parseInputArguments(const std::string& input_parameter_string) {
+    std::string search_string = input_parameter_string;
+    std::map<std::string, std::vector<std::string>> files_per_input;
+    size_t semicolon_pos = search_string.find_first_of(':');
+    if (semicolon_pos == std::string::npos) {
+        auto files = parseInputFileNames(search_string);
+        for (const auto& f : files) {
+            readInputFilesArguments(files_per_input[""], f);
         }
-    } else {
-        slog::info << "Files were added: " << files.size() << ". Too many to display each of them." << slog::endl;
+
+        if (files.size() != files_per_input.at("").size() && files.size() != 1) {
+            throw std::logic_error("Incorrect type of input in parameter string: " + input_parameter_string +
+                                   ". You can specify only one folder to use.");
+        }
+        search_string = "";
     }
+
+    while (semicolon_pos != std::string::npos) {
+        size_t next_semicolon_pos = search_string.find(':', semicolon_pos + 1);
+        // find coma pos before next input name
+        // in strings like <input1>:file1,file2,<input2>:file3
+        size_t coma_pos = next_semicolon_pos == std::string::npos
+                                ? search_string.size()
+                                : search_string.find_last_of(',', next_semicolon_pos);
+        auto input_name = search_string.substr(0, semicolon_pos);
+        auto input_files = search_string.substr(semicolon_pos + 1, coma_pos - semicolon_pos - 1);
+
+        search_string = search_string.substr(coma_pos);
+        if (!search_string.empty() && search_string.front() == ',')
+            search_string = search_string.substr(1);
+
+        semicolon_pos = search_string.find_first_of(':');
+
+        auto files = parseInputFileNames(input_files);
+        for (const auto& f : files) {
+            readInputFilesArguments(files_per_input[input_name], f);
+        }
+
+        if (files.size() != files_per_input.at(input_name).size() && files.size() != 1) {
+            throw std::logic_error("Incorrect type of input in parameter string: " + input_parameter_string + ".");
+        }
+    }
+
+    if (!search_string.empty())
+        throw std::logic_error("Can't parse input parameter string: " + input_parameter_string);
+
+
+    return files_per_input;
 }
 
 static void next_step(const std::string additional_info = "") {
@@ -210,7 +251,7 @@ int main(int argc, char* argv[]) {
 #endif
         /** This vector stores paths to the processed images **/
         std::vector<std::string> inputFiles;
-        parseInputFilesArguments(inputFiles);
+        auto inputFiles2 = parseInputArguments(FLAGS_i);
 
         // ----------------- 2. Loading the Inference Engine
         // -----------------------------------------------------------
@@ -569,6 +610,7 @@ int main(int argc, char* argv[]) {
                 batchSize = 1;
             }
         }
+
         // ----------------- 8. Querying optimal runtime parameters
         // -----------------------------------------------------
         next_step();
@@ -742,7 +784,7 @@ int main(int argc, char* argv[]) {
         /** to align number if iterations to guarantee that last infer requests are
          * executed in the same conditions **/
         ProgressBar progressBar(progressBarTotalCount, FLAGS_stream_output, FLAGS_progress);
-        auto inputs_data = prepareRandomInputs(app_inputs_info);
+        auto inputs_data = prepareCachedBlobs(inputFiles2, app_inputs_info);
 
         while ((niter != 0LL && iteration < niter) ||
                (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
@@ -755,7 +797,7 @@ int main(int argc, char* argv[]) {
                     if (item.second.partialShape.is_dynamic())
                         inferRequest->setShape(item.first, item.second.tensorShape);
                     Blob::Ptr inputBlob = inferRequest->getBlob(item.first);
-                    fillBlob(inputBlob, inputs_data[iteration % inputs_data.size()]);
+                    fillBlob(inputBlob, inputs_data.at(item.first)[iteration % inputs_data.size()]);
                 }
 
                 if (FLAGS_api == "sync") {
