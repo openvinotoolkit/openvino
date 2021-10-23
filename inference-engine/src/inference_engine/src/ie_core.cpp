@@ -143,11 +143,7 @@ void allowNotImplemented(F&& f) {
 }  // namespace
 
 class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore> {
-#ifdef OPENVINO_STATIC_LIBRARY
     mutable std::map<std::string, ov::runtime::InferencePlugin> plugins;
-#else
-    mutable std::map<std::string, ov::runtime::InferencePlugin> plugins;
-#endif
 
     class CoreConfig final {
     public:
