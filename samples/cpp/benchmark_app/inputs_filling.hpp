@@ -110,6 +110,9 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                std::vector<InferReqWrap::Ptr> requests,
                bool supress = false);
 
-std::vector<Buffer> prepareRandomInputs(std::vector<benchmark_app::InputsInfo>& app_inputs_info);
+std::map<std::string, std::vector<Buffer>> prepareCachedBlobs(
+    std::map<std::string, std::vector<std::string>>& inputFiles,
+                        std::vector<benchmark_app::InputsInfo>& app_inputs_info);
 
 void fillBlob(InferenceEngine::Blob::Ptr& inputBlob, Buffer& data);
+
