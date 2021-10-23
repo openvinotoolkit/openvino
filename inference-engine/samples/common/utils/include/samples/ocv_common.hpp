@@ -90,5 +90,5 @@ static UNUSED ov::runtime::Tensor wrapMat2Tensor(const cv::Mat& mat) {
     const bool is_dense = strideW == channels && strideH == channels * width;
     OPENVINO_ASSERT(is_dense, "Doesn't support conversion from not dense cv::Mat");
 
-    return ov::runtime::Tensor(ov::element::u8, ov::Shape{1, channels, height, width}, mat.data);
+    return ov::runtime::Tensor(ov::element::u8, ov::Shape{1, height, width, channels}, mat.data);
 }
