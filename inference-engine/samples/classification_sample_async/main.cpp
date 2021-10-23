@@ -82,11 +82,9 @@ int main(int argc, char* argv[]) {
         ov::runtime::Core core;
 
         if (!FLAGS_l.empty()) {
-            // Custom CPU extension is loaded as a shared library and passed as a
-            // pointer to base extension
             auto extension_ptr = std::make_shared<InferenceEngine::Extension>(FLAGS_l);
             core.add_extension(extension_ptr);
-            slog::info << "CPU Extension loaded: " << FLAGS_l << slog::endl;
+            slog::info << "Extension loaded: " << FLAGS_l << slog::endl;
         }
         if (!FLAGS_c.empty() && (FLAGS_d == "GPU" || FLAGS_d == "MYRIAD" || FLAGS_d == "HDDL")) {
             // Config for device plugin custom extension is loaded from an .xml
