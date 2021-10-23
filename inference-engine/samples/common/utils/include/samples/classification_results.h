@@ -15,8 +15,8 @@
 #include <utility>
 #include <vector>
 
-#include "openvino/openvino.hpp"
 #include "inference_engine.hpp"
+#include "openvino/openvino.hpp"
 
 /**
  * @class ClassificationResult

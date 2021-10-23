@@ -136,6 +136,7 @@ int main(int argc, char* argv[]) {
                 // - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
                 // - apply linear resize from tensor spatial dims to model spatial dims
                 preprocess(PreProcessSteps().
+                    convert_element_type(ov::element::f32). // WA for CPU plugin
                     convert_layout("NCHW"). // WA for CPU plugin
                     resize(ResizeAlgorithm::RESIZE_LINEAR)).
                 // 4) Here we suppose model has 'NCHW' layout for input

@@ -6,7 +6,6 @@
 #include <sys/stat.h>
 
 #include <fstream>
-#include <inference_engine.hpp>
 #include <iostream>
 #include <memory>
 #include <openvino/openvino.hpp>
@@ -219,7 +218,7 @@ int main(int argc, char* argv[]) {
                     convert_element_type(ov::element::f32).
                     convert_color(ColorFormat::RGB).
                     convert_layout().
-                    resize(ResizeAlgorithm::RESIZE_CUBIC)).
+                    resize(ResizeAlgorithm::RESIZE_LINEAR)).
                 // 4) Set model data layout (Assuming model accepts images in NCHW layout)
                 network(InputNetworkInfo().
                     set_layout("NCHW"))).
