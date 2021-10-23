@@ -248,6 +248,20 @@ macro(ie_register_plugins_static)
     set(ie_plugins_hpp "${CMAKE_CURRENT_BINARY_DIR}/ie_plugins.hpp")
     set(plugins_hpp_in "${IEDevScripts_DIR}/plugins/plugins.hpp.in")
 
+    add_custom_command(OUTPUT "${ie_plugins_hpp}"
+                       COMMAND
+                        "${CMAKE_COMMAND}"
+                        -D "IE_DEVICE_NAMES=${device_names}"
+                        -D "IE_PLUGINS_HPP_HEADER_IN=${plugins_hpp_in}"
+                        -D "IE_PLUGINS_HPP_HEADER=${ie_plugins_hpp}"
+                        -P "${IEDevScripts_DIR}/plugins/create_plugins_hpp.cmake"
+                       DEPENDS
+                         "${plugins_hpp_in}"
+                         "${IEDevScripts_DIR}/plugins/create_plugins_hpp.cmake"
+                       COMMENT
+                         "Generate ie_plugins.hpp for static build"
+                       VERBATIM)
+
     # add dependency for object files
     get_target_property(sources ${IE_REGISTER_MAIN_TARGET} SOURCES)
     foreach(source IN LISTS sources)
@@ -262,20 +276,6 @@ macro(ie_register_plugins_static)
         endif()
     endforeach()
     set_source_files_properties(${patched_sources} PROPERTIES OBJECT_DEPENDS ${ie_plugins_hpp})
-
-    add_custom_command(OUTPUT "${ie_plugins_hpp}"
-                       COMMAND
-                        "${CMAKE_COMMAND}"
-                        -D "IE_DEVICE_NAMES=${device_names}"
-                        -D "IE_PLUGINS_HPP_HEADER_IN=${plugins_hpp_in}"
-                        -D "IE_PLUGINS_HPP_HEADER=${ie_plugins_hpp}"
-                        -P "${IEDevScripts_DIR}/plugins/create_plugins_hpp.cmake"
-                       DEPENDS
-                         "${plugins_hpp_in}"
-                         "${IEDevScripts_DIR}/plugins/create_plugins_hpp.cmake"
-                       COMMENT
-                         "Generate ie_plugins.hpp for static build"
-                       VERBATIM)
 endmacro()
 
 #

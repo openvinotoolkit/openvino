@@ -7,7 +7,6 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
 namespace {
-
 @IE_PLUGINS_DECLARATIONS@
 
 @IE_PLUGINS_MAP_DEFINITION@

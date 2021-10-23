@@ -12,7 +12,7 @@ endforeach()
 
 set(IE_PLUGINS_DECLARATIONS "")
 set(IE_PLUGINS_MAP_DEFINITION
-    "std::map<std::string, InferenceEngine::CreatePluginEngineFunc> plugins_xml = {\n")
+    "std::map<std::string, InferenceEngine::CreatePluginEngineFunc *> plugins_hpp = {")
 
 foreach(dev_name IN LISTS IE_DEVICE_NAMES)
     set(_IE_CREATE_PLUGIN_FUNC "CreatePluginEngine${dev_name}")

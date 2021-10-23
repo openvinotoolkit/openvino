@@ -143,6 +143,8 @@ class InferencePlugin {
     std::shared_ptr<ie::IInferencePlugin> _ptr;
 
 public:
+    InferencePlugin() = default;
+
     InferencePlugin(const std::shared_ptr<void>& so, const std::shared_ptr<ie::IInferencePlugin>& impl) :
         _so{so},
         _ptr{impl} {
