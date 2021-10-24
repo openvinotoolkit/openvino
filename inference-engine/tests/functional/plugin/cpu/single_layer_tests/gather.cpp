@@ -41,7 +41,7 @@ public:
         result << "axis=" << axis << "_";
         result << "batchDims=" << batchDims << "_";
         result << "netPrc=" << netPrecision.name() << "_";
-        result << "constAx=" << isAxisConstant << "_";
+        result << "constAx=" << (isAxisConstant ? "True" : "False") << "_";
         result << "trgDev=" << targetDevice;
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
@@ -62,10 +62,13 @@ protected:
         selectedType = std::string("ref_any_") + netPrecision.name();
 
         targetStaticShapes.reserve(inputShapes.second.size());
-        for (const auto& staticShape : inputShapes.second) {
-            targetStaticShapes.push_back({staticShape});
+        inputDynamicShapes.reserve(inputShapes.first.size());
+        for (int i = 0; i < (isAxisConstant ? 2 : 3); i++) {
+            if (inputShapes.second.size() > i)
+                targetStaticShapes.push_back({inputShapes.second[i]});
+            if (inputShapes.first.size() > i)
+                inputDynamicShapes.push_back(inputShapes.first[i]);
         }
-        inputDynamicShapes = { inputShapes.first };
         const ov::Shape& inputDataShape = targetStaticShapes.front().front(), indicesShape = targetStaticShapes.front()[1];
         dataSrcRank = inputDataShape.size();
 
@@ -176,7 +179,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_StaticShape1D, GatherLayerTestCPU,
                     ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(true),
                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                    ::testing::ValuesIn(std::vector<CPUSpecificParams>{{}})),
+                    ::testing::Values(CPUSpecificParams{})),
                 GatherLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_DynamicShape1D, GatherLayerTestCPU,
@@ -185,9 +188,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_DynamicShape1D, GatherLayerTestCPU,
                     ::testing::Values(0),
                     ::testing::Values(0),
                     ::testing::ValuesIn(netPrecisions),
-                    ::testing::ValuesIn(std::vector<bool>(true, false)),
+                    ::testing::Values(true, false),
                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                    ::testing::ValuesIn(std::vector<CPUSpecificParams>{{}})),
+                    ::testing::Values(CPUSpecificParams{})),
                 GatherLayerTestCPU::getTestCaseName);
 
 // 2D
@@ -225,6 +228,19 @@ const std::vector<inputShapesPair> dynamicInputShapes2D = {
         }
     }
 };
+const std::vector<inputShapesPair> dynamicInputShapes2Dv2 = {
+    {
+        { // Origin dynamic shapes
+            {ov::Dimension(3, 99), ov::Dimension(3, 99)},
+            {-1, ov::Dimension(3, 99)},
+            {1}
+        },
+        { // Dynamic shapes instances
+            {{4, 7}, {4, 55}, {1}},
+            {{8, 55}, {5, 7}, {1}}
+        }
+    }
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_StaticShape2D, GatherLayerTestCPU,
                 ::testing::Combine(
@@ -234,7 +250,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_StaticShape2D, GatherLayerTestCPU,
                     ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(true),
                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                    ::testing::ValuesIn(std::vector<CPUSpecificParams>{{}})),
+                    ::testing::Values(CPUSpecificParams{})),
                 GatherLayerTestCPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_DynamicShape2D, GatherLayerTestCPU,
@@ -243,9 +259,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_DynamicShape2D, GatherLayerTestCPU,
                     ::testing::Values(1),
                     ::testing::ValuesIn(std::vector<int64_t>{0, 1}),
                     ::testing::ValuesIn(netPrecisions),
-                    ::testing::ValuesIn(std::vector<bool>(true, false)),
+                    ::testing::Values(true, false),
                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                    ::testing::ValuesIn(std::vector<CPUSpecificParams>{{}})),
+                    ::testing::Values(CPUSpecificParams{})),
+                GatherLayerTestCPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicShape2Dv2, GatherLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(dynamicInputShapes2Dv2),
+                    ::testing::Values(0),
+                    ::testing::Values(0),
+                    ::testing::ValuesIn(netPrecisions),
+                    ::testing::Values(true, false),
+                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                    ::testing::Values(CPUSpecificParams{})),
                 GatherLayerTestCPU::getTestCaseName);
 
 // 4D
@@ -284,7 +311,7 @@ const std::vector<inputShapesPair> dynamicInputShapes4D = {
     },
     {
         { // Origin dynamic shapes
-            {-1, -1, -1, -1}, {-1, -1, -1, -1}, {1}
+            {-1, -1, -1, -1}, {-1, -1, -1}, {1}
         },
         { // Dynamic shapes instances
             {{4, 5, 6, 4}, {2, 5, 16}, {1}},
@@ -301,17 +328,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_StaticShape4D, GatherLayerTestCPU,
                     ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(true),
                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                    ::testing::ValuesIn(std::vector<CPUSpecificParams>{{}})),
+                    ::testing::Values(CPUSpecificParams{})),
                 GatherLayerTestCPU::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_DynamicShape4D, GatherLayerTestCPU,
                 ::testing::Combine(
                     ::testing::ValuesIn(dynamicInputShapes4D),
                     ::testing::ValuesIn(std::vector<int64_t>{0, 1, 2, -1}),
                     ::testing::Values(0),
                     ::testing::ValuesIn(netPrecisions),
-                    ::testing::ValuesIn(std::vector<bool>(true, false)),
+                    ::testing::Values(true, false),
                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                    ::testing::ValuesIn(std::vector<CPUSpecificParams>{{}})),
+                    ::testing::Values(CPUSpecificParams{})),
                 GatherLayerTestCPU::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions
