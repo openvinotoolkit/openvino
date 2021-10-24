@@ -8,7 +8,7 @@
 #include <frontend_manager/input_model.hpp>
 #include <fstream>
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 class InputModelONNX : public InputModel {
 public:
@@ -43,9 +43,9 @@ public:
     void extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override;
 
 private:
-    std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+    std::shared_ptr<ov::onnx_editor::ONNXModelEditor> m_editor;
 };
 
 }  // namespace frontend
 
-}  // namespace ngraph
+}  // namespace ov

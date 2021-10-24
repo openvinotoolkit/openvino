@@ -2,19 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <xml_parse_utils.h>
+#include "ir_frontend/frontend.hpp"
 
 #include <array>
-#include <ir_frontend/frontend.hpp>
-#include <ir_frontend/model.hpp>
-#include <ir_frontend/utility.hpp>
-#include <ngraph/variant.hpp>
-#include <openvino/util/file_util.hpp>
 #include <vector>
 
-using namespace ngraph;
+#include "ir_frontend/model.hpp"
+#include "ir_frontend/utility.hpp"
+#include "ngraph/runtime/aligned_buffer.hpp"
+#include "ngraph/runtime/shared_buffer.hpp"
+#include "openvino/core/variant.hpp"
+#include "openvino/util/file_util.hpp"
+#include "xml_parse_utils.h"
 
-namespace ngraph {
+using namespace ov;
+
+namespace ov {
 namespace frontend {
 
 inline size_t GetIRVersion(pugi::xml_node& root) {
@@ -191,7 +194,7 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>
         bin_stream.read(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size());
         bin_stream.close();
 
-        weights = std::make_shared<runtime::SharedBuffer<std::shared_ptr<runtime::AlignedBuffer>>>(
+        weights = std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
             aligned_weights_buffer->get_ptr<char>(),
             aligned_weights_buffer->size(),
             aligned_weights_buffer);
@@ -200,7 +203,7 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>
     return create_input_model();
 }
 
-std::shared_ptr<ngraph::Function> FrontEndIR::convert(InputModel::Ptr model) const {
+std::shared_ptr<ov::Function> FrontEndIR::convert(InputModel::Ptr model) const {
     auto ir_model = std::dynamic_pointer_cast<InputModelIR>(model);
     return ir_model->convert();
 }
@@ -209,9 +212,9 @@ std::string FrontEndIR::get_name() const {
     return "ir";
 }
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
 
-extern "C" IR_API ngraph::frontend::FrontEndVersion GetAPIVersion() {
+extern "C" IR_API ov::frontend::FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;
 }
 

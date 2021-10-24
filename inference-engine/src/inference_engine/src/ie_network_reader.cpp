@@ -399,8 +399,8 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-ngraph::frontend::FrontEndManager& get_frontend_manager() {
-    static ngraph::frontend::FrontEndManager manager;
+ov::frontend::FrontEndManager& get_frontend_manager() {
+    static ov::frontend::FrontEndManager manager;
     return manager;
 }
 
@@ -448,8 +448,8 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
     // Try to load with FrontEndManager
     auto& manager = get_frontend_manager();
-    ngraph::frontend::FrontEnd::Ptr FE;
-    ngraph::frontend::InputModel::Ptr inputModel;
+    ov::frontend::FrontEnd::Ptr FE;
+    ov::frontend::InputModel::Ptr inputModel;
 
     ov::VariantVector params{ov::make_variant(model_path)};
     if (!exts.empty()) {
@@ -509,8 +509,8 @@ CNNNetwork details::ReadNetwork(const std::string& model,
 
     // Try to load with FrontEndManager
     auto& manager = get_frontend_manager();
-    ngraph::frontend::FrontEnd::Ptr FE;
-    ngraph::frontend::InputModel::Ptr inputModel;
+    ov::frontend::FrontEnd::Ptr FE;
+    ov::frontend::InputModel::Ptr inputModel;
 
     ov::VariantVector params{ov::make_variant(&modelStream)};
     if (weights) {

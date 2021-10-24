@@ -4,14 +4,15 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
-#include <ir_frontend/utility.hpp>
 #include <istream>
 #include <memory>
-#include <ngraph/ngraph.hpp>
 
-namespace ngraph {
+#include "frontend_manager/frontend_manager.hpp"
+#include "ir_frontend/utility.hpp"
+
+namespace ov {
 namespace frontend {
+
 class IR_API InputModelIR : public InputModel {
     friend class FrontEndIR;
     class InputModelIRImpl;
@@ -24,4 +25,4 @@ public:
 };
 
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

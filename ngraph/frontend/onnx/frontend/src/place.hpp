@@ -9,7 +9,7 @@
 #include <memory>
 #include <sstream>
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 class PlaceInputEdgeONNX : public Place {
 public:
@@ -123,4 +123,4 @@ private:
 };
 }  // namespace frontend
 
-}  // namespace ngraph
+}  // namespace ov

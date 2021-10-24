@@ -22,10 +22,10 @@
 #include "pdpd_utils.hpp"
 
 using namespace ngraph::opset7;
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 NamedOutputs make_ng_node(const std::map<pdpd::TensorName, Output<Node>>& nodes,
@@ -83,7 +83,7 @@ NamedOutputs make_framework_node(const std::map<pdpd::TensorName, Output<Node>>&
     }
 
     auto node =
-        std::make_shared<ngraph::frontend::PDPDFrameworkNode>(DecoderPDPDProto(op_place), inputs_vector, inputs_names);
+        std::make_shared<ov::frontend::PDPDFrameworkNode>(DecoderPDPDProto(op_place), inputs_vector, inputs_names);
 
     return node->return_named_outputs();
 }
@@ -324,7 +324,7 @@ std::string FrontEndPDPD::get_name() const {
     return "paddle";
 }
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
 
 extern "C" PDPD_API FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;

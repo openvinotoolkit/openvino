@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <frontend_manager/frontend.hpp>
-#include <ngraph/variant.hpp>
-
+#include "frontend_manager/frontend.hpp"
+#include "openvino/core/variant.hpp"
 #include "utility.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 
 class IR_API FrontEndIR : public FrontEnd {
@@ -40,4 +39,4 @@ protected:
 };
 
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

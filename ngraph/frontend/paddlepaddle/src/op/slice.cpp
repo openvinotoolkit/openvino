@@ -8,7 +8,7 @@
 
 #include "default_opset.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
@@ -95,4 +95,4 @@ NamedOutputs slice(const NodeContext& node) {
 }  // namespace op
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
