@@ -60,7 +60,7 @@ private:
 public:
     const BaseExtension::Ptr& get() const;
 
-    friend std::vector<Extension> load_extension(const std::string& path);
+    friend OPENVINO_API std::vector<Extension> load_extension(const std::string& path);
     friend ov::runtime::Core;
     friend ngraph::frontend::FrontEnd;
 };
