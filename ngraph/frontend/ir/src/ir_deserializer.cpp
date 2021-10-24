@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <xml_parse_utils.h>
+#include "ir_deserializer.hpp"
 
-#include <ie_ngraph_utils.hpp>
-#include <ir_deserializer.hpp>
-#include <ngraph/op/util/framework_node.hpp>
-#include <ngraph/opsets/opset1.hpp>
 #include <pugixml.hpp>
-#include <rt_info_deserializer.hpp>
-#include <transformations/rt_info/attributes.hpp>
-#include <utils.hpp>
 
+#include "ie_ngraph_utils.hpp"
 #include "ir_frontend/model.hpp"
+#include "ngraph/op/util/framework_node.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "rt_info_deserializer.hpp"
+#include "transformations/rt_info/attributes.hpp"
+#include "utils.hpp"
+#include "xml_parse_utils.h"
 
 using namespace ov;
 

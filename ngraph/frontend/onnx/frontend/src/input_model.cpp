@@ -5,12 +5,12 @@
 #include "input_model.hpp"
 
 #include <frontend_manager/frontend_exceptions.hpp>
-#include <ngraph/file_util.hpp>
+#include <openvino/util/file_util.hpp>
 
 #include "place.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -29,7 +29,7 @@ InputModelONNX::InputModelONNX(std::istream& model_stream, const std::string& pa
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path)} {}
 
 InputModelONNX::InputModelONNX(std::istream& model_stream, const std::wstring& path)
-    : InputModelONNX(model_stream, file_util::wstring_to_string(path)) {}
+    : InputModelONNX(model_stream, ov::util::wstring_to_string(path)) {}
 
 std::vector<Place::Ptr> InputModelONNX::get_inputs() const {
     const auto& inputs = m_editor->model_inputs();

@@ -3,7 +3,7 @@
 //
 #include "op_table.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
@@ -75,9 +75,9 @@ OP_CONVERTER(yolo_box);
 }  // namespace op
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 std::map<std::string, CreatorFunction> get_supported_ops() {
@@ -157,4 +157,4 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
 
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
