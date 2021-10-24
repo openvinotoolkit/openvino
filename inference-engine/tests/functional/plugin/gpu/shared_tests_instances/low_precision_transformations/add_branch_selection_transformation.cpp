@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "low_precision_transformations/add_branch_selection_transformation.hpp"
+#include "low_precision_transformations/elementwise_branch_selection_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;

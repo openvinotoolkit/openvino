@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/add_branch_selection_transformation.hpp"
+#include "low_precision_transformations/elementwise_branch_selection_transformation.hpp"
 
 #include <memory>
 #include <tuple>
@@ -12,16 +12,18 @@
 
 namespace LayerTestsDefinitions {
 
-std::string AddBranchSelectionTransformation::getTestCaseName(const testing::TestParamInfo<AddBranchSelectionTransformationParams>& obj) {
+std::string ElementwiseBranchSelectionTransformation::getTestCaseName(const testing::TestParamInfo<ElementwiseBranchSelectionTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    AddBranchSelectionTestValues param;
-    std::tie(netPrecision, inputShapes, targetDevice, param) = obj.param;
+    ElementwiseBranchSelectionTestValues param;
+    std::string elementwiseType;
+    std::tie(netPrecision, inputShapes, targetDevice, param, elementwiseType) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
+    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) <<
+        "_elementwiseType_" << elementwiseType;
 
     auto toString = [](const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData) -> std::string {
         if (fqOnData.empty()) {
@@ -45,16 +47,18 @@ std::string AddBranchSelectionTransformation::getTestCaseName(const testing::Tes
     return result.str();
 }
 
-void AddBranchSelectionTransformation::SetUp() {
+void ElementwiseBranchSelectionTransformation::SetUp() {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
-    AddBranchSelectionTestValues param;
-    std::tie(precision, inputShape, targetDevice, param) = this->GetParam();
+    ElementwiseBranchSelectionTestValues param;
+    std::string elementwiseType;
+    std::tie(precision, inputShape, targetDevice, param, elementwiseType) = this->GetParam();
 
     function = ngraph::builder::subgraph::AddFunction::getOriginalSubgraphWithConvolutions(
         precision,
         inputShape,
         false,
+        elementwiseType,
         param.branch1.fakeQuantizeBefore,
         param.branch1.convolution,
         param.branch1.fakeQuantizeAfter,
@@ -66,8 +70,8 @@ void AddBranchSelectionTransformation::SetUp() {
     ngraph::pass::InitNodeInfo().run_on_function(function);
 }
 
-TEST_P(AddBranchSelectionTransformation, CompareWithRefImpl) {
-    Run();
+void ElementwiseBranchSelectionTransformation::Run() {
+    LayerTestsCommon::Run();
 
     const auto params = std::get<3>(GetParam());
     std::vector<std::pair<std::string, std::string>> expectedReorders = params.expectedReorders;
@@ -99,6 +103,10 @@ TEST_P(AddBranchSelectionTransformation, CompareWithRefImpl) {
     }
 
     ASSERT_TRUE(expectedReorders.empty()) << "Some Reorder operations were not found in execution graph";
+}
+
+TEST_P(ElementwiseBranchSelectionTransformation, CompareWithRefImpl) {
+    Run();
 };
 
 }  // namespace LayerTestsDefinitions

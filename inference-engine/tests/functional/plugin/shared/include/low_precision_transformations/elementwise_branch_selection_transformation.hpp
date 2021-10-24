@@ -12,7 +12,7 @@
 
 namespace LayerTestsDefinitions {
 
-class AddBranchSelectionTestValues{
+class ElementwiseBranchSelectionTestValues{
 public:
     class Branch {
     public:
@@ -31,17 +31,19 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::PartialShape,
     std::string,
-    AddBranchSelectionTestValues
-> AddBranchSelectionTransformationParams;
+    ElementwiseBranchSelectionTestValues,
+    std::string
+> ElementwiseBranchSelectionTransformationParams;
 
-class AddBranchSelectionTransformation :
-    public testing::WithParamInterface<AddBranchSelectionTransformationParams>,
+class ElementwiseBranchSelectionTransformation :
+    public testing::WithParamInterface<ElementwiseBranchSelectionTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<AddBranchSelectionTransformationParams>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ElementwiseBranchSelectionTransformationParams>& obj);
 
 protected:
     void SetUp() override;
+    void Run() override;
 };
 
 }  // namespace LayerTestsDefinitions

@@ -8,6 +8,7 @@
 #include <ngraph/ngraph.hpp>
 #include <low_precision/layer_transformation.hpp>
 
+#include "elementwise_function.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
 #include "lpt_ngraph_functions/common/convolution.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
@@ -55,7 +56,7 @@ inline std::ostream& operator<<(std::ostream& out, const AddExpectedValues& valu
         "_mutliply" << values.mutliplyValuesAfter.size();
 }
 
-class AddFunction {
+class AddFunction : public ElementwiseFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
@@ -77,18 +78,6 @@ public:
         const bool broadcast,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData1,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData2);
-
-    static std::shared_ptr<ngraph::Function> getOriginalSubgraphWithConvolutions(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
-        const bool broadcast,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataBefore1,
-        const ngraph::builder::subgraph::Convolution& convolution1,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataAfter1,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataBefore2,
-        const ngraph::builder::subgraph::Convolution& convolution2,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataAfter2,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnDataAfter);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,

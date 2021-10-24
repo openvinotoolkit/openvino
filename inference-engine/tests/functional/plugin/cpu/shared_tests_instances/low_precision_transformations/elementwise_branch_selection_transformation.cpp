@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "low_precision_transformations/add_branch_selection_transformation.hpp"
+#include "low_precision_transformations/elementwise_branch_selection_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -15,7 +15,12 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32,
 };
 
-const std::vector<LayerTestsDefinitions::AddBranchSelectionTestValues> params = {
+const std::vector<std::string> elementwiseTypes = {
+    "add",
+    "multiply"
+};
+
+const std::vector<LayerTestsDefinitions::ElementwiseBranchSelectionTestValues> params = {
     {
         {
             { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
@@ -74,11 +79,12 @@ const std::vector<LayerTestsDefinitions::AddBranchSelectionTestValues> params = 
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, AddBranchSelectionTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ElementwiseBranchSelectionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(params)),
-    AddBranchSelectionTransformation::getTestCaseName);
+        ::testing::ValuesIn(params),
+        ::testing::ValuesIn(elementwiseTypes)),
+    ElementwiseBranchSelectionTransformation::getTestCaseName);
 }  // namespace
