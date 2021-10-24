@@ -15,12 +15,15 @@ void* numpy_to_c(py::array a) {
     py::buffer_info info = a.request();
     return info.ptr;
 }
+std::shared_ptr<ov::op::v0::Constant> _py_get_constant_from_source(const ov::Output<ov::Node>& source) {
+    return ngraph::get_constant_from_source(source);
+}
 
 void regmodule_pyngraph_util(py::module m) {
     py::module mod = m.def_submodule("util", "ngraph.impl.util");
     mod.def("numpy_to_c", &numpy_to_c);
     mod.def("get_constant_from_source",
-            &ngraph::get_constant_from_source,
+            &_py_get_constant_from_source,
             py::arg("output"),
             R"(
                     Runs an estimation of source tensor.
