@@ -153,6 +153,9 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
             } else if (info.partialShape.is_static()) {
                 info.tensorShape = info.partialShape.get_shape();
             } else {
+                slog::warn << "tensor_shape command line parameter wasn't provided for network with dynamic shape,"
+                              "original image shape will be used."
+                               << slog::endl;
                 throw std::logic_error(
                     "tensor_shape command line parameter should be set in case of network dynamic shape.");
             }

@@ -480,15 +480,13 @@ Buffer createBlobFromImage(const std::string& file, const benchmark_app::InputIn
     slog::info << "Prepare image " << file << slog::endl;
     FormatReader::ReaderPtr reader(file.c_str());
     if (reader.get() == nullptr) {
-        std::runtime_error("Image " + file + " cannot be read!");
+        throw std::runtime_error("Image " + file + " cannot be read!");
     }
 
     /** Getting image data **/
     std::shared_ptr<uint8_t> imageData(reader->getData(input.width(), input.height()));
-    if (imageData) {
-        vreader.push_back(imageData);
-    } else {
-        std::runtime_error("Image " + file + " cannot be read!");
+    if (!imageData) {
+        throw std::runtime_error("Image " + file + " cannot be read!");
     }
 
     /** Fill input tensor with image. First b channel, then g and r channels **/
@@ -497,7 +495,7 @@ Buffer createBlobFromImage(const std::string& file, const benchmark_app::InputIn
     const size_t width = input.width();
     const size_t height = input.height();
     /** Iterate over all input images **/
-    for (size_t batch = 0; batch < batchSize; ++batch) {
+    for (size_t i = 0;i < batchSize; ++i) {
         /** Iterate over all width **/
         for (size_t w = 0; w < width; ++w) {
             /** Iterate over all height **/
@@ -507,7 +505,7 @@ Buffer createBlobFromImage(const std::string& file, const benchmark_app::InputIn
                     /**          [images stride + channels stride + pixel id ] all in
                      * bytes            **/
                     size_t offset =
-                        batch * numChannels * width * height + (((input.layout == "NCHW") || (input.layout == "CHW"))
+                        i * numChannels * width * height + (((input.layout == "NCHW") || (input.layout == "CHW"))
                                          ? (ch * width * height + h * width + w)
                                          : (h * width * numChannels + w * numChannels + ch));
                     data[offset] =
@@ -522,38 +520,61 @@ Buffer createBlobFromImage(const std::string& file, const benchmark_app::InputIn
     return buff;
 }
 
-//template <typename T>
-//Buffer createBlobBinary(size_t blobSize,
-//                        const size_t& batchSize,
-//                        const std::vector<std::string>& filePath) {
-//    Buffer buff(blobSize, precision);
-//    auto data = buff.get<T>();
-//
-//    for (size_t i = 0ULL, inputIndex = batchSize * inputSize + inputId; i < batchSize;
-//         i++, inputIndex += inputSize) {
-//        inputIndex %= filePaths.size();
-//
-//        slog::info << "Prepare binary file " << filePaths[inputIndex] << slog::endl;
-//        std::ifstream binaryFile(filePaths[inputIndex], std::ios_base::binary | std::ios_base::ate);
-//        if (!binaryFile) {
-//            IE_THROW() << "Cannot open " << filePaths[inputIndex];
-//        }
-//
-//        auto fileSize = static_cast<std::size_t>(binaryFile.tellg());
-//        binaryFile.seekg(0, std::ios_base::beg);
-//        if (!binaryFile.good()) {
-//            IE_THROW() << "Can not read " << filePaths[inputIndex];
-//        }
-//        auto inputSize = inputBlob->size() * sizeof(T) / batchSize;
-//        if (fileSize != inputSize) {
-//            IE_THROW() << "File " << filePaths[inputIndex] << " contains " << std::to_string(fileSize)
-//                       << " bytes "
-//                          "but the network expects "
-//                       << std::to_string(inputSize);
-//        }
-//        binaryFile.read(&inputBlobData[i * inputSize], inputSize);
-//    }
-//}
+template <typename T>
+Buffer createBlobImInfo(const std::pair<size_t, size_t>& image_size,
+                        const benchmark_app::InputInfo& input) {
+    size_t blob_size = std::accumulate(input.tensorShape.begin(), input.tensorShape.end(), 1, std::multiplies<int>());
+    Buffer buff(blob_size, input.precision);
+    auto data = buff.get<T>();
+
+    const size_t batchSize = input.batch();  // change
+    for (size_t b = 0; b < batchSize; b++) {
+        size_t iminfoSize = blob_size / batchSize;
+        for (size_t i = 0; i < iminfoSize; i++) {
+            size_t index = b * iminfoSize + i;
+            if (0 == i)
+                data[index] = static_cast<T>(image_size.first);
+            else if (1 == i)
+                data[index] = static_cast<T>(image_size.second);
+            else
+                data[index] = 1;
+        }
+    }
+
+    return buff;
+}
+
+template <typename T>
+Buffer createBlobFromBinary(const std::string& file, const benchmark_app::InputInfo& input) {
+    size_t blob_size = std::accumulate(input.tensorShape.begin(), input.tensorShape.end(), 1, std::multiplies<int>());
+    Buffer buff(blob_size, input.precision);
+    auto data = buff.get<char>();
+
+    const size_t batchSize = input.batch(); // change
+    for (size_t i = 0; i < batchSize; ++i) {
+        slog::info << "Prepare binary file " << file << slog::endl;
+        std::ifstream binaryFile(file, std::ios_base::binary | std::ios_base::ate);
+        if (!binaryFile) {
+            IE_THROW() << "Cannot open " << file;
+        }
+
+        auto fileSize = static_cast<std::size_t>(binaryFile.tellg());
+        binaryFile.seekg(0, std::ios_base::beg);
+        if (!binaryFile.good()) {
+            IE_THROW() << "Can not read " << file;
+        }
+        auto inputSize = blob_size * sizeof(T) / batchSize;
+        if (fileSize != inputSize) {
+            IE_THROW() << "File " << file << " contains " << std::to_string(fileSize)
+                       << " bytes "
+                          "but the network expects "
+                       << std::to_string(inputSize);
+        }
+        binaryFile.read(&data[i * inputSize], inputSize);
+    }
+
+    return buff;
+}
 
 template <typename T, typename T2>
 Buffer createBlobRandom(size_t blobSize,
@@ -582,12 +603,8 @@ Buffer getImageBlob(const std::string& file, const std::pair<std::string, benchm
     } else if (precision == InferenceEngine::Precision::I64) {
         return createBlobFromImage<int64_t>(file, input.second);
     } else if (precision == InferenceEngine::Precision::U8) {
-        // uniform_int_distribution<uint8_t> is not allowed in the C++17
-        // standard and vs2017/19
         return createBlobFromImage<uint8_t>(file, input.second);
     } else if (precision == InferenceEngine::Precision::I8) {
-        // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
-        // and vs2017/19
         return createBlobFromImage<int8_t>(file, input.second);
     } else if (precision == InferenceEngine::Precision::U16) {
         return createBlobFromImage<uint16_t>(file, input.second);
@@ -595,6 +612,39 @@ Buffer getImageBlob(const std::string& file, const std::pair<std::string, benchm
         return createBlobFromImage<int16_t>(file, input.second);
     } else if (precision == InferenceEngine::Precision::BOOL) {
         return createBlobFromImage<uint8_t>(file, input.second);
+    } else {
+        IE_THROW() << "Input precision is not supported for " << input.first;
+    }
+}
+
+Buffer getImInfoBlob(const std::pair<size_t, size_t>& image_size,
+                     const std::pair<std::string, benchmark_app::InputInfo>& input) {
+    auto precision = input.second.precision;
+    if (precision == InferenceEngine::Precision::FP32) {
+        return createBlobImInfo<float>(image_size, input.second);
+    } else if (precision == InferenceEngine::Precision::FP16) {
+        return createBlobImInfo<short>(image_size, input.second);
+    } else if (precision == InferenceEngine::Precision::I32) {
+        return createBlobImInfo<int32_t>(image_size, input.second);
+    } else if (precision == InferenceEngine::Precision::I64) {
+        return createBlobImInfo<int64_t>(image_size, input.second);
+    } else {
+        IE_THROW() << "Input precision is not supported for " << input.first;
+    }
+}
+
+Buffer getBinaryBlob(const std::string& file, const std::pair<std::string, benchmark_app::InputInfo>& input) {
+    auto precision = input.second.precision;
+    if (precision == InferenceEngine::Precision::FP32) {
+        return createBlobFromBinary<float>(file, input.second);
+    } else if (precision == InferenceEngine::Precision::FP16) {
+        return createBlobFromBinary<short>(file, input.second);
+    } else if (precision == InferenceEngine::Precision::I32) {
+        return createBlobFromBinary<int32_t>(file, input.second);
+    } else if (precision == InferenceEngine::Precision::I64) {
+        return createBlobFromBinary<int64_t>(file, input.second);
+    } else if (precision == InferenceEngine::Precision::U8) {
+        return createBlobFromBinary<uint8_t>(file, input.second);
     } else {
         IE_THROW() << "Input precision is not supported for " << input.first;
     }
@@ -639,6 +689,21 @@ std::map<std::string, std::vector<Buffer>> prepareCachedBlobs(
         throw std::logic_error("Inputs Info for network is empty!");
     }
 
+    std::vector<std::pair<size_t, size_t>> input_image_sizes;
+    for (auto& inputs_info : app_inputs_info) {
+        for (auto& input : inputs_info) {
+            if (input.second.isImage()) {
+                input_image_sizes.push_back(std::make_pair(input.second.width(), input.second.height()));
+            }
+            slog::info << "Network input '" << input.first << "' precision " << input.second.precision
+                       << ", dimensions (" << input.second.layout << "): ";
+            for (const auto& i : input.second.tensorShape) {
+                slog::info << i << " ";
+            }
+            slog::info << "(dynamic: " << input.second.partialShape << ")" << slog::endl;
+        }
+    }
+
     for (auto& files : inputFiles) {
         if (!files.first.empty() && app_inputs_info[0].find(files.first) == app_inputs_info[0].end()) {
             throw std::logic_error("Input name" + files.first +
@@ -649,11 +714,14 @@ std::map<std::string, std::vector<Buffer>> prepareCachedBlobs(
         auto input = app_inputs_info[0].at(input_name);
         if (input.isImage()) {
             files.second = filterFilesByExtensions(files.second, supported_image_extensions);
-      //  } else if (input.isImageInfo()) { // add check 
-     //       slog::info << "Input " << input_name << " probably is image info. All files for this input will be ignored." << slog::endl;
-     //       continue;
         } else {
-            files.second = filterFilesByExtensions(files.second, supported_binary_extensions);
+            if (input.isImageInfo() && input_image_sizes.size() == app_inputs_info.size()) {
+                slog::info << "Input " << input_name << " probably is image info. All files for this input will"
+                                                        "be ignored." << slog::endl;
+                continue;
+            } else {
+                files.second = filterFilesByExtensions(files.second, supported_binary_extensions);
+            }
         }
 
         if (files.second.empty()) {
@@ -684,6 +752,7 @@ std::map<std::string, std::vector<Buffer>> prepareCachedBlobs(
             }
             while (app_inputs_info.size() != shapesToBeUsed) {
                 app_inputs_info.pop_back();
+                input_image_sizes.pop_back();
             }
         }
 
@@ -702,21 +771,6 @@ std::map<std::string, std::vector<Buffer>> prepareCachedBlobs(
         }
     }
 
-    if (inputFiles.empty()) {
-        slog::warn << "No input files were given: all inputs will be filled with "
-                      "random values!"
-                   << slog::endl;
-        for (auto& input_info : app_inputs_info) {
-            for (auto& input : input_info) {
-                // Fill random
-                slog::info << "Prepare blob for input '" << input.first << "' with random values ("
-                           << std::string((input.second.isImage() ? "image" : "some binary data")) << " is expected)"
-                           << slog::endl;
-                cachedBlobs[input.first].push_back(getRandomBlob(input));
-            }
-        }
-    }
-
     for (const auto& files : inputFiles) {
         std::string input_name = files.first.empty() ? app_inputs_info[0].begin()->first : files.first;
         size_t n_shape = 0, m_file = 0;
@@ -724,17 +778,49 @@ std::map<std::string, std::vector<Buffer>> prepareCachedBlobs(
             auto app_info = app_inputs_info[n_shape % app_inputs_info.size()].at(input_name);
             auto precision = app_info.precision;
             if (app_info.isImage()) {
-                // push_back image blob
-                cachedBlobs[input_name].push_back(getImageBlob(files.second[m_file % files.second.size()], {input_name, app_info}));
+                // Fill with Images
+                cachedBlobs[input_name].push_back(
+                    getImageBlob(files.second[m_file % files.second.size()], {input_name, app_info}));
             } else {
-               // if (app_info.isImageInfo() && (input_image_sizes.size() == 1)) {
-                    // push_back image info blob
-                //} else {
-                    // push_back binary blob
-                    // cachedBlobs[input.first] = getBinaryBlob(files[n_file % files.second.size()], precision, app_info.tensorShape);
+                if (app_info.isImageInfo() && input_image_sizes.size() == app_inputs_info.size()) {
+                    // Most likely it is image info: fill with image information
+                    auto image_size = input_image_sizes.at(n_shape % app_inputs_info.size());
+                    slog::info << "Fill input '" << input_name << "' with image size " << image_size.first
+                                << "x" << image_size.second << slog::endl;
+                    cachedBlobs[input_name].push_back(getImInfoBlob(image_size, {input_name, app_info}));
+                } else {
+                    // Fill with binary files
+                    cachedBlobs[input_name].push_back(
+                        getBinaryBlob(files.second[m_file % files.second.size()], {input_name, app_info}));
                 }
+            }
             ++n_shape;
             ++m_file;
+        }
+    }
+
+    if (inputFiles.empty()) {
+        slog::warn << "No input files were given: all inputs will be filled with "
+                      "random values!"
+                   << slog::endl;
+        size_t i = 0;
+        for (auto& input_info : app_inputs_info) {
+            for (auto& input : input_info) {
+                if (input.second.isImageInfo() && input_image_sizes.size() == app_inputs_info.size()) {
+                    // Most likely it is image info: fill with image information
+                    auto image_size = input_image_sizes.at(i);
+                    slog::info << "Fill input '" << input.first << "' with image size " << image_size.first << "x"
+                               << image_size.second << slog::endl;
+                    cachedBlobs[input.first].push_back(getImInfoBlob(image_size, input));
+                } else {
+                    // Fill random
+                    slog::info << "Prepare blob for input '" << input.first << "' with random values ("
+                               << std::string((input.second.isImage() ? "image" : "some binary data"))
+                               << " is expected)" << slog::endl;
+                    cachedBlobs[input.first].push_back(getRandomBlob(input));
+                }
+                ++i;
+            }
         }
     }
 

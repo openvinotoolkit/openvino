@@ -93,32 +93,31 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     return true;
 }
 
-std::vector<std::string> parseInputFileNames(const std::string& file_names_string) {
+std::vector<std::string> parseInputFilePaths(const std::string& file_paths_string) {
+    auto files = file_paths_string;
     size_t coma_pos = 0;
-    auto names = file_names_string;
-    std::vector<std::string> file_names;
-    while (coma_pos != std::string::npos) {
-        coma_pos = names.find_first_of(',');
-        auto file_name = names.substr(0, coma_pos);
-        names = names.substr(coma_pos == std::string::npos ? names.size() : coma_pos);
-        if (!names.empty() && names.front() == ',')
-            names = names.substr(1);
-        file_names.push_back(file_name);
+    std::vector<std::string> file_paths;
+    while (!files.empty() && coma_pos != std::string::npos) {
+        coma_pos = files.find_first_of(',');
+        auto file_name = files.substr(0, coma_pos);
+        files = files.substr(coma_pos == std::string::npos ? files.size() : coma_pos);
+        if (!files.empty() && files.front() == ',')
+            files = files.substr(1);
+        file_paths.push_back(file_name);
     }
 
-    if (!names.empty())
-        throw std::logic_error("Can't parse file names in input parameter string: " + file_names_string);
+    if (!files.empty())
+        throw std::logic_error("Can't parse file names in input parameter string: " + file_paths_string);
 
-
-    return file_names;
+    return file_paths;
 }
 
 std::map<std::string, std::vector<std::string>> parseInputArguments(const std::string& input_parameter_string) {
     std::string search_string = input_parameter_string;
     std::map<std::string, std::vector<std::string>> files_per_input;
     size_t semicolon_pos = search_string.find_first_of(':');
-    if (semicolon_pos == std::string::npos) {
-        auto files = parseInputFileNames(search_string);
+    if (!search_string.empty() && semicolon_pos == std::string::npos) {
+        auto files = parseInputFilePaths(search_string);
         for (const auto& f : files) {
             readInputFilesArguments(files_per_input[""], f);
         }
@@ -146,7 +145,7 @@ std::map<std::string, std::vector<std::string>> parseInputArguments(const std::s
 
         semicolon_pos = search_string.find_first_of(':');
 
-        auto files = parseInputFileNames(input_files);
+        auto files = parseInputFilePaths(input_files);
         for (const auto& f : files) {
             readInputFilesArguments(files_per_input[input_name], f);
         }
@@ -704,21 +703,21 @@ int main(int argc, char* argv[]) {
         next_step();
 
         InferRequestsQueue inferRequestsQueue(exeNetwork, nireq, app_inputs_info.size());
-        if (isFlagSetInCommandLine("use_device_mem")) {
-            if (device_name.find("GPU") == 0)
-                ::gpu::fillRemoteBlobs(inputFiles,
-                                       batchSize,
-                                       app_inputs_info[0],
-                                       inferRequestsQueue.requests,
-                                       exeNetwork);
-            else if (device_name.find("CPU") == 0)
-                fillBlobs(inputFiles, batchSize, app_inputs_info[0], inferRequestsQueue.requests);
-            else
-                IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
-        } else {
-            fillBlobs(inputFiles, batchSize, app_inputs_info[0], inferRequestsQueue.requests);
-        }
-
+        //if (isFlagSetInCommandLine("use_device_mem")) {
+        //    if (device_name.find("GPU") == 0)
+        //        ::gpu::fillRemoteBlobs(inputFiles,
+        //                               batchSize,
+        //                               app_inputs_info[0],
+        //                               inferRequestsQueue.requests,
+        //                               exeNetwork);
+        //    else if (device_name.find("CPU") == 0)
+        //        fillBlobs(inputFiles, batchSize, app_inputs_info[0], inferRequestsQueue.requests);
+        //    else
+        //        IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
+        //} else {
+        //    fillBlobs(inputFiles, batchSize, app_inputs_info[0], inferRequestsQueue.requests);
+        //}
+        auto inputs_data = prepareCachedBlobs(inputFiles2, app_inputs_info);
         // ----------------- 10. Measuring performance
         // ------------------------------------------------------------------
         size_t progressCnt = 0;
@@ -759,10 +758,17 @@ int main(int argc, char* argv[]) {
 
         next_step(ss.str());
 
-        //// warming up - out of scope
+        // warming up - out of scope
         auto inferRequest = inferRequestsQueue.getIdleRequest();
         if (!inferRequest) {
             IE_THROW() << "No idle Infer Requests!";
+        }
+        auto input = app_inputs_info[0];
+        for (auto& item : input) {
+            if (item.second.partialShape.is_dynamic())
+                inferRequest->setShape(item.first, item.second.tensorShape);
+            Blob::Ptr inputBlob = inferRequest->getBlob(item.first);
+            fillBlob(inputBlob, inputs_data.at(item.first)[0]);
         }
         if (FLAGS_api == "sync") {
             inferRequest->infer();
@@ -784,7 +790,6 @@ int main(int argc, char* argv[]) {
         /** to align number if iterations to guarantee that last infer requests are
          * executed in the same conditions **/
         ProgressBar progressBar(progressBarTotalCount, FLAGS_stream_output, FLAGS_progress);
-        auto inputs_data = prepareCachedBlobs(inputFiles2, app_inputs_info);
 
         while ((niter != 0LL && iteration < niter) ||
                (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
