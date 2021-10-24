@@ -1258,16 +1258,16 @@ bool pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Function> f)
 
 namespace {
 template <typename T>
-static std::size_t hash_combine(std::size_t seed, const T& a) {
+static uint64_t hash_combine(uint64_t seed, const T& a) {
     // Hash combine formula from boost
     return seed ^ (std::hash<T>()(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
 }
 
 class OstreamHashWrapper final : public std::streambuf {
-    std::size_t m_res = 0;
+    uint64_t m_res = 0;
 
 public:
-    std::size_t getResult() const {
+    uint64_t getResult() const {
         return m_res;
     }
 
@@ -1298,7 +1298,7 @@ bool pass::Hash::run_on_function(std::shared_ptr<ov::Function> f) {
     // Determinism is important for hash calculation
     serializeFunc(xml, bin, f, Serialize::Version::UNSPECIFIED, {}, true);
 
-    size_t seed = 0;
+    uint64_t seed = 0;
     seed = hash_combine(seed, xmlHash.getResult());
     seed = hash_combine(seed, binHash.getResult());
 
@@ -1307,6 +1307,6 @@ bool pass::Hash::run_on_function(std::shared_ptr<ov::Function> f) {
     return false;
 }
 
-pass::Hash::Hash(std::size_t& output_hash_value) : m_hash(output_hash_value) {}
+pass::Hash::Hash(uint64_t& output_hash_value) : m_hash(output_hash_value) {}
 
 }  // namespace ov

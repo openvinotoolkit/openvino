@@ -30,7 +30,7 @@
 namespace InferenceEngine {
 
 template <typename T>
-static std::size_t hash_combine(std::size_t seed, const T& a) {
+static uint64_t hash_combine(uint64_t seed, const T& a) {
     // Hash combine formula from boost
     return seed ^ (std::hash<T>()(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
 }
@@ -43,7 +43,7 @@ static int32_t as_int32_t(T v) {
 //////////////////////////////////////////////////
 
 std::string NetworkCompilationContext::calculateFileInfo(const std::string& filePath) {
-    size_t seed = 0;
+    uint64_t seed = 0;
     auto absPath = filePath;
     try {
         absPath = FileUtils::absoluteFilePath(filePath);
@@ -68,7 +68,7 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
 
     IE_ASSERT(network.getFunction());
 
-    size_t seed = 0;
+    uint64_t seed = 0;
     // 1. Calculate hash on function
     CNNNetwork net(network);
     ov::pass::Manager m;
@@ -128,13 +128,14 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
         seed = hash_combine(seed, as_int32_t(info->getLayout()));
     }
 
+    std::cout << "Seed is " << std::to_string(seed) << "\n";
     return std::to_string(seed);
 }
 
 std::string NetworkCompilationContext::computeHash(const std::string& modelName,
                                                    const std::map<std::string, std::string>& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - ModelName");
-    size_t seed = 0;
+    uint64_t seed = 0;
     try {
         seed = hash_combine(seed, FileUtils::absoluteFilePath(modelName));
     } catch (...) {

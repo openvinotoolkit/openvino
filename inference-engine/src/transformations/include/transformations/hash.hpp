@@ -28,10 +28,10 @@ public:
      * @param output_hash_value Reference to output value. By applying hash pass on function, resulting hash value
      * will be set to this variable
      */
-    Hash(std::size_t& output_hash_value);
+    Hash(uint64_t& output_hash_value);
 
 private:
-    std::size_t& m_hash;
+    uint64_t& m_hash;
 };
 
 
