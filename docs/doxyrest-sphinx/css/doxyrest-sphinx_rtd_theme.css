@@ -1,0 +1,51 @@
+﻿code { font-family: 'Consolas', 'Deja Vu Sans Mono', 'Bitstream Vera Sans Mono', monospace !important; }
+
+pre {
+	font-family: 'Consolas', 'Deja Vu Sans Mono', 'Bitstream Vera Sans Mono', monospace !important;
+	border: 1px dashed #ccc !important;
+	background-color: #ffffe0 !important;
+}
+
+div[class^="highlight"] {
+	border: none !important;
+}
+
+pre.doxyrest-overview-code-block {
+	border: 1px solid #ccc !important;
+	background-color: #fff !important;
+}
+
+pre.doxyrest-overview-inherited-code-block {
+	border: 1px solid #ccc !important;
+	background-color: #eee !important;
+}
+
+pre.doxyrest-title-code-block {
+	font-size: larger !important;
+	border: none !important;
+	border-top: solid #ccc !important;
+	background-color: #f0f0f0 !important;
+}
+
+code a { color:#000000 !important; text-decoration: underline !important }
+code a:visited:hover { color: #3091d1 !important }
+code a:visited { color: #000000 !important }
+
+pre a { color: #000000 !important; text-decoration: underline !important }
+pre a:visited:hover { color: #3091d1 !important }
+pre a:visited { color: #000000 !important }
+
+td {
+	white-space: normal !important;
+}
+
+.doxyrest-target-highlight {
+    animation-name: doxyrest-target-highlight-flash;
+    animation-duration: 2s;
+}
+
+@keyframes doxyrest-target-highlight-flash {
+    0%   { box-shadow: none; }
+    25%  { box-shadow: 0 0 8px 8px #8cf, 0 0 8px 8px #8cf inset; }
+    100% { box-shadow: none; }
+}

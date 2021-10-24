@@ -12,6 +12,17 @@ To download the model and sample test data, click **Download** on [https://githu
 ## Convert ONNX* GPT-2 Model to IR
 
 To generate the Intermediate Representation (IR) of the model GPT-2, run the Model Optimizer with the following parameters:
-```sh
-python3 mo.py --input_model gpt2-10.onnx --input_shape [X,Y,Z] --output_dir <OUTPUT_MODEL_DIR>
-```
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      python3 mo.py --input_model gpt2-10.onnx --input_shape [X,Y,Z] --output_dir <OUTPUT_MODEL_DIR>
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --input_model gpt2-10.onnx --input_shape [X,Y,Z] --output_dir <OUTPUT_MODEL_DIR>
+
+@endsphinxdirective

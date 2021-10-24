@@ -1,5 +1,18 @@
 # Converting a PyTorch* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_F3Net
+   openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_QuartzNet
+   openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RNNT
+   openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT
+
+@endsphinxdirective
+
 ## Supported Topologies
 
 Here is the list of models that are tested and guaranteed to be supported. However, you can also use these instructions to convert PyTorch\* models that are not presented in the list.

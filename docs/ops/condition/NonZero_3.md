@@ -1,4 +1,4 @@
-## NonZero <a name="NonZero"></a> {#openvino_docs_ops_condition_NonZero_3}
+# NonZero {#openvino_docs_ops_condition_NonZero_3}
 
 **Versioned name**: *NonZero-3*
 

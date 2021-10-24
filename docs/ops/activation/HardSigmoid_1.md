@@ -1,4 +1,4 @@
-## HardSigmoid <a name="HardSigmoid"></a> {#openvino_docs_ops_activation_HardSigmoid_1}
+# HardSigmoid {#openvino_docs_ops_activation_HardSigmoid_1}
 
 **Versioned name**: *HardSigmoid-1*
 

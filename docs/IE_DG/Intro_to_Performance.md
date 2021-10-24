@@ -1,4 +1,4 @@
-# Introduction to the Performance Topics {#openvino_docs_IE_DG_Intro_to_Performance}
+#  Runtime Optimization Guide {#openvino_docs_IE_DG_Intro_to_Performance}
 
 This section is a shorter version of the
 [Optimization Guide](../optimization_guide/dldt_optimization_guide.md) for the Intel® Distribution of OpenVINO™ Toolkit.

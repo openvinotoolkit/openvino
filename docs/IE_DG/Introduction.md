@@ -72,8 +72,8 @@ For the list of supported models refer to the framework or format specific page:
 * [Supported Caffe* models](../MO_DG/prepare_model/convert_model/Convert_Model_From_Caffe.md)
 * [Supported TensorFlow* models](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
 * [Supported MXNet* models](../MO_DG/prepare_model/convert_model/Convert_Model_From_MxNet.md)
-* [Supported ONNX* models](../MO_DG/prepare_model/convert_model/Convert_Model_From_ONNX.md)
 * [Supported Kaldi* models](../MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md)
+* [Supported ONNX* models](../MO_DG/prepare_model/convert_model/Convert_Model_From_ONNX.md)
 
 
 ## Intermediate Representation

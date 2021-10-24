@@ -1,5 +1,18 @@
 # Model Optimizer Extensibility {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_with_New_Primitives
+   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers
+   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_with_New_Primitives
+   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Legacy_Mode_for_Caffe_Custom_Layers
+
+@endsphinxdirective
+
 - <a href="#model-representation-in-memory">Model Representation in Memory</a>
 - <a href="#model-conversion-pipeline">Model Conversion Pipeline</a>
   - <a href="#model-loading">Model Loading</a>
@@ -34,7 +47,7 @@
 
 <a name="model-optimizer-extensibility"></a>Model Optimizer extensibility mechanism enables support of new operations and custom transformations to generate the optimized intermediate representation (IR) as described in the 
 [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md). This
-mechanism is a core part of the Model Optimizer, which uses it under the hood, so the Model Optimizer itself is a huge set of examples for adding custom logic to support your model.
+mechanism is a core part of the Model Optimizer. The Model Optimizer itself uses it under the hood, being a huge set of examples on how to add custom logic to support your model.
 
 There are several cases when the customization is needed:
 

@@ -1,4 +1,4 @@
-## Sigmoid<a name="Sigmoid"></a> {#openvino_docs_ops_activation_Sigmoid_1}
+# Sigmoid {#openvino_docs_ops_activation_Sigmoid_1}
 
 **Versioned name**: *Sigmoid-1*
 

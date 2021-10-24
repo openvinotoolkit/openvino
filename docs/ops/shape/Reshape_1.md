@@ -1,4 +1,4 @@
-## Reshape <a name="Reshape"></a> {#openvino_docs_ops_shape_Reshape_1}
+# Reshape {#openvino_docs_ops_shape_Reshape_1}
 
 **Versioned name**: *Reshape-1*
 

@@ -1,4 +1,4 @@
-## LogicalAnd <a name="LogicalAnd"></a> {#openvino_docs_ops_logical_LogicalAnd_1}
+# LogicalAnd {#openvino_docs_ops_logical_LogicalAnd_1}
 
 **Versioned name**: *LogicalAnd-1*
 

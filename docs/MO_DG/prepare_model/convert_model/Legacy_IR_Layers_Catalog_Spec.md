@@ -1,4 +1,4 @@
-# Intermediate Representation Notation Reference Catalog {#openvino_docs_MO_DG_prepare_model_convert_model_Legacy_IR_Layers_Catalog_Spec}
+# [DEPRECATED] Intermediate Representation Notation Reference Catalog {#openvino_docs_MO_DG_prepare_model_convert_model_Legacy_IR_Layers_Catalog_Spec}
 
 > **NOTE**: This IR Notation Reference is no longer supported since the new concept of operation sets is introduced in OpenVINO 2020.1 version. For a complete list of supported operations, see the [Intermediate Representation and Operation Sets](../../IR_and_opsets.md) topic.
 

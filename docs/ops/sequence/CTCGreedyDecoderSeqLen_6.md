@@ -1,4 +1,4 @@
-## CTCGreedyDecoderSeqLen <a name="CTCGreedyDecoderSeqLen"></a> {#openvino_docs_ops_sequence_CTCGreedyDecoderSeqLen_6}
+# CTCGreedyDecoderSeqLen  {#openvino_docs_ops_sequence_CTCGreedyDecoderSeqLen_6}
 
 **Versioned name**: *CTCGreedyDecoderSeqLen-6*
 

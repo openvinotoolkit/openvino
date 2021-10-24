@@ -1,4 +1,4 @@
-## GreaterEqual <a name="GreaterEqual"></a> {#openvino_docs_ops_comparison_GreaterEqual_1}
+# GreaterEqual {#openvino_docs_ops_comparison_GreaterEqual_1}
 
 **Versioned name**: *GreaterEqual-1*
 
