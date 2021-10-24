@@ -48,7 +48,8 @@ TYPED_TEST_P(ElemTypesTests, onnx_test_split_multioutput_set_precission) {
     using DataType = TypeParam;
     const element::Type ng_type = element::from<DataType>();
 
-    ov::onnx_editor::ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/split_equal_parts_default.onnx")};
+    ov::onnx_editor::ONNXModelEditor editor{
+        file_util::path_join(SERIALIZED_ZOO, "onnx/split_equal_parts_default.onnx")};
 
     editor.set_input_types({{"input", ng_type}});
 

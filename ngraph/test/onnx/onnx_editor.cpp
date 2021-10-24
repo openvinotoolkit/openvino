@@ -87,14 +87,16 @@ NGRAPH_TEST(onnx_editor, types__all_inputs_type_substitution) {
 }
 
 NGRAPH_TEST(onnx_editor, types__missing_type_in_input_descriptor) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/invalid_input_no_type.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/invalid_input_no_type.onnx")};
 
     // input A doesn't have the "type" field in the model and so the data type cannot be modified
     EXPECT_THROW(editor.set_input_types({{"A", element::f32}}), ngraph::ngraph_error);
 }
 
 NGRAPH_TEST(onnx_editor, types__missing_tensor_type_in_input_descriptor) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/invalid_input_no_tensor_type.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/invalid_input_no_tensor_type.onnx")};
 
     // input A doesn't have the "tensor_type" field in the model
     EXPECT_THROW(editor.set_input_types({{"A", element::f32}}), ngraph::ngraph_error);
@@ -114,7 +116,8 @@ NGRAPH_TEST(onnx_editor, types__incorrect_input_name_passed) {
 
 NGRAPH_TEST(onnx_editor, types__elem_type_missing_in_input) {
     // the original model contains 2 inputs with i64 data type and one f32 input
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/elem_type_missing_in_input.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/elem_type_missing_in_input.onnx")};
 
     // the "elem_type" is missing in the model but it should be possible to set the type anyway
     EXPECT_NO_THROW(editor.set_input_types({{"A", element::i64}}));
@@ -133,7 +136,8 @@ NGRAPH_TEST(onnx_editor, types__elem_type_missing_in_input) {
 }
 
 NGRAPH_TEST(onnx_editor, shapes__modify_single_input) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.onnx")};
 
     const auto new_shape = PartialShape{1};
 
@@ -146,7 +150,8 @@ NGRAPH_TEST(onnx_editor, shapes__modify_single_input) {
 }
 
 NGRAPH_TEST(onnx_editor, shapes__modify_all_inputs) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.onnx")};
 
     const auto new_shape = PartialShape{1, 2, 3, 5, 8, 13};
 
@@ -176,7 +181,8 @@ NGRAPH_TEST(onnx_editor, shapes__dynamic_rank_in_model) {
 }
 
 NGRAPH_TEST(onnx_editor, shapes__set_dynamic_dimension) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.onnx")};
 
     const auto new_shape = PartialShape{Dimension::dynamic()};
 
@@ -189,7 +195,8 @@ NGRAPH_TEST(onnx_editor, shapes__set_dynamic_dimension) {
 }
 
 NGRAPH_TEST(onnx_editor, shapes__set_mixed_dimensions) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.onnx")};
 
     const auto new_shape_A = PartialShape{21, Dimension::dynamic()};
     const auto new_shape_B = PartialShape{Dimension::dynamic(), 37};
@@ -207,7 +214,8 @@ NGRAPH_TEST(onnx_editor, shapes__set_mixed_dimensions) {
 }
 
 NGRAPH_TEST(onnx_editor, shapes__set_scalar_inputs) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.onnx")};
 
     const auto new_shape = PartialShape{};
 
@@ -224,7 +232,8 @@ NGRAPH_TEST(onnx_editor, shapes__set_scalar_inputs) {
 }
 
 NGRAPH_TEST(onnx_editor, shapes__static_to_dynamic_rank_substitution) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.onnx")};
 
     const auto new_shape = PartialShape::dynamic();
 
@@ -239,12 +248,14 @@ NGRAPH_TEST(onnx_editor, shapes__static_to_dynamic_rank_substitution) {
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__linear_model_head_cut) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
 
     editor.cut_graph_fragment({{InputEdge(1, 0)}}, {});
 
     const auto ref_model =
-        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_head_cut.onnx");
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/reference/subgraph__linear_model_head_cut.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -252,13 +263,15 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_head_cut) {
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__linear_model_head_cut_ins_and_outs) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
 
     editor.cut_graph_fragment({{InputEdge(1, 0)}}, {{OutputEdge(2, 0)}});
 
     // expected to behave the same way as subgraph__linear_model_head_cut
     const auto ref_model =
-        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_head_cut.onnx");
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/reference/subgraph__linear_model_head_cut.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -266,12 +279,14 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_head_cut_ins_and_outs) {
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__linear_model_deeper_head_cut) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
 
     editor.cut_graph_fragment({{InputEdge(2, 0)}}, {});
 
     const auto ref_model =
-        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_deeper_head_cut.onnx");
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/reference/subgraph__linear_model_deeper_head_cut.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -279,12 +294,14 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_deeper_head_cut) {
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__linear_model_tail_cut) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
 
     editor.cut_graph_fragment({}, {{OutputEdge{1, 0}}});
 
     const auto ref_model =
-        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_tail_cut.onnx");
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/reference/subgraph__linear_model_tail_cut.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -292,13 +309,15 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_tail_cut) {
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__linear_model_tail_cut_ins_and_outs) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
 
     editor.cut_graph_fragment({{InputEdge{0, 0}}}, {{OutputEdge{1, 0}}});
 
     // expected to behave the same way as subgraph__linear_model_tail_cut
     const auto ref_model =
-        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_tail_cut.onnx");
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/reference/subgraph__linear_model_tail_cut.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -307,13 +326,14 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_tail_cut_ins_and_outs) {
 
 NGRAPH_TEST(onnx_editor, subgraph__linear_model_with_initializer_tail_cut) {
     ONNXModelEditor editor{
-        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head_with_initializer.onnx")};
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/subgraph__inception_head_with_initializer.onnx")};
 
     editor.cut_graph_fragment({}, {{OutputEdge{1, 0}}});
 
-    const auto ref_model =
-        ngraph::file_util::path_join(SERIALIZED_ZOO,
-                             "onnx/model_editor/reference/subgraph__linear_model_with_initializer_tail_cut.onnx");
+    const auto ref_model = ngraph::file_util::path_join(
+        SERIALIZED_ZOO,
+        "onnx/model_editor/reference/subgraph__linear_model_with_initializer_tail_cut.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -322,13 +342,14 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_with_initializer_tail_cut) {
 
 NGRAPH_TEST(onnx_editor, subgraph__initializer_without_matching_input_tail_cut) {
     ONNXModelEditor editor{
-        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__initializer_without_matching_input.onnx")};
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/subgraph__initializer_without_matching_input.onnx")};
 
     editor.cut_graph_fragment({}, {{OutputEdge{1, 0}}});
 
     const auto ref_model = ngraph::file_util::path_join(SERIALIZED_ZOO,
-                                                "onnx/model_editor/reference/"
-                                                "subgraph__initializer_without_matching_input_tail_cut.onnx");
+                                                        "onnx/model_editor/reference/"
+                                                        "subgraph__initializer_without_matching_input_tail_cut.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -336,12 +357,14 @@ NGRAPH_TEST(onnx_editor, subgraph__initializer_without_matching_input_tail_cut) 
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__linear_model_deeper_tail_cut) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
 
     editor.cut_graph_fragment({}, {{OutputEdge{0, 0}}});
 
     const auto ref_model =
-        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_deeper_tail_cut.onnx");
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/reference/subgraph__linear_model_deeper_tail_cut.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -349,7 +372,8 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_deeper_tail_cut) {
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__no_input_params) {
-    const auto model_path = ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx");
+    const auto model_path =
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx");
 
     ONNXModelEditor editor{model_path};
 
@@ -362,13 +386,14 @@ NGRAPH_TEST(onnx_editor, subgraph__no_input_params) {
 
 NGRAPH_TEST(onnx_editor, subgraph__initializer_to_input_replacement) {
     ONNXModelEditor editor{
-        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head_with_initializer.onnx")};
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/subgraph__inception_head_with_initializer.onnx")};
 
     editor.cut_graph_fragment({{InputEdge{0, 2}}}, {{OutputEdge{0, 0}}});
 
     const auto ref_model =
         ngraph::file_util::path_join(SERIALIZED_ZOO,
-                             "onnx/model_editor/reference/subgraph__initializer_to_input_replacement.onnx");
+                                     "onnx/model_editor/reference/subgraph__initializer_to_input_replacement.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -377,13 +402,14 @@ NGRAPH_TEST(onnx_editor, subgraph__initializer_to_input_replacement) {
 
 NGRAPH_TEST(onnx_editor, subgraph__initializer_to_input_replacement_2) {
     ONNXModelEditor editor{
-        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__initializer_without_matching_input.onnx")};
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/subgraph__initializer_without_matching_input.onnx")};
 
     editor.cut_graph_fragment({{InputEdge{0, 2}}}, {{OutputEdge{0, 0}}});
 
     const auto ref_model =
         ngraph::file_util::path_join(SERIALIZED_ZOO,
-                             "onnx/model_editor/reference/subgraph__initializer_to_input_replacement.onnx");
+                                     "onnx/model_editor/reference/subgraph__initializer_to_input_replacement.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -391,12 +417,14 @@ NGRAPH_TEST(onnx_editor, subgraph__initializer_to_input_replacement_2) {
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__multiout_op_output_edge) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     editor.cut_graph_fragment({}, {{OutputEdge{5, 1}}});
 
     const auto ref_model =
-        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__multiout_op_output_edge.onnx");
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/reference/subgraph__multiout_op_output_edge.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -404,13 +432,14 @@ NGRAPH_TEST(onnx_editor, subgraph__multiout_op_output_edge) {
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__existing_inputs_and_outputs_based_extraction) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     editor.cut_graph_fragment({{InputEdge{1, 1}, InputEdge{2, 0}}}, {{OutputEdge{4, 0}}});
 
     const auto ref_model = ngraph::file_util::path_join(SERIALIZED_ZOO,
-                                                "onnx/model_editor/reference/"
-                                                "subgraph__existing_inputs_and_outputs_based_extraction.onnx");
+                                                        "onnx/model_editor/reference/"
+                                                        "subgraph__existing_inputs_and_outputs_based_extraction.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -422,9 +451,10 @@ NGRAPH_TEST(onnx_editor, subgraph__twice_input_edge_from_tensor_with_single_cons
 
     editor.cut_graph_fragment({InputEdge{1, 1}}, {});
 
-    const auto ref_model = ngraph::file_util::path_join(SERIALIZED_ZOO,
-                                                "onnx/model_editor/reference/"
-                                                "subgraph__twice_input_edge_from_tensor_with_single_consumer.onnx");
+    const auto ref_model =
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/reference/"
+                                     "subgraph__twice_input_edge_from_tensor_with_single_consumer.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -432,13 +462,15 @@ NGRAPH_TEST(onnx_editor, subgraph__twice_input_edge_from_tensor_with_single_cons
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     editor.cut_graph_fragment({{InputEdge{1, 0}, InputEdge{6, 0}}}, {{OutputEdge{6, 0}, OutputEdge{4, 0}}});
 
-    const auto ref_model = ngraph::file_util::path_join(SERIALIZED_ZOO,
-                                                "onnx/model_editor/reference/"
-                                                "subgraph__input_edge_from_tensor_with_multiple_consumers.onnx");
+    const auto ref_model =
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/reference/"
+                                     "subgraph__input_edge_from_tensor_with_multiple_consumers.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -446,13 +478,15 @@ NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumer
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_2) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     editor.cut_graph_fragment({{InputEdge{3, 0}, InputEdge{3, 1}}}, {{OutputEdge{3, 0}, OutputEdge{4, 0}}});
 
-    const auto ref_model = ngraph::file_util::path_join(SERIALIZED_ZOO,
-                                                "onnx/model_editor/reference/"
-                                                "subgraph__input_edge_from_tensor_with_multiple_consumers_2.onnx");
+    const auto ref_model =
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/reference/"
+                                     "subgraph__input_edge_from_tensor_with_multiple_consumers_2.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -460,13 +494,15 @@ NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumer
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_3) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     editor.cut_graph_fragment({{InputEdge{3, 0}, InputEdge{6, 0}}}, {{OutputEdge{6, 0}, OutputEdge{5, 1}}});
 
-    const auto ref_model = ngraph::file_util::path_join(SERIALIZED_ZOO,
-                                                "onnx/model_editor/reference/"
-                                                "subgraph__input_edge_from_tensor_with_multiple_consumers_3.onnx");
+    const auto ref_model =
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/reference/"
+                                     "subgraph__input_edge_from_tensor_with_multiple_consumers_3.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -474,13 +510,15 @@ NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumer
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_4) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     editor.cut_graph_fragment({{InputEdge{1, 0}, InputEdge{3, 0}}}, {});
 
-    const auto ref_model = ngraph::file_util::path_join(SERIALIZED_ZOO,
-                                                "onnx/model_editor/reference/"
-                                                "subgraph__input_edge_from_tensor_with_multiple_consumers_4.onnx");
+    const auto ref_model =
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/reference/"
+                                     "subgraph__input_edge_from_tensor_with_multiple_consumers_4.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -488,14 +526,16 @@ NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumer
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_5) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     editor.cut_graph_fragment({InputEdge{3, 0}}, {{OutputEdge{6, 0}, OutputEdge{5, 1}}});
 
     // expected to behave the same way as the test above
-    const auto ref_model = ngraph::file_util::path_join(SERIALIZED_ZOO,
-                                                "onnx/model_editor/reference/"
-                                                "subgraph__input_edge_from_tensor_with_multiple_consumers_5.onnx");
+    const auto ref_model =
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/reference/"
+                                     "subgraph__input_edge_from_tensor_with_multiple_consumers_5.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -503,15 +543,16 @@ NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumer
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_custom_names) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     editor.cut_graph_fragment({{InputEdge{1, 0, "new_name_1"}, InputEdge{6, 0, "new_name_2"}}},
                               {{OutputEdge{6, 0}, OutputEdge{4, 0}}});
 
     const auto ref_model =
         ngraph::file_util::path_join(SERIALIZED_ZOO,
-                             "onnx/model_editor/reference/"
-                             "subgraph__input_edge_from_tensor_with_multiple_consumers_custom_names.onnx");
+                                     "onnx/model_editor/reference/"
+                                     "subgraph__input_edge_from_tensor_with_multiple_consumers_custom_names.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -519,13 +560,14 @@ NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumer
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_input_relu2) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
 
     editor.cut_graph_fragment({{InputEdge{4, 0}}}, {});
 
     const auto ref_model = ngraph::file_util::path_join(SERIALIZED_ZOO,
-                                                "onnx/model_editor/reference/"
-                                                "subgraph__multiple_consumers_of_graph_input_relu2.onnx");
+                                                        "onnx/model_editor/reference/"
+                                                        "subgraph__multiple_consumers_of_graph_input_relu2.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -533,13 +575,14 @@ NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_input_relu2) {
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
 
     editor.cut_graph_fragment({{InputEdge{2, 0}}}, {});
 
     const auto ref_model = ngraph::file_util::path_join(SERIALIZED_ZOO,
-                                                "onnx/model_editor/reference/"
-                                                "subgraph__multiple_consumers_of_graph_initializer.onnx");
+                                                        "onnx/model_editor/reference/"
+                                                        "subgraph__multiple_consumers_of_graph_initializer.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -547,14 +590,15 @@ NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer) {
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_2) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
 
     editor.cut_graph_fragment({{InputEdge{2, 0}, InputEdge{3, 0}}}, {});
 
     // same as above
     const auto ref_model = ngraph::file_util::path_join(SERIALIZED_ZOO,
-                                                "onnx/model_editor/reference/"
-                                                "subgraph__multiple_consumers_of_graph_initializer.onnx");
+                                                        "onnx/model_editor/reference/"
+                                                        "subgraph__multiple_consumers_of_graph_initializer.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -562,14 +606,15 @@ NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_2) {
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_relu2_and_init) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
 
     editor.cut_graph_fragment({{InputEdge{5, 0}, InputEdge{3, 0}}}, {});
 
     const auto ref_model =
         ngraph::file_util::path_join(SERIALIZED_ZOO,
-                             "onnx/model_editor/reference/"
-                             "subgraph__multiple_consumers_of_graph_initializer_relu2_and_init.onnx");
+                                     "onnx/model_editor/reference/"
+                                     "subgraph__multiple_consumers_of_graph_initializer_relu2_and_init.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -577,7 +622,8 @@ NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_relu2
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__invalid_edge_idx) {
-    const auto model_path = ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx");
+    const auto model_path =
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx");
 
     ONNXModelEditor editor{model_path};
     try {
@@ -590,7 +636,8 @@ NGRAPH_TEST(onnx_editor, subgraph__invalid_edge_idx) {
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__invalid_port_idx) {
-    const auto model_path = ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx");
+    const auto model_path =
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx");
 
     ONNXModelEditor editor{model_path};
     try {
@@ -602,7 +649,8 @@ NGRAPH_TEST(onnx_editor, subgraph__invalid_port_idx) {
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__inputs_getter) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
 
     EXPECT_EQ(editor.model_inputs(), (std::vector<std::string>{"data_0", "conv1/7x7_s2_w_0", "conv1/7x7_s2_b_0"}));
 
@@ -612,7 +660,8 @@ NGRAPH_TEST(onnx_editor, subgraph__inputs_getter) {
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__custom_input_name_already_exist) {
-    const auto model_path = ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx");
+    const auto model_path =
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx");
 
     ONNXModelEditor editor{model_path};
     try {
@@ -627,7 +676,8 @@ NGRAPH_TEST(onnx_editor, subgraph__custom_input_name_already_exist) {
 // HIGHT LEVEL API TESTS
 // INPUT EDGES TEST
 NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_output_name_and_input_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
 
     const InputEdge edge =
         editor.find_input_edge(EditorNode{EditorOutput{"conv1/7x7_s2_2"}}, EditorInput{"conv1/7x7_s2_1"});
@@ -640,7 +690,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_output_name_and_input_n
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_output_name_and_input_index) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
 
     const InputEdge edge = editor.find_input_edge(EditorNode{EditorOutput{"conv1/7x7_s2_2"}}, EditorInput{0});
     EXPECT_EQ(edge.m_node_idx, 1);
@@ -656,7 +707,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_output_name_and_input_i
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
 
     const InputEdge edge = editor.find_input_edge(EditorNode{"relu1"}, EditorInput{"conv1/7x7_s2_1"});
     EXPECT_EQ(edge.m_node_idx, 1);
@@ -668,7 +720,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_nam
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_index) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     const InputEdge edge = editor.find_input_edge(EditorNode{"relu1_name"}, EditorInput{0});
     EXPECT_EQ(edge.m_node_idx, 0);
@@ -680,7 +733,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_ind
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_index_custom_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     const InputEdge edge = editor.find_input_edge(EditorNode{"relu1_name"}, EditorInput{0, "custom_input_name_1"});
     EXPECT_EQ(edge.m_node_idx, 0);
@@ -694,7 +748,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_name_and_input_ind
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_index) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     const InputEdge edge = editor.find_input_edge(EditorNode{0}, EditorInput{0, "custom_input_name_1"});
     EXPECT_EQ(edge.m_node_idx, 0);
@@ -714,7 +769,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_node_index) {
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_empty_node_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     try {
         editor.find_input_edge(EditorNode{""}, EditorInput{"conv1/7x7_s2_1"});
@@ -727,7 +783,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_empty_node_name) {
 
 // OUTPUT EDGES TEST
 NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_output_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     const OutputEdge edge = editor.find_output_edge(EditorNode{EditorOutput{"mul2"}}, EditorOutput{"mul2"});
     EXPECT_EQ(edge.m_node_idx, 4);
@@ -748,7 +805,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_output_name) {
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_output_name_and_output_index) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     const OutputEdge edge = editor.find_output_edge(EditorNode{EditorOutput{"add2"}}, EditorOutput{0});
     EXPECT_EQ(edge.m_node_idx, 3);
@@ -764,7 +822,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_output_name_and_output
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_node_name_and_output_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     const OutputEdge edge = editor.find_output_edge(EditorNode{"relu1_name"}, EditorOutput{"relu1"});
     EXPECT_EQ(edge.m_node_idx, 0);
@@ -776,7 +835,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_node_name_and_output_n
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_node_name_and_output_index) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     const OutputEdge edge = editor.find_output_edge(EditorNode{"relu1_name"}, EditorOutput{0});
     EXPECT_EQ(edge.m_node_idx, 0);
@@ -788,7 +848,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_node_name_and_output_i
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_node_index) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     const OutputEdge edge = editor.find_output_edge(EditorNode{5}, EditorOutput{1});
     EXPECT_EQ(edge.m_node_idx, 5);
@@ -803,7 +864,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_node_index) {
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_edge_const_network) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
 
     const InputEdge edge = editor.find_input_edge(EditorNode{EditorOutput{"relu4"}}, EditorInput{0});
     EXPECT_EQ(edge.m_node_idx, 3);
@@ -819,7 +881,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_edge_const_network) {
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_edge_error_handling) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
 
     // node with given output name not found
     try {
@@ -874,7 +937,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_edge_error_handling) {
 
 // Nodes with ambiguous node names tests
 NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_but_matched_input) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     InputEdge edge = editor.find_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{"in2"});
     EXPECT_EQ(edge.m_node_idx, 1);
@@ -886,7 +950,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_but
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_and_not_matched_input) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     try {
         editor.find_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{"in3"});
@@ -908,7 +973,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_and
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_and_input_index) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     try {
         editor.find_input_edge(EditorNode{"add_ambiguous_name"}, EditorInput{0});
@@ -921,7 +987,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_input_edge_by_ambiguous_node_name_and
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_but_matched_output) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     const OutputEdge edge = editor.find_output_edge(EditorNode{"add_ambiguous_name"}, EditorOutput{"add1"});
     EXPECT_EQ(edge.m_node_idx, 1);
@@ -933,7 +1000,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_bu
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_the_same_node_name_and_output_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.onnx")};
 
     const OutputEdge edge = editor.find_output_edge(EditorNode{"add1"}, EditorOutput{0});
     EXPECT_EQ(edge.m_node_idx, 0);
@@ -945,7 +1013,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_the_same_node_name_and
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_and_not_matched_output) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     try {
         editor.find_output_edge(EditorNode{"add_ambiguous_name"}, EditorOutput{"split2"});
@@ -957,7 +1026,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_an
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_and_output_index) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     try {
         editor.find_output_edge(EditorNode{"add_ambiguous_name"}, EditorOutput{0});
@@ -971,7 +1041,8 @@ NGRAPH_TEST(onnx_editor, editor_api_select_output_edge_by_ambiguous_node_name_an
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     // InputEdge{1, "in2"}
     const auto input_edge_1 = editor.find_input_edge(EditorNode(EditorOutput("add1")), EditorInput(1));
@@ -983,8 +1054,8 @@ NGRAPH_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter) {
     editor.cut_graph_fragment({input_edge_1, input_edge_2}, {output_edge});
 
     const auto ref_model = ngraph::file_util::path_join(SERIALIZED_ZOO,
-                                                "onnx/model_editor/reference/"
-                                                "subgraph__existing_inputs_and_outputs_based_extraction.onnx");
+                                                        "onnx/model_editor/reference/"
+                                                        "subgraph__existing_inputs_and_outputs_based_extraction.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -1005,7 +1076,8 @@ NGRAPH_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter) {
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter_custom_names) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     const auto input_edge_1 = editor.find_input_edge(EditorNode{EditorOutput{"mul2"}}, EditorInput{1, "new_name_1"});
     const auto input_edge_2 =
@@ -1013,9 +1085,10 @@ NGRAPH_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter_custom_nam
 
     editor.cut_graph_fragment({input_edge_1, input_edge_2}, {});
 
-    const auto ref_model = ngraph::file_util::path_join(SERIALIZED_ZOO,
-                                                "onnx/model_editor/reference/"
-                                                "subgraph__use_edge_mapper_with_graph_cutter_custom_names.onnx");
+    const auto ref_model =
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/reference/"
+                                     "subgraph__use_edge_mapper_with_graph_cutter_custom_names.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -1023,7 +1096,8 @@ NGRAPH_TEST(onnx_editor, editor_api_use_edge_mapper_with_graph_cutter_custom_nam
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_find_output_consumers) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     std::vector<InputEdge> output_consumers = editor.find_output_consumers("relu1");
     EXPECT_EQ(output_consumers.size(), 3);
@@ -1048,7 +1122,8 @@ NGRAPH_TEST(onnx_editor, editor_api_find_output_consumers) {
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_find_output_consumers_empty_result) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     const std::vector<InputEdge> output_consumers = editor.find_output_consumers("not_existed");
     EXPECT_EQ(output_consumers.size(), 0);
@@ -1065,7 +1140,8 @@ NGRAPH_TEST(onnx_editor, editor_api_inputs_with_the_same_name) {
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_is_correct_and_unambiguous_node) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     bool is_correct_node = editor.is_correct_and_unambiguous_node(EditorNode{EditorOutput{"relu1"}});
     EXPECT_EQ(is_correct_node, true);
@@ -1096,7 +1172,8 @@ NGRAPH_TEST(onnx_editor, editor_api_is_correct_and_unambiguous_node) {
 }
 
 NGRAPH_TEST(onnx_editor, editor_api_get_node_index) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     EXPECT_EQ(editor.get_node_index(EditorNode{2}), 2);
     EXPECT_EQ(editor.get_node_index(EditorNode{EditorOutput{"relu1"}}), 0);
@@ -1127,9 +1204,10 @@ NGRAPH_TEST(onnx_editor, editor_api_input_edge_from_tensor_with_single_consumer)
     const auto edge = editor.find_input_edge(EditorNode{EditorOutput{"Y"}}, EditorInput{1});
     editor.cut_graph_fragment({edge}, {});
 
-    const auto ref_model = ngraph::file_util::path_join(SERIALIZED_ZOO,
-                                                "onnx/model_editor/reference/"
-                                                "subgraph__twice_input_edge_from_tensor_with_single_consumer.onnx");
+    const auto ref_model =
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/reference/"
+                                     "subgraph__twice_input_edge_from_tensor_with_single_consumer.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -1164,7 +1242,8 @@ NGRAPH_TEST(onnx_editor, values__append_one_initializer) {
 }
 
 NGRAPH_TEST(onnx_editor, values__append_two_initializers_to_invalid) {
-    onnx_editor::ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_1D_invalid.onnx")};
+    onnx_editor::ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_1D_invalid.onnx")};
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
 
     in_vals.emplace("A", ngraph::op::Constant::create(element::i64, Shape{2}, {4, 2}));
@@ -1266,14 +1345,16 @@ NGRAPH_TEST(onnx_editor, read_model_from_stream) {
 }
 
 NGRAPH_TEST(onnx_editor, combined__cut_and_replace_shape) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
 
     const auto new_shape = PartialShape({1, 64, 112, 112});
     editor.cut_graph_fragment({{InputEdge(1, 0)}}, {});
     editor.set_input_shapes({{"conv1/7x7_s2_1", new_shape}});
 
     const auto ref_model =
-        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_head_cut.onnx");
+        ngraph::file_util::path_join(SERIALIZED_ZOO,
+                                     "onnx/model_editor/reference/subgraph__linear_model_head_cut.onnx");
 
     const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
@@ -1284,7 +1365,8 @@ NGRAPH_TEST(onnx_editor, combined__cut_and_replace_shape) {
 }
 
 NGRAPH_TEST(onnx_editor, cut_operator_with_no_schema) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/unknown_input_value_info.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/unknown_input_value_info.onnx")};
 
     editor.cut_graph_fragment({{InputEdge{1, 0}}}, {});
 
@@ -1297,7 +1379,8 @@ NGRAPH_TEST(onnx_editor, cut_operator_with_no_schema) {
 }
 
 NGRAPH_TEST(onnx_editor, get_source_tensor_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     EXPECT_EQ(editor.get_source_tensor_name(InputEdge{0, 0}), "in1");
     EXPECT_EQ(editor.get_source_tensor_name(InputEdge{1, 0}), "relu1");
@@ -1310,7 +1393,8 @@ NGRAPH_TEST(onnx_editor, get_source_tensor_name) {
 }
 
 NGRAPH_TEST(onnx_editor, is_model_input) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     EXPECT_TRUE(editor.is_input(InputEdge{0, 0}));
     const auto edge1 = editor.find_input_edge(EditorOutput{"add1"}, 1);
@@ -1327,7 +1411,8 @@ NGRAPH_TEST(onnx_editor, is_model_input) {
 }
 
 NGRAPH_TEST(onnx_editor, get_target_tensor_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     EXPECT_EQ(editor.get_target_tensor_name(OutputEdge{0, 0}), "relu1");
     EXPECT_EQ(editor.get_target_tensor_name(OutputEdge{1, 0}), "add1");
@@ -1338,7 +1423,8 @@ NGRAPH_TEST(onnx_editor, get_target_tensor_name) {
 }
 
 NGRAPH_TEST(onnx_editor, is_model_output) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     EXPECT_TRUE(editor.is_output(OutputEdge{4, 0}));
     EXPECT_TRUE(editor.is_output(OutputEdge{5, 1}));
@@ -1353,7 +1439,8 @@ NGRAPH_TEST(onnx_editor, is_model_output) {
 }
 
 NGRAPH_TEST(onnx_editor, model_inputs) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     const auto inputs = editor.model_inputs();
     EXPECT_TRUE(inputs == (std::vector<std::string>{"in1", "in2", "in3"}));  // in4 is initializer
@@ -1367,14 +1454,16 @@ NGRAPH_TEST(onnx_editor, model_inputs_with_non_input_initializers) {
 }
 
 NGRAPH_TEST(onnx_editor, model_output) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     const auto outputs = editor.model_outputs();
     EXPECT_TRUE(outputs == (std::vector<std::string>{"mul1", "split2", "mul2"}));
 }
 
 NGRAPH_TEST(onnx_editor, get_tensor_shape) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     EXPECT_EQ(editor.get_tensor_shape("mul2"), (PartialShape{1, 1, 2, 2}));
     EXPECT_EQ(editor.get_tensor_shape("in1"), (PartialShape{2, 2}));
@@ -1391,7 +1480,8 @@ NGRAPH_TEST(onnx_editor, get_tensor_shape) {
 }
 
 NGRAPH_TEST(onnx_editor, get_tensor_shape_after_modification) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     EXPECT_EQ(editor.get_tensor_shape("in3"), (PartialShape{1, 1, 2, 2}));
     EXPECT_EQ(editor.get_tensor_shape("conv1"), (PartialShape{1, 1, 2, 2}));
@@ -1402,7 +1492,8 @@ NGRAPH_TEST(onnx_editor, get_tensor_shape_after_modification) {
 }
 
 NGRAPH_TEST(onnx_editor, is_correct_tensor_name) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     EXPECT_TRUE(editor.is_correct_tensor_name("in1"));
     EXPECT_TRUE(editor.is_correct_tensor_name("relu1"));
@@ -1416,7 +1507,8 @@ NGRAPH_TEST(onnx_editor, is_correct_tensor_name) {
 }
 
 NGRAPH_TEST(onnx_editor, get_input_ports) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     const auto ports_1 = editor.get_input_ports(EditorNode{"relu1_name"});
     EXPECT_EQ(ports_1.size(), 1);
@@ -1447,7 +1539,8 @@ NGRAPH_TEST(onnx_editor, get_input_ports) {
     }
 }
 NGRAPH_TEST(onnx_editor, get_output_ports) {
-    ONNXModelEditor editor{ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+    ONNXModelEditor editor{
+        ngraph::file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
 
     const auto ports_1 = editor.get_output_ports(EditorNode{"relu1_name"});
     EXPECT_EQ(ports_1.size(), 1);

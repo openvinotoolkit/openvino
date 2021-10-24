@@ -304,8 +304,7 @@ void InputModelTF::InputModelTFImpl::extractSubgraph(const std::vector<ov::front
     overrideAllOutputs(outputs);
 }
 
-void InputModelTF::InputModelTFImpl::setPartialShape(ov::frontend::Place::Ptr place,
-                                                     const ov::PartialShape& p_shape) {
+void InputModelTF::InputModelTFImpl::setPartialShape(ov::frontend::Place::Ptr place, const ov::PartialShape& p_shape) {
     castToTensorPlace(place)->set_partial_shape(p_shape);
 }
 
