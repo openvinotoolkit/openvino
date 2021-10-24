@@ -533,13 +533,17 @@ void LayerTestsCommon::showRuntimePrecisions() {
 
     for (const auto& op : execFunction->get_ops()) {
         const auto& rtInfo = op->get_rt_info();
+
+        const auto& nameIt = rtInfo.find("originalLayersNames");
+        const auto name = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(nameIt->second)->get();
+
         const auto& typeIt = rtInfo.find("layerType");
+        const auto type = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(typeIt->second)->get();
 
-        const auto type = typeIt->second.as<std::string>();
         const auto& it = rtInfo.find("runtimePrecision");
+        const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
 
-        const auto rtPrecisionPtr = it->second.as<std::string>();
-        std::cout << type << ": " << rtPrecisionPtr << std::endl;
+        std::cout << type << "(" << name << "): " << rtPrecisionPtr->get() << std::endl;
     }
 }
 #endif
