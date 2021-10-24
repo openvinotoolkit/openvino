@@ -1445,8 +1445,21 @@ void Core::add_extension(const std::wstring& library_path) {
     OV_CORE_CALL_STATEMENT(_impl->AddOVExtensions(ov::load_extension(library_path)););
 }
 #endif
+
 void Core::add_extension(const std::vector<ov::Extension>& extensions) {
     OV_CORE_CALL_STATEMENT(_impl->AddOVExtensions(extensions););
+}
+void Core::add_extension(const std::shared_ptr<ov::BaseExtension>& extension) {
+    add_extension(std::vector<std::shared_ptr<ov::BaseExtension>>{extension});
+}
+void Core::add_extension(const std::vector<std::shared_ptr<ov::BaseExtension>>& extensions) {
+    OV_CORE_CALL_STATEMENT({
+        std::vector<ov::Extension> exts;
+        for (const auto& ext : extensions) {
+            exts.emplace_back(ov::Extension(ext));
+        }
+        _impl->AddOVExtensions(exts);
+    });
 }
 
 ExecutableNetwork Core::import_model(std::istream& modelStream,

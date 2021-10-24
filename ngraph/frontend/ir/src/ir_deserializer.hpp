@@ -18,6 +18,9 @@
 
 namespace ov {
 
+/*
+ * @brief Wrapper for old IE extensions to new API
+ */
 class ExtensionWrapper : public ov::BaseOpExtension {
 public:
     ExtensionWrapper(const std::string& opsetVersion, const std::string& type, const ngraph::OpSet& opset)

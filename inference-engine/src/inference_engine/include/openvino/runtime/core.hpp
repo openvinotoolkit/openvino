@@ -167,9 +167,19 @@ public:
 #endif
     /**
      * @brief Registers extensions
-     * @param extensions Vector of pointers to already loaded extension
+     * @param extensions Vector of loaded extensions
      */
     void add_extension(const std::vector<ov::Extension>& extensions);
+    /**
+     * @brief Registers extension
+     * @param extension Base extension
+     */
+    void add_extension(const std::shared_ptr<ov::BaseExtension>& extension);
+    /**
+     * @brief Registers extensions
+     * @param extensions Vector of loaded base extensions
+     */
+    void add_extension(const std::vector<std::shared_ptr<ov::BaseExtension>>& extensions);
 
     /**
      * @brief Creates an executable network from a previously exported network

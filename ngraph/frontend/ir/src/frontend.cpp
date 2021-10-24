@@ -95,7 +95,7 @@ bool FrontEndIR::supported_impl(const std::vector<std::shared_ptr<Variant>>& var
     return version >= 10 && version <= 11;
 }
 
-void FrontEndIR::add_extensions(const std::vector<ov::Extension>& extensions) {
+void FrontEndIR::add_extension(const std::vector<ov::Extension>& extensions) {
     for (const auto& ext : extensions) {
         if (std::dynamic_pointer_cast<ov::BaseOpExtension>(ext.get()))
             this->extensions.emplace_back(ext);

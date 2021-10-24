@@ -198,12 +198,10 @@ public:
     }
 
     std::map<std::string, ngraph::OpSet> getOpSets() override {
-        static std::map<std::string, ngraph::OpSet> opsets;
-        if (opsets.empty()) {
-            ngraph::OpSet opset;
-            opset.insert<ov::op::util::FrameworkNode>();
-            opsets["util"] = opset;
-        }
+        std::map<std::string, ngraph::OpSet> opsets;
+        ngraph::OpSet opset;
+        opset.insert<ov::op::util::FrameworkNode>();
+        opsets["util"] = opset;
         return opsets;
     }
 

@@ -8,14 +8,12 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/op_extension.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
 using namespace ov;
 
-namespace {
-
-template <class C>
-inline std::vector<Extension> load_extension_impl(const std::basic_string<C>& path) {
+std::vector<Extension> ov::load_extension(const std::string& path) {
     auto so = ov::util::load_shared_object(path.c_str());
     using CreateFunction = void(std::vector<BaseExtension::Ptr>&);
     std::vector<BaseExtension::Ptr> extensions;
@@ -28,15 +26,10 @@ inline std::vector<Extension> load_extension_impl(const std::basic_string<C>& pa
     }
     return result;
 }
-}  // namespace
-
-std::vector<Extension> ov::load_extension(const std::string& path) {
-    return load_extension_impl(path);
-}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::vector<Extension> ov::load_extension(const std::wstring& path) {
-    return load_extension_impl(path);
+    return load_extension(ov::util::wstring_to_string(path).c_str());
 }
 #endif
 

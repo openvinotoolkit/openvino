@@ -468,7 +468,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
     FE = manager.load_by_model(params);
     if (FE) {
-        FE->add_extensions(ov_exts);
+        FE->add_extension(ov_exts);
         inputModel = FE->load(params);
     }
 
@@ -529,7 +529,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
 
     FE = manager.load_by_model(params);
     if (FE) {
-        FE->add_extensions(ov_exts);
+        FE->add_extension(ov_exts);
         inputModel = FE->load(params);
     }
     if (inputModel) {

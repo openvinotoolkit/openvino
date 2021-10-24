@@ -91,7 +91,23 @@ public:
 
     /// \brief Register extensions in the FrontEnd
     /// \param extensions vector of extensions
-    virtual void add_extensions(const std::vector<ov::Extension>& extensions);
+    virtual void add_extension(const std::vector<ov::Extension>& extensions);
+
+    /// \brief Register base extension in the FrontEnd
+    /// \param extension base extension
+    void add_extension(const std::shared_ptr<ov::BaseExtension>& extension);
+    /// \brief Register base extensions in the FrontEnd
+    /// \param extensions vector of extensions
+    void add_extension(const std::vector<std::shared_ptr<ov::BaseExtension>>& extensions);
+    /// \brief Registers extension
+    /// \param library_path path to library with ov::Extension
+    void add_extension(const std::string& library_path);
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    /// \brief Registers extension
+    /// \param library_path path to library with ov::Extension
+    void add_extension(const std::wstring& library_path);
+#endif
 
 protected:
     virtual bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const;

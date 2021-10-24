@@ -9,7 +9,7 @@ set(TARGET_NAME "template_ov_extension")
 
 find_package(OpenVINO)
 
-set(SRC tile.cpp ov_extension.cpp)
+set(SRC identity.cpp ov_extension.cpp)
 
 add_library(${TARGET_NAME} MODULE ${SRC})
 
