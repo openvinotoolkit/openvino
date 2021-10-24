@@ -10,9 +10,20 @@ These instructions are applicable only to the DLRM converted to the ONNX* file f
 If you train the model using the [script provided in model repository](https://github.com/facebookresearch/dlrm/blob/master/dlrm_s_pytorch.py), just add the `--save-onnx` flag to the command line parameters and you'll get the `dlrm_s_pytorch.onnx` file containing the model serialized in ONNX* format.
 
 **Step 2**. To generate the Intermediate Representation (IR) of the model, change your current working directory to the Model Optimizer installation directory and run the Model Optimizer with the following parameters:
-```sh
-python3 ./mo.py --input_model dlrm_s_pytorch.onnx
-```
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      python3 mo.py --input_model dlrm_s_pytorch.onnx
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --input_model dlrm_s_pytorch.onnx
+
+@endsphinxdirective
 
 Note that Pytorch model uses operation `torch.nn.EmbeddingBag`. This operation converts to onnx as custom `ATen` layer and not directly supported by OpenVINO*, but it is possible to convert this operation to:
 * `Gather` if each "bag" consists of exactly one index. In this case `offsets` input becomes obsolete and not needed. They will be removed during conversion.

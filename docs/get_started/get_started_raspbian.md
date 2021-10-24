@@ -22,10 +22,18 @@ This guide assumes you completed all Intel® Distribution of OpenVINO™ toolkit
 
 The OpenVINO toolkit for Raspbian* OS is distributed without installer. This document refers to the directory to which you unpacked the toolkit package as `<INSTALL_DIR>`.
 
-The primary tools for deploying your models and applications are installed to the `<INSTALL_DIR>/tools` directory.
-<details>
-    <summary><strong>Click for the <code>tools</code> directory structure</strong></summary>
+The primary tools for deploying your models and applications are installed to the `<INSTALL_DIR>/deployment_tools` directory.
 
+@sphinxdirective
+
+.. raw:: html
+
+   <div class="collapsible-section" data-title="<strong>Click for the <code>deployment_tools</code> directory structure</strong>">
+
+@endsphinxdirective
+
+
+   
 
 | Directory&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Description                                                                           |
 |:----------------------------------------|:--------------------------------------------------------------------------------------|
@@ -36,7 +44,16 @@ The primary tools for deploying your models and applications are installed to th
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`samples/`      | Inference Engine samples. Contains source code for C++ and Python* samples and build scripts. See the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md). |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`share/`        | CMake configuration files for linking with Inference Engine.|
 
-</details>
+
+@sphinxdirective
+
+.. raw:: html
+
+   </div>
+
+@endsphinxdirective
+
+
 
 ## <a name="workflow-overview"></a>OpenVINO™ Workflow Overview
 

@@ -33,10 +33,10 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DENABLE_DOCS=ON ..
+          echo "TBD"
 
       - name: Build doc
-        run: cmake --build . --target openvino_docs
+        run: echo "TBD"
         working-directory: build
 
       - name: 'Upload doc'

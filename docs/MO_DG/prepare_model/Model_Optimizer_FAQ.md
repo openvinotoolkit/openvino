@@ -348,18 +348,53 @@ You cannot specify the batch and the input shape at the same time. You should sp
 
 The specified input shape cannot be parsed. Please, define it in one of the following ways:
 
-*   
-```shell
-python3 mo.py --input_model <INPUT_MODEL>.caffemodel --input_shape (1,3,227,227)
-```
+* 
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      python3 mo.py --input_model <INPUT_MODEL>.caffemodel --input_shape (1,3,227,227)
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --input_model <INPUT_MODEL>.caffemodel --input_shape (1,3,227,227)
+
+@endsphinxdirective  
+
 *
-```shell
-python3 mo.py --input_model <INPUT_MODEL>.caffemodel --input_shape [1,3,227,227]
-```
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      python3 mo.py --input_model <INPUT_MODEL>.caffemodel --input_shape [1,3,227,227]
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --input_model <INPUT_MODEL>.caffemodel --input_shape [1,3,227,227]
+
+@endsphinxdirective
+
 *   In case of multi input topology you should also specify inputs:
-```shell
-python3 mo.py --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),(1,6,1,1)
-```
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      python3 mo.py --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),(1,6,1,1)
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --input_model /path-to/your-model.caffemodel --input data,rois --input_shape (1,3,227,227),(1,6,1,1)
+
+@endsphinxdirective
 
 Keep in mind that there is no space between and inside the brackets for input shapes.
 
@@ -615,19 +650,6 @@ You need to specify values for each input of the model. For more information, re
 #### 102. What does the message "Operation _contrib_box_nms is not supported ..." mean? <a name="question-102"></a>
 
 It means that you trying to convert the topology which contains '_contrib_box_nms' operation which is not supported directly. However the sub-graph of operations including the '_contrib_box_nms' could be replaced with DetectionOutput layer if your topology is one of the gluoncv topologies. Specify '--enable_ssd_gluoncv' command line parameter for the Model Optimizer to enable this transformation.
-
-\htmlonly
-
-<script>
-  window.addEventListener('load', function(){
-    var questionID = getURLParameter('question'); /* this function is defined in openvino-layout.js */
-    if (questionID) {
-      window.location = window.location.pathname + '#' + encodeURI(questionID);
-    }
-  });
-</script>
-
-\endhtmlonly
 
 #### 103. What does the message "ModelOptimizer is not able to parse *.caffemodel" mean? <a name="question-103"></a>
 

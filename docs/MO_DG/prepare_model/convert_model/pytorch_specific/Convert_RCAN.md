@@ -26,6 +26,17 @@ The script generates the ONNX\* model file RCAN.onnx. You can find more informat
 
 ## Convert ONNX* RCAN Model to IR
 
-```sh
-./mo.py --input_model RCAN.onnx
-```
+@sphinxdirective
+.. tab:: Package, Docker, open-source installation
+
+   .. code-block:: sh
+
+      python3 mo.py --input_model RCAN.onnx
+
+.. tab:: pip installation
+
+    .. code-block:: sh
+
+      mo --input_model RCAN.onnx
+
+@endsphinxdirective

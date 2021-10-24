@@ -1,4 +1,4 @@
-# OpenVINO™ Toolkit Overview {#index}
+# OpenVINO™ Toolkit Overview {#openvino_overview}
 
 ## Introduction
 
@@ -94,7 +94,7 @@ Intel® Distribution of OpenVINO™ toolkit includes the following components:
 - [Open Model Zoo](@ref omz_models_group_intel)
     - [Demos](@ref omz_demos): Console applications that provide robust application templates to help you implement specific deep learning scenarios.
     - Additional Tools: A set of tools to work with your models including [Accuracy Checker Utility](@ref omz_tools_accuracy_checker) and [Model Downloader](@ref omz_tools_downloader).
-    - [Documentation for Pre-trained Models](@ref omz_models_group_intel): Documentation for pre-trained models that are available in the [Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo).
+    - [Documentation for Pretrained Models](@ref omz_models_group_intel): Documentation for pre-trained models that are available in the [Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo).
 - Deep Learning Streamer (DL Streamer): Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. DL Streamer can be installed by the Intel® Distribution of OpenVINO™ toolkit installer. Its open-source version is available on [GitHub](https://github.com/openvinotoolkit/dlstreamer_gst). For the DL Streamer documentation, see:
     - [DL Streamer Samples](@ref gst_samples_README)
     - [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/)

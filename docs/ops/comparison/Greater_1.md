@@ -1,4 +1,4 @@
-## Greater <a name="Greater"></a> {#openvino_docs_ops_comparison_Greater_1}
+# Greater {#openvino_docs_ops_comparison_Greater_1}
 
 **Versioned name**: *Greater-1*
 
