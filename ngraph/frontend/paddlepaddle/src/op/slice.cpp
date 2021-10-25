@@ -77,13 +77,6 @@ NamedOutputs slice(const NodeContext& node) {
     auto decrease_axis = node.get_attribute<std::vector<int32_t>>("decrease_axis");
 
     if (decrease_axis.size() > 0) {
-        auto stride_slice_output_shape = stride_slice_node->get_output_partial_shape(0);
-
-        for (size_t i = 0; i < decrease_axis.size(); ++i)
-            PDPD_OP_VALIDATION_CHECK(node,
-                                     stride_slice_output_shape[decrease_axis[i]] == 1,
-                                     "decrease dim should be 1!");
-
         auto squeeze_index_node = Constant::create(element::i32, {}, decrease_axis);
         auto decreased_node = std::make_shared<Squeeze>(stride_slice_node, squeeze_index_node);
 
