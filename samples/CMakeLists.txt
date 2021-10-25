@@ -19,7 +19,7 @@ elseif(WIN32)
 endif()
 
 install(DIRECTORY c
-        DESTINATION samples/c
+        DESTINATION samples
         COMPONENT c_samples
         PATTERN c/CMakeLists.txt EXCLUDE
         PATTERN c/.clang-format EXCLUDE)
