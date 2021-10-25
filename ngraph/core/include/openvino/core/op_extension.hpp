@@ -13,7 +13,7 @@
 
 namespace ov {
 
-class OPENVINO_EXTENSION_API BaseOpExtension : public BaseExtension {
+class BaseOpExtension : public BaseExtension {
 public:
     using Ptr = std::shared_ptr<BaseOpExtension>;
     virtual const ov::DiscreteTypeInfo& type() = 0;
@@ -21,7 +21,7 @@ public:
 };
 
 template <class T>
-class OPENVINO_EXTENSION_API OpExtension : public BaseOpExtension {
+class OpExtension : public BaseOpExtension {
     template <typename TYPE, typename std::enable_if<!ngraph::HasTypeInfoMember<TYPE>::value, bool>::type = true>
     ov::DiscreteTypeInfo get_type_info() {
         return TYPE::get_type_info_static();
