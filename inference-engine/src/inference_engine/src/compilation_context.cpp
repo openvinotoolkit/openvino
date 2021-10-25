@@ -128,7 +128,6 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
         seed = hash_combine(seed, as_int32_t(info->getLayout()));
     }
 
-    std::cout << "Seed is " << std::to_string(seed) << "\n";
     return std::to_string(seed);
 }
 
