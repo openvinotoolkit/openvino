@@ -140,7 +140,7 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset5::Split::get_type_info_static(),                 dynamicToStaticShapeSplit},
         {ngraph::opset5::GatherND::get_type_info_static(),              dynamicToStaticShapeGatherND},
         {ngraph::opset6::GatherElements::get_type_info_static(),        dynamicToStaticShapeGatherElements},
-        {ngraph::vpu::op::ExpGatherElements::type_info,                 dynamicToStaticShapeGatherElements},
+        {ngraph::vpu::op::ExpGatherElements::get_type_info_static(),    dynamicToStaticShapeGatherElements},
 
         // reduction
         {ngraph::opset3::ReduceLogicalAnd::get_type_info_static(), dynamicToStaticShapeReduce},

@@ -6,14 +6,32 @@
 
 #include <frontend_manager/frontend.hpp>
 #include <frontend_manager/input_model.hpp>
-#include <tensorflow_frontend/model.hpp>
+#include <functional>
+#include <map>
+#include <openvino/core/node_vector.hpp>
+#include <openvino/core/variant.hpp>
 #include <tensorflow_frontend/utility.hpp>
+
+namespace ov {
+namespace frontend {
+namespace tf {
+class NodeContext;
+}
+}  // namespace frontend
+}  // namespace ov
 
 namespace ov {
 namespace frontend {
 class TF_API FrontEndTF : public ngraph::frontend::FrontEnd {
 public:
-    FrontEndTF() {}
+    using CreatorFunction = std::function<::ov::OutputVector(const ::ov::frontend::tf::NodeContext&)>;
+    using TranslatorDictionaryType = std::map<const std::string, const CreatorFunction>;
+
+private:
+    TranslatorDictionaryType m_op_translators;
+
+public:
+    FrontEndTF();
 
     /// \brief Completely convert the model
     /// \return fully converted nGraph function
@@ -49,16 +67,17 @@ public:
 
 protected:
     /// \brief Check if FrontEndTensorflow can recognize model from given parts
-    bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override;
+    bool supported_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const override;
 
-    ngraph::frontend::InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override;
+    ngraph::frontend::InputModel::Ptr load_impl(
+        const std::vector<std::shared_ptr<ov::Variant>>& variants) const override;
 
 private:
-    static void translate_graph(const std::shared_ptr<InputModelTF>& model,
-                                const std::string& model_name,
-                                bool fail_fast,
-                                bool no_conversion,
-                                std::shared_ptr<ov::Function>& ng_function);
+    void translate_graph(const ngraph::frontend::InputModel::Ptr& model,
+                         const std::string& model_name,
+                         bool fail_fast,
+                         bool no_conversion,
+                         std::shared_ptr<ov::Function>& ng_function) const;
 };
 }  // namespace frontend
 }  // namespace ov
