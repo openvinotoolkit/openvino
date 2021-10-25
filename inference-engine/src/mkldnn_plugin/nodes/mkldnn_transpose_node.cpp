@@ -38,12 +38,7 @@ MKLDNNTransposeNode::MKLDNNTransposeNode(const std::shared_ptr<ov::Node>& op, co
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-<<<<<<< HEAD
-    if (op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() ==
-            ov::op::v0::Constant::get_type_info_static()) {
-=======
     if (op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() == ov::op::v0::Constant::get_type_info_static()) {
->>>>>>> upstream/master
         constMap[INPUT_ORDER_IDX] = true;
         order = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(INPUT_ORDER_IDX))->cast_vector<size_t>();
 
