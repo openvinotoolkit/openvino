@@ -80,7 +80,7 @@ XLinkError_t XLinkInitialize(XLinkGlobalHandler_t* globalHandler)
     }
     int i;
 
-    XLinkPlatformInit();
+    XLinkPlatformInit(glHandler->datapumpConfig);
 
     //Using deprecated fields. Begin.
     int loglevel = globalHandler->loglevel;
