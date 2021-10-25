@@ -148,7 +148,6 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                                            , _needPerfCounters(needPerfCounters)
                                                            , _multiPlugin(plugin)
                                                            , _workModeIsAUTO(true) {
-    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork:AutoMode");
     if (_multiPlugin->GetCore() == nullptr) {
         IE_THROW() << "Please, work with MULTI device via InferencEngine::Core object";
     }
@@ -206,6 +205,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         // will not wait for loading accelerator network,
         // so some parameters need to be transferred by value.
        _executor->run([&, modelPath, network, device, deviceConfig]() {
+            OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork:AutoMode" + p.deviceName);
             SoExecutableNetworkInternal executableNetwork;
             if (!modelPath.empty()) {
                 executableNetwork = _core->LoadNetwork(modelPath, device, deviceConfig);
