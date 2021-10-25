@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "openvino/runtime/common.hpp"
 #include <cpp/ie_cnn_network.h>
 #include <ie_iextension.h>
 #include <istream>

@@ -101,7 +101,7 @@ IE_DO_PRAGMA(warning(disable : 1786))
  */
 
 #if defined(_WIN32) && defined(IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
-#    define INFERENCE_PLUGIN_API(type) extern "C" __declspec(dllexport) TYPE
+#    define INFERENCE_PLUGIN_API(type) extern "C" __declspec(dllexport) type
 #else
 #    define INFERENCE_PLUGIN_API(type) INFERENCE_ENGINE_API(type)
 #endif
