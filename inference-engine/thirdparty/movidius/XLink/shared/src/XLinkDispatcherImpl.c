@@ -104,7 +104,6 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
     switch (event->header.type){
         case XLINK_WRITE_REQ:
         {
-
             //in case local tries to write after it issues close (writeSize is zero)
             stream = getStreamById(event->deviceHandle.xLinkFD, event->header.streamId);
 
@@ -250,15 +249,14 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
                 response->deviceHandle = event->deviceHandle;
                 XLINK_EVENT_ACKNOWLEDGE(response);
 
-
                 // we got some data. We should unblock a blocked read
                 int xxx = DispatcherUnblockEvent(-1,
-                                                 XLINK_READ_REQ,
-                                                 response->header.streamId,
-                                                 event->deviceHandle.xLinkFD);
+                                                XLINK_READ_REQ,
+                                                response->header.streamId,
+                                                event->deviceHandle.xLinkFD);
                 (void) xxx;
                 mvLog(MVLOG_DEBUG,"unblocked from stream %d %d\n",
-                      (int)response->header.streamId, (int)xxx);
+                    (int)response->header.streamId, (int)xxx);
             }
             break;
         case XLINK_READ_REQ:

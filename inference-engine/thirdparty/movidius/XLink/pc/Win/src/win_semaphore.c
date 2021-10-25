@@ -100,6 +100,18 @@ int sem_post(sem_t *sem){
 }
 
 
+//Wait for a semaphore
+int sem_trywait(sem_t *sem) {
+    if (sem == NULL || *sem == NULL) {
+        return ls_set_errno(EINVAL);
+    }
+    sem_t s = *sem;
+    if (WaitForSingleObject(s->handle, INFINITE) != WAIT_OBJECT_0) {
+        return ls_set_errno(EINVAL);
+    }
+    return 0;
+}
+
 
 //Destroy a semaphore
 int sem_destroy(sem_t *sem){

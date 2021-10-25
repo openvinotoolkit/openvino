@@ -19,6 +19,16 @@
 #include <assert.h>
 #include <stdlib.h>
 
+#if (defined(_WIN32) || defined(_WIN64))
+# include "win_pthread.h"
+# include "win_semaphore.h"
+#else
+# include <pthread.h>
+# ifndef __APPLE__
+#  include <semaphore.h>
+# endif
+#endif
+
 #include "XLinkDispatcher.h"
 #include "XLinkMacros.h"
 #include "XLinkPrivateDefines.h"
@@ -351,7 +361,7 @@ xLinkEvent_t* DispatcherAddEvent(xLinkEventOrigin_t origin, xLinkEvent_t *event)
     return ev;
 }
 
-int DispatcherWaitEventComplete(xLinkDeviceHandle_t *deviceHandle)
+int DispatcherWaitEventComplete(xLinkDeviceHandle_t *deviceHandle, unsigned int timeoutMs)
 {
     xLinkSchedulerState_t* curr = findCorrespondingScheduler(deviceHandle->xLinkFD);
     ASSERT_XLINK(curr != NULL);
@@ -361,19 +371,41 @@ int DispatcherWaitEventComplete(xLinkDeviceHandle_t *deviceHandle)
         return -1;
     }
 
-    int rc = XLink_sem_wait(id);
+    int rc = 0;
+    if (timeoutMs != XLINK_NO_RW_TIMEOUT) {
+        // This is a workaround for sem_timedwait being influenced by the system clock change.
+        // This is a temporary solution. TODO: replace this with something more efficient.
+        while (timeoutMs--) {
+            XLink_sem_trywait(id);
+            if (!rc) {
+                break;
+            } else {
+#if (defined(_WIN32) || defined(_WIN64) )
+                Sleep(1);
+#else
+                usleep(1000);
+#endif
+            }
+        }
+    } else {
+        while(((rc = XLink_sem_wait(id)) == -1) && errno == EINTR)
+            continue;
+    }
 #ifdef __PC__
     if (rc) {
-        xLinkEvent_t event = {0};
-        event.header.type = XLINK_RESET_REQ;
-        event.deviceHandle = *deviceHandle;
-        mvLog(MVLOG_ERROR,"waiting is timeout, sending reset remote event");
-        DispatcherAddEvent(EVENT_LOCAL, &event);
-        id = getSem(pthread_self(), curr);
-        if (id == NULL || XLink_sem_wait(id)) {
-            dispatcherReset(curr);
+            xLinkEvent_t event = {0};
+            event.header.type = XLINK_RESET_REQ;
+            event.deviceHandle = *deviceHandle;
+            mvLog(MVLOG_ERROR,"waiting is timeout, sending reset remote event");
+            DispatcherAddEvent(EVENT_LOCAL, &event);
+            id = getAndRefSem(pthread_self(), curr, 0);
+            int rc;
+            while(((rc = sem_wait(id)) == -1) && errno == EINTR)
+                continue;
+            if (id == NULL || rc) {
+                dispatcherReset(curr);
+            }
         }
-    }
 #endif
 
     return rc;
@@ -435,6 +467,33 @@ int DispatcherUnblockEvent(eventId_t id, xLinkEventType_t type, streamId_t strea
                   TypeToStr((int)blockedEvent->packet.header.type));
         }
     }
+    return 0;
+}
+
+int DispatcherServeEvent(eventId_t id, xLinkEventType_t type, streamId_t stream, void *xlinkFD)
+{
+    xLinkSchedulerState_t* curr = findCorrespondingScheduler(xlinkFD);
+    ASSERT_XLINK(curr != NULL);
+
+    xLinkEventPriv_t* event;
+    XLINK_RET_ERR_IF(pthread_mutex_lock(&(curr->queueMutex)) != 0, 1);
+    for (event = curr->lQueue.q;
+         event < curr->lQueue.q + MAX_EVENTS;
+         event++)
+    {
+        if (((event->packet.header.id == id || id == -1)
+             && event->packet.header.type == type
+             && event->packet.header.streamId == stream))
+        {
+            mvLog(MVLOG_DEBUG,"served**************** %d %s\n",
+                  (int)event->packet.header.id,
+                  TypeToStr((int)event->packet.header.type));
+            event->isServed = EVENT_SERVED;
+            XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, 1);
+            return 1;
+        }
+    }
+    XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, 1);
     return 0;
 }
 
