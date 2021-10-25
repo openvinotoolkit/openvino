@@ -388,6 +388,7 @@ char* TypeToStr(int type)
         case XLINK_WRITE_REQ:     return "XLINK_WRITE_REQ";
         case XLINK_READ_REQ:      return "XLINK_READ_REQ";
         case XLINK_READ_REL_REQ:  return "XLINK_READ_REL_REQ";
+        case XLINK_READ_REL_SPEC_REQ:  return "XLINK_READ_REL_SPEC_REQ";
         case XLINK_CREATE_STREAM_REQ:return "XLINK_CREATE_STREAM_REQ";
         case XLINK_CLOSE_STREAM_REQ: return "XLINK_CLOSE_STREAM_REQ";
         case XLINK_PING_REQ:         return "XLINK_PING_REQ";
@@ -396,6 +397,7 @@ char* TypeToStr(int type)
         case XLINK_WRITE_RESP:   return "XLINK_WRITE_RESP";
         case XLINK_READ_RESP:     return "XLINK_READ_RESP";
         case XLINK_READ_REL_RESP: return "XLINK_READ_REL_RESP";
+        case XLINK_READ_REL_SPEC_RESP:  return "XLINK_READ_REL_SPEC_RESP";
         case XLINK_CREATE_STREAM_RESP: return "XLINK_CREATE_STREAM_RESP";
         case XLINK_CLOSE_STREAM_RESP:  return "XLINK_CLOSE_STREAM_RESP";
         case XLINK_PING_RESP:  return "XLINK_PING_RESP";
