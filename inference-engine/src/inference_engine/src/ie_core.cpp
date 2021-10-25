@@ -1134,7 +1134,7 @@ Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
 #ifdef OPENVINO_STATIC_LIBRARY
-    _impl->RegisterPluginsInRegistry(::plugins_hpp);
+    _impl->RegisterPluginsInRegistry(::getStaticPluginsRegistry());
 #else
     RegisterPlugins(ov::runtime::parseXmlConfig(xmlConfigFile));
 #endif
@@ -1397,7 +1397,7 @@ Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
 #ifdef OPENVINO_STATIC_LIBRARY
-    _impl->RegisterPluginsInRegistry(::plugins_hpp);
+    _impl->RegisterPluginsInRegistry(::getStaticPluginsRegistry());
 #else
     register_plugins(parseXmlConfig(xmlConfigFile));
 #endif

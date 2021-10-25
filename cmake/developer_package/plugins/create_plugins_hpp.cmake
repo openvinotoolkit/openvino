@@ -12,18 +12,18 @@ endforeach()
 
 set(IE_PLUGINS_DECLARATIONS "")
 set(IE_PLUGINS_MAP_DEFINITION
-    "std::map<std::string, InferenceEngine::CreatePluginEngineFunc *> plugins_hpp = {")
+    "    static const std::map<std::string, InferenceEngine::CreatePluginEngineFunc *> plugins_hpp = {")
 
 foreach(dev_name IN LISTS IE_DEVICE_NAMES)
     set(_IE_CREATE_PLUGIN_FUNC "CreatePluginEngine${dev_name}")
     set(IE_PLUGINS_DECLARATIONS "${IE_PLUGINS_DECLARATIONS}
 IE_DEFINE_PLUGIN_CREATE_FUNCTION_DECLARATION(${_IE_CREATE_PLUGIN_FUNC})")
     set(IE_PLUGINS_MAP_DEFINITION "${IE_PLUGINS_MAP_DEFINITION}
-    { \"${dev_name}\", ${_IE_CREATE_PLUGIN_FUNC} },")
+        { \"${dev_name}\", ${_IE_CREATE_PLUGIN_FUNC} },")
 endforeach()
 
 set(IE_PLUGINS_MAP_DEFINITION "${IE_PLUGINS_MAP_DEFINITION}
-};\n")
+    };\n")
 
 
 message("${IE_PLUGINS_DECLARATIONS}")

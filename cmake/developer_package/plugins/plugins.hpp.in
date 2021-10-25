@@ -9,6 +9,10 @@
 namespace {
 @IE_PLUGINS_DECLARATIONS@
 
+const std::map<std::string, InferenceEngine::CreatePluginEngineFunc *>
+getStaticPluginsRegistry() {
 @IE_PLUGINS_MAP_DEFINITION@
+    return plugins_hpp;
+}
 
 } // namespace
