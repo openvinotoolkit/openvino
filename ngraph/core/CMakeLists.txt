@@ -61,7 +61,7 @@ endif()
 
 addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
 
-target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference openvino::util ov_shape_inference)
+target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference openvino::util pugixml::static ov_shape_inference)
 
 ie_mark_target_as_cc(ngraph)
 
@@ -71,7 +71,7 @@ ov_ncc_naming_style(FOR_TARGET ngraph
 add_clang_format_target(ngraph_clang FOR_TARGETS ngraph)
 
 if(NOT BUILD_SHARED_LIBS)
-    target_compile_definitions(ngraph PUBLIC NGRAPH_STATIC_LIBRARY)
+    target_compile_definitions(ngraph PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")

@@ -69,20 +69,35 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
 
 CommonDispatchData GatherElementsKernelRef::SetDefault(const gather_elements_params& params, const optional_params&) const {
     CommonDispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
     const auto& output = params.output;
 
     switch (params.inputs[1].GetLayout()) {
     case DataLayout::bfyx:
         dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+
         break;
 
     case DataLayout::bfzyx:
         dispatchData.gws = {output.X().v, output.Y().v * output.Z().v, output.Feature().v * output.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+
         break;
 
     case DataLayout::bfwzyx:
         dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+
         break;
 
     default:
@@ -90,7 +105,7 @@ CommonDispatchData GatherElementsKernelRef::SetDefault(const gather_elements_par
         break;
     }
 
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }

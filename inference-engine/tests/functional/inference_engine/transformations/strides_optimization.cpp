@@ -18,8 +18,7 @@ using namespace testing;
 // In description of unit tests below will be used next syntax: Operation(NxM,XxY), where NxM - kernel size, XxY - stride
 
 // Pl->Conv(1x1,1x1)->Conv(1x1,2x2) => Pl->Conv(1x1,2x2)->Conv(1x1,1x1)
-TEST(TransformationTests, StridesOptimization1) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, StridesOptimization1) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
         auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
@@ -29,11 +28,8 @@ TEST(TransformationTests, StridesOptimization1) {
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(conv_1, weights_2, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::StridesOptimization>();
-        m.run_passes(f);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
+        manager.register_pass<ngraph::pass::StridesOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
@@ -44,16 +40,12 @@ TEST(TransformationTests, StridesOptimization1) {
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(conv_1, weights_2, ngraph::Strides{},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref, true);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
 // Pl->Conv(3x3,2x2)->Conv(1x1,2x2) => Pl->Conv(3x3,4x4)->Conv(1x1,1x1)
-TEST(TransformationTests, StridesOptimization2) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, StridesOptimization2) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
         auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
@@ -63,11 +55,8 @@ TEST(TransformationTests, StridesOptimization2) {
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(conv_1, weights_2, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::StridesOptimization>();
-        m.run_passes(f);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
+        manager.register_pass<ngraph::pass::StridesOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
@@ -78,16 +67,12 @@ TEST(TransformationTests, StridesOptimization2) {
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(conv_1, weights_2, ngraph::Strides{},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref, true);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
 // Pl->Conv(3x3,2x2)->Conv(3x3,2x2) => Same
-TEST(TransformationTests, StridesOptimization3) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, StridesOptimization3) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
         auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
@@ -97,11 +82,8 @@ TEST(TransformationTests, StridesOptimization3) {
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(conv_1, weights_2, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::StridesOptimization>();
-        m.run_passes(f);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
+        manager.register_pass<ngraph::pass::StridesOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
@@ -112,17 +94,13 @@ TEST(TransformationTests, StridesOptimization3) {
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(conv_1, weights_2, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref, true);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
 // Pl--->Conv(3x3,2x2)->ReLU--->Eltwise-->Conv(1x1,2x2) => Pl--->Conv(3x3,4x4)->ReLU--->Eltwise-->Conv(1x1,1x1)
 //   `-->Conv(3x3,2x2)->ReLU---`                             `-->Conv(3x3,4x4)->ReLU---`
-TEST(TransformationTests, StridesOptimization4) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, StridesOptimization4) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
         auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
@@ -138,11 +116,8 @@ TEST(TransformationTests, StridesOptimization4) {
         auto conv_3 = std::make_shared<ngraph::opset7::Convolution>(add, weights_3, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3}, ngraph::ParameterVector{data});
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::StridesOptimization>();
-        m.run_passes(f);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3}, ngraph::ParameterVector{data});
+        manager.register_pass<ngraph::pass::StridesOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
@@ -159,17 +134,13 @@ TEST(TransformationTests, StridesOptimization4) {
         auto conv_3 = std::make_shared<ngraph::opset7::Convolution>(add, weights_3, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref, true);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
 // Pl--->Conv(1x1,1x1)->ReLU--->Eltwise-->Conv(1x1,2x2) => Pl--->Conv(1x1,2x2)->ReLU--->Eltwise-->Conv(1x1,1x1)
 //   `----------------->ReLU---`                             `-->Pool(1x1,2x2)->ReLU---`
-TEST(TransformationTests, StridesOptimization5) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, StridesOptimization5) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
         auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
@@ -182,11 +153,8 @@ TEST(TransformationTests, StridesOptimization5) {
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(add, weights_2, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::StridesOptimization>();
-        m.run_passes(f);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
+        manager.register_pass<ngraph::pass::StridesOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
@@ -201,18 +169,17 @@ TEST(TransformationTests, StridesOptimization5) {
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(add, weights_2, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
     }
 
-    auto res = compare_functions(f, f_ref, true);
-    ASSERT_TRUE(res.first) << res.second;
+    // TODO: update transformation and remove this check XXX-68696
+    disable_rt_info_check();
 }
 
 // Pl->Conv(1x1,1x1)->Conv(1x1,2x2)->Conv(3x3,1x1)->Conv(1x1,2x2)
 //       =>
 // Pl->Conv(1x1,2x2)->Conv(1x1,1x1)->Conv(3x3,2x2)->Conv(1x1,1x1)
-TEST(TransformationTests, StridesOptimization6) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, StridesOptimization6) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
         auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
@@ -228,11 +195,8 @@ TEST(TransformationTests, StridesOptimization6) {
         auto conv_4 = std::make_shared<ngraph::opset7::Convolution>(conv_3, weights_4, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_4}, ngraph::ParameterVector{data});
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::StridesOptimization>();
-        m.run_passes(f);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_4}, ngraph::ParameterVector{data});
+        manager.register_pass<ngraph::pass::StridesOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
@@ -249,11 +213,8 @@ TEST(TransformationTests, StridesOptimization6) {
         auto conv_4 = std::make_shared<ngraph::opset7::Convolution>(conv_3, weights_4, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_4}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_4}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref, true);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
 // Pl->Conv(1x1,1x1) --> Conv(1x1,2x2) --> Conv(1x1,2x2)
@@ -261,8 +222,7 @@ TEST(TransformationTests, StridesOptimization6) {
 //       =>
 // Pl->Conv(1x1,1x1) ---> Conv(1x1,4x4) --> Conv(1x1,1x1)
 //                   `--> Pool(1x1, 2x2) -> Relu --> Conv(1x1,1x1)
-TEST(TransformationTests, StridesOptimization7) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, StridesOptimization7) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
         auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
@@ -279,11 +239,8 @@ TEST(TransformationTests, StridesOptimization7) {
         auto conv_4 = std::make_shared<ngraph::opset7::Convolution>(relu, weights_4, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3, conv_4}, ngraph::ParameterVector{data});
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::StridesOptimization>();
-        m.run_passes(f);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3, conv_4}, ngraph::ParameterVector{data});
+        manager.register_pass<ngraph::pass::StridesOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
@@ -302,11 +259,10 @@ TEST(TransformationTests, StridesOptimization7) {
         auto conv_4 = std::make_shared<ngraph::opset7::Convolution>(relu, weights_4, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3, conv_4}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3, conv_4}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref, true);
-    ASSERT_TRUE(res.first) << res.second;
+    // TODO: update transformation and remove this check XXX-68696
+    disable_rt_info_check();
 }
 
 // Pl--->Conv(1x1,1x1)->ReLU--->Eltwise-->Conv(1x1,2x2)-->Eltwise-->Conv(1x1, 2x2)
@@ -314,8 +270,7 @@ TEST(TransformationTests, StridesOptimization7) {
 // =>
 // Pl----->Conv(1x1,1x4)----->ReLU---->Eltwise------>Conv(1x1,1x1)------>Eltwise---->Conv(1x1, 1x1)
 // Const-->MaxPool(1x1,4x4)-->Squeeze`  Pl--->MaxPool(1x1,2x2)-->Squeeze`
-TEST(TransformationTests, StridesOptimization8) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, StridesOptimization8) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
         auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
@@ -334,11 +289,8 @@ TEST(TransformationTests, StridesOptimization8) {
         auto conv_3 = std::make_shared<ngraph::opset7::Convolution>(add_2, weights_3, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3}, ngraph::ParameterVector{data, data_2});
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::StridesOptimization>();
-        m.run_passes(f);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3}, ngraph::ParameterVector{data, data_2});
+        manager.register_pass<ngraph::pass::StridesOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
@@ -364,11 +316,10 @@ TEST(TransformationTests, StridesOptimization8) {
         auto conv_3 = std::make_shared<ngraph::opset7::Convolution>(add_2, weights_3, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3}, ngraph::ParameterVector{data, data_2});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3}, ngraph::ParameterVector{data, data_2});
     }
-
-    auto res = compare_functions(f, f_ref, true);
-    ASSERT_TRUE(res.first) << res.second;
+    // TODO: update transformation and remove this check XXX-68696
+    disable_rt_info_check();
 }
 
 // Pl------->Conv(1x1,1x1)------>Eltwise------>Conv(1x1,2x2)---->Eltwise-->Conv(1x1, 2x2)
@@ -378,8 +329,7 @@ TEST(TransformationTests, StridesOptimization8) {
 // Pl------->Conv(1x1,4x4)------->Eltwise---->Conv(1x1,1x1)-->Eltwise-->Conv(1x1, 1x1)
 // Pl----->Eltwise----->Eltwise--`    Eltwise------>Eltwise--`
 // Const--`      Const-`        Const--`     Const-`
-TEST(TransformationTests, StridesOptimization9) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, StridesOptimization9) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
         auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
@@ -407,11 +357,8 @@ TEST(TransformationTests, StridesOptimization9) {
         auto conv_3 = std::make_shared<ngraph::opset7::Convolution>(add_6, weights_3, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3}, ngraph::ParameterVector{data, data_2, data_3});
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::StridesOptimization>();
-        m.run_passes(f);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3}, ngraph::ParameterVector{data, data_2, data_3});
+        manager.register_pass<ngraph::pass::StridesOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
@@ -452,9 +399,8 @@ TEST(TransformationTests, StridesOptimization9) {
         auto conv_3 = std::make_shared<ngraph::opset7::Convolution>(add_6, weights_3, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3}, ngraph::ParameterVector{data, data_2, data_3});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3}, ngraph::ParameterVector{data, data_2, data_3});
     }
-
-    auto res = compare_functions(f, f_ref, true);
-    ASSERT_TRUE(res.first) << res.second;
+    // TODO: update transformation and remove this check XXX-68696
+    disable_rt_info_check();
 }

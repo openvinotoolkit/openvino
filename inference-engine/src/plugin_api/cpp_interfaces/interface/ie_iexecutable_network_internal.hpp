@@ -17,7 +17,13 @@
 
 namespace ov {
 class Function;
-}
+namespace op {
+namespace v0 {
+class Parameter;
+class Result;
+}  // namespace v0
+}  // namespace op
+}  // namespace ov
 namespace InferenceEngine {
 
 class IInferencePlugin;
@@ -51,10 +57,23 @@ public:
     virtual void setNetworkOutputs(const OutputsDataMap& networkOutputs);
 
     /**
-     * @brief      Sets function with network inputs and outpus info
-     * @param[in]  function The function with network inputs and outpus info
+     * @brief      Sets the network parameters
+     * @param[in]  params  The network parameters
      */
-    virtual void setRuntimeFunction(std::shared_ptr<ov::Function> function);
+    virtual void setInputs(const std::vector<std::shared_ptr<const ov::Node>>& params);
+    /**
+     * @brief      Returns the network parameters
+     */
+    virtual const std::vector<std::shared_ptr<const ov::Node>>& getInputs() const;
+    /**
+     * @brief      Sets the network results
+     * @param[in]  results  The network results
+     */
+    virtual void setOutputs(const std::vector<std::shared_ptr<const ov::Node>>& results);
+    /**
+     * @brief      Returns the network results
+     */
+    virtual const std::vector<std::shared_ptr<const ov::Node>>& getOutputs() const;
 
     /**
      * @brief Gets the Executable network output Data node information. The received info is stored in the given Data
@@ -149,10 +168,22 @@ protected:
      */
     virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                           OutputsDataMap networkOutputs);
+    /**
+     * @brief      Creates an inference request internal implementation.
+     * @note       The method is called by IExecutableNetworkInternal::CreateInferRequest as
+     *             plugin-specific implementation.
+     * @param[in]  inputs   The function inputs
+     * @param[in]  outputs  The function outputs
+     * @return     A shared pointer to inference request object.
+     */
+    virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(
+        const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+        const std::vector<std::shared_ptr<const ov::Node>>& outputs);
 
-    std::shared_ptr<ov::Function> _runtime_function;  //!< Holds information about network inputs and outputs
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
+    std::vector<std::shared_ptr<const ov::Node>> _parameters;
+    std::vector<std::shared_ptr<const ov::Node>> _results;
 
     /**
      * @brief A pointer to a IInferencePlugin interface.

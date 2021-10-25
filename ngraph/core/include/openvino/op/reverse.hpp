@@ -39,7 +39,9 @@ public:
     void set_mode(const Mode mode) {
         m_mode = mode;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 protected:
