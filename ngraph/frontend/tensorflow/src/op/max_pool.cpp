@@ -24,11 +24,6 @@ OutputVector TranslateMaxPoolOp(const NodeContext& node) {
 
     bool is_nhwc = (tf_data_format == "NHWC") || (tf_data_format == "NDHWC");
 
-    NGRAPH_DEBUG << ngraph::join(tf_strides);
-    NGRAPH_DEBUG << ngraph::join(tf_ksize);
-    NGRAPH_DEBUG << tf_padding_type;
-    NGRAPH_DEBUG << tf_data_format;
-
     int N = 2;
     if (node.get_name() == "MaxPool3D") {
         N = 3;
@@ -42,9 +37,6 @@ OutputVector TranslateMaxPoolOp(const NodeContext& node) {
     NHWCtoHW(is_nhwc, ng_input.get_shape(), ng_image_shape);
     NHWCtoHW(is_nhwc, tf_ksize, ng_kernel_shape);
     NHWCtoNCHW(node.get_name(), is_nhwc, ng_input);
-    NGRAPH_DEBUG << "ng_strides: " << ngraph::join(ng_strides);
-    NGRAPH_DEBUG << "ng_image_shape: " << ngraph::join(ng_image_shape);
-    NGRAPH_DEBUG << "ng_kernel_shape: " << ngraph::join(ng_kernel_shape);
 
     CoordinateDiff padding_below;
     CoordinateDiff padding_above;

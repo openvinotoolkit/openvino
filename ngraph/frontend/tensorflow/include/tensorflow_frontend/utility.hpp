@@ -7,21 +7,9 @@
 #include <frontend_manager/frontend_exceptions.hpp>
 
 #ifdef tensorflow_ngraph_frontend_EXPORTS
-#    define TF_API NGRAPH_HELPER_DLL_EXPORT
+#    define TF_API OPENVINO_CORE_EXPORTS
 #else
-#    define TF_API NGRAPH_HELPER_DLL_IMPORT
+#    define TF_API OPENVINO_CORE_IMPORTS
 #endif  // tensorflow_ngraph_frontend_EXPORTS
 
 #include <ngraph/log.hpp>
-
-namespace ov {
-namespace frontend {
-namespace tf {
-
-void extract_operation_name_and_port(const std::string& port_name,
-                                     std::string& operation_name,
-                                     size_t& port_index,
-                                     std::string& port_type);
-}  // namespace tf
-}  // namespace frontend
-}  // namespace ov

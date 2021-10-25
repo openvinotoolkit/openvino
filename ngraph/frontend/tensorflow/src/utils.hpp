@@ -1,6 +1,22 @@
-// Copyright (C) 2018-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-//
+/* Copyright (C) 2018-2021 Intel Corporation
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2017 The TensorFlow Authors. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * We modified "ValuesFromConstNode" function from
+ * tensorflow/core/grappler/optimizers/arithmetic_optimizer.cc file
+ * to integrate it with our infrastructure. The purpose and basic
+ * functionality remains the same.
+==============================================================================*/
 
 #pragma once
 
@@ -14,6 +30,12 @@
 namespace ov {
 namespace frontend {
 namespace tf {
+using OpMap = std::unordered_map<std::string, std::vector<ov::Output<ov::Node>>>;
+
+void extract_operation_name_and_port(const std::string& port_name,
+                                     std::string& operation_name,
+                                     size_t& port_index,
+                                     std::string& port_type);
 
 void SetTracingInfo(const std::string& op_name, const ov::Output<ov::Node> ng_node);
 

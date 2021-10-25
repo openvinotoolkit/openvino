@@ -12,6 +12,21 @@ namespace ov {
 namespace frontend {
 namespace tf {
 
+const std::map<::tensorflow::DataType, ov::element::Type>& TYPE_MAP() {
+    static const std::map<::tensorflow::DataType, ov::element::Type> type_map{
+            {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
+            {::tensorflow::DataType::DT_INT16, ov::element::i16},
+            {::tensorflow::DataType::DT_INT32, ov::element::i32},
+            {::tensorflow::DataType::DT_INT64, ov::element::i64},
+            {::tensorflow::DataType::DT_HALF, ov::element::f16},
+            {::tensorflow::DataType::DT_FLOAT, ov::element::f32},
+            {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
+            {::tensorflow::DataType::DT_UINT8, ov::element::u8},
+            {::tensorflow::DataType::DT_INT8, ov::element::i8},
+            {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16}};
+    return type_map;
+}
+
 template <class T>
 bool is_type(const VariantTypeInfo& type_info) {
     return type_info == VariantWrapper<T>::get_type_info_static();
@@ -60,7 +75,7 @@ shared_ptr<Variant> DecoderTFProto::get_attribute(const string& name, const Vari
         return create_variant<vector<float>>(floats);
     } else if (is_type<ov::element::Type>(type_info)) {
         auto data_type = attrs[0].type();
-        return create_variant<ov::element::Type>(TYPE_MAP[data_type]);
+        return create_variant<ov::element::Type>(TYPE_MAP().at(data_type));
     } else if (is_type<bool>(type_info)) {
         return create_variant<bool>(attrs[0].b());
     } else if (is_type<::tensorflow::DataType>(type_info)) {
@@ -100,11 +115,11 @@ void DecoderTFProto::get_input_node(const size_t input_port_idx,
     producer_output_port_index = 0;
 }
 
-string DecoderTFProto::get_op_type() const {
+const std::string& DecoderTFProto::get_op_type() const {
     return m_node_def->op();
 }
 
-string DecoderTFProto::get_op_name() const {
+const std::string& DecoderTFProto::get_op_name() const {
     return m_node_def->name();
 }
 

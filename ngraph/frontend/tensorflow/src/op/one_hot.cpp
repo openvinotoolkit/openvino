@@ -20,9 +20,9 @@ OutputVector TranslateOneHotOp(const NodeContext& node) {
     auto ng_off = node.get_ng_input(3);
 
     auto one_hot_axis = node.get_attribute<int64_t>("axis");
-    auto one_hot = make_shared<OneHot>(ng_features, ng_depth, ng_on, ng_off, one_hot_axis);
-    one_hot->set_friendly_name(node.get_name());
-    return one_hot->outputs();
+    auto res = make_shared<OneHot>(ng_features, ng_depth, ng_on, ng_off, one_hot_axis);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 }  // namespace op
 }  // namespace tf

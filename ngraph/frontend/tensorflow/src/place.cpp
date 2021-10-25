@@ -13,24 +13,11 @@
 
 namespace ov {
 namespace frontend {
-namespace tf {
-
-std::map<::tensorflow::DataType, ov::element::Type> TYPE_MAP{{::tensorflow::DataType::DT_BOOL, ov::element::boolean},
-                                                             {::tensorflow::DataType::DT_INT16, ov::element::i16},
-                                                             {::tensorflow::DataType::DT_INT32, ov::element::i32},
-                                                             {::tensorflow::DataType::DT_INT64, ov::element::i64},
-                                                             {::tensorflow::DataType::DT_HALF, ov::element::f16},
-                                                             {::tensorflow::DataType::DT_FLOAT, ov::element::f32},
-                                                             {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
-                                                             {::tensorflow::DataType::DT_UINT8, ov::element::u8},
-                                                             {::tensorflow::DataType::DT_INT8, ov::element::i8},
-                                                             {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16}};
-}
 
 bool PlaceTF::is_input() const {
     const auto& model_ins = m_input_model.get_inputs();
 
-    const auto cmp = [this](const Place::Ptr& p) {
+    const auto cmp = [this](const ngraph::frontend::Place::Ptr& p) {
         return p.get() == this;
     };
     return std::find_if(model_ins.begin(), model_ins.end(), cmp) != model_ins.end();
@@ -38,7 +25,7 @@ bool PlaceTF::is_input() const {
 
 bool PlaceTF::is_output() const {
     const auto& model_outs = m_input_model.get_outputs();
-    const auto cmp = [this](const Place::Ptr& p) {
+    const auto cmp = [this](const ngraph::frontend::Place::Ptr& p) {
         return p.get() == this;
     };
     return std::find_if(model_outs.begin(), model_outs.end(), cmp) != model_outs.end();
@@ -55,13 +42,6 @@ const std::vector<std::shared_ptr<OutPortPlaceTF>>& OpPlaceTF::get_output_ports(
 const std::map<std::string, std::vector<std::shared_ptr<InPortPlaceTF>>>& OpPlaceTF::get_input_ports() const {
     return m_input_ports;
 }
-
-/*std::shared_ptr<OutPortPlaceTF> OpPlaceTF::get_output_port_tf(const std::string& outputName,
-                                                              int outputPortIndex) const {
-    FRONT_END_GENERAL_CHECK(outputPortIndex <= m_output_ports.at(outputName).size(),
-                            "outputPortIndex is out of bounds.");
-    return m_output_ports.at(outputName)[outputPortIndex];
-}*/
 
 std::shared_ptr<InPortPlaceTF> OpPlaceTF::get_input_port_tf(const std::string& inputName, int inputPortIndex) const {
     FRONT_END_GENERAL_CHECK(inputPortIndex <= m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
@@ -82,11 +62,6 @@ void OpPlaceTF::add_out_port(const std::shared_ptr<OutPortPlaceTF>& output, int 
 void OpPlaceTF::add_in_port(const std::shared_ptr<InPortPlaceTF>& input, const std::string& name) {
     m_input_ports[name].push_back(input);
 }
-
-/*ngraph::frontend::Place::Ptr OpPlaceTF::get_output_port(const std::string& name) const {
-    FRONT_END_GENERAL_CHECK(m_output_ports.at(name).size() == 1, "Only one output port should exist.");
-    return m_output_ports.at(name)[0];
-}*/
 
 ngraph::frontend::Place::Ptr OpPlaceTF::get_input_port(const std::string& name) const {
     FRONT_END_GENERAL_CHECK(m_input_ports.at(name).size() == 1, "Only one input port should exist.");
@@ -123,18 +98,9 @@ std::vector<ngraph::frontend::Place::Ptr> OpPlaceTF::get_consuming_operations() 
     return consuming_ops;
 }
 
-/*std::vector<ngraph::frontend::Place::Ptr > OpPlaceTF::get_consuming_operations(const std::string& outputPortName,
-                                                            int outputPortIndex) const {
-    return get_output_port(outputPortName, outputPortIndex)->get_consuming_operations();
-}*/
-
 std::vector<ngraph::frontend::Place::Ptr> OpPlaceTF::get_consuming_operations(int outputPortIndex) const {
     return get_output_port(outputPortIndex)->get_consuming_operations();
 }
-
-/*std::vector<ngraph::frontend::Place::Ptr > OpPlaceTF::get_consuming_operations(const std::string& outputPortName)
-const { return get_output_port(outputPortName)->get_consuming_operations();
-}*/
 
 std::vector<ngraph::frontend::Place::Ptr> OpPlaceTF::get_consuming_ports() const {
     std::vector<ngraph::frontend::Place::Ptr> consuming_ports;
@@ -144,12 +110,6 @@ std::vector<ngraph::frontend::Place::Ptr> OpPlaceTF::get_consuming_ports() const
     }
     return consuming_ports;
 }
-
-/*ngraph::frontend::Place::Ptr OpPlaceTF::get_output_port(const std::string& outputName, int outputPortIndex) const {
-    FRONT_END_GENERAL_CHECK(outputPortIndex <= m_output_ports.at(outputName).size(),
-                            "outputPortIndex is Out of bounds.");
-    return m_output_ports.at(outputName)[outputPortIndex];
-}*/
 
 ngraph::frontend::Place::Ptr OpPlaceTF::get_input_port(const std::string& inputName, int inputPortIndex) const {
     FRONT_END_GENERAL_CHECK(inputPortIndex <= m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
@@ -176,14 +136,6 @@ ngraph::frontend::Place::Ptr OpPlaceTF::get_target_tensor() const {
     return get_output_port()->get_target_tensor();
 }
 
-/*ngraph::frontend::Place::Ptr OpPlaceTF::get_target_tensor(const std::string& outputName) const {
-    return get_output_port(outputName)->get_target_tensor();
-}
-
-ngraph::frontend::Place::Ptr OpPlaceTF::get_target_tensor(const std::string& outputName, int outputPortIndex) const {
-    return get_output_port(outputName, outputPortIndex)->get_target_tensor();
-}*/
-
 ngraph::frontend::Place::Ptr OpPlaceTF::get_producing_operation(const std::string& inputName) const {
     return get_input_port(inputName)->get_producing_operation();
 }
@@ -205,25 +157,8 @@ ngraph::frontend::Place::Ptr OpPlaceTF::get_target_tensor(int outputPortIndex) c
     return get_output_port(outputPortIndex)->get_target_tensor();
 }
 
-/*
 TensorPlaceTF::TensorPlaceTF(const ngraph::frontend::InputModel& input_model,
-                             const std::vector<std::string>& names,
-                             const ::tensorflow::TensorProto& tensor)
-    : PlaceTF(input_model, names),
-      m_tensor(tensor) {
-    m_type = TYPE_MAP[tensor.dtype()];
-    auto tensor_shape = tensor.tensor_shape();
-
-    std::vector<ov::Dimension> dims;
-    for (int i = 0; i < tensor_shape.dim_size(); i++) {
-        dims.push_back(tensor_shape.dim(i).size());
-    }
-    m_pshape = dims;
-}
-*/
-
-TensorPlaceTF::TensorPlaceTF(const ngraph::frontend::InputModel& input_model,
-                             ov::PartialShape pshape,
+                             const ov::PartialShape& pshape,
                              ov::element::Type type,
                              const std::vector<std::string>& names)
     : PlaceTF(input_model, names),

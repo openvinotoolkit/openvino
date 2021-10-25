@@ -47,7 +47,6 @@ OutputVector TranslatePadOp(const NodeContext& node) {
     // Set pads_begin & pads_end (from the pad_val_op)
     std::vector<int64_t> paddings;
     GetStaticInputVector(node, 1, &paddings);
-    NGRAPH_DEBUG << node.get_name() << " pads {" << ngraph::join(paddings) << "}";
     if (paddings.size() % 2 != 0) {
         TF_OP_VALIDATION_CHECK(node,
                                false,

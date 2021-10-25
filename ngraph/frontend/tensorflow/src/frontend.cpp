@@ -98,10 +98,10 @@ void FrontEndTF::translate_graph(const ngraph::frontend::InputModel::Ptr& model,
         auto input_shape = input_tensor_place->get_partial_shape();
         auto input_type = input_tensor_place->get_element_type();
 
-        auto input_ng_output = ConstructNgNode<ov::opset8::Parameter>(input_name, input_type, input_shape);
-        auto input_ng_node = std::dynamic_pointer_cast<ov::opset8::Parameter>(input_ng_output.get_node_shared_ptr());
-        params.push_back(input_ng_node);
-        ng_op_map[input_name] = {input_ng_output};
+        auto param = std::make_shared<ov::opset8::Parameter>(input_type, input_shape);
+        SetNodeNames(input_name, param);
+        params.push_back(param);
+        ng_op_map[input_name] = {param};
     }
 
     // create the nGraph ops from TensorFlow ops
@@ -269,7 +269,7 @@ void FrontEndTF::translate_graph(const ngraph::frontend::InputModel::Ptr& model,
     // create the nGraph function
     ng_function = std::make_shared<ov::Function>(results, params, model_name);
 
-    NGRAPH_VLOG(5) << "Done with translations";
+    NGRAPH_DEBUG << "Done with translations";
 }
 
 /// \brief Check if FrontEndTensorflow can recognize model from given parts

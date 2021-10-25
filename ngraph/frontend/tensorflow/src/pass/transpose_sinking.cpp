@@ -385,13 +385,13 @@ bool ov::frontend::tf::pass::TransposeSinkingOVTF::run_on_function(shared_ptr<Fu
 
     // STEP 2: purge all the transposes we either sunk or swam.
     NGRAPH_DEBUG << "Purging transposes ";
-    for (auto r : transposes_to_delete) {
+    for (const auto& r : transposes_to_delete) {
         delete_transpose(r);
     }
 
     // STEP 3: fix wrong shape info wholesale
     NGRAPH_DEBUG << "Fixing wrong shape info for the whole graph";
-    for (auto n : f->get_ordered_ops()) {
+    for (const auto& n : f->get_ordered_ops()) {
         n->revalidate_and_infer_types();
     }
 

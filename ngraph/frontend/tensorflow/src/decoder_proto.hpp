@@ -17,23 +17,22 @@ namespace ov {
 namespace frontend {
 namespace tf {
 
-extern std::map<::tensorflow::DataType, ov::element::Type> TYPE_MAP;
-
 class DecoderTFProto : public DecoderBase {
 public:
     explicit DecoderTFProto(const ::tensorflow::NodeDef* node_def) : m_node_def(node_def) {}
 
-    std::shared_ptr<Variant> get_attribute(const std::string& name, const VariantTypeInfo& type_info) const override;
+    std::shared_ptr<ov::Variant> get_attribute(const std::string& name,
+                                               const VariantTypeInfo& type_info) const override;
 
-    virtual size_t get_input_size() const override;
+    size_t get_input_size() const override;
 
-    virtual void get_input_node(const size_t input_port_idx,
-                                std::string& producer_name,
-                                size_t& producer_output_port_index) const override;
+    void get_input_node(size_t input_port_idx,
+                        std::string& producer_name,
+                        size_t& producer_output_port_index) const override;
 
-    std::string get_op_type() const override;
+    const std::string& get_op_type() const override;
 
-    std::string get_op_name() const override;
+    const std::string& get_op_name() const override;
 
 private:
     std::vector<::tensorflow::AttrValue> decode_attribute_helper(const std::string& name) const;

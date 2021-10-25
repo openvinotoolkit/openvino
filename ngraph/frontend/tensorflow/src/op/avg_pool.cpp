@@ -27,11 +27,6 @@ OutputVector TranslateAvgPoolOp(const NodeContext& node) {
 
     bool is_nhwc = (tf_data_format == "NHWC");
 
-    NGRAPH_DEBUG << ngraph::join(tf_strides);
-    NGRAPH_DEBUG << ngraph::join(tf_ksize);
-    NGRAPH_DEBUG << tf_padding_type;
-    NGRAPH_DEBUG << tf_data_format;
-
     Strides ng_strides(2);
     Shape ng_image_shape(2);
     Shape ng_kernel_shape(2);
@@ -39,9 +34,6 @@ OutputVector TranslateAvgPoolOp(const NodeContext& node) {
     NHWCtoHW(is_nhwc, ng_input.get_shape(), ng_image_shape);
     NHWCtoHW(is_nhwc, tf_ksize, ng_kernel_shape);
     NHWCtoNCHW(node.get_name(), is_nhwc, ng_input);
-    NGRAPH_DEBUG << "ng_strides: " << ngraph::join(ng_strides);
-    NGRAPH_DEBUG << "ng_image_shape: " << ngraph::join(ng_image_shape);
-    NGRAPH_DEBUG << "ng_kernel_shape: " << ngraph::join(ng_kernel_shape);
 
     CoordinateDiff padding_below;
     CoordinateDiff padding_above;

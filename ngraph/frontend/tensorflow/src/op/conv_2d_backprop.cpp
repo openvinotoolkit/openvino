@@ -37,11 +37,6 @@ OutputVector TranslateConv2DBackpropInputOp(const NodeContext& node) {
 
     bool is_nhwc = (tf_data_format == "NHWC");
 
-    NGRAPH_DEBUG << ngraph::join(tf_strides);
-    NGRAPH_DEBUG << ngraph::join(tf_dilations);
-    NGRAPH_DEBUG << tf_padding_type;
-    NGRAPH_DEBUG << tf_data_format;
-
     Strides ng_strides(2);
     Strides ng_dilations(2);
     Shape ng_image_shape(2);
@@ -64,17 +59,11 @@ OutputVector TranslateConv2DBackpropInputOp(const NodeContext& node) {
                           static_cast<unsigned long>(tf_input_sizes[3])};
     }
 
-    NGRAPH_DEBUG << "ng_strides: " << ngraph::join(ng_strides);
-    NGRAPH_DEBUG << "ng_dilations: " << ngraph::join(ng_dilations);
-    NGRAPH_DEBUG << "ng_image_shape: " << ngraph::join(ng_image_shape);
-
     auto& ng_filter_shape = ng_filter.get_shape();
     ng_kernel_shape[0] = ng_filter_shape[0];
     ng_kernel_shape[1] = ng_filter_shape[1];
     Transpose<3, 2, 0, 1>(ng_filter);
     SetTracingInfo(node.get_name(), ng_filter);
-
-    NGRAPH_DEBUG << "ng_kernel_shape: " << ngraph::join(ng_kernel_shape);
 
     CoordinateDiff ng_padding_below;
     CoordinateDiff ng_padding_above;

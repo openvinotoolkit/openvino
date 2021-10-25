@@ -7,7 +7,7 @@
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset8;
+using namespace opset8;
 using namespace ov::frontend;
 using namespace frontend::tf::detail;
 
