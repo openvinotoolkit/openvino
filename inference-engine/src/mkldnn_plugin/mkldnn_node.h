@@ -565,22 +565,22 @@ public:
     * @return pair scales and shifts
     */
     std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const MKLDNNNode *parentNode) const;
+
     /**
-    * @brief Return aligned scales and shift by postOpDims[C] dimension
+    * @brief Return aligned buffer by postOpDims[C] dimension.
+    * If buffer has size 1, values broadcast with postOpDims[C] size.
+    * If alignment buffer size > postOpDims[C], other values filled by zero.
     * @param postOpDims
     * dims from which get postOpDims[C] dimension
-    * @param scales
-    * scales to be aligned
-    * @param shifts
-    * shifts to be aligned
+    * @param buffer
+    * buffer to be aligned
     * @param align
     * alignment for postOpDims[C]
-    * @return pair scales and shifts
+    * @return aligned buffer
     */
-    static std::pair<std::vector<float>, std::vector<float>> getAlignedScalesAndShifts(const VectorDims &postOpDims,
-                                                                                       const std::vector<float> &scales,
-                                                                                       const std::vector<float> &shifts,
-                                                                                       int align = -1);
+    static std::vector<float> getAlignedBuffer(const VectorDims &postOpDims,
+                                               const std::vector<float> &buffer,
+                                               int align = -1);
 
 protected:
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;

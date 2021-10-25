@@ -1694,7 +1694,10 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &p
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' ";
 
     if (getMKLDNNAlgorithm() == mkldnn::algorithm::undef) {
-        std::tie(scalesBuffer, shiftsBuffer) = getAlignedScalesAndShifts(postOpDims, scales, shifts, align);
+        scalesBuffer = MKLDNNNode::getAlignedBuffer(postOpDims, scales, align);
+        if (getAlgorithm() != EltwisePrelu) {
+            shiftsBuffer = MKLDNNNode::getAlignedBuffer(postOpDims, shifts, align);
+        }
     }
 
     if (getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {

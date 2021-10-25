@@ -1631,7 +1631,8 @@ void MKLDNNGraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph 
             }
         }
 
-        std::tie(scalesBuffer, shiftsBuffer) = MKLDNNNode::getAlignedScalesAndShifts(outputDims, scalesBuffer, shiftsBuffer, 1);
+        scalesBuffer = MKLDNNNode::getAlignedBuffer(outputDims, scalesBuffer, 1);
+        shiftsBuffer = MKLDNNNode::getAlignedBuffer(outputDims, shiftsBuffer, 1);
 
         for (int i = 0; i < scalesBuffer.size(); i++)
             if (scalesBuffer[i] == 0.f)

@@ -1274,38 +1274,25 @@ std::pair<std::vector<float>, std::vector<float>> MKLDNNNode::getScalesAndShifts
     return {scales, shifts};
 }
 
-std::pair<std::vector<float>, std::vector<float>> MKLDNNNode::getAlignedScalesAndShifts(const VectorDims &postOpDims,
-                                                                                        const std::vector<float> &scales,
-                                                                                        const std::vector<float> &shifts,
-                                                                                        int align) {
-    if (scales.empty() || shifts.empty()) {
-        IE_THROW() << "Can't align scales and shifts, becuase one of this buffers is empty";
+std::vector<float> MKLDNNNode::getAlignedBuffer(const VectorDims &postOpDims,
+                                                const std::vector<float> &buffer,
+                                                int align) {
+    if (buffer.empty()) {
+        IE_THROW() << "Can't align buffer, becuase buffer is empty";
     }
 
-    auto alignmentScales = scales;
-    auto alignmentShifts = shifts;
-
+    auto alignmentBuffer = buffer;
     const size_t bufferSize = static_cast<size_t>(postOpDims[postOpDims.size() > 1 ? 1 : 0]);
     if (align == -1) {
         align = bufferSize;
     }
     const size_t bufferSizeAligned = rnd_up(bufferSize, align);
 
-    if (scales.size() > 0) {
-        alignmentScales.resize(bufferSizeAligned, 0);
-        if (scales.size() == 1) {
-            std::fill(alignmentScales.begin() + 1, alignmentScales.begin() + bufferSize, scales[0]);
-        }
+    alignmentBuffer.resize(bufferSizeAligned, 0);
+    if (buffer.size() == 1) {
+        std::fill(alignmentBuffer.begin() + 1, alignmentBuffer.begin() + bufferSize, buffer[0]);
     }
-
-    if (shifts.size() > 0) {
-        alignmentShifts.resize(bufferSizeAligned, 0);
-        if (shifts.size() == 1) {
-            std::fill(alignmentShifts.begin() + 1, alignmentShifts.begin() + bufferSize, shifts[0]);
-        }
-    }
-
-    return {alignmentScales, alignmentShifts};
+    return alignmentBuffer;
 }
 
 bool MKLDNNNode::inputShapesDefined() const {
