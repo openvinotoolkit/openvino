@@ -56,7 +56,10 @@ uint32_t outputFromConv(const uint32_t in, const uint32_t flt, const uint32_t st
     return (in - flt) / stride + 1;
 }
 
-uint32_t outputFromPooling(const uint32_t in, const uint32_t window, const uint32_t stride) {
+uint32_t outputFromPooling(const uint32_t in, const uint32_t window, const uint32_t stride, const bool legacy) {
+    if (legacy) {
+        return outputFromPoolingLegacy(in, stride);
+    }
     // ceil[(in - window)/stride] + 1, GNA Spec 1.24
     if (window > in || window == 0 || stride == 0) {
         THROW_GNA_EXCEPTION << "Invalid (input, window, stride) = (" << in << "," << window << "," << stride << ")";
