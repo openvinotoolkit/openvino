@@ -379,12 +379,10 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
     const bool compoundBlobPassed = data->is<InferenceEngine::CompoundBlob>();
     if (!compoundBlobPassed && data->buffer() == nullptr)
         IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
-    IE_SUPPRESS_DEPRECATED_START
     if (data->size() == 0 &&
         !((foundInput && inputNode->isDynamicNode()) || (foundOutput && outputNode->isDynamicNode()))) {
         IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
-    IE_SUPPRESS_DEPRECATED_END
 
     size_t dataSize = data->size();
     const auto &blobDesc = data->getTensorDesc();
@@ -457,9 +455,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
             ? InferenceEngine::details::product(foundOutput->getDims())
             : 1;
 
-        IE_SUPPRESS_DEPRECATED_START
         const bool isDynamic = outputNode->isDynamicNode();
-        IE_SUPPRESS_DEPRECATED_END
         if (!isDynamic && dataSize != outputSize) {
             IE_THROW() << "Output blob size is not equal network output size ("
                                << dataSize << "!=" << outputSize << ").";

@@ -72,8 +72,9 @@ std::vector<VectorDims> MKLDNNReferenceNode::shapeInfer() const {
     ngraph::OutputVector inputsForShapeInfer;
     for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
         const auto &mem = getParentEdgesAtPort(i)[0]->getMemory();
+        const auto dims = opToShapeInfer->get_input_partial_shape(i).rank().get_length() == 0 ? VectorDims{} : mem.getStaticDims();
         inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Constant>(InferenceEngine::details::convertPrecision(mem.getDesc().getPrecision()),
-                                                                                 mem.getStaticDims(),
+                                                                                 dims,
                                                                                  mem.GetPtr()));
     }
 
