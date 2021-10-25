@@ -8,6 +8,8 @@
 
 namespace std {
 size_t std::hash<ngraph::DiscreteTypeInfo>::operator()(const ngraph::DiscreteTypeInfo& k) const {
+    if (k.hash_value != 0)
+        return k.hash_value;
     NGRAPH_SUPPRESS_DEPRECATED_START
     size_t name_hash = k.name ? hash<string>()(string(k.name)) : 0;
     size_t version_hash = hash<decltype(k.version)>()(k.version);
@@ -28,7 +30,9 @@ DiscreteTypeInfo::DiscreteTypeInfo(const char* _name,
       version(_version),
       version_id(_version_id),
       parent(_parent),
-      hash_value(std::hash<ov::DiscreteTypeInfo>{}(*this)) {}
+      hash_value(0) {
+    hash_value = std::hash<ov::DiscreteTypeInfo>{}(*this);
+}
 
 std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info) {
     std::string version_id = info.version_id ? info.version_id : "(empty)";
