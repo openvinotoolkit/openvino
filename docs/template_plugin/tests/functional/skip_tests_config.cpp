@@ -51,6 +51,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceDeformableConvolutionV8LayerTest.*f64.*mask.*)",
         //CVS-63973
         R"(.*ReferencePSROIPoolingLayerTest.*bf16.*)",
+        //CVS-63977
+        R"(.*ReferenceProposalV1LayerTest.*f16.*)",
+        //CVS-64082
+        R"(.*ReferenceProposalV4LayerTest.*f16.*)",
     };
 
 #ifdef _WIN32
