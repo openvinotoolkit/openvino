@@ -48,7 +48,9 @@ TEST(TransformationTests, if_constant_folding) {
         auto add = make_shared<op::v1::Add>(if_res, param_add);
         auto add_res = make_shared<op::Result>(add);
         fun = make_shared<Function>(OutputVector{ add_res }, ParameterVector{ param_add });
-        ngraph::pass::ConstantFolding().run_on_function(fun);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.run_passes(fun);
     }
     std::shared_ptr<ngraph::Function> f_ref(nullptr);
     {

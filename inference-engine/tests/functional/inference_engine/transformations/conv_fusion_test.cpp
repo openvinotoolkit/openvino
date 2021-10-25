@@ -50,7 +50,9 @@ public:
             f_ref = get_initial_function(input_shape, weights_shape, eltwise_type, eltwise_shape);
         } else {
             f_ref = get_reference_function(input_shape, weights_shape, eltwise_type, eltwise_shape);
-            ngraph::pass::ConstantFolding().run_on_function(f_ref);
+            ngraph::pass::Manager manager;
+            manager.register_pass<ngraph::pass::ConstantFolding>();
+            manager.run_passes(f_ref);
         }
     }
 

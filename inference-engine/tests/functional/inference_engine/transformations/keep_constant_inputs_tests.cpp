@@ -44,10 +44,12 @@ int numberOfInputsForLayerInCNNNetwork(const InferenceEngine::CNNNetwork & netwo
 void transformNetwork(InferenceEngine::CNNNetwork & clonedNetwork, bool keep_constant_inputs) {
     if (clonedNetwork.getFunction()) {
         auto nGraphFunc = clonedNetwork.getFunction();
-        ngraph::pass::CommonOptimizations().run_on_function(nGraphFunc);
-        ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(nGraphFunc);
-        ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(nGraphFunc);
-        ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(nGraphFunc);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+        manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+        manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+        manager.run_passes(nGraphFunc);
         IE_SUPPRESS_DEPRECATED_START
         clonedNetwork = InferenceEngine::CNNNetwork(
             InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, clonedNetwork, keep_constant_inputs));

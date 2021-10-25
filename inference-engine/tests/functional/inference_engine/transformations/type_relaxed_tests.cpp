@@ -328,8 +328,9 @@ TEST_F(TypeRelaxedTests, ConstantFoldingCheck) {
         auto relaxed_equal = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Equal>>(equal, TypeVector{}, TypeVector{ element::u8 });
 
         f = make_shared<ngraph::Function>(ngraph::OutputVector{ relaxed_equal }, ngraph::ParameterVector{});
-
-        ASSERT_NO_THROW(ngraph::pass::ConstantFolding().run_on_function(f));
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        ASSERT_NO_THROW(manager.run_passes(f));
         auto layer_before_result = f->get_result()->get_input_node_shared_ptr(0);
         ASSERT_TRUE(ngraph::is_type<ngraph::opset1::Constant>(layer_before_result));
     }
@@ -344,8 +345,9 @@ TEST_F(TypeRelaxedTests, ConstantFoldingCheck1) {
         auto relaxed_equal = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Equal>>(equal, TypeVector{}, TypeVector{ element::boolean });
 
         f = make_shared<ngraph::Function>(ngraph::OutputVector{ relaxed_equal }, ngraph::ParameterVector{});
-
-        ASSERT_NO_THROW(ngraph::pass::ConstantFolding().run_on_function(f));
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        ASSERT_NO_THROW(manager.run_passes(f));
         auto layer_before_result = f->get_result()->get_input_node_shared_ptr(0);
         ASSERT_TRUE(ngraph::is_type<ngraph::opset1::Constant>(layer_before_result));
     }
@@ -365,8 +367,9 @@ TEST_F(TypeRelaxedTests, ConstantFoldingCheck2) {
             ngraph::op::TemporaryReplaceOutputType(const2, element::i32).get());
 
         f = make_shared<ngraph::Function>(ngraph::OutputVector{ relaxed_equal }, ngraph::ParameterVector{});
-
-        ASSERT_NO_THROW(ngraph::pass::ConstantFolding().run_on_function(f));
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        ASSERT_NO_THROW(manager.run_passes(f));
         auto layer_before_result = f->get_result()->get_input_node_shared_ptr(0);
         ASSERT_TRUE(ngraph::is_type<ngraph::opset1::Constant>(layer_before_result));
     }
@@ -383,8 +386,9 @@ TEST_F(TypeRelaxedTests, ConstantFoldingCheck3) {
         auto relaxed_equal = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Equal>>(equal, original_input_types, TypeVector{ element::u8 });
 
         f = make_shared<ngraph::Function>(ngraph::OutputVector{ relaxed_equal }, ngraph::ParameterVector{});
-
-        ASSERT_NO_THROW(ngraph::pass::ConstantFolding().run_on_function(f));
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        ASSERT_NO_THROW(manager.run_passes(f));
         auto layer_before_result = f->get_result()->get_input_node_shared_ptr(0);
         ASSERT_TRUE(ngraph::is_type<ngraph::opset1::Constant>(layer_before_result));
     }

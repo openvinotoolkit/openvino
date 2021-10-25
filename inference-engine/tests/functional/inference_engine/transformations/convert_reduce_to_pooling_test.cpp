@@ -149,7 +149,9 @@ INSTANTIATE_TEST_SUITE_P(ReduceToReshapePoolReshape, ConvertReduceToPoolingTests
 
 TEST(ConvertReduceToPooling, Negative) {
     auto f = ConvertReduceToPoolingTests::get_initial_function(ngraph::PartialShape::dynamic(), {3}, MAX, true);
-    ASSERT_NO_THROW(ngraph::pass::ConvertReduceToPooling().run_on_function(f));
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::ConvertReduceToPooling>();
+    ASSERT_NO_THROW(manager.run_passes(f));
 }
 
 #undef MAX
