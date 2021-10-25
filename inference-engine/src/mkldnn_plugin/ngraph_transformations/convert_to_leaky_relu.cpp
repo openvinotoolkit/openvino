@@ -12,8 +12,9 @@
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ConvertToLeakyRelu, "ConvertToLeakyRelu", 0);
 
 MKLDNNPlugin::ConvertToLeakyRelu::ConvertToLeakyRelu() {
-    auto prelu = ngraph::pattern::wrap_type<ngraph::opset1::PRelu>({ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
-                                                                    ngraph::pattern::any_input(ngraph::pattern::has_static_shape())});
+    auto input = ngraph::pattern::any_input();
+    auto slope_constant = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
+    auto prelu = ngraph::pattern::wrap_type<ngraph::opset1::PRelu>({ input, slope_constant });
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto prelu = std::dynamic_pointer_cast<ngraph::opset1::PRelu>(m.get_match_root());
@@ -21,7 +22,7 @@ MKLDNNPlugin::ConvertToLeakyRelu::ConvertToLeakyRelu() {
             return false;
         }
         auto slopeNode = std::dynamic_pointer_cast<ngraph::opset1::Constant>(prelu->get_input_node_shared_ptr(1));
-        if (slopeNode != nullptr && ngraph::shape_size(prelu->get_input_shape(1)) == 1) {
+        if (slopeNode != nullptr && ngraph::shape_size(slopeNode->get_shape()) == 1) {
             const float slope = slopeNode->cast_vector<float>()[0];
             const auto leakyRelu = std::make_shared<MKLDNNPlugin::LeakyReluNode>(prelu->input(0).get_source_output(), slope,
                                                                                  prelu->output(0).get_element_type());
