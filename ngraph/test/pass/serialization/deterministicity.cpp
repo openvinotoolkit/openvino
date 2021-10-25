@@ -52,7 +52,7 @@ protected:
 TEST_F(SerializationDeterministicityTest, BasicModel) {
     const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc.onnx"});
 
-    auto expected = ov::test::readIR(model, "");
+    auto expected = ov::test::readModel(model, "");
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(expected);
     ov::pass::Serialize(m_out_xml_path_2, m_out_bin_path_2).run_on_function(expected);
 
@@ -68,7 +68,7 @@ TEST_F(SerializationDeterministicityTest, BasicModel) {
 TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
     const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/addmul_abc.onnx"});
 
-    auto expected = ov::test::readIR(model, "");
+    auto expected = ov::test::readModel(model, "");
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(expected);
     ov::pass::Serialize(m_out_xml_path_2, m_out_bin_path_2).run_on_function(expected);
 
@@ -87,7 +87,7 @@ TEST_F(SerializationDeterministicityTest, ModelWithMultipleOutputs) {
     const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.xml"});
     const std::string weights = ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.bin"});
 
-    auto expected = ov::test::readIR(model, weights);
+    auto expected = ov::test::readModel(model, weights);
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(expected);
     ov::pass::Serialize(m_out_xml_path_2, m_out_bin_path_2).run_on_function(expected);
 
@@ -104,7 +104,7 @@ TEST_F(SerializationDeterministicityTest, ModelWithConstants) {
     const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.xml"});
     const std::string weights = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.bin"});
 
-    auto expected = ov::test::readIR(model, weights);
+    auto expected = ov::test::readModel(model, weights);
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(expected);
     ov::pass::Serialize(m_out_xml_path_2, m_out_bin_path_2).run_on_function(expected);
 
