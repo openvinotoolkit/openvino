@@ -59,7 +59,7 @@ public:
         return m_default_handler;
     }
     /// \brief If set, handles all ops
-    void set_univeral_handler(const op_handler& handler) {
+    void set_universal_handler(const op_handler& handler) {
         m_universal_handler = handler;
     }
     /// \brief If set, handles all ops not in the handlers

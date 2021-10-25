@@ -37,7 +37,6 @@ public:
     /// \param node A `shared_ptr` to the node for the output handle.
     /// \param index The index of the output.
     ///
-    /// TODO: Make a plan to deprecate this.
     Output(const std::shared_ptr<Node>& node, size_t index);
 
     /// \brief Constructs a Output, referencing the zeroth output of the node.
@@ -56,7 +55,6 @@ public:
     Node* get_node() const;
     /// \return A `shared_ptr` to the node referred to by this output handle.
     ///
-    /// TODO: Make a plan to deprecate this.
     std::shared_ptr<Node> get_node_shared_ptr() const;
 
     /// \return The index of the output referred to by this output handle.
@@ -77,6 +75,15 @@ public:
     /// \return The constant reference to runtime info map
     const RTMap& get_rt_info() const;
 
+    /// \return The tensor names associated with this output
+    const std::unordered_set<std::string>& get_names() const;
+    /// \return Any tensor names associated with this output
+    std::string get_any_name() const;
+    /// \return Set tensor names associated with this output
+    void set_names(const std::unordered_set<std::string>& names);
+    /// \return Add tensor names associated with this output
+    void add_names(const std::unordered_set<std::string>& names);
+
     /// \return A set containing handles for all inputs targeted by the output referenced by
     ///        this output handle.
     std::set<Input<Node>> get_target_inputs() const;
@@ -84,7 +91,6 @@ public:
     /// \brief Removes a target input from the output referenced by this output handle.
     /// \param target_input The target input to remove.
     ///
-    // TODO(amprocte): Investigate whether this really ought to be public.
     void remove_target_input(const Input<Node>& target_input) const;
 
     /// \brief Replace all users of this value with replacement
@@ -114,13 +120,12 @@ public:
     /// \param node A `shared_ptr` to the node for the output handle.
     /// \param index The index of the output.
     ///
-    /// TODO: Make a plan to deprecate this.
     Output(const std::shared_ptr<const Node>& node, size_t index);
 
     /// \brief Constructs a Output, referencing the zeroth output of the node.
     /// \param node A `shared_ptr` to the node for the output handle.
     template <typename T>
-    Output(const std::shared_ptr<T>& node) : Output(node ? node->get_default_output() : Output<const Node>()) {}
+    Output(const std::shared_ptr<const T>& node) : Output(node ? node->get_default_output() : Output<const Node>()) {}
 
     /// A null output
     Output() = default;
@@ -134,7 +139,6 @@ public:
     const Node* get_node() const;
     /// \return A `shared_ptr` to the node referred to by this output handle.
     ///
-    /// TODO: Make a plan to deprecate this.
     std::shared_ptr<const Node> get_node_shared_ptr() const;
     /// \return The index of the output referred to by this output handle.
     size_t get_index() const;
@@ -151,6 +155,10 @@ public:
 
     /// \return The constant reference to runtime info map
     const RTMap& get_rt_info() const;
+    /// \return The tensor names associated with this output
+    const std::unordered_set<std::string>& get_names() const;
+    /// \return Any tensor name associated with this output
+    std::string get_any_name() const;
     /// \return A set containing handles for all inputs targeted by the output referenced by
     ///        this output handle.
     std::set<Input<Node>> get_target_inputs() const;

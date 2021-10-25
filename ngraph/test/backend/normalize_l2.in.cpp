@@ -10,16 +10,16 @@
 #include <random>
 #include <string>
 
+#include "engines_util/execute_tools.hpp"
+#include "engines_util/random.hpp"
+#include "engines_util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
-#include "util/engine/test_engines.hpp"
 #include "util/ndarray.hpp"
-#include "util/random.hpp"
-#include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;

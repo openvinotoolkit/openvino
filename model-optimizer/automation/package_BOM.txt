@@ -151,6 +151,7 @@ extensions/front/kaldi/apply_counts.py
 extensions/front/kaldi/logsoftmax_component_ext.py
 extensions/front/kaldi/memory_offset_adjustment.py
 extensions/front/kaldi/memoryoffset_batch_update.py
+extensions/front/kaldi/replace_dropoutmask.py
 extensions/front/kaldi/replace_eltwise_nin1.py
 extensions/front/kaldi/replace_lstm_node_pattern.py
 extensions/front/kaldi/replace_lstm_nonlinearity.py
@@ -859,6 +860,7 @@ mo/front/kaldi/extractors/convolutional_1d_component_ext.py
 mo/front/kaldi/extractors/convolutional_component_ext.py
 mo/front/kaldi/extractors/copy_ext.py
 mo/front/kaldi/extractors/crop_ext.py
+mo/front/kaldi/extractors/dropoutmask_ext.py
 mo/front/kaldi/extractors/elementwise_component_ext.py
 mo/front/kaldi/extractors/fixed_affine_component_ext.py
 mo/front/kaldi/extractors/generaldropout_ext.py
@@ -972,6 +974,7 @@ mo/ops/convolution.py
 mo/ops/crop.py
 mo/ops/deconvolution.py
 mo/ops/deformable_convolution.py
+mo/ops/dropoutmask.py
 mo/ops/eltwise.py
 mo/ops/eltwise_n.py
 mo/ops/eltwise_ninputs_in_1.py
@@ -1046,6 +1049,7 @@ mo/utils/ir_reader/extenders/if_extender.py
 mo/utils/ir_reader/extenders/interpolate_extender.py
 mo/utils/ir_reader/extenders/loop_extender.py
 mo/utils/ir_reader/extenders/LSTMCell_extender.py
+mo/utils/ir_reader/extenders/LSTMSequence_extender.py
 mo/utils/ir_reader/extenders/non_max_suppression_extender.py
 mo/utils/ir_reader/extenders/non_zero_extender.py
 mo/utils/ir_reader/extenders/pad_extender.py

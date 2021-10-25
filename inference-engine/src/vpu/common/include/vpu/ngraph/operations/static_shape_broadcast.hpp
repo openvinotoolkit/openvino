@@ -17,9 +17,7 @@ namespace ngraph { namespace vpu { namespace op {
 
 class StaticShapeBroadcast : public ::ngraph::op::v3::Broadcast {
 public:
-    static constexpr NodeTypeInfo type_info{"StaticShapeBroadcast", 0};
-
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("StaticShapeBroadcast", "VPUOpset");
 
     StaticShapeBroadcast(const Output<Node>& arg,
                          const Output<Node>& targetShape,
@@ -36,7 +34,9 @@ public:
 
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
     ngraph::PartialShape m_evaluatedOutputShape;

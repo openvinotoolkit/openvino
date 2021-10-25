@@ -11,13 +11,14 @@
 
 #include <map>
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include <string>
 #include <vector>
 
+#include "ie_api.h"
 #include "ie_common.h"
 #include "ie_layouts.h"
 #include "ie_precision.hpp"
+#include "ngraph/partial_shape.hpp"
 
 namespace InferenceEngine {
 
@@ -40,6 +41,7 @@ public:
     Data(const std::string& name, Precision _precision, Layout layout = NCHW);
 
     /**
+     * @deprecated Use OpenVINO 2.0 API for dynamic shapes support
      * @brief A constructor with partial shape
      *
      * @param name Name of the data node
@@ -47,6 +49,7 @@ public:
      * @param shape Partial shape of the data
      * @param layout Data layout
      */
+    INFERENCE_ENGINE_DEPRECATED("Use OpenVINO 2.0 API for dynamic shapes support")
     Data(const std::string& name, Precision _precision, const ngraph::PartialShape& shape, Layout layout = BLOCKED);
 
     /**
@@ -102,19 +105,25 @@ public:
      * @param layout new layout
      */
     void reshape(const SizeVector& dims, Layout layout);
+
     /**
+     * @deprecated Use InferenceEngine::Data::reshape(const SizeVector&, Layout)
      * @brief changes dims and layout at same time
      *
      * @param dims new dimensions
      * @param layout new layout
      */
+    INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Data::reshape(const SizeVector&, Layout)")
     void reshape(const std::initializer_list<size_t>& dims, Layout layout);
+
     /**
+     * @deprecated Use OpenVINO 2.0 API for dynamic shapes support
      * @brief changes dims and layout at same time
      *
      * @param dims new dimensions
      * @param layout new layout
      */
+    INFERENCE_ENGINE_DEPRECATED("Use OpenVINO 2.0 API for dynamic shapes support")
     void reshape(const ngraph::PartialShape& dims, Layout layout);
 
     /**
@@ -168,15 +177,19 @@ public:
     const UserValue& getUserObject() const;
 
     /**
+     * @deprecated Use OpenVINO 2.0 API for dynamic shapes support
      * @brief Checks if current data has dynamic shapes
      * @return true if data has dynamic shapes
      */
+    INFERENCE_ENGINE_DEPRECATED("Use OpenVINO 2.0 API for dynamic shapes support")
     bool isDynamic() const;
 
     /**
+     * @deprecated Use OpenVINO 2.0 API for dynamic shapes support
      * @brief Returns partial shapes
      * @return shapes which can have dynamic dimensions
      */
+    INFERENCE_ENGINE_DEPRECATED("Use OpenVINO 2.0 API for dynamic shapes support")
     const ngraph::PartialShape& getPartialShape() const;
 
     /**
@@ -200,7 +213,5 @@ private:
      * @brief A tensor descriptor
      */
     mutable TensorDesc tensorDesc;
-
-    ngraph::PartialShape pShape;
 };
 }  // namespace InferenceEngine

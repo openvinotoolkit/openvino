@@ -141,7 +141,7 @@ TEST(opset, opset8_dump) {
         std::cout << t.name << " ";
     }
     std::cout << std::endl;
-    ASSERT_EQ(163, opset.get_types_info().size());
+    ASSERT_EQ(165, opset.get_types_info().size());
 }
 
 class MyOpOld : public ov::op::Op {
@@ -194,9 +194,11 @@ public:
 
 TEST(opset, custom_opset) {
     ov::OpSet opset;
+#ifndef OPENVINO_STATIC_LIBRARY
     opset.insert<MyOpOld>();
     opset.insert<MyOpNewFromOld>();
     opset.insert<MyOpIncorrect>();
+#endif
     opset.insert<MyOpNew>();
     ASSERT_EQ(opset.get_types_info().size(), 3);
     ASSERT_TRUE(opset.contains_type("MyOpNew"));

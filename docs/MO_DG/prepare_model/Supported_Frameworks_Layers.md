@@ -292,6 +292,7 @@ Standard TensorFlow\* operations:
 | Pow | No |
 | Rsqrt | No |
 | Select | No |
+| SelectV2 | No |
 | Shape | No |
 | Sigmoid | No |
 | Sin | No |
@@ -441,6 +442,7 @@ Standard Kaldi\* Layers:
 | convolutional1dcomponent | No |
 | convolutionalcomponent | No |
 | copy | No |
+| dropoutmaskcomponent | No |
 | elementwiseproductcomponent | No |
 | fixedaffinecomponent | No |
 | fixedbiascomponent | No |

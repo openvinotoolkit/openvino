@@ -36,6 +36,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "ie_precision.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 
@@ -95,8 +96,6 @@ TEST(CNNNGraphImplTests, TestInvalidReshape) {
     ASSERT_NO_THROW(net.reshape({{"input", SizeVector({1, 1000, 4})}}));
 }
 
-IE_SUPPRESS_DEPRECATED_START
-
 TEST(CNNNGraphImplTests, TestNMS5OutputNames) {
     std::shared_ptr<ngraph::Function> f;
     {
@@ -118,6 +117,8 @@ TEST(CNNNGraphImplTests, TestNMS5OutputNames) {
     ASSERT_EQ(outputs_info.count("nms.1"), 1);
     ASSERT_EQ(outputs_info.count("nms.2"), 1);
 }
+
+IE_SUPPRESS_DEPRECATED_START
 
 TEST(CNNNGraphImplTests, TestConvertWithRemoveLastLayerNetwork) {
     std::shared_ptr<ngraph::Function> ngraph;
@@ -305,6 +306,37 @@ TEST(CNNNGraphImplTests, TestSetBatchDynamic) {
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
     ASSERT_EQ(1, cnnNet.getBatchSize());
     ASSERT_EQ(PARAMETER_MISMATCH, cnnNet.setBatchSize(2, nullptr));  // must not trigger conversion
+}
+
+TEST(CNNNGraphImplTests, TestDoesChangePrecisionsWithNewAPI) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        auto param = std::make_shared<ngraph::op::Parameter>(ngraph::element::Type_t::f16, ngraph::PartialShape::dynamic());
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+        ngraph = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
+    }
+
+    // new OpenVINO 2.0
+    {
+        auto ngraphImpl = std::make_shared<InferenceEngine::details::CNNNetworkNGraphImpl>(ngraph,
+            std::vector<InferenceEngine::IExtensionPtr>{}, true);
+        InferenceEngine::CNNNetwork cnnNet(ngraphImpl);
+        ASSERT_EQ(InferenceEngine::Precision::FP16,
+            cnnNet.getInputsInfo().begin()->second->getTensorDesc().getPrecision());
+        ASSERT_EQ(InferenceEngine::Precision::FP16,
+            cnnNet.getOutputsInfo().begin()->second->getTensorDesc().getPrecision());
+    }
+
+    // current API
+    {
+        auto ngraphImpl = std::make_shared<InferenceEngine::details::CNNNetworkNGraphImpl>(ngraph);
+        InferenceEngine::CNNNetwork cnnNet(ngraphImpl);
+        ASSERT_EQ(InferenceEngine::Precision::FP32,
+            cnnNet.getInputsInfo().begin()->second->getTensorDesc().getPrecision());
+        ASSERT_EQ(InferenceEngine::Precision::FP32,
+            cnnNet.getOutputsInfo().begin()->second->getTensorDesc().getPrecision());
+    }
 }
 
 TEST(CNNNGraphImplTests, TestSaveAffinity) {

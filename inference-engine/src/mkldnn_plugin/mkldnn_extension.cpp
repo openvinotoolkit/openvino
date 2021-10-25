@@ -10,6 +10,8 @@
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
+#include <ngraph_ops/nms_ie_internal.hpp>
+#include <ngraph_ops/nms_static_shape_ie.hpp>
 
 #include <mutex>
 
@@ -95,9 +97,22 @@ std::map<std::string, ngraph::OpSet> MKLDNNExtension::getOpSets() {
         return opset;
     };
 
+    auto ie_internal_opset = []() {
+        ngraph::OpSet opset;
+
+#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+        NGRAPH_OP(NonMaxSuppressionIEInternal, ngraph::op::internal)
+        NGRAPH_OP(NmsStaticShapeIE<ov::op::v8::MulticlassNms>, ngraph::op::internal)
+        NGRAPH_OP(NmsStaticShapeIE<ov::op::v8::MatrixNms>, ngraph::op::internal)
+#undef NGRAPH_OP
+
+        return opset;
+    };
+
     static std::map<std::string, ngraph::OpSet> opsets = {
         { "cpu_plugin_opset", cpu_plugin_opset() },
-        { "type_relaxed_opset", type_relaxed_opset() }
+        { "type_relaxed_opset", type_relaxed_opset() },
+        { "ie_internal_opset", ie_internal_opset() },
     };
 
     return opsets;

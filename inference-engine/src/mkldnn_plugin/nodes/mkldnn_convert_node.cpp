@@ -97,7 +97,7 @@ void MKLDNNConvertNode::initSupportedPrimitiveDescriptors() {
 
         // inp/out layouts must be the same
         dataConfigOut.desc = config.inConfs[0].desc;
-        dataConfigOut.desc = MemoryDescUtils::cloneWithNewPrecision(*dataConfigOut.desc, output->getPrecision());
+        dataConfigOut.desc = dataConfigOut.desc->cloneWithNewPrecision(output->getPrecision());
         config.outConfs.push_back(dataConfigOut);
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     } else if (inputShapes.size() == 1 && outputShapes.size() == 1) {

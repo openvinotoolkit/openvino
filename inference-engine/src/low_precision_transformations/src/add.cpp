@@ -176,13 +176,13 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         // after : Y = SC2 * ( SC1' * (X1 - SH1') + X2 ) , where :
         //         SC1' = SC1 / SC2
         //         SH1' = SH1 + SC2 * SH2 / SC1
-        std::shared_ptr<Node> newSubtractFullPathValues = fold<opset1::Add>(
+        auto newSubtractFullPathValues = fold<opset1::Add>(
             subtractFullPathValues,
             fold<opset1::Divide>(
                 fold<opset1::Multiply>(subtractEmptyPathValues, multiplyEmptyPathValues),
                 multiplyFullPathValues));
 
-        std::shared_ptr<Node> newMultiplyFullPathValues = fold<opset1::Divide>(multiplyFullPathValues, multiplyEmptyPathValues);
+        auto newMultiplyFullPathValues = fold<opset1::Divide>(multiplyFullPathValues, multiplyEmptyPathValues);
 
         if (NetworkHelper::isZeroConst(newSubtractFullPathValues)) {
             newSubtractFullPathValues = nullptr;

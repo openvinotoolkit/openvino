@@ -24,18 +24,6 @@ using namespace ngraph::pass;
 
 using ngraph::builder::subgraph::UnsqueezeFunction;
 
-inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& values) {
-    os << "{ ";
-    for (size_t i = 0; i < values.size(); ++i) {
-        os << values[i];
-        if (i != (values.size() - 1ul)) {
-            os << ", ";
-        }
-    }
-    os << " }";
-    return os;
-}
-
 class UnsqueezeTransformationTestValues {
 public:
     class Actual {
@@ -103,6 +91,8 @@ TEST_P(UnsqueezeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 const std::vector<UnsqueezeTransformationTestValues> testValues = {

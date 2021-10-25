@@ -26,7 +26,7 @@ bool MKLDNNSplitNode::isSupportedOperation(const std::shared_ptr<const ngraph::N
             return false;
         }
 
-        if (!MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v1::Split::type_info, ngraph::op::v1::VariadicSplit::type_info)) {
+        if (!MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v1::Split::get_type_info_static(), ngraph::op::v1::VariadicSplit::get_type_info_static())) {
             errorMessage = "Only opset1 Split and VariadicSplit operations are supported";
             return false;
         }
@@ -298,7 +298,7 @@ bool MKLDNNSplitNode::created() const {
     return getType() == Split;
 }
 
-bool MKLDNNSplitNode::isOptimized() {
+bool MKLDNNSplitNode::isOptimized() const {
     return getSelectedPrimitiveDescriptor() && getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].inPlace >= 0;
 }
 
@@ -333,7 +333,7 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
         }
 
         // reset undefined offsets
-        config.inConfs[i].desc = MemoryDescUtils::cloneWithDefaultStridesAndOffset(*config.inConfs[i].desc);
+        config.inConfs[i].desc = config.inConfs[i].desc->as<BlockedMemoryDesc>()->cloneWithDefaultStridesAndOffset();
     }
     if (config.outConfs.size() != outputShapes.size())
         THROW_ERROR << "has invalid config";

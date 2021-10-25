@@ -25,10 +25,20 @@
 #include <cstring>
 #include <ngraph/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "ie_icore.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
+
+InferenceEngine::IInferRequestInternal::Ptr
+MKLDNNExecNetwork::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                          const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
+    if (!this->_plugin || !this->_plugin->GetCore() || !this->_plugin->GetCore()->isNewAPI())
+        return nullptr;
+    return std::make_shared<MKLDNNInferRequest>(inputs, outputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
+}
 
 InferenceEngine::IInferRequestInternal::Ptr
 MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
@@ -91,13 +101,6 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         _callbackExecutor = _taskExecutor;
     }
 
-    // Workaround for initializing friendly names for all the OPs
-    // Otherwise they are initialized concurrently without thread safety.
-    // TODO: Can be removed after 57069 is done.
-    for (const auto& op : _network.getFunction()->get_ops()) {
-        op->get_friendly_name();
-    }
-
     int streams = std::max(1, _cfg.streamExecutorConfig._streams);
     std::vector<Task> tasks; tasks.resize(streams);
     _graphs.resize(streams);
@@ -133,7 +136,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     }
 }
 
-MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() {
+MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() const {
     int streamId = 0;
     int numaNodeId = 0;
     auto streamsExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(_taskExecutor.get());
@@ -164,19 +167,6 @@ MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() {
             std::rethrow_exception(exception);
         }
     }
-    return graphLock;
-}
-
-MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() const {
-    int streamId = 0;
-    int numaNodeId = 0;
-    auto streamsExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(_taskExecutor.get());
-    if (nullptr != streamsExecutor) {
-        streamId = streamsExecutor->GetStreamId();
-        numaNodeId = streamsExecutor->GetNumaNodeId();
-    }
-    auto graphLock = Graph::Lock(_graphs[streamId % _graphs.size()]);
-    IE_ASSERT(graphLock._graph.IsReady());
     return graphLock;
 }
 

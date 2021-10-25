@@ -7,8 +7,8 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-    static const std::vector<ngraph::element::Type> precisionsTemplate = {
-            ngraph::element::f32,
+    static const std::vector<ov::element::Type> precisionsTemplate = {
+            ov::element::f32,
     };
 
     static const std::vector<std::size_t> batchSizesTemplate = {

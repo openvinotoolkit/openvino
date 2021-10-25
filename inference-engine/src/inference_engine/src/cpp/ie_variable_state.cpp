@@ -72,12 +72,12 @@ std::string VariableState::get_name() const {
     OV_VARIABLE_CALL_STATEMENT(return _impl->GetName());
 }
 
-ie::Blob::CPtr VariableState::get_state() const {
-    OV_VARIABLE_CALL_STATEMENT(return _impl->GetState());
+Tensor VariableState::get_state() const {
+    OV_VARIABLE_CALL_STATEMENT(return {_so, std::const_pointer_cast<ie::Blob>(_impl->GetState())});
 }
 
-void VariableState::set_state(const ie::Blob::Ptr& state) {
-    OV_VARIABLE_CALL_STATEMENT(_impl->SetState(state));
+void VariableState::set_state(const Tensor& state) {
+    OV_VARIABLE_CALL_STATEMENT(_impl->SetState(state._impl));
 }
 
 }  // namespace runtime

@@ -1,0 +1,8 @@
+{
+  "name": "matmul_divide_const",
+  "framework": "dldt",
+  "mo_args": {
+    "model": "$model_dir/matmul_divide_const/matmul_divide_const.xml",
+    "weights": "$model_dir/matmul_divide_const/matmul_divide_const.bin"
+  }
+}

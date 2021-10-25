@@ -4,6 +4,7 @@
 
 #include "openvino/core/descriptor/tensor.hpp"
 
+#include "atomic_guard.hpp"
 #include "ngraph/node.hpp"
 
 using namespace std;
@@ -58,7 +59,7 @@ void ov::descriptor::Tensor::set_upper_value(const ngraph::HostTensorPtr& value)
 const ov::Shape& ov::descriptor::Tensor::get_shape() const {
     if (m_partial_shape.is_static()) {
         if (m_shape_changed.load(std::memory_order_relaxed)) {
-            std::lock_guard<std::mutex> guard(shape_mutex);
+            std::lock_guard<std::mutex> guard(m_mutex);
             if (m_shape_changed)  // double check after mutex lock
             {
                 m_shape = m_partial_shape.to_shape();
@@ -91,6 +92,16 @@ NGRAPH_SUPPRESS_DEPRECATED_END
 
 const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const {
     return m_names;
+}
+
+std::string ov::descriptor::Tensor::get_any_name() const {
+    if (m_names.empty()) {
+        throw ngraph::ngraph_error("Attempt to get a name for a Tensor without names");
+    }
+    // As unordered_set for std::string doesn't guaranty the same elements order between runs
+    // we have to manually determine the order by sorting tensor name in lexicographical and returning the first one
+    std::set<std::string> sorted_names(m_names.begin(), m_names.end());
+    return *sorted_names.begin();
 }
 
 void ov::descriptor::Tensor::set_names(const std::unordered_set<std::string>& names) {

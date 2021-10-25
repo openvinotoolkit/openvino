@@ -42,7 +42,6 @@ bool evaluate_cosh(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_cosh, boolean, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_cosh, i32, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_cosh, i64, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_cosh, u32, arg0, out, count);
@@ -66,7 +65,6 @@ bool op::Cosh::evaluate(const HostTensorVector& outputs, const HostTensorVector&
 bool op::Cosh::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Cosh_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::boolean:
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

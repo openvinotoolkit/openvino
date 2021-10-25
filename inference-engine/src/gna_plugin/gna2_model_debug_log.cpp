@@ -304,11 +304,11 @@ static std::vector<std::string> GetParamaterNames(Gna2OperationType type) {
         operationParamaterNamesMap.find(type)->second : std::vector<std::string> {};
 }
 
-typedef void (*dumpParamaters) (std::ostream&, void**, size_t, const std::vector<std::string>);
+typedef void (*dumpParameters) (std::ostream&, void**, size_t, const std::vector<std::string>);
 
-static dumpParamaters GetParamDumpFunc(Gna2OperationType type) {
+static dumpParameters GetParamDumpFunc(Gna2OperationType type) {
     // This map must be aligned with operationParamaterNamesMap in this file
-    static const std::map<Gna2OperationType, dumpParamaters> dumpParamMap = {
+    static const std::map<Gna2OperationType, dumpParameters> dumpParamMap = {
         {Gna2OperationTypeConvolution, DumpConvolutionParameters},
         {Gna2OperationTypeCopy, DumpCopyParameters},
         {Gna2OperationTypeFullyConnectedAffine, DumpFCAffineParameters},

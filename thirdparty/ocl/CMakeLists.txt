@@ -2,10 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(NOT ENABLE_CLDNN)
-    return()
-endif()
-
 function(get_lib_name TARGET_NAME LIBRARY_NAME)
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(BUILD_SUFFIX ${IE_DEBUG_POSTFIX})

@@ -72,4 +72,10 @@ size_t DnnlMemoryDesc::getMaxMemSize() const {
     return getCurrentMemSize();
 }
 
+MemoryDescPtr DnnlMemoryDesc::cloneWithNewPrecision(const InferenceEngine::Precision prec) const {
+    auto newDesc = std::make_shared<DnnlMemoryDesc>(*this);
+    newDesc->setPrecision(prec);
+    return newDesc;
+}
+
 } // namespace MKLDNNPlugin

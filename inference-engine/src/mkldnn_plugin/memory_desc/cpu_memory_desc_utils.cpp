@@ -69,51 +69,6 @@ BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDes
     }
 }
 
-MemoryDescPtr MemoryDescUtils::cloneWithUndefStridesAndOffset(const MemoryDesc& desc) {
-    if (desc.getType() == MemoryDescType::Mkldnn) {
-        IE_THROW() << "Can't apply undefined offset for mkldnn memory desc";
-    }
-
-    const auto blkMemDesc = desc.as<BlockedMemoryDesc>();
-
-    VectorDims strides;
-    VectorDims offsetPaddingToData;
-    strides.resize(blkMemDesc->getBlockDims().size(), Shape::UNDEFINED_DIM);
-    offsetPaddingToData.resize(blkMemDesc->getBlockDims().size(), 0);
-    size_t offsetPadding = Shape::UNDEFINED_DIM;
-
-    if (blkMemDesc->getType() == MemoryDescType::Blocked) {
-        return std::make_shared<CpuBlockedMemoryDesc>(blkMemDesc->getPrecision(), blkMemDesc->getShape(), blkMemDesc->getBlockDims(),
-                                                                    blkMemDesc->getOrder(), offsetPadding, offsetPaddingToData, strides);
-    } else if (blkMemDesc->getType() == MemoryDescType::DnnlBlocked) {
-        return DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(blkMemDesc->getPrecision(), blkMemDesc->getShape(),
-                                                                  blkMemDesc->getBlockDims(), blkMemDesc->getOrder(),
-                                                                  offsetPadding, offsetPaddingToData, strides));
-    } else {
-        IE_THROW() << "Cannot apply undefined offset. Unsupported memory desc type";
-    }
-}
-
-MemoryDescPtr MemoryDescUtils::cloneWithDefaultStridesAndOffset(const MemoryDesc& desc) {
-    const auto blkMemDesc = desc.as<BlockedMemoryDesc>();
-
-    if (MemoryDescType::Blocked == desc.getType()) {
-        return std::make_shared<CpuBlockedMemoryDesc>(blkMemDesc->getPrecision(), blkMemDesc->getShape(),
-                                                               blkMemDesc->getBlockDims(), blkMemDesc->getOrder());
-    } else if (MemoryDescType::DnnlBlocked == desc.getType()) {
-        return DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(blkMemDesc->getPrecision(), blkMemDesc->getShape(),
-                                                                  blkMemDesc->getBlockDims(), blkMemDesc->getOrder()));
-    } else {
-        IE_THROW() << "cloneWithDefaultStridesAndOffset supports Blocked descriptors only";
-    }
-}
-
-MemoryDescPtr MemoryDescUtils::cloneWithNewPrecision(const MemoryDesc& desc, const InferenceEngine::Precision prec) {
-    MemoryDescPtr newDesc = desc.clone();
-    newDesc->setPrecision(prec);
-    return newDesc;
-}
-
 InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const MKLDNNMemory &mem) {
     // TODO [DS]: Rewrite when IE is moved to the new TensorDescriptor
     auto& memDesc = mem.getDesc();
@@ -141,10 +96,12 @@ std::string MemoryDescUtils::dims2str(const VectorDims& dims) {
     std::stringstream output;
     output << "{";
 
-    auto itr = dims.begin();
-    do {
-        output << dim2str(*itr);
-    } while (++itr != dims.end() && output << ", ");
+    if (!dims.empty()) {
+        auto itr = dims.begin();
+        do {
+            output << dim2str(*itr);
+        } while (++itr != dims.end() && output << ", ");
+    }
 
     output << "}";
     return output.str();

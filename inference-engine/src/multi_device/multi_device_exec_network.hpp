@@ -36,6 +36,7 @@ struct DeviceInformation {
     DeviceName deviceName;
     std::map<std::string, std::string> config;
     int numRequestsPerDevices;
+    std::string defaultDeviceID;
 };
 
 template<typename T>
@@ -130,7 +131,10 @@ public:
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                        InferenceEngine::OutputsDataMap networkOutputs) override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                                                       const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
     std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override;
+    std::shared_ptr<InferenceEngine::ICore> GetCore() const;
     ~MultiDeviceExecutableNetwork() override;
 
     void ScheduleToWorkerInferRequest(InferenceEngine::Task, DeviceName preferred_device = "");
@@ -170,7 +174,7 @@ private:
     NetworkPromise                                                      _cpuPromise;
     mutable NetworkFuture                                               _acceleratorFuture;
     mutable NetworkPromise                                              _acceleratorPromise;
-    mutable bool                                                        _alreadyActualNetwork = {false};
+    mutable std::atomic<bool>                                           _alreadyActualNetwork = {false};
     bool                                                                _workModeIsAUTO = {false};
     DeviceInformation                                                   _cpuDevice;
     DeviceInformation                                                   _acceleratorDevice;

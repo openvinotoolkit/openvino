@@ -33,6 +33,9 @@ public:
 
     CLDNNInferRequest(InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs,
                       const std::shared_ptr<CLDNNExecNetwork>& execNetwork);
+    CLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                      const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                      const std::shared_ptr<CLDNNExecNetwork>& execNetwork);
 
     CLDNNInferRequest(const CLDNNInferRequest &) = delete;
 
@@ -46,6 +49,17 @@ public:
     void EnableProfiling() { m_useProfiling = true; }
     void EnableStreams() { m_useStreams = true; }
 
+    void preprocess();
+    void enqueue();
+    void wait();
+
+    void preprocess_dynamic();
+    void enqueue_dynamic();
+    void wait_dynamic();
+
+    bool use_external_queue() const { return m_useExternalQueue; }
+    void enable_external_queue() { m_useExternalQueue = true; }
+
 private:
     InferenceEngine::BlobMap _deviceOutputs;
     std::map<std::string, cldnn::primitive_id> inputsMap;
@@ -53,6 +67,7 @@ private:
 
     bool m_useProfiling;
     bool m_useStreams;
+    bool m_useExternalQueue;
     std::shared_ptr<CLDNNGraph> m_graph;
 
     // dynamic batch stuff
@@ -77,8 +92,9 @@ private:
     void allocate_outputs();
     void allocate_inputs_dynamic();
     void allocate_outputs_dynamic();
-    void exec_and_parse(const std::vector<cldnn::event::ptr>& dependencies);
-    void exec_and_parse_dynamic();
+
+    std::map<cldnn::primitive_id, cldnn::network_output> internal_outputs;
+    std::vector<std::map<cldnn::primitive_id, cldnn::network_output>> internal_outputs_dynamic;
 };
 
 };  // namespace CLDNNPlugin

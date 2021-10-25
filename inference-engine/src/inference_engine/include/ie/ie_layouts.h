@@ -84,7 +84,7 @@ public:
     /**
      * @brief Returns the vector of order
      *
-     * @return order
+     * @return order of dimensions
      */
     const SizeVector& getOrder() const {
         return order;
@@ -93,7 +93,7 @@ public:
     /**
      * @brief Returns the per-dimension offset vector
      *
-     * @return offsets
+     * @return offsets in elements
      */
     const SizeVector& getOffsetPaddingToData() const {
         return offsetPaddingToData;
@@ -102,7 +102,7 @@ public:
     /**
      * @brief Returns the offset to the current memory block
      *
-     * @return offset
+     * @return offset in elements
      */
     size_t getOffsetPadding() const {
         return offsetPadding;
@@ -111,7 +111,7 @@ public:
     /**
      * @brief Returns strides for each dimension
      *
-     * @return strides
+     * @return strides in elements
      */
     const SizeVector& getStrides() const {
         return strides;
