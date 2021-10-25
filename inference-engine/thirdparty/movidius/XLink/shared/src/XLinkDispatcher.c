@@ -18,7 +18,16 @@
 #include "string.h"
 #include <assert.h>
 #include <stdlib.h>
-#include <unistd.h>
+
+#if (defined(_WIN32) || defined(_WIN64))
+# include "win_pthread.h"
+# include "win_semaphore.h"
+#else
+# include <pthread.h>
+# ifndef __APPLE__
+#  include <semaphore.h>
+# endif
+#endif
 
 #include "XLinkDispatcher.h"
 #include "XLinkMacros.h"
@@ -407,7 +416,7 @@ int DispatcherWaitEventComplete(xLinkDeviceHandle_t *deviceHandle, unsigned int 
             event.deviceHandle = *deviceHandle;
             mvLog(MVLOG_ERROR,"waiting is timeout, sending reset remote event");
             DispatcherAddEvent(EVENT_LOCAL, &event);
-            id = getAndRefSem(pthread_self(), curr, 0);
+            id = getSem(pthread_self(), curr);
             int rc;
             while(((rc = sem_wait(id)) == -1) && errno == EINTR)
                 continue;
