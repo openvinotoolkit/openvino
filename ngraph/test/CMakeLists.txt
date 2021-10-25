@@ -498,7 +498,6 @@ set(MULTI_TEST_SRC
     backend/parameter_as_output.in.cpp
     backend/prior_box_clustered.in.cpp
     backend/prior_box.in.cpp
-    backend/proposal.in.cpp
     backend/recurrent_cells.in.cpp
     backend/region_yolo.in.cpp
     backend/reorg_yolo.in.cpp
