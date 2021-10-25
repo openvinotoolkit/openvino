@@ -21,6 +21,7 @@
 #include <nodes/mkldnn_matmul_node.h>
 #include <nodes/mkldnn_fullyconnected_node.h>
 #include <nodes/mkldnn_generic_node.h>
+#include <nodes/mkldnn_if_node.h>
 #include <nodes/mkldnn_input_node.h>
 #include <nodes/mkldnn_lrn_node.h>
 #include <nodes/mkldnn_pooling_node.h>
@@ -281,6 +282,11 @@ void MKLDNNNode::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_typ
 }
 
 bool MKLDNNNode::canBeInPlace() const {
+    // TODO [DS]: enable inPlace for dynamic shapes
+    if (isDynamicNode()) {
+        return false;
+    }
+
     if (getParentEdges().size() != 1 || getParentEdgeAt(0)->getParent()->getChildEdges().size() != 1 ||
             (getParentEdgeAt(0)->getParent()->isConstant() && !getParentEdgeAt(0)->getChild()->isConstant()))
         return false;
@@ -493,8 +499,11 @@ void MKLDNNNode::execute(mkldnn::stream strm) {
 void MKLDNNNode::executeDynamic(mkldnn::stream strm) {
     if (needShapeInfer())
         redefineOutputMemory(shapeInfer());
-    if (needPrepareParams())
+    if (needPrepareParams()) {
+        IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<
+            " since the input shapes are not defined.";
         prepareParams();
+    }
     executeDynamicImpl(strm);
     updateLastInputDims();
 }
@@ -941,10 +950,16 @@ bool MKLDNNNode::isConfigDefined(const NodeConfig &config) const {
 }
 
 MemoryDescPtr MKLDNNNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+    if (isDynamicNode()) {
+        return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
+    }
     return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
 }
 
 MemoryDescPtr MKLDNNNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+    if (isDynamicNode()) {
+        return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), getOutputShapeAtPort(idx));
+    }
     return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
 }
 
@@ -1127,10 +1142,16 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
 
     //  WA-start : TI node requires all attributes to construct internal subgpath
     //             including extManager, socket and mkldnn::eng.
-    MKLDNNTensorIteratorNode *ti = dynamic_cast<MKLDNNTensorIteratorNode*>(newNode);
-    if (ti != nullptr)
-        ti->setExtManager(extMgr);
-    //  WA-end
+    if (newNode) {
+        if (newNode->getType() == TensorIterator) {
+            if (auto ti = dynamic_cast<MKLDNNTensorIteratorNode*>(newNode))
+                ti->setExtManager(extMgr);
+        } else if (newNode->getType() == If) {
+            if (auto ifNode = dynamic_cast<MKLDNNIfNode*>(newNode))
+                ifNode->setExtManager(extMgr);
+        }
+    }
+//    //  WA-end
 
     if (!newNode) {
         std::string errorDetails;
@@ -1217,18 +1238,33 @@ bool MKLDNNNode::needShapeInfer() const {
 }
 
 std::vector<VectorDims> MKLDNNNode::shapeInfer() const {
+    std::vector<Shape> shapes;
+    for (size_t i = 0; i < inputShapes.size(); i++) {
+        shapes.push_back(getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape());
+    }
+
+    auto newOutputShapes = shapeInferGeneric(shapes);
+
+    IE_ASSERT(newOutputShapes.size() == outputShapes.size());
+
+    return newOutputShapes;
+}
+
+std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& shapes) const {
+    if (shapes.size() < opToShapeInfer->get_input_size()) {
+        IE_THROW(Unexpected) << "MKLDNNNode::shapeInferGeneric input shapes vector size is " << shapes.size() << ", but " << opToShapeInfer->get_input_size() <<
+            " required for node with name: " << getName();
+    }
+
     for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
         if (!dynamic_cast<ngraph::opset1::Constant *>(opToShapeInfer->get_input_node_ptr(i))) {
-            opToShapeInfer->get_input_tensor(i).set_partial_shape(
-                getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape().toPartialShape());
+            opToShapeInfer->get_input_tensor(i).set_partial_shape(shapes[i].toPartialShape());
         }
     }
 
     opToShapeInfer->validate_and_infer_types();
 
-    IE_ASSERT(opToShapeInfer->get_output_size() == outputShapes.size());
-
-    std::vector<VectorDims> newOutputShapes(outputShapes.size());
+    std::vector<VectorDims> newOutputShapes(opToShapeInfer->get_output_size());
     for (size_t i = 0; i < newOutputShapes.size(); i++) {
         const auto &partShape = opToShapeInfer->get_output_partial_shape(i);
         if (partShape.is_dynamic())

@@ -79,7 +79,6 @@ protected:
         }
         split->get_rt_info() = getCPUInfo();
         function = std::make_shared<ngraph::Function>(results, params, "split");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

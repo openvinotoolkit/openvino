@@ -10,7 +10,7 @@ using ngraph::helpers::EltwiseTypes;
 
 namespace SubgraphTestsDefinitions {
 
-class NotFusedConvSimpleOp : public LayerTestsUtils::LayerTestsCommon {
+class NotFusedConvSimpleOp : virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
@@ -36,7 +36,6 @@ protected:
 
         NodeVector results{postOpCandidate, secondConsumpt};
         function = std::make_shared<ngraph::Function>(results, inputParams, "NotFusedConvSimpleOp");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

@@ -38,6 +38,5 @@ void SplitConcatConcatTest::SetUp() {
             std::make_shared<ngraph::opset1::Result>(relu)
     };
     function = std::make_shared<ngraph::Function>(resultVector, params, "Multiple_connection_split_concat");
-    functionRefs = ngraph::clone_function(*function);
 }
 } // namespace SubgraphTestsDefinitions

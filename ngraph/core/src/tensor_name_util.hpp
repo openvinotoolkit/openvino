@@ -9,21 +9,15 @@
 
 namespace ov {
 
-/// \brief Check that specified tensor name is unique for a given function.
-///
-/// \param tensor_name Name to check across all tensors in a function.
-/// \param function Function.
-/// \return False if tensor name is already used in some function's node, True otherwise
-inline bool is_tensor_name_available(const std::string& tensor_name, const std::shared_ptr<Function>& function) {
+inline std::unordered_set<std::string> get_function_tensor_names(const std::shared_ptr<Function>& function) {
+    std::unordered_set<std::string> set;
     for (const auto& node : function->get_ordered_ops()) {
         for (const auto& output : node->outputs()) {
-            const auto& tensor = output.get_tensor();
-            if (tensor.get_names().count(tensor_name)) {
-                return false;
-            }
+            const auto& names = output.get_tensor().get_names();
+            set.insert(names.begin(), names.end());
         }
     }
-    return true;
+    return set;
 }
 
 }  // namespace ov

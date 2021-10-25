@@ -96,7 +96,6 @@ protected:
         relu->add_control_dependency(mem_w);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(relu)};
         function = std::make_shared<ngraph::Function>(results, params, "ExportImportNetwork");
-        functionRefs = ngraph::clone_function(*function);
     }
 
 private:

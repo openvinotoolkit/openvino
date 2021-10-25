@@ -46,6 +46,5 @@ void ShuffleChannelsLayerTest::SetUp() {
             ngraph::builder::makeShuffleChannels(paramOuts[0], axis, group));
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(shuffleChannels)};
     function = std::make_shared<ngraph::Function>(results, params, "shuffleChannels");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

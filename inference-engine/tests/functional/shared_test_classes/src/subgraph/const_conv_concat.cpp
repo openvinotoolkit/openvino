@@ -84,5 +84,6 @@ void ConstConvConcatTest::SetUp() {
     auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(concat, reshapePattern2, false);
 
     function = std::make_shared<ngraph::Function>(reshape2, params, "ConstConvConcatTest");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

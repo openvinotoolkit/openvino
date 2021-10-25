@@ -96,7 +96,6 @@ protected:
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
         auto matMul = builder::makeMatMul(paramOuts[0], matrixB, transpA, transpB);
         function = makeNgraphFunction(ngPrec, params, matMul, cpuNodeType);
-        functionRefs = ngraph::clone_function(*function);
         checkFusingPosition = false;
     }
 };

@@ -428,7 +428,7 @@ void program::build_program(bool is_internal) {
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
 #ifdef GPU_DEBUG_CONFIG
-    if (debug_config->dry_run_path.empty()) {
+    if (debug_config->dry_run_path.empty() || is_internal) {
 #else
     {
 #endif
@@ -1313,6 +1313,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::reduce::type_id() &&
             prim.type() != cldnn::strided_slice::type_id() &&
             prim.type() != cldnn::region_yolo::type_id() &&
+            prim.type() != cldnn::normalize::type_id() &&
             prim.type() != cldnn::mvn::type_id())
             can_use_fsv16 = false;
 

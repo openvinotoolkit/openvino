@@ -199,7 +199,6 @@ protected:
 
         auto result = std::make_shared<Result>(lastOp);
         function = std::make_shared<Function>(ResultVector{result}, ParameterVector{input});
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 
@@ -220,6 +219,15 @@ const std::vector<std::map<std::string, std::string>> configs = {
     }
 };
 
+const std::vector<std::map<std::string, std::string>> configsExec30Compile20 = {
+    {
+        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+        {"GNA_SCALE_FACTOR_0", "1"},
+        {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"},
+        {"GNA_COMPILE_TARGET", "GNA_TARGET_2_0"}
+    }
+};
+
 const std::vector<op::PadType> padTypes = {
         op::PadType::VALID,
         op::PadType::EXPLICIT,
@@ -234,6 +242,11 @@ const std::vector<modelType> models = {
     modelType::TranspConvBcastAddActTransp,
     modelType::TranspConvTranspBcastAdd,
     modelType::TranspConvTranspBcastAddAct,
+    modelType::TranspConvBcastAddMaxPoolTransp,
+    modelType::TranspConvBcastAddMaxPoolActTransp
+};
+
+const std::vector<modelType> modelsWithPool = {
     modelType::TranspConvBcastAddMaxPoolTransp,
     modelType::TranspConvBcastAddMaxPoolActTransp
 };
@@ -276,6 +289,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConv, Decompose2DConvTest,
         ::testing::ValuesIn(configs),
         ::testing::ValuesIn(input2DNHWC),
         ::testing::ValuesIn(models)),
+    Decompose2DConvTest::getTestCaseName);
+
+// These tests flow compile the model for GNA 2.0
+// and load by GNA Library for GNA 3.0 execution target
+// They assure that the W/A for pooling output differences btw GNA 2.0 / 3.0 is properly working
+INSTANTIATE_TEST_CASE_P(smoke_Decompose2DConv_Exec30Compile20, Decompose2DConvTest,
+    ::testing::Combine(
+        conv2DParams,
+        miscParams,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(CommonTestUtils::DEVICE_GNA),
+        ::testing::ValuesIn(configsExec30Compile20),
+        ::testing::ValuesIn(input2DNHWC),
+        ::testing::ValuesIn(modelsWithPool)),
     Decompose2DConvTest::getTestCaseName);
 
 

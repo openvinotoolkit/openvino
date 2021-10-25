@@ -77,7 +77,6 @@ protected:
         ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(reshape2),
                                      std::make_shared<ngraph::opset8::Result>(reshape3)};
         function = std::make_shared<ngraph::Function>(results, params, "FQFusionWithMultipleWeights");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

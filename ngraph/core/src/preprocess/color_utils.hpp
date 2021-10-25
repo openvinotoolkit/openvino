@@ -60,27 +60,28 @@ public:
         return calculate_shape(plane_num, image_src_shape);
     }
 
-    std::string friendly_suffix(size_t plane_num) const {
-        OPENVINO_ASSERT(plane_num < planes_count(),
-                        "Internal error: incorrect plane number specified for color format");
-        return calc_name_suffix(plane_num);
-    }
-
 protected:
     virtual PartialShape calculate_shape(size_t plane_num, const PartialShape& image_shape) const {
         return image_shape;
     }
-    virtual std::string calc_name_suffix(size_t plane_num) const {
-        return {};
-    }
+
     explicit ColorFormatInfo(ColorFormat format) : m_format(format) {}
     ColorFormat m_format;
 };
 
 // --- Derived classes ---
-class ColorFormatInfoNV12_Single : public ColorFormatInfo {
+class ColorFormatNHWC : public ColorFormatInfo {
 public:
-    explicit ColorFormatInfoNV12_Single(ColorFormat format) : ColorFormatInfo(format) {}
+    explicit ColorFormatNHWC(ColorFormat format) : ColorFormatInfo(format) {}
+
+    Layout default_layout() const override {
+        return "NHWC";
+    }
+};
+
+class ColorFormatInfoNV12_Single : public ColorFormatNHWC {
+public:
+    explicit ColorFormatInfoNV12_Single(ColorFormat format) : ColorFormatNHWC(format) {}
 
 protected:
     PartialShape calculate_shape(size_t plane_num, const PartialShape& image_shape) const override {
@@ -93,15 +94,11 @@ protected:
         }
         return result;
     }
-
-    Layout default_layout() const override {
-        return "NHWC";
-    }
 };
 
-class ColorFormatInfoNV12_TwoPlanes : public ColorFormatInfo {
+class ColorFormatInfoNV12_TwoPlanes : public ColorFormatNHWC {
 public:
-    explicit ColorFormatInfoNV12_TwoPlanes(ColorFormat format) : ColorFormatInfo(format) {}
+    explicit ColorFormatInfoNV12_TwoPlanes(ColorFormat format) : ColorFormatNHWC(format) {}
 
     size_t planes_count() const override {
         return 2;
@@ -126,16 +123,6 @@ protected:
             }
         }
         return result;
-    }
-    std::string calc_name_suffix(size_t plane_num) const override {
-        if (plane_num == 0) {
-            return "/Y";
-        }
-        return "/UV";
-    }
-
-    Layout default_layout() const override {
-        return "NHWC";
     }
 };
 

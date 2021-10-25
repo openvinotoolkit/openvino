@@ -41,7 +41,6 @@ protected:
         auto mul3 = ngraph::builder::makeEltwise(mul2, fake3, ngraph::helpers::EltwiseTypes::ADD);
         auto result = std::make_shared<ngraph::opset7::Result>(mul3);
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, input, "fq_fusion_with_sigmoid");
-        functionRefs = ngraph::clone_function(*function);
     }
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<fqFusionWithSigmoidParams> &obj) {

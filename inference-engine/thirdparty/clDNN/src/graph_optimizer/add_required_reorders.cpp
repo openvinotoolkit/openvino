@@ -162,14 +162,22 @@ void add_required_reorders::run(program& p) {
                 };
             }
 
-            for (auto new_layout_format : preffered_layout_formats) {
-                layout current_layout(original_layout.data_type,
-                                      new_layout_format,
-                                      original_layout.size);
-                usr->set_output_layout(current_layout, false);
+            if (usr->get_preferred_impl_type() == impl_types::onednn) {
+                usr->set_preferred_impl_type(impl_types::ocl);
+                usr->set_output_layout(original_layout, false);
                 if (usr->type()->does_possible_implementation_exist(*usr)) {
                     correct_layout_selected = true;
-                    break;
+                }
+            }
+
+            if (!correct_layout_selected) {
+                for (auto new_layout_format : preffered_layout_formats) {
+                    layout current_layout(original_layout.data_type, new_layout_format, original_layout.size);
+                    usr->set_output_layout(current_layout, false);
+                    if (usr->type()->does_possible_implementation_exist(*usr)) {
+                        correct_layout_selected = true;
+                        break;
+                    }
                 }
             }
 
