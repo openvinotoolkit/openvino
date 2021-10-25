@@ -982,7 +982,7 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
     auto in_dt = node.get_dependency(0).get_output_layout().data_type;
     auto out_dt = node.get_output_layout().data_type;
 
-    if (in_dt == data_types::f32)
+    if (in_dt == data_types::f32 && !node.is_type<fully_connected>())
         return false;
 
     if (node.is_type<pooling>()) {
@@ -1007,6 +1007,18 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
             return true;
         if ((in_dt == data_types::i8 || in_dt == data_types::u8) && wei_dt == data_types::i8 &&
             (out_dt == data_types::f32 || out_dt == data_types::i32 || out_dt == data_types::i8 || out_dt == data_types::u8))
+            return true;
+    } else if (node.is_type<fully_connected>()) {
+        auto& fc_node = node.as<fully_connected>();
+        auto wei_dt = fc_node.weights().get_output_layout().data_type;
+
+        if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
+            (out_dt == data_types::f16 || out_dt == data_types::f32 || out_dt == data_types::i8))
+            return true;
+        if (in_dt == data_types::f32 && wei_dt == data_types::f32)
+            return true;
+        if ((in_dt == data_types::i8 || in_dt == data_types::u8) && (wei_dt == data_types::i8) &&
+            (out_dt == data_types::i8 || out_dt == data_types::u8 || out_dt == data_types::i32 || out_dt == data_types::f32))
             return true;
     }
 
@@ -1187,6 +1199,43 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 break;
             }
         }
+    } else if (node.is_type<fully_connected>()) {
+        if (!_optimization_attributes.use_onednn_impls)
+            return impl_types::ocl;
+
+        impl_types impl_candidate = impl_types::onednn;
+
+        if (!are_data_types_suitable_for_onednn(node)) {
+            impl_candidate = impl_types::ocl;
+        }
+
+        for (auto& fo : node.get_fused_primitives()) {
+            if (fo.node->is_type<eltwise>()) {
+                auto in_layout = node.get_dependency(fo.dep_start_idx).get_output_layout();
+                auto out_layout = node.get_output_layout();
+                auto in_dt = in_layout.data_type;
+                auto out_dt = out_layout.data_type;
+                if ((out_layout.count() == in_layout.count()) &&
+                    (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt)) && in_dt != out_dt) {
+                    impl_candidate = impl_types::ocl;
+                    break;
+                }
+            }
+        }
+
+        // OneDnn doesn't support spatial dimensions for output
+        auto fc_prim = node.as<fully_connected>().get_primitive();
+        auto out_layout = node.get_output_layout();
+        size_t rank = cldnn::format::dimension(out_layout.format);
+        auto size = out_layout.size;
+        for (int i = 0; i < rank - 2 - (fc_prim->input_size == 3 ? 1 : 0); i++) {
+            if (size.spatial[i] != 1) {
+                impl_candidate = impl_types::ocl;
+                break;
+            }
+        }
+
+        preferred_impl = impl_candidate;
     }
 
     return preferred_impl;
