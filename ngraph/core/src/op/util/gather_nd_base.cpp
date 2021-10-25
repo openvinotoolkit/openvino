@@ -12,7 +12,6 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/shape.hpp"
 
-
 using namespace std;
 
 BWDCMP_RTTI_DEFINITION(ov::op::util::GatherNDBase);
@@ -65,12 +64,12 @@ void ov::op::util::GatherNDBase::validate_inputs_and_infer_shape() {
 
         if (indices_pshape[indices_pshape.rank().get_length() - 1].is_static()) {
             NODE_VALIDATION_CHECK(
-                    this,
-                    static_cast<int64_t>(indices_pshape[indices_pshape.rank().get_length() - 1].get_length() +
-                                         m_batch_dims) <= data_pshape.rank().get_length(),
-                    "Length of a tuple with indices must not exceed a rank of data tensor "
-                    "excluding "
-                    "batch dimensions.");
+                this,
+                static_cast<int64_t>(indices_pshape[indices_pshape.rank().get_length() - 1].get_length() +
+                                     m_batch_dims) <= data_pshape.rank().get_length(),
+                "Length of a tuple with indices must not exceed a rank of data tensor "
+                "excluding "
+                "batch dimensions.");
         }
     }
 
@@ -105,7 +104,7 @@ void ov::op::util::GatherNDBase::validate_inputs_and_infer_shape() {
         }
         for (int64_t dim = 0; dim < slice_length; dim++) {
             output_shape[output_indices_length + dim + delta_output_rank] =
-                    data_pshape[m_batch_dims + indices_tuple_length + dim];
+                data_pshape[m_batch_dims + indices_tuple_length + dim];
         }
         set_output_type(0, data_type, ov::PartialShape(output_shape));
     } else {
