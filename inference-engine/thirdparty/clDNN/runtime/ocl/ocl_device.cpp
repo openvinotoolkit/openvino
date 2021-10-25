@@ -199,10 +199,6 @@ device_info init_device_info(const cl::Device& device) {
 
     info.max_work_group_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>());
 
-    // looks like WA. Do we still need it?
-    if (info.max_work_group_size > 256)
-        info.max_work_group_size = 256;
-
     info.max_local_mem_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>());
     info.max_global_mem_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_GLOBAL_MEM_SIZE>());
     info.max_alloc_mem_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_MAX_MEM_ALLOC_SIZE>());
@@ -232,6 +228,14 @@ device_info init_device_info(const cl::Device& device) {
                                    is_local_block_io_supported(device);
 
     info.supports_queue_families = extensions.find("cl_intel_command_queue_families") != std::string::npos;
+
+    bool sub_group_sizes_supported = extensions.find("cl_intel_required_subgroup_size") != std::string::npos;
+    if (sub_group_sizes_supported) {
+        info.supported_simd_sizes = device.getInfo<CL_DEVICE_SUB_GROUP_SIZES_INTEL>();
+    } else {
+        // Set these values as reasonable default for most of the supported platforms
+        info.supported_simd_sizes = {8, 16, 32};
+    }
 
     bool device_attr_supported = extensions.find("cl_intel_device_attribute_query") != std::string::npos;
 

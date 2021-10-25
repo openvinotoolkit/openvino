@@ -11,7 +11,7 @@
 
 #include "pugixml.hpp"
 
-#include <transformations/serialize.hpp>
+#include <openvino/pass/serialize.hpp>
 #include <ngraph/opsets/opset.hpp>
 
 #include "ngraph/variant.hpp"
@@ -103,7 +103,7 @@ void LayerTestsCommon::Serialize() {
     std::string out_bin_path = output_name + ".bin";
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path);
+    manager.register_pass<ov::pass::Serialize>(out_xml_path, out_bin_path);
     manager.run_passes(function);
     function->validate_nodes_and_infer_types();
 

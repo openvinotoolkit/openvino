@@ -418,8 +418,10 @@ void network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
 
     for (auto& prim : o_iter->second) {
         prim->set_output_memory(eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout()), false);
-        if (!_reset_arguments)
+        if (!_reset_arguments &&
+            (!prim->get_node().is_type<data>() && !(prim->get_node().is_type<mutable_data>() && prim->get_node().get_dependencies().empty()))) {
             prim->set_arguments();
+        }
     }
 }
 
@@ -481,7 +483,8 @@ void network::allocate_primitives() {
 
             for (auto& fused_op : node->get_fused_primitives()) {
                 if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
-                    auto eltw_in_layout = node->get_dependency(fused_op.dep_start_idx).get_output_layout();
+                    auto& eltw_in = node->get_dependency(fused_op.dep_start_idx);
+                    auto eltw_in_layout = eltw_in.get_output_layout();
                     auto out_layout = node->get_output_layout();
 
                     if (eltw_in_layout.size == out_layout.size &&
@@ -493,6 +496,17 @@ void network::allocate_primitives() {
                         }
                         eltw_dep = fused_op.dep_start_idx;
                         can_reuse_eltwise_mem = true;
+                    }
+
+                    if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
+                        auto& eltw_inst = _primitives.at(eltw_in.id());
+                        auto& prim_inst = _primitives.at(node->id());
+                        auto eltw_mem_type = eltw_inst->output_memory().get_allocation_type();
+                        auto prim_mem_type = prim_inst->output_memory().get_allocation_type();
+
+                        // Keep lockable memory type for `prim_inst` output if needed
+                        if (eltw_mem_type != prim_mem_type && eltw_mem_type != allocation_type::cl_mem && eltw_mem_type != allocation_type::usm_host)
+                            can_reuse_eltwise_mem = false;
                     }
 
                     if (fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout) && !can_reuse_eltwise_mem) {

@@ -107,6 +107,10 @@ public:
     ov::Output<const ov::Node> input(size_t i) const;
     ov::Output<const ov::Node> input(const std::string& tensor_name) const;
 
+    void add_output(const std::string& tensor_name);
+    void add_output(const std::string& op_name, size_t output_idx);
+    void add_output(const ov::Output<ov::Node>& port);
+
     void reshape(const std::map<std::string, ov::PartialShape>& partial_shapes);
 
     /// Return the element type of output i
@@ -183,11 +187,14 @@ public:
     /// Index for value or result referencing it, or -1
     int64_t get_result_index(const ov::Output<ov::Node>& value) const;
 
+    /// \deprecated Use evaluate with ov::runtime::Tensor instead
     /// \brief Evaluate the function on inputs, putting results in outputs.
     /// \param output_tensors Tensors for the outputs to compute. One for each result
     /// \param input_tensors Tensors for the inputs. One for each inputs.
     /// \param evaluation_context Storage of additional settings and attributes that can be used
     /// when evaluating the function. This additional information can be shared across nodes.
+    OPENVINO_DEPRECATED(
+        "This method is deprecated and will be removed soon. Please use evaluate with ov::runtime::Tensor instead.")
     bool evaluate(const ov::HostTensorVector& output_tensors,
                   const ov::HostTensorVector& input_tensors,
                   ov::EvaluationContext evaluation_context = ov::EvaluationContext()) const;

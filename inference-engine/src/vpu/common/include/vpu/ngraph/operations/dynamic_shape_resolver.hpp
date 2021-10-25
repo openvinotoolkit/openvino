@@ -32,7 +32,9 @@ public:
 
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     void setMode(DynamicShapeResolverMode mode) { m_mode = mode; }
     DynamicShapeResolverMode getMode() { return m_mode; }

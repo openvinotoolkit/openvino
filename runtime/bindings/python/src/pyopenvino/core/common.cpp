@@ -41,6 +41,46 @@ const std::unordered_map<std::string, InferenceEngine::Layout> layout_str_to_enu
     {"BLOCKED", InferenceEngine::Layout::BLOCKED}};
 }  // namespace
 
+const std::map<ov::element::Type, py::dtype> ov_type_to_dtype = {
+    {ov::element::f16, py::dtype("float16")},
+    {ov::element::bf16, py::dtype("float16")},
+    {ov::element::f32, py::dtype("float32")},
+    {ov::element::f64, py::dtype("float64")},
+    {ov::element::i8, py::dtype("int8")},
+    {ov::element::i16, py::dtype("int16")},
+    {ov::element::i32, py::dtype("int32")},
+    {ov::element::i64, py::dtype("int64")},
+    {ov::element::u8, py::dtype("uint8")},
+    {ov::element::u16, py::dtype("uint16")},
+    {ov::element::u32, py::dtype("uint32")},
+    {ov::element::u64, py::dtype("uint64")},
+    {ov::element::boolean, py::dtype("bool")},
+    {ov::element::u1, py::dtype("uint8")},
+};
+
+const std::map<py::str, ov::element::Type> dtype_to_ov_type = {
+    {"float16", ov::element::f16},
+    {"float32", ov::element::f32},
+    {"float64", ov::element::f64},
+    {"int8", ov::element::i8},
+    {"int16", ov::element::i16},
+    {"int32", ov::element::i32},
+    {"int64", ov::element::i64},
+    {"uint8", ov::element::u8},
+    {"uint16", ov::element::u16},
+    {"uint32", ov::element::u32},
+    {"uint64", ov::element::u64},
+    {"bool", ov::element::boolean},
+};
+
+ov::Strides to_numpy_strides(const ov::Strides& strides, const ov::element::Type& ov_type) {
+    ov::Strides numpy_strides(strides.size());
+    std::transform(strides.begin(), strides.end(), numpy_strides.begin(), [&ov_type](size_t stride) {
+        return stride * ov_type.size();
+    });
+    return numpy_strides;
+}
+
 InferenceEngine::Layout get_layout_from_string(const std::string& layout) {
     return layout_str_to_enum.at(layout);
 }

@@ -23,6 +23,8 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 
 
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
+skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type for when filling blob!")
+xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "MaxUnpool")
 xfail_issue_33538 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
@@ -75,8 +77,6 @@ xfail_issue_38724 = xfail_test(reason="RuntimeError: While validating ONNX node 
                                       "half_pixel")
 xfail_issue_38725 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Loop): "
                                       "value info has no element type specified")
-xfail_issue_38726 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
-                                      "LessOrEqual")
 xfail_issue_38732 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "ConvInteger")
 xfail_issue_38734 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "

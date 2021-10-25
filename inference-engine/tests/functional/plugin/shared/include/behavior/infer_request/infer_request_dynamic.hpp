@@ -73,12 +73,11 @@ protected:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            ov::test::PluginCache::get().reset();
+            ov::test::utils::PluginCache::get().reset();
         }
-        function.reset();
     }
 
-    std::shared_ptr<ov::runtime::Core> ie = ov::test::PluginCache::get().core();
+    std::shared_ptr<ov::runtime::Core> ie = ov::test::utils::PluginCache::get().core();
     std::shared_ptr<ov::Function> function;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;

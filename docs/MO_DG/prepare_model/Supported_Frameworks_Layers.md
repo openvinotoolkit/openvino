@@ -292,6 +292,7 @@ Standard TensorFlow\* operations:
 | Pow | No |
 | Rsqrt | No |
 | Select | No |
+| SelectV2 | No |
 | Shape | No |
 | Sigmoid | No |
 | Sin | No |

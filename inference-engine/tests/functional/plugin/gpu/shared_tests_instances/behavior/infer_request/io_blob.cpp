@@ -58,7 +58,7 @@ std::vector<InferenceEngine::Precision> prcs = {
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestIOBBlobSetPrecisionTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(prcs),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
                                  ::testing::Values(std::map<std::string, std::string>{})),
                          InferRequestIOBBlobSetPrecisionTest::getTestCaseName);
 

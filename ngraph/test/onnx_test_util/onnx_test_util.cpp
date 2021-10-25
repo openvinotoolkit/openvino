@@ -16,7 +16,9 @@ using namespace ngraph;
 using namespace ngraph::test;
 
 namespace {
-ComparisonResult compare_nodes(const ONNX_NAMESPACE::GraphProto& graph, const ONNX_NAMESPACE::GraphProto& ref_graph) {
+ComparisonResult compare_nodes(const ONNX_NAMESPACE::GraphProto& graph,
+                               const ONNX_NAMESPACE::GraphProto& ref_graph,
+                               CompType comp) {
     if (graph.node_size() != ref_graph.node_size()) {
         return ComparisonResult::fail("The number of nodes in compared models doesn't match");
     } else {
@@ -30,14 +32,14 @@ ComparisonResult compare_nodes(const ONNX_NAMESPACE::GraphProto& graph, const ON
             }
 
             for (int j = 0; j < lhs.input_size(); ++j) {
-                if (lhs.input(j) != rhs.input(j)) {
+                if (!comp(lhs.input(j), rhs.input(j))) {
                     return ComparisonResult::fail("Input names don't match for nodes at index " + std::to_string(i) +
                                                   ": " + lhs.input(j) + " vs " + rhs.input(j));
                 }
             }
 
             for (int j = 0; j < lhs.output_size(); ++j) {
-                if (lhs.output(j) != rhs.output(j)) {
+                if (!comp(lhs.output(j), rhs.output(j))) {
                     return ComparisonResult::fail("Output names don't match for nodes at index " + std::to_string(i) +
                                                   ": " + lhs.output(j) + " vs " + rhs.output(j));
                 }
@@ -169,7 +171,8 @@ ComparisonResult compare_initializers(const ONNX_NAMESPACE::GraphProto& graph,
 }
 
 ComparisonResult compare_onnx_graphs(const ONNX_NAMESPACE::GraphProto& graph,
-                                     const ONNX_NAMESPACE::GraphProto& ref_graph) {
+                                     const ONNX_NAMESPACE::GraphProto& ref_graph,
+                                     CompType comp = default_name_comparator) {
     ComparisonResult comparison = compare_inputs(graph, ref_graph);
     if (!comparison.is_ok) {
         return comparison;
@@ -185,16 +188,21 @@ ComparisonResult compare_onnx_graphs(const ONNX_NAMESPACE::GraphProto& graph,
         return comparison;
     }
 
-    return compare_nodes(graph, ref_graph);
+    return compare_nodes(graph, ref_graph, comp);
 }
 }  // namespace
 namespace ngraph {
 namespace test {
-ComparisonResult compare_onnx_models(const std::string& model, const std::string& reference_model_path) {
+
+bool default_name_comparator(std::string lhs, std::string rhs) {
+    return lhs == rhs;
+}
+
+ComparisonResult compare_onnx_models(const std::string& model, const std::string& reference_model_path, CompType comp) {
     std::stringstream model_stream{model};
     const auto model_proto = onnx_common::parse_from_istream(model_stream);
     const auto ref_model = onnx_common::parse_from_file(reference_model_path);
-    return compare_onnx_graphs(model_proto.graph(), ref_model.graph());
+    return compare_onnx_graphs(model_proto.graph(), ref_model.graph(), comp);
 }
 }  // namespace test
 }  // namespace ngraph

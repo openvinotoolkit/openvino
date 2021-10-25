@@ -10,6 +10,7 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
             templatePlugin
+            HeteroPlugin
         LINK_LIBRARIES
             IE::funcSharedTests
         INCLUDES

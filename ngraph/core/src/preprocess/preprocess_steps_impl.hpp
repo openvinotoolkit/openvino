@@ -60,47 +60,6 @@ inline size_t get_and_check_channels_idx(const Layout& layout, const PartialShap
     return idx;
 }
 
-inline void inherit_friendly_names(const std::shared_ptr<ov::Function>& function,
-                                   const Output<ov::Node>& src_node,
-                                   const Output<ov::Node>& dst_node,
-                                   const std::string& suffix,
-                                   bool search_for_available_name = true) {
-    dst_node.get_node_shared_ptr()->set_friendly_name(src_node.get_node_shared_ptr()->get_friendly_name() + suffix);
-    std::unordered_set<std::string> new_names;
-    for (const auto& tensor_name : src_node.get_tensor().get_names()) {
-        auto new_tensor_name = tensor_name + suffix;
-        if (!suffix.empty()) {
-            // Verify that new names are unique for a function
-            if (!is_tensor_name_available(new_tensor_name, function) && search_for_available_name) {
-                // Search for available name
-                size_t idx = 0;
-                do {
-                    new_tensor_name = tensor_name + suffix + std::to_string(idx++);
-                } while (!is_tensor_name_available(new_tensor_name, function));
-            }
-        }
-        new_names.emplace(new_tensor_name);
-    }
-    dst_node.get_tensor().set_names(new_names);
-}
-
-// TODO: add uniqueness check like for preprocessing (or remove from pre-processing)
-inline void inherit_friendly_names_postprocess(const Output<ov::Node>& inserted_output,
-                                               const Output<ov::Node>& previous_output) {
-    inserted_output.get_node_shared_ptr()->set_friendly_name(
-        previous_output.get_node_shared_ptr()->get_friendly_name());
-    std::unordered_set<std::string> new_names;  // New name for previous node
-    for (const auto& tensor_name : previous_output.get_tensor().get_names()) {
-        auto new_tensor_name = tensor_name;
-        new_names.emplace(new_tensor_name);
-    }
-    previous_output.get_tensor().set_names(new_names);
-
-    // reset names for original node
-    previous_output.get_node_shared_ptr()->set_friendly_name({});
-    previous_output.get_tensor().set_names({});
-}
-
 /// \brief Context passed to each pre/post-processing operation.
 /// This is internal structure which is not shared to custom operations yet.
 class PrePostProcessingContextBase {

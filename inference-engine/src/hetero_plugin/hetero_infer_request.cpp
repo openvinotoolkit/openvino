@@ -36,11 +36,14 @@ HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInp
         bool emplaced = false;
         std::tie(itBlob, emplaced) = _blobs.emplace(intermediateBlobName, Blob::Ptr{});
         if (emplaced) {
-            itBlob->second = r->GetBlob(blobName);
-            if (InferenceEngine::details::contains(networkInputs, blobName)) {
-                _inputs[blobName] = itBlob->second;
-            } else if (InferenceEngine::details::contains(networkOutputs, blobName)) {
-                _outputs[blobName] = itBlob->second;
+            if (InferenceEngine::details::contains(_networkInputs, blobName)) {
+                _subRequestFromBlobName.emplace(blobName, r._ptr.get());
+                _blobs.erase(intermediateBlobName);
+            } else if (InferenceEngine::details::contains(_networkOutputs, blobName)) {
+                _subRequestFromBlobName.emplace(blobName, r._ptr.get());
+                _blobs.erase(intermediateBlobName);
+            } else {
+                itBlob->second = r->GetBlob(blobName);
             }
         } else {
             r->SetBlob(blobName, itBlob->second);
@@ -64,25 +67,39 @@ HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInp
     }
 }
 
-void HeteroInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) {
-    InferenceEngine::IInferRequestInternal::SetBlob(name, data);
-    assert(!_inferRequests.empty());
-    for (auto &&desc : _inferRequests) {
-        auto &r = desc._request;
-        assert(r);
-        InputInfo::Ptr foundInput;
-        DataPtr foundOutput;
-        try {
-            // if `name` is input blob
-            if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
-                r->SetBlob(name, data, foundInput->getPreProcess());
-            }
-        } catch (const InferenceEngine::NotFound&) {}
+void HeteroInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& blob) {
+    auto itRequest = _subRequestFromBlobName.find(name);
+    if (itRequest == _subRequestFromBlobName.end()) {
+        IE_THROW() << "There is no infer requests binded to blob with name: " << name;
     }
+    itRequest->second->SetBlob(name, blob);
+}
+
+InferenceEngine::Blob::Ptr HeteroInferRequest::GetBlob(const std::string& name) {
+    auto itRequest = _subRequestFromBlobName.find(name);
+    if (itRequest == _subRequestFromBlobName.end()) {
+        IE_THROW() << "There is no infer requests binded to blob with name: " << name;
+    }
+    return itRequest->second->GetBlob(name);
+}
+
+void HeteroInferRequest::SetBlob(const std::string& name, const Blob::Ptr& blob, const PreProcessInfo& info) {
+    auto itRequest = _subRequestFromBlobName.find(name);
+    if (itRequest == _subRequestFromBlobName.end()) {
+        IE_THROW() << "There is no infer requests binded to blob with name: " << name;
+    }
+    itRequest->second->SetBlob(name, blob, info);
+}
+
+const InferenceEngine::PreProcessInfo& HeteroInferRequest::GetPreProcess(const std::string& name) const {
+    auto itRequest = _subRequestFromBlobName.find(name);
+    if (itRequest == _subRequestFromBlobName.end()) {
+        IE_THROW() << "There is no infer requests binded to blob with name: " << name;
+    }
+    return itRequest->second->GetPreProcess(name);
 }
 
 void HeteroInferRequest::InferImpl() {
-    updateInOutIfNeeded();
     for (auto &&desc : _inferRequests) {
         OV_ITT_SCOPED_TASK(itt::domains::HeteroPlugin, desc._profilingTask);
         auto &r = desc._request;
@@ -100,41 +117,4 @@ std::map<std::string, InferenceEngineProfileInfo> HeteroInferRequest::GetPerform
         }
     }
     return perfMap;
-}
-
-void HeteroInferRequest::updateInOutIfNeeded() {
-    OV_ITT_SCOPED_TASK(itt::domains::HeteroPlugin, "updateInOutIfNeeded");
-    assert(!_inferRequests.empty());
-    for (auto &&desc : _inferRequests) {
-        auto &r = desc._request;
-        assert(r);
-        for (auto&& inputInfo : desc._network->GetInputsInfo()) {
-            auto& ioname = inputInfo.first;
-            auto iti = _inputs.find(ioname);
-            if (iti != _inputs.end()) {
-                auto it = _preProcData.find(ioname);
-                if (it != _preProcData.end()) {
-                    if (it->second->getRoiBlob() != _blobs[ioname]) {
-                        r->SetBlob(ioname.c_str(), it->second->getRoiBlob());
-                        _blobs[ioname] = iti->second;
-                    }
-                } else {
-                    if (iti->second != _blobs[ioname]) {
-                        r->SetBlob(ioname.c_str(), iti->second);
-                        _blobs[ioname] = iti->second;
-                    }
-                }
-            }
-        }
-        for (auto&& outputInfo : desc._network->GetOutputsInfo()) {
-            auto& ioname = outputInfo.first;
-            auto ito = _outputs.find(ioname);
-            if (ito != _outputs.end()) {
-                if (ito->second != _blobs[ioname]) {
-                    r->SetBlob(ioname.c_str(), ito->second);
-                    _blobs[ioname] = ito->second;
-                }
-            }
-        }
-    }
 }

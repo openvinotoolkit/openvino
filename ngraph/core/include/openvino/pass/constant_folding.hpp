@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/variant.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov {
@@ -23,6 +24,25 @@ private:
     /// \brief Folds pre-calculated output tensor values to constants in case lower and
     /// upper estimations are equal. Traverses graph backwards starting from the results.
     bool pre_calculated_values_folding(const std::shared_ptr<ov::Function>& f);
+};
+
+OPENVINO_API void disable_constant_folding(const std::shared_ptr<Node>& node);
+
+OPENVINO_API void enable_constant_folding(const std::shared_ptr<Node>& node);
+
+OPENVINO_API bool constant_folding_is_disabled(const std::shared_ptr<Node>& node);
+
+class OPENVINO_API DisableConstantFolding : public VariantImpl<bool> {
+public:
+    OPENVINO_RTTI("disabled_constant_folding", "0");
+
+    DisableConstantFolding() = default;
+
+    DisableConstantFolding(const value_type& value) : VariantImpl<value_type>(value) {}
+
+    bool is_copyable() const override {
+        return false;
+    }
 };
 }  // namespace pass
 }  // namespace ov
