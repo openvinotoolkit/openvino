@@ -450,12 +450,12 @@ public:
      * @note The function supports UNICODE path
      * @param xmlConfigFile An .xml configuraion with device / plugin information
      */
-    void RegisterPluginsInRegistry(const std::map<std::string,
-            InferenceEngine::CreatePluginEngineFunc*> & static_registry) {
+    void RegisterPluginsInRegistry(
+        const std::map<std::string, InferenceEngine::CreatePluginEngineFunc*>& static_registry) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
 
-        for (const auto & plugin : static_registry) {
-            const auto & deviceName = plugin.first;
+        for (const auto& plugin : static_registry) {
+            const auto& deviceName = plugin.first;
             if (deviceName.find('.') != std::string::npos) {
                 IE_THROW() << "Device name must not contain dot '.' symbol";
             }
@@ -762,7 +762,7 @@ public:
             try {
                 ov::runtime::InferencePlugin plugin;
 
-                if (desc.pluginCreateFunc) { // static OpenVINO case
+                if (desc.pluginCreateFunc) {  // static OpenVINO case
                     std::shared_ptr<ie::IInferencePlugin> plugin_impl;
                     desc.pluginCreateFunc(plugin_impl);
                     plugin = InferencePlugin{nullptr, plugin_impl};

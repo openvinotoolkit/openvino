@@ -72,7 +72,7 @@ class Reader : public IReader {
     ReaderPtr getReaderPtr() {
         std::call_once(readFlag, [&]() {
 #    ifdef OPENVINO_STATIC_LIBRARY
-            // call libraru creator directly, since we are in the same application
+            // call library creator directly, since we are in the same application
             InferenceEngine::CreateReader(ptr);
             OPENVINO_ASSERT(ptr != nullptr, "Failed to create static version of IR v7 reader");
 #    else

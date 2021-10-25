@@ -12,11 +12,11 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES} ${HEADERS}
               VERSION_DEFINES_FOR multi_device_plugin.cpp)
 
-# TODO: fix
-# ie_add_plugin(NAME ${TARGET_NAME}
-#               DEVICE_NAME "AUTO"
-#               PSEUDO_PLUGIN
-#               DEFAULT_CONFIG "MULTI_WORK_MODE_AS_AUTO:YES")
+# TODO: add fix for this case since DEFAULT_CONFIG is not used now
+ie_add_plugin(NAME ${TARGET_NAME}
+              DEVICE_NAME "AUTO"
+              PSEUDO_PLUGIN
+              DEFAULT_CONFIG "MULTI_WORK_MODE_AS_AUTO:YES")
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine ngraph inference_engine_transformations)
 

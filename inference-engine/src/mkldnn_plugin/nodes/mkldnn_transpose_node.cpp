@@ -21,8 +21,7 @@ bool MKLDNNTransposeNode::isSupportedOperation(const std::shared_ptr<const ov::N
             return false;
         }
 
-        if (!isDynamicNgraphNode(op) && op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() !=
-                ov::op::v0::Constant::get_type_info_static()) {
+        if (!isDynamicNgraphNode(op) && op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() != ov::op::v0::Constant::get_type_info_static()) {
             errorMessage = "Constant expected as the second input for static shapes.";
             return false;
         }
@@ -39,8 +38,7 @@ MKLDNNTransposeNode::MKLDNNTransposeNode(const std::shared_ptr<ov::Node>& op, co
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    if (op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() ==
-            ov::op::v0::Constant::get_type_info_static()) {
+    if (op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() == ov::op::v0::Constant::get_type_info_static()) {
         constMap[INPUT_ORDER_IDX] = true;
         order = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(INPUT_ORDER_IDX))->cast_vector<size_t>();
 

@@ -322,12 +322,23 @@ protected:
     std::weak_ptr<ICore> _core;                  //!< A pointer to ICore interface
 };
 
+/**
+ * @private
+ */
 using CreatePluginEngineFunc = void(std::shared_ptr<InferenceEngine::IInferencePlugin>&);
 
+/**
+ * @def IE_CREATE_PLUGIN
+ * @brief Defines a name of a function creating plugin instance
+ * @ingroup ie_dev_api_plugin_api
+ */
 #ifndef IE_CREATE_PLUGIN
 #    define IE_CREATE_PLUGIN CreatePluginEngine
 #endif
 
+/**
+ * @private
+ */
 constexpr static const auto create_plugin_function = OV_PP_TOSTRING(IE_CREATE_PLUGIN);
 
 namespace details {
@@ -341,7 +352,7 @@ public:
 
 /**
  * @def IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version)
- * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
+ * @brief Defines the exported `IE_CREATE_PLUGIN` function which is used to create a plugin instance
  * @ingroup ie_dev_api_plugin_api
  */
 #define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                     \
@@ -364,6 +375,6 @@ public:
  * @brief Declares the exported `CreatePluginEngine` function which is used to create a plugin instance
  * @ingroup ie_dev_api_plugin_api
  */
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION_DECLARATION(_IE_CREATE_PLUGIN_FUNC)                                     \
-    INFERENCE_PLUGIN_API(void)                                                                        \
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION_DECLARATION(_IE_CREATE_PLUGIN_FUNC) \
+    INFERENCE_PLUGIN_API(void)                                               \
     _IE_CREATE_PLUGIN_FUNC(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) noexcept(false);

@@ -132,6 +132,11 @@ set_ie_threading_interface_for(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE fluid openvino::itt openvino::util)
 
+if(BUILD_SHARED_LIBS)
+    # for static linkage the dependencies are in opposite order
+    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
+endif()
+
 target_include_directories(${TARGET_NAME} INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}"
                                                     $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
 
