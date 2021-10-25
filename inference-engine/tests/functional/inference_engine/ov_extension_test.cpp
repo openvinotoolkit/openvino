@@ -185,3 +185,8 @@ TEST_F(OVExtensionTests, ReshapeIRWithNewExtensionPtr) {
     core.add_extension(std::make_shared<ov::OpExtension<CustomNewIdentity>>());
     test();
 }
+
+TEST_F(OVExtensionTests, ReshapeIRWithNewExtension) {
+    core.add_extension(ov::OpExtension<CustomNewIdentity>());
+    test();
+}

@@ -109,6 +109,14 @@ public:
     void add_extension(const std::wstring& library_path);
 #endif
 
+    /// @brief Registers extension
+    /// @param extension Extension class which is inherited from ov::BaseExtension class
+    template <class T, typename std::enable_if<std::is_base_of<ov::BaseExtension, T>::value, bool>::type = true>
+    void add_extension(const T& extension) {
+        std::shared_ptr<ov::BaseExtension> ext = std::make_shared<T>(extension);
+        add_extension(ext);
+    }
+
 protected:
     virtual bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const;
     virtual InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const;

@@ -172,7 +172,7 @@ public:
     void add_extension(const std::vector<ov::Extension>& extensions);
     /**
      * @brief Registers extension
-     * @param extension Base extension
+     * @param extension Pointer to base extension
      */
     void add_extension(const std::shared_ptr<ov::BaseExtension>& extension);
     /**
@@ -180,6 +180,16 @@ public:
      * @param extensions Vector of loaded base extensions
      */
     void add_extension(const std::vector<std::shared_ptr<ov::BaseExtension>>& extensions);
+
+    /**
+     * @brief Registers extension
+     * @param extension Extension class which is inherited from ov::BaseExtension class
+     */
+    template <class T, typename std::enable_if<std::is_base_of<ov::BaseExtension, T>::value, bool>::type = true>
+    void add_extension(const T& extension) {
+        std::shared_ptr<ov::BaseExtension> ext = std::make_shared<T>(extension);
+        add_extension(ext);
+    }
 
     /**
      * @brief Creates an executable network from a previously exported network
