@@ -28,8 +28,10 @@ InputModelONNX::InputModelONNX(std::istream& model_stream)
 InputModelONNX::InputModelONNX(std::istream& model_stream, const std::string& path)
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path)} {}
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 InputModelONNX::InputModelONNX(std::istream& model_stream, const std::wstring& path)
     : InputModelONNX(model_stream, ov::util::wstring_to_string(path)) {}
+#endif
 
 std::vector<Place::Ptr> InputModelONNX::get_inputs() const {
     const auto& inputs = m_editor->model_inputs();
