@@ -164,6 +164,14 @@ XLinkError_t XLinkWriteData(streamId_t streamId, const uint8_t* buffer, int size
 XLinkError_t XLinkReadData(streamId_t streamId, streamPacketDesc_t** packet);
 
 /**
+ * @brief Releases specific data from stream
+ * @param[in] streamId – stream link Id obtained from XLinkOpenStream call
+ * @param[in] packetId – ID of the package to be released from the stream
+ * @return Status code of the operation: X_LINK_SUCCESS (0) for success
+ */
+XLinkError_t XLinkReleaseSpecificData(streamId_t streamId, streamPacketDesc_t* packetDesc);
+
+/**
  * @brief Releases data from stream - This should be called after the data obtained from
  *  XlinkReadData is processed
  * @param[in] streamId – stream link Id obtained from XLinkOpenStream call
