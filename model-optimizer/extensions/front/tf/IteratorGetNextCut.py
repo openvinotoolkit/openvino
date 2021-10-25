@@ -30,7 +30,7 @@ class IteratorGetNextCut(FrontReplacementSubgraph):
     def find_and_replace_pattern(self, graph: Graph):
         iter_get_next_shapes = defaultdict(list)
         for iter_get_next in graph.get_op_nodes(op='IteratorGetNext'):
-            for port in iter_get_next.out_nodes().keys():
+            for port in iter_get_next.out_ports():
                 if not np_data_type_to_precision(iter_get_next.types[port]) in SUPPORTED_DATA_TYPES:
                     raise Error("In IteratorGetNext node '{}' data type '{}' is not supported".format(
                         iter_get_next.name, iter_get_next.types[port]))
