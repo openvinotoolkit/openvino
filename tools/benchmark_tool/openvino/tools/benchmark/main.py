@@ -334,7 +334,10 @@ def run(args):
         paths_to_input = list()
         if args.paths_to_input:
             for path in args.paths_to_input:
-                paths_to_input.append(os.path.abspath(*path) if args.paths_to_input else None)
+                if next(iter(path), "").startswith("<"):
+                    paths_to_input.append(*path if args.paths_to_input else None)
+                else:
+                    paths_to_input.append(os.path.abspath(*path) if args.paths_to_input else None)
         set_inputs(paths_to_input, batch_size, app_inputs_info, infer_requests)
 
         if statistics:

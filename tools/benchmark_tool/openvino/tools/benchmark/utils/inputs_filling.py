@@ -3,11 +3,16 @@
 
 import os
 import cv2
+import re
 import numpy as np
 from glob import glob
+from collections import defaultdict
+from pathlib import Path
+from itertools import chain
 
 from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger
+
 
 def set_inputs(paths_to_input, batch_size, app_input_info, requests):
   requests_input_data = get_inputs(paths_to_input, batch_size, app_input_info, requests)
@@ -18,7 +23,11 @@ def set_inputs(paths_to_input, batch_size, app_input_info, requests):
             raise Exception(f"No input with name {k} found!")
         inputs[k].buffer[:] = v
 
+
 def get_inputs(paths_to_input, batch_size, app_input_info, requests):
+    input_file_mapping = parse_paths_to_input(paths_to_input)
+    check_input_file_mapping(input_file_mapping, app_input_info)
+
     input_image_sizes = {}
     for key in sorted(app_input_info.keys()):
         info = app_input_info[key]
@@ -31,7 +40,7 @@ def get_inputs(paths_to_input, batch_size, app_input_info, requests):
     image_files = list()
     binary_files = list()
 
-    if paths_to_input:
+    if paths_to_input and not input_file_mapping:
         image_files = get_files_by_extensions(paths_to_input, IMAGE_EXTENSIONS)
         image_files.sort()
         binary_files = get_files_by_extensions(paths_to_input, BINARY_EXTENSIONS)
@@ -76,13 +85,23 @@ def get_inputs(paths_to_input, batch_size, app_input_info, requests):
             info = app_input_info[key]
             if info.is_image:
                 # input is image
+                if key in input_file_mapping:
+                    input_data[key] = fill_blob_with_image(input_file_mapping[key], request_id, batch_size,
+                                                           keys.index(key), len(keys), info, from_map=True)
+                    continue
+
                 if len(image_files) > 0:
                     input_data[key] = fill_blob_with_image(image_files, request_id, batch_size, keys.index(key),
                                                            len(keys), info)
                     continue
 
             # input is binary
-            if len(binary_files):
+            if len(binary_files) or key in input_file_mapping:
+                if key in input_file_mapping:
+                    input_data[key] = fill_blob_with_binary(input_file_mapping[key], request_id, batch_size,
+                                                           keys.index(key), len(keys), info, from_map=True)
+                    continue
+
                 input_data[key] = fill_blob_with_binary(binary_files, request_id, batch_size, keys.index(key),
                                                         len(keys), info)
                 continue
@@ -122,10 +141,13 @@ def get_files_by_extensions(paths_to_input, extensions):
 
     return input_files
 
-def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_size, info):
+def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_size, info, from_map=False):
     shape = info.shape
     images = np.ndarray(shape)
-    image_index = request_id * batch_size * input_size + input_id
+    if from_map:
+        image_index = request_id * batch_size
+    else:
+        image_index = request_id * batch_size * input_size + input_id
 
     scale_mean = (not np.array_equal(info.scale, (1.0, 1.0, 1.0)) or not np.array_equal(info.mean, (0.0, 0.0, 0.0)))
 
@@ -154,7 +176,10 @@ def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_si
 
         images[b] = image
 
-        image_index += input_size
+        if from_map:
+            image_index += 1
+        else:
+            image_index += input_size
     return images
 
 def get_dtype(precision):
@@ -173,12 +198,15 @@ def get_dtype(precision):
         return format_map[precision]
     raise Exception("Can't find data type for precision: " + precision)
 
-def fill_blob_with_binary(binary_paths, request_id, batch_size, input_id, input_size, info):
+def fill_blob_with_binary(binary_paths, request_id, batch_size, input_id, input_size, info, from_map=False):
     binaries = np.ndarray(info.shape)
     shape = info.shape.copy()
     if 'N' in info.layout:
         shape[info.layout.index('N')] = 1
-    binary_index = request_id * batch_size * input_size + input_id
+    if from_map:
+        binary_index = request_id * batch_size
+    else:
+        binary_index = request_id * batch_size * input_size + input_id
     dtype = get_dtype(info.precision)[0]
     for b in range(batch_size):
         binary_index %= len(binary_paths)
@@ -214,3 +242,71 @@ def fill_blob_with_random(layer):
     if layer.shape:
         return rs.uniform(rand_min, rand_max, layer.shape).astype(dtype)
     return (dtype)(rs.uniform(rand_min, rand_max))
+
+
+def parse_paths_to_input(paths_to_inputs):
+    input_dicts_list = [parse_path(path) for path in paths_to_inputs]
+    inputs = defaultdict(list)
+    for input_dict in input_dicts_list:
+        for input_name, input_files in input_dict.items():
+            inputs[input_name] += input_files
+    return {input_: files for input_, files in inputs.items() if files}
+
+
+def parse_path(path):
+    """
+    Parse "<name1>:file1,file2,<name2>:file3" into a dict
+    """
+    inputs = re.findall(r"<(\w[\w.]*)>:", path)
+    input_files = [file for file in re.split(r"<\w[\w.]*>:", path) if file]
+    return {
+        input_: files.strip(",").split(",") for input_, files in zip(inputs, input_files)
+    }
+
+
+def check_input_file_mapping(input_file_mapping, app_input_info):
+    check_inputs(app_input_info, input_file_mapping)
+    check_is_files_exist(input_file_mapping)
+    check_files_extensions(app_input_info, input_file_mapping)
+
+
+def check_inputs(app_input_info, input_file_mapping):
+    wrong_inputs = [
+        input_ for input_ in input_file_mapping if input_ not in app_input_info
+    ]
+    if wrong_inputs:
+        raise Exception(
+            f"Wrong input mapping! Cannot find inputs: {wrong_inputs}. "
+            f"Available inputs: {list(app_input_info)}. "
+            "Please check `-i` input data"
+        )
+
+
+def check_is_files_exist(input_file_mapping):
+    not_files = [
+        file for file in chain.from_iterable(input_file_mapping.values()) if not Path(file).is_file()
+    ]
+    if not_files:
+        not_files = ",\n".join(not_files)
+        raise Exception(
+            f"Inputs are not files or does not exist!\n {not_files}"
+        )
+
+
+def check_files_extensions(app_input_info, input_file_mapping):
+    unsupported_files = []
+    for input_, files in input_file_mapping.items():
+        info = app_input_info[input_]
+
+        proper_extentions = IMAGE_EXTENSIONS if info.is_image else BINARY_EXTENSIONS
+        unsupported_files.append(
+            "\n".join(
+                [file for file in files if Path(file).suffix.upper().strip(".") not in proper_extentions]
+            )
+        )
+    if unsupported_files:
+        unsupported_files = "\n".join(unsupported_files)
+        raise Exception(
+            f"This files has unsupported extensions: {unsupported_files}.\n"
+            f"Supported extentions:\nImages: {IMAGE_EXTENSIONS}\nBinary: {BINARY_EXTENSIONS}"
+        )
