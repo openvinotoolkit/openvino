@@ -136,3 +136,11 @@ size_t MKLDNNExtensionUtils::getMemSizeForDnnlDesc(mkldnn::memory::desc desc) {
     size += offset0 * sizeOfDataType(desc.data_type());
     return size;
 }
+
+std::shared_ptr<DnnlBlockedMemoryDesc> MKLDNNExtensionUtils::makeUndefinedDesc(const memory::desc &desc, const Shape &shape) {
+    if (desc.data.format_kind == dnnl_blocked) {
+        return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc, shape));
+    } else {
+        IE_THROW(Unexpected) << "Cannot make undefined descriptor. Only dnnl_blocked type is allowed.";
+    }
+}

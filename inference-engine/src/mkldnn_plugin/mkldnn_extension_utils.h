@@ -34,6 +34,17 @@ public:
      * @return pointer to DnnlBlockedMemoryDesc or DnnlMemoryDesc
      */
     static std::shared_ptr<DnnlMemoryDesc> makeDescriptor(const mkldnn::memory::desc &desc);
+
+    /**
+     * @brief Helper function that creates DnnlBlockedMemoryDesc from defined mkldnn::memory::desc and undefined shape.
+     * It uses desc as an basis for the new undefined one. Specifically, type, layout, precision, blocks, extra data will be preserved.
+     * @param desc mkldnn::memory::desc dnnl desc which will be used as a basis of the new descriptor
+     * @param shape a new undefined shape
+     * @return pointer to the created DnnlBlockedMemoryDesc
+     * @note Obly blocked descriptors are allowed at the moment
+     */
+
+    static std::shared_ptr<DnnlBlockedMemoryDesc> makeUndefinedDesc(const mkldnn::memory::desc &desc, const Shape& shape);
     static size_t getMemSizeForDnnlDesc(mkldnn::memory::desc desc);
 };
 
