@@ -51,9 +51,9 @@ target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt)
 
 add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
-# Create shared library
+# Create library
 
-add_library(${TARGET_NAME} SHARED
+add_library(${TARGET_NAME}
     ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
     $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
