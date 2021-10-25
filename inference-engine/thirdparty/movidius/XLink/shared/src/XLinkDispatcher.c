@@ -608,7 +608,11 @@ static void* eventSchedulerRun(void* ctx)
         return NULL;
     }
 
-    XLINK_RET_ERR_IF(pthread_mutex_init(&(curr->queueMutex), NULL) != 0, NULL);
+    if (pthread_mutex_init(&(curr->queueMutex), NULL) != 0) {
+        pthread_attr_destroy(&attr);
+        mvLog(MVLOG_ERROR,"pthread_mutex_init error");
+        return NULL;
+    }
 
 #ifndef __PC__
     if (pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED) != 0) {
