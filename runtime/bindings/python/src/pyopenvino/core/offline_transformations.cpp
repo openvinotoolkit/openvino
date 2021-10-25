@@ -18,7 +18,9 @@
 namespace py = pybind11;
 
 void regmodule_offline_transformations(py::module m) {
-    py::module m_offline_transformations = m.def_submodule("offline_transformations", "Offline transformations module");
+    // TODO: change the submodule name according to the description in 69196
+    py::module m_offline_transformations =
+        m.def_submodule("offline_transformations_pybind", "Offline transformations module");
 
     m_offline_transformations.def(
         "apply_moc_transformations",
