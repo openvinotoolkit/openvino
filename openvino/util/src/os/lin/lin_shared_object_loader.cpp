@@ -16,13 +16,20 @@ std::shared_ptr<void> load_shared_object(const char* path) {
     auto shared_object = std::shared_ptr<void>{dlopen(path, RTLD_NOW), [](void* shared_object) {
                                                    if (shared_object != nullptr) {
                                                        if (0 != dlclose(shared_object)) {
-                                                           std::cerr << "dlclose failed: " << dlerror() << std::endl;
+                                                           std::cerr << "dlclose failed";
+                                                           if (auto error = dlerror()) {
+                                                               std::cerr << ": " << error;
+                                                           }
+                                                           std::cerr << std::endl;
                                                        }
                                                    }
                                                }};
     if (!shared_object) {
         std::stringstream ss;
-        ss << "Cannot load library '" << path << "': " << dlerror();
+        ss << "Cannot load library '" << path;
+        if (auto error = dlerror()) {
+            ss << ": " << error;
+        }
         throw std::runtime_error(ss.str());
     }
     return shared_object;
