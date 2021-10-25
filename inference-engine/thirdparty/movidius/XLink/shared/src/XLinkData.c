@@ -183,6 +183,21 @@ XLinkError_t XLinkReleaseData(streamId_t streamId)
     return X_LINK_SUCCESS;
 }
 
+XLinkError_t XLinkReleaseSpecificData(streamId_t streamId, streamPacketDesc_t* packetDesc)
+{
+    xLinkDesc_t* link = NULL;
+    XLINK_RET_IF(getLinkByStreamId(streamId, &link));
+    streamId = EXTRACT_STREAM_ID(streamId);
+
+    xLinkEvent_t event = {0};
+    XLINK_INIT_EVENT(event, streamId, XLINK_READ_REL_SPEC_REQ,
+        0, (void*)packetDesc->data, link->deviceHandle);
+
+    XLINK_RET_IF(addEvent(&event));
+
+    return X_LINK_SUCCESS;
+}
+
 XLinkError_t XLinkGetFillLevel(streamId_t streamId, int isRemote, int* fillLevel)
 {
     xLinkDesc_t* link = NULL;
