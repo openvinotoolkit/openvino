@@ -16,13 +16,14 @@ using namespace InferenceEngine;
 bool MKLDNNGatherNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
-                ov::op::v7::Gather::type_info)) {
+                ov::op::v7::Gather::get_type_info_static())) {
             errorMessage = "Not supported Gather operation version. CPU plug-in supports only 7 version.";
             return false;
         }
 
-        if (!isDynamicNgraphNode(op) && op->get_input_node_shared_ptr(GATHER_AXIS)->get_type_info() != ov::op::v0::Constant::type_info) {
-            errorMessage = "Only Constant operation on 'axis' input is supported for static node.";
+        if (op->get_input_node_shared_ptr(GATHER_AXIS)->get_type_info() != ov::op::v0::Constant::get_type_info_static()) {
+            // TODO: Support parameterized Axis input for dynamic shapes.
+            errorMessage = "Only Constant operation on 'axis' input is supported.";
             return false;
         }
     } catch (...) {
@@ -54,7 +55,7 @@ MKLDNNGatherNode::MKLDNNGatherNode(const std::shared_ptr<ov::Node>& op, const mk
     if (batchDims < 0 || batchDims >= std::min(static_cast<int>(dataSrcRank), static_cast<int>(idxRank)))
         IE_THROW() << errorPrefix << "has incorrect batch_dims " << batchDims << "!";
 
-    if (op->get_input_node_shared_ptr(GATHER_AXIS)->get_type_info() == ov::op::v0::Constant::type_info) {
+    if (op->get_input_node_shared_ptr(GATHER_AXIS)->get_type_info() == ov::op::v0::Constant::get_type_info_static()) {
         isAxisInputConst = true;
         axis = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_AXIS))->cast_vector<int>()[0];
         if (axis < 0)
