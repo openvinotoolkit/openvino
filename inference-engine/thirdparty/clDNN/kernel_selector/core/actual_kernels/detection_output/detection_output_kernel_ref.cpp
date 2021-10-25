@@ -133,6 +133,21 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
     return dispatchData;
 }
 
+bool DetectionOutputKernelRef::Validate(const Params& p, const optional_params& o) const {
+    const detection_output_params& params = static_cast<const detection_output_params&>(p);
+
+    const auto input = params.inputs[0];
+    const auto batches = input.Batch().v;
+
+    const bool bSupportedBatch = batches <= params.engineInfo.maxWorkGroupSize;
+
+    if (!bSupportedBatch) {
+        return false;
+    }
+
+    return true;
+}
+
 void DetectionOutputKernelRef::SetKernelArguments(const detection_output_params& params, clKernelData& kernel, size_t idx) const {
     if (params.detectOutParams.decrease_label_id) {
         if (idx == 0) {
@@ -181,6 +196,9 @@ void DetectionOutputKernelRef::SetKernelArguments(const detection_output_params&
 
 KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     assert(params.GetType() == KernelType::DETECTION_OUTPUT && options.GetType() == KernelType::DETECTION_OUTPUT);
+
+    if (!Validate(params, options))
+        return {};
 
     constexpr size_t kKernelsNum = 4;
     KernelData kd = KernelData::Default<detection_output_params>(params, kKernelsNum);
