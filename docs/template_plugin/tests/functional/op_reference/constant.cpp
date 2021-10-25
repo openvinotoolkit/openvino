@@ -41,7 +41,6 @@ public:
     void SetUp() override {
         auto params = GetParam();
         function = CreateFunction(params);
-        inputData = {};
         refOutData = {params.refData};
     }
 
@@ -71,7 +70,6 @@ public:
     void SetUp() override {
         auto params = GetParam();
         function = CreateFunction(params);
-        inputData = {};
         refOutData = {params.refData, params.refData};
     }
 
@@ -88,7 +86,6 @@ public:
     void SetUp() override {
         auto params = GetParam();
         function = CreateFunction(params);
-        inputData = {};
         refOutData = {params.refData};
     }
 
@@ -104,7 +101,6 @@ public:
     void SetUp() override {
         auto params = GetParam();
         function = CreateFunction(params);
-        inputData = {};
         refOutData = {params.refData};
     }
 
@@ -114,7 +110,7 @@ private:
             params.inType,
             params.inputShape.to_shape(),
             std::vector<std::string>{std::to_string(*reinterpret_cast<int*>(params.inputData.data()))});
-        return std::make_shared<Function>(A, ParameterVector {});
+        return std::make_shared<Function>(A, ParameterVector{});
     }
 };
 
@@ -123,7 +119,6 @@ public:
     void SetUp() override {
         auto params = GetParam();
         function = CreateFunction(params);
-        inputData = {};
         refOutData = {params.refData};
     }
 
