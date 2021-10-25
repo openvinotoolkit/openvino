@@ -703,9 +703,7 @@ std::map<std::string, std::vector<Buffer>> prepareCachedBlobs(
             }
             slog::info << "Network input '" << input.first << "' precision " << input.second.precision
                        << ", dimensions (" << input.second.layout << "): ";
-            for (const auto& i : input.second.tensorShape) {
-                slog::info << i << " ";
-            }
+            slog::info << getShapeString(input.second.tensorShape);
             slog::info << "(dynamic: " << input.second.partialShape << ")" << slog::endl;
         }
     }
@@ -766,14 +764,7 @@ std::map<std::string, std::vector<Buffer>> prepareCachedBlobs(
         for (size_t i = 0; i < filesToBeUsed; ++i) {
             auto inputInfo = app_inputs_info[i % app_inputs_info.size()].at(input_name);
                                                
-            slog::info << files.second[i] << " with tensor shape " <<  "["
-                       << std::accumulate(inputInfo.tensorShape.begin(),
-                                          inputInfo.tensorShape.end(),
-                                             std::string(""),
-                                             [](std::string str, size_t x) {
-                return str.empty() ? std::to_string(x) : str + "," + std::to_string(x);
-                                             })
-                          << "]" << slog::endl;
+            slog::info << files.second[i] << " with tensor shape " << getShapeString(inputInfo.tensorShape) << slog::endl;
         }
     }
 

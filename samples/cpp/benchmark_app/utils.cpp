@@ -189,6 +189,19 @@ std::string getShapesString(const InferenceEngine::ICNNNetwork::InputShapes& sha
     return ss.str();
 }
 
+
+std::string getShapeString(const InferenceEngine::SizeVector& shape) {
+    std::stringstream ss;
+    ss << "[";
+    for (size_t i = 0; i < shape.size(); ++i) {
+        if (i > 0)
+            ss << ", ";
+        ss << shape.at(i);
+    }
+    ss << "]";
+    return ss.str();
+}
+
 std::map<std::string, std::vector<float>> parseScaleOrMean(const std::string& scale_mean,
                                                            const benchmark_app::InputsInfo& inputs_info) {
     //  Format: data:[255,255,255],info[255,255,255]

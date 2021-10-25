@@ -177,7 +177,7 @@ static void next_step(const std::string additional_info = "") {
         {7, "Loading the model to the device"},
         {8, "Setting optimal runtime parameters"},
         {9, "Creating infer requests and filling input blobs with data for the first inference"},
-        {10, "Measuring performance for each of provided tensor shape"},
+        {10, "Measuring performance"},
         {11, "Dumping statistics report"}};
 
     step_id++;
@@ -191,7 +191,7 @@ static void next_step(const std::string additional_info = "") {
 template <typename T>
 T getMedianValue(std::vector<T>& vec, std::size_t percentile) {
     std::sort(vec.begin(), vec.end());
-    return vec[(vec.size() / 100) * percentile];
+    return vec[int(vec.size() / 100.0 * percentile)];
 }
 
 /**
@@ -252,8 +252,7 @@ int main(int argc, char* argv[]) {
         }
 #endif
         /** This vector stores paths to the processed images **/
-        std::vector<std::string> inputFiles;
-        auto inputFiles2 = parseInputArguments(FLAGS_i);
+        auto inputFiles = parseInputArguments(FLAGS_i);
 
         // ----------------- 2. Loading the Inference Engine
         // -----------------------------------------------------------
@@ -524,7 +523,9 @@ int main(int argc, char* argv[]) {
             // ----------------- 5. Resizing network to match image sizes and given
             // batch ----------------------------------
             next_step();
-            batchSize = cnnNetwork.getBatchSize();
+            // Only in static case
+            if (FLAGS_tensor_shape.empty())
+                batchSize = cnnNetwork.getBatchSize(); 
             // Parse input shapes if specified
             bool reshape = false;
             app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape,
@@ -549,12 +550,14 @@ int main(int argc, char* argv[]) {
                                               {{"reshape network time (ms)", duration_ms}});
             }
 
-            // use batch size according to provided layout and shapes
-            batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info[0]) : cnnNetwork.getBatchSize();
+            // use batch size according to provided layout and shapes (static case)
+            if (FLAGS_tensor_shape.empty())
+                batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info[0]) : cnnNetwork.getBatchSize();
 
             topology_name = cnnNetwork.getName();
-            slog::info << (batchSize != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize
-                       << slog::endl;
+            if (FLAGS_tensor_shape.empty())
+                slog::info << (batchSize != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize
+                           << slog::endl;
 
             // ----------------- 6. Configuring inputs and outputs
             // ----------------------------------------------------------------------
@@ -612,7 +615,12 @@ int main(int argc, char* argv[]) {
                 batchSize = 1;
             }
         }
-
+        // Check if network has dynamic shapes
+        bool isDynamic = app_inputs_info.begin()->begin()->second.partialShape.is_dynamic();
+        if (isDynamic && FLAGS_api == "sync") {
+            throw std::logic_error("Benchmarking of the model with dynamic shapes is available for asyn API only."
+                                    "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior");
+        }
         // ----------------- 8. Querying optimal runtime parameters
         // -----------------------------------------------------
         next_step();
@@ -662,8 +670,8 @@ int main(int argc, char* argv[]) {
         if ((niter > 0) && (FLAGS_api == "async")) {
             niter = ((niter + shape_options_num - 1) / shape_options_num) * shape_options_num;
             if (FLAGS_niter != niter) {
-                slog::warn << "Number of iterations was aligned by shape options number from " << FLAGS_niter << " to "
-                           << niter << " using number of input shapes " << shape_options_num << slog::endl;
+                slog::warn << "Number of iterations was aligned by tensor shape options number from " << FLAGS_niter << " to "
+                           << niter << " using number of possible input shapes " << shape_options_num << slog::endl;
             }
         }
 
@@ -706,6 +714,7 @@ int main(int argc, char* argv[]) {
         next_step();
 
         InferRequestsQueue inferRequestsQueue(exeNetwork, nireq, app_inputs_info.size());
+        // TODO: added cached remote blobs
         //if (isFlagSetInCommandLine("use_device_mem")) {
         //    if (device_name.find("GPU") == 0)
         //        ::gpu::fillRemoteBlobs(inputFiles,
@@ -720,7 +729,7 @@ int main(int argc, char* argv[]) {
         //} else {
         //    fillBlobs(inputFiles, batchSize, app_inputs_info[0], inferRequestsQueue.requests);
         //}
-        auto inputs_data = prepareCachedBlobs(inputFiles2, app_inputs_info);
+        auto inputsData = prepareCachedBlobs(inputFiles, app_inputs_info);
         // ----------------- 10. Measuring performance
         // ------------------------------------------------------------------
         size_t progressCnt = 0;
@@ -768,10 +777,12 @@ int main(int argc, char* argv[]) {
         }
         auto input = app_inputs_info[0];
         for (auto& item : input) {
-            if (item.second.partialShape.is_dynamic())
+            if (item.second.partialShape.is_dynamic()) {
+                slog::info << "Set input tensor shape to " << getShapeString(item.second.tensorShape) << slog::endl;
                 inferRequest->setShape(item.first, item.second.tensorShape);
+            }
             Blob::Ptr inputBlob = inferRequest->getBlob(item.first);
-            fillBlob(inputBlob, inputs_data.at(item.first)[0]);
+            fillBlob(inputBlob, inputsData.at(item.first)[0]);
         }
         if (FLAGS_api == "sync") {
             inferRequest->infer();
@@ -808,7 +819,7 @@ int main(int argc, char* argv[]) {
                         inferRequest->setShape(item.first, item.second.tensorShape);
                     batchSize = item.second.batch();
                     Blob::Ptr inputBlob = inferRequest->getBlob(item.first);
-                    fillBlob(inputBlob, inputs_data.at(item.first)[iteration % inputs_data.size()]);
+                    fillBlob(inputBlob, inputsData.at(item.first)[iteration % inputsData.size()]);
                 }
                 processedFramesN += batchSize;
                 if (FLAGS_api == "sync") {
@@ -845,22 +856,6 @@ int main(int argc, char* argv[]) {
         // wait the latest inference executions
         inferRequestsQueue.waitAll();
 
-        //const auto outputs = exeNetwork.GetOutputsInfo();
-        //// Touch all outputs
-        //for (auto request : inferRequestsQueue.requests) {
-        //    for (auto output : outputs) {
-        //        auto dims = request->getBlob(output.first)->getTensorDesc().getDims();
-        //        std::cout << "Acquired output blob " << output.first << " with shape: ["
-        //                  << std::accumulate(dims.begin(),
-        //                                     dims.end(),
-        //                                     std::string(""),
-        //                                     [](std::string str, size_t x) {
-        //                                         return str.empty() ? std::to_string(x) : str + "," + std::to_string(x);
-        //                                     })
-        //                  << "] (dynamic: " << output.second->getPartialShape() << ")" << '\n';
-        //    }
-        //}
-
         auto latencies = inferRequestsQueue.getLatencies();
         auto latency_groups = inferRequestsQueue.getLatencyGroups();
         for (auto& group : latency_groups) {
@@ -873,7 +868,7 @@ int main(int argc, char* argv[]) {
 
         double totalDuration = inferRequestsQueue.getDurationInMilliseconds();
         double fps =
-            (FLAGS_api == "sync") ? batchSize * 1000.0 / meanLatency : 1000.0 * processedFramesN / totalDuration;
+            (FLAGS_api == "sync") ? batchSize * 1000.0 / medianLatency : 1000.0 * processedFramesN / totalDuration;
 
         std::vector<double> meanLatencies(app_inputs_info.size());
         std::vector<double> maxLatencies(app_inputs_info.size());
@@ -946,7 +941,7 @@ int main(int argc, char* argv[]) {
         if (device_name.find("MULTI") == std::string::npos) {
             std::cout << "Latency: " << std::endl;
             if (FLAGS_latency_percentile == 50) {
-                std::cout << "\tMedian:    ";
+                std::cout << "\tMedian:  ";
             } else {
                 std::cout << "\t" << FLAGS_latency_percentile << " percentile:    ";
             }
@@ -955,15 +950,14 @@ int main(int argc, char* argv[]) {
             std::cout << "\tMax:    " << double_to_string(maxLatency) << " ms" << std::endl;
             std::cout << "\tMin:    " << double_to_string(minLatency) << " ms" << std::endl;
             if (FLAGS_pcseq) {
-                std::cout << "Latency per input shapes:" << std::endl;
+                std::cout << "Latency for each tensor shape groups:" << std::endl;
                 for (size_t i = 0; i < app_inputs_info.size(); ++i) {
                     for (auto& item : app_inputs_info[i]) {
                         std::stringstream input_shape;
                         auto shape = item.second.tensorShape;
                         std::copy(shape.begin(), shape.end() - 1, std::ostream_iterator<int>(input_shape, ","));
                         input_shape << shape.back();
-                        std::cout << "  " << item.first << " : "
-                                  << "[" << input_shape.str() << "] ";
+                        std::cout << "  " << item.first << " : " << getShapeString(item.second.tensorShape);
                     }
                     std::cout << std::endl;
                     std::cout << '\t' << "Avg:    "

@@ -35,6 +35,7 @@ std::vector<std::string> parseDevices(const std::string& device_string);
 uint32_t deviceDefaultDeviceDurationInSeconds(const std::string& device);
 std::map<std::string, std::string> parseNStreamsValuePerDevice(const std::vector<std::string>& devices,
                                                                const std::string& values_string);
+std::string getShapeString(const InferenceEngine::SizeVector& shape);
 std::string getShapesString(const benchmark_app::PartialShapes& shapes);
 std::string getShapesString(const InferenceEngine::ICNNNetwork::InputShapes& shapes);
 size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info);
@@ -168,7 +169,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                 ss << descriptor.getLayout();
                 info.layout = ss.str();
             }
-            // Update shape with batch if needed
+            // Update shape with batch if needed (only in static case)
             // Update blob shape only not affecting network shape to trigger dynamic batch size case
             if (batch_size != 0) {
                 std::size_t batch_index = info.layout.find("N");
