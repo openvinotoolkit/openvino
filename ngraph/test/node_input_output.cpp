@@ -94,7 +94,7 @@ TEST(node_input_output, output_create_const) {
 
     auto add_out_0 = add->output(0);
 
-    EXPECT_EQ(add_out_0.get_names().size(), 1);
+    EXPECT_EQ(add_out_0.get_names().size(), 0);
     EXPECT_EQ(add_out_0.get_node(), add.get());
     EXPECT_EQ(add_out_0.get_index(), 0);
     EXPECT_EQ(add_out_0.get_element_type(), element::f32);
