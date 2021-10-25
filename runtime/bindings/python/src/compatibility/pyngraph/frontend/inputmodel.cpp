@@ -382,11 +382,8 @@ void regclass_pyngraph_InputModel(py::module m) {
 
     im.def(
             "set_tensor_value",
-           /*[](ngraph::frontend::InputModel& self, py::object place, py::array& value) {
+           [](ngraph::frontend::InputModel& self, ngraph::frontend::Place::Ptr& place, py::array& value) {
                self.set_tensor_value(place, (const void*)value.data());
-           });*/
-           [](ngraph::frontend::InputModel& self, ngraph::frontend::Place::Ptr place, const void* value) {
-               return self.set_tensor_value(place, value);
            },
            py::arg("place"),
            py::arg("value"),
@@ -398,7 +395,7 @@ void regclass_pyngraph_InputModel(py::module m) {
                 place : Place
                     Model place.
 
-                value : void*
+                value : ndarray
                     New value to assign.
             )");
 }

@@ -197,15 +197,20 @@ Place::Ptr InputModelONNX::add_output(Place::Ptr place) {
     auto find_output = std::find(std::begin(outputs), std::end(outputs), name);
     auto find_input = std::find(std::begin(inputs), std::end(inputs), name);
 
+    std::cout << "add_output 1" << std::endl;
+
     if (find_input != inputs.end()) {
+        std::cout << "add_output 2" << std::endl;
         return nullptr;
     }
 
     const auto output_port = place->get_producing_port();
 
     if (find_output != outputs.end()) {
+        std::cout << "add_output 3" << std::endl;
         return place;
     } else if (const auto tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(place)) {
+        std::cout << "add_output 4" << std::endl;
         auto tensor_name = tensor->get_names()[0];
         auto output_edge = m_editor->find_output_edge(tensor_name);
         m_editor->add_output(output_edge);
@@ -213,6 +218,7 @@ Place::Ptr InputModelONNX::add_output(Place::Ptr place) {
         NGRAPH_CHECK(onnx_output_edge, "Non-onnx output place was passed.");
         m_editor->add_output(onnx_output_edge->get_output_edge());
     } else {
+        std::cout << "add_output 5" << std::endl;
         return nullptr;
     }
 
@@ -283,26 +289,16 @@ void InputModelONNX::set_tensor_value(Place::Ptr place, const void* value) {
     if (const auto var_place = std::dynamic_pointer_cast<PlaceTensorONNX>(place)) {
         std::cout << "found  PlaceTensorONNX" << std::endl;
         auto name = place->get_names().at(0);
+        std::cout << name << std::endl;
         auto p_shape = m_editor->get_tensor_shape(name);
         auto el_type = m_editor->get_element_type(name);
-        //auto constant = ngraph::op::Constant::create(el_type, p_shape.to_shape(), value);
-        //constant->set_friendly_name(name);
+
         std::shared_ptr<ngraph::op::Constant> constant = ngraph::op::Constant::create(el_type, p_shape.to_shape(), value);
+        //m_editor->serialize("set_tensor_value_graph0.onnx");
         constant->set_friendly_name(name);
         map[name] = constant;
         m_editor->set_input_values(map);
+
+        //m_editor->serialize("set_tensor_value_graph.onnx");
     }
-
-
-    /*
-    auto tensor_place = pdpd::castToTensorPlace(place);
-    auto p_shape = tensor_place->get_partial_shape();
-    auto p_shape1 = place_type->get_source_tensor
-    place_type->
-    auto type = tensor_place->get_element_type();
-    auto constant = opset7::Constant::create(type, p_shape.to_shape(), value);
-    auto name = tensor_place->get_names()[0];
-    constant->set_friendly_name(name);
-    m_tensor_values[name] = constant;*/
-
 }

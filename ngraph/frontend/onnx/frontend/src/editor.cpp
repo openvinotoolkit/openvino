@@ -82,32 +82,6 @@ void modify_input_type(ValueInfoProto& onnx_input, const element::Type_t elem_ty
     }
 }
 
-element::Type_t get_input_element_type(ValueInfoProto& onnx_input) {
-    if (!onnx_input.has_type()) {
-        throw ngraph_error("The input is malformed - it doesn't contain the 'type' field. Cannot change the "
-                           "data type. Input name: " +
-                           onnx_input.name());
-    }
-
-    auto* type_proto = onnx_input.mutable_type();
-    if (!type_proto->has_tensor_type()) {
-        throw ngraph_error("The input is malformed - it doesn't contain the 'tensor_type' field. Cannot "
-                           "change the data type. Input name: " +
-                           onnx_input.name());
-    }
-
-    const auto* tensor_type = type_proto->mutable_tensor_type();
-    const auto element_type = tensor_type->elem_type();
-
-    /*if (!onnx_common::is_supported_ng_type(onnx_common::onnx_to_ng_data_type(element_type))) {
-        throw ngraph_error("The input type for input '" + onnx_input.name() + "' cannot be set to: " +
-                           element::Type(element_type).get_type_name() + ". This type is not allowed in ONNX.");
-    }*/
-
-    //return onnx_common::ng_to_onnx_data_type(element_type);
-    return ngraph::onnx_import::common::get_ngraph_element_type(element_type);
-}
-
 void add_dim_to_onnx_shape(const Dimension& dim, ONNX_NAMESPACE::TensorShapeProto& onnx_shape) {
     auto* new_dim = onnx_shape.add_dim();
     if (dim.is_static()) {
@@ -178,9 +152,11 @@ void modify_initializer(TensorProto& initializer,
     const auto data_size_in_bytes =
         shape_size(values->get_shape()) * onnx_common::get_onnx_data_size(initializer.data_type());
     initializer.set_raw_data(values->get_data_ptr(), data_size_in_bytes);
+    std::cout << "data written: " << name << std::endl;
 
     // update input with type and shape of initializer
     if (input) {
+        std::cout << "if (input): " << name << std::endl;
         auto tensor_type = input->mutable_type()->mutable_tensor_type();
         TensorShapeProto shape;
         for (int i = 0; i < initializer.dims_size(); ++i) {
@@ -287,7 +263,19 @@ element::Type_t onnx_editor::ONNXModelEditor::get_element_type(const std::string
     auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
     auto* onnx_input = find_graph_input(*onnx_graph, tensor_name);
 
-    return get_input_element_type(*onnx_input);
+    if (onnx_input != nullptr) {
+        auto* type_proto = onnx_input->mutable_type();
+        if (!type_proto->has_tensor_type()) {
+            throw ngraph_error("The input is malformed - it doesn't contain the 'tensor_type' field. Cannot "
+                            "change the data type. Input name: " +
+                            onnx_input->name());
+        }
+        auto* tensor_type = type_proto->mutable_tensor_type();
+        auto type = tensor_type->elem_type();
+        return ngraph::onnx_import::common::get_ngraph_element_type(type);
+    } else {
+        throw ngraph_error("The tensor: " + tensor_name + " was not found in the input graph.");
+    }
 }
 
 void onnx_editor::ONNXModelEditor::set_input_shapes(const std::map<std::string, ngraph::PartialShape>& input_shapes) {
@@ -430,6 +418,8 @@ void onnx_editor::ONNXModelEditor::set_input_values(
         auto& name = input.first;
         auto& values = input.second;
 
+        std::cout << "set_input_values: " << name << std::endl;
+
         auto onnx_input = find_graph_input(*onnx_graph, name);
         auto onnx_initializer = find_graph_initializer(*onnx_graph, name);
 
@@ -439,6 +429,7 @@ void onnx_editor::ONNXModelEditor::set_input_values(
         }
 
         if (!onnx_initializer) {
+            std::cout << "add_initializer: " << name << std::endl;
             onnx_initializer = onnx_graph->add_initializer();
         }
 

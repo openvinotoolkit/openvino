@@ -5,6 +5,7 @@ import os
 import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_tensor_value_info
+import numpy as np
 from ngraph import PartialShape
 from ngraph.frontend import FrontEndManager
 
@@ -1161,25 +1162,17 @@ def test_set_tensor_value():
     model = fe.load("input_model.onnx")
     assert model
 
-    data = 5
+    shape = (2, 2)
+    ones_arr = np.ones(shape, np.float)
 
-    orig_place = model.get_place_by_tensor_name(tensorName="in1")
-    out4_tensor = model.get_place_by_tensor_name(tensorName="out4")
-    place1 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
-    place2 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=1)
-    place3 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
-    #model.extract_subgraph(inputs=[place1, place2], outputs=[place3])
+    place1 = model.get_place_by_tensor_name(tensorName="in1")
+    place2 = model.get_place_by_tensor_name(tensorName="in2")
+    assert not place1.is_equal_data(place2)
 
-    add_out_tensor = model.get_place_by_tensor_name(tensorName="add_out")
-    place4 = add_out_tensor.get_consuming_operations(outputPortIndex=1)
+    model.set_tensor_value(place1, ones_arr)
+    model.set_tensor_value(place2, ones_arr)
 
-    out4_tensor = model.get_place_by_tensor_name(tensorName="out4")
-    place1 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
-
-    place = model.get_place_by_tensor_name(tensorName="out4")
-    #place = model.get_place_by_operation_name(operationName="split1")
-    #place = model.get_place_by_tensor_name(tensorName="add_out").get_output_port(inputPortIndex=0)
-    model.set_tensor_value(orig_place, None)
+    assert place1.is_equal_data(place2)
 
     #in_names = [place.get_names()[0] for place in model.get_inputs()]
     #assert in_names == ["add_out", "in3"]
