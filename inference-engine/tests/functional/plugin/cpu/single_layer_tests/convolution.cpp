@@ -15,6 +15,8 @@ using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
 using LayerTestsDefinitions::convSpecificParams;
+using ShapesDefenition = std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>;
+
 typedef std::tuple<
         convSpecificParams,
         InferenceEngine::Precision,     // Net precision
@@ -22,7 +24,7 @@ typedef std::tuple<
         InferenceEngine::Precision,     // Output precision
         InferenceEngine::Layout,        // Input layout
         InferenceEngine::Layout,        // Output layout
-        std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>, // Input shapes
+        ShapesDefenition, // Input shapes
         LayerTestsUtils::TargetDevice   // Device name
 > convLayerTestParamsSet;
 
@@ -46,7 +48,7 @@ public:
         InferenceEngine::Precision netPrecision;
         InferenceEngine::Precision inPrc, outPrc;
         InferenceEngine::Layout inLayout, outLayout;
-        std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> inputShapes;
+        ShapesDefenition inputShapes;
         std::string targetDevice;
         std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = basicParamsSet;
         ngraph::op::PadType padType;
@@ -137,7 +139,7 @@ protected:
             isBias = (postOpMgrPtr->getFusedOpsNames() == "Add(PerChannel)" && selectedType != "jit_avx512_winograd");
 
         convSpecificParams convParams;
-        std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> inputShapes;
+        ShapesDefenition inputShapes;
         auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
         std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = basicParamsSet;
 
@@ -239,7 +241,7 @@ const std::vector<SizeVector> strides2d = { {1, 1}, {2, 2} };
 const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0}, {1, 1} };
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
 const std::vector<SizeVector> dilations2d = { {1, 1}, {2, 2} };
-std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inputShapes2d = {
+std::vector<ShapesDefenition> inputShapes2d = {
         {{}, {{{ 1, 64, 7, 7 }}}},
         {{}, {{{ 1, 67, 7, 7 }}}},
         {
@@ -261,7 +263,7 @@ std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector
             }
         }
 };
-std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inputShapesPlain2Blocked2d = {
+std::vector<ShapesDefenition> inputShapesPlain2Blocked2d = {
         {{}, {{{ 1, 1, 7, 7 }}}},
         {{}, {{{ 1, 2, 7, 7 }}}},
         {{}, {{{ 1, 3, 7, 7 }}}},
@@ -291,7 +293,7 @@ const std::vector<SizeVector> strides3d = { {1, 1, 1}, {2, 2, 2} };
 const std::vector<std::vector<ptrdiff_t>> padBegins3d = { {0, 0, 0}, {1, 1, 1} };
 const std::vector<std::vector<ptrdiff_t>> padEnds3d = { {0, 0, 0} };
 const std::vector<SizeVector> dilations3d = { {1, 1, 1}, {2, 2, 2} };
-std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inputShapes3d = {
+std::vector<ShapesDefenition> inputShapes3d = {
         {{}, {{{ 1, 64, 7, 7, 7 }}}},
         {{}, {{{ 1, 67, 7, 7, 7 }}}},
         {
@@ -313,7 +315,7 @@ std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector
             }
         }
 };
-std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inputShapesPlain2Blocked3d = {
+std::vector<ShapesDefenition> inputShapesPlain2Blocked3d = {
         {{}, {{{ 1, 1, 7, 7, 7 }}}},
         {{}, {{{ 1, 2, 7, 7, 7 }}}},
         {{}, {{{ 1, 3, 7, 7, 7 }}}},
@@ -355,7 +357,7 @@ const std::vector<CPUSpecificParams> CPUParams_GEMM_2D = {
         conv_gemm_2D_nspc
 };
 
-std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesGemm2D = {
+std::vector<ShapesDefenition> inShapesGemm2D = {
         {{}, {{{ 2, 12, 7, 7 }}}},
         {
             { //dynamic shape
@@ -432,7 +434,7 @@ const std::vector<CPUSpecificParams> CPUParams_GEMM_3D = {
         conv_gemm_3D_nspc
 };
 
-std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesGemm3D = {
+std::vector<ShapesDefenition> inShapesGemm3D = {
         {{}, {{{ 2, 12, 7, 7, 7 }}}},
         {
             { //dynamic shape
@@ -796,7 +798,7 @@ const std::vector<CPUSpecificParams> CPUParams_1D = {
         conv_avx512_1D
 };
 
-std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes1D = {
+std::vector<ShapesDefenition> inShapes1D = {
         {{}, {{{ 2, 64, 7 }}}},
         {
             { //dynamic shape
@@ -926,7 +928,7 @@ const auto convParams_2D = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
-std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesWinograd = {
+std::vector<ShapesDefenition> inShapesWinograd = {
         {{}, {{{ 1, 16, 10, 10 }}}},
         {
             { //dynamic shape
