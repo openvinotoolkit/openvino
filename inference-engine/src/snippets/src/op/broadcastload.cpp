@@ -11,8 +11,6 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(snippets::op::BroadcastLoad, "BroadcastLoad", 0);
-
 snippets::op::BroadcastLoad::BroadcastLoad(const Output<Node>& x, Shape shape)
 : BroadcastMove(x, shape), broadcast_info(x.get_shape().size(), 0) {
     constructor_validate_and_infer_types();
