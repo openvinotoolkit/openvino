@@ -180,7 +180,7 @@ void FrontEndTF::translate_graph(const ngraph::frontend::InputModel::Ptr& model,
                 auto ng_node = std::make_shared<TFFrameworkNode>(operation_decoder,
                                                                  ng_inputs,
                                                                  operation_place->get_output_ports().size());
-                SetTracingInfo(operation_name, ng_node);
+                SetNodeNames(operation_name, ng_node);
                 ng_outputs = ng_node->outputs();
             }
         }
