@@ -28,6 +28,8 @@ public:
         return m_batch_dims;
     }
 
+    void validate_inputs_and_infer_shape();
+
 protected:
     size_t m_batch_dims = 0;
 };
