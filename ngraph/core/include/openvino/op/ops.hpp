@@ -114,6 +114,7 @@
 #include "openvino/op/prior_box_clustered.hpp"
 #include "openvino/op/proposal.hpp"
 #include "openvino/op/psroi_pooling.hpp"
+#include "openvino/op/pwl.hpp"
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/read_value.hpp"
