@@ -4,11 +4,11 @@
 
 #include "frontend_manager/frontend_manager.hpp"
 
-#include <frontend_manager/place.hpp>
-#include <ngraph/except.hpp>
-#include <openvino/util/env_util.hpp>
-
 #include "frontend_manager/frontend_exceptions.hpp"
+#include "frontend_manager/place.hpp"
+#include "ngraph/except.hpp"
+#include "openvino/util/env_util.hpp"
+#include "openvino/util/file_util.hpp"
 #include "plugin_loader.hpp"
 #include "utils.hpp"
 
@@ -83,7 +83,12 @@ private:
             }
             register_from_dir(env_path.substr(start, sep_pos));
         } else {
-            register_from_dir(get_frontend_library_path());
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+            std::string lib_path = ov::util::wstring_to_string(ov::util::get_ov_library_path());
+#else
+            std::string lib_path = ov::util::get_ov_library_path();
+#endif
+            register_from_dir(lib_path);
         }
     }
 };
