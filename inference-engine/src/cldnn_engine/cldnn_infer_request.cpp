@@ -289,8 +289,8 @@ void CLDNNInferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) 
                     inputHostBlob->allocate();
                     _inputs[name] = inputHostBlob;
                 }
-                _preProcData[name]->isApplicable(data, _inputs[name]);
-                _preProcData[name]->setRoiBlob(data);
+                _preProcData[name].isApplicable(data, _inputs[name]);
+                _preProcData[name].setRoiBlob(data);
             } else {
                 if (compoundBlobPassed) {
                     IE_THROW(NotImplemented) << cannot_set_compound;

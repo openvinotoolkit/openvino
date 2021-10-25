@@ -29,14 +29,12 @@ public:
      * @brief Sets ROI blob to be resized and placed to the default input blob during pre-processing.
      * @param blob ROI blob.
      */
-    //FIXME: rename to setUserBlob
     virtual void setRoiBlob(const Blob::Ptr &blob) = 0;
 
     /**
      * @brief Gets pointer to the ROI blob used for a given input.
      * @return Blob pointer.
      */
-    //FIXME: rename to getUserBlob
     virtual Blob::Ptr getRoiBlob() const = 0;
 
     /**
@@ -83,8 +81,8 @@ public:
     }
 
 class PreProcessData {
-    std::shared_ptr<void> _so;
-    std::shared_ptr<IPreProcessData> _ptr;
+    std::shared_ptr<void> _so = nullptr;
+    std::shared_ptr<IPreProcessData> _ptr = nullptr;
 
 public:
     PreProcessData() {
@@ -103,9 +101,13 @@ public:
         }
 
         using CreateF = void(std::shared_ptr<IPreProcessData>& data);
-        _so = ov::util::load_shared_object(preprocLibraryPath);
+        _so = ov::util::load_shared_object(preprocLibraryPath.c_str());
+        if (!_so)
+            IE_THROW() << "Failed to create IPreProcessData for G-API based preprocessing";
         reinterpret_cast<CreateF *>(ov::util::get_symbol(_so,
             details::SOCreatorTrait<IPreProcessData>::name))(_ptr);
+        if (!_so)
+            IE_THROW() << "Failed to get address of CreatePreProcessData function";
 #endif
     }
 
