@@ -24,6 +24,7 @@ from setuptools import setup, find_namespace_packages
 PYTHON_VERSION = f'python{sys.version_info.major}.{sys.version_info.minor}'
 SCRIPT_DIR = Path(__file__).resolve().parents[0]
 OPENVINO_DIR = Path(__file__).resolve().parents[2]
+SRC_DIR = SCRIPT_DIR / 'src'
 
 PKG_INSTALL_CFG = {
     'openvino-mo': {
@@ -200,6 +201,9 @@ setup(
         'install': CustomInstall,
         'clean': CustomClean,
     },
-    packages=find_namespace_packages(where='src'),
-    package_dir={'': 'src'},
+    entry_points = {
+        'console_scripts': [],
+    },
+    packages=find_namespace_packages(where=str(SRC_DIR)),
+    package_dir={'': str(SRC_DIR)},
 )
