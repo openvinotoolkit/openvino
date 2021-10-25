@@ -20,8 +20,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, ConvertNMS5ToNMSIEStaticSixInputs) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEStaticSixInputs) {
     {
         auto boxes = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1000});
@@ -32,14 +31,9 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticSixInputs) {
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold,
                                                                soft_nms_sigma, opset5::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i32);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
-        ASSERT_TRUE(f->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
     }
 
     {
@@ -65,18 +59,12 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticSixInputs) {
                                                                                              one_dim_shape), true);
         auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes, scores, new_max_per_class, new_iou_threshold, new_score_threshold,
                                                               new_soft_nms_sigma, 0, true, element::i32);
-        nms->set_friendly_name("nms");
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
-        ASSERT_TRUE(f_ref->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS5ToNMSIEStaticFiveInputs) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEStaticFiveInputs) {
     {
         auto boxes = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1000});
@@ -86,14 +74,9 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticFiveInputs) {
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold,
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i32);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
-        ASSERT_TRUE(f->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
     }
 
     {
@@ -115,18 +98,12 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticFiveInputs) {
                                                                                               one_dim_shape), true);
         auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes, scores, new_max_per_class, new_iou_threshold, new_score_threshold,
                                                               0, true, element::i32);
-        nms->set_friendly_name("nms");
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
-        ASSERT_TRUE(f_ref->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS5ToNMSIEStaticFourInputs) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEStaticFourInputs) {
     {
         auto boxes = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1000});
@@ -135,14 +112,9 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticFourInputs) {
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class, iou_threshold,
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i32);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
-        ASSERT_TRUE(f->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
     }
 
     {
@@ -164,18 +136,12 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticFourInputs) {
                                                                                               one_dim_shape), true);
         auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes, scores, new_max_per_class, new_iou_threshold, new_score_threshold,
                                                               0, true, element::i32);
-        nms->set_friendly_name("nms");
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
-        ASSERT_TRUE(f_ref->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS5ToNMSIEStaticThreeInputs) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEStaticThreeInputs) {
     {
         auto boxes = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1000});
@@ -183,14 +149,9 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticThreeInputs) {
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i32);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
-        ASSERT_TRUE(f->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
     }
 
     {
@@ -212,32 +173,21 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticThreeInputs) {
                                                                                               one_dim_shape), true);
         auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes, scores, new_max_per_class, new_iou_threshold, new_score_threshold,
                                                               0, true, element::i32);
-        nms->set_friendly_name("nms");
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
-        ASSERT_TRUE(f_ref->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS5ToNMSIEStaticTwoInputs) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEStaticTwoInputs) {
     {
         auto boxes = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1000});
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores,
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i32);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
-        ASSERT_TRUE(f->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
     }
 
     {
@@ -259,18 +209,12 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticTwoInputs) {
                                                                                               one_dim_shape), true);
         auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes, scores, new_max_per_class, new_iou_threshold, new_score_threshold,
                                                               0, true, element::i32);
-        nms->set_friendly_name("nms");
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
-        ASSERT_TRUE(f_ref->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1SixInputs) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic1SixInputs) {
     {
         auto boxes = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto scores = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
@@ -281,14 +225,9 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1SixInputs) {
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold,
                                                                soft_nms_sigma, opset5::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i32);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
-        manager.run_passes(f);
-        f->validate_nodes_and_infer_types();
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -314,17 +253,12 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1SixInputs) {
                                                                                              one_dim_shape), true);
         auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes, scores, new_max_per_class, new_iou_threshold, new_score_threshold,
                                                               new_soft_nms_sigma, 0, true, element::i32);
-        nms->set_friendly_name("nms");
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1FiveInputs) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic1FiveInputs) {
     {
         auto boxes = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto scores = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
@@ -334,14 +268,9 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1FiveInputs) {
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold,
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i32);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
-        manager.run_passes(f);
-        f->validate_nodes_and_infer_types();
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -363,17 +292,12 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1FiveInputs) {
                                                                                               one_dim_shape), true);
         auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes, scores, new_max_per_class, new_iou_threshold, new_score_threshold,
                                                               0, true, element::i32);
-        nms->set_friendly_name("nms");
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1FourInputs) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic1FourInputs) {
     {
         auto boxes = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto scores = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
@@ -382,14 +306,9 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1FourInputs) {
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class, iou_threshold,
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i32);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
-        manager.run_passes(f);
-        f->validate_nodes_and_infer_types();
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -411,17 +330,12 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1FourInputs) {
                                                                                               one_dim_shape), true);
         auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes, scores, new_max_per_class, new_iou_threshold, new_score_threshold,
                                                               0, true, element::i32);
-        nms->set_friendly_name("nms");
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1ThreeInputs) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic1ThreeInputs) {
     {
         auto boxes = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto scores = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
@@ -429,14 +343,9 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1ThreeInputs) {
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i32);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
-        manager.run_passes(f);
-        f->validate_nodes_and_infer_types();
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -458,31 +367,21 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1ThreeInputs) {
                                                                                               one_dim_shape), true);
         auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes, scores, new_max_per_class, new_iou_threshold, new_score_threshold,
                                                               0, true, element::i32);
-        nms->set_friendly_name("nms");
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1TwoInputs) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic1TwoInputs) {
     {
         auto boxes = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto scores = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores,
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i32);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
-        manager.run_passes(f);
-        f->validate_nodes_and_infer_types();
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -504,17 +403,12 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1TwoInputs) {
                                                                                               one_dim_shape), true);
         auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes, scores, new_max_per_class, new_iou_threshold, new_score_threshold,
                                                               0, true, element::i32);
-        nms->set_friendly_name("nms");
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic2SixInputs) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic2SixInputs) {
     {
         auto boxes = std::make_shared<opset5::Parameter>(element::f32, PartialShape{DYN, 1000, 4});
         auto scores = std::make_shared<opset5::Parameter>(element::f32, PartialShape{DYN, 1, 1000});
@@ -525,14 +419,9 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic2SixInputs) {
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold,
                                                                soft_nms_sigma, opset5::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i32);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
-        manager.run_passes(f);
-        f->validate_nodes_and_infer_types();
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -558,17 +447,12 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic2SixInputs) {
                                                                                              one_dim_shape), true);
         auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes, scores, new_max_per_class, new_iou_threshold, new_score_threshold,
                                                               new_soft_nms_sigma, 0, true, element::i32);
-        nms->set_friendly_name("nms");
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic2FiveInputs) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic2FiveInputs) {
     {
         auto boxes = std::make_shared<opset5::Parameter>(element::f32, PartialShape{DYN, 1000, 4});
         auto scores = std::make_shared<opset5::Parameter>(element::f32, PartialShape{DYN, 1, 1000});
@@ -578,14 +462,9 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic2FiveInputs) {
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold,
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i32);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
-        manager.run_passes(f);
-        f->validate_nodes_and_infer_types();
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -607,17 +486,12 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic2FiveInputs) {
                                                                                               one_dim_shape), true);
         auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes, scores, new_max_per_class, new_iou_threshold, new_score_threshold,
                                                               0, true, element::i32);
-        nms->set_friendly_name("nms");
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic2FourInputs) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic2FourInputs) {
     {
         auto boxes = std::make_shared<opset5::Parameter>(element::f32, PartialShape{DYN, 1000, 4});
         auto scores = std::make_shared<opset5::Parameter>(element::f32, PartialShape{DYN, 1, 1000});
@@ -626,14 +500,9 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic2FourInputs) {
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class, iou_threshold,
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i32);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
-        manager.run_passes(f);
-        f->validate_nodes_and_infer_types();
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -655,17 +524,12 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic2FourInputs) {
                                                                                               one_dim_shape), true);
         auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes, scores, new_max_per_class, new_iou_threshold, new_score_threshold,
                                                               0, true, element::i32);
-        nms->set_friendly_name("nms");
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic2ThreeInputs) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic2ThreeInputs) {
     {
         auto boxes = std::make_shared<opset5::Parameter>(element::f32, PartialShape{DYN, 1000, 4});
         auto scores = std::make_shared<opset5::Parameter>(element::f32, PartialShape{DYN, 1, 1000});
@@ -673,14 +537,9 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic2ThreeInputs) {
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER, true, element::i32);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
-        manager.run_passes(f);
-        f->validate_nodes_and_infer_types();
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -702,31 +561,21 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic2ThreeInputs) {
                                                                                               one_dim_shape), true);
         auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes, scores, new_max_per_class, new_iou_threshold, new_score_threshold,
                                                               0, true, element::i32);
-        nms->set_friendly_name("nms");
 
-        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic2TwoInputs) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic2TwoInputs) {
     {
         auto boxes = std::make_shared<opset5::Parameter>(element::f32, PartialShape{DYN, 1000, 4});
         auto scores = std::make_shared<opset5::Parameter>(element::f32, PartialShape{DYN, 1, 1000});
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores,
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
-        f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertNMS5ToLegacyMatcher>();
-        manager.run_passes(f);
-        f->validate_nodes_and_infer_types();
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -748,13 +597,9 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic2TwoInputs) {
                                                                                               one_dim_shape), true);
         auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes, scores, new_max_per_class, new_iou_threshold, new_score_threshold,
                                                               0, true, element::i32);
-        nms->set_friendly_name("nms");
 
         auto convert_0 = std::make_shared<opset1::Convert>(nms->output(0), element::i64);
 
-        f_ref = std::make_shared<Function>(NodeVector{convert_0}, ParameterVector{boxes, scores});
+        function_ref = std::make_shared<Function>(NodeVector{convert_0}, ParameterVector{boxes, scores});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }

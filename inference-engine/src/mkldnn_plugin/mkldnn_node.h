@@ -698,6 +698,7 @@ protected:
 
     bool inputShapesModified() const;
     virtual bool needShapeInfer() const;
+    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
     virtual std::vector<VectorDims> shapeInfer() const;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
     virtual void executeDynamicImpl(mkldnn::stream strm) {
@@ -713,9 +714,9 @@ protected:
 
     std::vector<VectorDims> lastInputDims = {};
 
-private:
     std::shared_ptr<ngraph::Node> opToShapeInfer;
 
+private:
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;
     std::vector<MKLDNNEdgeWeakPtr> childEdges;
 

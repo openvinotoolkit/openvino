@@ -4,64 +4,13 @@
 
 #pragma once
 
-#include <typeindex>
-#include <string>
-#include <vector>
-#include <memory>
-#include <tuple>
-#include <gtest/gtest.h>
-#include <ngraph/node.hpp>
-#include <ngraph/function.hpp>
-#include <ie_plugin_config.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph_functions/subgraph_builders.hpp>
-#include "gtest/gtest.h"
-#include "common_test_utils/common_utils.hpp"
-#include "common_test_utils/test_common.hpp"
+#include "ov_behavior_test_utils.hpp"
 
-#include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/precision_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
 
 namespace BehaviorTestsUtils {
 
 using namespace CommonTestUtils;
-
-using BehaviorParamsEmptyConfig = std::tuple<
-    InferenceEngine::Precision,         // Network precision
-    std::string                         // Device name
->;
-
-class BehaviorTestsEmptyConfig : public testing::WithParamInterface<BehaviorParamsEmptyConfig>,
-                                 public CommonTestUtils::TestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<BehaviorParamsEmptyConfig> obj) {
-        InferenceEngine::Precision  netPrecision;
-        std::string targetDevice;
-        std::tie(netPrecision, targetDevice) = obj.param;
-        std::ostringstream result;
-        result << "netPRC=" << netPrecision.name() << "_";
-        result << "targetDevice=" << targetDevice;
-        return result.str();
-    }
-
-    void SetUp()  override {
-        std::tie(netPrecision, targetDevice) = this->GetParam();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
-    }
-
-    void TearDown() override {
-        function.reset();
-    }
-
-    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-    std::shared_ptr<ngraph::Function> function;
-    InferenceEngine::Precision netPrecision;
-    std::string targetDevice;
-};
 
 typedef std::tuple<
         InferenceEngine::Precision,         // Network precision
@@ -86,7 +35,7 @@ public:
         return result.str();
     }
 
-    void SetUp()  override {
+    void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
@@ -96,7 +45,6 @@ public:
         if (!configuration.empty()) {
             PluginCache::get().reset();
         }
-        function.reset();
     }
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
@@ -142,7 +90,6 @@ public:
         if (!configuration.empty()) {
             PluginCache::get().reset();
         }
-        function.reset();
     }
 
 protected:
@@ -150,91 +97,44 @@ protected:
     InferenceEngine::ExecutableNetwork execNet;
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
     std::shared_ptr<ngraph::Function> function;
-    InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
 };
 
-using BehaviorParamsSingleOption = std::tuple<
-    InferenceEngine::Precision,         // Network precision
-    std::string,                        // Device name
-    std::string                         // Key
->;
+inline InferenceEngine::Core createIECoreWithTemplate() {
+    PluginCache::get().reset();
+    InferenceEngine::Core ie;
+    std::string pluginName = "templatePlugin";
+    pluginName += IE_BUILD_POSTFIX;
+    ie.RegisterPlugin(pluginName, "TEMPLATE");
+    return ie;
+}
 
-class BehaviorTestsSingleOption : public testing::WithParamInterface<BehaviorParamsSingleOption>,
-                                  public CommonTestUtils::TestsCommon {
+class IEClassNetworkTest : public ov::test::behavior::OVClassNetworkTest {
 public:
-    void SetUp()  override {
-        std::tie(netPrecision, targetDevice, key) = this->GetParam();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
-    }
+    InferenceEngine::CNNNetwork actualCnnNetwork, simpleCnnNetwork, multinputCnnNetwork, ksoCnnNetwork;
 
-    void TearDown() override {
-        function.reset();
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        OVClassNetworkTest::SetUp();
+        // Generic network
+        ASSERT_NO_THROW(actualCnnNetwork = InferenceEngine::CNNNetwork(actualNetwork));
+        // Quite simple network
+        ASSERT_NO_THROW(simpleCnnNetwork = InferenceEngine::CNNNetwork(simpleNetwork));
+        // Multinput to substruct network
+        ASSERT_NO_THROW(multinputCnnNetwork = InferenceEngine::CNNNetwork(multinputNetwork));
+        // Network with KSO
+        ASSERT_NO_THROW(ksoCnnNetwork = InferenceEngine::CNNNetwork(ksoNetwork));
     }
-
-    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-    std::shared_ptr<ngraph::Function> function;
-    InferenceEngine::Precision netPrecision;
-    std::string targetDevice;
-    std::string key;
 };
 
-using BehaviorParamsSingleOptionDefault = std::tuple<
-    InferenceEngine::Precision,                        // Network precision
-    std::string,                                       // Device name
-    std::pair<std::string, InferenceEngine::Parameter> // Configuration key and its default value
->;
-
-class BehaviorTestsSingleOptionDefault : public testing::WithParamInterface<BehaviorParamsSingleOptionDefault>,
-                                         public CommonTestUtils::TestsCommon {
+class IEClassBaseTestP : public IEClassNetworkTest, public ::testing::WithParamInterface<std::string> {
 public:
-    void SetUp()  override {
-        std::pair<std::string, InferenceEngine::Parameter> entry;
-        std::tie(netPrecision, targetDevice, entry) = this->GetParam();
-        std::tie(key, value) = entry;
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+    std::string deviceName;
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        IEClassNetworkTest::SetUp();
+        deviceName = GetParam();
     }
-
-    void TearDown() override {
-        function.reset();
-    }
-
-    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-    std::shared_ptr<ngraph::Function> function;
-    InferenceEngine::Precision netPrecision;
-    std::string targetDevice;
-    std::string key;
-    InferenceEngine::Parameter value;
 };
-
-using BehaviorParamsSingleOptionCustom = std::tuple<
-    InferenceEngine::Precision,                                      // Network precision
-    std::string,                                                     // Device name
-    std::tuple<std::string, std::string, InferenceEngine::Parameter> // Configuration key, value and reference
->;
-
-class BehaviorTestsSingleOptionCustom : public testing::WithParamInterface<BehaviorParamsSingleOptionCustom>,
-                                        public CommonTestUtils::TestsCommon {
-public:
-    void SetUp()  override {
-        std::tuple<std::string, std::string, InferenceEngine::Parameter> entry;
-        std::tie(netPrecision, targetDevice, entry) = this->GetParam();
-        std::tie(key, value, reference) = entry;
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
-    }
-
-    void TearDown() override {
-        function.reset();
-    }
-
-    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-    std::shared_ptr<ngraph::Function> function;
-    InferenceEngine::Precision netPrecision;
-    std::string targetDevice;
-    std::string key;
-    std::string value;
-    InferenceEngine::Parameter reference;
-};
-
-}  // namespace BehaviorTestsUtils
+} // namespace BehaviorTestsUtils

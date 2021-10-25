@@ -46,10 +46,8 @@ void PreStepsList::add_scale_impl(const std::vector<float>& values) {
             shape = construct_mean_scale_shape(nodes[0].get_node_shared_ptr(), values.size(), context);
         }
         auto constant = op::v0::Constant::create(element::f32, shape, values);
-        // inherit_friendly_names(function, nodes[0].get_node_shared_ptr(), constant, "/scale/Divide_Factor");
 
         auto new_op = std::make_shared<op::v1::Divide>(nodes[0], constant);
-        // inherit_friendly_names(function, nodes[0].get_node_shared_ptr(), new_op, "/scale/Divide");
         return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
     });
 }
@@ -69,10 +67,8 @@ void PreStepsList::add_mean_impl(const std::vector<float>& values) {
             shape = construct_mean_scale_shape(nodes[0], values.size(), context);
         }
         auto constant = op::v0::Constant::create(element::f32, shape, values);
-        // inherit_friendly_names(function, nodes[0], constant, "/mean/Mean_Const");
 
         auto new_op = std::make_shared<op::v1::Subtract>(nodes[0], constant);
-        // inherit_friendly_names(function, nodes[0], new_op, "/mean/Subtract");
         return std::make_tuple(std::vector<Output<Node>>{new_op}, false);
     });
 }
@@ -93,7 +89,6 @@ void PreStepsList::add_convert_impl(const element::Type& type) {
                             "Can't insert 'convert_element_type' for dynamic source tensor type.");
             if (t != node.get_element_type()) {
                 auto convert = std::make_shared<op::v0::Convert>(node, t);
-                // inherit_friendly_names(function, node, convert, "/convert_element_type");
                 res.emplace_back(convert);
                 convert_added = true;
             } else {
@@ -154,7 +149,6 @@ void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_
                                                     {0, 0});
 
         auto interp = std::make_shared<op::v4::Interpolate>(node, target_spatial_shape, scales, axes, attrs);
-        // inherit_friendly_names(function, nodes[0], interp, "/resize");
         return std::make_tuple(std::vector<Output<Node>>{interp}, true);
     });
 }
@@ -178,16 +172,15 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
         }
         auto perm_constant = op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
         auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
-        // inherit_friendly_names(function, nodes[0], transpose, "/convert_layout");
         context.layout() = dst_layout;  // Update context's current layout
         return std::make_tuple(std::vector<Output<Node>>{transpose}, true);
     });
 }
 
 void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
-    m_actions.emplace_back([&, dst_format](const std::vector<Output<Node>>& nodes,
-                                           const std::shared_ptr<Function>& function,
-                                           PreprocessingContext& context) {
+    m_actions.emplace_back([dst_format](const std::vector<Output<Node>>& nodes,
+                                        const std::shared_ptr<Function>& function,
+                                        PreprocessingContext& context) {
         if (context.color_format() == dst_format) {
             return std::make_tuple(nodes, false);
         }
@@ -207,7 +200,6 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                                 color_format_name(dst_format),
                                 "' format:");
             }
-            // inherit_friendly_names(function, nodes[0], convert, "/convert_color_nv12_single");
             context.color_format() = dst_format;
             return std::make_tuple(std::vector<Output<Node>>{convert}, true);
         } else if (context.color_format() == ColorFormat::NV12_TWO_PLANES) {
@@ -226,15 +218,60 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                                 color_format_name(dst_format),
                                 "' format:");
             }
-            // inherit_friendly_names(function, nodes[0], convert, "/convert_color_nv12_two_planes");
             context.color_format() = dst_format;
             return std::make_tuple(std::vector<Output<Node>>{convert}, true);
+        }
+        if ((context.color_format() == ColorFormat::RGB || context.color_format() == ColorFormat::BGR) &&
+            (dst_format == ColorFormat::RGB || dst_format == ColorFormat::BGR)) {
+            auto res = reverse_channels(nodes, function, context);
+            context.color_format() = dst_format;
+            return res;
         }
         OPENVINO_ASSERT(false,
                         "Source color format '",
                         color_format_name(context.color_format()),
                         "' is not convertible to any other");
     });
+}
+
+void PreStepsList::add_reverse_channels() {
+    m_actions.emplace_back([](const std::vector<Output<Node>>& nodes,
+                              const std::shared_ptr<Function>& function,
+                              PreprocessingContext& context) {
+        return reverse_channels(nodes, function, context);
+    });
+}
+
+std::tuple<std::vector<Output<Node>>, bool> PreStepsList::reverse_channels(const std::vector<Output<Node>>& nodes,
+                                                                           const std::shared_ptr<Function>& function,
+                                                                           PreprocessingContext& context) {
+    OPENVINO_ASSERT(nodes.size() == 1, "Internal error: can't reverse channels for multi-plane inputs");
+    OPENVINO_ASSERT(ov::layout::has_channels(context.layout()),
+                    "Layout ",
+                    context.layout().to_string(),
+                    " doesn't have `channels` dimension");
+    auto channels_idx = ov::layout::channels(context.layout());
+    // Get shape of user's input tensor (e.g. Tensor[1, 3, 224, 224] -> {1, 3, 224, 224})
+    auto shape_of = std::make_shared<ov::op::v0::ShapeOf>(nodes[0]);  // E.g. {1, 3, 224, 224}
+
+    auto constant_chan_idx = op::v0::Constant::create(element::i32, {}, {channels_idx});  // E.g. 1
+    auto constant_chan_axis = op::v0::Constant::create(element::i32, {}, {0});
+    // Gather will return scalar with number of channels (e.g. 3)
+    auto gather_channels_num = std::make_shared<op::v8::Gather>(shape_of, constant_chan_idx, constant_chan_axis);
+
+    // Create Range from channels_num-1 to 0 (e.g. {2, 1, 0})
+    auto const_minus1 = op::v0::Constant::create(element::i64, {}, {-1});
+    auto channels_num_minus1 = std::make_shared<op::v1::Add>(gather_channels_num, const_minus1);  // E.g. 3-1=2
+    // Add range
+    auto range_to = op::v0::Constant::create(element::i64, {}, {-1});
+    auto range_step = op::v0::Constant::create(element::i64, {}, {-1});
+    // E.g. {2, 1, 0}
+    auto range = std::make_shared<op::v4::Range>(channels_num_minus1, range_to, range_step, element::i32);
+
+    // Gather slices in reverse order (indexes are specified by 'range' operation)
+    auto constant_axis = op::v0::Constant::create(element::i32, {1}, {channels_idx});
+    auto convert = std::make_shared<op::v8::Gather>(nodes[0], range, constant_axis);
+    return std::make_tuple(std::vector<Output<Node>>{convert}, false);
 }
 
 //------------- Post processing ------
@@ -251,7 +288,6 @@ void PostStepsList::add_convert_impl(const element::Type& type) {
             !t.is_dynamic() && t != element::undefined,
             "Can't convert to dynamic/unknown element type, consider using of InputTensorInfo::set_element_type");
         auto convert = std::make_shared<op::v0::Convert>(node, t);
-        inherit_friendly_names_postprocess(convert, node);
         return std::make_tuple(Output<Node>(convert), true);
     });
 }
@@ -269,7 +305,6 @@ void PostStepsList::add_convert_layout_impl(const Layout& layout) {
         }
         auto perm_constant = op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
         auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
-        inherit_friendly_names_postprocess(transpose, node);
         context.layout() = dst_layout;  // Update context's current layout
         return std::make_tuple(Output<Node>(transpose), true);
     });
