@@ -22,6 +22,8 @@ std::string getExtensionPath() {
             std::string("template_extension") + IE_BUILD_POSTFIX);
 }
 
+#ifndef OPENVINO_STATIC_LIBRARY
+
 TEST(ExtensionTests, testGetOpSets) {
     IExtensionPtr extension = std::make_shared<Extension>(getExtensionPath());
     auto opsets = extension->getOpSets();
@@ -54,3 +56,5 @@ TEST(ExtensionTests, testGetImplementationThrowsIfNgraphNodeIsNullPtr) {
     ASSERT_THROW(extension->getImplementation(std::shared_ptr<ngraph::Node> (), ""),
             InferenceEngine::Exception);
 }
+
+#endif // OPENVINO_STATIC_LIBRARY

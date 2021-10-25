@@ -22,10 +22,6 @@ const std::vector<std::map<std::string, std::string>> generateHeteroConfigs() {
        return {{{ "TARGET_FALLBACK" , ConformanceTests::targetDevice }}};
 }
 
-const std::vector<std::map<std::string, std::string>> generateAutoConfigs() {
-    return {{{ InferenceEngine::KEY_AUTO_DEVICE_LIST , ConformanceTests::targetDevice }}};
-}
-
 const std::vector<std::map<std::string, std::string>> generateMultiConfig() {
     return {{{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , ConformanceTests::targetDevice }}};
 }

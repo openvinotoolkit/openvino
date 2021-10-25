@@ -125,7 +125,8 @@ void dynamicToStaticShapeStridedSlice(std::shared_ptr<ngraph::Node> target) {
     const auto dsr = target->input_value(0).get_node_shared_ptr();
     VPU_THROW_UNLESS(ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(dsr),
         "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
-        target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info, 0);
+        target->get_friendly_name(), target->get_type_info(),
+        ngraph::vpu::op::DynamicShapeResolver::get_type_info_static(), 0);
 
     const auto stridedSlice = ngraph::as_type_ptr<ngraph::opset3::StridedSlice>(target);
     VPU_THROW_UNLESS(stridedSlice, "dynamicToStaticShapeStridedSlice transformation is not applicable for {}", target);

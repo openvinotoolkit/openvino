@@ -23,7 +23,7 @@ const std::vector<std::map<std::string, std::string>> generateMulticonfigsMultit
 }
 
 const std::vector<std::map<std::string, std::string>> AutoconfigsMultithreading() {
-        return {{{ AUTO_CONFIG_KEY(DEVICE_LIST), targetDevice}}};
+        return {{{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES), targetDevice}}};
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestMultithreadingTests,
