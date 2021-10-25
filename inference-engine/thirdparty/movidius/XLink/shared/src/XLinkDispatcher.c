@@ -394,7 +394,11 @@ int DispatcherWaitEventComplete(xLinkDeviceHandle_t *deviceHandle, unsigned int 
         // This is a workaround for sem_timedwait being influenced by the system clock change.
         // This is a temporary solution. TODO: replace this with something more efficient.
         while (timeoutMs--) {
+#if (defined(_WIN32) || defined(_WIN64) )
+            rc = WaitForSingleObject(id, INFINITE);
+#else
             rc = sem_trywait(id);
+#endif
             if (!rc) {
                 break;
             } else {
