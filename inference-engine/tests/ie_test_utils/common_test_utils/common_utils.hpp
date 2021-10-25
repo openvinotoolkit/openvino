@@ -55,17 +55,12 @@ inline void replaceSubstringInString(std::string& str, const std::string& from, 
 
 inline std::string partialShape2str(const std::vector<ngraph::PartialShape>& partialShapes) {
     std::ostringstream result;
-    result << "(";
     for (const auto& partialShape : partialShapes) {
-        std::ostringstream tmpPartialShape;
-        tmpPartialShape << partialShape;
-        std::string partialShapeStr = tmpPartialShape.str();
-        replaceSubstringInString(partialShapeStr, ",", ".");
-        replaceSubstringInString(partialShapeStr, " ", "");
-        result << partialShapeStr;
+        result << partialShape;
     }
-    result << ")";
-    return result.str();
+    auto retStr = result.str();
+    std::replace(retStr.begin(), retStr.end(), ',', '.');
+    return retStr;
 }
 
 inline std::string pair2str(const std::pair<size_t, size_t>& p) {
