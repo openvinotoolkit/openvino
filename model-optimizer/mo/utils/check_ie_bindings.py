@@ -25,7 +25,7 @@ from mo.utils.error import classify_error_type
 
 
 def send_telemetry(mo_version: str, message: str, event_type: str):
-    t = tm.Telemetry(app_name='Version Checker', app_version=mo_version)
+    t = tm.Telemetry(tid="UA-17808594-29", app_name='Version Checker', app_version=mo_version)
     # do not trigger new session if we are executing from the check from within the MO because it is actually not model
     # conversion run which we want to send
     if execution_type != 'mo':
