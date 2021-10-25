@@ -93,12 +93,8 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
 
     if (clonedNetwork.getFunction()) {
         auto nGraphFunc = clonedNetwork.getFunction();
-        auto transformation_config = CLDNNPlugin::Config(config);
-#ifdef ENABLE_ONEDNN_FOR_GPU
-        if (GetDeviceInfo(config.key_config_map).supports_immad)
-            transformation_config.enable_fp16_for_quantized_models = false;
-#endif
-        TransformationsPipeline transformations(transformation_config);
+        auto deviceInfo = GetDeviceInfo(config.key_config_map);
+        TransformationsPipeline transformations(config, deviceInfo);
         transformations.apply(nGraphFunc);
     }
 
