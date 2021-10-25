@@ -78,7 +78,7 @@ protected:
 
 static size_t getChannelAxis(const std::shared_ptr<ngraph::Node>& node) {
     if (std::dynamic_pointer_cast<ngraph::op::MatMul>(node))
-        return node->get_shape().size() - 1; // last dimension
+        return node->get_output_partial_shape(0).size() - 1; // last dimension
     else
         return 1; // second dimension
 }
@@ -89,8 +89,7 @@ static ngraph::Shape generatePerChannelShape(const std::shared_ptr<ngraph::Node>
         IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
     ngraph::Shape perChannelShape(shape.size(), 1);
     const auto channelAxis = getChannelAxis(node);
-
-    perChannelShape[channelAxis] = shape[channelAxis];
+    perChannelShape[channelAxis] = shape[channelAxis].get_length();
 
     return perChannelShape;
 }

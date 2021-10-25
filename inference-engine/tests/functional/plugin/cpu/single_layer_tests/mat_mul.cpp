@@ -200,14 +200,16 @@ std::vector<CPUSpecificParams> filterSpecificParams() {
     return specificParams;
 }
 
+const auto fusingBias = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+            {[](std::shared_ptr<Node> inpNode, const element::Type& ngPrc, ParameterVector& params) {
+                auto pShape = inpNode->get_output_partial_shape(0);
+                size_t dim = pShape.rbegin()->get_length();
+                auto bias = builder::makeConstant(ngPrc, Shape{dim}, std::vector<float>{}, true);
+                return std::make_shared<opset1::Add>(inpNode, bias);
+            }, "fusingBias"}}), {"Add"}};
+
 /* ============= FullyConnected ============= */
 namespace fullyConnected {
-
-const auto fusingBiasFC = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
-            {[](std::shared_ptr<Node> inpNode, const element::Type& ngPrc, ParameterVector& params) {
-                auto bias = builder::makeConstant(ngPrc, Shape({inpNode->get_output_shape(0).back()}), std::vector<float>{}, true);
-                return std::make_shared<opset1::Add>(inpNode, bias);
-            }, "fusingBiasFC"}}), {"Add"}};
 
 const std::vector<ShapeRelatedParams> IS2D = {
     {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {false, false}},
@@ -233,7 +235,7 @@ const std::vector<ShapeRelatedParams> IS2D = {
 
 std::vector<fusingSpecificParams> fusingParamsSet2D {
         emptyFusingSpec,
-        fusingBiasFC,
+        fusingBias,
         fusingRelu,
         fusingMultiplyPerChannel,
         fusingPReluPerTensor,
@@ -243,7 +245,7 @@ std::vector<fusingSpecificParams> fusingParamsSet2D {
 
 std::vector<fusingSpecificParams> fusingParamsSet2DBF16 {
         emptyFusingSpec,
-        fusingBiasFC,
+        fusingBias,
         fusingRelu,
         fusingPReluPerTensor,
 };
@@ -289,7 +291,7 @@ const std::vector<ShapeRelatedParams> IS3D = {
 
 std::vector<fusingSpecificParams> fusingParamsSet3D {
         emptyFusingSpec,
-        fusingBiasFC,
+        fusingBias,
         fusingMultiplyPerChannel,
         fusingFakeQuantizePerChannel,
         fusingFakeQuantizePerTensorRelu,
@@ -297,26 +299,25 @@ std::vector<fusingSpecificParams> fusingParamsSet3D {
 
 std::vector<fusingSpecificParams> fusingParamsSet3DBF16 {
         emptyFusingSpec,
-        fusingBiasFC,
+        fusingBias,
         fusingMultiplyPerChannel,
 };
 
 const auto fullyConnectedParams3D = ::testing::Combine(::testing::ValuesIn(IS3D),
-                                                       ::testing::Values(Precision::FP32),
-                                                       ::testing::Values(Precision::UNSPECIFIED),
-                                                       ::testing::Values(Precision::UNSPECIFIED),
-                                                       ::testing::Values(Layout::ANY),
+                                                       ::testing::Values(ElementType::f32),
+                                                       ::testing::Values(ElementType::undefined),
+                                                       ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
                                                        ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                                        ::testing::Values(emptyAdditionalConfig));
 
 const auto fullyConnectedParams3DBF16 = ::testing::Combine(::testing::ValuesIn(IS3D),
-                                                       ::testing::ValuesIn(netPRCs),
-                                                       ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
-                                                       ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                                       ::testing::ValuesIn(additionalConfig));
+                                                           ::testing::ValuesIn(netPRCs),
+                                                           ::testing::Values(ElementType::undefined),
+                                                           ::testing::Values(ElementType::undefined),
+                                                           ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                           ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                           ::testing::ValuesIn(additionalConfig));
 
 const auto testParams3D = ::testing::Combine(fullyConnectedParams3D,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
@@ -324,8 +325,9 @@ const auto testParams3D = ::testing::Combine(fullyConnectedParams3D,
                                              ::testing::ValuesIn(filterSpecificParams()));
 
 const auto testParams3DBF16 = ::testing::Combine(fullyConnectedParams3DBF16,
-                                             ::testing::Values(MatMulNodeType::FullyConnected),
-                                             ::testing::ValuesIn(fusingParamsSet3DBF16));
+                                                 ::testing::Values(MatMulNodeType::FullyConnected),
+                                                 ::testing::ValuesIn(fusingParamsSet3DBF16),
+                                                 ::testing::ValuesIn(filterSpecificParams()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D, MatMulLayerCPUTest, testParams3D, MatMulLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16, MatMulLayerCPUTest, testParams3DBF16, MatMulLayerCPUTest::getTestCaseName);
@@ -556,6 +558,8 @@ std::vector<fusingSpecificParams> matmulFusingParams {
         fusingSqrt,
         fusingPReluPerTensor,
         fusingMultiplyPerChannel,
+        fusingAddPerTensor,
+        fusingBias,
         fusingFakeQuantizePerChannel,
         /* @todo FQ unfolds into FQ + Convert + Substract + Multiply after LPT,
          * so Relu cannot be fused in this case. Should be analysed */

@@ -55,7 +55,7 @@ bool MKLDNNMatMulNode::isSupportedOperation(const std::shared_ptr<const ngraph::
 }
 
 MKLDNNMatMulNode::MKLDNNMatMulNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-    MKLDNNNode(op, eng, cache) {
+    MKLDNNNode(op, eng, cache), withBiases(false) {
     std::string errorMessage;
     errorPrefix = "MatMul node with name '" + getName() + "'";
 
@@ -92,15 +92,14 @@ bool MKLDNNMatMulNode::canFuse(const MKLDNNNodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
-void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims& dims, bool initWeights = false) const {
+void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims& dims, bool initWeights = false) {
     mkldnn::post_ops ops;
 
     auto getBinPostOpShape = [&](){
-        const auto outShape = getOutputShapeAtPort(0).getStaticDims();
-        const auto outShapeRank = getOutputShapeAtPort(0).getRank();
+        const auto outShapeRank = dims.size();
         const auto chIdx = getChannelAxis();
         std::vector<size_t> binaryShape(outShapeRank, 1);
-        binaryShape[chIdx] = outShape[chIdx];
+        binaryShape[chIdx] = dims[chIdx];
         return binaryShape;
     };
 
@@ -124,7 +123,7 @@ void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims
     attr.set_post_ops(ops);
 }
 
-MKLDNNNode::AttrPtr MKLDNNMatMulNode::initPrimitiveAttr(const VectorDims &dims) const {
+MKLDNNNode::AttrPtr MKLDNNMatMulNode::initPrimitiveAttr(const VectorDims &dims) {
     auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
 
     setPostOps(*attr, dims, true);
@@ -132,7 +131,7 @@ MKLDNNNode::AttrPtr MKLDNNMatMulNode::initPrimitiveAttr(const VectorDims &dims) 
     return attr;
 }
 
-MKLDNNNode::AttrPtr MKLDNNMatMulNode::initPrimitiveAttr() const {
+MKLDNNNode::AttrPtr MKLDNNMatMulNode::initPrimitiveAttr() {
     auto dummyShape = MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0));
     return initPrimitiveAttr(dummyShape.getStaticDims());
 }
@@ -166,11 +165,24 @@ static VectorDims getStridesAndModifyShape(Shape& shape, const bool transpose) {
     return strides;
 }
 
+mkldnn::memory::desc MKLDNNMatMulNode::getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc) {
+    // oneDNN matmul requires shape for bias desc to be the same rank
+    VectorDims biasDims(outMemDesc->getShape().getRank(), 1);
+    const auto outDims = outMemDesc->getShape().getStaticDims();
+    const auto chIdx = getChannelAxis();
+    biasDims[chIdx] = outDims[chIdx];
+    const auto bdt = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(2));
+
+    return mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(biasDims), bdt, memory::format_tag::any);
+}
+
 void MKLDNNMatMulNode::getSupportedDescriptors() {
-    if (getParentEdges().size() != 2)
+    if (getParentEdges().size() != getOriginalInputsNumber())
         IE_THROW()  << errorPrefix << " has incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
         IE_THROW()  << errorPrefix << " has incorrect number of output edges for layer " << getName();
+
+    withBiases = getOriginalInputsNumber() == 3;
 
     auto canBeExecutedInInt8 = [](const Precision firstInput, const Precision secondInput) {
         return one_of(firstInput, Precision::U8, Precision::I8) && secondInput == Precision::I8;
@@ -248,12 +260,19 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
 
 void MKLDNNMatMulNode::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                                         const std::vector<MemoryDescPtr>& outputDesc) {
-    MKLDNNDescriptor desc{
-        std::make_shared<matmul::desc>(inDataDesc[0]->getDnnlDesc(),
-                                       inDataDesc[1]->getDnnlDesc(),
-                                       outDataDesc->getDnnlDesc())};
+    std::shared_ptr<mkldnn::matmul::desc> matmul_desc;
+    if (withBiases) {
+        matmul_desc.reset(new matmul::desc(inDataDesc[0]->getDnnlDesc(),
+                                           inDataDesc[1]->getDnnlDesc(),
+                                           getBiasDescFrom(outDataDesc),
+                                           outDataDesc->getDnnlDesc()));
+    } else {
+        matmul_desc.reset(new matmul::desc(inDataDesc[0]->getDnnlDesc(),
+                                           inDataDesc[1]->getDnnlDesc(),
+                                           outDataDesc->getDnnlDesc()));
+    }
 
-    descs.push_back(desc);
+    descs.emplace_back(matmul_desc);
 }
 
 void MKLDNNMatMulNode::initSupportedPrimitiveDescriptors() {
@@ -304,9 +323,13 @@ void MKLDNNMatMulNode::createPrimitive() {
 
 MemoryDescPtr MKLDNNMatMulNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1): primitive_desc_it.src_desc(idx);
-    return std::make_shared<CpuBlockedMemoryDesc>(
-        MKLDNNExtensionUtils::DataTypeToIEPrecision(static_cast<mkldnn::memory::data_type>(desc.data.data_type)),
-        getInputShapeAtPort(idx)); /* provide initial shapes, so hide transpose effect */
+
+    if (idx < 2) // inputs
+        return std::make_shared<CpuBlockedMemoryDesc>(
+            MKLDNNExtensionUtils::DataTypeToIEPrecision(static_cast<mkldnn::memory::data_type>(desc.data.data_type)),
+            getInputShapeAtPort(idx)); /* provide initial shapes, so hide transpose effect */
+    else // bias
+        return MKLDNNExtensionUtils::makeDescriptor(desc);
 }
 
 bool MKLDNNMatMulNode::created() const {
@@ -365,13 +388,22 @@ void MKLDNNMatMulNode::prepareParams() {
 
     auto dstDnnlDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
 
-    MKLDNNDescriptor desc{
-            std::make_shared<matmul::desc>(src0TransposedDesc->getDnnlDesc(),
-                                           src1TransposedDesc->getDnnlDesc(),
-                                           dstDnnlDesc->getDnnlDesc())};
+    std::shared_ptr<mkldnn::matmul::desc> matmul_desc;
 
-    matmul::primitive_desc prim_desc;
+    if (withBiases) {
+        matmul_desc.reset(new mkldnn::matmul::desc{src0TransposedDesc->getDnnlDesc(),
+                                            src1TransposedDesc->getDnnlDesc(),
+                                            getBiasDescFrom(dstDnnlDesc),
+                                            dstDnnlDesc->getDnnlDesc()});
+    } else {
+        matmul_desc.reset(new mkldnn::matmul::desc(src0TransposedDesc->getDnnlDesc(),
+                                            src1TransposedDesc->getDnnlDesc(),
+                                            dstDnnlDesc->getDnnlDesc()));
+    }
+
+    MKLDNNDescriptor desc(matmul_desc);
     primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(getEngine(), *attr);
+    matmul::primitive_desc prim_desc;
 
     while (static_cast<bool>(itpd))  {
         impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
@@ -386,9 +418,13 @@ void MKLDNNMatMulNode::prepareParams() {
 
     prim.reset(new matmul(prim_desc));
 
+    auto getBias = [&](){ return getParentEdgeAt(2)->getMemoryPtr()->GetPrimitive();};
+
     primArgs[DNNL_ARG_SRC_0] = src0MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_WEIGHTS_0] = src1MemPtr->GetPrimitive();
     primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
+    if (withBiases)
+        primArgs[DNNL_ARG_BIAS] = getBias();
 
     appendPostOpArgs(*attr);
 }
