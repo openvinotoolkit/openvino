@@ -52,12 +52,12 @@ struct SqueezeParams {
 
     Shape m_input_shape;
     Shape m_output_shape;
-    Shape m_axes_shape;
     element::Type m_input_type;
     element::Type m_output_type;
-    element::Type m_axes_type;
     runtime::Tensor m_input_value;
     runtime::Tensor m_expected_value;
+    Shape m_axes_shape;
+    element::Type m_axes_type;
     runtime::Tensor m_axes_value;
     bool m_axes_node;
 };

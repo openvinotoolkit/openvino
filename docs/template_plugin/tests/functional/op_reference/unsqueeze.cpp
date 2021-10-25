@@ -36,12 +36,12 @@ struct UnsqueezeParams {
 
     Shape m_input_shape;
     Shape m_expected_shape;
-    Shape m_axes_shape;
     element::Type m_input_type;
     element::Type m_expected_type;
-    element::Type m_axes_type;
     runtime::Tensor m_input_value;
     runtime::Tensor m_expected_value;
+    Shape m_axes_shape;
+    element::Type m_axes_type;
     runtime::Tensor m_axes_value;
 };
 
