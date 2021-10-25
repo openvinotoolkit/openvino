@@ -189,7 +189,6 @@ std::string getShapesString(const InferenceEngine::ICNNNetwork::InputShapes& sha
     return ss.str();
 }
 
-
 std::string getShapeString(const InferenceEngine::SizeVector& shape) {
     std::stringstream ss;
     ss << "[";
