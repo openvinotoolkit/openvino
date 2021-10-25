@@ -16,12 +16,12 @@ using namespace InferenceEngine;
 bool MKLDNNTransposeNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
-                ov::op::v1::Transpose::type_info)) {
+                ov::op::v1::Transpose::get_type_info_static())) {
             errorMessage = "Node is not an instance of the Transpose operation from opset1.";
             return false;
         }
 
-        if (!isDynamicNgraphNode(op) && op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() != ov::op::v0::Constant::type_info) {
+        if (!isDynamicNgraphNode(op) && op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() != ov::op::v0::Constant::get_type_info_static()) {
             errorMessage = "Constant expected as the second input for static shapes.";
             return false;
         }
@@ -38,7 +38,7 @@ MKLDNNTransposeNode::MKLDNNTransposeNode(const std::shared_ptr<ov::Node>& op, co
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    if (op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() == ov::op::v0::Constant::type_info) {
+    if (op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() == ov::op::v0::Constant::get_type_info_static()) {
         constMap[INPUT_ORDER_IDX] = true;
         order = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(INPUT_ORDER_IDX))->cast_vector<size_t>();
 

@@ -28,17 +28,17 @@ string capitulate(string name) {
 }
 }  // namespace
 
-#define CHECK_OPSET(op1, op2)                                                                   \
-    EXPECT_TRUE(is_type<op1>(make_shared<op2>()));                                              \
-    EXPECT_TRUE((std::is_same<op1, op2>::value));                                               \
-    EXPECT_TRUE((get_opset1().contains_type<op2>()));                                           \
-    {                                                                                           \
-        shared_ptr<Node> op(get_opset1().create(op2::type_info.name));                          \
-        ASSERT_TRUE(op);                                                                        \
-        EXPECT_TRUE(is_type<op2>(op));                                                          \
-        shared_ptr<Node> opi(get_opset1().create_insensitive(capitulate(op2::type_info.name))); \
-        ASSERT_TRUE(opi);                                                                       \
-        EXPECT_TRUE(is_type<op2>(opi));                                                         \
+#define CHECK_OPSET(op1, op2)                                                                                \
+    EXPECT_TRUE(is_type<op1>(make_shared<op2>()));                                                           \
+    EXPECT_TRUE((std::is_same<op1, op2>::value));                                                            \
+    EXPECT_TRUE((get_opset1().contains_type<op2>()));                                                        \
+    {                                                                                                        \
+        shared_ptr<Node> op(get_opset1().create(op2::get_type_info_static().name));                          \
+        ASSERT_TRUE(op);                                                                                     \
+        EXPECT_TRUE(is_type<op2>(op));                                                                       \
+        shared_ptr<Node> opi(get_opset1().create_insensitive(capitulate(op2::get_type_info_static().name))); \
+        ASSERT_TRUE(opi);                                                                                    \
+        EXPECT_TRUE(is_type<op2>(opi));                                                                      \
     }
 
 TEST(opset, check_opset1) {
@@ -155,11 +155,9 @@ TEST(opset, check_opset1) {
 
 class NewOp : public op::Op {
 public:
+    OPENVINO_OP("NewOp", 0);
+
     NewOp() = default;
-    static constexpr NodeTypeInfo type_info{"NewOp", 0};
-    const NodeTypeInfo& get_type_info() const override {
-        return type_info;
-    }
     void validate_and_infer_types() override{};
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& /* new_args */) const override {
@@ -167,15 +165,13 @@ public:
     };
 };
 
-constexpr NodeTypeInfo NewOp::type_info;
-
 TEST(opset, new_op) {
     // Copy opset1; don't bash the real thing in a test
     OpSet opset1_copy(get_opset1());
     opset1_copy.insert<NewOp>();
     ASSERT_TRUE(opset1_copy.contains_type<NewOp>());
     {
-        shared_ptr<Node> op(opset1_copy.create(NewOp::type_info.name));
+        shared_ptr<Node> op(opset1_copy.create(NewOp::get_type_info_static().name));
         ASSERT_TRUE(op);
         EXPECT_TRUE(is_type<NewOp>(op));
     }
@@ -193,7 +189,7 @@ TEST(opset, new_op) {
     fred = shared_ptr<Node>(opset1_copy.create_insensitive("FReD"));
     EXPECT_TRUE(fred);
     // Fred should not be in the registry
-    ASSERT_FALSE(get_opset1().contains_type(NewOp::type_info));
+    ASSERT_FALSE(get_opset1().contains_type(NewOp::get_type_info_static()));
     ASSERT_FALSE(get_opset1().contains_type<NewOp>());
 }
 
