@@ -818,8 +818,8 @@ bool MKLDNNConvolutionNode::isNspcAvailable() const {
     }
 
     // A bunch of heuristics are designed to cut off not optimal nspc convolution applications
-    auto inpDims = getInputShapeAtPort(0).getStaticDims();
-    auto outDims = getOutputShapeAtPort(0).getStaticDims();
+    auto inpDims = getInputShapeAtPort(0).getDims();
+    auto outDims = getOutputShapeAtPort(0).getDims();
     auto ndims = inpDims.size();
 
     if (isDepthWise()) {
@@ -835,15 +835,14 @@ bool MKLDNNConvolutionNode::isNspcAvailable() const {
 
         if (!isGrouped) {
             auto weightDimsReversItr = weightDims.crbegin();
-            auto inpDimsReversItr = inpDims.crbegin();
-            auto outDimsReversItr = outDims.crbegin();
+            auto strideReversItr = stride.crbegin();
             auto paddingLreversItr = paddingL.crbegin();
             auto paddingRreversItr = paddingR.crbegin();
 
             for (size_t i = 0; i < spatialRank; ++i) {
                 is1x1 = true
                         && *(weightDimsReversItr++) == 1
-                        && *(inpDimsReversItr++) == *(outDimsReversItr++)
+                        && *(strideReversItr++) == 1
                         && *(paddingLreversItr++) == 0
                         && *(paddingRreversItr++) == 0;
             }
@@ -853,7 +852,7 @@ bool MKLDNNConvolutionNode::isNspcAvailable() const {
         if (mayiuse(impl::cpu::x64::avx512_common) && is1x1) {
             auto end = inpDims.rbegin();
             std::advance(end, spatialRank);
-            if (std::all_of(inpDims.rbegin(), end, [](size_t x) { return 1 == x; })) {
+            if (std::all_of(inpDims.rbegin(), end, [](size_t x) { return dimsEqualStrong(1, x); })) {
                 return false;
             }
         }
