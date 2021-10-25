@@ -212,7 +212,8 @@ struct onnx_editor::ONNXModelEditor::Impl {
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     Impl(const std::wstring& model_path)
-        : m_model_proto{std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_file(model_path))} {}
+        : m_model_proto{
+              std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_file(model_path))} {}
 #endif
 };
 
@@ -224,7 +225,7 @@ onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path)
-    : m_model_path{file_util::wstring_to_string(model_path)},
+    : m_model_path{ngraph::file_util::wstring_to_string(model_path)},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
               }} {}
