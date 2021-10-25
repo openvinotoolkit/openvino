@@ -152,6 +152,15 @@ const std::vector<inputShapesPair> dynamicInputShapes4D = {
             {{4, 15, 16, 14}},
             {{7, 10, 20, 16}}
         }
+    },
+    {
+        { // Origin dynamic shapes
+            {-1, -1, -1, -1}
+        },
+        { // Dynamic shapes instances
+            {{1, 24, 21, 8}},
+            {{2, 16, 11, 6}}
+        }
     }
 };
 

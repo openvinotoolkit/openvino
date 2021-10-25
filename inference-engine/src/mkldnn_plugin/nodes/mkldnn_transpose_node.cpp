@@ -21,7 +21,8 @@ bool MKLDNNTransposeNode::isSupportedOperation(const std::shared_ptr<const ov::N
             return false;
         }
 
-        if (!isDynamicNgraphNode(op) && op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() != ov::op::v0::Constant::get_type_info_static()) {
+        if (op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() != ov::op::v0::Constant::get_type_info_static()) {
+            // TODO: Support parameterized Order input for dynamic shapes.
             errorMessage = "Constant expected as the second input for static shapes.";
             return false;
         }
