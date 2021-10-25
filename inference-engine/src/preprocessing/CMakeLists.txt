@@ -135,6 +135,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE fluid openvino::itt openvino::util)
 if(BUILD_SHARED_LIBS)
     # for static linkage the dependencies are in opposite order
     target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
+else()
+    target_link_libraries(inference_engine PRIVATE ${TARGET_NAME})
 endif()
 
 target_include_directories(${TARGET_NAME} INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}"
