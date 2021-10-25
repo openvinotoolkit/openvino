@@ -77,7 +77,6 @@ public:
         InferenceEngine::SoIInferRequestInternal   _inferRequest;
         InferenceEngine::StatusCode     _status = InferenceEngine::StatusCode::OK;
         int                             _batchSize;
-        std::atomic_int                 _numRequestsReady = {0};
         ThreadSafeQueue<std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task>> _tasks;
         std::vector<InferenceEngine::Task> _completionTasks;
         std::thread                     _thread;
@@ -118,7 +117,6 @@ public:
                                    AutoBatchExecutableNetwork::WorkerInferRequest* workerRequestPtr,
                                    int batch_id, int num_batch, bool _needPerfCounters = false);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
-    void InferImpl() override;
 
     // Batch-Device impl specific: sets the data (blobs from the device request to the batched device request)
     void SetBlobsToAnotherRequest(InferenceEngine::SoIInferRequestInternal& req);
