@@ -166,8 +166,7 @@ public:
      * @return true if this object can be dynamically cast to the type const T*. Otherwise, false
      */
     template <typename T>
-    bool is() const noexcept {
-        static_assert(std::is_base_of<Tensor, T>::value, "Could not check type that is not inherited from Tensor");
+    typename std::enable_if<std::is_base_of<Tensor, T>::value, bool>::type is() const noexcept {
         try {
             T::type_check(*this);
         } catch (...) {
@@ -183,8 +182,7 @@ public:
      * @return T object
      */
     template <typename T>
-    const T as() const {
-        static_assert(std::is_base_of<Tensor, T>::value, "Could not check type that is not inherited from Tensor");
+    const typename std::enable_if<std::is_base_of<Tensor, T>::value, T>::type as() const {
         T::type_check(*this);
         return *static_cast<const T*>(this);
     }
@@ -195,7 +193,7 @@ public:
      * @tparam T Type to cast to. Must represent a class derived from the Tensor
      * @return T object
      */
-    template <typename T>
+    template <typename T, typename = typename std::enable_if<std::is_base_of<Tensor, T>::value>::type>
     operator T() const {
         return as<T>();
     }
