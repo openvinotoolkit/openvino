@@ -374,9 +374,9 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
 
 bool ngraph::pass::StridedSliceOptimization::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(StridedSliceOptimization);
-    ngraph::pass::Manager manager(get_pass_config());
-    manager.register_pass<ngraph::pass::SliceToStridedSlice>();
-    manager.run_passes(f);
+    // ngraph::pass::Manager manager(get_pass_config());
+    // manager.register_pass<ngraph::pass::SliceToStridedSlice>();
+    // manager.run_passes(f);
 
     bool rewritten = UselessStridedSliceEraser().run_on_function(f);
     rewritten |= SharedStridedSliceEraser().run_on_function(f);
