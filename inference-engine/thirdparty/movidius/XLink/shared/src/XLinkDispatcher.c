@@ -262,6 +262,18 @@ XLinkError_t DispatcherStart(xLinkDeviceHandle_t *deviceHandle)
         mvLog(MVLOG_ERROR,"pthread_attr_setschedpolicy error");
         pthread_attr_destroy(&attr);
     }
+#ifdef XLINK_THREADS_PRIORITY
+    struct sched_param param;
+    if (pthread_attr_getschedparam(&attr, &param) != 0) {
+        mvLog(MVLOG_ERROR,"pthread_attr_getschedparam error");
+        pthread_attr_destroy(&attr);
+    }
+    param.sched_priority = XLINK_THREADS_PRIORITY;
+    if (pthread_attr_setschedparam(&attr, &param) != 0) {
+        mvLog(MVLOG_ERROR,"pthread_attr_setschedparam error");
+        pthread_attr_destroy(&attr);
+    }
+#endif
 #endif
 
     while(((sem_wait(&addSchedulerSem) == -1) && errno == EINTR))
@@ -601,6 +613,18 @@ static void* eventSchedulerRun(void* ctx)
         mvLog(MVLOG_ERROR,"pthread_attr_setschedpolicy error");
         return NULL;
     }
+#ifdef XLINK_THREADS_PRIORITY
+    struct sched_param param;
+    if (pthread_attr_getschedparam(&attr, &param) != 0) {
+        mvLog(MVLOG_ERROR,"pthread_attr_getschedparam error");
+        pthread_attr_destroy(&attr);
+    }
+    param.sched_priority = XLINK_THREADS_PRIORITY;
+    if (pthread_attr_setschedparam(&attr, &param) != 0) {
+        mvLog(MVLOG_ERROR,"pthread_attr_setschedparam error");
+        pthread_attr_destroy(&attr);
+    }
+#endif
 #endif
     sc = pthread_create(&readerThreadId, &attr, eventReader, curr);
     if (sc) {
