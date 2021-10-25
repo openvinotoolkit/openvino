@@ -56,7 +56,12 @@ void remove_redundant_reorders::run(program& p) {
 
             // Avoid different data types between input and output
             auto same_data_type = input.get_output_layout().data_type == output_layout.data_type;
-            if (!same_data_type)
+            auto i8_u8_input = input.get_output_layout().data_type == data_types::i8 ||
+                               input.get_output_layout().data_type == data_types::u8;
+            auto quantize_user = node.get_users().front()->is_type<quantize>() &&
+                                 node.get_users().size() == 1;
+
+            if (!same_data_type && !(i8_u8_input && quantize_user))
                 continue;
 
             // Avoid optimization of nv12 reorder
@@ -303,12 +308,15 @@ void remove_redundant_reorders::run(program& p) {
             if (!lo.can_fuse_reorder_to_prev(input, *node.get_users().front(), input.get_output_layout().format, output_layout.format))
                 continue;
 
+            auto old_output_layout_of_input = input.get_output_layout();
             input.set_output_layout(output_layout, false);
             if (input.type()->does_possible_implementation_exist(input)) {
                 p.replace_all_usages(node, input);
                 p.add_optimized_primitive_info(node.id());
                 p.remove_all_connections(node);
                 p.remove_if_dangling(node);
+            } else {
+                input.set_output_layout(old_output_layout_of_input, false);
             }
         }
     }
@@ -323,7 +331,7 @@ void remove_redundant_reorders::run(program& p) {
         auto& dep = node_ptr->get_dependency(0);
         if (!usr->is_type<quantize>() ||
             (dep.get_output_layout().format != format::b_fs_yx_fsv16 &&
-             dep.get_output_layout().format != format::fs_b_yx_fsv32 &&
+             (lo.get_optimization_attributes().use_onednn_impls || dep.get_output_layout().format != format::fs_b_yx_fsv32) &&
              dep.get_output_layout().format != format::bfyx))
             continue;
 
@@ -348,7 +356,7 @@ void remove_redundant_reorders::run(program& p) {
         auto& dep = node->get_dependency(0);
 
         if (!(usr->is_type<convolution>()) ||
-            usr->get_output_layout().data_type != dep.get_output_layout().data_type ||
+            node->get_output_layout().data_type != dep.get_output_layout().data_type ||
             dep.get_output_layout().format != format::bfyx)
             return false;
         if (usr->as<convolution>().get_preferred_impl_type() != impl_types::onednn &&
@@ -409,6 +417,7 @@ void remove_redundant_reorders::run(program& p) {
             }
         }
 
+        auto old_output_layout_of_input = input.get_output_layout();
         auto output_layout = node->get_output_layout();
         input.set_output_layout(output_layout, false);
         if (input.type()->does_possible_implementation_exist(input)) {
@@ -428,8 +437,11 @@ void remove_redundant_reorders::run(program& p) {
             node->can_be_optimized(true);
             p.add_optimized_primitive_info(node->id());
             p.extract_and_remove(*node);
+            return true;
+        } else {
+            input.set_output_layout(old_output_layout_of_input, false);
+            return false;
         }
-        return true;
     };
 
     if (enable_reorder_fusing) {
