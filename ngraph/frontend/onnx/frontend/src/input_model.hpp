@@ -20,7 +20,9 @@ public:
     // The path can be required even if the model is passed as a stream because it is necessary
     // for ONNX external data feature
     InputModelONNX(std::istream& model_stream, const std::string& path);
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     InputModelONNX(std::istream& model_stream, const std::wstring& path);
+#endif
 
     std::vector<Place::Ptr> get_inputs() const override;
     std::vector<Place::Ptr> get_outputs() const override;
