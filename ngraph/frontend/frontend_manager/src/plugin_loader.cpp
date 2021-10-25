@@ -16,9 +16,9 @@
 
 #include <sys/stat.h>
 
+#include <ngraph/log.hpp>
 #include <string>
 #include <vector>
-#include <ngraph/log.hpp>
 
 #include "openvino/util/file_util.hpp"
 #include "plugin_loader.hpp"

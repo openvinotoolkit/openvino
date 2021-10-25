@@ -198,7 +198,7 @@ void ValuesFromConstNode(const NodeContext& node, ov::Shape* const_tensor_shape,
                 break;
             default:
                 NGRAPH_DEBUG << "Const node has empty tensor_proto and we don't know how to "
-                                  "handle this element type";
+                                "handle this element type";
                 FRONT_END_THROW("Encountered unknown element type " + DataType_Name(dt) + " on an empty tensor_proto");
             }
             TF_OP_VALIDATION_CHECK(node, val_size != 0, "Empty values vector");

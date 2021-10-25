@@ -87,7 +87,7 @@ static shared_ptr<Transpose> combine_transposes(const shared_ptr<Transpose>& t1,
 
     auto combined = make_transpose(t2->input_value(0), perm_t2);
     NGRAPH_DEBUG << "Combining " << describe<Transpose>(t1) << " and " << describe<Transpose>(t2) << " into "
-                  << describe<Transpose>(combined);
+                 << describe<Transpose>(combined);
     return combined;
 }
 
@@ -98,7 +98,7 @@ static void insert_transpose(const shared_ptr<Node>& target, const shared_ptr<No
     auto new_order = as_type_ptr<Constant>(transpose->input_value(1).get_node_shared_ptr());
     auto new_transpose = make_transpose(arg.get_node_shared_ptr(), new_order->get_axis_vector_val());
     NGRAPH_DEBUG << "Inserting transpose " << describe<Transpose>(new_transpose) << " at input " << target->get_name()
-                  << " input index " << input_index;
+                 << " input index " << input_index;
 
     target->input(input_index).replace_source_output(new_transpose->output(0));
 }
@@ -162,7 +162,7 @@ static void convert_binary_to_default_order(const shared_ptr<Node>& binary,
     input.replace_source_output(new_node->output(0));
 
     NGRAPH_DEBUG << "right = " << ngraph::vector_to_string(right.get_shape()) << ", "
-                  << right.get_node_shared_ptr()->get_name();
+                 << right.get_node_shared_ptr()->get_name();
     // this should now insert transpose on right
     mark_transpose_for_deletion(right_t, transposes_to_delete);
     write_transposemap(reorders, binary, right_t);
@@ -182,7 +182,7 @@ static void materialize_shapes(const shared_ptr<Node>& n,
         auto arg = n->input_value(i);
         auto arg_transpose = read_transposemap(reorders, arg);
         NGRAPH_DEBUG << "Materializing " << describe<Transpose>(arg_transpose) << " for "
-                      << arg.get_node_shared_ptr()->get_name();
+                     << arg.get_node_shared_ptr()->get_name();
         mark_transpose_for_deletion(arg_transpose, transposes_to_delete);
         auto arg_transpose_order = as_type_ptr<Constant>(arg_transpose->input_value(1).get_node_shared_ptr());
         if (arg_transpose_order->get_axis_vector_val() != ngraph::get_default_order(arg.get_shape())) {
@@ -234,9 +234,9 @@ static void sink_binary(const shared_ptr<Node>& binary,
     auto right_mismatch = right_order != ngraph::get_default_order(right.get_shape());
 
     NGRAPH_DEBUG << "Sink binary " << binary->get_name() << " left transpose: " << ngraph::vector_to_string(left_order)
-                  << " left default: " << ngraph::vector_to_string(ngraph::get_default_order(left.get_shape()))
-                  << " right transpose: " << ngraph::vector_to_string(right_order)
-                  << " right default: " << ngraph::vector_to_string(ngraph::get_default_order(right.get_shape()));
+                 << " left default: " << ngraph::vector_to_string(ngraph::get_default_order(left.get_shape()))
+                 << " right transpose: " << ngraph::vector_to_string(right_order)
+                 << " right default: " << ngraph::vector_to_string(ngraph::get_default_order(right.get_shape()));
 
     if ((left_order.size() == right_order.size() && left_order == right_order) || (!left_mismatch && !right_mismatch)) {
         // Propagate the reshape which matches the shape of the binary node
@@ -332,7 +332,7 @@ static void sink_concat(const shared_ptr<Concat>& n,
     // put back the original arguments
     for (size_t i = 0; i < new_concat->get_input_size(); i++) {
         NGRAPH_DEBUG << "Replacing " << new_concat->get_name() << " input " << i << " with " << n->get_name()
-                      << " input " << i;
+                     << " input " << i;
         new_concat->input(i).replace_source_output(n->input_value(i));
     }
     NGRAPH_DEBUG << "Replacing " << n->get_name() << " with " << new_concat->get_name();
