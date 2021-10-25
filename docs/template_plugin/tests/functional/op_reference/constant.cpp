@@ -39,7 +39,10 @@ struct ConstantParams {
 class ReferenceConstantLayerTest : public testing::TestWithParam<ConstantParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        std::tie(function, inputData, refOutData) = CreateFunction(GetParam());
+        auto params = GetParam();
+        function = CreateFunction(params);
+        inputData = {};
+        refOutData = {params.refData};
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<ConstantParams>& obj) {
@@ -56,64 +59,79 @@ public:
         return result.str();
     }
 
-protected:
-    using ReferenceType = std::tuple<std::shared_ptr<Function>, std::vector<ov::runtime::Tensor>, std::vector<ov::runtime::Tensor>>;
-
-    virtual ReferenceType CreateFunction(const ParamType& params) {
-        ReferenceType reference;
+private:
+    static std::shared_ptr<Function> CreateFunction(const ParamType& params) {
         auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
-        auto function = std::make_shared<Function>(A, ParameterVector{});
-        reference = {function, {}, {params.refData}};
-        return reference;
+        return std::make_shared<Function>(A, ParameterVector{});
     }
 };
 
 class ReferenceConstantLayerTest_2Constant : public ReferenceConstantLayerTest {
-protected:
-    ReferenceType CreateFunction(const ParamType& params) override {
-        ReferenceType reference;
+public:
+    void SetUp() override {
+        auto params = GetParam();
+        function = CreateFunction(params);
+        inputData = {};
+        refOutData = {params.refData, params.refData};
+    }
+
+private:
+    static std::shared_ptr<Function> CreateFunction(const ParamType& params) {
         auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
         auto B = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
-        auto function = std::make_shared<Function>(NodeVector{A, B}, ParameterVector{});
-        reference = {function, {}, {params.refData, params.refData}};
-        return reference;
+        return std::make_shared<Function>(NodeVector{A, B}, ParameterVector{});
     }
 };
 
 class ReferenceConstantLayerTest_WithOp : public ReferenceConstantLayerTest {
-protected:
-    ReferenceType CreateFunction(const ParamType& params) override {
-        ReferenceType reference;
+public:
+    void SetUp() override {
+        auto params = GetParam();
+        function = CreateFunction(params);
+        inputData = {};
+        refOutData = {params.refData};
+    }
+
+private:
+    static std::shared_ptr<Function> CreateFunction(const ParamType& params) {
         auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
-        auto function = std::make_shared<Function>(std::make_shared<op::v0::Abs>(A), ParameterVector{});
-        reference = {function, {}, {params.refData}};
-        return reference;
+        return std::make_shared<Function>(std::make_shared<op::v0::Abs>(A), ParameterVector{});
     }
 };
 
 class ReferenceConstantLayerTest_MultiUse : public ReferenceConstantLayerTest {
-protected:
-    ReferenceType CreateFunction(const ParamType& params) override {
-        ReferenceType reference;
+public:
+    void SetUp() override {
+        auto params = GetParam();
+        function = CreateFunction(params);
+        inputData = {};
+        refOutData = {params.refData};
+    }
+
+private:
+    static std::shared_ptr<Function> CreateFunction(const ParamType& params) {
         const auto A = std::make_shared<op::v0::Constant>(
             params.inType,
             params.inputShape.to_shape(),
             std::vector<std::string>{std::to_string(*reinterpret_cast<int*>(params.inputData.data()))});
-        auto function = std::make_shared<Function>(A, ParameterVector {});
-        reference = {function, {}, {params.refData}};
-        return reference;
+        return std::make_shared<Function>(A, ParameterVector {});
     }
 };
 
 class ReferenceConstantLayerTest_EqualityBool : public ReferenceConstantLayerTest {
+public:
+    void SetUp() override {
+        auto params = GetParam();
+        function = CreateFunction(params);
+        inputData = {};
+        refOutData = {params.refData};
+    }
+
 protected:
-    ReferenceType CreateFunction(const ParamType& params) override {
-        ReferenceType reference;
+    static std::shared_ptr<Function> CreateFunction(const ParamType& params) {
         auto A = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), params.inputData.data());
         auto B = op::v0::Constant::create(params.inType, params.inputShape.to_shape(), {true, true, true, true});
-        auto function = std::make_shared<Function>(std::make_shared<op::v1::Equal>(A, B), ParameterVector{});
-        reference = {function, {}, {params.refData}};
-        return reference;
+        return std::make_shared<Function>(std::make_shared<op::v1::Equal>(A, B), ParameterVector{});
     }
 };
 
