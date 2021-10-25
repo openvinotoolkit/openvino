@@ -61,7 +61,8 @@ void MultiplyTransformation::SetUp() {
         param.broadcast1,
         param.fakeQuantize1,
         param.broadcast2,
-        param.fakeQuantize2);
+        param.fakeQuantize2,
+        param.fakeQuantizeAfter);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
 }

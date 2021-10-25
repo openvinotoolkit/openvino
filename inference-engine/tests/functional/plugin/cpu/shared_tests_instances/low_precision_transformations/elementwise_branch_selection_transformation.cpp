@@ -47,6 +47,11 @@ const std::vector<LayerTestsDefinitions::ElementwiseBranchSelectionTestValues> p
             {"fakeQuantizeBefore1", "convolution1"},
             {"fakeQuantizeBefore2", "convolution2"},
             {"maxPool", "result"}
+        },
+        {
+            {"convolution1", "U8"},
+            {"convolution2", "U8"},
+            {"eltwise", "U8"}
         }
     },
     {
@@ -75,6 +80,11 @@ const std::vector<LayerTestsDefinitions::ElementwiseBranchSelectionTestValues> p
             {"fakeQuantizeBefore1", "convolution1"},
             {"fakeQuantizeBefore2", "convolution2"},
             {"maxPool", "result"}
+        },
+        {
+            {"convolution1", "U8"},
+            {"convolution2", "U8"},
+            {"eltwise", "U8"}
         }
     }
 };

@@ -25,6 +25,8 @@ public:
     Branch branch2;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeAfter;
     std::vector<std::pair<std::string, std::string>> expectedReorders;
+    // expected operation name + expected operation precision
+    std::vector<std::pair<std::string, std::string>> expectedPrecisions;
 };
 
 typedef std::tuple<

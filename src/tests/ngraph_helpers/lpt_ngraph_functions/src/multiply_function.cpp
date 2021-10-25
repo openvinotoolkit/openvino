@@ -93,7 +93,8 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getOriginal(
     const bool broadcast1,
     const ngraph::builder::subgraph::FakeQuantizeOnData& fq1,
     const bool broadcast2,
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fq2) {
+    const ngraph::builder::subgraph::FakeQuantizeOnData& fq2,
+    const ngraph::builder::subgraph::FakeQuantizeOnData& fqAfter) {
     auto inputShape1 = inputShape;
     if (broadcast1) {
         inputShape1[2] = 1;
@@ -131,7 +132,15 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getOriginal(
         fq2.empty() ? input2 : fakeQuantize2);
     multiply->set_friendly_name("multiply");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
+    auto const fakeQuantizeAfter = fqAfter.empty() ?
+        nullptr :
+        makeFakeQuantize(multiply, precision, fqAfter);
+    if (fakeQuantizeAfter != nullptr) {
+        fakeQuantizeAfter->set_friendly_name("fakeQuantizeAfter");
+    }
+
+    const std::shared_ptr<Node> result = fakeQuantizeAfter == nullptr ? std::dynamic_pointer_cast<Node>(multiply) : fakeQuantizeAfter;
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(result) };
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         results,
         ngraph::ParameterVector{ input1, input2 },

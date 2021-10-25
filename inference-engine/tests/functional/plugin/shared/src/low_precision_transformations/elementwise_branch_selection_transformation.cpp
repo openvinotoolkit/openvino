@@ -74,35 +74,43 @@ void ElementwiseBranchSelectionTransformation::Run() {
     LayerTestsCommon::Run();
 
     const auto params = std::get<3>(GetParam());
+    const auto elementwiseType = std::get<4>(GetParam());
+
     std::vector<std::pair<std::string, std::string>> expectedReorders = params.expectedReorders;
-
-    auto rtInfo = LayerTestsCommon::getRuntimeInfo();
-    for (auto it : rtInfo) {
-        const auto& typeIt = it.second.find("layerType");
-        const auto type = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(typeIt->second)->get();
-        if (type == "Reorder") {
-            const auto name = it.first;
-            bool wasFound = false;
-            for (auto it = expectedReorders.begin(); it != expectedReorders.end(); ++it) {
-                auto pair = *it;
-                const std::string parent = name.substr(0, name.find("_"));
-                const std::string child = name.substr(name.rfind("_") + 1, name.size() - name.rfind("_") - 1);
-                if ((pair.first == parent) && (pair.second == child)) {
-                    expectedReorders.erase(it);
-                    wasFound = true;
-                    break;
+    if (!expectedReorders.empty()) {
+        auto rtInfo = LayerTestsCommon::getRuntimeInfo();
+        for (auto it : rtInfo) {
+            const auto& typeIt = it.second.find("layerType");
+            const auto type = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(typeIt->second)->get();
+            if (type == "Reorder") {
+                const auto name = it.first;
+                bool wasFound = false;
+                for (auto it = expectedReorders.begin(); it != expectedReorders.end(); ++it) {
+                    auto pair = *it;
+                    const std::string parent = name.substr(0, name.find("_"));
+                    const std::string child = name.substr(name.rfind("_") + 1, name.size() - name.rfind("_") - 1);
+                    if ((pair.first == parent) && (pair.second == child)) {
+                        expectedReorders.erase(it);
+                        wasFound = true;
+                        break;
+                    }
                 }
-            }
 
-            ASSERT_TRUE(wasFound) << it.first << " was not found in expected list";
-        } else if (type == "Convolution") {
-            const auto& precisionIt = it.second.find("runtimePrecision");
-            const auto precision = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(precisionIt->second)->get();
-            ASSERT_EQ("U8", precision);
+                ASSERT_TRUE(wasFound) << it.first << " was not found in expected list";
+            } else if (type == "Convolution") {
+                const auto& precisionIt = it.second.find("runtimePrecision");
+                const auto precision = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(precisionIt->second)->get();
+                ASSERT_EQ("U8", precision);
+            }
         }
+
+        ASSERT_TRUE(expectedReorders.empty()) << "Some Reorder operations were not found in execution graph";
     }
 
-    ASSERT_TRUE(expectedReorders.empty()) << "Some Reorder operations were not found in execution graph";
+    for (auto it : params.expectedPrecisions) {
+        const auto actualPrecision = getRuntimePrecisionByFusedName(it.first == "eltwise" ? elementwiseType : it.first);
+        ASSERT_EQ(it.second, actualPrecision) << "actual precision for operation '" << it.first << "' is not correct";
+    }
 }
 
 TEST_P(ElementwiseBranchSelectionTransformation, CompareWithRefImpl) {

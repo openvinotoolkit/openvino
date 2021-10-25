@@ -48,9 +48,10 @@ public:
         const ngraph::element::Type precision,
         const ngraph::PartialShape& inputShape,
         const bool broadcast1,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData1,
+        const ngraph::builder::subgraph::FakeQuantizeOnData& fq1,
         const bool broadcast2,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData2);
+        const ngraph::builder::subgraph::FakeQuantizeOnData& fq2,
+        const ngraph::builder::subgraph::FakeQuantizeOnData& fqAfter);
 };
 
 }  // namespace subgraph

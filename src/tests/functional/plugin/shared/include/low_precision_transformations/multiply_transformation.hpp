@@ -18,6 +18,7 @@ public:
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
     bool broadcast2;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
+    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeAfter;
     ngraph::element::Type expectedPrecisions;
 };
 

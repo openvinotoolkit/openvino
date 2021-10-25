@@ -516,6 +516,44 @@ std::string LayerTestsCommon::getRuntimePrecisionByType(const std::string& layer
     return "";
 }
 
+std::string LayerTestsCommon::getRuntimePrecisionByFusedName(const std::string& layerName) {
+    const auto execGraph = executableNetwork.GetExecGraphInfo();
+    const auto execFunction = execGraph.getFunction();
+
+    const auto parse = [](const std::string& originalLayersNames) -> std::set<std::string> {
+        std::set<std::string> names;
+
+        std::string tmp = originalLayersNames;
+        size_t beginPosition = 0ul;
+        size_t endPosition;
+        while ((endPosition = tmp.find(",", beginPosition)) != std::string::npos) {
+            names.insert(tmp.substr(beginPosition, endPosition - beginPosition));
+            beginPosition = endPosition + 1;
+        }
+
+        names.insert(tmp.substr(beginPosition, endPosition - beginPosition));
+        return names;
+    };
+
+    for (const auto& op : execFunction->get_ops()) {
+        const auto& rtInfo = op->get_rt_info();
+
+        const auto& nameIt = rtInfo.find("originalLayersNames");
+        IE_ASSERT(nameIt != rtInfo.end()) << "originalLayersNames is not found for node: " << layerName;
+        const auto fusedName = parse(ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(nameIt->second)->get());
+        if (fusedName.find(layerName) == fusedName.end()) {
+            continue;
+        }
+
+        const auto& it = rtInfo.find("runtimePrecision");
+        IE_ASSERT(it != rtInfo.end()) << "runtimePrecision is not found for node: " << layerName;
+        const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
+        return rtPrecisionPtr->get();
+    }
+
+    return "";
+}
+
 std::map<std::string, ngraph::Node::RTMap> LayerTestsCommon::getRuntimeInfo() {
     const auto execGraph = executableNetwork.GetExecGraphInfo();
     const auto function = execGraph.getFunction();

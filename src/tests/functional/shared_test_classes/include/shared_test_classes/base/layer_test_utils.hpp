@@ -85,8 +85,15 @@ public:
 
     std::map<std::string, std::string>& GetConfiguration();
 
+    // get runtime precision by operation friendly name
     std::string getRuntimePrecision(const std::string& layerName);
+
+    // get runtime precision by operation type
     std::string getRuntimePrecisionByType(const std::string& layerType);
+
+    // get runtime precision by operation friendly name which can be fused
+    std::string getRuntimePrecisionByFusedName(const std::string& layerName);
+
     std::map<std::string, ngraph::Node::RTMap> getRuntimeInfo();
 
 #ifndef NDEBUG
