@@ -55,7 +55,7 @@ void shape_infer(ExperimentalDetectronROIFeatureExtractor* op,
     DimType channels_intersection;
     bool channels_intersection_initialized = false;
     for (size_t i = 1; i < input_shapes.size(); i++) {
-        auto& current_shape = input_shapes[i];
+        const auto& current_shape = input_shapes[i];
         auto current_rank = current_shape.rank();
 
         NODE_VALIDATION_CHECK(op,
@@ -71,10 +71,9 @@ void shape_infer(ExperimentalDetectronROIFeatureExtractor* op,
                                   current_shape[0]);
 
             if (channels_intersection_initialized) {
-                NODE_VALIDATION_CHECK(
-                    op,
-                    DimType::merge(channels_intersection, channels_intersection, current_shape[1]),
-                    "The number of channels must be the same for all layers of the pyramid.");
+                NODE_VALIDATION_CHECK(op,
+                                      DimType::merge(channels_intersection, channels_intersection, current_shape[1]),
+                                      "The number of channels must be the same for all layers of the pyramid.");
             } else {
                 channels_intersection = current_shape[1];
                 channels_intersection_initialized = true;
