@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/op/util/multi_subgraph_base.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "itt.hpp"
@@ -21,23 +22,34 @@ ngraph::pass::RemoveLoopDanglingParameters::RemoveLoopDanglingParameters() {
     auto loop_pattern = pattern::wrap_type<opset8::Loop>();
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto loop = std::dynamic_pointer_cast<opset8::Loop>(m.get_match_root());
-        auto& body_inputs_descriptors = loop->get_input_descriptions();
-        auto body_func = loop->get_function();
-        auto body_params = body_func->get_parameters();
+        auto& body_func = loop->get_function();
         auto loop_inputs = loop->input_values();
         bool pass_applied = false;
-        for (auto desc_it = body_inputs_descriptors.begin(); desc_it != body_inputs_descriptors.end(); ++desc_it) {
+
+        auto& body_inputs_descriptors = loop->get_input_descriptions();
+        using DescType = decltype(body_inputs_descriptors);
+        auto update_descriptors = [](DescType& descriptors, uint64_t removed_body_idx, uint64_t removed_loop_idx){
+        for (auto& desc : descriptors) {
+            if (desc->m_body_parameter_index > removed_body_idx) {
+                desc->m_body_parameter_index--;
+            }
+            if (desc->m_input_index > removed_loop_idx) {
+                desc->m_input_index--;
+            }
+        }};
+
+        for (auto desc_it = body_inputs_descriptors.begin(); desc_it != body_inputs_descriptors.end();) {
+            auto& body_params = body_func->get_parameters();
             auto body_param = body_params[(*desc_it)->m_body_parameter_index];
             if (body_param->get_output_target_inputs(0).size() == 0) {
                 body_func->remove_parameter(body_param);
                 loop_inputs.erase(loop_inputs.begin()+(*desc_it)->m_input_index);
-                body_inputs_descriptors.erase(desc_it);
-                // Move all descriptors after removing input
-                for (auto it = desc_it; it != body_inputs_descriptors.end(); ++it) {
-                    (*it)->m_body_parameter_index--;
-                    (*it)->m_input_index--;
-                }
+                // Move all next descriptors after removing input
+                update_descriptors(body_inputs_descriptors, (*desc_it)->m_body_parameter_index, (*desc_it)->m_input_index);
+                desc_it = body_inputs_descriptors.erase(desc_it);
                 pass_applied = true;
+            } else {
+                ++desc_it;
             }
         }
         if (pass_applied) {

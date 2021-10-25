@@ -21,30 +21,25 @@ ngraph::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
     auto concat_pattern = pattern::wrap_type<opset8::Concat>();
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto concat = std::dynamic_pointer_cast<opset8::Concat>(m.get_match_root());
-        OutputVector correct_inputs;
-        bool replacement_expected = false;
-        for (const auto& input : concat->input_values()) {
-            bool current_in_correct = true;
+        auto concat_inputs = concat->input_values();
+        bool pass_applied = false;
+        concat_inputs.erase(std::remove_if(concat_inputs.begin(), concat_inputs.end(),
+            [&pass_applied](const Output<Node>& input){
             const auto& in_shape = input.get_partial_shape();
-            if (in_shape.rank().is_static()) {
-                for (const auto& dim : in_shape) {
-                    if (dim.is_static() && dim.get_length() == 0) {
-                        replacement_expected = true;
-                        current_in_correct = false;
+                if (in_shape.rank().is_static()) {
+                    for (const auto& dim : in_shape) {
+                        if (dim.is_static() && dim.get_length() == 0) {
+                            pass_applied = true;
+                            return true;
+                        }
                     }
                 }
-            }
-            if (current_in_correct)
-                correct_inputs.push_back(input);
+                return false;
+            }), concat_inputs.end());
+        if (pass_applied) {
+            concat->set_arguments(concat_inputs);
         }
-        if (!replacement_expected)
-            return false;
-
-        auto new_concat = std::make_shared<opset8::Concat>(correct_inputs, concat->get_axis());
-        new_concat->set_friendly_name(concat->get_friendly_name());
-        ngraph::copy_runtime_info(concat, new_concat);
-        ngraph::replace_node(concat, new_concat);
-        return true;
+        return pass_applied;
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(concat_pattern, matcher_name);
     this->register_matcher(m, callback);
