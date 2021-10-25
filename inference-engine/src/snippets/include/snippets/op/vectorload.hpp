@@ -20,7 +20,7 @@ namespace op {
  */
 class TRANSFORMATIONS_API VectorLoad : public Load {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("VectorLoad", "SnippetsOpset", ngraph::snippets::op::Load);
 
     VectorLoad(const Output<Node>& x);
     VectorLoad() = default;

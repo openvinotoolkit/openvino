@@ -56,7 +56,12 @@ void remove_redundant_reorders::run(program& p) {
 
             // Avoid different data types between input and output
             auto same_data_type = input.get_output_layout().data_type == output_layout.data_type;
-            if (!same_data_type)
+            auto i8_u8_input = input.get_output_layout().data_type == data_types::i8 ||
+                               input.get_output_layout().data_type == data_types::u8;
+            auto quantize_user = node.get_users().front()->is_type<quantize>() &&
+                                 node.get_users().size() == 1;
+
+            if (!same_data_type && !(i8_u8_input && quantize_user))
                 continue;
 
             // Avoid optimization of nv12 reorder
@@ -323,7 +328,7 @@ void remove_redundant_reorders::run(program& p) {
         auto& dep = node_ptr->get_dependency(0);
         if (!usr->is_type<quantize>() ||
             (dep.get_output_layout().format != format::b_fs_yx_fsv16 &&
-             dep.get_output_layout().format != format::fs_b_yx_fsv32 &&
+             (lo.get_optimization_attributes().use_onednn_impls || dep.get_output_layout().format != format::fs_b_yx_fsv32) &&
              dep.get_output_layout().format != format::bfyx))
             continue;
 
@@ -346,8 +351,9 @@ void remove_redundant_reorders::run(program& p) {
 
         auto& usr = node->get_users().front();
         auto& dep = node->get_dependency(0);
+
         if (!(usr->is_type<convolution>()) ||
-            usr->get_output_layout().data_type != dep.get_output_layout().data_type ||
+            node->get_output_layout().data_type != dep.get_output_layout().data_type ||
             dep.get_output_layout().format != format::bfyx)
             return false;
         if (usr->as<convolution>().get_preferred_impl_type() != impl_types::onednn &&
@@ -374,10 +380,6 @@ void remove_redundant_reorders::run(program& p) {
 
     // Remove reorder for Convolution b_fs_yx_fsv16 -> bfyx
     auto try_fuse_reorder_fsv16_to_bfyx = [&](reorder_node* node) -> bool {
-        if (!node->get_fused_activations_funcs().empty() ||
-            !node->get_fused_primitives().empty())
-            return false;
-
         auto& input = node->input();
 
         if (!(input.is_type<convolution>()) ||
@@ -442,12 +444,22 @@ void remove_redundant_reorders::run(program& p) {
             if (!node->is_type<reorder>())
                 continue;
 
-            if (!node->is_in_data_flow() || node->get_dependencies().size() != 1)
-                continue;
-
             auto& r_node = node->as<reorder>();
 
+            if (!r_node.is_in_data_flow() || r_node.get_dependencies().size() != 1)
+                continue;
+
+            if (r_node.has_mean() ||
+                !r_node.get_primitive()->subtract_per_feature.empty())
+                continue;
+
+            if (!r_node.get_fused_activations_funcs().empty() ||
+                !r_node.get_fused_primitives().empty())
+                continue;
+
             // Remove reorder for Convolution bfyx -> fs_b_yx_fsv32
+            // Process remaining patterns here that are not removed at the first while loop
+            // e.g., reorder with otuput padding
             if (try_fuse_reorder_bfyx_to_fsv32(&r_node))
                 continue;
             // Remove reorder for Convolution b_fs_yx_fsv16 -> bfyx

@@ -66,7 +66,7 @@ public:
     }
     template <class T, typename std::enable_if<ngraph::HasTypeInfoMember<T>::value, bool>::type = true>
     void disable() {
-        disable(T::get_type_info_static());
+        disable(T::type_info);
     }
 
     /// \brief Enable transformation by its type_info
