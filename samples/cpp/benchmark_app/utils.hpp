@@ -97,20 +97,20 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
     size_t min_size = 1, max_size = 1;
     if (!tensors_shape_map.empty()) {
         min_size = std::min_element(tensors_shape_map.begin(),
-                                           tensors_shape_map.end(),
-                                           [](std::pair<std::string, std::vector<std::string>> a,
-                                              std::pair<std::string, std::vector<std::string>> b) {
-                                               return a.second.size() < b.second.size() && a.second.size() != 1;
-                                           })
-                              ->second.size();
+                                    tensors_shape_map.end(),
+                                    [](std::pair<std::string, std::vector<std::string>> a,
+                                       std::pair<std::string, std::vector<std::string>> b) {
+                                        return a.second.size() < b.second.size() && a.second.size() != 1;
+                                    })
+                       ->second.size();
 
         max_size = std::max_element(tensors_shape_map.begin(),
-                                           tensors_shape_map.end(),
-                                           [](std::pair<std::string, std::vector<std::string>> a,
-                                              std::pair<std::string, std::vector<std::string>> b) {
-                                               return a.second.size() < b.second.size();
-                                           })
-                              ->second.size();
+                                    tensors_shape_map.end(),
+                                    [](std::pair<std::string, std::vector<std::string>> a,
+                                       std::pair<std::string, std::vector<std::string>> b) {
+                                        return a.second.size() < b.second.size();
+                                    })
+                       ->second.size();
         if (min_size != max_size) {
             slog::warn << "Number of shapes for all inputs must be the same (except inputs with 1 shape)."
                           "Nummber of tensor shapes will be reduced to " +
@@ -135,7 +135,8 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
             if (shape_map.count(name)) {
                 std::vector<ngraph::Dimension> parsed_shape;
                 if (shape_map.at(name).size() > 1) {
-                    throw std::logic_error("shape command line parameter doesn't support multiple shapes for one input.");
+                    throw std::logic_error(
+                        "shape command line parameter doesn't support multiple shapes for one input.");
                 }
                 info.partialShape = parsePartialShape(shape_map.at(name)[0]);
                 reshape_required = true;
@@ -144,7 +145,8 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
             }
 
             if (info.partialShape.is_dynamic() && info.isImage()) {
-                throw std::logic_error("benchmark_app supports only binary and random data as input for dynamic models at this moment.");
+                throw std::logic_error(
+                    "benchmark_app supports only binary and random data as input for dynamic models at this moment.");
             }
 
             // Tensor Shape
@@ -160,7 +162,8 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
             // Layout
             if (layout_map.count(name)) {
                 if (layout_map.at(name).size() > 1) {
-                    throw std::logic_error("layout command line parameter doesn't support multiple layouts for one input.");
+                    throw std::logic_error(
+                        "layout command line parameter doesn't support multiple layouts for one input.");
                 }
                 info.layout = layout_map.at(name)[0];
                 std::transform(info.layout.begin(), info.layout.end(), info.layout.begin(), ::toupper);

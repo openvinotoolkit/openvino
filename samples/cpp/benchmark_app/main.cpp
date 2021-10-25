@@ -136,9 +136,8 @@ std::map<std::string, std::vector<std::string>> parseInputArguments(const std::s
         size_t next_semicolon_pos = search_string.find(':', semicolon_pos + 1);
         // find coma pos before next input name
         // in strings like <input1>:file1,file2,<input2>:file3
-        size_t coma_pos = next_semicolon_pos == std::string::npos
-                                ? search_string.size()
-                                : search_string.find_last_of(',', next_semicolon_pos);
+        size_t coma_pos = next_semicolon_pos == std::string::npos ? search_string.size()
+                                                                  : search_string.find_last_of(',', next_semicolon_pos);
         auto input_name = search_string.substr(0, semicolon_pos);
         auto input_files = search_string.substr(semicolon_pos + 1, coma_pos - semicolon_pos - 1);
 
@@ -160,7 +159,6 @@ std::map<std::string, std::vector<std::string>> parseInputArguments(const std::s
 
     if (!search_string.empty())
         throw std::logic_error("Can't parse input parameter string: " + input_parameter_string);
-
 
     return files_per_input;
 }
@@ -525,7 +523,7 @@ int main(int argc, char* argv[]) {
             next_step();
             // Only in static case
             if (FLAGS_tensor_shape.empty())
-                batchSize = cnnNetwork.getBatchSize(); 
+                batchSize = cnnNetwork.getBatchSize();
             // Parse input shapes if specified
             bool reshape = false;
             app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape,
@@ -556,8 +554,8 @@ int main(int argc, char* argv[]) {
 
             topology_name = cnnNetwork.getName();
             if (FLAGS_tensor_shape.empty())
-                slog::info << (batchSize != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize
-                           << slog::endl;
+                slog::info << (batchSize != 0 ? "Network batch size was changed to: " : "Network batch size: ")
+                           << batchSize << slog::endl;
 
             // ----------------- 6. Configuring inputs and outputs
             // ----------------------------------------------------------------------
@@ -619,7 +617,7 @@ int main(int argc, char* argv[]) {
         bool isDynamic = app_inputs_info.begin()->begin()->second.partialShape.is_dynamic();
         if (isDynamic && FLAGS_api == "sync") {
             throw std::logic_error("Benchmarking of the model with dynamic shapes is available for asyn API only."
-                                    "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior");
+                                   "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior");
         }
         // ----------------- 8. Querying optimal runtime parameters
         // -----------------------------------------------------
@@ -670,8 +668,9 @@ int main(int argc, char* argv[]) {
         if ((niter > 0) && (FLAGS_api == "async")) {
             niter = ((niter + shape_options_num - 1) / shape_options_num) * shape_options_num;
             if (FLAGS_niter != niter) {
-                slog::warn << "Number of iterations was aligned by tensor shape options number from " << FLAGS_niter << " to "
-                           << niter << " using number of possible input shapes " << shape_options_num << slog::endl;
+                slog::warn << "Number of iterations was aligned by tensor shape options number from " << FLAGS_niter
+                           << " to " << niter << " using number of possible input shapes " << shape_options_num
+                           << slog::endl;
             }
         }
 
@@ -715,7 +714,7 @@ int main(int argc, char* argv[]) {
 
         InferRequestsQueue inferRequestsQueue(exeNetwork, nireq, app_inputs_info.size());
         // TODO: added cached remote blobs
-        //if (isFlagSetInCommandLine("use_device_mem")) {
+        // if (isFlagSetInCommandLine("use_device_mem")) {
         //    if (device_name.find("GPU") == 0)
         //        ::gpu::fillRemoteBlobs(inputFiles,
         //                               batchSize,
@@ -835,7 +834,7 @@ int main(int argc, char* argv[]) {
                     inferRequest->startAsync();
                 }
 
-                if (niter > 0 ) {
+                if (niter > 0) {
                     progressBar.addProgress(1);
                 } else {
                     // calculate how many progress intervals are covered by current
