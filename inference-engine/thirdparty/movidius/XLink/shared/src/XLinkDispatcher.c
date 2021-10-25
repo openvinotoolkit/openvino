@@ -330,7 +330,10 @@ xLinkEvent_t* DispatcherAddEvent(xLinkEventOrigin_t origin, xLinkEvent_t *event)
         return NULL;
     }
     mvLog(MVLOG_DEBUG, "Receiving event %s %d\n", TypeToStr(event->header.type), origin);
-    if (XLink_sem_wait(&curr->addEventSem)) {
+    int rc;
+    while(((rc = sem_wait(&curr->addEventSem)) == -1) && errno == EINTR)
+        continue;
+    if (rc) {
         mvLog(MVLOG_ERROR,"can't wait semaphore\n");
         return NULL;
     }
@@ -375,7 +378,9 @@ int DispatcherWaitEventComplete(xLinkDeviceHandle_t *deviceHandle)
         return -1;
     }
 
-    int rc = XLink_sem_wait(id);
+    int rc;
+    while(((rc = sem_wait(id)) == -1) && errno == EINTR)
+        continue;
 #ifdef __PC__
     if (rc) {
         xLinkEvent_t event = {0};
@@ -384,7 +389,10 @@ int DispatcherWaitEventComplete(xLinkDeviceHandle_t *deviceHandle)
         mvLog(MVLOG_ERROR,"waiting is timeout, sending reset remote event");
         DispatcherAddEvent(EVENT_LOCAL, &event);
         id = getSem(pthread_self(), curr);
-        if (id == NULL || XLink_sem_wait(id)) {
+        int rc;
+        while(((rc = sem_wait(id)) == -1) && errno == EINTR)
+            continue;
+        if (id == NULL || rc) {
             dispatcherReset(curr);
         }
     }
@@ -865,7 +873,10 @@ static xLinkEventPriv_t* dispatcherGetNextEvent(xLinkSchedulerState_t* curr)
 {
     XLINK_RET_ERR_IF(curr == NULL, NULL);
 
-    if (XLink_sem_wait(&curr->notifyDispatcherSem)) {
+    int rc;
+    while(((rc = sem_wait(&curr->notifyDispatcherSem)) == -1) && errno == EINTR)
+        continue;
+    if (rc) {
         mvLog(MVLOG_ERROR,"can't post semaphore\n");
     }
 
