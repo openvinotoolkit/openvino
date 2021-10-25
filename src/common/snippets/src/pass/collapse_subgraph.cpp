@@ -323,7 +323,14 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
         OutputVector internal_inputs;
 
         auto inputs = node->inputs();
-
+        /* 
+        * Called with subgraph->input_value(i) arg and used to 
+        * Check that the attached node input subgraph has the same input as the node itself.
+        * If true, then ternary merge is intiated.
+        *        input
+        *        /   \
+        *  sungraph--node
+        */
         auto is_recurrent = [inputs](const ngraph::Output<ngraph::Node>& to_find) -> bool {
             for (auto in : inputs) {
                 if (in.get_source_output().get_node_shared_ptr() == to_find.get_node_shared_ptr() &&
@@ -335,7 +342,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
         };
 
         std::string fusedNames;
-        auto getFusedNames = [](const std::shared_ptr<Node> n) -> std::string {
+        const auto getFusedNames = [](const std::shared_ptr<Node> n) -> std::string {
             auto rt_info = n->get_rt_info();
             auto it = rt_info.find("originalLayersNames");
             if (it != rt_info.end()) {
@@ -345,6 +352,41 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
                 return "";
             }
         };
+        /*
+         * Checks if the passed node introduces loop dependency for given topological bounds (pair of maxParentOrder, minChildOrder).
+         * The bounds are presumed to be without dependency. The bounds are updated if no dependency is introduced by the node.
+        */
+        const auto cyclicDependencyIsIntoduced = [](std::shared_ptr<Node> node, std::pair<int64_t, int64_t>& currentBounds) -> bool {
+            auto getTopologicalOrder = [](std::shared_ptr<Node> node) -> int64_t {
+                auto &rt = node->get_rt_info();
+                const auto rinfo = rt.find("TopologicalOrder");
+                //assert(rinfo != rt.end());
+                if (rinfo == rt.end())
+                    throw ngraph_error("TopologicalOrder is not found in rt_info of " + node->get_friendly_name());
+                return ov::as_type_ptr<ngraph::VariantWrapper<int64_t>>(rinfo->second)->get();
+            };
+            assert(currentBounds.first < currentBounds.second && "Invalid currentBounds passed");
+            const auto &parentNodes = ngraph::as_node_vector(node->input_values());
+            const int64_t maxParentOrder = std::accumulate(parentNodes.begin(), parentNodes.end(), currentBounds.first,
+                                                            [&getTopologicalOrder](int64_t maxOrder, std::shared_ptr<Node> n){
+                                                                if (ngraph::op::is_constant(n) || ngraph::op::is_parameter(n))
+                                                                    return maxOrder;
+                                                                return std::max(maxOrder, getTopologicalOrder(n));
+                                                            });
+            const auto &childNodes = node->get_users();
+            const int64_t minChildOrder = std::accumulate(childNodes.begin(), childNodes.end(), currentBounds.second,
+                                                            [&getTopologicalOrder](int64_t minOrder, std::shared_ptr<Node> n){
+                                                                if (ngraph::op::is_constant(n) || ngraph::op::is_parameter(n))
+                                                                    return minOrder;
+                                                                return std::min(minOrder, getTopologicalOrder(n));
+                                                            });
+            if (maxParentOrder < minChildOrder) {
+                currentBounds = std::pair<int64_t, int64_t>(maxParentOrder, minChildOrder);
+                return false;
+            }
+            return true;
+        };
+
         for (auto input : inputs) {
             auto input_node = input.get_source_output().get_node_shared_ptr();
 
@@ -359,15 +401,21 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
         }
         fusedNames += node->get_friendly_name();
 
+        std::pair<int64_t, int64_t> currentTopoBounds {-1, LONG_MAX};
+        cyclicDependencyIsIntoduced(node, currentTopoBounds);
+        //assert(!cyclicDependencyIsIntoduced(node, currentTopoBounds));
         for (auto input : inputs) {
             auto input_node = input.get_source_output().get_node_shared_ptr();
-
-            if (auto subgraph = ov::as_type_ptr<op::Subgraph>(input_node)) {
+            if (ov::is_type<op::Subgraph>(input_node) &&
+                !cyclicDependencyIsIntoduced(input_node, currentTopoBounds)) {
+                auto subgraph = std::static_pointer_cast<op::Subgraph>(input_node);
                 if (!input_subgraphs.count(input_node)) {
                     input_subgraphs.insert(input_node);
 
                     auto f = clones[input_node];
                     const auto& input_body_parameters = f->get_parameters();
+                    // for (size_t i = 0; i < subgraph->get_input_size(); ++i) {
+                    // can subgraph have more input values than body parameters?
                     for (size_t i = 0; i < input_body_parameters.size(); ++i) {
                         auto found = std::find(external_inputs.begin(), external_inputs.end(), subgraph->input_value(i));
                         if (found != external_inputs.end()) {
@@ -443,7 +491,6 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
                     auto new_parameter = std::make_shared<opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
                     new_parameter->set_friendly_name(input.get_source_output().get_node()->get_friendly_name());
                     body_parameters.push_back(new_parameter);
-                    body_parameters.back()->set_friendly_name(input.get_source_output().get_node()->get_friendly_name());
                     internal_inputs.push_back(new_parameter->output(0));
                 }
             }
@@ -545,8 +592,11 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
         if (outputs_are_not_broadcastable(subgraph))
             return abort_with_strategy("New subgraph is created due to outputs of a subgraph not broadcastable.");
 
-        if (has_cycles_of_dependencies(subgraph_result_inputs, subgraph->inputs()))
-            return abort_with_strategy("New subgraph is created due to loop dependency introduced by one of input subgraphs.");
+        // Todo: remove the check below after the benchmark run
+        if (has_cycles_of_dependencies(subgraph_result_inputs, subgraph->inputs())) {
+            throw ngraph_error("There must be no cyclic_dependencies at this point");
+            //return abort_with_strategy("New subgraph is created due to loop dependency introduced by one of input subgraphs.");
+        }
 
         for (size_t i = 0; i < subgraph->get_output_size(); ++i) {
             for (auto target_input : subgraph_result_inputs[i]) {
