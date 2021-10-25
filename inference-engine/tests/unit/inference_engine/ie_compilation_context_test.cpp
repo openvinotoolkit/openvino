@@ -307,6 +307,7 @@ TEST(NetworkContext_CNNNetwork, HashWithLayout) {
     auto net1 = createNetworkWithLayout("NCHW");
     auto net2 = createNetworkWithLayout("nchw");
     auto net3 = createNetworkWithLayout("?CHW");
+    auto net3_1 = createNetworkWithLayout("?CH?");
     auto net4 = createNetworkWithLayout("");
     auto fun5 = create_simple_function();
     fun5->get_parameters()[0]->set_layout("NCHW");
@@ -320,6 +321,9 @@ TEST(NetworkContext_CNNNetwork, HashWithLayout) {
 
     EXPECT_NE(NetworkCompilationContext::computeHash(net2, {}),
               NetworkCompilationContext::computeHash(net3, {}));
+
+    EXPECT_NE(NetworkCompilationContext::computeHash(net3, {}),
+              NetworkCompilationContext::computeHash(net3_1, {}));
 
     EXPECT_NE(NetworkCompilationContext::computeHash(net3, {}),
               NetworkCompilationContext::computeHash(net4, {}));
