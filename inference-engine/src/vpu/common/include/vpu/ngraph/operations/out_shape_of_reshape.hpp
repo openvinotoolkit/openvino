@@ -12,8 +12,7 @@ namespace ngraph { namespace vpu { namespace op {
 
 class OutShapeOfReshape : public ngraph::op::Op {
 public:
-    static constexpr NodeTypeInfo type_info{"OutShapeOfReshape", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("OutShapeOfReshape", "VPUOpset");
 
     OutShapeOfReshape(
             const Output<Node>& inDataShape,

@@ -63,7 +63,7 @@ public:
                                      std::make_shared<ngraph::opset5::Result>(topK->output(1))};
         const auto function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{data}, "TopKPropagationOfK");
 
-        const auto transformations = vpu::Transformations{{topK->type_info, vpu::dynamicToStaticShapeTopK}};
+        const auto transformations = vpu::Transformations{{topK->get_type_info(), vpu::dynamicToStaticShapeTopK}};
         ASSERT_NO_THROW(vpu::DynamicToStaticShape(transformations).run_on_function(function));
         validate(*function);
     }
@@ -141,7 +141,7 @@ public:
 
         const auto function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{upperBoundData, realData}, "TopKPropagationOfK");
 
-        const auto transformations = vpu::Transformations{{topK->type_info, vpu::dynamicToStaticShapeTopK}};
+        const auto transformations = vpu::Transformations{{topK->get_type_info(), vpu::dynamicToStaticShapeTopK}};
         ASSERT_NO_THROW(vpu::DynamicToStaticShape(transformations).run_on_function(function));
         validate(*function);
     }

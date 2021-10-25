@@ -82,7 +82,7 @@ int main(int argc, char* argv[]) {
         // that simplifies output filtering, try to find it.
         if (auto ngraphFunction = network.getFunction()) {
             for (const auto& op : ngraphFunction->get_ops()) {
-                if (op->get_type_info() == ngraph::op::DetectionOutput::type_info) {
+                if (op->get_type_info() == ngraph::op::DetectionOutput::get_type_info_static()) {
                     if (output_info->getName() != op->get_friendly_name()) {
                         throw std::logic_error("Detection output op does not produce a network output");
                     }

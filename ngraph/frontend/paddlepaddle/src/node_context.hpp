@@ -110,6 +110,7 @@ public:
         FRONT_END_GENERAL_CHECK(ret, "Attribute with name '", name, "' has invalid type");
         return ret->get();
     }
+
     template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<VariantWrapper<T>>::value, bool>::type = true>
     T get_attribute(const std::string& name) const {
         std::shared_ptr<Variant> res;
@@ -128,6 +129,7 @@ public:
         OPENVINO_SUPPRESS_DEPRECATED_END
         return res != nullptr;
     }
+
     template <class T, typename std::enable_if<!ngraph::HasTypeInfoMember<VariantWrapper<T>>::value, bool>::type = true>
     bool has_attribute(const std::string& name) const {
         std::shared_ptr<Variant> res;

@@ -150,10 +150,8 @@ public:
           m_parameter_vector(parameter_vector),
           m_result_vector(result_vector) {}
 
-    static constexpr NodeTypeInfo type_info{"Oracle", 0};
-    const NodeTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_OP("Oracle", "OracleOpset");
+
     Oracle() = default;
 
     TuringModel get_turing_model() const {
@@ -368,8 +366,6 @@ protected:
     ParameterVector m_parameter_vector;
     ResultVector m_result_vector;
 };
-
-constexpr NodeTypeInfo Oracle::type_info;
 
 TEST(attributes, user_op) {
     NodeBuilder::get_ops().register_factory<Oracle>();

@@ -11,10 +11,7 @@ namespace TemplateExtension {
 
 class FFTOp : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"FFT", 0};
-    const ngraph::NodeTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_OP("FFT", "custom_opset");
 
     FFTOp() = default;
     FFTOp(const ngraph::Output<ngraph::Node>& inp, bool inverse);

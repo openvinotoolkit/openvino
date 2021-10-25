@@ -12,8 +12,6 @@
 
 namespace ngraph { namespace vpu { namespace op {
 
-constexpr NodeTypeInfo StaticShapeBroadcast::type_info;
-
 StaticShapeBroadcast::StaticShapeBroadcast(const Output<Node>& arg,
                                            const Output<Node>& targetShape,
                                            const Output<Node>& axesMapping,

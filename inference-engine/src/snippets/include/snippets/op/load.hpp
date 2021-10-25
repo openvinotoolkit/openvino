@@ -23,7 +23,7 @@ namespace op {
  */
 class TRANSFORMATIONS_API Load : public ngraph::op::Op {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("Load", "SnippetsOpset");
 
     Load(const Output<Node>& x);
     Load() = default;

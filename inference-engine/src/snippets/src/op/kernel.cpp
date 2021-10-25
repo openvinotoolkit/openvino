@@ -8,7 +8,5 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(snippets::op::Kernel, "Kernel", 0);
-
 snippets::op::Kernel::Kernel(const std::vector<std::pair<std::shared_ptr<snippets::Emitter>, snippets::RegInfo>>& nested) : Op(), region(nested) {
 }

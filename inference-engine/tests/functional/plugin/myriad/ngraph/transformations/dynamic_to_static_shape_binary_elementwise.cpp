@@ -235,7 +235,7 @@ private:
         const ngraph::OutputVector& inputs,
         ngraph::ParameterVector& params,
         TestShapeTypes testShapeTypes) {
-        if (eltwiseType == ngraph::opset6::Select::type_info) {
+        if (eltwiseType == ngraph::opset6::Select::get_type_info_static()) {
             params.push_back(std::make_shared<ngraph::opset6::Parameter>(
                     ngraph::element::boolean,
                     ngraph::Shape{inputs.front().get_shape()}));
@@ -274,17 +274,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseBroadcast, DynamicToStaticShapeEltwise, te
         ngraph::element::i64,
         ngraph::element::u8),
     testing::Values(
-        ngraph::opset6::Add::type_info,
-        ngraph::opset6::Divide::type_info,
-        ngraph::opset6::Equal::type_info,
-        ngraph::opset6::Greater::type_info,
-        ngraph::opset6::Power::type_info,
-        ngraph::opset6::Multiply::type_info,
-        ngraph::opset6::Subtract::type_info,
-        ngraph::opset6::Maximum::type_info,
-        ngraph::opset6::Minimum::type_info,
-        ngraph::opset6::Less::type_info,
-        ngraph::opset6::Select::type_info),
+        ngraph::opset6::Add::get_type_info_static(),
+        ngraph::opset6::Divide::get_type_info_static(),
+        ngraph::opset6::Equal::get_type_info_static(),
+        ngraph::opset6::Greater::get_type_info_static(),
+        ngraph::opset6::Power::get_type_info_static(),
+        ngraph::opset6::Multiply::get_type_info_static(),
+        ngraph::opset6::Subtract::get_type_info_static(),
+        ngraph::opset6::Maximum::get_type_info_static(),
+        ngraph::opset6::Minimum::get_type_info_static(),
+        ngraph::opset6::Less::get_type_info_static(),
+        ngraph::opset6::Select::get_type_info_static()),
     testing::Values(
         EltwiseParams{DataDims{1000}, DataDims{1}, DynamicToStaticShapeEltwise::reference_simple},
         EltwiseParams{DataDims{1000, 1, 1}, DataDims{1000, 1, 1}, DynamicToStaticShapeEltwise::reference_simple},

@@ -10,8 +10,6 @@
 
 namespace ngraph { namespace vpu { namespace op {
 
-constexpr NodeTypeInfo StaticShapeNonMaxSuppression::type_info;
-
 StaticShapeNonMaxSuppression::StaticShapeNonMaxSuppression(const ngraph::opset5::NonMaxSuppression& nms)
         : StaticShapeNonMaxSuppression(
         nms.input_value(0),

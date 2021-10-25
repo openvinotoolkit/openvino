@@ -41,13 +41,13 @@ void MulConvFusion::SetUp() {
     std::vector<ptrdiff_t> pad_begin(spatial_dims, 0), pad_end(spatial_dims, 0);
     auto weights = ngraph::builder::makeConstant<float>(precision, weights_shape, {}, true);
     std::shared_ptr<ngraph::Node> conv;
-    if (conv_type == ngraph::opset8::Convolution::type_info) {
+    if (conv_type == ngraph::opset8::Convolution::get_type_info_static()) {
         conv = std::make_shared<ngraph::opset8::Convolution>(mul, weights, strides, pad_begin, pad_end, strides);
-    } else if (conv_type == ngraph::opset8::GroupConvolution::type_info) {
+    } else if (conv_type == ngraph::opset8::GroupConvolution::get_type_info_static()) {
         conv = std::make_shared<ngraph::opset8::GroupConvolution>(mul, weights, strides, pad_begin, pad_end, strides);
-    } else if (conv_type == ngraph::opset8::ConvolutionBackpropData::type_info) {
+    } else if (conv_type == ngraph::opset8::ConvolutionBackpropData::get_type_info_static()) {
         conv = std::make_shared<ngraph::opset8::ConvolutionBackpropData>(mul, weights, strides, pad_begin, pad_end, strides);
-    } else if (conv_type == ngraph::opset8::GroupConvolutionBackpropData::type_info) {
+    } else if (conv_type == ngraph::opset8::GroupConvolutionBackpropData::get_type_info_static()) {
         conv = std::make_shared<ngraph::opset8::GroupConvolutionBackpropData>(mul, weights, strides, pad_begin, pad_end, strides);
     } else {
         throw ngraph::ngraph_error("Unsupported type");
@@ -69,12 +69,12 @@ void MulConvFusion::SetUp() {
         ngraph::Shape strides(spatial_dims, 1);
         std::vector<ptrdiff_t> pad_begin(spatial_dims, 0), pad_end(spatial_dims, 0);
         std::shared_ptr<ngraph::Node> conv;
-        if (conv_type == ngraph::opset8::Convolution::type_info) {
+        if (conv_type == ngraph::opset8::Convolution::get_type_info_static()) {
             weights = std::make_shared<ngraph::opset8::Multiply>(weights, mul_const);
             weights = ngraph::get_constant_from_source(weights);
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ngraph::opset8::Convolution>(param, weights, strides, pad_begin, pad_end, strides);
-        } else if (conv_type == ngraph::opset8::GroupConvolution::type_info) {
+        } else if (conv_type == ngraph::opset8::GroupConvolution::get_type_info_static()) {
             const_shape.insert(const_shape.begin(), weights_shape.size() - const_shape.size(), 1);
             auto G = const_shape[2] > 1 ? weights_shape[0] : 1;
             const_shape[0] = G;
@@ -85,7 +85,7 @@ void MulConvFusion::SetUp() {
             weights = ngraph::get_constant_from_source(weights);
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ngraph::opset8::GroupConvolution>(param, weights, strides, pad_begin, pad_end, strides);
-        } else if (conv_type == ngraph::opset8::ConvolutionBackpropData::type_info) {
+        } else if (conv_type == ngraph::opset8::ConvolutionBackpropData::get_type_info_static()) {
             const_shape.insert(const_shape.begin(), weights_shape.size() - const_shape.size(), 1);
             const_shape[0] = const_shape[1];
             const_shape[1] = 1;
@@ -95,7 +95,7 @@ void MulConvFusion::SetUp() {
             weights = ngraph::get_constant_from_source(weights);
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ngraph::opset8::ConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
-        } else if (conv_type == ngraph::opset8::GroupConvolutionBackpropData::type_info) {
+        } else if (conv_type == ngraph::opset8::GroupConvolutionBackpropData::get_type_info_static()) {
             const_shape.insert(const_shape.begin(), weights_shape.size() - const_shape.size(), 1);
             auto G = const_shape[2] > 1 ? weights_shape[0] : 1;
             const_shape[0] = G;

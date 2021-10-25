@@ -21,8 +21,6 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(snippets::op::Subgraph, "Subgraph", 0);
-
 void snippets::op::Subgraph::set_generator(std::shared_ptr<ngraph::snippets::Generator> generator) {
     m_generator = generator;
 }

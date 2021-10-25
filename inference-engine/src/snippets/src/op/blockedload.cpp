@@ -6,7 +6,5 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(snippets::op::BlockedLoad, "BlockedLoad", 0);
-
 snippets::op::BlockedLoad::BlockedLoad(const Output<Node>& x) : Load(x) {
 }

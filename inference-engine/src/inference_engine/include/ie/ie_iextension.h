@@ -25,10 +25,18 @@
  * @def INFERENCE_EXTENSION_API(TYPE)
  * @brief Defines Inference Engine Extension API method
  */
-#if defined(_WIN32) && defined(IMPLEMENT_INFERENCE_EXTENSION_API)
-#    define INFERENCE_EXTENSION_API(TYPE) extern "C" __declspec(dllexport) TYPE
-#else
-#    define INFERENCE_EXTENSION_API(TYPE) INFERENCE_ENGINE_API(TYPE)
+#if defined(_WIN32)
+#    ifdef IMPLEMENT_INFERENCE_EXTENSION_API
+#        define INFERENCE_EXTENSION_API(type) extern "C" __declspec(dllexport) type
+#    else
+#        define INFERENCE_EXTENSION_API(type) extern "C" type
+#    endif
+#elif defined(__GNUC__) && (__GNUC__ >= 4)
+#    ifdef IMPLEMENT_INFERENCE_EXTENSION_API
+#        define INFERENCE_EXTENSION_API(type) extern "C" __attribute__((visibility("default"))) type
+#    else
+#        define INFERENCE_EXTENSION_API(type) extern "C" type
+#    endif
 #endif
 
 namespace InferenceEngine {

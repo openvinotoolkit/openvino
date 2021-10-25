@@ -89,15 +89,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeUnaryElementwise, tes
         DataDims{3, 128, 256},
         DataDims{2, 3, 128, 256}),
     testing::Values(
-        ngraph::opset3::Exp::type_info,
-        ngraph::opset3::Floor::type_info,
-        ngraph::opset5::Ceiling::type_info,
-        ngraph::opset5::Round::type_info,
-        ngraph::opset3::Log::type_info,
-        ngraph::opset3::Relu::type_info,
-        ngraph::opset3::Sigmoid::type_info,
-        ngraph::opset3::Softmax::type_info,
-        ngraph::opset3::Sqrt::type_info,
-        ngraph::opset3::LogicalNot::type_info)));
+        ngraph::opset3::Exp::get_type_info_static(),
+        ngraph::opset3::Floor::get_type_info_static(),
+        ngraph::opset5::Ceiling::get_type_info_static(),
+        ngraph::opset5::Round::get_type_info_static(),
+        ngraph::opset3::Log::get_type_info_static(),
+        ngraph::opset3::Relu::get_type_info_static(),
+        ngraph::opset3::Sigmoid::get_type_info_static(),
+        ngraph::opset3::Softmax::get_type_info_static(),
+        ngraph::opset3::Sqrt::get_type_info_static(),
+        ngraph::opset3::LogicalNot::get_type_info_static())));
 
 }  // namespace

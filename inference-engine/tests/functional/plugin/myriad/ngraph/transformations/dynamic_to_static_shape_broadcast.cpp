@@ -104,7 +104,7 @@ protected:
         std::vector<ngraph::Dimension> broadcastOutShape(shapeOfNode->get_output_shape(0)[0], ngraph::Dimension::dynamic());
         broadcast->set_output_type(0, tensorParam->get_output_element_type(0), ngraph::PartialShape(broadcastOutShape));
 
-        const auto transformations = vpu::Transformations{{ngraph::opset3::Broadcast::type_info, vpu::dynamicToStaticShapeBroadcast}};
+        const auto transformations = vpu::Transformations{{ngraph::opset3::Broadcast::get_type_info_static(), vpu::dynamicToStaticShapeBroadcast}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
@@ -215,7 +215,7 @@ protected:
             params,
             "Actual");
 
-        const auto transformations = vpu::Transformations{{ngraph::opset5::Broadcast::type_info, vpu::dynamicToStaticShapeBroadcast}};
+        const auto transformations = vpu::Transformations{{ngraph::opset5::Broadcast::get_type_info_static(), vpu::dynamicToStaticShapeBroadcast}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }

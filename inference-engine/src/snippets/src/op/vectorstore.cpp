@@ -6,7 +6,5 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(snippets::op::VectorStore, "VectorStore", 0);
-
 snippets::op::VectorStore::VectorStore(const Output<Node>& x) : Store(x) {
 }

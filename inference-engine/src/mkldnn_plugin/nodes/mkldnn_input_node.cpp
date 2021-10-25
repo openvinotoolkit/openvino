@@ -230,11 +230,11 @@ jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
 MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache) {
     if (!one_of(op->get_type_info(),
-            v0::Parameter::type_info,
-            v0::Constant::type_info,
-            v0::Result::type_info,
-            v3::ReadValue::type_info,
-            v6::ReadValue::type_info))
+            v0::Parameter::get_type_info_static(),
+            v0::Constant::get_type_info_static(),
+            v0::Result::get_type_info_static(),
+            v3::ReadValue::get_type_info_static(),
+            v6::ReadValue::get_type_info_static()))
         IE_THROW(NotImplemented) << "CPU Input node doesn't support ngraph operation " << op->get_type_name() << " with name " << op->get_friendly_name();
 
     constant = ConstantType::NoConst;

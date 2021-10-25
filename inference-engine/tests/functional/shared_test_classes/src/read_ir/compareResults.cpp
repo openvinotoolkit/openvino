@@ -238,7 +238,7 @@ void compareResults(const std::shared_ptr<ngraph::Node> node,
 
 CompareMap getCompareMap() {
     CompareMap compareMap{
-#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::type_info, compareResults<NAMESPACE::NAME>},
+#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), compareResults<NAMESPACE::NAME>},
 #include "ngraph/opsets/opset1_tbl.hpp"
 #include "ngraph/opsets/opset2_tbl.hpp"
 #include "ngraph/opsets/opset3_tbl.hpp"

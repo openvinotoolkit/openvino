@@ -9,8 +9,8 @@
 
 class CustomAddConst : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"CustomAddConst", 100600};
-    const ngraph::NodeTypeInfo& get_type_info() const override { return type_info;  }
+    OPENVINO_OP("CustomAddConst", "custom_opset");
+
     CustomAddConst() = default;
     CustomAddConst(const ngraph::Output<ngraph::Node>& arg, const ngraph::element::Type element_type,
         const ngraph::Shape shape, const std::shared_ptr<ngraph::runtime::AlignedBuffer> data):
@@ -45,8 +45,6 @@ private:
     std::shared_ptr<ngraph::runtime::AlignedBuffer> m_data;
 };
 
-constexpr ngraph::NodeTypeInfo CustomAddConst::type_info;
-
 class CustomAddConstExtension : public InferenceEngine::IExtension {
 public:
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
@@ -57,7 +55,7 @@ public:
         std::map<std::string, ngraph::OpSet> opsets;
         ngraph::OpSet opset;
         opset.insert<CustomAddConst>();
-        opsets["custom_opset"] = opset;
+        opsets[CustomAddConst::get_type_info_static().version_id] = opset;
         return opsets;
     }
 };

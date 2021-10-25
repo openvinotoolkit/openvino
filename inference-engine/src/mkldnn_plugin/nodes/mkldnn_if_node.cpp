@@ -30,7 +30,7 @@ bool MKLDNNIfNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
             return false;
         }
         if (!one_of(op->get_type_info(),
-                ov::op::v8::If::type_info)) {
+                ov::op::v8::If::get_type_info_static())) {
             errorMessage = "Not supported If operation version " + std::to_string(op->get_type_info().version) +
                     " with name '" + op->get_friendly_name() + "'. Node If supports only opset8 version.";
             return false;

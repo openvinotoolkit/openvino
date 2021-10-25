@@ -7,8 +7,6 @@
 
 namespace ngraph { namespace vpu { namespace op {
 
-constexpr NodeTypeInfo StaticShapeLoop::type_info;
-
 StaticShapeLoop::StaticShapeLoop(const Loop& loop) : Loop(loop), m_evaluatedIterationsCount{ngraph::PartialShape::dynamic()} {}
 
 void StaticShapeLoop::validate_and_infer_types() {

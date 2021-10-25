@@ -335,8 +335,10 @@ const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() {
     return type_info_static;
 }
 
+#ifndef OPENVINO_STATIC_LIBRARY
 template <typename BaseOp>
 const ::ngraph::Node::type_info_t TypeRelaxed<BaseOp>::type_info = TypeRelaxed<BaseOp>::get_type_info_static();
+#endif
 
 NGRAPH_SUPPRESS_DEPRECATED_END
 

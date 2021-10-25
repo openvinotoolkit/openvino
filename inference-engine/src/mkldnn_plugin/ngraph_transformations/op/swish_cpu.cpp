@@ -4,8 +4,6 @@
 
 #include "swish_cpu.hpp"
 
-constexpr ngraph::NodeTypeInfo MKLDNNPlugin::SwishNode::type_info;
-
 MKLDNNPlugin::SwishNode::SwishNode(const ngraph::Output<ngraph::Node> & input, const float alpha)
         : Op({input}), m_alpha(alpha) {
     validate_and_infer_types();

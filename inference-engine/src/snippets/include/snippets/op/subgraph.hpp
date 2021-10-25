@@ -25,6 +25,8 @@ namespace op {
  */
 class TRANSFORMATIONS_API Subgraph : public ngraph::op::Op {
 public:
+    OPENVINO_OP("Subgraph", "SnippetsOpset");
+
     // < 1, 42, 17, 15, 16> < 0, 1, 2, 3, 1>
     // should be:
     // A = < 1, 42, 17, 15> -> < 1, 3, 17, 15, 16> < 0, 1, 2, 3, 1>
@@ -68,8 +70,6 @@ public:
     // E = < 1, 3, 17,  1, 32> < 0, 1, 2, 3, 4>
     using BlockedShape = std::tuple<ngraph::Shape, ngraph::AxisVector, ngraph::element::Type>;
     using BlockedShapeVector = std::vector<BlockedShape>;
-
-    NGRAPH_RTTI_DECLARATION;
 
     Subgraph(const OutputVector& args, std::shared_ptr<Function> body);
 

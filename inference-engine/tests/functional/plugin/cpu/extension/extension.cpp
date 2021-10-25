@@ -77,8 +77,8 @@ private:
 
 class CustomAbs : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"CustomAbs", 100500};
-    const ngraph::NodeTypeInfo& get_type_info() const override { return type_info;  }
+    OPENVINO_RTTI("CustomAbs", "custom_opset");
+
     CustomAbs() = default;
     CustomAbs(const ngraph::Output<ngraph::Node>& arg): ngraph::op::Op({arg}) {
         constructor_validate_and_infer_types();
@@ -93,8 +93,6 @@ public:
         return true;
     }
 };
-
-constexpr ngraph::NodeTypeInfo CustomAbs::type_info;
 
 class CustomAbsExtension : public InferenceEngine::IExtension {
 public:
@@ -111,7 +109,7 @@ public:
     }
 
     std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
-        if (node->description() != CustomAbs::type_info.name)
+        if (node->description() != CustomAbs::get_type_info_static().name)
             return {};
         return {"CPU"};
     }
@@ -204,13 +202,13 @@ opset_import {
     InferenceEngine::Core ie;
     ie.AddExtension(std::make_shared<CustomAbsExtension>());
     ngraph::onnx_import::register_operator(
-        CustomAbs::type_info.name, 1, "custom_domain", [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
+        CustomAbs::get_type_info_static().name, 1, "custom_domain", [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
             ngraph::OutputVector ng_inputs{node.get_ng_inputs()};
             return {std::make_shared<CustomAbs>(ng_inputs.at(0))};
     });
 
     infer_model(ie, model, input_values, expected);
-    ngraph::onnx_import::unregister_operator(CustomAbs::type_info.name, 1, "custom_domain");
+    ngraph::onnx_import::unregister_operator(CustomAbs::get_type_info_static().name, 1, "custom_domain");
 }
 
 

@@ -72,7 +72,7 @@ std::shared_ptr<const ngraph::Function> transform(
             "Actual");
     node->set_output_type(0, dsr->get_input_element_type(0), ngraph::PartialShape::dynamic(splitSetup.dataShape.size()));
 
-    const auto transformations = vpu::Transformations{{node->type_info, vpu::dynamicToStaticShapeSplit}};
+    const auto transformations = vpu::Transformations{{node->get_type_info(), vpu::dynamicToStaticShapeSplit}};
     vpu::DynamicToStaticShape(transformations).run_on_function(function);
     return function;
 }

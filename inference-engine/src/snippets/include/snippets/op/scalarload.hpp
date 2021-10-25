@@ -20,7 +20,7 @@ namespace op {
  */
 class TRANSFORMATIONS_API ScalarLoad : public Load {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("ScalarLoad", "SnippetsOpset", ngraph::snippets::op::Load);
 
     ScalarLoad(const Output<Node>& x);
     ScalarLoad() = default;
