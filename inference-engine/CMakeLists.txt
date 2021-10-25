@@ -18,8 +18,7 @@ add_subdirectory(samples)
 foreach(sample benchmark_app classification_sample_async hello_classification
                 hello_nv12_input_classification hello_query_device hello_reshape_ssd
                 ngraph_function_creation_sample object_detection_sample_ssd
-                speech_sample style_transfer_sample hello_classification_c
-                object_detection_sample_ssd_c hello_nv12_input_classification_c)
+                speech_sample style_transfer_sample)
     if(TARGET ${sample})
         install(TARGETS ${sample}
                 RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)

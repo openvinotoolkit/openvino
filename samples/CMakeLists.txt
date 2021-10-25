@@ -4,6 +4,15 @@
 
 add_subdirectory(c)
 
+# TODO: remove this
+foreach(sample hello_classification_c
+        object_detection_sample_ssd_c hello_nv12_input_classification_c)
+    if(TARGET ${sample})
+        install(TARGETS ${sample}
+                RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+    endif()
+endforeach()
+
 # install C samples
 
 ie_cpack_add_component(c_samples DEPENDS core_c)
