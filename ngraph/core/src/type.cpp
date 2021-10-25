@@ -49,20 +49,21 @@ std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info) {
 
 // parent is commented to fix type relaxed operations
 bool DiscreteTypeInfo::operator<(const DiscreteTypeInfo& b) const {
-    if (hash_value == 0 || b.hash_value == 0)
-        return version < b.version || (version == b.version && strcmp(name, b.name) < 0);
-    bool less = version < b.version;
-    int cmp_status = 0;
-    if (!less && version == b.version && name != nullptr && b.name != nullptr) {
-        cmp_status = strcmp(name, b.name);
-        less |= cmp_status < 0;
-    }
-    if (!less && cmp_status == 0 && version_id != nullptr && b.version_id != nullptr) {
-        cmp_status = strcmp(version_id, b.version_id);
-        less |= cmp_status < 0;
+    if (version < b.version)
+        return true;
+    if (version == b.version && name != nullptr && b.name != nullptr) {
+        int cmp_status = strcmp(name, b.name);
+        if (cmp_status < 0)
+            return true;
+        if (cmp_status == 0) {
+            std::string v_id(version_id == nullptr ? "null" : version_id);
+            std::string bv_id(b.version_id == nullptr ? "null" : b.version_id);
+            if (v_id < bv_id)
+                return true;
+        }
     }
 
-    return less;
+    return false;
 }
 bool DiscreteTypeInfo::operator==(const DiscreteTypeInfo& b) const {
     if (hash_value == 0 || b.hash_value == 0)
