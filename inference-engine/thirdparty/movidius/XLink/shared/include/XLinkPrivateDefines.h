@@ -25,7 +25,11 @@ extern "C"
 {
 #endif
 
+#ifdef XLINK_MAX_STREAM_RES
+#define MAXIMUM_SEMAPHORES XLINK_MAX_STREAM_RES
+#else
 #define MAXIMUM_SEMAPHORES 32
+#endif
 #define __CACHE_LINE_SIZE 64
 
 typedef int32_t eventId_t;
