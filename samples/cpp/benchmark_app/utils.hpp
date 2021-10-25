@@ -113,16 +113,10 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
         if (min_size != max_size) {
             slog::warn << "Number of shapes for all inputs must be the same (except inputs with 1 shape)."
                           "Nummber of tensor shapes will be reduced to " +
-                              std::to_string(min_size) + " for each input"
+                              std::to_string(min_size) + " for each input."
                        << slog::endl;
         }
     }
-    //for (const auto& input : tensors_shape_map) {
-    //    size_t size = input.second.size();
-    //    if (n < min_size && n != 1) {
-    //        slog::warn << "Number of shapes for input " + input.first + " doesn't match "
-    //    }
-    //}
 
     reshape_required = false;
 
@@ -147,15 +141,17 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
             } else {
                 info.partialShape = item.second->getPartialShape();
             }
+
+            if (info.partialShape.is_dynamic() && info.isImage()) {
+                throw std::logic_error("benchmark_app supports only binary and random data as input for dynamic models at this moment.");
+            }
+
             // Tensor Shape
-            if (tensors_shape_map.count(name)) {
+            if (info.partialShape.is_dynamic() && tensors_shape_map.count(name)) {
                 info.tensorShape = parseTensorShape(tensors_shape_map.at(name)[i % tensors_shape_map.at(name).size()]);
             } else if (info.partialShape.is_static()) {
                 info.tensorShape = info.partialShape.get_shape();
             } else {
-                slog::warn << "tensor_shape command line parameter wasn't provided for network with dynamic shape,"
-                              "original image shape will be used."
-                               << slog::endl;
                 throw std::logic_error(
                     "tensor_shape command line parameter should be set in case of network dynamic shape.");
             }

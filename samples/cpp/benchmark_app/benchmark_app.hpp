@@ -136,6 +136,9 @@ static const char progress_message[] =
 // @brief message for performance counters option
 static const char pc_message[] = "Optional. Report performance counters.";
 
+// @brief message for performance counters for sequence option
+static const char pcseq_message[] = "Optional. Report performance counters for each shape in --tensor_shape sequence.";
+
 #ifdef HAVE_DEVICE_MEM_SUPPORT
 // @brief message for switching memory allocation type option
 static const char use_device_mem_message[] =
@@ -282,6 +285,9 @@ DEFINE_bool(progress, false, progress_message);
 /// @brief Define flag for showing performance counters <br>
 DEFINE_bool(pc, false, pc_message);
 
+/// @brief Define flag for showing performance sequence counters <br>
+DEFINE_bool(pcseq, false, pcseq_message);
+
 #ifdef HAVE_DEVICE_MEM_SUPPORT
 /// @brief Define flag for switching beetwen host and device memory allocation for input and output buffers
 DEFINE_bool(use_device_mem, false, use_device_mem_message);
@@ -373,6 +379,7 @@ static void showUsage() {
     std::cout << "    -report_folder            " << report_folder_message << std::endl;
     std::cout << "    -exec_graph_path          " << exec_graph_path_message << std::endl;
     std::cout << "    -pc                       " << pc_message << std::endl;
+    std::cout << "    -pcseq                    " << pcseq_message << std::endl;
 #ifdef USE_OPENCV
     std::cout << "    -dump_config              " << dump_config_message << std::endl;
     std::cout << "    -load_config              " << load_config_message << std::endl;

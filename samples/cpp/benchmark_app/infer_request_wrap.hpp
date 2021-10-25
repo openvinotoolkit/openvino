@@ -126,6 +126,9 @@ public:
         _startTime = Time::time_point::max();
         _endTime = Time::time_point::min();
         _latencies.clear();
+        for (auto& group : _latency_groups) {
+            group.clear();
+        }
     }
 
     double getDurationInMilliseconds() {

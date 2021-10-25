@@ -58,6 +58,9 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
         throw std::logic_error("Model is required but not set. Please set -m option.");
     }
 
+    if (FLAGS_b != 0 && !FLAGS_tensor_shape.empty()) {
+        throw std::logic_error("Batch size for dynamic models should be specified in tensor shape option.");
+    }
     if (FLAGS_latency_percentile > 100 || FLAGS_latency_percentile < 1) {
         showUsage();
         throw std::logic_error("The percentile value is incorrect. The applicable values range is [1, 100].");
@@ -490,7 +493,7 @@ int main(int argc, char* argv[]) {
                                           {{"load network time (ms)", duration_ms}});
             app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape,
                                                              FLAGS_layout,
-                                                             FLAGS_b,
+                                                             batchSize,
                                                              FLAGS_tensor_shape,
                                                              FLAGS_iscale,
                                                              FLAGS_imean,
@@ -526,7 +529,7 @@ int main(int argc, char* argv[]) {
             bool reshape = false;
             app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape,
                                                             FLAGS_layout,
-                                                            FLAGS_b,
+                                                            batchSize,
                                                             FLAGS_tensor_shape,
                                                             FLAGS_iscale,
                                                             FLAGS_imean,
@@ -550,7 +553,7 @@ int main(int argc, char* argv[]) {
             batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info[0]) : cnnNetwork.getBatchSize();
 
             topology_name = cnnNetwork.getName();
-            slog::info << (FLAGS_b != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize
+            slog::info << (batchSize != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize
                        << slog::endl;
 
             // ----------------- 6. Configuring inputs and outputs
@@ -600,7 +603,7 @@ int main(int argc, char* argv[]) {
                                           {{"import network time (ms)", duration_ms}});
             app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape,
                                                              FLAGS_layout,
-                                                             FLAGS_b,
+                                                             batchSize,
                                                              FLAGS_tensor_shape,
                                                              FLAGS_iscale,
                                                              FLAGS_imean,
@@ -783,6 +786,7 @@ int main(int argc, char* argv[]) {
                                       {{"first inference time (ms)", duration_ms}});
         inferRequestsQueue.resetTimes();
 
+        size_t processedFramesN = 0;
         auto startTime = Time::now();
         auto execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
 
@@ -795,16 +799,18 @@ int main(int argc, char* argv[]) {
                (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
                (FLAGS_api == "async" && iteration % nireq != 0)) {
             if (inferRequestsQueue.isIdleRequestAvailable()) {
-                inferRequest = inferRequestsQueue.getIdleRequest();
+                auto inferRequest = inferRequestsQueue.getIdleRequest();
                 auto input = app_inputs_info[iteration % app_inputs_info.size()];
                 inferRequest->setLatencyGroupId(iteration % app_inputs_info.size());
+
                 for (auto& item : input) {
                     if (item.second.partialShape.is_dynamic())
                         inferRequest->setShape(item.first, item.second.tensorShape);
+                    batchSize = item.second.batch();
                     Blob::Ptr inputBlob = inferRequest->getBlob(item.first);
                     fillBlob(inputBlob, inputs_data.at(item.first)[iteration % inputs_data.size()]);
                 }
-
+                processedFramesN += batchSize;
                 if (FLAGS_api == "sync") {
                     inferRequest->infer();
                 } else {
@@ -817,9 +823,8 @@ int main(int argc, char* argv[]) {
                     inferRequest->wait();
                     inferRequest->startAsync();
                 }
-                ++iteration;
 
-                if (niter > 0) {
+                if (niter > 0 ) {
                     progressBar.addProgress(1);
                 } else {
                     // calculate how many progress intervals are covered by current
@@ -831,6 +836,7 @@ int main(int argc, char* argv[]) {
                     progressBar.addProgress(newProgress);
                     progressCnt += newProgress;
                 }
+                ++iteration;
             }
 
             execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
@@ -839,21 +845,21 @@ int main(int argc, char* argv[]) {
         // wait the latest inference executions
         inferRequestsQueue.waitAll();
 
-        const auto outputs = exeNetwork.GetOutputsInfo();
-        // Touch all outputs
-        for (auto request : inferRequestsQueue.requests) {
-            for (auto output : outputs) {
-                auto dims = request->getBlob(output.first)->getTensorDesc().getDims();
-                std::cout << "Acquired output blob " << output.first << " with shape: ["
-                          << std::accumulate(dims.begin(),
-                                             dims.end(),
-                                             std::string(""),
-                                             [](std::string str, size_t x) {
-                                                 return str.empty() ? std::to_string(x) : str + "," + std::to_string(x);
-                                             })
-                          << "] (dynamic: " << output.second->getPartialShape() << ")" << '\n';
-            }
-        }
+        //const auto outputs = exeNetwork.GetOutputsInfo();
+        //// Touch all outputs
+        //for (auto request : inferRequestsQueue.requests) {
+        //    for (auto output : outputs) {
+        //        auto dims = request->getBlob(output.first)->getTensorDesc().getDims();
+        //        std::cout << "Acquired output blob " << output.first << " with shape: ["
+        //                  << std::accumulate(dims.begin(),
+        //                                     dims.end(),
+        //                                     std::string(""),
+        //                                     [](std::string str, size_t x) {
+        //                                         return str.empty() ? std::to_string(x) : str + "," + std::to_string(x);
+        //                                     })
+        //                  << "] (dynamic: " << output.second->getPartialShape() << ")" << '\n';
+        //    }
+        //}
 
         auto latencies = inferRequestsQueue.getLatencies();
         auto latency_groups = inferRequestsQueue.getLatencyGroups();
@@ -866,7 +872,8 @@ int main(int argc, char* argv[]) {
         double maxLatency = latencies.back();
 
         double totalDuration = inferRequestsQueue.getDurationInMilliseconds();
-        double fps = (FLAGS_api == "sync") ? batchSize * 1000.0 / meanLatency : 1000.0 * iteration / totalDuration;
+        double fps =
+            (FLAGS_api == "sync") ? batchSize * 1000.0 / meanLatency : 1000.0 * processedFramesN / totalDuration;
 
         std::vector<double> meanLatencies(app_inputs_info.size());
         std::vector<double> maxLatencies(app_inputs_info.size());
@@ -947,23 +954,25 @@ int main(int argc, char* argv[]) {
             std::cout << "\tAvg:    " << double_to_string(meanLatency) << " ms" << std::endl;
             std::cout << "\tMax:    " << double_to_string(maxLatency) << " ms" << std::endl;
             std::cout << "\tMin:    " << double_to_string(minLatency) << " ms" << std::endl;
-            std::cout << "Latency per input shapes:" << std::endl;
-            for (size_t i = 0; i < app_inputs_info.size(); ++i) {
-                for (auto& item : app_inputs_info[i]) {
-                    std::stringstream input_shape;
-                    auto shape = item.second.tensorShape;
-                    std::copy(shape.begin(), shape.end() - 1, std::ostream_iterator<int>(input_shape, ","));
-                    input_shape << shape.back();
-                    std::cout << "  " << item.first << " : "
-                              << "[" << input_shape.str() << "] ";
+            if (FLAGS_pcseq) {
+                std::cout << "Latency per input shapes:" << std::endl;
+                for (size_t i = 0; i < app_inputs_info.size(); ++i) {
+                    for (auto& item : app_inputs_info[i]) {
+                        std::stringstream input_shape;
+                        auto shape = item.second.tensorShape;
+                        std::copy(shape.begin(), shape.end() - 1, std::ostream_iterator<int>(input_shape, ","));
+                        input_shape << shape.back();
+                        std::cout << "  " << item.first << " : "
+                                  << "[" << input_shape.str() << "] ";
+                    }
+                    std::cout << std::endl;
+                    std::cout << '\t' << "Avg:    "
+                              << std::accumulate(latency_groups[i].begin(), latency_groups[i].end(), 0.0) /
+                                     latency_groups[i].size()
+                              << " ms" << std::endl;
+                    std::cout << '\t' << "Max:    " << latency_groups[i].back() << " ms" << std::endl;
+                    std::cout << '\t' << "Min:    " << latency_groups[i][0] << " ms" << std::endl;
                 }
-                std::cout << std::endl;
-                std::cout << '\t' << "Avg:    "
-                          << std::accumulate(latency_groups[i].begin(), latency_groups[i].end(), 0.0) /
-                                 latency_groups[i].size()
-                          << " ms" << std::endl;
-                std::cout << '\t' << "Max:    " << latency_groups[i].back() << " ms" << std::endl;
-                std::cout << '\t' << "Min:    " << latency_groups[i][0] << " ms" << std::endl;
             }
         }
         std::cout << "Throughput: " << double_to_string(fps) << " FPS" << std::endl;
