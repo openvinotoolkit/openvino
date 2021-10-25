@@ -2,9 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_SAMPLES)
-    add_subdirectory(C)
-endif()
+add_subdirectory(c)
 
 # install C samples
 
@@ -20,11 +18,11 @@ elseif(WIN32)
             COMPONENT c_samples)
 endif()
 
-install(DIRECTORY C
-        DESTINATION samples/c
+install(DIRECTORY c
+        DESTINATION samples
         COMPONENT c_samples
-        PATTERN C/CMakeLists.txt EXCLUDE
-        PATTERN C/.clang-format EXCLUDE)
+        PATTERN c/CMakeLists.txt EXCLUDE
+        PATTERN c/.clang-format EXCLUDE)
 
 install(FILES ${IE_MAIN_SOURCE_DIR}/samples/CMakeLists.txt
         DESTINATION samples/c
