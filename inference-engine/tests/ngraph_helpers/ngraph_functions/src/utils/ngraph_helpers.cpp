@@ -145,38 +145,41 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
 }
 
 std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Function> &function,
-                                                   const std::map<std::string, ov::runtime::Tensor>& inputs) {
+                                                   const std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor>& inputs) {
     runtime::Backend::set_backend_shared_library_search_directory("");
     auto backend = runtime::Backend::create("INTERPRETER");
 
-    const auto &parameters = function->inputs();
-    const auto &parametersNumber = parameters.size();
+    const auto &funcInputs = function->inputs();
+    const auto &funcInputsNumber = funcInputs.size();
     const auto &inputsNumber = inputs.size();
-    NGRAPH_CHECK(parametersNumber == inputsNumber,
-                 "Got function (", function->get_friendly_name(), ") with ", parametersNumber, " parameters, but ",
+    NGRAPH_CHECK(funcInputsNumber == inputsNumber,
+                 "Got function (", function->get_friendly_name(), ") with ", funcInputsNumber, " parameters, but ",
                  inputsNumber, " input blobs");
 
     auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
-    for (size_t i = 0; i < parametersNumber; ++i) {
-        const auto &parameter = parameters[i];
-        const auto &parameterShape = parameter.get_shape();
-        const auto &parameterType = parameter.get_element_type();
-        const auto &parameterSize = shape_size(parameterShape) * parameterType.size();
+    for (size_t i = 0; i < funcInputsNumber; ++i) {
+        const auto &input = funcInputs[i];
+        const auto &inputShape = input.get_shape();
+        const auto &inputType = input.get_element_type();
+        const auto &inputSize = shape_size(inputShape) * inputType.size();
 
-        auto inputIt = inputs.find(parameter.get_any_name());
+        auto inputIt = std::find_if(inputs.begin(), inputs.end(),
+                                    [&input](std::pair<std::shared_ptr<ov::Node>, ov::runtime::Tensor> elem) {
+            return elem.first->get_friendly_name() == input.get_node_shared_ptr()->get_friendly_name();
+        });
         if (inputIt == inputs.end()) {
-            throw std::runtime_error("Parameter: " + parameter.get_any_name()+ " was not find in input parameters");
+            throw std::runtime_error("Parameter: " + input.get_node_shared_ptr()->get_friendly_name() + " was not find in input parameters");
         }
-        auto input = inputIt->second;
+        auto inputTensor = inputIt->second;
 
-        const auto &inputSize = input.get_byte_size();
-        NGRAPH_CHECK(parameterSize == inputSize,
-                     "Got parameter (", parameter.get_any_name(), ") of size ", parameterSize,
+        const auto &inputTensorSize = inputTensor.get_byte_size();
+        NGRAPH_CHECK(inputSize == inputTensorSize,
+                     "Got parameter (", input.get_node_shared_ptr()->get_friendly_name(), ") of size ", inputSize,
                      " bytes, but corresponding input ",
-                     " has ", inputSize, " bytes");
+                     " has ", inputTensorSize, " bytes");
 
-        auto tensor = backend->create_tensor(parameterType, parameterShape);
-        tensor->write(input.data(), parameterSize);
+        auto tensor = backend->create_tensor(inputType, inputShape);
+        tensor->write(inputTensor.data(), inputSize);
         inputTensors.push_back(tensor);
     }
 
@@ -902,14 +905,14 @@ std::ostream& operator<<(std::ostream & os, MemoryTransformation type) {
 
 void resize_function(std::shared_ptr<ov::Function> function,
                      const std::vector<ov::Shape>& targetInputStaticShapes) {
-    auto params = function->get_parameters();
-    std::map<std::string, ov::PartialShape> shapes;
-    if (params.size() > targetInputStaticShapes.size()) {
-        throw std::runtime_error("targetInputStaticShapes.size() = " + std::to_string(targetInputStaticShapes.size()) + " != params.size() = "
-            + std::to_string(params.size()));
+    auto inputs = function->inputs();
+    std::map<ov::Output<ov::Node>, ov::PartialShape> shapes;
+    if (inputs.size() > targetInputStaticShapes.size()) {
+        throw std::runtime_error("targetInputStaticShapes.size() = " + std::to_string(targetInputStaticShapes.size()) + " != inputs.size() = "
+            + std::to_string(inputs.size()));
     }
-    for (size_t i = 0; i < params.size(); i++) {
-        shapes.insert({params[i]->get_output_tensor(0).get_any_name(), targetInputStaticShapes[i]});
+    for (size_t i = 0; i < inputs.size(); i++) {
+        shapes.insert({inputs[i], targetInputStaticShapes[i]});
     }
     function->reshape(shapes);
 }

@@ -155,11 +155,11 @@ void SubgraphBaseTest::compile_model() {
 
 void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
-    const auto& params = function->inputs();
-    for (int i = 0; i < params.size(); ++i) {
-        const auto& param = params[i];
-        ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(param.get_element_type(), targetInputStaticShapes[i]);
-        inputs.insert({param.get_any_name(), tensor});
+    const auto& funcInputs = function->inputs();
+    for (int i = 0; i < funcInputs.size(); ++i) {
+        const auto& funcInput = funcInputs[i];
+        ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+        inputs.insert({funcInput.get_node_shared_ptr(), tensor});
     }
 }
 
@@ -179,7 +179,7 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
 std::vector<ov::runtime::Tensor> SubgraphBaseTest::get_plugin_outputs() {
     auto outputs = std::vector<ov::runtime::Tensor>{};
     for (const auto& output : function->outputs()) {
-        outputs.push_back(inferRequest.get_tensor(output.get_any_name()));
+        outputs.push_back(inferRequest.get_tensor(output));
     }
     return outputs;
 }

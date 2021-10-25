@@ -271,7 +271,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
 
 std::vector<ov::runtime::Tensor>
 interpretFunction(const std::shared_ptr<Function> &function,
-                    const std::map<std::string, ov::runtime::Tensor>& inputs);
+                  const std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor>& inputs);
 
 //
 // This function compares two nGraph functions and requires them to have exactly one output

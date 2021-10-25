@@ -44,32 +44,32 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
 void EltwiseLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto opType = std::get<1>(GetParam());
-    const auto& params = function->inputs();
-    for (int i = 0; i < params.size(); ++i) {
-        const auto& param = params[i];
+    const auto& funcInputs = function->inputs();
+    for (int i = 0; i < funcInputs.size(); ++i) {
+        const auto& funcInput = funcInputs[i];
         ov::runtime::Tensor tensor;
-        bool isReal = param.get_element_type().is_real();
+        bool isReal = funcInput.get_element_type().is_real();
         switch (opType) {
             case ngraph::helpers::EltwiseTypes::POWER:
             case ngraph::helpers::EltwiseTypes::MOD:
             case ngraph::helpers::EltwiseTypes::FLOOR_MOD:
                 tensor = isReal ?
-                        ov::test::utils::create_and_fill_tensor(param.get_element_type(), targetInputStaticShapes[i], 2, 2, 128) :
-                        ov::test::utils::create_and_fill_tensor(param.get_element_type(), targetInputStaticShapes[i], 4, 2);
+                        ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2, 2, 128) :
+                        ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 4, 2);
                 break;
             case ngraph::helpers::EltwiseTypes::DIVIDE:
                 tensor = isReal ?
-                         ov::test::utils::create_and_fill_tensor(param.get_element_type(), targetInputStaticShapes[i], 2, 2, 128) :
-                         ov::test::utils::create_and_fill_tensor(param.get_element_type(), targetInputStaticShapes[i], 100, 101);
+                         ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2, 2, 128) :
+                         ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 100, 101);
                 break;
             case ngraph::helpers::EltwiseTypes::ERF:
-                tensor = ov::test::utils::create_and_fill_tensor(param.get_element_type(), targetInputStaticShapes[i], 6, -3);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 6, -3);
                 break;
             default:
-                tensor = ov::test::utils::create_and_fill_tensor(param.get_element_type(), targetInputStaticShapes[i]);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
                 break;
         }
-        inputs.insert({param.get_any_name(), tensor});
+        inputs.insert({funcInput.get_node_shared_ptr(), tensor});
     }
 }
 
