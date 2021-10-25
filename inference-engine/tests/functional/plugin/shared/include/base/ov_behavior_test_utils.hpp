@@ -49,6 +49,7 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(targetDevice, configuration) = this->GetParam();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
+        execNet = core->compile_model(function, targetDevice, configuration);
     }
 
     void TearDown() override {
@@ -59,7 +60,7 @@ public:
 
 protected:
     ov::runtime::ExecutableNetwork execNet;
-    std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();;
+    std::shared_ptr<ov::runtime::Core> core = utils::PluginCache::get().core();
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
     std::shared_ptr<ov::Function> function;

@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <string>
+#include "test_assertions.hpp"
 
 namespace CommonTestUtils {
 

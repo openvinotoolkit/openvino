@@ -4,15 +4,11 @@
 
 #include <vector>
 
-#include "behavior/infer_request/infer_request_dynamic.hpp"
+#include "behavior/ov_infer_request/infer_request_dynamic.hpp"
 
-using namespace BehaviorTestsDefinitions;
+using namespace ov::test::behavior;
 
 namespace {
-
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32
-};
 
 const std::vector<std::map<std::string, std::string>> configs = {
     {}
@@ -64,7 +60,7 @@ std::shared_ptr<ngraph::Function> getFunction2() {
     return std::make_shared<ngraph::Function>(concat, params, "SplitAddConcat");
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_1, InferRequestDynamicTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_1, OVInferRequestDynamicTests,
                         ::testing::Combine(
                                 ::testing::Values(getFunction1()),
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
@@ -72,9 +68,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_1, InferRequestDynamicTests,
                                     {{2, 4, 20, 20}, {2, 4, 20, 20}}}),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::ValuesIn(configs)),
-                        InferRequestDynamicTests::getTestCaseName);
+                        OVInferRequestDynamicTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_2, InferRequestDynamicTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_2, OVInferRequestDynamicTests,
                         ::testing::Combine(
                                 ::testing::Values(getFunction2()),
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
@@ -82,9 +78,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_2, InferRequestDynamicTests,
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::ValuesIn(configs)),
-                        InferRequestDynamicTests::getTestCaseName);
+                        OVInferRequestDynamicTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestDynamicTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestDynamicTests,
                         ::testing::Combine(
                                 ::testing::Values(getFunction2()),
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
@@ -92,6 +88,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestDynamicTests,
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                                 ::testing::ValuesIn(HeteroConfigs)),
-                        InferRequestDynamicTests::getTestCaseName);
+                        OVInferRequestDynamicTests::getTestCaseName);
 
 }  // namespace
