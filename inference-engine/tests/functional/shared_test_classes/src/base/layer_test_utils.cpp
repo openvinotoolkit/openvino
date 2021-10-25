@@ -25,13 +25,21 @@ LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f), abs_threshold(-1.f) {
     core = PluginCache::get().ie(targetDevice);
 }
 void LayerTestsCommon::ResizeNgraphFunction() {
+    std::map<ov::Output<ov::Node>, ov::PartialShape> shapes;
+
     auto params = function->get_parameters();
-    std::map<std::string, ngraph::PartialShape> shapes;
     ASSERT_LE(params.size(), targetStaticShapes[index].size());
     for (size_t i = 0; i < params.size(); i++) {
-        shapes.insert({*params[i]->get_output_tensor(0).get_names().begin(), targetStaticShapes[index][i]});
+        shapes.insert({params[i]->output(0), targetStaticShapes[index][i]});
     }
     function->reshape(shapes);
+
+    shapes.clear();
+    params = functionRefs->get_parameters();
+    ASSERT_LE(params.size(), targetStaticShapes[index].size());
+    for (size_t i = 0; i < params.size(); i++) {
+        shapes.insert({params[i]->output(0), targetStaticShapes[index][i]});
+    }
     functionRefs->reshape(shapes);
 }
 
