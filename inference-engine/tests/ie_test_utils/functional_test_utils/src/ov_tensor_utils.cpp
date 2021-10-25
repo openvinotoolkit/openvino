@@ -67,10 +67,8 @@ void compare(const ov::runtime::Tensor& expected,
         } else {
             std::vector<double> abs_values;
             abs_values.reserve(shape_size(expected_shape));
-            for (auto&& c : ngraph::CoordinateTransformBasic{expected_shape}) {
-                abs_values.push_back(std::fabs(
-                        static_cast<double>(
-                                expected_data[std::inner_product(c.begin(), c.end(), expected.get_strides().begin(), 0)])));
+            for (size_t i = 0; i < shape_size(expected_shape); i++) {
+                abs_values.push_back(std::fabs(static_cast<double>(expected_data[i])));
             }
             std::sort(abs_values.begin(), abs_values.end());
             double abs_median;
@@ -97,19 +95,19 @@ void compare(const ov::runtime::Tensor& expected,
         auto eps = std::numeric_limits<double>::epsilon();
         return (b - a) > (std::fmax(std::fabs(a), std::fabs(b)) * eps);
     };
-    for (auto&& c : ngraph::CoordinateTransformBasic{expected_shape}) {
-        double expected_value = expected_data[std::inner_product(c.begin(), c.end(), expected.get_strides().begin(), 0)];
-        double actual_value = actual_data[std::inner_product(c.begin(), c.end(), actual.get_strides().begin(), 0)];
+    for (size_t i = 0; i < shape_size(expected_shape); i++) {
+        double expected_value = expected_data[i];
+        double actual_value = actual_data[i];
         auto error = [&] (Error& err, double val, double threshold) {
             if (less(err.max, val)) {
                 err.max = val;
-                err.max_coordinate = c;
+                err.max_coordinate = i;
             }
             err.mean += val;
             err.count += less(threshold, val);
         };
-        ASSERT_FALSE(std::isnan(expected_value)) << "Expected value is NAN on coordinate: " << c;
-        ASSERT_FALSE(std::isnan(actual_value)) << "Actual value is NAN on coordinate: " << c;
+        ASSERT_FALSE(std::isnan(expected_value)) << "Expected value is NAN on coordinate: " << i;
+        ASSERT_FALSE(std::isnan(actual_value)) << "Actual value is NAN on coordinate: " << i;
         auto abs = std::fabs(expected_value - actual_value);
         auto rel = expected_value ? (abs/std::fabs(expected_value)) : abs;
         error(abs_error, abs, abs_threshold);
