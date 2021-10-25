@@ -56,7 +56,9 @@ public:
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str(inputShapes.first) << "_";
+        if (!inputShapes.first.empty()) {
+            result << "IS=" << CommonTestUtils::partialShape2str(inputShapes.first) << "_";
+        }
         result << "TS=";
         for (const auto& shape : inputShapes.second) {
             result << "(";
@@ -239,12 +241,48 @@ const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
 const std::vector<SizeVector> dilations2d = { {1, 1}, {2, 2} };
 std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inputShapes2d = {
         {{}, {{{ 1, 64, 7, 7 }}}},
-        {{}, {{{ 1, 67, 7, 7 }}}}
+        {{}, {{{ 1, 67, 7, 7 }}}},
+        {
+            { //dynamic shapes
+                {-1, 64, -1, {1, 200}}
+            },
+            { //target static shapes
+                {{ 2, 64, 7, 7 }},
+                {{ 1, 64, 14, 14}}
+            }
+        },
+        {
+            { //dynamic shapes
+                {-1, 67, -1, {1, 200}}
+            },
+            { //target static shapes
+                {{ 2, 67, 7, 7 }},
+                {{ 1, 67, 14, 14}}
+            }
+        }
 };
 std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inputShapesPlain2Blocked2d = {
         {{}, {{{ 1, 1, 7, 7 }}}},
         {{}, {{{ 1, 2, 7, 7 }}}},
-        {{}, {{{ 1, 3, 7, 7 }}}}
+        {{}, {{{ 1, 3, 7, 7 }}}},
+        {
+            { //dynamic shapes
+                {-1, 1, -1, {1, 200}}
+            },
+            { //target static shapes
+                {{ 2, 1, 7, 7 }},
+                {{ 1, 1, 14, 14}}
+            }
+        },
+        {
+            { //dynamic shapes
+                {-1, 3, -1, {1, 200}}
+            },
+            { //target static shapes
+                {{ 2, 3, 7, 7 }},
+                {{ 1, 3, 14, 14}}
+            }
+        }
 };
 
 /* ============= Convolution params (3D) ============= */
@@ -255,12 +293,48 @@ const std::vector<std::vector<ptrdiff_t>> padEnds3d = { {0, 0, 0} };
 const std::vector<SizeVector> dilations3d = { {1, 1, 1}, {2, 2, 2} };
 std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inputShapes3d = {
         {{}, {{{ 1, 64, 7, 7, 7 }}}},
-        {{}, {{{ 1, 67, 7, 7, 7 }}}}
+        {{}, {{{ 1, 67, 7, 7, 7 }}}},
+        {
+            { //dynamic shapes
+                {-1, 64, -1, {1, 200}, -1}
+            },
+            { //target static shapes
+                {{ 2, 64, 7, 7, 7 }},
+                {{ 1, 64, 14, 14, 14}}
+            }
+        },
+        {
+            { //dynamic shapes
+                {-1, 67, -1, {1, 200}, -1}
+            },
+            { //target static shapes
+                {{ 2, 67, 7, 7, 7 }},
+                {{ 1, 67, 14, 14, 14}}
+            }
+        }
 };
 std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inputShapesPlain2Blocked3d = {
         {{}, {{{ 1, 1, 7, 7, 7 }}}},
         {{}, {{{ 1, 2, 7, 7, 7 }}}},
         {{}, {{{ 1, 3, 7, 7, 7 }}}},
+        {
+            { //dynamic shapes
+                {-1, 1, -1, {1, 200}, -1}
+            },
+            { //target static shapes
+                {{ 2, 1, 7, 7, 7 }},
+                {{ 1, 1, 14, 14, 14 }}
+            }
+        },
+        {
+            { //dynamic shapes
+                {-1, 3, -1, {1, 200}, -1}
+            },
+            { //target static shapes
+                {{ 2, 3, 7, 7, 7 }},
+                {{ 1, 3, 14, 14, 14 }}
+            }
+        }
 };
 /* ============= */
 
@@ -283,7 +357,15 @@ const std::vector<CPUSpecificParams> CPUParams_GEMM_2D = {
 
 std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesGemm2D = {
         {{}, {{{ 2, 12, 7, 7 }}}},
-        //{{ngraph::PartialShape{{1, 200}, 12, {1, 200}, {1, 200}}}, {{{ 2, 12, 7, 7 }, { 1, 12, 5, 5}}}}
+        {
+            { //dynamic shape
+                {{1, 200}, 12, -1, {1, 200}}
+            },
+            { //target static shapes
+                {{ 2, 12, 7, 7 }},
+                {{ 1, 12, 5, 5}}
+            }
+        }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_GEMM_FP32, ConvolutionLayerCPUTest,
@@ -351,7 +433,16 @@ const std::vector<CPUSpecificParams> CPUParams_GEMM_3D = {
 };
 
 std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesGemm3D = {
-        {{}, {{{ 2, 12, 7, 7, 7 }}}}
+        {{}, {{{ 2, 12, 7, 7, 7 }}}},
+        {
+            { //dynamic shape
+                {{1, 200}, 12, -1, {1, 200}, -1}
+            },
+            { //target static shapes
+                {{ 2, 12, 7, 7, 7 }},
+                {{ 1, 12, 5, 5, 5 }}
+            }
+        }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_GEMM_FP32, ConvolutionLayerCPUTest,
@@ -706,7 +797,16 @@ const std::vector<CPUSpecificParams> CPUParams_1D = {
 };
 
 std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes1D = {
-        {{}, {{{ 2, 64, 7 }}}}
+        {{}, {{{ 2, 64, 7 }}}},
+        {
+            { //dynamic shape
+                {{1, 200}, 64, -1}
+            },
+            { //target static shapes
+                    {{ 2, 64, 7 }},
+                    {{ 1, 64, 5 }}
+            }
+        }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D, ConvolutionLayerCPUTest,
@@ -827,7 +927,16 @@ const auto convParams_2D = ::testing::Combine(
 );
 
 std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesWinograd = {
-        {{}, {{{ 1, 16, 10, 10 }}}}
+        {{}, {{{ 1, 16, 10, 10 }}}},
+        {
+            { //dynamic shape
+                {{1, 200}, 16, -1, {1, 200}}
+            },
+            { //target static shapes
+                {{ 2, 16, 7, 7 }},
+                {{ 1, 16, 5, 5 }}
+            }
+    }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_winograd, ConvolutionLayerCPUTest,
