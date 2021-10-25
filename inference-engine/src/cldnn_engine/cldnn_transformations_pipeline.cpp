@@ -101,6 +101,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
 
+    bool use_onednn = false;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    use_onednn = device_info.supports_immad;
+#endif
+
     bool enableInt8;
     {
         ngraph::pass::Manager manager;
@@ -325,7 +330,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
 
         // Conversion to FP32 might be needed for quantized models that face any fp16 related issues (e.g. overflow) for non-quantized layers
         // With this key users can work-around such issues
-        if (!config.enable_fp16_for_quantized_models) {
+        if (!config.enable_fp16_for_quantized_models || use_onednn) {
             ngraph::pass::Manager manager;
             manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::f16, ngraph::element::f32 }});
             manager.run_passes(func);
@@ -396,9 +401,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
 
             return LayerTransformation::isAsymmetricQuantization(node) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
         });
-        lptPassConfig->set_callback<MatMulTransformation>([](const_node_ptr& node) -> bool {
-            return MatMulTransformation::is3DTensorOnActivations(node);
-        });
+        if (!use_onednn) {
+            lptPassConfig->set_callback<MatMulTransformation>([](const_node_ptr& node) -> bool {
+                return MatMulTransformation::is3DTensorOnActivations(node);
+            });
+        }
 
         lptManager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization);
         lptManager.run_passes(func);
