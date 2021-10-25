@@ -39,12 +39,12 @@ TEST_MODELS = [
                                                                                   'accuracy@top5': 0.911},
      {}, 'CPU'),
 
-    ('mobilenet-ssd', 'caffe', 'AccuracyAwareQuantization', 'performance', 300, {'map': 0.7215},
-     {'metric_subset_ratio': 1.0, 'max_iter_num': 1, 'metrics': [{'name': 'map', 'baseline_value': 0.7311}]}, 'CPU'),
+    # ('mobilenet-ssd', 'caffe', 'AccuracyAwareQuantization', 'performance', 300, {'map': 0.7215},
+    #  {'metric_subset_ratio': 1.0, 'max_iter_num': 1, 'metrics': [{'name': 'map', 'baseline_value': 0.7311}]}, 'CPU'),
 
-    ('mobilenet-ssd', 'caffe', 'AccuracyAwareQuantization', 'performance', 300, {'map': 0.7215},
-     {'metric_subset_ratio': 1.0, 'max_iter_num': 1, 'tune_hyperparams': True,
-      'metrics': [{'name': 'map', 'baseline_value': 0.7311}]}, 'CPU'),
+    # ('mobilenet-ssd', 'caffe', 'AccuracyAwareQuantization', 'performance', 300, {'map': 0.7215},
+    #  {'metric_subset_ratio': 1.0, 'max_iter_num': 1, 'tune_hyperparams': True,
+    #   'metrics': [{'name': 'map', 'baseline_value': 0.7311}]}, 'CPU'),
 
     # ('mobilenet-v1-0.25-128', 'tf', 'AccuracyAwareQuantization', 'performance', 100,
     # {'accuracy@top1': 0.424, 'accuracy@top5': 0.65},
