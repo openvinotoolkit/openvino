@@ -10,7 +10,6 @@
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "plugin_loader.hpp"
-#include "utils.hpp"
 
 using namespace ov;
 using namespace ov::frontend;
