@@ -5,5 +5,5 @@ test_data: ${SHARE}/validation_set/
 #Performance data:
 perf_result_path: ${SHARE}/validation_set/performance_result/
 samples_data_zip: "https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/samples_smoke_tests_data.zip"
-smoke_tests_path: ${WORKSPACE}/tests/samples_tests/smoke_tests
-samples_path: ${WORKSPACE}/tests/samples_tests/smoke_tests/samples_smoke_tests_data.zip
+smoke_tests_path: ${WORKSPACE}/tests/smoke_tests
+samples_path: ${WORKSPACE}/tests/smoke_tests/samples_smoke_tests_data.zip

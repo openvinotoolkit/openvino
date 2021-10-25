@@ -50,6 +50,7 @@ jobs:
     BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
     BUILD_LAYER_TESTS_DIR: $(WORK_DIR)/build_layer_tests
+    BUILD_SAMPLES_TESTS_DIR: $(WORK_DIR)/build_samples_tests
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
     LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
@@ -305,6 +306,21 @@ jobs:
     displayName: 'IE CAPITests'
     continueOnError: false
 
+  - task: CMake@1
+    inputs:
+      cmakeArgs: >
+        -GNinja
+        $(REPO_DIR)/tests/samples_tests
+      workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
+
+  - script: ninja
+    workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
+    displayName: 'Build Samples Tests'
+
+  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
+    workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
+    displayName: 'Install Samples Tests'
+
   - script: |  
       python3 -m pip install -r $(REPO_DIR)/tests/samples_tests/smoke_tests/requirements.txt 
     workingDirectory: $(REPO_DIR)
@@ -312,15 +328,14 @@ jobs:
     continueOnError: false
 
   - script: |
-      export IE_APP_PATH=$(BIN_DIR)
-      export IE_APP_PYTHON_PATH=$(REPO_DIR)/inference-engine/ie_bridges/python/sample/
-      export PYTHONPATH=$(REPO_DIR)/tests/samples_tests/:$(BIN_DIR)/lib/python_api/python3.8/:$(REPO_DIR)/ngraph/python/src/
-      export SHARE=$(REPO_DIR)/tests/samples_tests/smoke_tests/samples_smoke_tests_data/
-      export WORKSPACE=$(REPO_DIR)
-      export IE_APP_PYTHON_TOOL_PATH=$(REPO_DIR)/tools/
-      export LD_LIBRARY_PATH=$(BIN_DIR)/lib:$(REPO_DIR)/inference-engine/temp/opencv_4.5.2_ubuntu20/opencv/lib/:$(REPO_DIR)/inference-engine/temp/tbb/lib
-      python3 -m pytest $(REPO_DIR)/tests/samples_tests/smoke_tests/  --env_conf $(REPO_DIR)/tests/samples_tests/smoke_tests/env_config.yml -s --junitxml=$(BUILD_DIR)/TEST-SamplesSmokeTests.xml
-    workingDirectory: $(REPO_DIR)
+      . $(SETUPVARS)
+      export IE_APP_PATH=$(INSTALL_DIR)/tests
+      export IE_APP_PYTHON_PATH=$(INSTALL_DIR)/samples/python/
+      export SHARE=$(INSTALL_DIR)/tests/smoke_tests/samples_smoke_tests_data/
+      export WORKSPACE=$(INSTALL_DIR)
+      export IE_APP_PYTHON_TOOL_PATH=$(INSTALL_DIR)/tools/
+      python3 -m pytest $(INSTALL_DIR)/tests/smoke_tests/  --env_conf $(INSTALL_DIR)/tests/smoke_tests/env_config.yml -s --junitxml=$(BUILD_DIR)/TEST-SamplesSmokeTests.xml
+    workingDirectory: $(INSTALL_DIR)
     displayName: 'Samples Smoke Tests'
     continueOnError: false
 
