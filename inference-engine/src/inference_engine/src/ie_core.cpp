@@ -445,13 +445,14 @@ public:
         }
     }
 
+#ifdef OPENVINO_STATIC_LIBRARY
+
     /**
      * @brief Register plugins for devices which are located in .xml configuration file.
      * @note The function supports UNICODE path
      * @param xmlConfigFile An .xml configuraion with device / plugin information
      */
-    void RegisterPluginsInRegistry(
-        const std::map<std::string, InferenceEngine::CreatePluginEngineFunc*>& static_registry) {
+    void RegisterPluginsInRegistry(const decltype(::getStaticPluginsRegistry())& static_registry) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
 
         for (const auto& plugin : static_registry) {
@@ -459,11 +460,14 @@ public:
             if (deviceName.find('.') != std::string::npos) {
                 IE_THROW() << "Device name must not contain dot '.' symbol";
             }
-            // TODO: add properties support to enable AUTO device
-            PluginDescriptor desc = {{}, {}, {}, plugin.second};
+            const auto& create_func = plugin.second.first;
+            const auto& config = plugin.second.second;
+            PluginDescriptor desc = {{}, config, {}, create_func};
             pluginRegistry[deviceName] = desc;
         }
     }
+
+#endif
 
     //
     // ICore public API

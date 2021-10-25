@@ -6,7 +6,15 @@ if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wall)
 endif()
 
+add_subdirectory(transformations)
+
 add_subdirectory(legacy_api)
+
+add_subdirectory(low_precision_transformations)
+
+add_subdirectory(offline_transformations)
+
+add_subdirectory(snippets)
 
 if(ENABLE_MKL_DNN)
     add_subdirectory(mkldnn_plugin)
@@ -36,15 +44,7 @@ add_subdirectory(inference_engine)
 
 add_subdirectory(preprocessing)
 
-add_subdirectory(transformations)
-
 add_subdirectory(readers)
-
-add_subdirectory(low_precision_transformations)
-
-add_subdirectory(offline_transformations)
-
-add_subdirectory(snippets)
 
 # add a custom target to build all Inference Engine Core libraries
 

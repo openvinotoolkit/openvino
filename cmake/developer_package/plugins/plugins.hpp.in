@@ -9,8 +9,12 @@
 namespace {
 @IE_PLUGINS_DECLARATIONS@
 
-const std::map<std::string, InferenceEngine::CreatePluginEngineFunc *>
-getStaticPluginsRegistry() {
+using Config = std::map<std::string, std::string>;
+using Value = std::pair<InferenceEngine::CreatePluginEngineFunc *, Config>;
+using Key = std::string;
+using PluginsStaticRegistry = std::map<Key, Value>;
+
+const std::map<Key, Value> getStaticPluginsRegistry() {
 @IE_PLUGINS_MAP_DEFINITION@
     return plugins_hpp;
 }
