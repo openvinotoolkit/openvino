@@ -7,6 +7,7 @@ import numpy as np
 
 from extensions.front.tf.IteratorGetNextCut import IteratorGetNextCut
 from mo.front.common.partial_infer.utils import shape_array
+from mo.utils.error import Error
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph_with_edge_attrs
 
@@ -17,7 +18,7 @@ class IteratorGetNextAnalysisTest(unittest.TestCase):
         graph = build_graph_with_edge_attrs(
             {
                 'iter_get_next': {'kind': 'op', 'op': 'IteratorGetNext', 'shapes': shape_array([[2, 2]]),
-                                  'types': [None]},
+                                  'types': [np.int32]},
                 'sub': {'kind': 'op', 'op': 'Sub'},
             },
             [
@@ -27,7 +28,7 @@ class IteratorGetNextAnalysisTest(unittest.TestCase):
 
         graph_ref = build_graph_with_edge_attrs(
             {
-                'parameter_1': {'kind': 'op', 'op': 'Parameter', 'shape': shape_array([2, 2]), 'type': None},
+                'parameter_1': {'kind': 'op', 'op': 'Parameter', 'shape': shape_array([2, 2]), 'type': np.int32},
                 'sub': {'kind': 'op', 'op': 'Sub'},
             },
             [
@@ -43,7 +44,8 @@ class IteratorGetNextAnalysisTest(unittest.TestCase):
     def test_two_outputs(self):
         graph = build_graph_with_edge_attrs(
             {
-                'iter_get_next': {'kind': 'op', 'op': 'IteratorGetNext', 'shapes': shape_array([[2, 2], [1, 1]]),
+                'iter_get_next': {'kind': 'op', 'op': 'IteratorGetNext', 'shapes': [shape_array([2, 2]),
+                                                                                    shape_array([1, 1])],
                                   'types': [np.int32, np.float32]},
                 'sub': {'kind': 'op', 'op': 'Sub'},
                 'add': {'kind': 'op', 'op': 'Add'},
@@ -77,3 +79,17 @@ class IteratorGetNextAnalysisTest(unittest.TestCase):
 
         flag, msg = compare_graphs(graph, graph_ref, last_node='concat', check_op_attrs=True)
         self.assertTrue(flag, msg)
+
+    def test_unsupported_data_type(self):
+        graph = build_graph_with_edge_attrs(
+            {
+                'iter_get_next': {'kind': 'op', 'op': 'IteratorGetNext', 'shapes': shape_array([[2, 2]]),
+                                  'types': [None]},
+                'sub': {'kind': 'op', 'op': 'Sub'},
+            },
+            [
+                ('iter_get_next', 'sub', {'out': 0, 'in': 0}),
+            ]
+        )
+
+        self.assertRaises(Error, IteratorGetNextCut().find_and_replace_pattern, graph)
