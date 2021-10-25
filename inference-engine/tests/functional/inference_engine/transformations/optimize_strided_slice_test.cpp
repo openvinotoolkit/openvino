@@ -24,8 +24,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, OptimizeSS_UselessDeletion_Negative1) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+TEST_F(TransformationTestsF, OptimizeSS_UselessDeletion_Negative1) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
         auto begin = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 0, 0, 0});
@@ -37,17 +36,13 @@ TEST(TransformationTests, OptimizeSS_UselessDeletion_Negative1) {
 
         auto ss = std::make_shared<ngraph::opset1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
-        ngraph::pass::StridedSliceOptimization().run_on_function(f);
-        ngraph::pass::ConstantFolding().run_on_function(f);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
+        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ngraph::pass::ConstantFolding>();
     }
-
-    auto res = compare_functions(f, f);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, OptimizeSS_UselessDeletion_Negative2) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+TEST_F(TransformationTestsF, OptimizeSS_UselessDeletion_Negative2) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(4));
         auto relu = std::make_shared<ngraph::opset1::Relu>(data);
@@ -60,17 +55,13 @@ TEST(TransformationTests, OptimizeSS_UselessDeletion_Negative2) {
 
         auto ss = std::make_shared<ngraph::opset1::StridedSlice>(relu, begin, end, stride, begin_mask, end_mask);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
-        ngraph::pass::StridedSliceOptimization().run_on_function(f);
-        ngraph::pass::ConstantFolding().run_on_function(f);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
+        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ngraph::pass::ConstantFolding>();
     }
-
-    auto res = compare_functions(f, f);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, OptimizeSS_UselessDeletion) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, OptimizeSS_UselessDeletion) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
         auto relu = std::make_shared<ngraph::opset1::Relu>(data);
@@ -83,22 +74,18 @@ TEST(TransformationTests, OptimizeSS_UselessDeletion) {
 
         auto ss = std::make_shared<ngraph::opset1::StridedSlice>(relu, begin, end, stride, begin_mask, end_mask);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
-        ngraph::pass::StridedSliceOptimization().run_on_function(f);
-        ngraph::pass::ConstantFolding().run_on_function(f);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
+        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
         auto relu = std::make_shared<ngraph::opset1::Relu>(data);
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, OptimizeSS_SkipUselessDeletionRevertCase) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, OptimizeSS_SkipUselessDeletionRevertCase) {
     {
         auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
         auto begin = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 0, 0, 0});
@@ -111,9 +98,9 @@ TEST(TransformationTests, OptimizeSS_SkipUselessDeletionRevertCase) {
         auto ss = std::make_shared<ngraph::opset3::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
         auto relu = std::make_shared<ngraph::opset3::Relu>(ss);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{data});
-        ngraph::pass::StridedSliceOptimization().run_on_function(f);
-        ngraph::pass::ConstantFolding().run_on_function(f);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{data});
+        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
         auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
@@ -127,15 +114,11 @@ TEST(TransformationTests, OptimizeSS_SkipUselessDeletionRevertCase) {
         auto ss = std::make_shared<ngraph::opset3::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
         auto relu = std::make_shared<ngraph::opset3::Relu>(ss);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, OptimizeSS_Usefull_Test) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, OptimizeSS_Usefull_Test) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
         auto begin = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 0, 0, 0});
@@ -147,9 +130,9 @@ TEST(TransformationTests, OptimizeSS_Usefull_Test) {
 
         auto ss = std::make_shared<ngraph::opset1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
-        ngraph::pass::StridedSliceOptimization().run_on_function(f);
-        ngraph::pass::ConstantFolding().run_on_function(f);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
+        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
@@ -162,15 +145,11 @@ TEST(TransformationTests, OptimizeSS_Usefull_Test) {
 
         auto ss = std::make_shared<ngraph::opset1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, OptimizeSS_Shared_Test) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, OptimizeSS_Shared_Test) {
     {
         auto source = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
 
@@ -190,9 +169,9 @@ TEST(TransformationTests, OptimizeSS_Shared_Test) {
 
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::NodeVector{ss1, ss2}, 0);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{source});
-        ngraph::pass::StridedSliceOptimization().run_on_function(f);
-        ngraph::pass::ConstantFolding().run_on_function(f);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{source});
+        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
         auto source = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
@@ -206,14 +185,11 @@ TEST(TransformationTests, OptimizeSS_Shared_Test) {
 
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::NodeVector{ss1, ss1}, 0);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{source});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{source});
     }
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, OptimizeSS_NotShared_Test) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, OptimizeSS_NotShared_Test) {
     {
         auto source = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 6, 5, 5});
 
@@ -236,9 +212,9 @@ TEST(TransformationTests, OptimizeSS_NotShared_Test) {
 
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::NodeVector{ss1, ss2}, 0);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{source});
-        ngraph::pass::StridedSliceOptimization().run_on_function(f);
-        ngraph::pass::ConstantFolding().run_on_function(f);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{source});
+        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
         auto source = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 6, 5, 5});
@@ -262,15 +238,11 @@ TEST(TransformationTests, OptimizeSS_NotShared_Test) {
 
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::NodeVector{ss1, ss2}, 0);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{source});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{source});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, OptimizeSS_Groupped_Test) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, OptimizeSS_Groupped_Test) {
     {
         auto source = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
 
@@ -290,9 +262,9 @@ TEST(TransformationTests, OptimizeSS_Groupped_Test) {
 
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::NodeVector{ss1, ss2}, 1);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{source});
-        ngraph::pass::StridedSliceOptimization().run_on_function(f);
-        ngraph::pass::ConstantFolding().run_on_function(f);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{source});
+        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
         auto source = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
@@ -303,11 +275,8 @@ TEST(TransformationTests, OptimizeSS_Groupped_Test) {
 
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{variadic_split->output(0), variadic_split->output(1)}, 1);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{source});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{source});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
 

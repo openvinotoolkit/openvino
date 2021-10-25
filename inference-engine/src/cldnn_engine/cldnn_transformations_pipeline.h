@@ -14,11 +14,13 @@ namespace CLDNNPlugin {
 
 class TransformationsPipeline {
 public:
-    explicit TransformationsPipeline(const Config &conf) : config(conf) {}
+    explicit TransformationsPipeline(const Config &conf, const cldnn::device_info &device_info)
+        : config(conf), device_info(device_info) {}
     void apply(std::shared_ptr<ov::Function> func);
 
 private:
     Config config;
+    cldnn::device_info device_info;
 };
 
 }  // namespace CLDNNPlugin

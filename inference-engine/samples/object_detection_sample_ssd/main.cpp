@@ -89,11 +89,9 @@ int main(int argc, char* argv[]) {
         std::cout << ie.GetVersions(FLAGS_d) << std::endl;
 
         if (!FLAGS_l.empty()) {
-            // Custom CPU extension is loaded as a shared library and passed as a
-            // pointer to base extension
             IExtensionPtr extension_ptr = std::make_shared<Extension>(FLAGS_l);
             ie.AddExtension(extension_ptr);
-            slog::info << "Custom extension loaded: " << FLAGS_l << slog::endl;
+            slog::info << "Extension loaded: " << FLAGS_l << slog::endl;
         }
 
         if (!FLAGS_c.empty() && (FLAGS_d == "GPU" || FLAGS_d == "MYRIAD" || FLAGS_d == "HDDL")) {
@@ -184,7 +182,7 @@ int main(int argc, char* argv[]) {
         if (auto ngraphFunction = network.getFunction()) {
             for (const auto& out : outputsInfo) {
                 for (const auto& op : ngraphFunction->get_ops()) {
-                    if (op->get_type_info() == ngraph::op::DetectionOutput::type_info &&
+                    if (op->get_type_info() == ngraph::op::DetectionOutput::get_type_info_static() &&
                         op->get_friendly_name() == out.second->getName()) {
                         outputName = out.first;
                         outputInfo = out.second;
