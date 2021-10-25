@@ -60,7 +60,6 @@ TEST(TransformationTests, ConvBiasFusion) {
 
     for (auto & op : funcs->get_ops()) {
         if (auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(op)) {
-            auto& nodeInfo = op->get_rt_info();
             ASSERT_TRUE(pp.find(op->get_friendly_name()) != pp.end());
             ASSERT_EQ(pp[op->get_friendly_name()], "test");
         }
