@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -19,9 +19,9 @@ OutputVector TranslateMatMulOp(const NodeContext& node) {
     auto transpose_a = node.get_attribute<bool>("transpose_a", false);
     auto transpose_b = node.get_attribute<bool>("transpose_b", false);
 
-    auto matmul = make_shared<MatMul>(a, b, transpose_a, transpose_b);
-    matmul->set_friendly_name(node.get_name());
-    return matmul->outputs();
+    auto res = make_shared<MatMul>(a, b, transpose_a, transpose_b);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 }  // namespace op
 }  // namespace tf

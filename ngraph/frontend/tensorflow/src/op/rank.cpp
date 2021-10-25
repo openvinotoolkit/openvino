@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -13,12 +13,12 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateRankOp(const NodeContext& node) {
+ov::OutputVector TranslateRankOp(const NodeContext& node) {
     auto data = node.get_ng_input(0);
-    auto shape_of_1 = make_shared<ShapeOf>(data, element::i64);
-    auto shape_of_2 = make_shared<ShapeOf>(shape_of_1, element::i64);
-    shape_of_2->set_friendly_name(node.get_name());
-    return shape_of_2->outputs();
+    auto shape_of_1 = make_shared<ShapeOf>(data, ov::element::i64);
+    auto res = make_shared<ShapeOf>(shape_of_1, ov::element::i64);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 
 }  // namespace op

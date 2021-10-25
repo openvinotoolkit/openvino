@@ -122,6 +122,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Softplus", TranslateUnaryOp<opset8::SoftPlus>},
         {"Tan", TranslateUnaryOp<opset8::Tan>},
         {"Tanh", TranslateUnaryOp<opset8::Tanh>},
+        {"Swish", TranslateUnaryOp<opset8::Swish>},
 
         // note: BinaryOp translator declaration for each op must to be added in binary_op.cpp file
         {"Add", TranslateBinaryOp<opset8::Add>},
@@ -182,6 +183,7 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"GatherV2", TranslateGatherV2Op},
         {"GatherNd", TranslateGatherNdOp},
         {"Identity", TranslateIdentityOp},
+        {"IdentityN", TranslateIdentityOp},
         {"IsFinite", TranslateIsFiniteOp},
         {"L2Loss", TranslateL2LossOp},
         {"LeakyRelu", TranslateLeakyReluOp},

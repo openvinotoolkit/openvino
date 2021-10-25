@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -36,9 +36,9 @@ OutputVector TranslateL2LossOp(const NodeContext& node) {
     }
 
     auto sum = make_shared<ReduceSum>(pow, reduction_axes);
-    auto l2loss = make_shared<Divide>(sum, const_2);
-    l2loss->set_friendly_name(node.get_name());
-    return l2loss->outputs();
+    auto res = make_shared<Divide>(sum, const_2);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 
 }  // namespace op

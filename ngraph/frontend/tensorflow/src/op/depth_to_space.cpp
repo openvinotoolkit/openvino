@@ -19,19 +19,20 @@ OutputVector TranslateDepthToSpaceOp(const NodeContext& node) {
 
     // Get the attributes
     auto block_size = node.get_attribute<int64_t>("block_size");
-    string tf_data_format = node.get_attribute<string>("data_format");
+    std::string tf_data_format = node.get_attribute<std::string>("data_format");
 
-    if (tf_data_format != "NHWC" && tf_data_format != "NCHW") {
-        throw errors::InvalidArgument("DepthToSpace data format is neither NHWC nor NCHW");
-    }
+    TF_OP_VALIDATION_CHECK(node,
+                           tf_data_format == "NHWC" || tf_data_format == "NCHW",
+                           "DepthToSpace data format is neither NHWC nor NCHW");
 
     bool is_nhwc = (tf_data_format == "NHWC");
 
     NHWCtoNCHW(node.get_name(), is_nhwc, ng_input);
     auto ng_mode = DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
-    Output<Node> depth_to_space = ConstructNgNode<DepthToSpace>(node.get_name(), ng_input, ng_mode, block_size);
-    NCHWtoNHWC(node.get_name(), is_nhwc, depth_to_space);
-    return {depth_to_space};
+    Output<Node> res = make_shared<DepthToSpace>(ng_input, ng_mode, block_size)->output(0);
+    NCHWtoNHWC(node.get_name(), is_nhwc, res);
+    SetNodeNames(node.get_name(), res.get_node_shared_ptr());
+    return {res};
 }
 }  // namespace op
 }  // namespace tf

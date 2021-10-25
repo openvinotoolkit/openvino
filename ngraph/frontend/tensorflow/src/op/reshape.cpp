@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -16,9 +16,9 @@ namespace op {
 OutputVector TranslateReshapeOp(const NodeContext& node) {
     auto data = node.get_ng_input(0);
     auto shape = node.get_ng_input(1);
-    auto reshape = make_shared<Reshape>(data, shape, false);
-    reshape->set_friendly_name(node.get_name());
-    return reshape->outputs();
+    auto res = make_shared<Reshape>(data, shape, false);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 }  // namespace op
 }  // namespace tf

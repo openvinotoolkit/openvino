@@ -7,7 +7,7 @@
 
 using namespace std;
 using namespace ov;
-using namespace opset8;
+using namespace ov::opset8;
 using namespace ov::frontend;
 using namespace frontend::tf::detail;
 
@@ -30,7 +30,7 @@ OutputVector TranslateConcatOp(const NodeContext& node) {
         TF_OP_VALIDATION_CHECK(node, false, "Incorrect operation type.");
     }
 
-    vector<int64_t> tf_concat_axis_vec;
+    std::vector<int64_t> tf_concat_axis_vec;
     GetStaticInputVector(node, axis_idx, &tf_concat_axis_vec);
     int64_t concat_axis = tf_concat_axis_vec[0];
 
@@ -40,7 +40,9 @@ OutputVector TranslateConcatOp(const NodeContext& node) {
         ng_args.push_back(ng_arg);
     }
 
-    return {ConstructNgNode<Concat>(node.get_name(), ng_args, size_t(concat_axis))};
+    auto res = make_shared<Concat>(ng_args, size_t(concat_axis));
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 }  // namespace op
 }  // namespace tf

@@ -4,7 +4,7 @@
 
 #include <frontend_manager/frontend_exceptions.hpp>
 #include <fstream>
-#include <openvino/opsets/opset7.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <queue>
 #include <tensorflow_frontend/graph_iterator.hpp>
 #include <tensorflow_frontend/model.hpp>
@@ -14,7 +14,6 @@
 #include "graph_iterator_proto.hpp"
 #include "ngraph_conversions.hpp"
 #include "node_context.hpp"
-#include "utils.hpp"
 
 using namespace google;
 
@@ -54,7 +53,7 @@ void extract_operation_name_and_port(const std::string& port_name,
 }  // namespace tf
 class InputModelTF::InputModelTFImpl {
 public:
-    InputModelTFImpl(const GraphIterator::Ptr& graph_iterator, const ngraph::frontend::InputModel& input_model);
+    InputModelTFImpl(const GraphIterator::Ptr& graph_iterator, const InputModel& input_model);
     std::vector<ngraph::frontend::Place::Ptr> getInputs() const;
     std::vector<ngraph::frontend::Place::Ptr> getOutputs() const;
     ngraph::frontend::Place::Ptr getPlaceByTensorName(const std::string& tensorName) const;
@@ -62,6 +61,7 @@ public:
     void overrideAllInputs(const std::vector<ngraph::frontend::Place::Ptr>& inputs);
     void extractSubgraph(const std::vector<ngraph::frontend::Place::Ptr>& inputs,
                          const std::vector<ngraph::frontend::Place::Ptr>& outputs);
+    void setDefaultShape(ngraph::frontend::Place::Ptr place, const ov::Shape&);
     void setPartialShape(ngraph::frontend::Place::Ptr place, const ov::PartialShape&);
     ov::PartialShape getPartialShape(ngraph::frontend::Place::Ptr place) const;
     void setElementType(ngraph::frontend::Place::Ptr place, const ov::element::Type&);
@@ -87,7 +87,7 @@ private:
     std::map<std::string, Output<Node>> m_tensor_values;
 
     std::shared_ptr<GraphIterator> m_graph_iterator;
-    const ngraph::frontend::InputModel& m_input_model;
+    const InputModel& m_input_model;
 
     // shows if some nodes might be deleted from graph
     bool m_graph_changed = false;
@@ -111,6 +111,7 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
                 node_decoder->get_attribute("shape", VariantWrapper<ov::PartialShape>::get_type_info_static()));
             auto type = std::dynamic_pointer_cast<VariantWrapper<ov::element::Type>>(
                 node_decoder->get_attribute("dtype", VariantWrapper<ov::element::Type>::get_type_info_static()));
+            auto tmp = type->get();
             std::vector<std::string> names = {op_name};
             auto tensor_place = std::make_shared<TensorPlaceTF>(m_input_model, pshape->get(), type->get(), names);
             m_tensor_places[op_name] = tensor_place;
@@ -202,14 +203,14 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
             // 1. check if the current node is pruned by its input port
             bool is_input = false;
             std::string input_port_name = std::to_string(input_port_idx) + ":" + current_operation_name;
-            if (m_tensor_places.find(input_port_name) != m_tensor_places.end()) {
+            if (m_tensor_places.count(input_port_name)) {
                 const auto& tensor_place = m_tensor_places[input_port_name];
                 is_input = is_input || (tensor_place->is_input() ? true : false);
             }
 
             // 2. check if the producer node is pruned by its output port
             std::string output_port_name = producer_name + ":" + std::to_string(producer_output_port_idx);
-            if (m_tensor_places.find(output_port_name) != m_tensor_places.end()) {
+            if (m_tensor_places.count(output_port_name)) {
                 const auto& tensor_place = m_tensor_places[output_port_name];
                 is_input = is_input || (tensor_place->is_input() ? true : false);
             }
@@ -218,9 +219,10 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
             FRONT_END_GENERAL_CHECK(m_op_places_map.count(producer_name),
                                     "There is no operation node with name: " + producer_name);
             const auto& producer_operation_place = m_op_places_map.at(producer_name);
-            if (m_tensor_places.find(producer_name) != m_tensor_places.end()) {
+            auto op_it = m_op_places_map.find(producer_name);
+            if (m_tensor_places.count(producer_name)) {
                 const auto& tensor_place = m_tensor_places[producer_name];
-                is_input |= (tensor_place->is_input() ? true : false);
+                is_input = is_input || (tensor_place->is_input() ? true : false);
             }
 
             if (!is_input && !visited.count(producer_name)) {
@@ -235,7 +237,7 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
 }
 
 InputModelTF::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
-                                                 const ngraph::frontend::InputModel& input_model)
+                                                 const InputModel& input_model)
     : m_input_model(input_model),
       m_graph_iterator(graph_iterator) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
@@ -251,7 +253,7 @@ std::vector<ngraph::frontend::Place::Ptr> InputModelTF::InputModelTFImpl::getOut
 }
 
 ngraph::frontend::Place::Ptr InputModelTF::InputModelTFImpl::getPlaceByTensorName(const std::string& tensorName) const {
-    if (m_tensor_places.find(tensorName) != m_tensor_places.end())
+    if (m_tensor_places.count(tensorName))
         return m_tensor_places.at(tensorName);
 
     // check that operation node exists for which this place is specified
@@ -259,7 +261,7 @@ ngraph::frontend::Place::Ptr InputModelTF::InputModelTFImpl::getPlaceByTensorNam
     size_t port_idx;
     std::string port_type;
     tf::extract_operation_name_and_port(tensorName, operation_name, port_idx, port_type);
-    if (m_op_places_map.find(operation_name) != m_op_places_map.end()) {
+    if (m_op_places_map.count(operation_name)) {
         std::vector<std::string> names = {tensorName};
         auto m_var_place =
             std::make_shared<TensorPlaceTF>(m_input_model, ov::PartialShape(), ov::element::undefined, names);
@@ -304,6 +306,10 @@ void InputModelTF::InputModelTFImpl::extractSubgraph(const std::vector<ngraph::f
     overrideAllOutputs(outputs);
 }
 
+void InputModelTF::InputModelTFImpl::setDefaultShape(ngraph::frontend::Place::Ptr place, const ov::Shape& shape) {
+    FRONT_END_NOT_IMPLEMENTED("setDefaultShape");
+}
+
 void InputModelTF::InputModelTFImpl::setPartialShape(ngraph::frontend::Place::Ptr place,
                                                      const ov::PartialShape& p_shape) {
     castToTensorPlace(place)->set_partial_shape(p_shape);
@@ -322,7 +328,7 @@ void InputModelTF::InputModelTFImpl::setTensorValue(ngraph::frontend::Place::Ptr
     auto tensor_place = castToTensorPlace(place);
     auto p_shape = tensor_place->get_partial_shape();
     auto type = tensor_place->get_element_type();
-    auto constant = opset7::Constant::create(type, p_shape.to_shape(), value);
+    auto constant = std::make_shared<opset8::Constant>(type, p_shape.to_shape(), value);
     auto name = tensor_place->get_names()[0];
     constant->set_friendly_name(name);
     m_tensor_values[name] = constant;

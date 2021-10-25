@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -28,9 +28,9 @@ OutputVector TranslateLRNOp(const NodeContext& node) {
     int64_t size = depth_radius * 2 + 1;
     alpha = alpha * size;
     // todo: input is in NHWC, need to apply NHWC to NCHW?
-    auto lrn = make_shared<LRN>(input, alpha, beta, bias, static_cast<size_t>(size));
-    lrn->set_friendly_name(node.get_name());
-    return lrn->outputs();
+    auto res = make_shared<LRN>(input, alpha, beta, bias, static_cast<size_t>(size));
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 
 }  // namespace op

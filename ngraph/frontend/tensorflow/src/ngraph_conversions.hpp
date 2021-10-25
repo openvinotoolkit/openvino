@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#ifndef NGRAPH_TF_BRIDGE_CONVERSIONS_H_
+#define NGRAPH_TF_BRIDGE_CONVERSIONS_H_
 #pragma once
 
 #include <openvino/opsets/opset8.hpp>
@@ -17,7 +19,10 @@ namespace tf {
 
 using ::tensorflow::DataType;
 
-void TFTensorShapeToNGraphShape(const ::tensorflow::TensorShapeProto& tf_shape, ov::PartialShape* ng_shape);
+// Converts a TensorFlow DataType to an nGraph element::Type. Returns
+// errors::Unimplemented if the element type is not supported by nGraph
+// Core. Otherwise returns Status::OK().
+void TFDataTypeToNGraphElementType(DataType tf_dt, ov::element::Type* ng_et);
 
 template <size_t a, size_t b, size_t c, size_t d>
 void Transpose(ov::Output<ov::Node>& node) {
@@ -26,9 +31,11 @@ void Transpose(ov::Output<ov::Node>& node) {
     auto& s = node.get_shape();
     ov::Shape reshaped_shape{s[a], s[b], s[c], s[d]};
     ov::Shape transpose_order{a, b, c, d};
+    NGRAPH_DEBUG << "transposing " << ngraph::join(s) << " to " << ngraph::join(reshaped_shape) << " axis-order "
+                   << ngraph::join(transpose_order);
     auto input_order =
-        std::make_shared<ov::opset8::Constant>(ov::element::u64, ov::Shape{transpose_order.size()}, transpose_order);
-    node = std::make_shared<ov::opset8::Transpose>(node, input_order);
+        std::make_shared<opset8::Constant>(ov::element::u64, ov::Shape{transpose_order.size()}, transpose_order);
+    node = std::make_shared<opset8::Transpose>(node, input_order);
 }
 
 template <size_t a, size_t b, size_t c, size_t d>
@@ -44,9 +51,11 @@ void Transpose3D(ov::Output<ov::Node>& node) {
     auto& s = node.get_shape();
     ov::Shape reshaped_shape{s[a], s[b], s[c], s[d], s[e]};
     ov::Shape transpose_order{a, b, c, d, e};
+    NGRAPH_DEBUG << "transposing " << ngraph::join(s) << " to " << ngraph::join(reshaped_shape) << "axis-order "
+                   << ngraph::join(transpose_order);
     auto input_order =
-        std::make_shared<ov::opset8::Constant>(ov::element::u64, ov::Shape{transpose_order.size()}, transpose_order);
-    node = std::make_shared<ov::opset8::Transpose>(node, input_order);
+        std::make_shared<opset8::Constant>(ov::element::u64, ov::Shape{transpose_order.size()}, transpose_order);
+    node = std::make_shared<opset8::Transpose>(node, input_order);
 }
 
 template <size_t a, size_t b, size_t c, size_t d, size_t e>
@@ -78,9 +87,9 @@ void NCHWtoHW(const std::vector<T>& src, std::vector<size_t>& dst) {
 }
 }  // namespace detail
 
-void NHWCtoNCHW(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& ng_input);
+void NHWCtoNCHW(const std::string& op_name, bool is_nhwc, ov::Output<ov::Node>& ng_input);
 
-void NCHWtoNHWC(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& ng_node);
+void NCHWtoNHWC(const std::string& op_name, bool is_nhwc, ov::Output<ov::Node>& ng_node);
 
 template <typename T>
 void NHWCtoHW(bool is_nhwc, const std::vector<T>& src, std::vector<size_t>& dst) {
@@ -94,3 +103,5 @@ void NHWCtoHW(bool is_nhwc, const std::vector<T>& src, std::vector<size_t>& dst)
 }  // namespace tf
 }  // namespace frontend
 }  // namespace ov
+
+#endif  // NGRAPH_TF_BRIDGE_CONVERSIONS_H_

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -16,9 +16,9 @@ namespace op {
 OutputVector TranslateReciprocalOp(const NodeContext& node) {
     auto x = node.get_ng_input(0);
     auto ng_exponent = make_shared<Constant>(x.get_element_type(), Shape{}, -1);
-    auto power = make_shared<Power>(x, ng_exponent);
-    power->set_friendly_name(node.get_name());
-    return power->outputs();
+    auto res = make_shared<Power>(x, ng_exponent);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 }  // namespace op
 }  // namespace tf

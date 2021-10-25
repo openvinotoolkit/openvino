@@ -55,7 +55,7 @@ public:
     // External usage
     std::vector<Ptr> get_consuming_operations() const override;
     Ptr get_producing_operation() const override;
-    ngraph::frontend::Place::Ptr get_source_tensor() const override;
+    Place::Ptr get_source_tensor() const override;
     Ptr get_producing_port() const override;
 
     bool is_equal_data(Ptr another) const override;
@@ -78,8 +78,8 @@ public:
 
     // External usage
     std::vector<Ptr> get_consuming_operations() const override;
-    ngraph::frontend::Place::Ptr get_producing_operation() const override;
-    std::vector<ngraph::frontend::Place::Ptr> get_consuming_ports() const override;
+    Place::Ptr get_producing_operation() const override;
+    std::vector<Place::Ptr> get_consuming_ports() const override;
     Ptr get_target_tensor() const override;
     bool is_equal_data(Ptr another) const override;
 
@@ -102,10 +102,12 @@ public:
     std::shared_ptr<DecoderBase> get_decoder() const;
 
     // External API methods
-    std::vector<ngraph::frontend::Place::Ptr> get_consuming_ports() const override;
+    std::vector<Place::Ptr> get_consuming_ports() const override;
 
     Ptr get_output_port() const override;
     Ptr get_output_port(int outputPortIndex) const override;
+    // TODO: implement
+    // Ptr get_output_port(int outputPortIndex) const override;
 
     Ptr get_input_port() const override;
     Ptr get_input_port(int inputPortIndex) const override;
@@ -114,6 +116,8 @@ public:
 
     std::vector<Ptr> get_consuming_operations() const override;
     std::vector<Ptr> get_consuming_operations(int outputPortIndex) const override;
+    // TODO: implement
+    // std::vector<Ptr> get_consuming_operations(int outputPortIndex) const override;
 
     Ptr get_producing_operation() const override;
     Ptr get_producing_operation(int inputPortIndex) const override;
@@ -127,6 +131,8 @@ public:
 
     Ptr get_target_tensor() const override;
     Ptr get_target_tensor(int outputPortIndex) const override;
+    // TODO: implement (this method may be not needed)
+    // Ptr get_target_tensor(int outputPortIndex) const override;
 
 private:
     std::shared_ptr<DecoderBase> m_op_decoder;
@@ -137,7 +143,7 @@ private:
 class TensorPlaceTF : public PlaceTF {
 public:
     TensorPlaceTF(const ngraph::frontend::InputModel& input_model,
-                  const ov::PartialShape& pshape,
+                  ov::PartialShape pshape,
                   ov::element::Type type,
                   const std::vector<std::string>& names);
 
@@ -160,8 +166,8 @@ public:
 
     // External usage
     Ptr get_producing_operation() const override;
-    std::vector<ngraph::frontend::Place::Ptr> get_consuming_operations() const override;
-    std::vector<ngraph::frontend::Place::Ptr> get_consuming_ports() const override;
+    std::vector<Place::Ptr> get_consuming_operations() const override;
+    std::vector<Place::Ptr> get_consuming_ports() const override;
     Ptr get_producing_port() const override;
     bool is_equal_data(Ptr another) const override;
 

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -25,7 +25,7 @@ OutputVector TranslateStridedSliceOp(const NodeContext& node) {
     auto ellipsis_mask = node.get_attribute<int32_t>("ellipsis_mask");
     auto shrink_axis_mask = node.get_attribute<int32_t>("shrink_axis_mask");
 
-    // TODO (itikhono): check algorithm
+    // TODO (itikhono): check the algorithm
     auto mask_to_vec = [](int32_t mask) {
         auto length = sizeof(mask) * CHAR_BIT;
         vector<int64_t> vec(length, 0);
@@ -40,17 +40,17 @@ OutputVector TranslateStridedSliceOp(const NodeContext& node) {
         return vec;
     };
 
-    auto strided_slice = make_shared<StridedSlice>(input,
-                                                   begin,
-                                                   end,
-                                                   strides,
-                                                   mask_to_vec(begin_mask),
-                                                   mask_to_vec(end_mask),
-                                                   mask_to_vec(new_axis_mask),
-                                                   mask_to_vec(shrink_axis_mask),
-                                                   mask_to_vec(ellipsis_mask));
-    strided_slice->set_friendly_name(node.get_name());
-    return strided_slice->outputs();
+    auto res = make_shared<StridedSlice>(input,
+                                         begin,
+                                         end,
+                                         strides,
+                                         mask_to_vec(begin_mask),
+                                         mask_to_vec(end_mask),
+                                         mask_to_vec(new_axis_mask),
+                                         mask_to_vec(shrink_axis_mask),
+                                         mask_to_vec(ellipsis_mask));
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 
 }  // namespace op

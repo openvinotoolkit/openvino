@@ -14,7 +14,10 @@ namespace tf {
 namespace op {
 
 OutputVector TranslateIdentityOp(const NodeContext& node) {
-    return {node.get_ng_input(0)};
+    auto input = node.get_ng_input(0);
+    SetOutputName(node.get_name(), input);
+    SetOutputName(node.get_name() + ":" + "0", input);
+    return {input};
 }
 
 }  // namespace op

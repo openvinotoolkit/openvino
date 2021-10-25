@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -17,9 +17,9 @@ OutputVector TranslateZerosLikeOp(const NodeContext& node) {
     auto x = node.get_ng_input(0);
     auto shape_of = make_shared<ShapeOf>(x);
     auto zero = make_shared<Constant>(x.get_element_type(), Shape{1}, 0);
-    auto broadcast = make_shared<Broadcast>(zero, shape_of);
-    broadcast->set_friendly_name(node.get_name());
-    return broadcast->outputs();
+    auto res = make_shared<Broadcast>(zero, shape_of);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 
 }  // namespace op

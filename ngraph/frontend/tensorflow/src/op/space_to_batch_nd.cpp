@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -39,18 +39,18 @@ OutputVector TranslateBatchNDAndSpaceNDOp(const NodeContext& node) {
     auto M = block_shape_pshape.rank().get_length();
     auto padded_crops =
         make_shared<Pad>(crops,
-                         make_shared<Constant>(crops.get_element_type(), Shape{2}, vector<int64_t>{1, 0}),
-                         make_shared<Constant>(crops.get_element_type(), Shape{2}, vector<int64_t>{N - M - 1, 0}),
-                         ::ov::op::PadMode::CONSTANT);
+                         make_shared<Constant>(crops.get_element_type(), Shape{2}, std::vector<int64_t>{1, 0}),
+                         make_shared<Constant>(crops.get_element_type(), Shape{2}, std::vector<int64_t>{N - M - 1, 0}),
+                         ov::op::PadMode::CONSTANT);
 
     // Padding needs to be done for block_shape as done for crops above but with
     // value=1
-    auto padded_block_shape =
-        make_shared<Pad>(block_shape,
-                         make_shared<Constant>(block_shape.get_element_type(), Shape{1}, vector<int64_t>{1}),
-                         make_shared<Constant>(block_shape.get_element_type(), Shape{1}, vector<int64_t>{N - M - 1}),
-                         make_shared<Constant>(block_shape.get_element_type(), Shape{}, 1),
-                         ::ov::op::PadMode::CONSTANT);
+    auto padded_block_shape = make_shared<Pad>(
+        block_shape,
+        make_shared<Constant>(block_shape.get_element_type(), Shape{1}, std::vector<int64_t>{1}),
+        make_shared<Constant>(block_shape.get_element_type(), Shape{1}, std::vector<int64_t>{N - M - 1}),
+        make_shared<Constant>(block_shape.get_element_type(), Shape{}, 1),
+        ov::op::PadMode::CONSTANT);
 
     auto target_axis = make_shared<Constant>(element::i64, Shape{}, 1);
     // split into two 1-D vectors crops_begin and crops_end along axis 1
@@ -64,11 +64,13 @@ OutputVector TranslateBatchNDAndSpaceNDOp(const NodeContext& node) {
     auto crops_end = make_shared<Squeeze>(crops_split->outputs()[1], axes);
 
     if (node.get_op_type() == "BatchToSpaceND") {
-        auto batch_to_space_nd = make_shared<BatchToSpace>(input, padded_block_shape, crops_begin, crops_end);
-        return batch_to_space_nd->outputs();
+        auto res = make_shared<BatchToSpace>(input, padded_block_shape, crops_begin, crops_end);
+        SetNodeNames(node.get_name(), res);
+        return res->outputs();
     } else if (node.get_op_type() == "SpaceToBatchND") {
-        auto space_to_batch_nd = make_shared<SpaceToBatch>(input, padded_block_shape, crops_begin, crops_end);
-        return space_to_batch_nd->outputs();
+        auto res = make_shared<SpaceToBatch>(input, padded_block_shape, crops_begin, crops_end);
+        SetNodeNames(node.get_name(), res);
+        return res->outputs();
     }
     TF_OP_VALIDATION_CHECK(node, false, "No translator found.");
 }

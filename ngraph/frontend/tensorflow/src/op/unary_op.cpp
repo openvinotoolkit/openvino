@@ -18,11 +18,11 @@ namespace op {
 // Parameters:
 //
 //    TFNodeDecoder* op                   - TF op being translated. Must have one input.
-//    const vector<const ov::frontend::tf::detail::TensorWrapper*>& static_input_map
+//    const std::vector<const ov::frontend::tf::detail::TensorWrapper*>& static_input_map
 //                               - the static input map
 //    Builder::OpMap& ng_op_map  - The TF-to-nGraph op map.
 //
-//    function<Output<Node>(Output<Node>>
+//    std::function<Output<Node>(Output<Node>>
 //      create_unary_op           - Function to construct the graph implementing
 //                                 the unary op, given the input to the unop
 //                                 as an argument.
@@ -36,15 +36,12 @@ namespace op {
 //                           (Output<Multiply>(n,n));
 //                       });
 //  }
-OutputVector TranslateUnaryOp(const NodeContext& op, function<Output<Node>(Output<Node>)> create_unary_op) {
-    Output<Node> ng_input = op.get_ng_input(0);
-    auto ng_node = create_unary_op(ng_input);
-    if (ng_node != ng_input) {
-        SetTracingInfo(op.get_name(), ng_node);
-    }
-    // SaveNgOp(ng_op_map, node.get_name(), ng_node);
-    // return Status::OK();
-    return {ng_node};
+OutputVector TranslateUnaryOp(const NodeContext& op,
+                              const std::function<shared_ptr<Node>(Output<Node>)>& create_unary_op) {
+    auto ng_input = op.get_ng_input(0);
+    auto res = create_unary_op(ng_input);
+    SetNodeNames(op.get_name(), res);
+    return {res};
 }
 
 // Helper function to translate a unary op in cases where there is a one-to-one
@@ -59,8 +56,8 @@ OutputVector TranslateUnaryOp(const NodeContext& op, function<Output<Node>(Outpu
 //
 template <typename T>
 OutputVector TranslateUnaryOp(const NodeContext& node) {
-    return TranslateUnaryOp(node, [&node](Output<Node> n) {
-        return ConstructNgNode<T>(node.get_name(), n);
+    return TranslateUnaryOp(node, [](Output<Node> n) {
+        return make_shared<T>(n);
     });
 }
 
@@ -87,6 +84,7 @@ template OutputVector TranslateUnaryOp<Sign>(const NodeContext& node);
 template OutputVector TranslateUnaryOp<SoftPlus>(const NodeContext& node);
 template OutputVector TranslateUnaryOp<Tan>(const NodeContext& node);
 template OutputVector TranslateUnaryOp<Tanh>(const NodeContext& node);
+template OutputVector TranslateUnaryOp<Swish>(const NodeContext& node);
 
 }  // namespace op
 }  // namespace tf

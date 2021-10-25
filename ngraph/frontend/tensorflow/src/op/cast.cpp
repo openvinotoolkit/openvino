@@ -17,7 +17,9 @@ OutputVector TranslateCastOp(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0);
 
     auto ng_et = node.get_attribute<element::Type>("DstT");
-    return {ConstructNgNode<Convert>(node.get_name(), ng_input, ng_et)};
+    auto res = make_shared<Convert>(ng_input, ng_et);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 
 }  // namespace op

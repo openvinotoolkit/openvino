@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -17,9 +17,9 @@ OutputVector TranslateTileOp(const NodeContext& node) {
     auto data = node.get_ng_input(0);
     auto repeats = node.get_ng_input(1);
 
-    auto tile = make_shared<Tile>(data, repeats);
-    tile->set_friendly_name(node.get_name());
-    return tile->outputs();
+    auto res = make_shared<Tile>(data, repeats);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 
 }  // namespace op

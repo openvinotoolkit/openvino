@@ -13,8 +13,8 @@ using namespace ov::opset8;
 //
 //    TFNodeDecoder* op               - TF op being translated. Must have only two
 //    inputs.
-//    const vector<const ov::frontend::tf::detail::TensorWrapper*>& static_input_map - the static input
-//    map Builder::OpMap& ng_op_map  - The TF-to-nGraph op map. function<Output<Node>(Output<Node>,
+//    const std::vector<const ov::frontend::tf::detail::TensorWrapper*>& static_input_map - the static input
+//    map Builder::OpMap& ng_op_map  - The TF-to-nGraph op map. std::function<Output<Node>(Output<Node>,
 //    Output<Node>)>
 //    create_binary_op           - Function to construct the graph implementing
 //                                 the binary op, given the 2 ng_inputs to the
@@ -37,20 +37,17 @@ namespace frontend {
 namespace tf {
 namespace op {
 OutputVector TranslateBinaryOp(const NodeContext& node,
-                               function<Output<Node>(Output<Node>&, Output<Node>&)> create_binary_op) {
-    Output<Node> ng_lhs = node.get_ng_input(0), ng_rhs = node.get_ng_input(1);
+                               const std::function<Output<Node>(Output<Node>&, Output<Node>&)>& create_binary_op) {
+    auto ng_lhs = node.get_ng_input(0);
+    auto ng_rhs = node.get_ng_input(1);
     auto ng_node = create_binary_op(ng_lhs, ng_rhs);
-
-    // TODO do we need it?
-    /*    if (ng_node != ng_lhs && ng_node != ng_rhs) {
-            Builder::SetTracingInfo(node.get_name(), ng_node);
-        }*/
+    SetNodeNames(node.get_name(), ng_node.get_node_shared_ptr());
     return {ng_node};
 }
 
 OutputVector TranslateFloorDivOp(const NodeContext& node) {
-    auto floordiv_fn = [&node](Output<Node> x, Output<Node> y) {
-        return ConstructNgNode<Floor>(node.get_name(), ConstructNgNode<Divide>(node.get_name(), x, y));
+    auto floordiv_fn = [](const Output<Node>& x, const Output<Node>& y) {
+        return make_shared<Floor>(make_shared<Divide>(x, y));
     };
     return TranslateBinaryOp(node, floordiv_fn);
 }
@@ -69,8 +66,8 @@ OutputVector TranslateFloorDivOp(const NodeContext& node) {
 
 template <typename T>
 OutputVector TranslateBinaryOp(const NodeContext& node) {
-    return TranslateBinaryOp(node, [&node](Output<Node>& ng_lhs, Output<Node>& ng_rhs) {
-        return ConstructNgNode<T>(node.get_name(), ng_lhs, ng_rhs);
+    return TranslateBinaryOp(node, [](Output<Node>& ng_lhs, Output<Node>& ng_rhs) {
+        return make_shared<T>(ng_lhs, ng_rhs);
     });
 }
 
@@ -83,6 +80,7 @@ template OutputVector TranslateBinaryOp<Less>(const NodeContext& node);
 template OutputVector TranslateBinaryOp<LessEqual>(const NodeContext& node);
 template OutputVector TranslateBinaryOp<LogicalAnd>(const NodeContext& node);
 template OutputVector TranslateBinaryOp<LogicalOr>(const NodeContext& node);
+template OutputVector TranslateBinaryOp<LogicalXor>(const NodeContext& node);
 template OutputVector TranslateBinaryOp<Maximum>(const NodeContext& node);
 template OutputVector TranslateBinaryOp<Minimum>(const NodeContext& node);
 template OutputVector TranslateBinaryOp<Multiply>(const NodeContext& node);

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -17,11 +17,11 @@ OutputVector TranslateRangeOp(const NodeContext& node) {
     auto start = node.get_ng_input(0);
     auto stop = node.get_ng_input(1);
     auto step = node.get_ng_input(2);
-    auto out_type = node.get_attribute<element::Type>("Tidx");
+    auto out_type = node.get_attribute<ov::element::Type>("Tidx");
 
-    auto range = make_shared<Range>(start, stop, step, out_type);
-    range->set_friendly_name(node.get_name());
-    return range->outputs();
+    auto res = make_shared<Range>(start, stop, step, out_type);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 
 }  // namespace op

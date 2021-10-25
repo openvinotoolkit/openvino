@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -18,9 +18,9 @@ OutputVector TranslateRoundOp(const NodeContext& node) {
     // using default round mode "half_to_even" in openvino,
     // as TF has only that mode
     auto round_mode = Round::RoundMode::HALF_TO_EVEN;
-    auto round = make_shared<Round>(input, round_mode);
-    round->set_friendly_name(node.get_name());
-    return round->outputs();
+    auto res = make_shared<Round>(input, round_mode);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 }  // namespace op
 }  // namespace tf

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -12,7 +12,7 @@ namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
-OutputVector TranslateInterpolateOp(const NodeContext& node) {
+ov::OutputVector TranslateInterpolateOp(const NodeContext& node) {
     auto input = node.get_ng_input(0);
     auto input_sizes = node.get_ng_input(1);
 
@@ -29,18 +29,18 @@ OutputVector TranslateInterpolateOp(const NodeContext& node) {
 
     // todo (itikhono): do we need this .get_shape() actually?
     auto input_shape = input.get_shape();
-    vector<float> spatial_shape = {static_cast<float>(input_shape[1]), static_cast<float>(input_shape[2])};
+    std::vector<float> spatial_shape = {static_cast<float>(input_shape[1]), static_cast<float>(input_shape[2])};
     auto ng_spatial_shape = make_shared<Constant>(element::f32, Shape{2}, spatial_shape);
 
     auto ng_sizes = make_shared<Convert>(input_sizes, element::f32);
     auto ng_scales = make_shared<Divide>(ng_sizes, ng_spatial_shape);
-    auto ng_axes = make_shared<Constant>(element::i32, Shape{2}, vector<int>({2, 3}));
+    auto ng_axes = make_shared<Constant>(element::i32, Shape{2}, std::vector<int>({2, 3}));
 
     Transpose<0, 3, 1, 2>(input);
-    auto interpolate = make_shared<Interpolate>(input, input_sizes, ng_scales, ng_axes, interpolate_attrs)->output(0);
-    Transpose<0, 2, 3, 1>(interpolate);
-    interpolate.get_node_shared_ptr()->set_friendly_name(node.get_name());
-    return {interpolate};
+    auto res = make_shared<Interpolate>(input, input_sizes, ng_scales, ng_axes, interpolate_attrs)->output(0);
+    Transpose<0, 2, 3, 1>(res);
+    SetNodeNames(node.get_name(), res.get_node_shared_ptr());
+    return {res};
 }
 }  // namespace op
 }  // namespace tf

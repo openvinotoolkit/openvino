@@ -18,8 +18,10 @@ namespace op {
 
 OutputVector TranslateEluOp(const NodeContext& node) {
     auto input = node.get_ng_input(0);
-    auto alpha = 1.0;  // node.get_attribute<float>("alpha");
-    return {ConstructNgNode<Elu>(node.get_name(), input, alpha)};
+    auto alpha = node.get_attribute<float>("alpha", 1.0);
+    auto res = make_shared<Elu>(input, alpha);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 }  // namespace op
 }  // namespace tf

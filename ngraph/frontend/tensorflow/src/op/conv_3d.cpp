@@ -17,14 +17,14 @@ namespace op {
 OutputVector TranslateConv3DOp(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0), ng_filter = node.get_ng_input(1);
 
-    auto tf_strides = node.get_attribute<vector<int32_t>>("strides");
-    auto tf_dilations = node.get_attribute<vector<int32_t>>("dilations");
-    auto tf_padding_type = node.get_attribute<string>("padding");
-    auto tf_data_format = node.get_attribute<string>("data_format");
+    auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");
+    auto tf_dilations = node.get_attribute<std::vector<int32_t>>("dilations");
+    auto tf_padding_type = node.get_attribute<std::string>("padding");
+    auto tf_data_format = node.get_attribute<std::string>("data_format");
 
-    if (tf_data_format != "NDHWC" && tf_data_format != "NCDHW") {
-        throw errors::InvalidArgument("Conv3D data format is neither NDHWC nor NCDHW");
-    }
+    TF_OP_VALIDATION_CHECK(node,
+                           tf_data_format == "NHWC" || tf_data_format == "NCHW",
+                           "Conv3D data format is neither NHWC nor NCHW");
 
     bool is_ndhwc = (tf_data_format == "NDHWC");
 
@@ -37,6 +37,11 @@ OutputVector TranslateConv3DOp(const NodeContext& node) {
     //       op->type_string());
     // }
 
+    NGRAPH_DEBUG << ngraph::join(tf_strides);
+    NGRAPH_DEBUG << ngraph::join(tf_dilations);
+    NGRAPH_DEBUG << tf_padding_type;
+    NGRAPH_DEBUG << tf_data_format;
+
     Strides ng_strides(3);
     Strides ng_dilations(3);
     Shape ng_image_shape(3);
@@ -47,12 +52,18 @@ OutputVector TranslateConv3DOp(const NodeContext& node) {
     NHWCtoHW(is_ndhwc, tf_dilations, ng_dilations);
     NHWCtoNCHW(node.get_name(), is_ndhwc, ng_input);
 
+    NGRAPH_DEBUG << "ng_strides: " << ngraph::join(ng_strides);
+    NGRAPH_DEBUG << "ng_dilations: " << ngraph::join(ng_dilations);
+    NGRAPH_DEBUG << "ng_image_shape: " << ngraph::join(ng_image_shape);
+
     auto& ng_filter_shape = ng_filter.get_shape();
     ng_kernel_shape[0] = ng_filter_shape[0];
     ng_kernel_shape[1] = ng_filter_shape[1];
     ng_kernel_shape[2] = ng_filter_shape[2];
     Transpose3D<4, 3, 0, 1, 2>(ng_filter);
     SetTracingInfo(node.get_name(), ng_filter);
+
+    NGRAPH_DEBUG << "ng_kernel_shape: " << ngraph::join(ng_kernel_shape);
 
     CoordinateDiff ng_padding_below;
     CoordinateDiff ng_padding_above;
@@ -64,16 +75,13 @@ OutputVector TranslateConv3DOp(const NodeContext& node) {
                 ng_padding_below,
                 ng_padding_above);
 
-    Output<Node> ng_conv = ConstructNgNode<Convolution>(node.get_name(),
-                                                        ng_input,
-                                                        ng_filter,
-                                                        ng_strides,
-                                                        ng_padding_below,
-                                                        ng_padding_above,
-                                                        ng_dilations);
+    Output<Node> res =
+        make_shared<Convolution>(ng_input, ng_filter, ng_strides, ng_padding_below, ng_padding_above, ng_dilations)
+            ->output(0);
 
-    NCHWtoNHWC(node.get_name(), is_ndhwc, ng_conv);
-    return {ng_conv};
+    NCHWtoNHWC(node.get_name(), is_ndhwc, res);
+    SetNodeNames(node.get_name(), res.get_node_shared_ptr());
+    return {res};
 }
 }  // namespace op
 }  // namespace tf

@@ -17,25 +17,30 @@ OutputVector TranslateConv2DBackpropInputOp(const NodeContext& node) {
     auto ng_filter = node.get_ng_input(1), ng_out_backprop = node.get_ng_input(2);
 
     // TODO: refactor me to be less redundant with other convolution ops
-    auto tf_strides = node.get_attribute<vector<int32_t>>("strides");
-    auto tf_dilations = node.get_attribute<vector<int32_t>>("dilations");
-    auto tf_padding_type = node.get_attribute<string>("padding");
-    auto tf_data_format = node.get_attribute<string>("data_format");
+    auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");
+    auto tf_dilations = node.get_attribute<std::vector<int32_t>>("dilations");
+    auto tf_padding_type = node.get_attribute<std::string>("padding");
+    auto tf_data_format = node.get_attribute<std::string>("data_format");
 
-    if (tf_data_format != "NHWC" && tf_data_format != "NCHW") {
-        throw errors::InvalidArgument("Conv2DBackpropInput data format is neither NHWC nor NCHW: %s" + tf_data_format);
-    }
+    TF_OP_VALIDATION_CHECK(node,
+                           tf_data_format == "NHWC" || tf_data_format == "NCHW",
+                           "Conv2DBackpropInput data format is neither NHWC nor NCHW");
 
-    vector<int64_t> tf_input_sizes;
+    std::vector<int64_t> tf_input_sizes;
     GetStaticInputVector(node, 0, &tf_input_sizes);
 
-    if (any_of(tf_input_sizes.begin(), tf_input_sizes.end(), [](int32_t size) {
+    if (std::any_of(tf_input_sizes.begin(), tf_input_sizes.end(), [](int32_t size) {
             return size <= 0;
         })) {
-        throw errors::InvalidArgument("Conv2DBackpropInput input sizes must be positive integers");
+        FRONT_END_THROW("Conv2DBackpropInput input sizes must be positive integers");
     }
 
     bool is_nhwc = (tf_data_format == "NHWC");
+
+    NGRAPH_DEBUG << ngraph::join(tf_strides);
+    NGRAPH_DEBUG << ngraph::join(tf_dilations);
+    NGRAPH_DEBUG << tf_padding_type;
+    NGRAPH_DEBUG << tf_data_format;
 
     Strides ng_strides(2);
     Strides ng_dilations(2);
@@ -59,11 +64,17 @@ OutputVector TranslateConv2DBackpropInputOp(const NodeContext& node) {
                           static_cast<unsigned long>(tf_input_sizes[3])};
     }
 
+    NGRAPH_DEBUG << "ng_strides: " << ngraph::join(ng_strides);
+    NGRAPH_DEBUG << "ng_dilations: " << ngraph::join(ng_dilations);
+    NGRAPH_DEBUG << "ng_image_shape: " << ngraph::join(ng_image_shape);
+
     auto& ng_filter_shape = ng_filter.get_shape();
     ng_kernel_shape[0] = ng_filter_shape[0];
     ng_kernel_shape[1] = ng_filter_shape[1];
     Transpose<3, 2, 0, 1>(ng_filter);
     SetTracingInfo(node.get_name(), ng_filter);
+
+    NGRAPH_DEBUG << "ng_kernel_shape: " << ngraph::join(ng_kernel_shape);
 
     CoordinateDiff ng_padding_below;
     CoordinateDiff ng_padding_above;
@@ -75,22 +86,22 @@ OutputVector TranslateConv2DBackpropInputOp(const NodeContext& node) {
                 ng_padding_below,
                 ng_padding_above);
 
-    auto ng_output_shape = ConstructNgNode<Constant>(node.get_name(),
-                                                     element::i64,
-                                                     Shape{ng_batch_shape.size() - 2},
-                                                     vector<size_t>(ng_batch_shape.begin() + 2, ng_batch_shape.end()));
+    auto ng_output_shape = make_shared<Constant>(element::i64,
+                                                 Shape{ng_batch_shape.size() - 2},
+                                                 vector<size_t>(ng_batch_shape.begin() + 2, ng_batch_shape.end()));
 
-    auto ng_data = ConstructNgNode<ConvolutionBackpropData>(node.get_name(),
-                                                            ng_out_backprop,
-                                                            ng_filter,
-                                                            ng_output_shape,
-                                                            ng_strides,
-                                                            ng_padding_below,
-                                                            ng_padding_above,
-                                                            ng_dilations);
+    auto res = make_shared<ConvolutionBackpropData>(ng_out_backprop,
+                                                    ng_filter,
+                                                    ng_output_shape,
+                                                    ng_strides,
+                                                    ng_padding_below,
+                                                    ng_padding_above,
+                                                    ng_dilations)
+                   ->output(0);
 
-    NCHWtoNHWC(node.get_name(), is_nhwc, ng_data);
-    return {ng_data};
+    NCHWtoNHWC(node.get_name(), is_nhwc, res);
+    SetNodeNames(node.get_name(), res.get_node_shared_ptr());
+    return {res};
 }
 }  // namespace op
 }  // namespace tf

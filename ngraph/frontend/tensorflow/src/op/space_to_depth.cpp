@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -24,10 +24,10 @@ OutputVector TranslateSpaceToDepthOp(const NodeContext& node) {
     bool is_nhwc = (data_format == "NHWC");
     NHWCtoNCHW(node.get_name(), is_nhwc, input);
     auto ng_mode = SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
-    auto space_to_depth = make_shared<SpaceToDepth>(input, ng_mode, block_size)->output(0);
-    NCHWtoNHWC(node.get_name(), is_nhwc, space_to_depth);
-    space_to_depth.get_node_shared_ptr()->set_friendly_name(node.get_name());
-    return {space_to_depth};
+    auto res = make_shared<SpaceToDepth>(input, ng_mode, block_size)->output(0);
+    NCHWtoNHWC(node.get_name(), is_nhwc, res);
+    SetNodeNames(node.get_name(), res.get_node_shared_ptr());
+    return {res};
 }
 }  // namespace op
 }  // namespace tf

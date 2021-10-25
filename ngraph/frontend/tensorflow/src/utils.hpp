@@ -1,22 +1,6 @@
-/* Copyright (C) 2018-2021 Intel Corporation
- * SPDX-License-Identifier: Apache-2.0
- *
- * Copyright 2017 The TensorFlow Authors. All Rights Reserved.
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * http://www.apache.org/licenses/LICENSE-2.0
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * We modified "ValuesFromConstNode" function from
- * tensorflow/core/grappler/optimizers/arithmetic_optimizer.cc file
- * to integrate it with our infrastructure. The purpose and basic
- * functionality remains the same.
-==============================================================================*/
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #pragma once
 
@@ -30,98 +14,25 @@
 namespace ov {
 namespace frontend {
 namespace tf {
-namespace detail {
-// TODO: avoid using directly:
-using ::tensorflow::DataType;
-using ::tensorflow::TensorProto;
 
-// TODO: separate interface from proto implementation; here is a proto implementation
-class TensorWrapper {
-public:
-    const TensorProto* tensor_def;
+void SetTracingInfo(const std::string& op_name, const ov::Output<ov::Node> ng_node);
 
-    TensorWrapper(const TensorProto* _tensor_def) : tensor_def(_tensor_def) {}
+void SetOutputName(const std::string& out_name, const Output<Node>& output);
 
-    // a hack to minimize amount of code
-    TensorWrapper& attrs() const {
-        return const_cast<TensorWrapper&>(*this);
-    }
+void SetNodeNames(const std::string& node_name, const std::shared_ptr<Node>& node);
 
-    template <typename T>
-    std::vector<T> flat() const;
-
-    size_t NumElements() const;
-
-    DataType dtype() const;
-};
-
-}  // namespace detail
-}  // namespace tf
-}  // namespace frontend
-}  // namespace ov
-
-namespace ov {
-namespace frontend {
-namespace tf {
-using namespace ::ov::frontend::tf::detail;
-
-using OpMap = std::unordered_map<std::string, std::vector<ov::Output<ov::Node>>>;
-
-void extract_operation_name_and_port(const std::string& port_name,
-                                     std::string& operation_name,
-                                     size_t& port_index,
-                                     std::string& port_type);
-
-class Status {
-public:
-    int status = 0;
-    std::string message;
-
-    static Status OK() {
-        return Status();
-    }
-
-    Status(const std::string& x) : message(x), status(1) {}
-    Status() {}
-};
-
-inline bool operator!=(const Status& x, const Status& y) {
-    return x.status != y.status;
+static bool VecStrCmp(const std::vector<std::string>& a, const std::vector<std::string>& b) {
+    return a == b;
 }
-
-inline std::ostream& operator<<(std::ostream& out, const Status& s) {
-    return out << s.message;
-}
-
-#define TF_RETURN_IF_ERROR(S) \
-    if ((S).status != 0)      \
-        throw S;
-
-class errors {
-public:
-    static Status InvalidArgument(const std::string& x) {
-        return Status("InvalidArgument: " + x);
-    }
-
-    static Status Internal(const std::string& x) {
-        return Status("Internal: " + x);
-    }
-
-    static Status Unimplemented(const std::string& x) {
-        return Status("Unimplemented: " + x);
-    }
-};
-
-void SetTracingInfo(const std::string& op_name, const ov::Output<ov::Node>& ng_node);
 
 template <typename T>
-static void MakePadding(const std::string& tf_padding_type,
-                        const ov::Shape& ng_image_shape,
-                        const ov::Shape& ng_kernel_shape,
-                        const ov::Strides& ng_strides,
-                        const ov::Shape& ng_dilations,
-                        T& ng_padding_below,
-                        T& ng_padding_above) {
+void MakePadding(const std::string& tf_padding_type,
+                 const ov::Shape& ng_image_shape,
+                 const ov::Shape& ng_kernel_shape,
+                 const ov::Strides& ng_strides,
+                 const ov::Shape& ng_dilations,
+                 T& ng_padding_below,
+                 T& ng_padding_above) {
     if (tf_padding_type == "SAME") {
         ov::Shape img_shape = {0, 0};
         img_shape.insert(img_shape.end(), ng_image_shape.begin(), ng_image_shape.end());
@@ -138,117 +49,23 @@ static void MakePadding(const std::string& tf_padding_type,
     }
 }
 
-template <typename Ttensor, typename Tvector>
-static void ConvertTensorDataToVector(const TensorWrapper& tensor, std::vector<Tvector>* vector) {
-    const Ttensor* data = tensor.flat<Ttensor>().data();
-    vector->resize(tensor.NumElements());
-    for (int64_t i = 0; i < tensor.NumElements(); i++) {
-        (*vector)[i] = Tvector(data[i]);
-    }
-}
-
-static bool VecStrCmp(const std::vector<std::string>& a, const std::vector<std::string>& b) {
-    return a == b;
-}
-
-static Status ValidateInputCount(const NodeContext& op, size_t count) {
-    if (op.get_ng_input_size() != count) {
-        std::ostringstream buf;
-        buf << "\"" << op.get_name() << "\" requires " << count << " input(s), got " << op.get_ng_input_size()
-            << " instead";
-        return errors::InvalidArgument(buf.str());
-    }
-    return Status::OK();
-}
-
-static void ValidateInputCountMin(const ov::frontend::tf::NodeContext& node, size_t count) {
-    if (node.get_ng_input_size() < count) {
-        std::ostringstream buf;
-        buf << "\"" << node.get_name() << "\" requires at least " << count << " input(s), got "
-            << node.get_ng_input_size() << " instead";
-        throw errors::InvalidArgument(buf.str());
-    }
-}
-
-// Check to make sure the axis dimension for reduction are in within range.
-// Returns error if axis is out of range. Otherwise returns Status::OK().
-static Status CheckAxisDimInRange(const std::vector<int64_t>& axes, size_t rank) {
-    for (auto i : axes) {
-        if (i < -(int)rank || i >= (int)rank) {
-            std::ostringstream buf;
-            buf << "Axis Dimension is out of range. Got " << i << ", should be in range [-" << rank << ", " << rank
-                << ")";
-            return errors::InvalidArgument(buf.str());
-        }
-    }
-    return Status::OK();
-}
-
-//
-// Helper for storing ops in ng_op_map.
-// For most of the cases, op would have one output so
-// std::vector ng_op_map[op_name] would contain one element.
-//
-// If storing more than one output_nodes, make sure it's in
-// the same order as tensorflow would do that.
-//
-// Parameters:
-//    Builder::OpMap& ng_op_map        - The TF-to-nGraph op map.
-//    std::string op_name              - Name of the op.
-//
-//    ov::Output<ov::Node> output_node - ov::Node to store
-//
-static void SaveNgOp(OpMap& ng_op_map, const std::string& op_name, ov::Output<ov::Node> output_node) {
-    // no need to try-catch, map[key] will create std::vector object
-    // if not exists
-    ng_op_map[op_name].push_back(output_node);
-}
-
 template <class TOpType, class... TArg>
-ov::Output<ov::Node> ConstructNgNode(const std::string& op_name, TArg&&... Args) {
+ov::Output<ov::Node> make_shared(const std::string& op_name, TArg&&... Args) {
     auto ng_node = std::make_shared<TOpType>(std::forward<TArg>(Args)...);
     SetTracingInfo(op_name, ng_node);
     return ng_node;
 }
 
-static Status GetInputNode(const NodeContext op, size_t input_idx, ov::Output<ov::Node>& result) {
-    // Stub
-    result = op.get_ng_input(input_idx);
-    return Status::OK();
-}
-
-namespace detail {
-static Status GetInputNodes(const NodeContext&, size_t) {
-    return Status::OK();
-}
-
-template <typename... Arguments>
-static Status GetInputNodes(const NodeContext node,
-                            size_t index,
-                            ov::Output<ov::Node>& result,
-                            Arguments&... remaining) {
-    TF_RETURN_IF_ERROR(GetInputNode(node, index, result));
-    return GetInputNodes(node, index + 1, remaining...);
-}
-}  // namespace detail
-
-template <typename... Arguments>
-static Status GetInputNodes(const NodeContext& node, Arguments&... remaining) {
-    constexpr size_t args_len = sizeof...(Arguments);
-    TF_RETURN_IF_ERROR(ValidateInputCount(node, args_len));
-    return detail::GetInputNodes(node, 0, remaining...);
-}
-
 void TFTensorShapeToNGraphShape(const ::tensorflow::TensorShapeProto& tf_shape, ov::PartialShape* ng_shape);
 
 template <typename T>
-static void GetStaticInputVector(const ov::frontend::tf::NodeContext& node,
-                                 int64_t input_index,
-                                 std::vector<T>* vector) {
+void GetStaticInputVector(const NodeContext& node, int64_t input_index, std::vector<T>* vector) {
     ov::Output<ov::Node> ng_input = node.get_ng_input(input_index);
-    auto constant = std::dynamic_pointer_cast<ov::opset8::Constant>(ng_input.get_node_shared_ptr());
-    FRONT_END_GENERAL_CHECK(constant != nullptr, "Node ", node.get_name(), " can't be casted to Constant.");
-    *vector = constant->cast_vector<T>();
+    if (auto constant = std::dynamic_pointer_cast<opset8::Constant>(ng_input.get_node_shared_ptr())) {
+        *vector = constant->cast_vector<T>();
+        return;
+    }
+    FRONT_END_THROW("Node must be converted to Constant.");
 }
 
 // Taken from: tensorflow/core/grappler/optimizers/arithmetic_optimizer.cc
@@ -259,27 +76,39 @@ static void GetStaticInputVector(const ov::frontend::tf::NodeContext& node,
 // should be (e.g. when T is `bool`, we actually need a std::vector of `char` for
 // compatibility with nGraph).
 template <typename T, typename VecT = T>
-static Status ValuesFromConstNode(const ::ov::frontend::DecoderBase* node,
-                                  ov::Shape* const_tensor_shape,
-                                  std::vector<VecT>* values) {
-    if (node->get_op_type() != "Const") {
-        return errors::InvalidArgument("TFNodeDecoder not a Const");
-    }
-    auto dt1 = node->get_attribute("dtype", ::ov::VariantWrapper<::tensorflow::DataType>::get_type_info_static());
-    FRONT_END_GENERAL_CHECK(dt1);
+void ValuesFromConstNode(const NodeContext& node, ov::Shape* const_tensor_shape, std::vector<VecT>* values) {
+    TF_OP_VALIDATION_CHECK(node, node.get_op_type() == "Const", "Node is expected to be Constant.");
+    const auto* decoder = node.get_decoder();
+    auto dt1 = decoder->get_attribute("dtype", ::ov::VariantWrapper<::tensorflow::DataType>::get_type_info_static());
+    FRONT_END_GENERAL_CHECK(dt1 != nullptr);
     auto dt = std::dynamic_pointer_cast<::ov::VariantWrapper<::tensorflow::DataType>>(dt1)->get();
 
+    /*
+    if (dt != DataTypeToEnum<T>::value) {
+      std::stringstream ss;
+      ss << "Invalid data type defined for Const. Defined: "
+         << node.attr().at("dtype").type();
+      return errors::InvalidArgument(ss.str());
+    }
+    */
+
+    // ov::frontend::tf::detail::TensorWrapper represents the content of the tensor in either
+    // <type>_val or tensor_content.
+
     auto tensor_proto_var =
-        node->get_attribute("value", ::ov::VariantWrapper<::tensorflow::TensorProto>::get_type_info_static());
-    FRONT_END_GENERAL_CHECK(tensor_proto_var);
+        decoder->get_attribute("value", ::ov::VariantWrapper<::tensorflow::TensorProto>::get_type_info_static());
+    FRONT_END_GENERAL_CHECK(tensor_proto_var != nullptr);
     auto tensor_proto =
         std::dynamic_pointer_cast<::ov::VariantWrapper<::tensorflow::TensorProto>>(tensor_proto_var)->get();
+
+    // typename checkpoint::SaveTypeTraits<T>::RepeatedField* tensor_values =
+    //    checkpoint::MutableTensorProtoData<T>(const_cast<ov::frontend::tf::detail::TensorWrapper*>(&tensor));
 
     const tensorflow::TensorShapeProto& shape = tensor_proto.tensor_shape();
     ov::PartialShape pshape;
     TFTensorShapeToNGraphShape(shape, &pshape);
     *const_tensor_shape = pshape.get_shape();
-    FRONT_END_GENERAL_CHECK(!pshape.is_dynamic(), "Dynamic shapes are not supported in ValuesFromConstNode function");
+    TF_OP_VALIDATION_CHECK(node, pshape.is_static(), "Dynamic shapes are not supported in Constant conversion.");
     auto tensor_content = tensor_proto.tensor_content();
     std::vector<char> tensor_values_plain(tensor_content.begin(), tensor_content.end());
     const T* tensor_values = reinterpret_cast<const T*>(tensor_values_plain.data());
@@ -290,7 +119,8 @@ static Status ValuesFromConstNode(const ::ov::frontend::DecoderBase* node,
         // make sure no compression happens.
         // if (shape.dim_size() == 1 && shape.dim(0).size() == tensor_values_plain.size()/sizeof(T)) {
         values->insert(values->end(), tensor_values, tensor_values + tensor_values_plain.size() / sizeof(T));
-        return Status::OK();
+        return;
+        //}
     }
 
     const auto tensor_content_size = tensor_proto.tensor_content().size();
@@ -304,9 +134,9 @@ static Status ValuesFromConstNode(const ::ov::frontend::DecoderBase* node,
     if (tensor_content_size == 0) {
         int64_t n_elements = 1;
         for (auto i = 0; i < shape.dim_size(); i++) {
-            if (shape.dim(i).size() < 0) {
-                return errors::InvalidArgument("Const node has empty tensor and an unknown dimension size");
-            }
+            TF_OP_VALIDATION_CHECK(node,
+                                   shape.dim(i).size() >= 0,
+                                   "Const node has empty tensor and an unknown dimension size");
             n_elements *= shape.dim(i).size();
         }
         values->resize(n_elements);
@@ -317,7 +147,7 @@ static Status ValuesFromConstNode(const ::ov::frontend::DecoderBase* node,
             int64_t val_size = 0;
             auto val_i = (T)0;  // cast
             switch (dt) {
-            // TODO: there are more element types to support
+            // TODO(amprocte/NGRAPH-2502): there are more element types to support
             // here
             case tensorflow::DT_INT32:
                 val_size = tensor_proto.int_val_size();
@@ -345,14 +175,13 @@ static Status ValuesFromConstNode(const ::ov::frontend::DecoderBase* node,
                     val_i = tensor_proto.double_val()[i];
                 break;
             default:
-                NGRAPH_VLOG(0) << "Const node has empty tensor_proto and we don't know how to "
+                NGRAPH_DEBUG << "Const node has empty tensor_proto and we don't know how to "
                                   "handle this element type";
-                return errors::Unimplemented("Encountered unknown element type " + DataType_Name(dt) +
-                                             " on an empty tensor_proto");
+                FRONT_END_THROW("Encountered unknown element type " + DataType_Name(dt) + " on an empty tensor_proto");
             }
-            if (val_size == 0) {
-                return errors::InvalidArgument("Empty values vector");
-            } else if (i < val_size) {
+            TF_OP_VALIDATION_CHECK(node, val_size != 0, "Empty values vector");
+
+            if (i < val_size) {
                 (*values)[i] = val_i;
                 val_lastsaved = val_i;
             } else {
@@ -360,22 +189,22 @@ static Status ValuesFromConstNode(const ::ov::frontend::DecoderBase* node,
             }
         }
     } else {
-        return Status::OK();
+        return;
+        // values->resize(tensor_content_size / sizeof(VecT));
+        // port::CopyToArray(tensor.tensor_content(),
+        //                  reinterpret_cast<char*>(values->data()));
     }
-
-    return Status::OK();
 }
 
+// Helper for Builder::TranslateGraph ("Const" op)
 template <typename T, typename VecT = T>
-static Status MakeConstOp(const NodeContext& node, ov::element::Type et, ov::Output<ov::Node>& ng_node) {
+void MakeConstOp(const NodeContext& node, element::Type et, ov::Output<ov::Node>& ng_node) {
     std::vector<VecT> const_values;
     ov::Shape ng_shape;
 
-    TF_RETURN_IF_ERROR((ValuesFromConstNode<T, VecT>(node.get_decoder(), &ng_shape, &const_values)));
-
-    ng_node = ConstructNgNode<ov::opset8::Constant>(node.get_name(), et, ng_shape, const_values);
-    return Status::OK();
-}
+    ValuesFromConstNode<T, VecT>(node, &ng_shape, &const_values);
+    ng_node = std::make_shared<ov::opset8::Constant>(et, ng_shape, const_values);
+};
 }  // namespace tf
 }  // namespace frontend
 }  // namespace ov

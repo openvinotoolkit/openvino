@@ -14,8 +14,11 @@ namespace tf {
 namespace op {
 
 OutputVector TranslateFillOp(const NodeContext& node) {
-    auto ng_dims = node.get_ng_input(0), ng_value = node.get_ng_input(1);
-    return {ConstructNgNode<Broadcast>(node.get_name(), ng_value, ng_dims)};
+    auto ng_dims = node.get_ng_input(0);
+    auto ng_value = node.get_ng_input(1);
+    auto res = make_shared<Broadcast>(ng_value, ng_dims);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 }  // namespace op
 }  // namespace tf

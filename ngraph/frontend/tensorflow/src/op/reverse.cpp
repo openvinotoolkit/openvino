@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -41,9 +41,9 @@ OutputVector TranslateReverseOp(const NodeContext& node) {
         seq_lengths = make_shared<Multiply>(broadcast, gather_seq);
     }
 
-    auto reverse = make_shared<ReverseSequence>(input, seq_lengths, batch_axis, seq_axis);
-    reverse->set_friendly_name(node.get_name());
-    return reverse->outputs();
+    auto res = make_shared<ReverseSequence>(input, seq_lengths, batch_axis, seq_axis);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 }  // namespace op
 }  // namespace tf

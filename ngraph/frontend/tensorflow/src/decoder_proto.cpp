@@ -12,21 +12,6 @@ namespace ov {
 namespace frontend {
 namespace tf {
 
-const std::map<::tensorflow::DataType, ov::element::Type>& TYPE_MAP() {
-    static const std::map<::tensorflow::DataType, ov::element::Type> type_map{
-        {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
-        {::tensorflow::DataType::DT_INT16, ov::element::i16},
-        {::tensorflow::DataType::DT_INT32, ov::element::i32},
-        {::tensorflow::DataType::DT_INT64, ov::element::i64},
-        {::tensorflow::DataType::DT_HALF, ov::element::f16},
-        {::tensorflow::DataType::DT_FLOAT, ov::element::f32},
-        {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
-        {::tensorflow::DataType::DT_UINT8, ov::element::u8},
-        {::tensorflow::DataType::DT_INT8, ov::element::i8},
-        {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16}};
-    return type_map;
-}
-
 template <class T>
 bool is_type(const VariantTypeInfo& type_info) {
     return type_info == VariantWrapper<T>::get_type_info_static();
@@ -45,7 +30,8 @@ shared_ptr<Variant> DecoderTFProto::get_attribute(const string& name, const Vari
 
     if (is_type<string>(type_info)) {
         return create_variant<string>(attrs[0].s());
-    } else if (is_type<int64_t>(type_info)) {
+    }
+    if (is_type<int64_t>(type_info)) {
         return create_variant<int64_t>(attrs[0].i());
     } else if (is_type<vector<int64_t>>(type_info)) {
         vector<int64_t> longs;
@@ -72,23 +58,23 @@ shared_ptr<Variant> DecoderTFProto::get_attribute(const string& name, const Vari
             floats.push_back(attrs[0].list().f(idx));
         }
         return create_variant<vector<float>>(floats);
-    } else if (is_type<ngraph::element::Type>(type_info)) {
+    } else if (is_type<ov::element::Type>(type_info)) {
         auto data_type = attrs[0].type();
-        return create_variant<ngraph::element::Type>(TYPE_MAP().at(data_type));
+        return create_variant<ov::element::Type>(TYPE_MAP[data_type]);
     } else if (is_type<bool>(type_info)) {
         return create_variant<bool>(attrs[0].b());
     } else if (is_type<::tensorflow::DataType>(type_info)) {
         return create_variant<::tensorflow::DataType>(attrs[0].type());
     } else if (is_type<::tensorflow::TensorProto>(type_info)) {
         return create_variant<::tensorflow::TensorProto>(attrs[0].tensor());
-    } else if (is_type<::ngraph::PartialShape>(type_info)) {
-        vector<ngraph::Dimension> dims;
+    } else if (is_type<::ov::PartialShape>(type_info)) {
+        vector<ov::Dimension> dims;
         auto tf_shape = attrs[0].shape();
         for (int i = 0; i < tf_shape.dim_size(); i++) {
             dims.emplace_back(tf_shape.dim(i).size());
         }
         auto pshape = ov::PartialShape(dims);
-        return create_variant<ov::PartialShape>(pshape);
+        return create_variant<::ov::PartialShape>(pshape);
     }
 
     // type is not supported by decoder
@@ -114,11 +100,11 @@ void DecoderTFProto::get_input_node(const size_t input_port_idx,
     producer_output_port_index = 0;
 }
 
-const string& DecoderTFProto::get_op_type() const {
+string DecoderTFProto::get_op_type() const {
     return m_node_def->op();
 }
 
-const string& DecoderTFProto::get_op_name() const {
+string DecoderTFProto::get_op_name() const {
     return m_node_def->name();
 }
 

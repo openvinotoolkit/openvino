@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -135,9 +135,9 @@ OutputVector TranslateCropAndResizeOp(const NodeContext& node) {
             ng_crop_outputs.at(i) = ng_output;
         }
 
-        auto ng_crop_and_resize = make_shared<Concat>(ng_crop_outputs, 0);
-        ng_crop_and_resize->set_friendly_name(node.get_name());
-        return ng_crop_and_resize->outputs();
+        auto res = make_shared<Concat>(ng_crop_outputs, 0);
+        SetNodeNames(node.get_name(), res);
+        return res->outputs();
     }
 }
 

@@ -24,47 +24,49 @@ OutputVector TranslatePadOp(const NodeContext& node) {
     // Set inputs and pad_val_op
     auto op_type = node.get_op_type();
     if (op_type == "Pad" || op_type == "MirrorPad") {
-        pad_val_op = ConstructNgNode<Constant>(node.get_name(), ng_input.get_element_type(), Shape(), vector<int>({0}));
+        pad_val_op = make_shared<Constant>(ng_input.get_element_type(), Shape(), std::vector<int>({0}));
     } else if (op_type == "PadV2") {
         pad_val_op = node.get_ng_input(2);
     } else {
-        throw errors::InvalidArgument("Incorrect TF Pad OpType: " + node.get_op_type());
+        TF_OP_VALIDATION_CHECK(node, false, "Incorrect TF Pad OpType: " + node.get_op_type());
     }
 
     // Set pad_mode
     auto pad_mode = ov::op::PadMode::CONSTANT;
     if (op_type == "MirrorPad") {
-        auto pad_mode_str = node.get_attribute<string>("mode");
+        auto pad_mode_str = node.get_attribute<std::string>("mode");
         if (pad_mode_str == "REFLECT") {
             pad_mode = ov::op::PadMode::REFLECT;
         } else if (pad_mode_str == "SYMMETRIC") {
             pad_mode = ov::op::PadMode::SYMMETRIC;
         } else {
-            throw errors::InvalidArgument(pad_mode_str + " is not an allowed padding mode.");
+            TF_OP_VALIDATION_CHECK(node, false, pad_mode_str + " is not an allowed padding mode.");
         }
     }
 
     // Set pads_begin & pads_end (from the pad_val_op)
-    vector<int64_t> paddings;
+    std::vector<int64_t> paddings;
     GetStaticInputVector(node, 1, &paddings);
+    NGRAPH_DEBUG << node.get_name() << " pads {" << ngraph::join(paddings) << "}";
     if (paddings.size() % 2 != 0) {
-        throw errors::InvalidArgument("Constant node for paddings does not have an even number of "
-                                      "elements");
+        TF_OP_VALIDATION_CHECK(node,
+                               false,
+                               "Constant node for paddings does not have an even number of "
+                               "elements");
     }
-    vector<int64_t> pad_begin(paddings.size() / 2);
-    vector<int64_t> pad_end(paddings.size() / 2);
+    std::vector<int64_t> pad_begin(paddings.size() / 2);
+    std::vector<int64_t> pad_end(paddings.size() / 2);
     for (size_t i = 0; i < paddings.size() / 2; i++) {
         pad_begin[i] = paddings[2 * i];
         pad_end[i] = paddings[2 * i + 1];
     }
-    auto pads_begin_node = ConstructNgNode<Constant>(node.get_name(), element::i64, Shape{pad_begin.size()}, pad_begin);
-    auto pads_end_node = ConstructNgNode<Constant>(node.get_name(), element::i64, Shape{pad_end.size()}, pad_end);
+    auto pads_begin_node = make_shared<Constant>(element::i64, Shape{pad_begin.size()}, pad_begin);
+    auto pads_end_node = make_shared<Constant>(element::i64, Shape{pad_end.size()}, pad_end);
 
     // Create final Op
-    auto result_pad_op =
-        ConstructNgNode<Pad>(node.get_name(), ng_input, pads_begin_node, pads_end_node, pad_val_op, pad_mode);
-
-    return {result_pad_op};
+    auto res = make_shared<Pad>(ng_input, pads_begin_node, pads_end_node, pad_val_op, pad_mode);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 }  // namespace op
 }  // namespace tf

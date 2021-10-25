@@ -14,42 +14,49 @@ namespace tf {
 namespace op {
 
 OutputVector TranslateFusedBatchNormOp(const NodeContext& node) {
-    auto ng_input = node.get_ng_input(0), ng_scale = node.get_ng_input(1), ng_offset = node.get_ng_input(2),
-         ng_mean = node.get_ng_input(3), ng_variance = node.get_ng_input(4);
+    auto ng_input = node.get_ng_input(0);
+    auto ng_scale = node.get_ng_input(1);
+    auto ng_offset = node.get_ng_input(2);
+    auto ng_mean = node.get_ng_input(3);
+    auto ng_variance = node.get_ng_input(4);
+
     bool is_v3 = node.get_op_type() == "FusedBatchNormV3";
+    bool is_Ex = node.get_op_type() == "_FusedBatchNormEx";
 
-    auto tf_data_format = node.get_attribute<string>("data_format");
+    auto data_format = node.get_attribute<std::string>("data_format");
+    TF_OP_VALIDATION_CHECK(node, data_format == "NHWC" || data_format == "NCHW", "Unsupported data format");
 
-    if (tf_data_format != "NHWC" && tf_data_format != "NCHW") {
-        throw errors::InvalidArgument("Conv2D data format is neither NHWC nor NCHW");
-    }
+    bool is_nhwc = (data_format == "NHWC");
 
-    bool is_nhwc = (tf_data_format == "NHWC");
+    NGRAPH_DEBUG << "data_format: " << data_format;
 
-    NGRAPH_VLOG(3) << "data_format: " << tf_data_format;
+    // TODO: where does 0.0001 come from?
+    auto tf_epsilon = node.get_attribute<float>("epsilon", 0.0001);
 
-    auto tf_epsilon = node.get_attribute<float>("epsilon", 0.0001);  // TODO: where does 0.0001 come from?
-
-    NGRAPH_VLOG(3) << "epsilon: " << tf_epsilon;
+    NGRAPH_DEBUG << "epsilon: " << tf_epsilon;
 
     NHWCtoNCHW(node.get_name(), is_nhwc, ng_input);
 
-    auto ng_batch_norm = ConstructNgNode<BatchNormInference>(node.get_name(),
-                                                             ng_input,
-                                                             ng_scale,
-                                                             ng_offset,
-                                                             ng_mean,
-                                                             ng_variance,
-                                                             tf_epsilon);
+    auto ng_batch_norm =
+        make_shared<BatchNormInference>(ng_input, ng_scale, ng_offset, ng_mean, ng_variance, tf_epsilon)->output(0);
     NCHWtoNHWC(node.get_name(), is_nhwc, ng_batch_norm);
 
-    // TODO: Why are there so many? Is it correct?
-    OutputVector result = {ng_batch_norm, ng_mean, ng_variance, ng_mean, ng_variance};
-    if (is_v3) {
-        // FusedBatchNormV3 has 6 outputs
-        result.push_back(ng_mean);  // reserve_space_3
+    if (is_Ex) {
+        string activation_mode = node.get_attribute<string>("activation_mode");
+        TF_OP_VALIDATION_CHECK(node, activation_mode == "Relu", "Unsupported _FusedBatchNormEx activation mode");
+        auto relu_op = make_shared<Relu>(ng_batch_norm);
+        SetNodeNames(node.get_name(), relu_op);
+        return {relu_op};
+    } else {
+        // TODO: Why are there so many? Is it correct?
+        OutputVector result = {ng_batch_norm, ng_mean, ng_variance, ng_mean, ng_variance};
+        if (is_v3) {
+            // FusedBatchNormV3 has 6 outputs
+            result.push_back(ng_mean);  // reserve_space_3
+        }
+        SetNodeNames(node.get_name(), ng_batch_norm.get_node_shared_ptr());
+        return result;
     }
-    return result;
 }
 }  // namespace op
 }  // namespace tf

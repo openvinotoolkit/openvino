@@ -17,10 +17,15 @@ OutputVector NoOp(const NodeContext& node) {
     if (node.get_ng_input_size() == 0) {
         return OutputVector{};
     }
-    if (node.get_ng_input_size() != 1) {
-        throw errors::InvalidArgument("NoOp has " + to_string(node.get_ng_input_size()) + " inputs, should have 1");
-    }
-    return OutputVector{node.get_ng_input(0)};
+
+    TF_OP_VALIDATION_CHECK(node,
+                           node.get_ng_input_size() == 1,
+                           "NoOp has " + to_string(node.get_ng_input_size()) + " inputs, should have 1");
+
+    auto input = node.get_ng_input(0);
+    SetOutputName(node.get_name(), input);
+    SetOutputName(node.get_name() + ":" + "0", input);
+    return {input};
 }
 }  // namespace op
 }  // namespace tf

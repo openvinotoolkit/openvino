@@ -15,26 +15,32 @@ namespace op {
 
 OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
     auto num_args = node.get_attribute<int>("num_args");
-    auto fused_ops = node.get_attribute<vector<string>>("fused_ops");
+    auto fused_ops = node.get_attribute<std::vector<string>>("fused_ops");
 
-    auto tf_data_format = node.get_attribute<string>("data_format");
+    auto tf_data_format = node.get_attribute<std::string>("data_format");
     bool is_nhwc = (tf_data_format == "NHWC");
 
     auto CreateNgConv = [&](Output<Node>& ng_input, Output<Node>& ng_filter) {
-        auto tf_strides = node.get_attribute<vector<int32_t>>("strides");
-        auto tf_dilations = node.get_attribute<vector<int32_t>>("dilations");
-        auto tf_padding_type = node.get_attribute<string>("padding");
+        auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");
+        auto tf_dilations = node.get_attribute<std::vector<int32_t>>("dilations");
+        auto tf_padding_type = node.get_attribute<std::string>("padding");
 
         if (tf_data_format != "NHWC" && tf_data_format != "NCHW") {
-            throw errors::InvalidArgument("Conv2D data format is neither NHWC nor NCHW");
+            TF_OP_VALIDATION_CHECK(node, false, "Conv2D data format is neither NHWC nor NCHW");
         }
 
         // TF Kernel Test Checks
         // Strides in the batch and depth dimension is not supported
         if (tf_strides[0] != 1 || tf_strides[is_nhwc ? 3 : 1] != 1) {
-            throw errors::InvalidArgument("Strides in batch and depth dimensions is not supported: " +
-                                          node.get_op_type());
+            TF_OP_VALIDATION_CHECK(node,
+                                   false,
+                                   "Strides in batch and depth dimensions is not supported: " + node.get_op_type());
         }
+
+        NGRAPH_DEBUG << ngraph::join(tf_strides);
+        NGRAPH_DEBUG << ngraph::join(tf_dilations);
+        NGRAPH_DEBUG << tf_padding_type;
+        NGRAPH_DEBUG << tf_data_format;
 
         Strides ng_strides(2);
         Strides ng_dilations(2);
@@ -46,11 +52,17 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
         NHWCtoHW(is_nhwc, tf_dilations, ng_dilations);
         NHWCtoNCHW(node.get_name(), is_nhwc, ng_input);
 
+        NGRAPH_DEBUG << "ng_strides: " << ngraph::join(ng_strides);
+        NGRAPH_DEBUG << "ng_dilations: " << ngraph::join(ng_dilations);
+        NGRAPH_DEBUG << "ng_image_shape: " << ngraph::join(ng_image_shape);
+
         auto& ng_filter_shape = ng_filter.get_shape();
         ng_kernel_shape[0] = ng_filter_shape[0];
         ng_kernel_shape[1] = ng_filter_shape[1];
         Transpose<3, 2, 0, 1>(ng_filter);
         SetTracingInfo(node.get_name(), ng_filter);
+
+        NGRAPH_DEBUG << "ng_kernel_shape: " << ngraph::join(ng_kernel_shape);
 
         CoordinateDiff ng_padding_below;
         CoordinateDiff ng_padding_above;
@@ -62,19 +74,19 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
                     ng_padding_below,
                     ng_padding_above);
 
-        return ConstructNgNode<Convolution>(node.get_name() + "_FusedConv2D_Conv",
-                                            ng_input,
-                                            ng_filter,
-                                            ng_strides,
-                                            ng_padding_below,
-                                            ng_padding_above,
-                                            ng_dilations);
+        return make_shared<Convolution>(ng_input,
+                                        ng_filter,
+                                        ng_strides,
+                                        ng_padding_below,
+                                        ng_padding_above,
+                                        ng_dilations)
+            ->output(0);
     };
 
     if (VecStrCmp(fused_ops, {"BiasAdd"}) || VecStrCmp(fused_ops, {"BiasAdd", "Relu"}) ||
         VecStrCmp(fused_ops, {"BiasAdd", "Relu6"})) {
         if (num_args != 1) {
-            throw errors::InvalidArgument("FusedConv2DBiasAdd has incompatible num_args");
+            TF_OP_VALIDATION_CHECK(node, false, "FusedConv2DBiasAdd has incompatible num_args");
         }
 
         auto ng_input = node.get_ng_input(0), ng_filter = node.get_ng_input(1), ng_bias = node.get_ng_input(2),
@@ -83,23 +95,23 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
         auto ng_conv_shape = ng_conv.get_shape();
         auto ng_bias_shape = ng_bias.get_shape();
         if (ng_bias_shape.size() != 1) {
-            throw errors::InvalidArgument("Bias argument to BiasAdd does not have one dimension");
+            TF_OP_VALIDATION_CHECK(node, false, "Bias argument to BiasAdd does not have one dimension");
         }
 
-        vector<size_t> reshape_pattern_values(ng_conv_shape.size(), 1U);
+        std::vector<size_t> reshape_pattern_values(ng_conv_shape.size(), 1U);
         reshape_pattern_values[1] = ng_bias.get_shape().front();
         auto reshape_pattern =
             make_shared<Constant>(element::u64, Shape{reshape_pattern_values.size()}, reshape_pattern_values);
-        auto ng_bias_reshaped = ConstructNgNode<Reshape>(node.get_name(), ng_bias, reshape_pattern, false);
+        auto ng_bias_reshaped = make_shared<Reshape>(ng_bias, reshape_pattern, false);
 
-        auto ng_add = ConstructNgNode<Add>(node.get_name() + "_FusedConv2D_BiasAdd", ng_conv, ng_bias_reshaped);
+        auto ng_add = make_shared<Add>(ng_conv, ng_bias_reshaped)->output(0);
 
         if (VecStrCmp(fused_ops, {"BiasAdd", "Relu"})) {
-            auto ng_relu = ConstructNgNode<Relu>(node.get_name() + "_FusedConv2D_Relu", ng_add);
+            auto ng_relu = make_shared<Relu>(ng_add)->output(0);
             NCHWtoNHWC(node.get_name(), is_nhwc, ng_relu);
             return {ng_relu};
         } else if (VecStrCmp(fused_ops, {"BiasAdd", "Relu6"})) {
-            auto ng_relu6 = ConstructNgNode<Clamp>(node.get_name() + "_FusedConv2D_Relu6", ng_add, 0, 6);
+            auto ng_relu6 = make_shared<Clamp>(ng_add, 0, 6)->output(0);
             NCHWtoNHWC(node.get_name(), is_nhwc, ng_relu6);
             return {ng_relu6};
         } else {
@@ -109,7 +121,7 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
     } else if (VecStrCmp(fused_ops, {"FusedBatchNorm"}) || VecStrCmp(fused_ops, {"FusedBatchNorm", "Relu"}) ||
                VecStrCmp(fused_ops, {"FusedBatchNorm", "Relu6"})) {
         if (num_args != 4) {
-            throw errors::InvalidArgument("FusedConv2D with FusedBatchNorm has incompatible num_args");
+            TF_OP_VALIDATION_CHECK(node, false, "FusedConv2D with FusedBatchNorm has incompatible num_args");
         }
 
         auto ng_input = node.get_ng_input(0), ng_filter = node.get_ng_input(1), ng_scale = node.get_ng_input(2),
@@ -118,20 +130,15 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
 
         auto tf_epsilon = node.get_attribute<float>("epsilon");
 
-        auto ng_batch_norm = ConstructNgNode<BatchNormInference>(node.get_name() + "_FusedConv2D_BatchNorm",
-                                                                 ng_conv,
-                                                                 ng_scale,
-                                                                 ng_offset,
-                                                                 ng_mean,
-                                                                 ng_variance,
-                                                                 tf_epsilon);
+        auto ng_batch_norm =
+            make_shared<BatchNormInference>(ng_conv, ng_scale, ng_offset, ng_mean, ng_variance, tf_epsilon)->output(0);
 
         if (VecStrCmp(fused_ops, {"FusedBatchNorm", "Relu"})) {
-            auto ng_relu = ConstructNgNode<Relu>(node.get_name() + "_FusedConv2D_BatchNormRelu", ng_batch_norm);
+            auto ng_relu = make_shared<Relu>(ng_batch_norm)->output(0);
             NCHWtoNHWC(node.get_name(), is_nhwc, ng_relu);
             return {ng_relu};
         } else if (VecStrCmp(fused_ops, {"FusedBatchNorm", "Relu6"})) {
-            auto ng_relu6 = ConstructNgNode<Clamp>(node.get_name() + "_FusedConv2D_BatchNormRelu", ng_batch_norm, 0, 6);
+            auto ng_relu6 = make_shared<Clamp>(ng_batch_norm, 0, 6)->output(0);
             NCHWtoNHWC(node.get_name(), is_nhwc, ng_relu6);
             return {ng_relu6};
         } else {

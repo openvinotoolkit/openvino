@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -18,9 +18,9 @@ OutputVector TranslateSplitOp(const NodeContext& node) {
     auto input = node.get_ng_input(1);
     auto num_split = node.get_attribute<int64_t>("num_split");
 
-    auto ng_split = make_shared<Split>(input, axes, num_split);
-    ng_split->set_friendly_name(node.get_name());
-    return ng_split->outputs();
+    auto res = make_shared<Split>(input, axes, num_split);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 
 OutputVector TranslateSplitVOp(const NodeContext& node) {
@@ -29,9 +29,9 @@ OutputVector TranslateSplitVOp(const NodeContext& node) {
     auto split_dims = node.get_ng_input(2);
 
     // todo(itikhono): double check split_lengths and split_dims are in supported form here
-    auto split_v = make_shared<VariadicSplit>(input, split_dims, split_lengths);
-    split_v->set_friendly_name(node.get_name());
-    return split_v->outputs();
+    auto res = make_shared<VariadicSplit>(input, split_dims, split_lengths);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 }  // namespace op
 }  // namespace tf

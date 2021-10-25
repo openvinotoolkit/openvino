@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -24,9 +24,9 @@ OutputVector TranslateSliceOp(const NodeContext& node) {
     auto shape = make_shared<ShapeOf>(start);
     auto step = make_shared<Broadcast>(one, shape);
 
-    auto slice = make_shared<Slice>(input, start, stop, step);
-    slice->set_friendly_name(node.get_name());
-    return slice->outputs();
+    auto res = make_shared<Slice>(input, start, stop, step);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 }  // namespace op
 }  // namespace tf

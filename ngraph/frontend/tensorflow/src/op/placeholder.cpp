@@ -16,7 +16,10 @@ namespace op {
 OutputVector PlaceholderOp(const NodeContext& node) {
     auto ng_et = node.get_attribute<ov::element::Type>("dtype");
     auto ng_shape = node.get_attribute<ov::PartialShape>("shape", ov::PartialShape());
-    return {ConstructNgNode<Parameter>(node.get_name(), ng_et, ng_shape)};
+
+    auto res = std::make_shared<Parameter>(ng_et, ng_shape);
+    SetNodeNames(node.get_name(), res);
+    return res->outputs();
 }
 }  // namespace op
 }  // namespace tf

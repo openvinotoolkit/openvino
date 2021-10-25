@@ -17,12 +17,17 @@ namespace op {
 OutputVector TranslateMaxPoolOp(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0);
 
-    auto tf_strides = node.get_attribute<vector<int32_t>>("strides");
-    auto tf_ksize = node.get_attribute<vector<int32_t>>("ksize");
-    auto tf_padding_type = node.get_attribute<string>("padding");
-    auto tf_data_format = node.get_attribute<string>("data_format");
+    auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");
+    auto tf_ksize = node.get_attribute<std::vector<int32_t>>("ksize");
+    auto tf_padding_type = node.get_attribute<std::string>("padding");
+    auto tf_data_format = node.get_attribute<std::string>("data_format");
 
     bool is_nhwc = (tf_data_format == "NHWC") || (tf_data_format == "NDHWC");
+
+    NGRAPH_DEBUG << ngraph::join(tf_strides);
+    NGRAPH_DEBUG << ngraph::join(tf_ksize);
+    NGRAPH_DEBUG << tf_padding_type;
+    NGRAPH_DEBUG << tf_data_format;
 
     int N = 2;
     if (node.get_name() == "MaxPool3D") {
@@ -37,6 +42,9 @@ OutputVector TranslateMaxPoolOp(const NodeContext& node) {
     NHWCtoHW(is_nhwc, ng_input.get_shape(), ng_image_shape);
     NHWCtoHW(is_nhwc, tf_ksize, ng_kernel_shape);
     NHWCtoNCHW(node.get_name(), is_nhwc, ng_input);
+    NGRAPH_DEBUG << "ng_strides: " << ngraph::join(ng_strides);
+    NGRAPH_DEBUG << "ng_image_shape: " << ngraph::join(ng_image_shape);
+    NGRAPH_DEBUG << "ng_kernel_shape: " << ngraph::join(ng_kernel_shape);
 
     CoordinateDiff padding_below;
     CoordinateDiff padding_above;
@@ -53,16 +61,17 @@ OutputVector TranslateMaxPoolOp(const NodeContext& node) {
     Shape ng_padding_below(padding_below.begin(), padding_below.end());
     Shape ng_padding_above(padding_above.begin(), padding_above.end());
 
-    auto ng_maxpool = ConstructNgNode<ov::opset7::MaxPool>(node.get_name(),
-                                                           ng_input,
-                                                           ng_strides,
-                                                           ng_padding_below,
-                                                           ng_padding_above,
-                                                           ng_kernel_shape,
-                                                           ov::op::RoundingType::FLOOR);
+    auto res = make_shared<ov::opset7::MaxPool>(ng_input,
+                                                ng_strides,
+                                                ng_padding_below,
+                                                ng_padding_above,
+                                                ng_kernel_shape,
+                                                ov::op::RoundingType::FLOOR)
+                   ->output(0);
 
-    NCHWtoNHWC(node.get_name(), is_nhwc, ng_maxpool);
-    return {ng_maxpool};
+    NCHWtoNHWC(node.get_name(), is_nhwc, res);
+    SetNodeNames(node.get_name(), res.get_node_shared_ptr());
+    return {res};
 }
 
 }  // namespace op

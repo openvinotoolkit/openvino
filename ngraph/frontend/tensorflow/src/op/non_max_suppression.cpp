@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset8.hpp>
 #include <op_table.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 using namespace std;
 using namespace ov::opset8;
@@ -30,7 +30,7 @@ OutputVector TranslateNonMaxSuppressionOp(const NodeContext& node) {
         auto score_threshold = node.get_ng_input(4);
         auto soft_nms_sigma = node.get_ng_input(5);
         // todo: pad_to_max_output_size
-        auto nms = make_shared<NonMaxSuppression>(boxes_unsqueezed,
+        auto res = make_shared<NonMaxSuppression>(boxes_unsqueezed,
                                                   scores_unsqueezed,
                                                   max_output_size,
                                                   iou_threshold,
@@ -39,11 +39,12 @@ OutputVector TranslateNonMaxSuppressionOp(const NodeContext& node) {
                                                   NonMaxSuppression::BoxEncodingType::CORNER,
                                                   false,
                                                   element::Type_t::i32);
-        return nms->outputs();
+        SetNodeNames(node.get_name(), res);
+        return res->outputs();
     } else if (op_type == "NonMaxSuppressionV4") {
         auto score_threshold = node.get_ng_input(4);
         // todo: pad_to_max_output_size
-        auto nms = make_shared<NonMaxSuppression>(boxes_unsqueezed,
+        auto res = make_shared<NonMaxSuppression>(boxes_unsqueezed,
                                                   scores_unsqueezed,
                                                   max_output_size,
                                                   iou_threshold,
@@ -51,10 +52,11 @@ OutputVector TranslateNonMaxSuppressionOp(const NodeContext& node) {
                                                   NonMaxSuppression::BoxEncodingType::CORNER,
                                                   false,
                                                   element::Type_t::i32);
-        return nms->outputs();
+        SetNodeNames(node.get_name(), res);
+        return res->outputs();
     } else if (op_type == "NonMaxSuppressionV3") {
         auto score_threshold = node.get_ng_input(4);
-        auto nms = make_shared<NonMaxSuppression>(boxes_unsqueezed,
+        auto res = make_shared<NonMaxSuppression>(boxes_unsqueezed,
                                                   scores_unsqueezed,
                                                   max_output_size,
                                                   iou_threshold,
@@ -62,16 +64,18 @@ OutputVector TranslateNonMaxSuppressionOp(const NodeContext& node) {
                                                   NonMaxSuppression::BoxEncodingType::CORNER,
                                                   false,
                                                   element::Type_t::i32);
-        return {nms->output(0)};
+        SetNodeNames(node.get_name(), res);
+        return {res->output(0)};
     } else if (op_type == "NonMaxSuppressionV2" || op_type == "NonMaxSuppression") {
-        auto nms = make_shared<NonMaxSuppression>(boxes_unsqueezed,
+        auto res = make_shared<NonMaxSuppression>(boxes_unsqueezed,
                                                   scores_unsqueezed,
                                                   max_output_size,
                                                   iou_threshold,
                                                   NonMaxSuppression::BoxEncodingType::CORNER,
                                                   false,
                                                   element::Type_t::i32);
-        return {nms->output(0)};
+        SetNodeNames(node.get_name(), res);
+        return {res->output(0)};
     }
     TF_OP_VALIDATION_CHECK(node, false, "No translator found.");
 }

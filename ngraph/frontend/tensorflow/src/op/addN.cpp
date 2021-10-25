@@ -16,16 +16,14 @@ namespace op {
 
 OutputVector TranslateAddNOp(const NodeContext& node) {
     OutputVector ng_arg_vec = node.get_all_ng_inputs();
-
-    auto ng_addn = accumulate(next(ng_arg_vec.begin()),
-                              ng_arg_vec.end(),
-                              ng_arg_vec.at(0),
-                              [&node](Output<Node> a, Output<Node> b) {
-                                  return ConstructNgNode<Add>(node.get_name(), a, b);
-                              });  // accumulation: start with
-    // first element. default op is
-    // addition
-    return {ng_addn};
+    auto res = std::accumulate(std::next(ng_arg_vec.begin()),
+                               ng_arg_vec.end(),
+                               ng_arg_vec.at(0),
+                               [](const Output<Node>& a, const Output<Node>& b) -> shared_ptr<Node> {
+                                   return make_shared<Add>(a, b);
+                               });
+    SetNodeNames(node.get_name(), res.get_node_shared_ptr());
+    return {res};
 }
 }  // namespace op
 }  // namespace tf
