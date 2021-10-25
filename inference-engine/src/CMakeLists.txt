@@ -6,8 +6,6 @@ if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wall)
 endif()
 
-add_subdirectory(preprocessing)
-
 add_subdirectory(legacy_api)
 
 if(ENABLE_MKL_DNN)
@@ -35,6 +33,8 @@ if(ENABLE_MULTI)
 endif()
 
 add_subdirectory(inference_engine)
+
+add_subdirectory(preprocessing)
 
 add_subdirectory(transformations)
 
