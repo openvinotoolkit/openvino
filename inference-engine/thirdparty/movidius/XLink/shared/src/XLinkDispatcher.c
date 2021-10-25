@@ -73,6 +73,8 @@ typedef struct {
 
     int queueProcPriority;
 
+    pthread_mutex_t queueMutex;
+
     XLink_sem_t addEventSem;
     XLink_sem_t notifyDispatcherSem;
     volatile uint32_t resetXLink;
@@ -583,6 +585,9 @@ static void* eventSchedulerRun(void* ctx)
         mvLog(MVLOG_ERROR,"pthread_attr_init error");
         return NULL;
     }
+
+    XLINK_RET_ERR_IF(pthread_mutex_init(&(curr->queueMutex), NULL) != 0, NULL);
+
 #ifndef __PC__
     if (pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED) != 0) {
         pthread_attr_destroy(&attr);
@@ -637,6 +642,8 @@ static void* eventSchedulerRun(void* ctx)
     } else {
         mvLog(MVLOG_INFO,"Scheduler thread stopped");
     }
+
+    XLINK_RET_ERR_IF(pthread_mutex_destroy(&(curr->queueMutex)) != 0, NULL);
 
     return NULL;
 }
@@ -802,15 +809,16 @@ static xLinkEvent_t* addNextQueueElemToProc(xLinkSchedulerState_t* curr,
                                             eventQueueHandler_t *q, xLinkEvent_t* event,
                                             XLink_sem_t* sem, xLinkEventOrigin_t o){
     xLinkEvent_t* ev;
+    XLINK_RET_ERR_IF(pthread_mutex_lock(&(curr->queueMutex)) != 0, NULL);
     xLinkEventPriv_t* eventP = getNextElementWithState(q->base, q->end, q->cur, EVENT_SERVED);
     if (eventP == NULL) {
         mvLog(MVLOG_ERROR, "getNextElementWithState returned NULL");
+        XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, NULL);
         return NULL;
     }
     mvLog(MVLOG_DEBUG, "Received event %s %d", TypeToStr(event->header.type), o);
     ev = &eventP->packet;
 
-    (void)curr;
     eventP->sem = sem;
     eventP->packet = *event;
     eventP->origin = o;
@@ -823,6 +831,7 @@ static xLinkEvent_t* addNextQueueElemToProc(xLinkSchedulerState_t* curr,
     q->cur = eventP;
     eventP->isServed = EVENT_ALLOCATED;
     CIRCULAR_INCREMENT_BASE(q->cur, q->end, q->base);
+    XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, NULL);
     return ev;
 }
 
@@ -844,12 +853,15 @@ static xLinkEventPriv_t* dispatcherGetNextEvent(xLinkSchedulerState_t* curr)
     eventQueueHandler_t* lPriorityQueue = curr->queueProcPriority ? &curr->rQueue : &curr->lQueue;
     curr->queueProcPriority = curr->queueProcPriority ? 0 : 1;
 
+    XLINK_RET_ERR_IF(pthread_mutex_lock(&(curr->queueMutex)) != 0, NULL);
     event = getNextQueueElemToProc(hPriorityQueue);
     if (event) {
+        XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, NULL);
         return event;
     }
     event = getNextQueueElemToProc(lPriorityQueue);
 
+    XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, NULL);
     return event;
 }
 
