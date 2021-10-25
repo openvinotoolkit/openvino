@@ -168,9 +168,11 @@ void FrontEnd::add_extension(const std::string& library_path) {
     add_extension(ov::load_extension(library_path));
 }
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void FrontEnd::add_extension(const std::wstring& library_path) {
     add_extension(ov::load_extension(library_path));
 }
+#endif
 
 std::string FrontEnd::get_name() const {
     return std::string();
