@@ -18,7 +18,7 @@ public:
     static constexpr NodeTypeInfo type_info{"StaticShapeNonMaxSuppression", 0};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
 
-    explicit StaticShapeNonMaxSuppression(const ngraph::opset5::NonMaxSuppression& nms);
+    explicit StaticShapeNonMaxSuppression(ngraph::opset5::NonMaxSuppression& nms);
 
     StaticShapeNonMaxSuppression(const Output<Node>& boxes,
                                  const Output<Node>& scores,
