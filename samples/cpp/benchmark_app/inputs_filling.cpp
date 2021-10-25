@@ -748,7 +748,7 @@ std::map<std::string, std::vector<Buffer>> prepareCachedBlobs(
             filesToBeUsed = files.second.size() - files.second.size() % app_inputs_info.size();
             if (filesToBeUsed != files.second.size()) {
                 slog::warn << "Number of files must be a multiple of the number of shapes for certain input. Only " +
-                                  std::to_string(filesToBeUsed) + " will be added."
+                                  std::to_string(filesToBeUsed) + "files will be added."
                            << slog::endl;
             }
             while (files.second.size() != filesToBeUsed) {
@@ -760,7 +760,7 @@ std::map<std::string, std::vector<Buffer>> prepareCachedBlobs(
             if (shapesToBeUsed != app_inputs_info.size()) {
                 slog::warn
                     << "Number of tensor shapes must be a multiple of the number of files for certain input. Only " +
-                           std::to_string(shapesToBeUsed) + " will be added."
+                           std::to_string(shapesToBeUsed) + "files will be added."
                     << slog::endl;
             }
             while (app_inputs_info.size() != shapesToBeUsed) {

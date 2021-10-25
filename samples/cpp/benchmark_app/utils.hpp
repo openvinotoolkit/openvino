@@ -112,10 +112,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                                     })
                        ->second.size();
         if (min_size != max_size) {
-            slog::warn << "Number of shapes for all inputs must be the same (except inputs with 1 shape)."
-                          "Nummber of tensor shapes will be reduced to " +
-                              std::to_string(min_size) + " for each input."
-                       << slog::endl;
+            throw std::logic_error("Number of shapes for all inputs must be the same (except inputs with 1 shape).");
         }
     }
 
