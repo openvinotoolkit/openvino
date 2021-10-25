@@ -52,7 +52,9 @@ int64_t get_sliced_dim_size(int64_t start, int64_t stop, int64_t step, int64_t d
         // Clip max stop index (last element exclusively)
         elements_in_range = std::max(int64_t(0), std::min(dim_size, stop) - start);
     }
-    const int64_t sliced_dim_size = std::ceil(elements_in_range / std::fabs(step));
+    const int64_t rest = elements_in_range % std::abs(step);
+    const int64_t integer_div = elements_in_range / std::abs(step);
+    const int64_t sliced_dim_size = !rest ? integer_div : integer_div + 1;
     return sliced_dim_size;
 }
 
