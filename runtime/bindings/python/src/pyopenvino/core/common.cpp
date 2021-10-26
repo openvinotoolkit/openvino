@@ -46,6 +46,7 @@ const std::map<ov::element::Type, py::dtype> ov_type_to_dtype = {
     {ov::element::bf16, py::dtype("float16")},
     {ov::element::f32, py::dtype("float32")},
     {ov::element::f64, py::dtype("float64")},
+    {ov::element::i4, py::dtype("int8")},
     {ov::element::i8, py::dtype("int8")},
     {ov::element::i16, py::dtype("int16")},
     {ov::element::i32, py::dtype("int32")},
@@ -56,6 +57,7 @@ const std::map<ov::element::Type, py::dtype> ov_type_to_dtype = {
     {ov::element::u64, py::dtype("uint64")},
     {ov::element::boolean, py::dtype("bool")},
     {ov::element::u1, py::dtype("uint8")},
+    {ov::element::u4, py::dtype("uint8")},
 };
 
 const std::map<py::str, ov::element::Type> dtype_to_ov_type = {
