@@ -10,6 +10,7 @@ $ python setup.py sdist bdist_wheel
 """
 
 import os
+import sys
 import re
 from pathlib import Path
 from shutil import copyfile
@@ -39,11 +40,16 @@ py_modules.append(prefix.replace('/', '.') + 'subprocess_main')
 py_modules.append(prefix.replace('/', '.') + '__main__')
 
 # Minimal set of dependencies
-deps_whitelist = ('networkx', 'defusedxml', 'numpy')
+deps_whitelist = ['networkx', 'defusedxml', 'numpy']
+
+# for py37 and less on Windows need importlib-metadata in order to use entry_point *.exe files
+if sys.platform == 'win32' and sys.version_info[1] < 8:
+    deps_whitelist.append('importlib-metadata')
+
 deps = []
 with open('requirements.txt', 'rt') as req_file:
     for line in req_file.read().split('\n'):
-        if line.startswith(deps_whitelist):
+        if line.startswith(tuple(deps_whitelist)):
             deps.append(line)
 
 
@@ -80,7 +86,7 @@ class BuildCmd(build_py):
         ]
 
 
-packages = find_namespace_packages(prefix)
+packages = find_namespace_packages(prefix[:-1])
 packages = [prefix.replace('/', '.') + p for p in packages]
 
 setup(
