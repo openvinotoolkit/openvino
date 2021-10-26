@@ -36,83 +36,83 @@ public:
 MKLDNNPlugin::CPUTarget::CPUTarget(dnnl::impl::cpu::x64::cpu_isa_t host_isa)
     : TargetMachine(), h(new jit_snippet()), isa(host_isa) {
     // data movement
-    jitters[ngraph::opset1::Parameter::type_info] = CREATE_EMITTER(NopEmitter);
-    jitters[ngraph::snippets::op::BlockedParameter::type_info] = CREATE_EMITTER(NopEmitter);
-    jitters[ngraph::opset1::Result::type_info] = CREATE_EMITTER(NopEmitter);
-    // jitters[ngraph::opset1::Constant::type_info] = CREATE_EMITTER(); // Not supported
+    jitters[ngraph::opset1::Parameter::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
+    jitters[ngraph::snippets::op::BlockedParameter::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
+    jitters[ngraph::opset1::Result::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
+    // jitters[ngraph::opset1::Constant::get_type_info_static()] = CREATE_EMITTER(); // Not supported
 
-    jitters[ngraph::snippets::op::Load::type_info] = CREATE_EMITTER(LoadEmitter);
-    jitters[ngraph::snippets::op::VectorLoad::type_info] = CREATE_EMITTER(LoadEmitter);
-    jitters[ngraph::snippets::op::ScalarLoad::type_info] = CREATE_EMITTER(ScalarLoadEmitter);
-    jitters[ngraph::snippets::op::BroadcastLoad::type_info] = CREATE_EMITTER(BroadcastLoadEmitter);
+    jitters[ngraph::snippets::op::Load::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
+    jitters[ngraph::snippets::op::VectorLoad::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
+    jitters[ngraph::snippets::op::ScalarLoad::get_type_info_static()] = CREATE_EMITTER(ScalarLoadEmitter);
+    jitters[ngraph::snippets::op::BroadcastLoad::get_type_info_static()] = CREATE_EMITTER(BroadcastLoadEmitter);
 
-    jitters[ngraph::snippets::op::Store::type_info] = CREATE_EMITTER(StoreEmitter);
-    jitters[ngraph::snippets::op::VectorStore::type_info] = CREATE_EMITTER(StoreEmitter);
-    jitters[ngraph::snippets::op::ScalarStore::type_info] = CREATE_EMITTER(ScalarStoreEmitter);
+    jitters[ngraph::snippets::op::Store::get_type_info_static()] = CREATE_EMITTER(StoreEmitter);
+    jitters[ngraph::snippets::op::VectorStore::get_type_info_static()] = CREATE_EMITTER(StoreEmitter);
+    jitters[ngraph::snippets::op::ScalarStore::get_type_info_static()] = CREATE_EMITTER(ScalarStoreEmitter);
 
-    jitters[ngraph::snippets::op::Scalar::type_info] = CREATE_EMITTER(ScalarEmitter);
-    jitters[ngraph::snippets::op::BroadcastMove::type_info] = CREATE_EMITTER(FakeBroadcastEmitter);
-    // jitters[ngraph::snippets::op::Nop::type_info] = CREATE_EMITTER(NopEmitter); // Not supported
-    // jitters[ngraph::opset1::Broadcast::type_info] = CREATE_EMITTER(); // Not supported
+    jitters[ngraph::snippets::op::Scalar::get_type_info_static()] = CREATE_EMITTER(ScalarEmitter);
+    jitters[ngraph::snippets::op::BroadcastMove::get_type_info_static()] = CREATE_EMITTER(FakeBroadcastEmitter);
+    // jitters[ngraph::snippets::op::Nop::get_type_info_static()] = CREATE_EMITTER(NopEmitter); // Not supported
+    // jitters[ngraph::opset1::Broadcast::get_type_info_static()] = CREATE_EMITTER(); // Not supported
 
-    // jitters[ngraph::opset1::Convert::type_info] = CREATE_EMITTER(); // Not supported
-    // jitters[ngraph::opset1::FakeQuantize::type_info] = CREATE_EMITTER(); // not supported
+    // jitters[ngraph::opset1::Convert::get_type_info_static()] = CREATE_EMITTER(); // Not supported
+    // jitters[ngraph::opset1::FakeQuantize::get_type_info_static()] = CREATE_EMITTER(); // not supported
 
     // binary
-    jitters[ngraph::opset1::Add::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_add_emitter);
-    jitters[ngraph::opset1::Divide::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_divide_emitter);
-    jitters[ngraph::opset1::Equal::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_equal_emitter);
-    jitters[ngraph::opset1::FloorMod::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_floor_mod_emitter);
-    jitters[ngraph::opset1::Greater::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_greater_emitter);
-    jitters[ngraph::opset1::GreaterEqual::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_greater_equal_emitter);
-    jitters[ngraph::opset1::Less::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_less_emitter);
-    jitters[ngraph::opset1::LessEqual::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_less_equal_emitter);
-    jitters[ngraph::opset1::LogicalAnd::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_logical_and_emitter);
-    jitters[ngraph::opset1::LogicalOr::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_logical_or_emitter);
-    jitters[ngraph::opset1::LogicalXor::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_logical_xor_emitter);
-    jitters[ngraph::opset1::Maximum::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_maximum_emitter);
-    jitters[ngraph::opset1::Minimum::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_minimum_emitter);
-    jitters[ngraph::opset1::Mod::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_mod_emitter);
-    jitters[ngraph::opset1::Multiply::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_multiply_emitter);
-    jitters[ngraph::opset1::NotEqual::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_not_equal_emitter);
-    jitters[ngraph::snippets::op::PowerStatic::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_power_static_emitter);
-    jitters[ngraph::opset1::Power::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_power_dynamic_emitter);
-    jitters[ngraph::opset1::PRelu::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_prelu_emitter);
-    jitters[ngraph::opset1::SquaredDifference::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_squared_difference_emitter);
-    jitters[ngraph::opset1::Subtract::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_subtract_emitter);
-    jitters[ngraph::opset1::Xor::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_logical_xor_emitter);
+    jitters[ngraph::opset1::Add::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_add_emitter);
+    jitters[ngraph::opset1::Divide::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_divide_emitter);
+    jitters[ngraph::opset1::Equal::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_equal_emitter);
+    jitters[ngraph::opset1::FloorMod::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_floor_mod_emitter);
+    jitters[ngraph::opset1::Greater::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_greater_emitter);
+    jitters[ngraph::opset1::GreaterEqual::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_greater_equal_emitter);
+    jitters[ngraph::opset1::Less::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_less_emitter);
+    jitters[ngraph::opset1::LessEqual::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_less_equal_emitter);
+    jitters[ngraph::opset1::LogicalAnd::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_logical_and_emitter);
+    jitters[ngraph::opset1::LogicalOr::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_logical_or_emitter);
+    jitters[ngraph::opset1::LogicalXor::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_logical_xor_emitter);
+    jitters[ngraph::opset1::Maximum::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_maximum_emitter);
+    jitters[ngraph::opset1::Minimum::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_minimum_emitter);
+    jitters[ngraph::opset1::Mod::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_mod_emitter);
+    jitters[ngraph::opset1::Multiply::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_multiply_emitter);
+    jitters[ngraph::opset1::NotEqual::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_not_equal_emitter);
+    jitters[ngraph::snippets::op::PowerStatic::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_power_static_emitter);
+    jitters[ngraph::opset1::Power::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_power_dynamic_emitter);
+    jitters[ngraph::opset1::PRelu::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_prelu_emitter);
+    jitters[ngraph::opset1::SquaredDifference::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_squared_difference_emitter);
+    jitters[ngraph::opset1::Subtract::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_subtract_emitter);
+    jitters[ngraph::opset1::Xor::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_logical_xor_emitter);
 
     // unary
-    jitters[ngraph::opset1::Abs::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_abs_emitter);
-    // jitters[ngraph::opset1::Acos::type_info] = CREATE_EMITTER(); // not supported
-    // jitters[ngraph::opset1::Asin::type_info] = CREATE_EMITTER(); // not supported
-    // jitters[ngraph::opset1::Atan::type_info] = CREATE_EMITTER(); // not supported
-    // jitters[ngraph::opset1::Ceiling::type_info] = CREATE_EMITTER(); // not supported
-    jitters[ngraph::opset1::Clamp::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_clamp_emitter);
-    // jitters[ngraph::opset1::Cos::type_info] = CREATE_EMITTER(); // not supported
-    // jitters[ngraph::opset1::Cosh::type_info] = CREATE_EMITTER(); // not supported
-    jitters[ngraph::opset1::Elu::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_elu_emitter);
-    jitters[ngraph::opset1::Erf::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_erf_emitter);
-    jitters[ngraph::opset1::Exp::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_exp_emitter);
-    // jitters[ngraph::opset1::Floor::type_info] = CREATE_EMITTER(); // not supported
-    // jitters[ngraph::opset1::Log::type_info] = CREATE_EMITTER(); // not supported
-    jitters[ngraph::opset1::LogicalNot::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_logical_not_emitter);
-    jitters[ngraph::opset1::Negative::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_negative_emitter);
-    jitters[ngraph::opset1::Relu::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_relu_emitter);
-    // jitters[ngraph::opset1::Sign::type_info] = CREATE_EMITTER(); // not supported
-    jitters[ngraph::opset1::Sigmoid::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_sigmoid_emitter);
-    // jitters[ngraph::opset1::Sin::type_info] = CREATE_EMITTER(); // not supported
-    // jitters[ngraph::opset1::Sinh::type_info] = CREATE_EMITTER(); // not supported
-    jitters[ngraph::opset1::Sqrt::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_sqrt_emitter);
-    // jitters[ngraph::opset1::Tan::type_info] = CREATE_EMITTER(); // not supported
-    jitters[ngraph::opset1::Tanh::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_tanh_emitter);
+    jitters[ngraph::opset1::Abs::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_abs_emitter);
+    // jitters[ngraph::opset1::Acos::get_type_info_static()] = CREATE_EMITTER(); // not supported
+    // jitters[ngraph::opset1::Asin::get_type_info_static()] = CREATE_EMITTER(); // not supported
+    // jitters[ngraph::opset1::Atan::get_type_info_static()] = CREATE_EMITTER(); // not supported
+    // jitters[ngraph::opset1::Ceiling::get_type_info_static()] = CREATE_EMITTER(); // not supported
+    jitters[ngraph::opset1::Clamp::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_clamp_emitter);
+    // jitters[ngraph::opset1::Cos::get_type_info_static()] = CREATE_EMITTER(); // not supported
+    // jitters[ngraph::opset1::Cosh::get_type_info_static()] = CREATE_EMITTER(); // not supported
+    jitters[ngraph::opset1::Elu::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_elu_emitter);
+    jitters[ngraph::opset1::Erf::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_erf_emitter);
+    jitters[ngraph::opset1::Exp::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_exp_emitter);
+    // jitters[ngraph::opset1::Floor::get_type_info_static()] = CREATE_EMITTER(); // not supported
+    // jitters[ngraph::opset1::Log::get_type_info_static()] = CREATE_EMITTER(); // not supported
+    jitters[ngraph::opset1::LogicalNot::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_logical_not_emitter);
+    jitters[ngraph::opset1::Negative::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_negative_emitter);
+    jitters[ngraph::opset1::Relu::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_relu_emitter);
+    // jitters[ngraph::opset1::Sign::get_type_info_static()] = CREATE_EMITTER(); // not supported
+    jitters[ngraph::opset1::Sigmoid::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_sigmoid_emitter);
+    // jitters[ngraph::opset1::Sin::get_type_info_static()] = CREATE_EMITTER(); // not supported
+    // jitters[ngraph::opset1::Sinh::get_type_info_static()] = CREATE_EMITTER(); // not supported
+    jitters[ngraph::opset1::Sqrt::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_sqrt_emitter);
+    // jitters[ngraph::opset1::Tan::get_type_info_static()] = CREATE_EMITTER(); // not supported
+    jitters[ngraph::opset1::Tanh::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_tanh_emitter);
 
-    jitters[ngraph::op::v4::HSwish::type_info] = CREATE_EMITTER(MKLDNNPlugin::jit_hswish_emitter);
-    // jitters[ngraph::opset1::HardSigmoid::type_info] = CREATE_EMITTER(); // not supported
-    // jitters[ngraph::opset1::Selu::type_info] = CREATE_EMITTER(); // not supported
+    jitters[ngraph::op::v4::HSwish::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_hswish_emitter);
+    // jitters[ngraph::opset1::HardSigmoid::get_type_info_static()] = CREATE_EMITTER(); // not supported
+    // jitters[ngraph::opset1::Selu::get_type_info_static()] = CREATE_EMITTER(); // not supported
 
-    jitters[ngraph::snippets::op::Kernel::type_info] = CREATE_EMITTER(KernelEmitter);
-    jitters[ngraph::snippets::op::Tile::type_info] = CREATE_EMITTER(TileEmitter);
+    jitters[ngraph::snippets::op::Kernel::get_type_info_static()] = CREATE_EMITTER(KernelEmitter);
+    jitters[ngraph::snippets::op::Tile::get_type_info_static()] = CREATE_EMITTER(TileEmitter);
 }
 
 size_t MKLDNNPlugin::CPUTarget::get_lanes() const {
