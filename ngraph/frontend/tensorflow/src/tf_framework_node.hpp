@@ -6,9 +6,7 @@
 
 #include <algorithm>
 #include <openvino/op/util/framework_node.hpp>
-#include <tensorflow_frontend/place.hpp>
-
-#include "graph_iterator_proto.hpp"
+#include <tensorflow_frontend/decoder.hpp>
 
 namespace ov {
 namespace frontend {

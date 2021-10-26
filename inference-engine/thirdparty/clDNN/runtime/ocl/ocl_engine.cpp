@@ -213,6 +213,10 @@ stream::ptr ocl_engine::create_stream() const {
     return std::make_shared<ocl_stream>(*this);
 }
 
+stream::ptr ocl_engine::create_stream(void* handle) const {
+    return std::make_shared<ocl_stream>(*this, handle);
+}
+
 stream& ocl_engine::get_program_stream() const {
     return *_program_stream;
 }

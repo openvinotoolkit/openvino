@@ -125,6 +125,9 @@ public:
     /// Create stream object for current engine
     virtual stream_ptr create_stream() const = 0;
 
+    /// Creates stream object from user handle
+    virtual stream_ptr create_stream(void *handle) const = 0;
+
     /// Returns service stream which can be used during program build and optimizations
     virtual stream& get_program_stream() const = 0;
 
