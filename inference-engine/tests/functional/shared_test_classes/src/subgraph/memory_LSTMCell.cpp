@@ -328,6 +328,7 @@ namespace SubgraphTestsDefinitions {
 
             ConfigureNetwork();
             executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
+            inferRequest = executableNetwork.CreateInferRequest();
         } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
             cnnNetwork = InferenceEngine::CNNNetwork{function};
             InferenceEngine::lowLatency2(cnnNetwork);
@@ -337,6 +338,7 @@ namespace SubgraphTestsDefinitions {
 
             ConfigureNetwork();
             executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
+            inferRequest = executableNetwork.CreateInferRequest();
         }
     }
 }  // namespace SubgraphTestsDefinitions
