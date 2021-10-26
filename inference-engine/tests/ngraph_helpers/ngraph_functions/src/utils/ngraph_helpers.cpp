@@ -83,6 +83,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
         interpreterFunction(const std::shared_ptr<Function> &function,
                             const std::vector<std::vector<std::uint8_t>> &inputs,
                             const std::vector<ngraph::element::Type> &inputTypes) {
+    std::cout << "interpreterFunction" << std::endl;
     runtime::Backend::set_backend_shared_library_search_directory("");
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -134,13 +135,18 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
     handle->call_with_validate(outputTensors, inputTensors);
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> outputs(results.size());
     for (size_t resultIndex = 0; resultIndex < results.size(); resultIndex++) {
+//        std::cout << "output " << resultIndex << std::endl;
         auto& output = outputs[resultIndex];
         output.first = results[resultIndex]->get_element_type();
         const auto& outputTensor = outputTensors[resultIndex];
+//        auto my_shape_size = shape_size(outputTensor->get_shape());
+//        std::cout << "my_shape_size: " << my_shape_size << std::endl;
+//        auto my_bitwidth = outputTensor->get_element_type().bitwidth();
+//        std::cout << "my_bitwidth: " << my_bitwidth << std::endl;
         output.second.resize(ceil(shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().bitwidth() / 8.f));
         outputTensors[resultIndex]->read(output.second.data(), output.second.size());
     }
-
+    std::cout << std::endl;
     return outputs;
 }
 

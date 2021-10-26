@@ -107,7 +107,7 @@ void ReadIRTest::Compare(const std::vector<std::pair<ngraph::element::Type, std:
         for (size_t i = 0; i < result->get_input_size(); ++i) {
             const auto inputNode = result->get_input_node_shared_ptr(i);
             auto it = compareMap.find(inputNode->get_type_info());
-            it->second(inputNode, expected, actual, threshold);
+            it->second(inputNode, expected, actual, threshold, inputs);
         }
     }
 }

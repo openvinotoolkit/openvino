@@ -520,6 +520,30 @@ void LayerTestsCommon::Validate() {
     IE_ASSERT(actualOutputs.size() == expectedOutputs.size())
     << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
 
+    std::cout << "Expected:" << std::endl;
+    for (std::size_t i = 0; i < expectedOutputs.size(); ++i) {
+        std::cout << '\t' << i << ": " << expectedOutputs[i].first.size() << ' ' << expectedOutputs[i].second.size() << " bytes - "
+        << expectedOutputs[i].first.get_type_name() << std::endl;
+    }
+    std::cout << std::endl;
+
+    std::cout << "Actual:" << std::endl;
+    for (std::size_t i = 0; i < actualOutputs.size(); ++i) {
+        std::cout << '\t' << i << ": ";
+        auto dims = actualOutputs[i]->getTensorDesc().getDims();
+        for (std::size_t j = 0; j < dims.size(); ++j) {
+            std::cout << dims[j];
+            if (j < dims.size() - 1) {
+                std::cout << '*';
+            }
+        }
+        std::cout << " elems ";
+        std::cout << actualOutputs[0]->getTensorDesc().getPrecision().name();
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+
+
     Compare(expectedOutputs, actualOutputs);
 }
 
