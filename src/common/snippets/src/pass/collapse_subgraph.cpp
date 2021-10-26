@@ -19,7 +19,6 @@
 #include <queue>
 #include <string>
 #include <numeric>
-#include "mkldnn_itt.h"
 #include <climits>
 
 NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::StartSubgraph, "Snippets::StartSubgraph", 0);
