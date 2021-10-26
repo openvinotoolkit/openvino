@@ -49,9 +49,16 @@ def import_core_modules(silent: bool, path_to_module: str):
     try:
         from openvino.inference_engine import get_version, read_network  # pylint: disable=import-error,no-name-in-module
         from openvino.offline_transformations import ApplyMOCTransformations, ApplyLowLatencyTransformation, \
-            GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
+            ApplyMakeStatefulTransformation, GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
+
+        # TODO: it is temporary import to check that nGraph python API is available. But in future
+        # we need to replace it with Frontend imports
+        from ngraph.impl.op import Parameter  # pylint: disable=import-error,no-name-in-module
+        from _pyngraph import PartialShape, Dimension  # pylint: disable=import-error,no-name-in-module
 
         import openvino  # pylint: disable=import-error,no-name-in-module
+        import ngraph  # pylint: disable=import-error,no-name-in-module
+        import ngraph.frontend  # pylint: disable=import-error,no-name-in-module
 
         if silent:
             return True
@@ -60,6 +67,8 @@ def import_core_modules(silent: bool, path_to_module: str):
         mo_version = str(v.get_version())  # pylint: disable=no-member,no-name-in-module
 
         print("\t- {}: \t{}".format("Inference Engine found in", os.path.dirname(openvino.__file__)))
+        # TODO: when nGraph version will be available we need to start compare it to IE and MO versions. Ticket: 58091
+        print("\t- {}: \t{}".format("nGraph found in", os.path.dirname(ngraph.__file__)))
         print("{}: \t{}".format("Inference Engine version", ie_version))
         print("{}: \t{}".format("Model Optimizer version", mo_version))
 
@@ -89,7 +98,7 @@ def import_core_modules(silent: bool, path_to_module: str):
         return True
     except Exception as e:
         # Do not print a warning if module wasn't found or silent mode is on
-        if "No module named 'openvino'" not in str(e) and not silent:
+        if "No module named 'openvino'" not in str(e):
             print("[ WARNING ] Failed to import Inference Engine Python API in: {}".format(path_to_module))
             print("[ WARNING ] {}".format(e))
 

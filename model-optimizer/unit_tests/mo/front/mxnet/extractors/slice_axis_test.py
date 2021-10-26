@@ -28,7 +28,7 @@ class TestMXNetSliceAxisExtractorOp(unittest.TestCase):
             })
 
         exp_attrs = {
-            'type': 'Crop',
+            'op': 'Crop',
             'axis': 0,
             'offset': 10,
             'dim': 25

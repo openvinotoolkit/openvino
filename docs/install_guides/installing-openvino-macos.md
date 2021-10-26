@@ -4,11 +4,16 @@
 > - The Intel® Distribution of OpenVINO™ is supported on macOS\* 10.15.x versions.
 > - An internet connection is required to follow the steps in this guide. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 
+> **TIP**: If you want to [quick start with OpenVINO™ toolkit](@ref 
+> openvino_docs_get_started_get_started_dl_workbench), you can use 
+> the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench). DL Workbench is the OpenVINO™ toolkit UI 
+> that enables you to import a
+> model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for deployment
+> on various Intel® platforms. 
+
 ## Introduction
 
 The Intel® Distribution of OpenVINO™ toolkit quickly deploys applications and solutions that emulate human vision. Based on Convolutional Neural Networks (CNN), the toolkit extends computer vision (CV) workloads across Intel® hardware, maximizing performance.
-
-The Intel® Distribution of OpenVINO™ toolkit for macOS* includes the Inference Engine, OpenCV* libraries and Model Optimizer tool to deploy applications for accelerated inference on Intel® CPUs and Intel® Neural Compute Stick 2.  
 
 The Intel® Distribution of OpenVINO™ toolkit for macOS*:
 
@@ -29,20 +34,8 @@ The following components are installed by default:
 | [Sample Applications](../IE_DG/Samples_Overview.md)                                                                                | A set of simple console applications demonstrating how to use the Inference Engine in your applications. |
 | [Demos](@ref omz_demos)                                   | A set of console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use-cases  |
 | Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader) and other  |
-| [Documentation for Pre-Trained Models ](@ref omz_models_group_intel)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/opencv/open_model_zoo)  |
+| [Documentation for Pre-Trained Models ](@ref omz_models_group_intel)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/openvinotoolkit/open_model_zoo)  |
 
-**Could Be Optionally Installed**
-
-[Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare performance of deep learning models on various Intel® architecture
-configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit components:
-* [Model Downloader](@ref omz_tools_downloader)
-* [Intel® Open Model Zoo](@ref omz_models_group_intel)
-* [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-* [Post-training Optimization Tool](@ref pot_README)
-* [Accuracy Checker](@ref omz_tools_accuracy_checker)
-* [Benchmark Tool](../../inference-engine/samples/benchmark_app/README.md)
-
-Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) to get started.
 
 ## Development and Target Platform
 
@@ -59,7 +52,7 @@ The development and target platforms have the same requirements, but you can sel
 
 **Software Requirements**
 
-* CMake 3.10 or higher
+* CMake 3.13 or higher
 	+ [Install](https://cmake.org/download/) (choose "macOS 10.13 or later")
 	+ Add `/Applications/CMake.app/Contents/bin` to path (for default install) 
 * Python 3.6 - 3.7
@@ -114,7 +107,7 @@ The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and autom
 
 5. Click **Next** and follow the instructions on your screen.
 
-6. If you are missing external dependencies, you will see a warning screen. Take note of any dependencies you are missing. After installing the Intel® Distribution of OpenVINO™ toolkit core components, you will need to install the missing dependencies. For example, the screen example below indicates you are missing two dependencies:
+6. If you are missing external dependencies, you will see a warning screen. Take note of any dependencies you are missing. After installing the Intel® Distribution of OpenVINO™ toolkit core components, you will need to install the missing dependencies. For example, the screen example below indicates you are missing a dependency:
    ![](../img/openvino-install-macos-02.png)
 
 7. Click **Next**.
@@ -124,9 +117,9 @@ The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and autom
    By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>`:
 
    * For root or administrator: `/opt/intel/openvino_<version>/`
-   * For regular users: `/home/<USER>/intel/openvino_<version>/`
+   * For regular users: `/home/<USER>/intel/openvino_<version>/` 
 
-   For simplicity, a symbolic link to the latest installation is also created: `/home/<user>/intel/openvino_2021/`.
+   For simplicity, a symbolic link to the latest installation is also created: `/home/<user>/intel/openvino_2022/`.
 9. If needed, click **Customize** to change the installation directory or the components you want to install:
    ![](../img/openvino-install-macos-04.png)
    > **NOTE**: If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for next installations. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions.
@@ -145,10 +138,10 @@ The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and autom
 You need to update several environment variables before you can compile and run OpenVINO™ applications. Open the macOS Terminal\* or a command-line interface shell you prefer and run the following script to temporarily set your environment variables:
 
    ```sh
-   source /opt/intel/openvino_2021/bin/setupvars.sh
+   source /opt/intel/openvino_2022/setupvars.sh
    ```  
 
-If you didn't choose the default installation option, replace `/opt/intel/openvino_2021` with your directory.
+If you didn't choose the default installation option, replace `/opt/intel/openvino_2022` with your directory.
 
 <strong>Optional</strong>: The OpenVINO environment variables are removed when you close the shell. You can permanently set the environment variables as follows:
 
@@ -160,10 +153,10 @@ If you didn't choose the default installation option, replace `/opt/intel/openvi
 
 3. Add this line to the end of the file:
    ```sh
-   source /opt/intel/openvino_2021/bin/setupvars.sh
+   source /opt/intel/openvino_2022/setupvars.sh
    ```
 
-If you didn't choose the default installation option, replace `/opt/intel/openvino_2021` with your directory.
+If you didn't choose the default installation option, replace `/opt/intel/openvino_2022` with your directory.
 
 4. Save and close the file: press the **Esc** key, type `:wq` and press the **Enter** key.
 
@@ -196,7 +189,7 @@ You can choose to either configure the Model Optimizer for all supported framewo
 
 1. Go to the Model Optimizer prerequisites directory:
    ```sh
-   cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
+   cd /opt/intel/openvino_2022/tools/model_optimizer/install_prerequisites
    ```
 
 2. Run the script to configure the Model Optimizer for Caffe, TensorFlow 1.x, MXNet, Kaldi\*, and ONNX:
@@ -210,7 +203,7 @@ Configure individual frameworks separately **ONLY** if you did not select **Opti
 
 1. Go to the Model Optimizer prerequisites directory:
    ```sh
-   cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
+   cd /opt/intel/openvino_2022/tools/model_optimizer/install_prerequisites
    ```
 
 2. Run the script for your model framework. You can run more than one script:
@@ -279,14 +272,14 @@ Now you are ready to get started. To continue, see the following pages:
 
 Follow the steps below to uninstall the Intel® Distribution of OpenVINO™ Toolkit from your system:
 
-1. From the the installation directory (by default, `/opt/intel/openvino_2021`), locate and open `openvino_toolkit_uninstaller.app`.
+1. From the installation directory (by default, `/opt/intel/openvino_2022`), locate and open `openvino_toolkit_uninstaller.app`.
 2. Follow the uninstallation wizard instructions.
 3. When uninstallation is complete, click **Finish**. 
 
 
 ## Additional Resources
 
-- To learn more about the verification applications, see `README.txt` in `/opt/intel/openvino_2021/deployment_tools/demo/`.
+- To learn more about the verification applications, see `README.txt` in `/opt/intel/openvino_2022/samples/scripts/`.
 
 - For detailed description of the pre-trained models, go to the [Overview of OpenVINO toolkit Pre-Trained Models](@ref omz_models_group_intel) page.
 

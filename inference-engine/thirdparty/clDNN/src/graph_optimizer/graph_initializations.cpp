@@ -38,7 +38,7 @@ std::string get_id_string(size_t i) {
     return ss.str();
 }
 
-void graph_initializations::handle_split_node(program_impl& p, split_node& node) {
+void graph_initializations::handle_split_node(program& p, split_node& node) {
     if (!node.get_users().empty()) {
         throw std::logic_error("Split layer cannot be used directly! Please use split output \"" + node.id() +
                                ":<split_output_id>\"!");
@@ -97,7 +97,7 @@ void graph_initializations::handle_split_node(program_impl& p, split_node& node)
     p.nodes_map.erase(node.id());
 }
 
-void graph_initializations::handle_lstm_node(program_impl& p, lstm_node& node) {
+void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
     // lstm_node& lstm_node = node->as<lstm>();
     bool initial_hidden_term = node.initial_hidden_term();
     bool initial_cell_term = node.initial_cell_term();
@@ -329,7 +329,7 @@ void graph_initializations::handle_lstm_node(program_impl& p, lstm_node& node) {
     p.nodes_map.erase(node.id());
 }
 
-void graph_initializations::handle_dynamic_lstm_node(program_impl& p, lstm_dynamic_node& node) {
+void graph_initializations::handle_dynamic_lstm_node(program& p, lstm_dynamic_node& node) {
     // [0] Prepare helper temp variables.
     // auto& lstm_dynamic_node = node->as<lstm_dynamic>();
     auto& node_id = node.id();
@@ -346,6 +346,7 @@ void graph_initializations::handle_dynamic_lstm_node(program_impl& p, lstm_dynam
                                              dyn_length_id,
                                              weights_id,
                                              bias_id,
+                                             "",
                                              node.get_primitive()->output_padding);
     auto& lstm_dynamic_input_node = p.get_or_create(lstm_dynamic_input_primitive);
     p.add_connection(node.input(), lstm_dynamic_input_node);  // connect real input to dlstm_input
@@ -372,6 +373,7 @@ void graph_initializations::handle_dynamic_lstm_node(program_impl& p, lstm_dynam
                                                 init_cell_id,
                                                 node.clip(),
                                                 node.input_forget(),
+                                                "",
                                                 lstm_dynamic_input_primitive->output_padding);
     auto& lstm_dynamic_timeloop_node = p.get_or_create(lstm_dynamic_timeloop_primitive);
     p.add_connection(lstm_dynamic_input_node, lstm_dynamic_timeloop_node);  // connect dlstm_input to dlstm_timeloop
@@ -402,7 +404,7 @@ void graph_initializations::handle_dynamic_lstm_node(program_impl& p, lstm_dynam
     // we dont have to set output since it will be done in next graph_opts step
 }
 
-void graph_initializations::set_outputs(program_impl& p) {
+void graph_initializations::set_outputs(program& p) {
     auto outputs_option = p.get_options().get<build_option_type::outputs>();
     if (!outputs_option->outputs.empty()) {
         for (auto const& output : outputs_option->outputs) {
@@ -419,7 +421,7 @@ void graph_initializations::set_outputs(program_impl& p) {
     }
 }
 
-void graph_initializations::run(program_impl& p) {
+void graph_initializations::run(program& p) {
     auto itr = p.nodes_map.begin();
     while (itr != p.nodes_map.end()) {
         auto node_itr = itr++;

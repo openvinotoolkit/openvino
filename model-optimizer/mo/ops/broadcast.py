@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from mo.front.common.partial_infer.utils import is_fully_defined
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
@@ -23,8 +24,8 @@ class Broadcast(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset3',
             'mode': 'numpy',
             'in_ports_count': 3,
@@ -33,7 +34,7 @@ class Broadcast(Op):
                 {1: 'int64',
                  2: 'int64',
                  },
-            'infer': __class__.infer,
+            'infer': self.infer,
         }, attrs)
 
     def supported_attrs(self):
@@ -51,15 +52,16 @@ class Broadcast(Op):
 
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'output:0', 'shape')
 
-        if input_value is not None and not node.has_and_set('stop_value_propagation'):
+        if input_value is not None and not node.has_and_set('stop_value_propagation') and \
+                is_fully_defined(target_shape):
             if node.mode == 'numpy':
                 node.out_port(0).data.set_value(uni_directional_broadcasting(input_value, target_shape))
             elif node.mode == 'bidirectional':
                 node.out_port(0).data.set_value(bi_directional_broadcasting(input_value, target_shape))
             elif node.mode == 'explicit':
                 axes_mapping = node.in_port(2).data.get_value()
-                assert axes_mapping  is not None, 'Broadcast(mode="explicit") with dynamic axes_mapping input ' \
-                                                  'is not supported. Node: `{}`'.format(node_name)
+                assert axes_mapping is not None, 'Broadcast(mode="explicit") with dynamic axes_mapping input ' \
+                                                 'is not supported. Node: `{}`'.format(node_name)
                 PermuteInputs().set_input_permutation(node.in_node(2), node, 'output:0', 'axis')
                 axes_mapping = node.in_port(2).data.get_value()
                 node.out_port(0).data.set_value(explicit_broadcasting(input_value, target_shape, axes_mapping))
@@ -76,7 +78,7 @@ class Broadcast(Op):
                                                  'is not supported. Node: `{}`'.format(node_name)
                 PermuteInputs().set_input_permutation(node.in_node(2), node, 'output:0', 'axis')
                 axes_mapping = node.in_port(2).data.get_value()
-                new_shape,_ = explicit_shape_broadcasting(input_shape, target_shape, axes_mapping)
+                new_shape, _ = explicit_shape_broadcasting(input_shape, target_shape, axes_mapping)
                 node.out_port(0).data.set_shape(new_shape)
             else:
                 raise Error('The node "{}" has unsupported mode "{}"'.format(node_name, node.mode))

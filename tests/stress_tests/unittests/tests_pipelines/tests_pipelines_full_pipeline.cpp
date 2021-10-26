@@ -3,7 +3,7 @@
 //
 
 #include "tests_pipelines.h"
-#include "../common/ie_utils.h"
+#include "common_utils.h"
 
 #include <string>
 

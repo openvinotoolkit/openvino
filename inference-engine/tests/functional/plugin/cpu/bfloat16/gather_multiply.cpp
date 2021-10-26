@@ -110,7 +110,7 @@ TEST_P(Gather_multiply, CompareWithRefImpl) {
     test();
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, Gather_multiply,
+INSTANTIATE_TEST_SUITE_P(smoke_BF16_bfloat16_NoReshape, Gather_multiply,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::BF16),
@@ -119,7 +119,7 @@ INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, Gather_multiply,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         Gather_multiply::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, Gather_multiply,
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_NoReshape, Gather_multiply,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::FP32),

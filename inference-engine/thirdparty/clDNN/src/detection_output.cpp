@@ -4,8 +4,7 @@
 
 #include "detection_output_inst.h"
 #include "primitive_type_base.h"
-#include "network_impl.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -118,7 +117,7 @@ std::string detection_output_inst::to_string(detection_output_node const& node) 
     return primitive_description.str();
 }
 
-detection_output_inst::typed_primitive_inst(network_impl& network, detection_output_node const& node)
+detection_output_inst::typed_primitive_inst(network& network, detection_output_node const& node)
     : parent(network, node) {
     auto location_layout = node.location().get_output_layout();
     auto confidence_layout = node.confidence().get_output_layout();

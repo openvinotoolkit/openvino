@@ -16,8 +16,9 @@
 #include "ngraph/op/max.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/reduce.hpp"
-#include "api/reorder.hpp"
+#include "cldnn/primitives/reduce.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/reshape.hpp"
 
 namespace CLDNNPlugin {
 
@@ -74,9 +75,32 @@ void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::
                                     inputPrimitives[0],
                                     mode,
                                     axes,
-                                    static_cast<int32_t>(keep_dims));
+                                    static_cast<int32_t>(keep_dims),
+                                    op->get_friendly_name());
 
     p.AddPrimitive(reducePrim);
+
+    auto resultLayerName = layerName;
+    auto out_dims = op->get_output_shape(0).size();
+    if (out_dims == 3 && !keep_dims && rank >= 4) {
+        resultLayerName = layerName + "_reshape";
+        auto out_shape = op->get_output_shape(0);
+        cldnn::tensor outTensor;
+        switch (rank) {
+            case 6:
+                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
+                                          1, TensorValue(out_shape[2]), 1, 1);
+            case 5:
+                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
+                                          1, TensorValue(out_shape[2]), 1);
+            case 4:
+                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
+                                          1, TensorValue(out_shape[2]));
+        }
+        auto reshape_prim = cldnn::reshape(resultLayerName, layerName, outTensor, op->get_friendly_name());
+        p.AddPrimitive(reshape_prim);
+        p.AddPrimitiveToProfiler(op, resultLayerName);
+    }
 
     auto reorderLayerName = layerName + "_reorder";
     cldnn::format out_format = cldnn::format::any;
@@ -89,7 +113,13 @@ void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::
         else if (rank - rawAxes.size() <= 4)
             out_format = cldnn::format::bfyx;
 
-        auto reorder_prim = cldnn::reorder(reorderLayerName, layerName, out_format, out_dt);
+        auto reorder_prim = cldnn::reorder(reorderLayerName,
+                                           resultLayerName,
+                                           out_format,
+                                           out_dt,
+                                           std::vector<float>(),
+                                           cldnn::reorder_mean_mode::subtract,
+                                           op->get_friendly_name());
         p.AddPrimitive(reorder_prim);
         p.AddPrimitiveToProfiler(op, reorderLayerName);
     } else {

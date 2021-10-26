@@ -25,10 +25,10 @@
 #include "ngraph/op/power.hpp"
 #include "ngraph/op/floor_mod.hpp"
 
-#include "api/activation.hpp"
-#include "api/eltwise.hpp"
-#include "api/reorder.hpp"
-#include "api/reshape.hpp"
+#include "cldnn/primitives/activation.hpp"
+#include "cldnn/primitives/eltwise.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/reshape.hpp"
 
 namespace CLDNNPlugin {
 
@@ -46,7 +46,13 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
             if (targetFormat.value != DefaultFormatForDims(inputRank).value) {
                 auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
                 auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(i));
-                auto reorderPrim = cldnn::reorder(reorderName, inputPrimitives[i], targetFormat, targetDatatype);
+                auto reorderPrim = cldnn::reorder(reorderName,
+                                                  inputPrimitives[i],
+                                                  targetFormat,
+                                                  targetDatatype,
+                                                  std::vector<float>(),
+                                                  cldnn::reorder_mean_mode::subtract,
+                                                  op->get_friendly_name());
 
                 p.AddPrimitive(reorderPrim);
                 p.AddInnerPrimitiveToProfiler(reorderName, layerName, op);
@@ -61,7 +67,7 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
 
             auto targetShape = CldnnTensorFromIEDims(inputShape);
 
-            auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
+            auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
             p.AddPrimitive(reshapePrim);
             p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
 
@@ -74,7 +80,8 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
                                       inputPrimitives,
                                       mode,
                                       {},
-                                      out_dt);
+                                      out_dt,
+                                      op->get_friendly_name());
 
     p.AddPrimitive(eltwisePrim);
     p.AddPrimitiveToProfiler(op);

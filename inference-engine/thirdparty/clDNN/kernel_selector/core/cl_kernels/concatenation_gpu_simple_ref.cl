@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/fetch_data.cl"
 
 ///////////////////////// Input Index /////////////////////////
 inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x)
@@ -19,6 +20,8 @@ inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x
     return GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX(INPUT0, b, f, z, y, x);
 #elif INPUT0_LAYOUT_BS_FS_YX_BSV16_FSV16
     return GET_DATA_BS_FS_YX_BSV16_FSV16_INDEX(INPUT0, b, f, y, x);
+#elif INPUT0_LAYOUT_BS_FS_YX_BSV32_FSV32
+    return GET_DATA_BS_FS_YX_BSV32_FSV32_INDEX(INPUT0, b, f, y, x);
 #else
 #error concatenation_gpu_simple_ref.cl: input format - not supported
 #endif
@@ -39,6 +42,8 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint 
     return GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX(OUTPUT, b, f, z, y, x);
 #elif OUTPUT_LAYOUT_BS_FS_YX_BSV16_FSV16
     return GET_DATA_BS_FS_YX_BSV16_FSV16_INDEX(OUTPUT, b, f, y, x);
+#elif OUTPUT_LAYOUT_BS_FS_YX_BSV32_FSV32
+    return GET_DATA_BS_FS_YX_BSV32_FSV32_INDEX(OUTPUT, b, f, y, x);
 #else
 #error concatenation_gpu_simple_ref.cl: output format - not supported
 #endif

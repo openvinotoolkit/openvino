@@ -28,7 +28,7 @@ For example, to add the description of the `CustomReshape` layer, which is an ar
     
 2.  Generate a new parser:
 ```shell
-cd <INSTALL_DIR>/deployment_tools/model_optimizer/mo/front/caffe/proto
+cd <INSTALL_DIR>/tools/model_optimizer/mo/front/caffe/proto
 python3 generate_caffe_pb2.py --input_proto <PATH_TO_CUSTOM_CAFFE>/src/caffe/proto/caffe.proto
 ```
 where `PATH_TO_CUSTOM_CAFFE` is the path to the root directory of custom Caffe\*.
@@ -66,7 +66,7 @@ The mean file that you provide for the Model Optimizer must be in a `.binaryprot
 
 #### 7. What does the message "Invalid proto file: there is neither 'layer' nor 'layers' top-level messages" mean? <a name="question-7"></a>
 
-The structure of any Caffe\* topology is described in the `caffe.proto` file of any Caffe version. For example, in the Model Optimizer, you can find the following proto file, used by default: `<INSTALL_DIR>/deployment_tools/model_optimizer/mo/front/caffe/proto/my_caffe.proto`. There you can find the structure:
+The structure of any Caffe\* topology is described in the `caffe.proto` file of any Caffe version. For example, in the Model Optimizer, you can find the following proto file, used by default: `<INSTALL_DIR>/tools/model_optimizer/mo/front/caffe/proto/my_caffe.proto`. There you can find the structure:
 ```
 message NetParameter {
   // ... some other parameters
@@ -81,7 +81,7 @@ This means that any topology should contain layers as top-level structures in `p
 
 #### 8. What does the message "Old-style inputs (via 'input_dims') are not supported. Please specify inputs via 'input_shape'" mean? <a name="question-8"></a>
 
-The structure of any Caffe\* topology is described in the `caffe.proto` file for any Caffe version. For example, in the Model Optimizer you can find the following `.proto` file, used by default: `<INSTALL_DIR>/deployment_tools/model_optimizer/mo/front/caffe/proto/my_caffe.proto`. There you can find the structure:
+The structure of any Caffe\* topology is described in the `caffe.proto` file for any Caffe version. For example, in the Model Optimizer you can find the following `.proto` file, used by default: `<INSTALL_DIR>/tools/model_optimizer/mo/front/caffe/proto/my_caffe.proto`. There you can find the structure:
 ```sh
 message NetParameter {
 
@@ -628,3 +628,15 @@ It means that you trying to convert the topology which contains '_contrib_box_nm
 </script>
 
 \endhtmlonly
+
+#### 103. What does the message "ModelOptimizer is not able to parse *.caffemodel" mean? <a name="question-103"></a>
+
+If a '*.caffemodel' file exists and it is correct, the error possibly occured due to the use of Python protobuf implementation. In some cases, it shows error message during model parsing, for example: "'utf-8' codec can't decode byte 0xe0 in position 4: invalid continuation byte in field: mo_caffe.SpatialTransformerParameter.transform_type". You can either use Python 3.6/3.7 or build 'cpp' implementation of protobuf yourself for your version of Python. For the complete instructions about building `protobuf` from sources, see the appropriate section in [Converting a Model to Intermediate Representation](Config_Model_Optimizer.md).
+
+#### 104. What does the message "SyntaxError: 'yield' inside list comprehension" during MxNet\* model conversion mean? <a name="question-104"></a>
+
+The issue "SyntaxError: 'yield' inside list comprehension" might occur during converting MXNet\* models (mobilefacedet-v1-mxnet, brain-tumor-segmentation-0001) on Windows* platform with Python* 3.8 environment. This issue is caused by API changes for `yield expression` in Python 3.8.
+The following workarounds are suggested to resolve this issue:
+1. Use Python 3.6/3.7 to convert MXNet\* models on Windows
+2. Update MXNet: pip install mxnet=1.7.0.post2
+Note that you might have conflicts between previously installed PyPI dependencies.

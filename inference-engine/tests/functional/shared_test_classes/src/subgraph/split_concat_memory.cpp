@@ -10,7 +10,7 @@ namespace SubgraphTestsDefinitions {
 using namespace CommonTestUtils;
 using namespace InferenceEngine;
 
-std::string SplitConcatMemory::getTestCaseName(testing::TestParamInfo<ParamType> obj) {
+std::string SplitConcatMemory::getTestCaseName(const testing::TestParamInfo<ParamType>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     int axis;

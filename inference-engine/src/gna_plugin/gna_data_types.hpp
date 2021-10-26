@@ -25,6 +25,12 @@ struct TranspositionInfo {
 
 using TranspositionInfoMap = std::map<std::string, std::vector<TranspositionInfo>>;
 
+static inline bool FoundPartToTranspose(const std::vector<TranspositionInfo> &transpositionInfo) {
+    auto partToTranspose = std::find_if(std::begin(transpositionInfo), std::end(transpositionInfo),
+        [](const TranspositionInfo &infoPart) { return infoPart.transpose; });
+    return partToTranspose != std::end(transpositionInfo);
+}
+
 namespace GNAPluginNS {
 #if  GNA_LIB_VER == 2
     using dnn_ptr = std::shared_ptr<CPPWrapper<Gna2Model>>;

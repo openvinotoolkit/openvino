@@ -2,14 +2,14 @@
 
 **Versioned name**: *LogSoftmax-5*
 
-**Category**: *Activation*
+**Category**: *Activation function*
 
 **Short description**: LogSoftmax computes the natural logarithm of softmax values for the given input.
 
 **Note**:  This is recommended to not compute LogSoftmax directly as Log(Softmax(x, axis)), more numeric stable is to compute LogSoftmax as:
 \f[
-t = (x - ReduceMax(x, axis)) \\
-LogSoftmax(x, axis) = t - Log(ReduceSum(Exp(t), axis))
+t = (x - ReduceMax(x,\ axis)) \\
+LogSoftmax(x, axis) = t - Log(ReduceSum(Exp(t),\ axis))
 \f]
 
 **Attributes**
@@ -24,15 +24,15 @@ LogSoftmax(x, axis) = t - Log(ReduceSum(Exp(t), axis))
 
 **Inputs**:
 
-*   **1**: Input tensor *x* of type T with enough number of dimension to be compatible with *axis* attribute. Required.
+*   **1**: Input tensor *x* of type *T* with enough number of dimension to be compatible with *axis* attribute. **Required.**
 
 **Outputs**:
 
-*   **1**: The resulting tensor of the same shape and of type T.
+*   **1**: The resulting tensor of the same shape and of type *T*.
 
 **Types**
 
-* *T*: any floating point type.
+* *T*: any floating-point type.
 
 **Mathematical Formulation**
 

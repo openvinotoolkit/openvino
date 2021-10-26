@@ -19,6 +19,10 @@
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 
+#include "openvino/runtime/common.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "ie_ngraph_utils.hpp"
+
 
 namespace FuncTestUtils {
 namespace Bf16TestUtils {
@@ -259,6 +263,43 @@ compareBlobData(const std::vector<InferenceEngine::Blob::Ptr> &res, const std::v
 }
 
 inline void
+compare_tensor(const ov::runtime::Tensor& res_tensor, const ov::runtime::Tensor& ref_tensor, float max_diff = 0.01,
+             const std::string& assertDetails = "", bool printData = false) {
+    ASSERT_EQ(res_tensor.get_byte_size(), ref_tensor.get_byte_size()) << "Tensors have different byteSize(): "
+                                                          << res_tensor.get_byte_size() << " and " << ref_tensor.get_byte_size();
+
+    auto res_shape = res_tensor.get_shape();
+    auto res = make_blob_with_precision(
+        {ov::ie::details::convertPrecision(res_tensor.get_element_type()),
+         {res_shape.begin(), res_shape.end()},
+         ov::ie::TensorDesc::getLayoutByRank(res_shape.size())}, res_tensor.data());
+
+    auto ref_shape = ref_tensor.get_shape();
+    auto ref = make_blob_with_precision(
+        {ov::ie::details::convertPrecision(ref_tensor.get_element_type()),
+         {ref_shape.begin(), ref_shape.end()},
+         ov::ie::TensorDesc::getLayoutByRank(ref_shape.size())}, ref_tensor.data());
+
+    ASSERT_EQ(res->getTensorDesc(), ref->getTensorDesc()) << "Blobs have different TensorDesc()";
+
+    switch (res->getTensorDesc().getPrecision()) {
+#define COMPARE_WITH_REF(TYPE) case TYPE: { \
+                                          FuncTestUtils::compareBlobData<TYPE>(res, \
+                                                                                 ref, \
+                                                                                 max_diff, \
+                                                                                 assertDetails, \
+                                                                                 printData); break; }
+        COMPARE_WITH_REF(InferenceEngine::Precision::FP32);
+        COMPARE_WITH_REF(InferenceEngine::Precision::FP16);
+        COMPARE_WITH_REF(InferenceEngine::Precision::I64);
+#undef COMPARE_WITH_REF
+        default:
+            IE_THROW() << "Precision " << res->getTensorDesc().getPrecision().name()
+                               << " is not covered by FuncTestUtils::compareBlobs() method";
+    }
+}
+
+inline void
 compareBlobs(const InferenceEngine::Blob::Ptr &res, const InferenceEngine::Blob::Ptr &ref, float max_diff = 0.01,
              const std::string &assertDetails = "", bool printData = false) {
     ASSERT_EQ(res->byteSize(), ref->byteSize()) << "Blobs have different byteSize(): "
@@ -471,23 +512,64 @@ inline InferenceEngine::Blob::Ptr createAndFillBlob(const InferenceEngine::Tenso
     blob->allocate();
     switch (td.getPrecision()) {
 #define CASE(X) case X: CommonTestUtils::fill_data_random<X>(blob, range, start_from, resolution, seed); break;
+        CASE(InferenceEngine::Precision::FP64)
         CASE(InferenceEngine::Precision::FP32)
         CASE(InferenceEngine::Precision::FP16)
         CASE(InferenceEngine::Precision::BF16)
+        CASE(InferenceEngine::Precision::U4)
         CASE(InferenceEngine::Precision::U8)
+        CASE(InferenceEngine::Precision::U32)
         CASE(InferenceEngine::Precision::U16)
+        CASE(InferenceEngine::Precision::U64)
+        CASE(InferenceEngine::Precision::I4)
         CASE(InferenceEngine::Precision::I8)
         CASE(InferenceEngine::Precision::I16)
-        CASE(InferenceEngine::Precision::I64)
-        CASE(InferenceEngine::Precision::U64)
-        CASE(InferenceEngine::Precision::BIN)
         CASE(InferenceEngine::Precision::I32)
+        CASE(InferenceEngine::Precision::I64)
+        CASE(InferenceEngine::Precision::BIN)
         CASE(InferenceEngine::Precision::BOOL)
 #undef CASE
         default:
             IE_THROW() << "Wrong precision specified: " << td.getPrecision().name();
     }
     return blob;
+}
+
+inline ov::runtime::Tensor create_and_fill_tensor(
+        const ov::element::Type element_type,
+        const ov::Shape& shape,
+        const uint32_t range = 10,
+        const int32_t start_from = 0,
+        const int32_t resolution = 1,
+        const int seed = 1) {
+    auto tensor = ov::runtime::Tensor{element_type, shape};
+    InferenceEngine::Blob::Ptr blob = make_blob_with_precision(
+        {ov::ie::details::convertPrecision(element_type),
+         {shape.begin(), shape.end()},
+         ov::ie::TensorDesc::getLayoutByRank(shape.size())}, tensor.data());
+    switch (ov::ie::details::convertPrecision(element_type)) {
+#define CASE(X) case X: CommonTestUtils::fill_data_random<X>(blob, range, start_from, resolution, seed); break;
+        CASE(InferenceEngine::Precision::FP64)
+        CASE(InferenceEngine::Precision::FP32)
+        CASE(InferenceEngine::Precision::FP16)
+        CASE(InferenceEngine::Precision::BF16)
+        CASE(InferenceEngine::Precision::U4)
+        CASE(InferenceEngine::Precision::U8)
+        CASE(InferenceEngine::Precision::U32)
+        CASE(InferenceEngine::Precision::U16)
+        CASE(InferenceEngine::Precision::U64)
+        CASE(InferenceEngine::Precision::I4)
+        CASE(InferenceEngine::Precision::I8)
+        CASE(InferenceEngine::Precision::I16)
+        CASE(InferenceEngine::Precision::I32)
+        CASE(InferenceEngine::Precision::I64)
+        CASE(InferenceEngine::Precision::BIN)
+        CASE(InferenceEngine::Precision::BOOL)
+#undef CASE
+        default:
+            IE_THROW() << "Wrong precision specified: " << element_type;
+    }
+    return tensor;
 }
 
 inline InferenceEngine::Blob::Ptr createAndFillBlobConsistently(
@@ -648,45 +730,122 @@ inline short reducePrecisionBitwiseS(const float in) {
 
 }  // namespace Bf16TestUtils
 
-enum class BlobKind {
-    Simple,
+enum class BlobType {
+    Memory,
+    Batched,
     Compound,
-    BatchOfSimple
+//    Remote,
+    I420,
+    NV12,
 };
 
-inline std::ostream& operator<<(std::ostream& os, BlobKind kind) {
-    switch (kind) {
-    case BlobKind::Simple:
-        return os << "Simple";
-    case BlobKind::Compound:
+inline std::ostream& operator<<(std::ostream& os, BlobType type) {
+    switch (type) {
+    case BlobType::Memory:
+        return os << "Memory";
+    case BlobType::Batched:
+        return os << "Batched";
+    case BlobType::Compound:
         return os << "Compound";
-    case BlobKind::BatchOfSimple:
-        return os << "BatchOfSimple";
+//    case BlobType::Remote:
+//        return os << "Remote";
+    case BlobType::I420:
+        return os << "I40";
+    case BlobType::NV12:
+        return os << "NV12";
     default:
-        IE_THROW() << "Test does not support the blob kind";
-  }
+        IE_THROW() << "Not supported blob type";
+    }
 }
 
-inline InferenceEngine::Blob::Ptr makeBlobOfKind(const InferenceEngine::TensorDesc& td, BlobKind blobKind) {
-    using namespace ::InferenceEngine;
-    switch (blobKind) {
-    case BlobKind::Simple:
+inline InferenceEngine::Blob::Ptr createBlobByType(const InferenceEngine::TensorDesc& td, BlobType blobType) {
+    switch (blobType) {
+    case BlobType::Memory:
         return createAndFillBlob(td);
-    case BlobKind::Compound:
-        return make_shared_blob<CompoundBlob>(std::vector<Blob::Ptr>{});
-    case BlobKind::BatchOfSimple: {
-        const auto subBlobsNum = td.getDims()[0];
-        auto subBlobDesc = td;
-        subBlobDesc.getDims()[0] = 1;
-        std::vector<Blob::Ptr> subBlobs;
+    case BlobType::Batched:
+    case BlobType::Compound: {
+        auto dims = td.getDims();
+        const size_t subBlobsNum = dims.front();
+        dims[0] = 1;
+        std::vector<InferenceEngine::Blob::Ptr> subBlobs;
+        InferenceEngine::TensorDesc subBlobDesc(td.getPrecision(), dims, td.getLayout());
         for (size_t i = 0; i < subBlobsNum; i++) {
-            subBlobs.push_back(makeBlobOfKind(subBlobDesc, BlobKind::Simple));
+            subBlobs.push_back(createAndFillBlob(subBlobDesc));
         }
-        return make_shared_blob<BatchedBlob>(subBlobs);
+        return blobType == BlobType::Batched ? InferenceEngine::make_shared_blob<InferenceEngine::BatchedBlob>(subBlobs) :
+                InferenceEngine::make_shared_blob<InferenceEngine::CompoundBlob>(subBlobs);
+    }
+// TODO: ocl + remote
+//    case BlobType::Remote:
+//        return  InferenceEngine::as<InferenceEngine::RemoteBlob>(createAndFillBlob(td));
+    case BlobType::I420: {
+        InferenceEngine::SizeVector dims = td.getDims();
+        dims[1] = 1;
+        InferenceEngine::TensorDesc td1(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
+        InferenceEngine::Blob::Ptr y_blob = createAndFillBlob(td1);
+        dims[2] /= 2;
+        dims[3] /= 2;
+        td1 = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
+        InferenceEngine::Blob::Ptr u_blob = createAndFillBlob(td1);
+        InferenceEngine::Blob::Ptr v_blob = createAndFillBlob(td1);
+        return InferenceEngine::make_shared_blob<InferenceEngine::I420Blob>(y_blob, u_blob, v_blob);
+    }
+    case BlobType::NV12: {
+        InferenceEngine::SizeVector dims = td.getDims();
+        dims[1] = 1;
+        InferenceEngine::TensorDesc td1(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
+        InferenceEngine::Blob::Ptr y_blob = createAndFillBlob(td1);
+        dims[1] = 2;
+        dims[2] /= 2;
+        dims[3] /= 2;
+        td1 = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
+        InferenceEngine::Blob::Ptr uv_blob = createAndFillBlob(td1);
+        return InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(y_blob, uv_blob);
     }
     default:
         IE_THROW() << "Test does not support the blob kind";
     }
 }
 
+inline bool checkLayout(InferenceEngine::Layout layout, const std::vector<size_t> &inputShapes) {
+    bool check = false;
+    switch (layout) {
+        case InferenceEngine::Layout::SCALAR:
+            check = inputShapes.size() == 0;
+            break;
+        case InferenceEngine::Layout::C:
+            check = 1 == inputShapes.size();
+            break;
+        case InferenceEngine::Layout::BLOCKED:
+        case InferenceEngine::Layout::ANY:
+            check = true;
+            break;
+        case InferenceEngine::Layout::GOIDHW:
+            check = 6 == inputShapes.size();
+            break;
+        case InferenceEngine::Layout::NCDHW:
+        case InferenceEngine::Layout::NDHWC:
+        case InferenceEngine::Layout::OIDHW:
+        case InferenceEngine::Layout::GOIHW:
+            check = 5 == inputShapes.size();
+            break;
+        case InferenceEngine::Layout::OIHW:
+        case InferenceEngine::Layout::NCHW:
+        case InferenceEngine::Layout::NHWC:
+            check = 4 == inputShapes.size();
+            break;
+        case InferenceEngine::Layout::CHW:
+        case InferenceEngine::Layout::HWC:
+            check = 3 == inputShapes.size();
+            break;
+        case InferenceEngine::Layout::CN:
+        case InferenceEngine::Layout::NC:
+        case InferenceEngine::Layout::HW:
+            check = 2 == inputShapes.size();
+            break;
+        default:
+            break;
+    }
+    return check;
+}
 }  // namespace FuncTestUtils

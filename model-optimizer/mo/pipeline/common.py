@@ -194,7 +194,8 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
     # do not run the type inference in sub-graphs. It will be called automatically as part of the type inference of
     # the TensorIterator nodes
     type_infer(graph)
-    RemoveUselessConvert().find_and_replace_pattern(graph)
+
+    for_graph_and_each_sub_graph_recursively(graph, RemoveUselessConvert().find_and_replace_pattern)
 
     ResultRename().find_and_replace_pattern(graph)
 

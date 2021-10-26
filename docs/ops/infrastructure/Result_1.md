@@ -6,13 +6,13 @@
 
 **Short description**: *Result* layer specifies output of the model.
 
-**Attributes**: 
+**Attributes**:
 
     No attributes available.
 
 **Inputs**
 
-* **1**: A tensor of type T. **Required.**
+* **1**: A tensor of type *T*. **Required.**
 
 **Types**
 

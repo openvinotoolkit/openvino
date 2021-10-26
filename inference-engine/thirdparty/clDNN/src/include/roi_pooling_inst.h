@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/roi_pooling.hpp"
+#include "cldnn/primitives/roi_pooling.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {
@@ -34,8 +35,8 @@ public:
 public:
     using parent::parent;
 
-    memory_impl& rois_memory() const { return dep_memory(1); }
-    memory_impl& trans_memory() const { return dep_memory(2); }
+    memory::ptr rois_memory() const { return dep_memory_ptr(1); }
+    memory::ptr trans_memory() const { return dep_memory_ptr(2); }
 };
 
 using roi_pooling_inst = typed_primitive_inst<roi_pooling>;

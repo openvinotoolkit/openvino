@@ -70,15 +70,9 @@ public:
         ngraph::Output<ngraph::Node> last = input;
         if (!mul_const.skip) {
             last = std::make_shared<ngraph::opset1::Multiply>(last, create_constant(mul_const.shape, mul_const.value));
-            if (is_dequantization) {
-                ngraph::builder::subgraph::addDequantizationAttribute(last.get_node_shared_ptr());
-            }
         }
         if (!add_const.skip) {
             last = std::make_shared<ngraph::opset1::Add>(last, create_constant(add_const.shape, add_const.value));
-            if (is_dequantization) {
-                ngraph::builder::subgraph::addDequantizationAttribute(last.get_node_shared_ptr());
-            }
         }
         last = std::make_shared<ngraph::opset1::Relu>(last);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{last.get_node_shared_ptr()}, ngraph::ParameterVector{input});
@@ -147,25 +141,39 @@ public:
 class MulOrAddConversionTests: public MulAddConversionTests {};
 
 TEST_P(MulAddConversionTests, CompareFunctions) {
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+
     ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
+    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     ngraph::pass::ConstantFolding().run_on_function(f);
     f->validate_nodes_and_infer_types();
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST_P(MulOrAddConversionTests, CompareFunctions) {
-    ngraph::pass::InitNodeInfo().run_on_function(f);
-    ngraph::pass::ConvertMulOrAddFinally().run_on_function(f);
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::ConvertMulOrAddFinally>();
+    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     ngraph::pass::ConstantFolding().run_on_function(f);
     f->validate_nodes_and_infer_types();
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 #define CONST(A, B) ConstantParams(A, B)
@@ -176,7 +184,7 @@ TEST_P(MulOrAddConversionTests, CompareFunctions) {
 #define ELTWISE_SUM MulAddConversionTests::get_eltwise_add_reference
 #define ELTWISE_PROD MulAddConversionTests::get_eltwise_mul_reference
 
-INSTANTIATE_TEST_CASE_P(MulAddToScaleShift, MulAddConversionTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(MulAddToScaleShift, MulAddConversionTests, testing::Combine(
         testing::Values(std::make_tuple(InputShape{DYN, 3, 64, 64},
                                         CONST(ngraph::Shape({1, 3, 1, 1}), 0.5),
                                         CONST(ngraph::Shape({1, 3, 1, 1}), 0.5), false),
@@ -188,7 +196,7 @@ INSTANTIATE_TEST_CASE_P(MulAddToScaleShift, MulAddConversionTests, testing::Comb
                                         CONST(ngraph::Shape({1, 3, 1, 1}), 0.5), false)),
         testing::Values(SCALESHIFT)));
 
-INSTANTIATE_TEST_CASE_P(MulToScaleShift, MulOrAddConversionTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(MulToScaleShift, MulOrAddConversionTests, testing::Combine(
         testing::Values(std::make_tuple(InputShape{DYN, 3, 64, 64},
                                         CONST(ngraph::Shape({1, 3, 1, 1}), 0.5),
                                         NONE, false),
@@ -200,7 +208,7 @@ INSTANTIATE_TEST_CASE_P(MulToScaleShift, MulOrAddConversionTests, testing::Combi
                                         NONE, false)),
         testing::Values(SCALESHIFT)));
 
-INSTANTIATE_TEST_CASE_P(AddToScaleShift, MulOrAddConversionTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(AddToScaleShift, MulOrAddConversionTests, testing::Combine(
         testing::Values(std::make_tuple(InputShape{DYN, 3, 64, 64},
                                         NONE,
                                         CONST(ngraph::Shape({1, 3, 1, 1}), 0.5), false),
@@ -212,7 +220,7 @@ INSTANTIATE_TEST_CASE_P(AddToScaleShift, MulOrAddConversionTests, testing::Combi
                                         CONST(ngraph::Shape({1, 3, 1, 1}), 0.5), false)),
         testing::Values(SCALESHIFT)));
 
-INSTANTIATE_TEST_CASE_P(MulAddToPower, MulAddConversionTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(MulAddToPower, MulAddConversionTests, testing::Combine(
         testing::Values(std::make_tuple(InputShape{DYN, 3, 64, 64},
                                         CONST(ngraph::Shape({1}), 0.5),
                                         CONST(ngraph::Shape({1}), 0.5), false),
@@ -224,7 +232,7 @@ INSTANTIATE_TEST_CASE_P(MulAddToPower, MulAddConversionTests, testing::Combine(
                                         CONST(ngraph::Shape({1}), 0.5), false)),
         testing::Values(POWER)));
 
-INSTANTIATE_TEST_CASE_P(MulToPower, MulOrAddConversionTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(MulToPower, MulOrAddConversionTests, testing::Combine(
         testing::Values(std::make_tuple(InputShape{DYN, 3, 64, 64},
                                         CONST(ngraph::Shape({1}), 0.5),
                                         NONE, false),
@@ -236,7 +244,7 @@ INSTANTIATE_TEST_CASE_P(MulToPower, MulOrAddConversionTests, testing::Combine(
                                         NONE, false)),
         testing::Values(POWER)));
 
-INSTANTIATE_TEST_CASE_P(AddToPower, MulOrAddConversionTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(AddToPower, MulOrAddConversionTests, testing::Combine(
         testing::Values(std::make_tuple(InputShape{DYN, 3, 64, 64},
                                         NONE,
                                         CONST(ngraph::Shape({1}), 0.5), false),
@@ -249,7 +257,7 @@ INSTANTIATE_TEST_CASE_P(AddToPower, MulOrAddConversionTests, testing::Combine(
         testing::Values(POWER)));
 
 
-INSTANTIATE_TEST_CASE_P(MulAddNegative, MulAddConversionTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(MulAddNegative, MulAddConversionTests, testing::Combine(
         testing::Values(std::make_tuple(InputShape{DYN, 3, DYN},
                                         CONST(ngraph::Shape({1, 1, 3, 1}), 0.5),
                                         CONST(ngraph::Shape({3, 1}), 0.5)/*detect broadcast case*/, false),
@@ -270,7 +278,7 @@ INSTANTIATE_TEST_CASE_P(MulAddNegative, MulAddConversionTests, testing::Combine(
                                         CONST(ngraph::Shape({1, 3, 1, 1}), 0.5), false)),
         testing::Values(SAME)));
 
-INSTANTIATE_TEST_CASE_P(MulToEltwise, MulOrAddConversionTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(MulToEltwise, MulOrAddConversionTests, testing::Combine(
         testing::Values(std::make_tuple(InputShape{DYN, 3, 64},
                                         CONST(ngraph::Shape({1, 1, 64}), 0.5),
                                         NONE, false),
@@ -303,7 +311,7 @@ INSTANTIATE_TEST_CASE_P(MulToEltwise, MulOrAddConversionTests, testing::Combine(
                                         NONE, true)),
         testing::Values(ELTWISE_PROD)));
 
-INSTANTIATE_TEST_CASE_P(AddToEltwise, MulOrAddConversionTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(AddToEltwise, MulOrAddConversionTests, testing::Combine(
         testing::Values(std::make_tuple(InputShape{DYN, 3, 64},
                                         NONE,
                                         CONST(ngraph::Shape({1, 1, 64}), 0.5), false),

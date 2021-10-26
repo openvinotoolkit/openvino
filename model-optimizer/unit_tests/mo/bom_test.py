@@ -36,8 +36,8 @@ class TestBOMFile(unittest.TestCase):
                 cls.existing_files = [name.rstrip() for name in bom_file.readlines()]
 
         cls.expected_header = [re.compile(pattern) for pattern in [
-            '^# Copyright \([cC]\) [0-9\-]+ Intel Corporation$',
-            '^# SPDX-License-Identifier: Apache-2.0$',
+            r'^# Copyright \([cC]\) [0-9\-]+ Intel Corporation$',
+            r'^# SPDX-License-Identifier: Apache-2.0$',
         ]]
 
     def test_bom_file(self):

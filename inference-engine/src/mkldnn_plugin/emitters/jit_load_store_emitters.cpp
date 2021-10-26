@@ -105,8 +105,9 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64 &reg_src, int offset_byte, In
                     h->uni_vcvtdq2ps(Vmm(out_vec_idx), Vmm(out_vec_idx));
                 break;
             case Precision::I32:
-                if ((src_prc == Precision::FP32) || (src_prc == Precision::BF16))
+                if ((src_prc == Precision::FP32) || (src_prc == Precision::BF16)) {
                     h->uni_vcvtps2dq(Vmm(out_vec_idx), Vmm(out_vec_idx));
+                }
                 break;
             default:
                 break;
@@ -509,6 +510,11 @@ size_t jit_store_emitter::aux_vecs_count() const {
 
 size_t jit_store_emitter::get_inputs_num() const { return 1; }
 
+void jit_store_emitter::emit_data() const {
+    if (emu_vcvtneps2bf16)
+        emu_vcvtneps2bf16->emit_data();
+}
+
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                   const emitter_context *emit_context) const {
@@ -549,8 +555,9 @@ template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
         if (src_prc != dst_prc) {
             switch (src_prc) {
                 case Precision::FP32:
-                    if ((dst_prc != Precision::FP32) && (dst_prc != Precision::BF16))
+                    if ((dst_prc != Precision::FP32) && (dst_prc != Precision::BF16)) {
                         h->uni_vcvtps2dq(Vmm(in_vec_idx), Vmm(in_vec_idx));
+                    }
                     break;
                 case Precision::I32:
                     if ((dst_prc == Precision::FP32) || (dst_prc == Precision::BF16))
@@ -636,7 +643,7 @@ template <typename Vmm>
             mask = (mask << store_size) - mask;
             h->mov(Reg64(aux_gpr_idxs[0]), mask);
             h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
-            h->vmovdqu8(addr(0) | k_mask, zmm);
+            h->vmovdqu8(addr(0), zmm | k_mask);
         } else {
             if (store_size == 64) {
                 h->uni_vmovdqu(addr(0), zmm);
@@ -768,10 +775,10 @@ template <typename Vmm>
                 h->mov(Reg32(aux_gpr_idxs[0]), mask);
                 h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
                 if (is_signed) {
-                    h->vpmovsdb(addr(0) | k_mask, vmm);
+                    h->vpmovsdb(addr(0), vmm | k_mask);
                 } else {
                     h->vpmaxsd(vmm, vmm, Vmm(aux_vec_idxs[0]));
-                    h->vpmovusdb(addr(0) | k_mask, vmm);
+                    h->vpmovusdb(addr(0), vmm | k_mask);
                 }
             }
         } else {
@@ -850,10 +857,10 @@ template <typename Vmm>
                     h->mov(Reg32(aux_gpr_idxs[0]), mask);
                     h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
                     if (is_signed) {
-                        h->vpmovsdw(ptr[reg + offset] | k_mask, vmm);
+                        h->vpmovsdw(ptr[reg + offset], vmm | k_mask);
                     } else {
                         h->vmaxsd(vmm, Vmm(aux_vec_idxs[0]), vmm);
-                        h->vpmovusdw(ptr[reg + offset] | k_mask, vmm);
+                        h->vpmovusdw(ptr[reg + offset], vmm | k_mask);
                     }
                 }
             } else {

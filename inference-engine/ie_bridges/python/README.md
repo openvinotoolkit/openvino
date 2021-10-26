@@ -61,11 +61,6 @@ sudo apt install patchelf
 -DENABLE_PYTHON=ON
 -DENABLE_WHEEL=ON
 ```
-If you need to include other components to the package you need to enable them too.
-For example, to include ngraph python API:
-```shellscript
--NGRAPH_PYTHON_BUILD_ENABLE=ON
-```
 
 ## Running sample
 

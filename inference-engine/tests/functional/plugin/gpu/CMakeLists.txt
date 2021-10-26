@@ -10,13 +10,12 @@ addIeTargetTest(
         ROOT
             ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
-            ${CLDNN__OCL_ICD_INCDIRS}
             ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
             clDNNPlugin
         LINK_LIBRARIES
             funcSharedTests
-            ${CLDNN__OCL_ICD_LIBPATH}
+            OpenCL
         ADD_CPPLINT
         LABELS
             GPU
@@ -42,4 +41,9 @@ if(LIBVA_FOUND)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_LIBVA)
     target_include_directories(${TARGET_NAME} PRIVATE ${LIBVA_INCLUDE_DIRS})
     target_link_libraries(${TARGET_NAME} PRIVATE ${LIBVA_LINK_LIBRARIES})
+endif()
+
+if(WIN32)
+    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DX11)
+    target_link_libraries(${TARGET_NAME} PRIVATE d3d11 dxgi)
 endif()

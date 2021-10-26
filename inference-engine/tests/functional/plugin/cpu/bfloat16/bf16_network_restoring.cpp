@@ -201,7 +201,7 @@ TEST_P(BF16NetworkRestore1, CompareWithRefImpl) {
 };
 
 
-INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, BF16NetworkRestore1,
+INSTANTIATE_TEST_SUITE_P(smoke_BF16_bfloat16_NoReshape, BF16NetworkRestore1,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::BF16),

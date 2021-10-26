@@ -19,10 +19,10 @@ const std::vector<InferenceEngine::Layout> inputLayouts2D = {
     InferenceEngine::Layout::NC,
 };
 
-const std::vector<InferenceEngine::SizeVector> inputShapes2D = {
-    InferenceEngine::SizeVector {1, 100},
-    InferenceEngine::SizeVector {100, 1},
-    InferenceEngine::SizeVector {10, 10},
+const std::vector<std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>> inputShapes2D = {
+    {{}, {{1, 100}}},
+    {{}, {{100, 1}}},
+    {{}, {{10, 10}}},
 };
 
 const std::vector<size_t> axis2D = {
@@ -41,17 +41,17 @@ const auto params2D = testing::Combine(
     testing::Values(std::map<std::string, std::string>())
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax2D,
         SoftMaxLayerTest,
         params2D,
         SoftMaxLayerTest::getTestCaseName
 );
 
-const std::vector<InferenceEngine::SizeVector> inputShapes4D = {
-    InferenceEngine::SizeVector {1, 100, 1, 1},
-    InferenceEngine::SizeVector {1, 3, 4, 3},
-    InferenceEngine::SizeVector {2, 3, 4, 5},
+const std::vector<std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>> inputShapes4D = {
+    {{}, {{1, 100, 1, 1}}},
+    {{}, {{1, 3, 4, 3}}},
+    {{}, {{2, 3, 4, 5}}},
 };
 
 const std::vector<size_t> axis4D = {0, 1, 2, 3};
@@ -68,7 +68,7 @@ const auto params4D = testing::Combine(
     testing::Values(std::map<std::string, std::string>())
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax4D,
         SoftMaxLayerTest,
         params4D,

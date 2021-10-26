@@ -4,8 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/eltwise.hpp"
-#include "api/pooling.hpp"
+#include "pooling_inst.h"
 #include "fused_conv_eltwise_inst.h"
 #include "primitive_inst.h"
 #include "activation_inst.h"
@@ -16,6 +15,8 @@
 #include "scale_inst.h"
 #include "depth_to_space_inst.h"
 #include "resample_inst.h"
+#include "loop_inst.h"
+#include "non_max_suppression_inst.h"
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -91,6 +92,12 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
     auto output_format = node.get_output_layout().format;
     auto output_datatype = node.get_output_layout().data_type;
     auto concat_axis = node.get_primitive()->axis;
+
+    // oneDNN doens't support paddings and such concat optimizations
+    for (auto& input : node.get_dependencies()) {
+        if (input->get_preferred_impl_type() == impl_types::onednn)
+            return false;
+    }
 
     for (auto& input : node.get_dependencies()) {
         if (input->is_type<reshape>())
@@ -239,7 +246,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
 }  // namespace
 
 // ToDo remove friendship relation from  program_node
-void prepare_buffer_fusing::run(program_impl& p) {
+void prepare_buffer_fusing::run(program& p) {
     bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
     /*
     We need to take care of proper ordering by types.
@@ -277,9 +284,14 @@ void prepare_buffer_fusing::run(program_impl& p) {
             for (auto user : node.get_users()) {
                 if (user->is_type<concatenation>() && !user->is_output())
                     return;
+                if (user->is_type<loop>() || user->is_type<non_max_suppression>())
+                    return;
             }
 
             if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
+                if (p.is_loop_body() && node.get_dependency(0).is_type<lstm_elt>()) {
+                    return;
+                }
                 // optimization is available for cropping across depth(features) only
                 // if output padding has defined padding across features already it wouldn't
                 // work because it expect to have zeros in the padded area.
@@ -301,6 +313,9 @@ void prepare_buffer_fusing::run(program_impl& p) {
                     if (input_layout.data_padding.lower_size().batch[0] != 0 || input_layout.data_padding.upper_size().batch[0] != 0 ||
                         input_layout.data_padding.lower_size().spatial[0] != 0 || input_layout.data_padding.upper_size().spatial[0] != 0 ||
                         input_layout.data_padding.lower_size().spatial[1] != 0 || input_layout.data_padding.upper_size().spatial[1] != 0)
+                        return;
+                    // oneDNN doesn't support paddings
+                    if (usr->get_preferred_impl_type() == impl_types::onednn)
                         return;
                 }
 

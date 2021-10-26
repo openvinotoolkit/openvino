@@ -19,10 +19,14 @@ namespace op {
  */
 class TRANSFORMATIONS_API Nop : public ngraph::op::Op {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("Nop", "SnippetsOpset");
 
     Nop(const OutputVector& arguments, const OutputVector& results);
     Nop() = default;
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        return std::make_shared<Nop>();
+    }
 };
 
 } // namespace op

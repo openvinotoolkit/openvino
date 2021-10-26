@@ -35,7 +35,7 @@ const auto ctcLossArgsSubset1 = ::testing::Combine(
         ::testing::ValuesIn(unique)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Set1, CTCLossLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Set1, CTCLossLayerTest,
                         ::testing::Combine(
                             ctcLossArgsSubset1,
                             ::testing::ValuesIn(fPrecisions),
@@ -56,7 +56,7 @@ const auto ctcLossArgsSubset2 = ::testing::Combine(
         ::testing::ValuesIn(unique)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Set2, CTCLossLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Set2, CTCLossLayerTest,
                         ::testing::Combine(
                             ctcLossArgsSubset2,
                             ::testing::ValuesIn(fPrecisions),

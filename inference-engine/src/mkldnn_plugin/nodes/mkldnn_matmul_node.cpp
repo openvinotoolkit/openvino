@@ -3,23 +3,39 @@
 //
 
 #include "mkldnn_matmul_node.h"
+
+#include "ie_precision.hpp"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "cpu_types.h"
+#include "mkldnn_eltwise_node.h"
+
+#include <functional>
+#include <numeric>
 #include <string>
 #include <vector>
 #include <memory>
 #include <algorithm>
 #include <cmath>
 #include <mkldnn_types.h>
-#include <mkldnn_extension_utils.h>
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include <ngraph/opsets/opset1.hpp>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "utils/general_utils.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include "mkldnn_extension_utils.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNMatMulNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNMatMulNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
         const auto matMul = std::dynamic_pointer_cast<const ngraph::opset1::MatMul>(op);
         if (!matMul) {
             errorMessage = "Only opset1 MatMul operation is supported";
@@ -31,14 +47,14 @@ bool MKLDNNMatMulNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>&
 
         for (size_t i = 0; i < matMul->get_input_size(); i++) {
             const auto inShapeRank = matMul->get_input_shape(i).size();
-            if (inShapeRank < 2 || inShapeRank > 4) {
+            if (inShapeRank < 2) {
                 errorMessage = "Unsupported rank: " + std::to_string(inShapeRank) + " on " + std::to_string(i) + " input";
                 return false;
             }
         }
 
         const auto outShapeRank = matMul->get_shape().size();
-        if (outShapeRank < 2 || outShapeRank > 4) {
+        if (outShapeRank < 2) {
             errorMessage = "Unsupported rank: " + std::to_string(outShapeRank) + " on output";
             return false;
         }
@@ -49,19 +65,47 @@ bool MKLDNNMatMulNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>&
 }
 
 MKLDNNMatMulNode::MKLDNNMatMulNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache) {
+    MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
-    if (isSupportedOperation(op, errorMessage)) {
-        errorPrefix = "Gemm node with name '" + getName() + "'";
-
-        const auto matMul = std::dynamic_pointer_cast<const ngraph::opset1::MatMul>(op);
-        alpha = 1;
-        beta = 1;
-        transposeA = matMul->get_transpose_a();
-        transposeB = matMul->get_transpose_b();
-    } else {
+    if (!isSupportedOperation(op, errorMessage))
         IE_THROW(NotImplemented) << errorMessage;
+
+    errorPrefix = "MatMul node with name '" + getName() + "'";
+
+    const auto matMul = std::dynamic_pointer_cast<const ngraph::opset1::MatMul>(op);
+
+    transposeIn[0] = matMul->get_transpose_a();
+    transposeIn[1] = matMul->get_transpose_b();
+}
+
+bool MKLDNNMatMulNode::canFuse(const MKLDNNNodePtr& node) const {
+    return one_of(node->getAlgorithm(), EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseClamp, EltwiseTanh,
+                  EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
+                  EltwiseRoundHalfAwayFromZero, EltwiseAbs, EltwiseSqrt, EltwiseSoftRelu);
+}
+
+void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) const {
+    mkldnn::post_ops ops;
+
+    for (auto &node : fusedWith) {
+        if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
+            eltwiseNode->appendPostOps(ops);
+            continue;
+        }
+
+        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }
+
+    attr.set_post_ops(ops);
+}
+
+
+std::shared_ptr<mkldnn::primitive_attr> MKLDNNMatMulNode::initPrimitiveAttr() const {
+    auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
+
+    setPostOps(*attr, true);
+
+    return attr;
 }
 
 void MKLDNNMatMulNode::getSupportedDescriptors() {
@@ -70,102 +114,153 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW()  << errorPrefix << " has incorrect number of output edges for layer " << getName();
 
-    auto inDims0 = getParentEdgeAt(0)->getDims();
-    auto inDims1 = getParentEdgeAt(1)->getDims();
-    auto outDims = getChildEdgeAt(0)->getDims();
+    auto firstInPortPrec = getOriginalInputPrecisionAtPort(0);
+    auto secondInPortPrec = getOriginalInputPrecisionAtPort(1);
+    auto outPortPrec = getOriginalOutputPrecisionAtPort(0);
 
-    if (inDims0.ndims() != inDims1.ndims() || inDims0.ndims() != outDims.ndims())
+    if (firstInPortPrec.size() != secondInPortPrec.size())
+        firstInPortPrec = secondInPortPrec = getMaxPrecision(getOriginalInputPrecisions());
+
+    // fallback to fp32 for any precision that cannot be handled natively
+    if ((!one_of(firstInPortPrec , Precision::U8, Precision::I8, Precision::BF16, Precision::FP32) ||
+         !one_of(secondInPortPrec , Precision::I8, Precision::BF16, Precision::FP32))) {
+        outPortPrec = firstInPortPrec = secondInPortPrec = Precision::FP32;
+    }
+
+    if (!fusedWith.empty()) {
+        outPortPrec = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
+    }
+
+    if (inputShapes[0].getRank() != inputShapes[1].getRank() || inputShapes[0].getRank() != outputShapes[0].getRank())
         IE_THROW()  << errorPrefix << " has invalid dims count";
 
-    int nDims = inDims0.ndims();
-    xAxis = nDims - 1;
-    yAxis = nDims - 2;
-    auto xAxis0 = transposeA ? yAxis : xAxis;
-    auto yAxis0 = transposeA ? xAxis : yAxis;
-    auto xAxis1 = transposeB ? yAxis : xAxis;
-    auto yAxis1 = transposeB ? xAxis : yAxis;
+    const int nDims = inputShapes[0].getRank();
+    const auto xAxis = nDims - 1;
+    const auto yAxis = nDims - 2;
+    const auto xAxis0 = transposeIn[0] ? yAxis : xAxis;
+    const auto yAxis0 = transposeIn[0] ? xAxis : yAxis;
+    const auto xAxis1 = transposeIn[1] ? yAxis : xAxis;
+    const auto yAxis1 = transposeIn[1] ? xAxis : yAxis;
 
-    // The check inDims0[xAxis] != inDims1[yAxis] is correct due to layer semantic
+    const auto& inDims0 = getInputShapeAtPort(0).getStaticDims();
+    const auto& inDims1 = getInputShapeAtPort(1).getStaticDims();
+    const auto& outDims = getOutputShapeAtPort(0).getStaticDims();
+
     // coverity[copy_paste_error]
-    if (inDims0[xAxis0] != inDims1[yAxis1] || inDims0[yAxis0] != outDims[yAxis] || inDims1[xAxis1] != outDims[xAxis])
+    if (inDims0[xAxis0] != inDims1[yAxis1] ||
+        inDims0[yAxis0] != outDims[yAxis] ||
+        inDims1[xAxis1] != outDims[xAxis])
         IE_THROW()  << errorPrefix << " has incorrect spatial input and output dimensions";
 
     for (int dim_idx = nDims - 3; dim_idx >= 0; dim_idx--) {
-        if ((inDims0[dim_idx] != outDims[dim_idx] && inDims0[dim_idx] != 1) ||
-            (inDims1[dim_idx] != outDims[dim_idx] && inDims1[dim_idx] != 1)) {
+        if ((inDims0[dim_idx] != outDims[dim_idx] &&
+             inDims0[dim_idx] != 1) ||
+            (inDims1[dim_idx] != outDims[dim_idx] &&
+             inDims1[dim_idx] != 1)) {
             IE_THROW()  << errorPrefix << " has incorrect input batch dimensions";
         }
-
-        int aOffset = 1;
-        for (int i = dim_idx + 1; i < nDims; i++)
-            aOffset *= inDims0[i];
-        aOffsets.push_back(inDims0[dim_idx] == outDims[dim_idx] ? aOffset : 0);
-
-        int bOffset = 1;
-        for (int i = dim_idx + 1; i < nDims; i++)
-            bOffset *= inDims1[i];
-        bOffsets.push_back(inDims1[dim_idx] == outDims[dim_idx] ? bOffset : 0);
     }
 
-    for (unsigned long dim_idx = aOffsets.size(); dim_idx < 2; dim_idx++)
-        aOffsets.push_back(0);
-    for (unsigned long dim_idx = bOffsets.size(); dim_idx < 2; dim_idx++)
-        bOffsets.push_back(0);
-    for (unsigned long dim_idx = cOffsets.size(); dim_idx < 2; dim_idx++)
-        cOffsets.push_back(0);
+    /* Example MatMul:
+     * 2x128x512(T) * 2x128x512 = 2x512x512
+     * First input 2x128x512(T) should be transposed
+     * oneDNN requires memory::desc for this input to:
+     * - change shapes configuration as if input already transposed (2x128x512) -> (2x512x128)
+     * - provide transposed strides (66536, 128, 1) -> (66536, 1, 512)
+     */
+    auto getStridesAndDims = [](Shape& shape, const bool transpose) {
+        const auto getRank = shape.getRank();
+
+        VectorDims strides(getRank, 1);
+        for (size_t i = 1; i < getRank; i++) {
+            strides[getRank - i - 1 ] = strides[getRank - i] * shape.getStaticDims()[getRank - i];
+        }
+
+        if (transpose && getRank > 1) {
+            // form new shape
+            auto dims = shape.getStaticDims();
+            std::swap(dims[getRank - 2], dims[getRank - 1]);
+            shape = Shape{dims};
+            // update strides
+            strides[getRank - 1] = shape.getStaticDims()[getRank - 2];
+            strides[getRank - 2] = 1;
+        }
+
+        return strides;
+    };
+
+    initialInShapes[0] = inputShapes[0];
+    initialInShapes[1] = inputShapes[1];
+
+    const VectorDims inStrides0 = getStridesAndDims(inputShapes[0], transposeIn[0]);
+    const VectorDims inStrides1 = getStridesAndDims(inputShapes[1], transposeIn[1]);
+    const VectorDims outStrides = getStridesAndDims(outputShapes[0], false);
+
+    inDataDesc[0] = std::make_shared<DnnlBlockedMemoryDesc>(firstInPortPrec, inputShapes[0], inStrides0);
+    inDataDesc[1] = std::make_shared<DnnlBlockedMemoryDesc>(secondInPortPrec, inputShapes[1], inStrides1);
+    outDataDesc   = std::make_shared<DnnlBlockedMemoryDesc>(outPortPrec, getOutputShapeAtPort(0), outStrides);
+
+    createDescriptor({inDataDesc[0], inDataDesc[1]}, {outDataDesc});
+}
+
+void MKLDNNMatMulNode::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                                        const std::vector<MemoryDescPtr>& outputDesc) {
+    MKLDNNDescriptor desc{
+        std::shared_ptr<matmul::desc>(
+            new matmul::desc(MemoryDescUtils::convertToDnnlMemoryDesc(inDataDesc[0])->getDnnlDesc(),
+                             MemoryDescUtils::convertToDnnlMemoryDesc(inDataDesc[1])->getDnnlDesc(),
+                             MemoryDescUtils::convertToDnnlMemoryDesc(outDataDesc)->getDnnlDesc()))};
+
+    descs.push_back(desc);
 }
 
 void MKLDNNMatMulNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto inPrec0 = getOriginalInputPrecisionAtPort(0);
-    auto inPrec1 = getOriginalInputPrecisionAtPort(1);
-    if ((inPrec0 != Precision::U8 && inPrec0 != Precision::I8) || inPrec1 != Precision::I8) {
-        if (inPrec0 == Precision::BF16 || inPrec1 == Precision::BF16) {
-            inPrec0 = Precision::BF16;
-            inPrec1 = Precision::BF16;
-        } else {
-            inPrec0 = Precision::FP32;
-            inPrec1 = Precision::FP32;
+    auto attr = initPrimitiveAttr();
+
+    for (auto& desc : descs) {
+        auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), *attr);
+        while (static_cast<bool>(itpd)) {
+            NodeConfig config;
+            config.dynBatchSupport = true;
+            for (size_t i = 0; i < descInputNumbers(desc); i++) {
+                PortConfig portConfig;
+                portConfig.inPlace = -1;
+                portConfig.constant = false;
+
+                auto src_desc = getSrcMemDesc(itpd, i);
+                if (src_desc->getType() & MemoryDescType::Blocked) {
+                    portConfig.desc = src_desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+                } else {
+                    portConfig.desc = std::move(src_desc);
+                }
+
+                config.inConfs.push_back(portConfig);
+            }
+
+            for (size_t i = 0; i < descOutputNumbers(desc); i++) {
+                PortConfig portConfig;
+                portConfig.inPlace = canBeInPlace() ? 0 : -1;
+                portConfig.constant = false;
+
+                auto dst_desc = getDstMemDesc(itpd, i);
+                if (dst_desc->getType() & MemoryDescType::Blocked) {
+                    portConfig.desc = dst_desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+                } else {
+                    portConfig.desc = std::move(dst_desc);
+                }
+
+                config.outConfs.push_back(portConfig);
+            }
+
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+            if (!itpd.next_impl())
+                break;
         }
-    }
-
-    auto inputDataType0 = MKLDNNExtensionUtils::IEPrecisionToDataType(inPrec0);
-    auto inputDataType1 = MKLDNNExtensionUtils::IEPrecisionToDataType(inPrec1);
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::Precision::FP32);
-
-    InferenceEngine::LayerConfig config;
-    config.dynBatchSupport = true;
-
-    auto createDataConfig = [](const MKLDNNDims& dims, memory::data_type dataType) -> InferenceEngine::DataConfig {
-        InferenceEngine::DataConfig dataConfig;
-        dataConfig.inPlace = -1;
-        dataConfig.constant = false;
-        dataConfig.desc = MKLDNNMemoryDesc(dims, dataType, MKLDNNMemory::GetPlainFormat(dims));
-        return dataConfig;
-    };
-
-    config.inConfs.push_back(createDataConfig(getParentEdgeAt(0)->getDims(), inputDataType0));
-    config.inConfs.push_back(createDataConfig(getParentEdgeAt(1)->getDims(), inputDataType1));
-    config.outConfs.push_back(createDataConfig(getChildEdgeAt(0)->getDims(), outputDataType));
-
-    supportedPrimitiveDescriptors.push_back(PrimitiveDescInfo(config, impl_desc_type::gemm_any, MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims())));
-}
-
-void MKLDNNMatMulNode::initOptimalPrimitiveDescriptor() {
-    auto selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
-        IE_THROW()  << errorPrefix << " did not set preferable primitive descriptor";
-    auto config = selected_pd->getConfig();
-    if (isInitConfig(config))
-        return;
-
-    MKLDNNNode::initOptimalPrimitiveDescriptor();
-
-    auto* selectedPD = getSelectedPrimitiveDescriptor();
-    if (!selectedPD) {
-        return;
     }
 }
 
@@ -179,117 +274,44 @@ void MKLDNNMatMulNode::createPrimitive() {
         IE_THROW()  << errorPrefix << " did not allocate input memory";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW()  << errorPrefix << " did not set preferable primitive descriptor";
+
+    if (prim)
+        return;
+
+    std::shared_ptr<mkldnn::primitive_attr> attr = initPrimitiveAttr();
+    std::shared_ptr<matmul::primitive_desc> prim_desc;
+    prim_desc = std::make_shared<matmul::primitive_desc>(
+            createPrimitiveDescriptor<matmul::primitive_desc, matmul::desc>(*attr));
+
+    prim.reset(new matmul(*prim_desc));
+
+    auto src0 = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    auto src1 = getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPrimitive();
+    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+
+    primArgs = {{DNNL_ARG_SRC_0, src0}, {DNNL_ARG_WEIGHTS_0, src1}, {DNNL_ARG_DST, dst}};
 }
 
-inline void process_gemm(char transa, char transb, int M, int N, int K, float alpha, const float *A, int lda,
-                         const float *B, int ldb, float beta, float *C, int ldc) {
-    mkldnn_sgemm(transa, transb, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
-}
+MemoryDescPtr MKLDNNMatMulNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+    auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1): primitive_desc_it.src_desc(idx);
 
-inline void process_gemm(char transa, char transb, int M, int N, int K, float alpha, const uint16_t *A, int lda,
-                         const uint16_t *B, int ldb, float beta, float *C, int ldc) {
-    dnnl_gemm_bf16bf16f32(transa, transb, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
-}
-
-inline void process_gemm(char transa, char transb, int M, int N, int K, float alpha, const uint8_t *A, int lda,
-                         const int8_t *B, int ldb, float beta, float *C, int ldc) {
-    const int32_t co = 0;
-    int32_t *Ci = reinterpret_cast<int32_t *>(C);
-    mkldnn_gemm_u8s8s32(transa, transb, 'F', M, N, K, alpha, A, lda, 0, B, ldb, 0, beta, Ci, ldc, &co);
-    parallel_for(M * N, [&](size_t i) {
-        C[i] = Ci[i];
-    });
-}
-
-inline void process_gemm(char transa, char transb, int M, int N, int K, float alpha, const int8_t *A, int lda,
-                         const int8_t *B, int ldb, float beta, float *C, int ldc) {
-    const int32_t co = 0;
-    int32_t *Ci = reinterpret_cast<int32_t *>(C);
-    mkldnn_gemm_s8s8s32(transa, transb, 'F', M, N, K, alpha, A, lda, 0, B, ldb, 0, beta, Ci, ldc, &co);
-    parallel_for(M * N, [&](size_t i) {
-        C[i] = Ci[i];
-    });
-}
-
-template<typename T0, typename T1>
-void MKLDNNMatMulNode::process_data() {
-    auto inDims0 = getParentEdgeAt(0)->getDims();
-    auto inDims1 = getParentEdgeAt(1)->getDims();
-    auto outDims = getChildEdgeAt(0)->getDims();
-
-    auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
-    auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
-    auto& dstMemory0 = getChildEdgeAt(0)->getMemory();
-
-    const T0 *src0_ptr = reinterpret_cast<const T0*>(srcMemory0.GetPtr());
-    const T1 *src1_ptr = reinterpret_cast<const T1*>(srcMemory1.GetData());
-    float *dst_ptr = reinterpret_cast<float*>(dstMemory0.GetData());
-
-    int MB1 = outDims.ndims() == 4 ? batchToProcess() : 1;
-    int MB2 = outDims.ndims() == 3 ? batchToProcess() : outDims.ndims() > 3 ? outDims[outDims.ndims() - 3] : 1;
-    int M = outDims[yAxis];
-    int N = outDims[xAxis];
-    int K = transposeA ? inDims0[yAxis] : inDims0[xAxis];
-
-    const char transa = transposeA ? 'T' : 'N';
-    const char transb = transposeB ? 'T' : 'N';
-
-    int lda = transposeA ? M : K;
-    int ldb = transposeB ? K : N;
-    int ldc = N;
-
-    beta = 0.f;
-
-    for (int b1 = 0; b1 < MB1; b1++) {
-        const T0 *a_ptr = src0_ptr;
-        const T1 *b_ptr = src1_ptr;
-        float *d_ptr = dst_ptr;
-
-        for (int b2 = 0; b2 < MB2; b2++) {
-            process_gemm(transa, transb, M, N, K, alpha, a_ptr, lda, b_ptr, ldb, beta, d_ptr, ldc);
-
-            a_ptr += aOffsets[0];
-            b_ptr += bOffsets[0];
-            d_ptr += M * N;
-        }
-
-        src0_ptr += aOffsets[1];
-        src1_ptr += bOffsets[1];
-        dst_ptr += MB2 * M * N;
-    }
-}
-
-void MKLDNNMatMulNode::execute(mkldnn::stream strm) {
-    switch (getParentEdgeAt(0)->getDesc().getPrecision()) {
-        case Precision::FP32:
-            process_data<float, float>();
-            break;
-        case Precision::BF16:
-            process_data<uint16_t, uint16_t>();
-            break;
-        case Precision::I8:
-            process_data<int8_t, int8_t>();
-            break;
-        case Precision::U8:
-            process_data<uint8_t, int8_t>();
-            break;
-        default:
-            IE_THROW()  << errorPrefix << " has incorrect precision on first input";
-    }
+    return std::make_shared<CpuBlockedMemoryDesc>(
+        MKLDNNExtensionUtils::DataTypeToIEPrecision(static_cast<mkldnn::memory::data_type>(desc.data.data_type)),
+        initialInShapes[idx]); /* provide initial shapes, so hide transpose effect */
 }
 
 bool MKLDNNMatMulNode::created() const {
     return getType() == MatMul;
 }
 
-int MKLDNNMatMulNode::getMaxBatch() {
-    if (!outDims.empty())
-        return outDims[0][0];
+size_t MKLDNNMatMulNode::getMaxBatch() const {
+    if (!outputShapes.empty())
+        return outputShapes[0].getStaticDims()[0];
     return 0;
 }
 
 InferenceEngine::Precision MKLDNNMatMulNode::getRuntimePrecision() const {
-    return MKLDNNExtensionUtils::getMaxPrecision(getInputPrecisions());
+    return getMaxPrecision(getInputPrecisions());
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNMatMulNode, MatMul);

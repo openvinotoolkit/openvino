@@ -25,10 +25,11 @@ function(set_ie_threading_interface_for TARGET_NAME)
         else()
             find_dependency(TBB COMPONENTS tbb tbbmalloc)
         endif()
-        set("TBB_FOUND" ${TBB_FOUND} PARENT_SCOPE)
-        set("TBB_IMPORTED_TARGETS" ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
-        set("TBB_VERSION" ${TBB_VERSION} PARENT_SCOPE)
+        set(TBB_FOUND ${TBB_FOUND} PARENT_SCOPE)
+        set(TBB_IMPORTED_TARGETS ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
+        set(TBB_VERSION ${TBB_VERSION} PARENT_SCOPE)
         if (NOT TBB_FOUND)
+            set(THREADING "SEQ" PARENT_SCOPE)
             ext_message(WARNING "TBB was not found by the configured TBB_DIR/TBBROOT path.\
                                 SEQ method will be used.")
         endif ()
@@ -46,8 +47,8 @@ function(set_ie_threading_interface_for TARGET_NAME)
         # they don't have TBB in public headers => PRIVATE
         set(LINK_TYPE "PRIVATE")
     elseif(target_type STREQUAL "SHARED_LIBRARY")
-        # TODO: inference_engine only
-        # Why TBB propogates its headers to inference_engine?
+        # Affected libraries: inference_engine only
+        # TODO: why TBB propogates its headers to inference_engine?
         set(LINK_TYPE "PRIVATE")
     else()
         ext_message(WARNING "Unknown target type")
@@ -95,6 +96,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
             set(IE_THREAD_DEFINE "IE_THREAD_TBB")
             ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${TBB_IMPORTED_TARGETS})
         else ()
+            set(THREADING "SEQ" PARENT_SCOPE)
             ext_message(WARNING "TBB was not found by the configured TBB_DIR path.\
                                  SEQ method will be used for ${TARGET_NAME}")
         endif ()
@@ -105,7 +107,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
             set(omp_lib_name iomp5)
         endif ()
 
-        if (NOT IE_MAIN_SOURCE_DIR)
+        if (NOT OpenVINO_SOURCE_DIR)
             if (WIN32)
                 set(lib_rel_path ${IE_LIB_REL_DIR})
                 set(lib_dbg_path ${IE_LIB_DBG_DIR})
@@ -133,6 +135,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
 
         if (NOT OMP_LIBRARIES_RELEASE)
             ext_message(WARNING "Intel OpenMP not found. Intel OpenMP support will be disabled. ${IE_THREAD_DEFINE} is defined")
+            set(THREADING "SEQ" PARENT_SCOPE)
         else ()
             set(IE_THREAD_DEFINE "IE_THREAD_OMP")
 

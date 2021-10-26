@@ -72,7 +72,7 @@ const auto fqParams = ::testing::Combine(
 );
 
 
-INSTANTIATE_TEST_CASE_P(smoke_Clamp_FQ_subgraph, ClampFakeQuantizeSubgraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Clamp_FQ_subgraph, ClampFakeQuantizeSubgraphTest,
                         ::testing::Combine(
                                 fqParams,
                                 ::testing::ValuesIn(netPrecisions),

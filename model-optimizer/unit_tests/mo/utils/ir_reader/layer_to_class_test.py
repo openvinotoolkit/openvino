@@ -102,9 +102,9 @@ class TestFunction(unittest.TestCase):
         nodes_attributes = {
             'input': {'kind': 'op', 'type': 'Parameter', 'ports': {0: (shape, 'abc,def')}},
             'input_data': {'shape': shape, 'kind': 'data'},
-            'add': {'kind': 'op', 'type': 'Add', 'ports': {2: (shape, 'ghi\,jkl')}},
+            'add': {'kind': 'op', 'type': 'Add', 'ports': {2: (shape, r'ghi\,jkl')}},
             'add_data': {'shape': shape, 'kind': 'data'},
-            'add_const': {'kind': 'op', 'type': 'Const', 'ports': {0: (shape, 'mno,pqr\,stu')}},
+            'add_const': {'kind': 'op', 'type': 'Const', 'ports': {0: (shape, r'mno,pqr\,stu')}},
             'add_const_data': {'shape': shape, 'kind': 'data'},
             'result': {'kind': 'op', 'type': 'Result', 'ports': {0: (shape, None)}}
         }

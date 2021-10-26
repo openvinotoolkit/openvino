@@ -14,13 +14,17 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset8.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
+#include "openvino/core/partial_shape.hpp"
 
 namespace ngraph {
 namespace builder {
 
 ngraph::ParameterVector makeParams(const element::Type &type, const std::vector<std::vector<size_t>> &shapes);
+
+ngraph::ParameterVector makeDynamicParams(const element::Type &type, const std::vector<ov::PartialShape> &shapes);
 
 ngraph::ParameterVector
 makeParams(const element::Type &type, const std::vector<std::pair<std::string, std::vector<size_t>>> &inputs);
@@ -28,7 +32,7 @@ makeParams(const element::Type &type, const std::vector<std::pair<std::string, s
 template<typename T>
 std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<size_t> &shape,
                                    const std::vector<T> &data, bool random = false,
-                                   uint32_t upTo = 10, uint32_t startFrom = 1, const int seed = 1) {
+                                   T upTo = 10, T startFrom = 1, const int seed = 1) {
     std::shared_ptr<ngraph::Node> weightsNode;
 
 #define makeNode(TYPE) \
@@ -125,6 +129,7 @@ std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<N
                                                           const op::PadType &autoPad,
                                                           size_t numOutChannels,
                                                           bool addBiases = false,
+                                                          const std::vector<ptrdiff_t> &outputPadding = {},
                                                           const std::vector<float> &filterWeights = {},
                                                           const std::vector<float> &biasesWeights = {});
 
@@ -137,6 +142,22 @@ std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<N
                                                           const std::vector<size_t> &dilations,
                                                           const op::PadType &autoPad,
                                                           bool addBiases = false,
+                                                          const std::vector<ptrdiff_t> &outputPadding = {},
+                                                          const std::vector<float> &biasesWeights = {});
+
+std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in,
+                                                          const ngraph::Output<Node> &outputShape,
+                                                          const element::Type &type,
+                                                          const std::vector<size_t> &filterSize,
+                                                          const std::vector<size_t> &strides,
+                                                          const std::vector<ptrdiff_t> &padsBegin,
+                                                          const std::vector<ptrdiff_t> &padsEnd,
+                                                          const std::vector<size_t> &dilations,
+                                                          const op::PadType &autoPad,
+                                                          size_t numOutChannels,
+                                                          bool addBiases = false,
+                                                          const std::vector<ptrdiff_t> &outputPadding = {},
+                                                          const std::vector<float> &filterWeights = {},
                                                           const std::vector<float> &biasesWeights = {});
 
 std::shared_ptr<ngraph::Node> makeCTCGreedyDecoder(
@@ -179,6 +200,7 @@ std::shared_ptr<ngraph::Node> makeGroupConvolutionBackpropData(const ngraph::Out
                                                                size_t numOutChannels,
                                                                size_t numGroups,
                                                                bool addBiases = false,
+                                                               const std::vector<ptrdiff_t> &outputPadding = {},
                                                                const std::vector<float> &filterWeights = {},
                                                                const std::vector<float> &biasesWeights = {});
 
@@ -191,6 +213,23 @@ std::shared_ptr<ngraph::Node> makeGroupConvolutionBackpropData(const ngraph::Out
                                                                const std::vector<size_t> &dilations,
                                                                const op::PadType &autoPad,
                                                                bool addBiases = false,
+                                                               const std::vector<ptrdiff_t> &outputPadding = {},
+                                                               const std::vector<float> &biasesWeights = {});
+
+std::shared_ptr<ngraph::Node> makeGroupConvolutionBackpropData(const ngraph::Output<Node> &in,
+                                                               const ngraph::Output<Node> &outputShape,
+                                                               const element::Type &type,
+                                                               const std::vector<size_t> &filterSize,
+                                                               const std::vector<size_t> &strides,
+                                                               const std::vector<ptrdiff_t> &padsBegin,
+                                                               const std::vector<ptrdiff_t> &padsEnd,
+                                                               const std::vector<size_t> &dilations,
+                                                               const op::PadType &autoPad,
+                                                               size_t numOutChannels,
+                                                               size_t numGroups,
+                                                               bool addBiases = false,
+                                                               const std::vector<ptrdiff_t> &outputPadding = {},
+                                                               const std::vector<float> &filterWeights = {},
                                                                const std::vector<float> &biasesWeights = {});
 
 std::shared_ptr<ngraph::Node> makeBinaryConvolution(const ngraph::Output<Node> &in,
@@ -252,6 +291,11 @@ std::shared_ptr<ngraph::Node> makeStridedSlice(const ngraph::Output<Node> &in,
 
 std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
                                       bool acrossChannels,
+                                      bool normalizeVariance,
+                                      double eps);
+
+std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
+                                      const ngraph::AxisSet &axes,
                                       bool normalizeVariance,
                                       double eps);
 
@@ -402,8 +446,15 @@ std::shared_ptr<ngraph::Node> makeComparison(const ngraph::Output<Node> &in0,
                                              const ngraph::Output<Node> &in1,
                                              ngraph::helpers::ComparisonTypes comparisonType);
 
+std::shared_ptr<ngraph::Node> makeConversion(const ngraph::Output<Node>& in,
+                                             const element::Type& type,
+                                             const ngraph::helpers::ConversionTypes& conversionType);
+
 std::shared_ptr<ngraph::Node> makeLogical(const ngraph::Output<Node> &in0,
                                           const ngraph::Output<Node> &in1,
+                                          ngraph::helpers::LogicalTypes logicalType);
+
+std::shared_ptr<ngraph::Node> makeLogical(const ngraph::ParameterVector& inputs,
                                           ngraph::helpers::LogicalTypes logicalType);
 
 std::shared_ptr<ngraph::Node> makeDetectionOutput(const ngraph::OutputVector &inputs,

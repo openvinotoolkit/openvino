@@ -131,6 +131,6 @@ TEST_P(Gather_GatherElements, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_Gather_GatherElements, Gather_GatherElements, testing::Values(CommonTestUtils::DEVICE_MYRIAD));
+INSTANTIATE_TEST_SUITE_P(smoke_Gather_GatherElements, Gather_GatherElements, testing::Values(CommonTestUtils::DEVICE_MYRIAD));
 
 } // namespace

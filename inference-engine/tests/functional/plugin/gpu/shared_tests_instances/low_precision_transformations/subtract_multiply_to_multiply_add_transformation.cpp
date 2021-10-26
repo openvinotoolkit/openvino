@@ -57,7 +57,7 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
      },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, SubtractMultiplyToMultiplyAddTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, SubtractMultiplyToMultiplyAddTransformation,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(testValues)),

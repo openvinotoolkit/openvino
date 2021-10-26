@@ -35,6 +35,18 @@ MKLDNNDescriptor::operator std::shared_ptr<mkldnn::convolution_forward::desc>() 
     return typeDesc->getPtr();
 }
 
+MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::deconvolution_forward::desc> desc) {
+    this->desc.reset(new DescFwdImpl<mkldnn::deconvolution_forward::desc>(desc));
+}
+
+MKLDNNDescriptor::operator std::shared_ptr<mkldnn::deconvolution_forward::desc>() {
+    auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::deconvolution_forward::desc>>(desc);
+    if (typeDesc == nullptr) {
+        IE_THROW() << "Cannot cast descriptor!";
+    }
+    return typeDesc->getPtr();
+}
+
 MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::convolution_backward_data::desc> desc,
                                    std::shared_ptr<mkldnn::convolution_forward::primitive_desc> prim) {
     this->desc.reset(
@@ -160,6 +172,18 @@ MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::eltwise_forward::desc
 
 MKLDNNDescriptor::operator std::shared_ptr<mkldnn::eltwise_forward::desc>() {
     auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::eltwise_forward::desc>>(desc);
+    if (typeDesc == nullptr) {
+        IE_THROW() << "Cannot cast descriptor!";
+    }
+    return typeDesc->getPtr();
+}
+
+MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::matmul::desc> desc) {
+    this->desc.reset(new DescFwdImpl<mkldnn::matmul::desc>(desc));
+}
+
+MKLDNNDescriptor::operator std::shared_ptr<mkldnn::matmul::desc>() {
+    auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::matmul::desc>>(desc);
     if (typeDesc == nullptr) {
         IE_THROW() << "Cannot cast descriptor!";
     }

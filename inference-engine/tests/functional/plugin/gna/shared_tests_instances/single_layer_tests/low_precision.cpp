@@ -58,7 +58,7 @@ const std::vector<std::pair<std::string, std::map<std::string, std::string>>> co
     {"sw_exact_i8", config_i8},
 };
 
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_LowPrecision, GnaLowPrecisionTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LowPrecision, GnaLowPrecisionTest,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),

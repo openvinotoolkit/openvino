@@ -1,11 +1,18 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from xml.etree.ElementTree import Element, SubElement, tostring
-
+from defusedxml import defuse_stdlib
 from defusedxml.minidom import parseString
+import defusedxml.ElementTree as ET
 
 from mo.graph.graph import Node, Graph
+
+# defuse_stdlib provide patched version of xml.etree.ElementTree which allows to use objects from xml.etree.ElementTree
+# in a safe manner without including unsafe xml.etree.ElementTree
+ET_defused = defuse_stdlib()[ET]
+Element = ET_defused.Element
+SubElement = ET_defused.SubElement
+tostring = ET_defused.tostring
 
 
 def propagate_op_name_to_tensor(graph: Graph):

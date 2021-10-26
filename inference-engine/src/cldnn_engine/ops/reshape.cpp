@@ -9,8 +9,8 @@
 #include "ngraph/op/squeeze.hpp"
 #include "ngraph/op/unsqueeze.hpp"
 
-#include "api/reshape.hpp"
-#include "api/reorder.hpp"
+#include "cldnn/primitives/reshape.hpp"
+#include "cldnn/primitives/reorder.hpp"
 
 namespace CLDNNPlugin {
 
@@ -36,9 +36,13 @@ void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node>& op) 
         }
 
         cldnn::layout outputLayout(DataTypeFromPrecision(op->get_output_element_type(0)), outputFormat, outTensor);
-        p.AddPrimitive(cldnn::reorder(reorderId, reshapeInputId, outputLayout));
+        p.AddPrimitive(cldnn::reorder(reorderId,
+                                      reshapeInputId,
+                                      outputLayout,
+                                      std::vector<float>(),
+                                      cldnn::reorder_mean_mode::subtract,
+                                      op->get_friendly_name()));
         p.InitProfileInfo(reorderId, "Reorder", false, InferenceEngine::InferenceEngineProfileInfo::EXECUTED, layerName);
-        p.primitivesToIRLayersMap[reorderId] = { op->get_friendly_name() };
         p.primitiveIDs[layerName + "_reorder"] = reorderId;
         p.primitiveIDs[reorderId] = reorderId;
         p.profilingIDs.push_back(reorderId);
@@ -47,7 +51,8 @@ void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node>& op) 
 
     auto reshapePrim = cldnn::reshape(layerName,
                                       reshapeInputId,
-                                      outTensor);
+                                      outTensor,
+                                      op->get_friendly_name());
 
     p.AddPrimitive(reshapePrim);
     p.AddPrimitiveToProfiler(op);

@@ -53,6 +53,7 @@ public:
 
     void Run() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        functionRefs = ngraph::clone_function(*function);
 
         configuration.insert(exportConfiguration.begin(), exportConfiguration.end());
         LoadNetwork();
@@ -165,7 +166,7 @@ const std::vector<std::map<std::string, std::string>> importConfigs = {
         }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ImportActConvAct, ImportActConvActTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ImportActConvAct, ImportActConvActTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputShape),
                                 ::testing::ValuesIn(netPrecisions),

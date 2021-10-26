@@ -7,7 +7,7 @@ from mo.front.tf.extractors.utils import tf_tensor_shape
 from mo.graph.graph import Node
 
 
-class TensorArrayGatherV3Exteractor(FrontExtractorOp):
+class TensorArrayGatherV3Extractor(FrontExtractorOp):
     op = "TensorArrayGatherV3"
     enabled = True
 

@@ -7,7 +7,7 @@
 
 #include "ngraph/op/fake_quantize.hpp"
 
-#include "api/quantize.hpp"
+#include "cldnn/primitives/quantize.hpp"
 
 namespace CLDNNPlugin {
 
@@ -31,7 +31,8 @@ void CreateFakeQuantizeOp(Program& p, const std::shared_ptr<ngraph::op::v0::Fake
                                             output_low_id,
                                             output_high_id,
                                             levels,
-                                            dt);
+                                            dt,
+                                            op->get_friendly_name());
 
     p.AddPrimitive(quantizationPrim);
     p.AddPrimitiveToProfiler(op);

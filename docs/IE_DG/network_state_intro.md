@@ -209,9 +209,135 @@ Decsriptions can be found in [Samples Overview](./Samples_Overview.md)
 [state_network_example]: ./img/state_network_example.png
 
 
-## LowLatency Transformation
+## LowLatency Transformations
 
-If the original framework does not have a special API for working with states, after importing the model, OpenVINO representation will not contain Assign/ReadValue layers. For example, if the original ONNX model contains RNN operations, IR will contain TensorIterator operations and the values will be obtained only after the execution of whole TensorIterator primitive, intermediate values from each iteration will not be available. To be able to work with these intermediate values of each iteration and receive them with a low latency after each infer request, a special LowLatency transformation was introduced.
+If the original framework does not have a special API for working with states, after importing the model, OpenVINO representation will not contain Assign/ReadValue layers. For example, if the original ONNX model contains RNN operations, IR will contain TensorIterator operations and the values will be obtained only after execution of the whole TensorIterator primitive. Intermediate values from each iteration will not be available. To enable you to work with these intermediate values of each iteration and receive them with a low latency after each infer request, special LowLatency and LowLatency2 transformations were introduced.
+
+### How to get TensorIterator/Loop operaions from different frameworks via ModelOptimizer.
+
+**ONNX and frameworks supported via ONNX format:** *LSTM, RNN, GRU* original layers are converted to the TensorIterator operation. TensorIterator body contains LSTM/RNN/GRU Cell. Peepholes, InputForget modifications are not supported, sequence_lengths optional input is supported.
+*ONNX Loop* layer is converted to the OpenVINO Loop operation.
+
+**MXNet:** *LSTM, RNN, GRU* original layers are converted to TensorIterator operation, TensorIterator body contains LSTM/RNN/GRU Cell operations.
+
+**TensorFlow:** *BlockLSTM* is converted to TensorIterator operation, TensorIterator body contains LSTM Cell operation, Peepholes, InputForget modifications are not supported.
+*While* layer is converted to TensorIterator, TensorIterator body can contain any supported operations, but dynamic cases, when count of iterations cannot be calculated in shape inference (ModelOptimizer conversion) time, are not supported.
+
+**TensorFlow2:** *While* layer is converted to Loop operation. Loop body can contain any supported operations.
+
+**Kaldi:** Kaldi models already contain Assign/ReadValue (Memory) operations after model conversion. TensorIterator/Loop operations are not generated.
+
+## LowLatencу2
+
+LowLatency2 transformation changes the structure of the network containing [TensorIterator](../ops/infrastructure/TensorIterator_1.md) and [Loop](../ops/infrastructure/Loop_5.md) by adding the ability to work with the state, inserting the Assign/ReadValue layers as it is shown in the picture below.
+
+### The differences between LowLatency and LowLatency2**:
+
+* Unrolling of TensorIterator/Loop operations became a part of LowLatency2, not a separate transformation. After invoking the transformation, the network can be serialized and inferred without re-invoking the transformation.
+* Added support for TensorIterator and Loop operations with multiple iterations inside. TensorIterator/Loop will not be unrolled in this case.
+* Resolved the ‘Parameters connected directly to ReadValues’ limitation. To apply the previous version of the transformation in this case, additional manual manipulations were required, now the case is processed automatically.
+#### Example of applying LowLatency2 transformation:
+![applying_low_latency_2_example](./img/applying_low_latency_2.png)
+
+After applying the transformation, ReadValue operations can receive other operations as an input, as shown in the picture above. These inputs should set the initial value for initialization of ReadValue operations. However, such initialization is not supported in the current State API implementation. Input values are ignored and the initial values for the ReadValue operations are set to zeros unless otherwise specified by the user via [State API](#openvino-state-api).
+
+### Steps to apply LowLatency2 Transformation
+
+1. Get CNNNetwork. Either way is acceptable:
+
+	* [from IR or ONNX model](./Integrate_with_customer_application_new_API.md)
+	* [from nGraph Function](../nGraph_DG/build_function.md)
+
+2. Change the number of iterations inside TensorIterator/Loop nodes in the network using the [Reshape](ShapeInference.md) feature. 
+
+For example, the *sequence_lengths* dimension of input of the network > 1, it means the TensorIterator layer has number_of_iterations > 1. You can reshape the inputs of the network to set *sequence_dimension* to exactly 1.
+
+```cpp
+
+// Network before reshape: Parameter (name: X, shape: [2 (sequence_lengths), 1, 16]) -> TensorIterator (num_iteration = 2, axis = 0) -> ...
+
+cnnNetwork.reshape({"X" : {1, 1, 16});
+
+// Network after reshape: Parameter (name: X, shape: [1 (sequence_lengths), 1, 16]) -> TensorIterator (num_iteration = 1, axis = 0) -> ...
+	
+```
+**Unrolling**: If the LowLatency2 transformation is applied to a network containing TensorIterator/Loop nodes with exactly one iteration inside, these nodes are unrolled; otherwise, the nodes remain as they are. Please see [the picture](#example-of-applying-lowlatency2-transformation) for more details.
+
+3. Apply LowLatency2 transformation
+```cpp
+#include "ie_transformations.hpp"
+
+...
+
+InferenceEngine::lowLatency2(cnnNetwork); // 2nd argument 'use_const_initializer = true' by default
+```
+**Use_const_initializer argument**
+
+By default, the LowLatency2 transformation inserts a constant subgraph of the same shape as the previous input node, and with zero values as the initializing value for ReadValue nodes, please see the picture below. We can disable insertion of this subgraph by passing the `false` value for the `use_const_initializer` argument.
+
+```cpp
+InferenceEngine::lowLatency2(cnnNetwork, false);
+```
+
+![use_const_initializer_example](./img/llt2_use_const_initializer.png)
+
+**State naming rule:**  a name of a state is a concatenation of names: original TensorIterator operation, Parameter of the body, and additional suffix "variable_" + id (0-base indexing, new indexing for each TensorIterator). You can use these rules to predict what the name of the inserted State will be after the transformation is applied. For example:
+```cpp
+	// Precondition in ngraph::function.
+	// Created TensorIterator and Parameter in body of TensorIterator with names
+	std::string tensor_iterator_name = "TI_name"
+	std::string body_parameter_name = "param_name"
+	std::string idx = "0"; // it's a first variable in the network
+
+	// The State will be named "TI_name/param_name/variable_0"
+	auto state_name = tensor_iterator_name + "//" + body_parameter_name + "//" + "variable_" + idx;
+
+	InferenceEngine::CNNNetwork cnnNetwork = InferenceEngine::CNNNetwork{function};
+	InferenceEngine::lowLatency2(cnnNetwork);
+
+	InferenceEngine::ExecutableNetwork executableNetwork = core->LoadNetwork(/*cnnNetwork, targetDevice, configuration*/);
+
+	// Try to find the Variable by name
+	auto states = executableNetwork.QueryState();
+	for (auto& state : states) {
+		auto name = state.GetName();
+		if (name == state_name) {
+			// some actions
+		}
+	}
+```
+
+4. Use state API. See sections [OpenVINO state API](#openvino-state-api), [Example of stateful network inference](#example-of-stateful-network-inference).
+
+### Known Limitations
+1. Unable to execute [Reshape](ShapeInference.md) to change the number iterations of TensorIterator/Loop layers to apply the transformation correctly due to hardcoded values of shapes somewhere in the network.
+
+	The only way you can change the number iterations of TensorIterator/Loop layer is to use the Reshape feature, but networks can be non-reshapable, the most common reason is that the value of shapes is hardcoded in a constant somewhere in the network. 
+
+	![low_latency_limitation_2](./img/low_latency_limitation_2.png)
+
+	**Current solution:** Trim non-reshapable layers via [ModelOptimizer CLI](../MO_DG/prepare_model/convert_model/Converting_Model_General.md) `--input`, `--output`. For example, the parameter and the problematic constant in the picture above can be trimmed using the following command line option: 
+	`--input Reshape_layer_name`. The problematic constant can be also replaced using ngraph, as shown in the example below.
+
+```cpp
+	// nGraph example. How to replace a Constant with hardcoded values of shapes in the network with another one with the new values.
+	// Assume we know which Constant (const_with_hardcoded_shape) prevents the reshape from being applied.
+	// Then we can find this Constant by name on the network and replace it with a new one with the correct shape.
+	auto func = cnnNetwork.getFunction();
+	// Creating the new Constant with a correct shape.
+	// For the example shown in the picture above, the new values of the Constant should be 1, 1, 10 instead of 1, 49, 10
+	auto new_const = std::make_shared<ngraph::opset6::Constant>( /*type, shape, value_with_correct_shape*/ );
+	for (const auto& node : func->get_ops()) {
+		// Trying to find the problematic Constant by name.
+		if (node->get_friendly_name() == "name_of_non_reshapable_const") {
+			auto const_with_hardcoded_shape = std::dynamic_pointer_cast<ngraph::opset6::Constant>(node);
+			// Replacing the problematic Constant with a new one. Do this for all the problematic Constants in the network, then 
+			// you can apply the reshape feature.
+			ngraph::replace_node(const_with_hardcoded_shape, new_const);
+		}
+	}
+```
+## [DEPRECATED] LowLatency
 
 LowLatency transformation changes the structure of the network containing [TensorIterator](../ops/infrastructure/TensorIterator_1.md) and [Loop](../ops/infrastructure/Loop_5.md) by adding the ability to work with the state, inserting the Assign/ReadValue layers as it is shown in the picture below.
 

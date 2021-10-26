@@ -36,7 +36,7 @@ KernelsData PyramidROIAlignKernelBase::GetCommonKernelsData(const Params& params
     auto dispatchData = SetDefault(prim_params);
     KernelData k_data = KernelData::Default<PyramidROIAlign_params>(params);
     auto cldnn_jit = GetJitConstants(prim_params);
-    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];

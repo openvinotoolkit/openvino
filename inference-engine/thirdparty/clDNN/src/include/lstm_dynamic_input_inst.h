@@ -4,9 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api_extension/lstm_dynamic_input.hpp"
+#include "cldnn/primitives/lstm_dynamic_input.hpp"
 #include "primitive_inst.h"
-#include "error_handler.h"
+
 #include <memory>
 #include <string>
 
@@ -17,7 +17,7 @@ struct typed_program_node<lstm_dynamic_input> : public typed_program_node_base<l
     using parent = typed_program_node_base<lstm_dynamic_input>;
 
 public:
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog) : parent(prim, prog) {}
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog) : parent(prim, prog) {}
 
     program_node& input() const { return get_dependency(0); }
     program_node& dyn_length() const { return get_dependency(1); }
@@ -45,13 +45,13 @@ public:
     static std::string to_string(lstm_dynamic_input_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, lstm_dynamic_input_node const& node);
+    typed_primitive_inst(network& network, lstm_dynamic_input_node const& node);
 
-    memory_impl& dyn_length_memory() const { return dep_memory(1); }
-    memory_impl& weights_memory() const { return dep_memory(2); }
-    memory_impl& bias_memory() const {
+    memory::ptr dyn_length_memory() const { return dep_memory_ptr(1); }
+    memory::ptr weights_memory() const { return dep_memory_ptr(2); }
+    memory::ptr bias_memory() const {
         CLDNN_ERROR_BOOL(id(), "Bias term", !bias_term(), "Trying to get non existing bias memory.");
-        return dep_memory(3);
+        return dep_memory_ptr(3);
     }
     int32_t direction() const { return node.direction(); }
     bool bias_term() const { return node.bias_term(); }

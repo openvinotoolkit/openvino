@@ -22,7 +22,7 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     size_t outputDim = 0;
@@ -50,10 +50,9 @@ private:
 
     std::string errorPrefix;
 
-    void unpackParams(const InferenceEngine::TensorDesc& srcDesc, const InferenceEngine::TensorDesc& dstDesc,
+    void unpackParams(const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc,
                       int& hInputStride, int& wInputStride,
                       int& hOutputStride, int& wOutputStride,
-                      InferenceEngine::Layout& inFmt, InferenceEngine::Layout& outFmt,
                       int& inBlockSize, int& outBlockSize,
                       int& outBlockCount,
                       unsigned long& inputChannelsPadding, unsigned long& outputChannelsPadding);
@@ -61,12 +60,12 @@ private:
     template <typename inputType, typename outputType>
     void executeAverage(const inputType *srcData, outputType *dstData, const float *bottomRois,
                         const int n, const int roiBatchInd,
-                        const InferenceEngine::TensorDesc& srcDesc, const InferenceEngine::TensorDesc& dstDesc);
+                        const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc);
 
     template <typename inputType, typename outputType>
     void executeBilinear(const inputType *srcData, outputType *dstData, const float *bottomRois,
                          const int currentRoi, const int roiBatchInd,
-                         const InferenceEngine::TensorDesc& srcDesc, const InferenceEngine::TensorDesc& dstDesc);
+                         const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc);
 
     template <typename inputType, typename outputType>
     void executeBilinearDeformable(const inputType *srcData, outputType *dstData, const float *bottomRois,

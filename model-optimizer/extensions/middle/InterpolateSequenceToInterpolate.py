@@ -6,7 +6,7 @@ import numpy as np
 from typing import List
 
 from extensions.ops.interpolate import Interpolate
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
@@ -200,7 +200,7 @@ def replace_sequence(seq: List[Node], graph: Graph):
 
         axis_to_size = sorted(list(dict(dims_and_scales_).items()), key=lambda x: x[0])
         axes_of_node = int64_array([z[0] for z in axis_to_size])
-        sizes = int64_array([z[1] for z in axis_to_size])
+        sizes = shape_array([z[1] for z in axis_to_size])
         scales = np.ones(len(axis_to_size))
     else:
         for interp in seq:
@@ -210,7 +210,7 @@ def replace_sequence(seq: List[Node], graph: Graph):
 
         axis_to_size = sorted(dims_and_scales_, key=lambda x: x[0])
         axes_of_node = int64_array([z[0] for z in axis_to_size])
-        sizes = int64_array([z[1] for z in axis_to_size])
+        sizes = shape_array([z[1] for z in axis_to_size])
         scales = np.array([z[2] for z in axis_to_size])
 
     fst_interp_node = seq[0]

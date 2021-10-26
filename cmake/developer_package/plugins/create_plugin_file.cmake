@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+cmake_policy(SET CMP0007 NEW)
+
 set(newContent "        <plugin name=\"${IE_DEVICE_NAME}\" location=\"${IE_PLUGIN_LIBRARY_NAME}\">")
 
 if(IE_PLUGIN_PROPERTIES)
@@ -9,10 +11,11 @@ if(IE_PLUGIN_PROPERTIES)
             <properties>")
 
     foreach(props IN LISTS IE_PLUGIN_PROPERTIES)
-        string(REPLACE "," ";" props "${props}")
+        string(REPLACE ":" ";" props "${props}")
 
         list(GET props 0 key)
         list(GET props 1 value)
+
         set(newContent "${newContent}
                 <property key=\"${key}\" value=\"${value}\"/>")
     endforeach()

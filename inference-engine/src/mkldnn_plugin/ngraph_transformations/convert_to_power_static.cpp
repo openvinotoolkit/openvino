@@ -35,25 +35,32 @@ bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp> &node) {
     }
 
     const int nonConstPort = 1 - constPort;
-    const auto constNode = std::dynamic_pointer_cast<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(constPort));
-
-    return ngraph::shape_size(node->get_input_shape(constPort)) == 1 &&
-           node->get_input_shape(nonConstPort).size() >= node->get_input_shape(constPort).size() &&
-           !MKLDNNPlugin::one_of(node->get_input_node_shared_ptr(nonConstPort)->get_type_info(), ngraph::opset1::NormalizeL2::type_info,
-                                                                                                 ngraph::opset4::Interpolate::type_info,
-                                                                                                 ngraph::opset1::Convolution::type_info,
-                                                                                                 ngraph::opset1::GroupConvolution::type_info,
-                                                                                                 ngraph::opset1::ConvolutionBackpropData::type_info,
-                                                                                                 ngraph::opset1::GroupConvolutionBackpropData::type_info,
-                                                                                                 MKLDNNPlugin::FullyConnectedNode::type_info,
-                                                                                                 ngraph::op::v0::MVN::type_info,
-                                                                                                 ngraph::opset6::MVN::type_info);
+    auto input_rank = node->get_input_partial_shape(nonConstPort).rank();
+    if (input_rank.is_dynamic())
+        return false;
+    auto const_shape = node->get_input_shape(constPort);
+    return ngraph::shape_size(const_shape) == 1 &&
+           input_rank.get_length() >= const_shape.size() &&
+           !MKLDNNPlugin::one_of(node->get_input_node_shared_ptr(nonConstPort)->get_type_info(),
+                                 ngraph::opset1::NormalizeL2::get_type_info_static(),
+                                 ngraph::opset4::Interpolate::get_type_info_static(),
+                                 ngraph::opset1::Convolution::get_type_info_static(),
+                                 ngraph::opset1::GroupConvolution::get_type_info_static(),
+                                 ngraph::opset1::ConvolutionBackpropData::get_type_info_static(),
+                                 ngraph::opset1::GroupConvolutionBackpropData::get_type_info_static(),
+                                 MKLDNNPlugin::FullyConnectedNode::get_type_info_static(),
+                                 ngraph::op::v0::MVN::get_type_info_static(),
+                                 ngraph::opset6::MVN::get_type_info_static());
 }
 
 template <>
 bool isConvertableToPowerStatic(const std::shared_ptr<ngraph::opset1::Power> &node) {
+    auto input_rank = node->get_input_partial_shape(0).rank();
+    auto const_shape = node->get_input_shape(1);
+    if (input_rank.is_dynamic())
+        return false;
     return std::dynamic_pointer_cast<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(1)) != nullptr &&
-           node->get_input_shape(0).size() >= node->get_input_shape(1).size() && ngraph::shape_size(node->get_input_shape(1)) == 1;
+           input_rank.get_length() >= const_shape.size() && ngraph::shape_size(const_shape) == 1;
 }
 
 template <class BaseOp>
@@ -89,8 +96,8 @@ std::shared_ptr<ngraph::Node> convert(const std::shared_ptr<BaseOp> &node) {
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ConvertToPowerStatic, "ConvertToPowerStatic", 0);
 
 MKLDNNPlugin::ConvertToPowerStatic::ConvertToPowerStatic() {
-    ngraph::OutputVector twoInputs = {ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
-                                      ngraph::pattern::any_input(ngraph::pattern::has_static_shape())};
+    ngraph::OutputVector twoInputs = {ngraph::pattern::any_input(ngraph::pattern::has_static_rank()),
+                                      ngraph::pattern::any_input(ngraph::pattern::has_static_rank())};
     auto power = ngraph::pattern::wrap_type<ngraph::opset1::Power>(twoInputs);
     auto add = ngraph::pattern::wrap_type<ngraph::opset1::Add>(twoInputs);
     auto sub = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>(twoInputs);

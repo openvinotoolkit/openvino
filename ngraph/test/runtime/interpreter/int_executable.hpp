@@ -7,11 +7,11 @@
 #include <initializer_list>
 #include <iostream>
 #include <memory>
+#include <ngraph/runtime/host_tensor.hpp>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include <ngraph/runtime/host_tensor.hpp>
 #include "backend.hpp"
 #include "int_backend_visibility.hpp"
 #include "ngraph/ops.hpp"
@@ -21,27 +21,21 @@
 #include "ngraph/runtime/reference/reorg_yolo.hpp"
 #include "ngraph/runtime/reference/tensor_iterator.hpp"
 #include "ngraph/runtime/tensor.hpp"
-#include "op/avg_pool.hpp"
 
-namespace ngraph
-{
-    namespace runtime
-    {
-        namespace interpreter
-        {
-            class INTBackend;
-            class INTExecutable;
-        } // namespace interpreter
-    }     // namespace runtime
-} // namespace ngraph
+namespace ngraph {
+namespace runtime {
+namespace interpreter {
+class INTBackend;
+class INTExecutable;
+}  // namespace interpreter
+}  // namespace runtime
+}  // namespace ngraph
 
-class INTERPRETER_BACKEND_API ngraph::runtime::interpreter::INTExecutable : public Executable
-{
+class INTERPRETER_BACKEND_API ngraph::runtime::interpreter::INTExecutable : public Executable {
     friend class INTBackend;
 
 public:
-    INTExecutable(const std::shared_ptr<Function>& function,
-                  bool enable_performance_collection = false);
+    INTExecutable(const std::shared_ptr<Function>& function, bool enable_performance_collection = false);
 
     bool call(const std::vector<std::shared_ptr<Tensor>>& outputs,
               const std::vector<std::shared_ptr<Tensor>>& inputs) override;
@@ -54,11 +48,11 @@ public:
 
     std::shared_ptr<runtime::Tensor> create_output_tensor(size_t output_index) override;
 
-    std::vector<std::shared_ptr<runtime::Tensor>>
-        create_input_tensor(size_t input_index, size_t pipeline_depth) override;
+    std::vector<std::shared_ptr<runtime::Tensor>> create_input_tensor(size_t input_index,
+                                                                      size_t pipeline_depth) override;
 
-    std::vector<std::shared_ptr<runtime::Tensor>>
-        create_output_tensor(size_t output_index, size_t pipeline_depth) override;
+    std::vector<std::shared_ptr<runtime::Tensor>> create_output_tensor(size_t output_index,
+                                                                       size_t pipeline_depth) override;
 
 protected:
     std::shared_ptr<ngraph::op::Parameter> get_parameter(size_t index) const;
@@ -70,13 +64,13 @@ protected:
     bool m_nan_check_enabled = false;
     bool m_performance_counters_enabled = false;
     std::shared_ptr<Function> m_function;
+    NGRAPH_SUPPRESS_DEPRECATED_START
     std::unordered_map<std::shared_ptr<const Node>, stopwatch> m_timer_map;
+    NGRAPH_SUPPRESS_DEPRECATED_END
     std::vector<std::shared_ptr<Node>> m_nodes;
 
-    static void perform_nan_check(const std::vector<std::shared_ptr<HostTensor>>&,
-                                  const Node* op = nullptr);
-    struct InfoForNMS5
-    {
+    static void perform_nan_check(const std::vector<std::shared_ptr<HostTensor>>&, const Node* op = nullptr);
+    struct InfoForNMS5 {
         int64_t max_output_boxes_per_class;
         float iou_threshold;
         float score_threshold;

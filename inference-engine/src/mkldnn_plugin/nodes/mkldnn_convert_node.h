@@ -30,19 +30,21 @@ public:
     // In that case the Convert node is instantiated with default CNNLayer and inp/out tensor descriptors are set via this method.
     // This is useful if the Convert node is added to the graph as an auxiliary operation at the MKLDNNGraph
     // initialization stage.
-    void setDescs(const InferenceEngine::TensorDesc& input, const InferenceEngine::TensorDesc& output) {
-        this->input.reset(new InferenceEngine::TensorDesc(input));
-        this->output.reset(new InferenceEngine::TensorDesc(output));
+    void setDescs(const MemoryDesc& input, const MemoryDesc& output) {
+        this->input = input.clone();
+        this->output = output.clone();
     }
 
-    std::shared_ptr<const InferenceEngine::TensorDesc> getInput() const { return input; }
-    std::shared_ptr<const InferenceEngine::TensorDesc> getOutput() const { return output; }
+    const MemoryDesc& getInput() const { return *input; }
+    const MemoryDesc& getOutput() const { return *output; }
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+
+    static bool isSupportedDesc(const MemoryDesc &desc);
 
 private:
-    std::shared_ptr<InferenceEngine::TensorDesc> input;
-    std::shared_ptr<InferenceEngine::TensorDesc> output;
+    MemoryDescPtr input;
+    MemoryDescPtr output;
 
     std::string errorPrefix;
 };

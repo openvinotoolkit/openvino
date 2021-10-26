@@ -8,13 +8,14 @@
 #include <ie_api.h>
 #include <ie_iextension.h>
 #include <ie_network_reader.hpp>
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ie_core.hpp"
 #include "ngraph/ngraph.hpp"
 #include "transformations/serialize.hpp"
 
 #ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
-#define IR_SERIALIZATION_MODELS_PATH ""
+# error "IR_SERIALIZATION_MODELS_PATH is not defined"
 #endif
 
 #ifndef IE_BUILD_POSTFIX  // should be already defined by cmake
@@ -40,7 +41,8 @@ protected:
 };
 
 TEST_F(CustomOpsSerializationTest, CustomOpUser_MO) {
-    const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.xml";
+    const std::string model = CommonTestUtils::getModelFromTestModelZoo(
+        IR_SERIALIZATION_MODELS_PATH "custom_op.xml");
 
     InferenceEngine::Core ie;
     ie.AddExtension(
@@ -59,10 +61,11 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_MO) {
     ASSERT_TRUE(success) << message;
 }
 
-#ifdef NGRAPH_ONNX_IMPORT_ENABLE
+#ifdef NGRAPH_ONNX_FRONTEND_ENABLE
 
 TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
-    const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.prototxt";
+    const std::string model = CommonTestUtils::getModelFromTestModelZoo(
+        IR_SERIALIZATION_MODELS_PATH "custom_op.onnx");
 
     InferenceEngine::Core ie;
     ie.AddExtension(
@@ -84,7 +87,8 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
 #endif
 
 TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
-    const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.xml";
+    const std::string model = CommonTestUtils::getModelFromTestModelZoo(
+        IR_SERIALIZATION_MODELS_PATH "custom_op.xml");
 
     InferenceEngine::Core ie;
     auto extension =
@@ -94,8 +98,8 @@ TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
     auto expected = ie.ReadNetwork(model);
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::Serialize>(
-        m_out_xml_path, m_out_bin_path,
-        ngraph::pass::Serialize::Version::IR_V10, extension->getOpSets());
+        m_out_xml_path, m_out_bin_path, extension->getOpSets(),
+        ngraph::pass::Serialize::Version::IR_V10);
     manager.run_passes(expected.getFunction());
     auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
 
@@ -119,11 +123,16 @@ public:
         versionInfo = &ExtensionDescription;
     }
 
+    std::map<std::string, ngraph::OpSet> getOpSets() override {
+        return {{"framework_node_ext", ngraph::OpSet()}};
+    }
+
     void Unload() noexcept override {}
 };
 
 TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
-    const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.xml";
+    const std::string model = CommonTestUtils::getModelFromTestModelZoo(
+        IR_SERIALIZATION_MODELS_PATH "custom_op.xml");
 
     InferenceEngine::Core ie;
     auto extension = std::make_shared<FrameworkNodeExtension>();
@@ -131,15 +140,15 @@ TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
     auto expected = ie.ReadNetwork(model);
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::Serialize>(
-            m_out_xml_path, m_out_bin_path,
-            ngraph::pass::Serialize::Version::IR_V10, extension->getOpSets());
+            m_out_xml_path, m_out_bin_path, extension->getOpSets(),
+            ngraph::pass::Serialize::Version::IR_V10);
     manager.run_passes(expected.getFunction());
     auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
 
     bool success;
     std::string message;
     std::tie(success, message) =
-            compare_functions(result.getFunction(), expected.getFunction(), true);
+            compare_functions(result.getFunction(), expected.getFunction(), true, false, false, true, true);
 
     ASSERT_TRUE(success) << message;
 }

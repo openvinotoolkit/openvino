@@ -8,7 +8,7 @@ from collections import namedtuple
 import networkx as nx
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, strict_compare_tensors
 from mo.front.extractor import add_attrs_props, update_ie_fields
 from mo.graph.graph import Node, Graph
 from mo.utils import class_registration
@@ -121,13 +121,20 @@ class Op(object):
         if attrs is None:
             attrs = dict()
         new_node = self.add_node(attrs)
-        # Missed careful handling of debug information
         for i, inp in enumerate(inputs):
             edge_attr = {'in': i, 'out': inp[1],
                          'in_attrs': ['in', 'permutation'],
                          'out_attrs': ['out', 'permutation'],
                          'data_attrs': []} if not inp[0].has_valid('kind') or inp[0].kind == 'op' \
                 else {'in': i, 'in_attrs': ['in', 'permutation']}
+
+            # handling of debug information
+            if inp[0].has_port('out', inp[1]):
+                debug_info = inp[0].out_port(inp[1]).get_tensor_debug_info()
+                if debug_info is not None and len(debug_info) > 0:
+                    edge_attr.update({'fw_tensor_debug_info': debug_info})
+                    edge_attr['data_attrs'].append('fw_tensor_debug_info')
+
             if edge_attrs is not None:
                 edge_attr.update(edge_attrs)
             new_node.add_input_port(i, skip_if_exist=True)
@@ -191,9 +198,11 @@ class Op(object):
                 for out_node in new_op_node.out_nodes().values():
                     out_node['nchw_layout'] = new_op_node.nchw_layout
             assert all(old_value is None for old_value in old_data_value) or all(
-                [np.array_equal(old_data_value[id], data_node.value) for id, data_node in enumerate(data_nodes)])
+                [strict_compare_tensors(old_data_value[id], data_node.value)
+                 for id, data_node in enumerate(data_nodes)])
             assert all(old_shape is None for old_shape in old_data_shape) or all(
-                [np.array_equal(old_data_shape[id], data_node.shape) for id, data_node in enumerate(data_nodes)]), \
+                [strict_compare_tensors(old_data_shape[id], data_node.shape)
+                 for id, data_node in enumerate(data_nodes)]), \
                 "After re-inference of {} node, old and new shapes do not match. Old shapes: {}, new shapes: {}." \
                 "".format(new_op_node.soft_get('name'), [old_data_shape[id] for id in range(len(data_nodes))],
                           [data_node.shape for data_node in data_nodes])
@@ -285,7 +294,6 @@ class Op(object):
         """
         return self.attrs.get('version', 'extension')
 
-
     @classmethod
     def update_node_stat(cls, node: Node, attrs: dict = None):
         if attrs is None:
@@ -320,6 +328,18 @@ class Op(object):
         for idx in range(dims_to_add):
             node.value = np.expand_dims(node.value, axis=-1)
         node.shape = np.array(node.value.shape)
+
+    @staticmethod
+    def normalize_outputs(node: Node):
+        if node.has_valid('out_ports_count') and len(node.out_edges()) < node.out_ports_count:
+            from mo.ops.result import Result    # Import is here to avoid circular import error
+            for p in range(node.out_ports_count):
+                if p not in node.out_ports():
+                    node.add_output_port(p)
+                if node.out_port(p).disconnected():
+                    res_node = Result(node.graph, {'name': node.name + '/Fake_output_{}/'.format(p),
+                                                   'keep_output_port': True}).create_node()
+                    node.out_port(p).connect(res_node.in_port(0))
 
 
 class PermuteAttrs:

@@ -9,14 +9,14 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-std::vector<std::vector<std::vector<size_t>>> inShapes = {
-        {{1, 200}},
-        // TODO: Issue 32544
-        // {{2}},
-        {{1, 1, 1, 3}},
-        // {{1, 2, 4}},
-        // {{1, 4, 4}},
-        // {{1, 4, 4, 1}}
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes = {
+        {{}, {{{2}}}},
+        {{}, {{{8}}}},
+        {{}, {{{1, 200}}}},
+        {{}, {{{1, 1, 1, 3}}}},
+        {{}, {{{1, 2, 4}}}},
+        {{}, {{{1, 4, 4}}}},
+        {{}, {{{1, 4, 4, 1}}}}
 };
 
 
@@ -59,5 +59,5 @@ const auto multiply_params = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::Values(additional_config));
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
 }  // namespace

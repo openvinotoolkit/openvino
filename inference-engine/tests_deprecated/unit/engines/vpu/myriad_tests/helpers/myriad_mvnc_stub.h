@@ -17,8 +17,8 @@ using namespace vpu::MyriadPlugin;
 class MvncStub : public IMvnc {
 public:
     //Operations
-    MOCK_QUALIFIED_METHOD0(AvailableDevicesNames, const, std::vector<std::string>());
-    MOCK_QUALIFIED_METHOD0(AvailableDevicesDesc, const, std::vector<ncDeviceDescr_t>());
+    MOCK_CONST_METHOD0(AvailableDevicesNames, std::vector<std::string>());
+    MOCK_CONST_METHOD0(AvailableDevicesDesc, std::vector<ncDeviceDescr_t>());
 
     MOCK_METHOD0(watchdogHndl, WatchdogHndl_t*());
 

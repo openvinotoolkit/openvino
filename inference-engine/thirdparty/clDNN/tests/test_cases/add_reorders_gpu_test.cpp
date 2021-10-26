@@ -2,26 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include <api/reorder.hpp>
-#include <api/data.hpp>
-#include <api/activation.hpp>
-#include <api/mutable_data.hpp>
-#include <api/layout.hpp>
-#include <api/tile.hpp>
-#include <api/reshape.hpp>
+#include "test_utils.h"
 
-#include <api/concatenation.hpp>
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/reorder.hpp>
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/activation.hpp>
+#include <cldnn/primitives/mutable_data.hpp>
+#include <cldnn/primitives/tile.hpp>
+#include <cldnn/primitives/reshape.hpp>
+#include <cldnn/primitives/concatenation.hpp>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 /*
 These tests are inteded to check if additional reorders are being added  properly during
@@ -30,20 +23,20 @@ add_reorders optimization pass.
 
 //concatenation of incompatible convolutions
 TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
     build_options build_opt;
     build_opt.set_option(build_option::optimize_data(false));
 
-    auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
-    auto weights1 = memory::allocate(engine, { data_types::f32, format::yxio,{ 1, 1, 1, 2 } });
-    auto weights2 = memory::allocate(engine, { data_types::f32, format::oiyx,{ 1, 1, 1, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
+    auto weights1 = engine.allocate_memory({ data_types::f32, format::yxio,{ 1, 1, 1, 2 } });
+    auto weights2 = engine.allocate_memory({ data_types::f32, format::oiyx,{ 1, 1, 1, 2 } });
 
     set_values(input, { 1.1f, 1.2f, 1.3f, 1.4f });
     set_values(weights1, { 2.1f, 3.1f});
     set_values(weights2, { 1.1f, 0.1f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights1", weights1));
     topology.add(data("weights2", weights2));
 
@@ -63,23 +56,18 @@ TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
     float expected_out[] = { 6.34f, 1.34f, 6.86f, 1.46f };
     float epsilon = 1e-3f;
 
-    for (auto& it : outputs)
-    {
-        auto output = it.second.get_memory().pointer<float>();
-        for (size_t cntr = 0; cntr < 2 * 2; cntr++)
-        {
+    for (auto& it : outputs) {
+        cldnn::mem_lock<float> output(it.second.get_memory(), get_test_stream());
+        for (size_t cntr = 0; cntr < 2 * 2; cntr++) {
             EXPECT_NEAR(expected_out[cntr], output[cntr], epsilon);
         }
     }
 }
 
 template<typename data_t>
-void tile_ref(const memory& input, memory& output, tile::tile_axis axis, int num_tiles)
-{
-    auto get_sizes = [](const tensor& size, tile::tile_axis axis) -> std::pair<int, int>
-    {
-        switch (axis)
-        {
+void tile_ref(const memory::ptr input, memory::ptr output, tile::tile_axis axis, int num_tiles) {
+    auto get_sizes = [](const tensor& size, tile::tile_axis axis) -> std::pair<int, int> {
+        switch (axis) {
         case tile::along_b: return std::make_pair(1, size.batch[0] * size.feature[0] * size.spatial[2] * size.spatial[1] * size.spatial[0]);
         case tile::along_f: return std::make_pair(size.batch[0], size.feature[0] * size.spatial[2] * size.spatial[1] * size.spatial[0]);
         case tile::along_z: return std::make_pair(size.batch[0] * size.feature[0], size.spatial[2] * size.spatial[1] * size.spatial[0]);
@@ -89,22 +77,19 @@ void tile_ref(const memory& input, memory& output, tile::tile_axis axis, int num
         }
     };
 
-    const pointer<data_t> src = input.pointer<data_t>();
-    pointer<data_t> dst = output.pointer<data_t>();
+    cldnn::mem_lock<data_t> src(input, get_test_stream());
+    cldnn::mem_lock<data_t> dst(output, get_test_stream());
 
     const data_t* psrc = src.data();
     data_t* pdst = dst.data();
 
-    auto sizes = get_sizes(input.get_layout().size, axis);
+    auto sizes = get_sizes(input->get_layout().size, axis);
     int outer_dim = sizes.first;
     int inner_dim = sizes.second;
 
-    for (int i = 0; i < outer_dim; i++)
-    {
-        for (int t = 0; t < num_tiles; t++)
-        {
-            for (int j = 0; j < inner_dim; j++)
-            {
+    for (int i = 0; i < outer_dim; i++) {
+        for (int t = 0; t < num_tiles; t++) {
+            for (int j = 0; j < inner_dim; j++) {
                 pdst[j] = psrc[j];
             }
             pdst += inner_dim;
@@ -114,13 +99,13 @@ void tile_ref(const memory& input, memory& output, tile::tile_axis axis, int num
 }
 
 TEST(add_reorders_gpu, basic_reshape_and_tile) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f32, format::byxf,{ 1, 2, 2, 1 } });
-    auto output_ref = memory::allocate(engine, { data_types::f32, format::byxf,{ 2, 1, 4, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::byxf,{ 1, 2, 2, 1 } });
+    auto output_ref = engine.allocate_memory({ data_types::f32, format::byxf,{ 2, 1, 4, 2 } });
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reshape("reshape", "input", tensor(2, 1, 2, 1)));
     topology.add(tile("tile", "reshape", tensor(2, 1, 2, 4)));
 
@@ -136,10 +121,10 @@ TEST(add_reorders_gpu, basic_reshape_and_tile) {
     auto outputs = network.execute();
 
     auto output = outputs.at("tile").get_memory();
-    auto output_ptr = output.pointer<float>();
-    auto output_ref_ptr = output_ref.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
-    for (unsigned int i = 0; i < output_ref.count(); ++i) {
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
         EXPECT_EQ(output_ptr[i], output_ref_ptr[i]);
     }
 }

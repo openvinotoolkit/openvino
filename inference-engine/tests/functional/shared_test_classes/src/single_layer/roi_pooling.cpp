@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-    std::string ROIPoolingLayerTest::getTestCaseName(testing::TestParamInfo<roiPoolingParamsTuple> obj) {
+    std::string ROIPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<roiPoolingParamsTuple>& obj) {
         std::vector<size_t> inputShape;
         std::vector<size_t> coordsShape;
         std::vector<size_t> poolShape;

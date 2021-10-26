@@ -108,7 +108,7 @@ class PriorBoxOp(Op):
 
         if node.has_and_set('V10_infer'):
             assert node.in_node(0).value is not None
-            node.out_node(0).shape = np.array([2, np.prod(node.in_node(0).value) * num_ratios * 4], dtype=np.int64)
+            node.out_port(0).data.set_shape([2, np.prod(node.in_node(0).value) * num_ratios * 4])
         else:
             res_prod = data_shape[get_height_dim(layout, 4)] * data_shape[get_width_dim(layout, 4)] * num_ratios * 4
-            node.out_node(0).shape = np.array([1, 2, res_prod], dtype=np.int64)
+            node.out_port(0).data.set_shape([1, 2, res_prod])

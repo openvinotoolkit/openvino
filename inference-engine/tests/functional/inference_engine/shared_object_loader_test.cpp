@@ -4,15 +4,13 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_plugin_ptr.hpp>
 #include <file_utils.h>
 #include "details/ie_so_loader.h"
+#include <cpp/ie_plugin.hpp>
 
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
-
-IE_SUPPRESS_DEPRECATED_START
 
 class SharedObjectLoaderTests: public ::testing::Test {
 protected:
@@ -43,7 +41,7 @@ TEST_F(SharedObjectLoaderTests, canLoadExistedPlugin) {
 }
 
 TEST_F(SharedObjectLoaderTests, loaderThrowsIfNoPlugin) {
-    EXPECT_THROW(loadDll("wrong_name"), InferenceEngine::Exception);
+    EXPECT_THROW(loadDll("wrong_name"), std::runtime_error);
 }
 
 TEST_F(SharedObjectLoaderTests, canFindExistedMethod) {
@@ -55,7 +53,7 @@ TEST_F(SharedObjectLoaderTests, canFindExistedMethod) {
 
 TEST_F(SharedObjectLoaderTests, throwIfMethodNofFoundInLibrary) {
     loadDll(get_mock_engine_name());
-    EXPECT_THROW(make_std_function("wrong_function"), InferenceEngine::Exception);
+    EXPECT_THROW(make_std_function("wrong_function"), std::runtime_error);
 }
 
 TEST_F(SharedObjectLoaderTests, canCallExistedMethod) {

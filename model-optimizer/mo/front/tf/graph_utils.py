@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import collections
-import logging as log
 from typing import Dict
 
 import numpy as np
@@ -50,43 +48,6 @@ def create_op_with_const_inputs(graph: Graph, op: callable, port_value_dict: Dic
         if graph.stage != 'front':
             value_input_node.infer(value_input_node)
     return node
-
-
-def mark_squeeze_reshape_concat_before_detection_output(start_nodes: list):
-    """
-    The function looks for Reshape, Concat and Squeeze ops after the 'start_nodes' with 4D output and marks them with
-    proper attributes to infer them in original NHWC layout. This is a case of the TensorFlow Object Detection API
-    models for the SSD heads output which produces 4D tensor with bounding box deltas.
-    :param start_nodes: list of nodes to start search from.
-    :return: None
-    """
-    q = collections.deque()
-    q.extend(start_nodes)
-    while len(q) != 0:
-        cur_node = q.popleft()
-        if cur_node.has_valid('type'):
-            if cur_node.soft_get('type') == 'DetectionOutput':  # do not go beyond the DetectionOutput node
-                continue
-            # the input to Reshape comes from Convolution so it will be converted from NCHW to NHWC layout in the
-            # InsertLayoutPropagationTransposes transformation. But the output should be kept in the original layout
-            if cur_node.soft_get('type') == 'Reshape' and len(cur_node.out_port(0).data.get_shape()) == 4:
-                mark_output_as_in_correct_layout(cur_node, 0)
-
-            # Concat should be inferred in the original layout so the input with concatenation axis should not be
-            # updated from NHWC to NCHW layout
-            if cur_node.soft_get('type') == 'Concat' and len(cur_node.out_port(0).data.get_shape()) == 4:
-                cur_node.in_port(1).__setattr__('input_permutation', None)
-                cur_node['nchw_layout'] = True
-                cur_node.out_node(0)['nchw_layout'] = True
-
-            # Squeeze should be inferred in the original layout so the input with squeeze axis should not be updated
-            # from NHWC to NCHW layout. The input is marked as in correct layout to prevent from inserting Transpose
-            # from NHWC to NCHW.
-            if cur_node.soft_get('type') == 'Squeeze' and len(cur_node.in_port(0).data.get_shape()) == 4:
-                cur_node.in_port(1).__setattr__('input_permutation', None)
-                mark_input_as_in_correct_layout(cur_node, 0)
-
-        [q.append(port.node) for port in cur_node.out_port(0).get_destinations()]
 
 
 def add_convolution_to_swap_xy_coordinates(graph: Graph, input_node: Node, coordinates_size: int):

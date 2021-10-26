@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/topk.hpp"
 
 namespace LayerTestsDefinitions {
-    std::string TopKLayerTest::getTestCaseName(testing::TestParamInfo<TopKParams> obj) {
+    std::string TopKLayerTest::getTestCaseName(const testing::TestParamInfo<TopKParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout;

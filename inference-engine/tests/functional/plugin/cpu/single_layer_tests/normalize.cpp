@@ -119,7 +119,7 @@ const auto testParams_2D = ::testing::Combine(normalizeParams_2D,
                                               ::testing::Values(CPUSpecificParams{}),
                                               ::testing::ValuesIn(fusingParamsSet));
 
-INSTANTIATE_TEST_CASE_P(smoke_2D, NormalizeL2LayerCPUTest, testParams_2D, NormalizeL2LayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_2D, NormalizeL2LayerCPUTest, testParams_2D, NormalizeL2LayerCPUTest::getTestCaseName);
 
 /* ============= 3D ============= */
 const std::vector<std::vector<size_t>> inputShape_3D = {
@@ -130,6 +130,7 @@ const std::vector<std::vector<size_t>> inputShape_3D = {
 
 const std::vector<std::vector<int64_t>> axes_3D = {
     {1, 2},
+    {2, 1},
     {1}
 };
 
@@ -144,7 +145,7 @@ const auto testParams_3D = ::testing::Combine(normalizeParams_3D,
                                               ::testing::Values(CPUSpecificParams{}),
                                               ::testing::ValuesIn(fusingParamsSet));
 
-INSTANTIATE_TEST_CASE_P(smoke_3D, NormalizeL2LayerCPUTest, testParams_3D, NormalizeL2LayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_3D, NormalizeL2LayerCPUTest, testParams_3D, NormalizeL2LayerCPUTest::getTestCaseName);
 
 /* ============= 4D ============= */
 const std::vector<std::vector<size_t>> inputShape_4D = {
@@ -155,6 +156,7 @@ const std::vector<std::vector<size_t>> inputShape_4D = {
 
 const std::vector<std::vector<int64_t>> axes_4D = {
     {1, 2, 3},
+    {3, 1, 2},
     {1}
 };
 
@@ -183,7 +185,7 @@ const auto testParams_4D = ::testing::Combine(normalizeParams_4D,
                                               ::testing::ValuesIn(getCPUSpecificParams()),
                                               ::testing::ValuesIn(fusingParamsSet));
 
-INSTANTIATE_TEST_CASE_P(smoke_4D, NormalizeL2LayerCPUTest, testParams_4D, NormalizeL2LayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_4D, NormalizeL2LayerCPUTest, testParams_4D, NormalizeL2LayerCPUTest::getTestCaseName);
 
 } // namespace
 

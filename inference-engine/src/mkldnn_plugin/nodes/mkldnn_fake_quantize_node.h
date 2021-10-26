@@ -17,12 +17,14 @@ namespace MKLDNNPlugin {
 
 struct jit_quantize_params {
     int c;
+    bool is_planar;
 
     InferenceEngine::Precision src_prc;
     InferenceEngine::Precision wei_prc;
     InferenceEngine::Precision dst_prc;
 
-    InferenceEngine::Layout src_layout;
+    std::vector<size_t> s_str;
+    std::vector<size_t> d_str;
 
     Algorithm op_type;
 };
@@ -88,12 +90,24 @@ public:
     const std::vector<float>& getOutputScale() const { return outputScale; }
     const std::vector<float>& getOutputShift() const { return outputShift; }
 
-    void setCropLow(std::vector<float> newCropLow) { cropLow = std::move(newCropLow); isPostOpDataInitialized = false; }
-    void setCropHigh(std::vector<float> newCropHigh) { cropHigh = std::move(newCropHigh); isPostOpDataInitialized = false; }
-    void setInputScale(std::vector<float> newInputScale) { inputScale = std::move(newInputScale); isPostOpDataInitialized = false; }
-    void setInputShift(std::vector<float> newInputShift) { inputShift = std::move(newInputShift); isPostOpDataInitialized = false; }
-    void setOutputScale(std::vector<float> newOutputScale) { outputScale = std::move(newOutputScale); isPostOpDataInitialized = false;}
-    void setOutputShift(std::vector<float> newOutputShift) { outputShift = std::move(newOutputShift); isPostOpDataInitialized = false; }
+    void setCropLow(std::vector<float> newCropLow) {
+        cropLow = std::move(newCropLow); cropLowSize = cropLow.size(); isPostOpDataInitialized = false;
+    }
+    void setCropHigh(std::vector<float> newCropHigh) {
+        cropHigh = std::move(newCropHigh); cropHighSize = cropHigh.size(); isPostOpDataInitialized = false;
+    }
+    void setInputScale(std::vector<float> newInputScale) {
+        inputScale = std::move(newInputScale); inputScaleSize = inputScale.size(); isPostOpDataInitialized = false;
+    }
+    void setInputShift(std::vector<float> newInputShift) {
+        inputShift = std::move(newInputShift); inputShiftSize = inputShift.size(); isPostOpDataInitialized = false;
+    }
+    void setOutputScale(std::vector<float> newOutputScale) {
+        outputScale = std::move(newOutputScale); outputScaleSize = outputScale.size(); isPostOpDataInitialized = false;
+    }
+    void setOutputShift(std::vector<float> newOutputShift) {
+        outputShift = std::move(newOutputShift); outputShiftSize = outputShift.size(); isPostOpDataInitialized = false;
+    }
 
     bool isInputLowBroadcast() const { return isInputLowBroadcasted; }
     bool isInputHighBroadcast() const { return isInputHighBroadcasted; }
@@ -103,13 +117,20 @@ public:
     InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
     InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
 
-    void appendPostOps(mkldnn::post_ops& ops) override;
+    void appendPostOps(mkldnn::post_ops& ops, bool initAsBinary = false, bool initBinaryMemory = false) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
+    MKLDNNMemoryPtr cropLowMemory;
+    MKLDNNMemoryPtr cropHighMemory;
+    MKLDNNMemoryPtr inputScaleMemory;
+    MKLDNNMemoryPtr inputShiftMemory;
+    MKLDNNMemoryPtr outputScaleMemory;
+    MKLDNNMemoryPtr outputShiftMemory;
+
 private:
     void init() override;
-    std::vector<mkldnn::memory::format_tag> getDataFormats() const;
+    std::vector<LayoutType> getDataFormats() const;
     void executeReference();
     void executeBinarization();
     void executeQuantization();
@@ -127,6 +148,13 @@ private:
     std::vector<float> inputShift;
     std::vector<float> outputScale;
     std::vector<float> outputShift;
+
+    size_t cropLowSize;
+    size_t cropHighSize;
+    size_t inputScaleSize;
+    size_t inputShiftSize;
+    size_t outputScaleSize;
+    size_t outputShiftSize;
 
     // mkldnn style post ops data representation
     bool isPostOpDataInitialized = false;

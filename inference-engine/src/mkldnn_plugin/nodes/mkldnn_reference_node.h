@@ -20,6 +20,9 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
+    bool needPrepareParams() const override { return false; }
+    void executeDynamicImpl(mkldnn::stream strm) override;
+
 private:
     const std::shared_ptr<ngraph::Node> ngraphOp;
     const std::string additionalErrorMessage;

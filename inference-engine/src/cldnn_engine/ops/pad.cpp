@@ -8,7 +8,7 @@
 
 #include "ngraph/op/pad.hpp"
 
-#include "api/border.hpp"
+#include "cldnn/primitives/border.hpp"
 
 namespace CLDNNPlugin {
 
@@ -54,9 +54,7 @@ void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& op) {
         if (!const_node) {
             IE_THROW() << "Unsupported const node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
-        if (!ngraph::op::util::get_single_value(const_node, pad_value)) {
-            IE_THROW() << "Unsupported pad value in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
-        }
+        ngraph::op::util::get_single_value(const_node, pad_value);
     }
 
     cldnn::border_type border_mode = GetBorderType(op->get_pad_mode());
@@ -66,7 +64,8 @@ void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& op) {
                                   pads_begin,
                                   pads_end,
                                   border_mode,
-                                  pad_value);
+                                  pad_value,
+                                  op->get_friendly_name());
 
     p.AddPrimitive(tilePrim);
     p.AddPrimitiveToProfiler(op);

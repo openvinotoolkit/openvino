@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/concatenation.hpp"
+#include "cldnn/primitives/concatenation.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 #include <memory>
 
@@ -14,7 +15,7 @@ namespace cldnn {
 template <>
 struct typed_program_node<concatenation> : public typed_program_node_base<concatenation> {
     using parent = typed_program_node_base<concatenation>;
-    typed_program_node(const std::shared_ptr<concatenation> prim, program_impl& prog) : parent(prim, prog) {
+    typed_program_node(const std::shared_ptr<concatenation> prim, program& prog) : parent(prim, prog) {
         support_padding_all(true);
     }
 
@@ -37,7 +38,7 @@ public:
     static std::string to_string(concatenation_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, concatenation_node const& node);
+    typed_primitive_inst(network& network, concatenation_node const& node);
 };
 
 using concatenation_inst = typed_primitive_inst<concatenation>;

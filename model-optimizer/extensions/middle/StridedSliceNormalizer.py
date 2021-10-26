@@ -4,7 +4,8 @@
 import numpy as np
 
 from extensions.ops.split import VariadicSplit
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, dynamic_dimension_value, \
+    is_dynamic_slice
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
 from mo.graph.perm_inputs import PermuteInputs
@@ -115,8 +116,11 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
     def normalize_strided_slice(graph: Graph, node: Node):
         input_shape = node.in_port(0).data.get_shape()
         input_rank = len(input_shape)
-        begin, _, _ = StridedSlice.validate_inputs_and_get_args(node)
-        slice_rank = len(begin)
+        begin = node.in_port(1).data.get_value()
+        if begin is not None:
+            slice_rank = len(begin)
+        else:
+            slice_rank = input_rank + np.count_nonzero(node.new_axis_mask) - np.count_nonzero(node.shrink_axis_mask)
 
         StridedSlice.align_mask_with_slice_rank(node, slice_rank)  # if StridedSlice is created after partial_infer
         StridedSliceNormalizer.normalize_slices_attr(node)
@@ -194,7 +198,7 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
                 # concat already exists
                 concat = node.in_port(i).get_source().node
                 last_in_port = max(concat.in_ports().keys())
-                assert not concat.in_port(last_in_port).disconnected(), 'The last in_port of Concat node {}' \
+                assert not concat.in_port(last_in_port).disconnected(), 'The last in_port of Concat node {} ' \
                                                                         'should be connected'. \
                     format(concat.soft_get('name', node.id))
 
@@ -239,6 +243,8 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
                 res_slices.append(s)
 
             if not (node.new_axis_mask[i] or node.ellipsis_mask[i]):
-                res_slices[-1] = slice(*res_slices[-1].indices(data_shape[in_idx]))  # convert negative begins/ends
+                if res_slices[-1] != dynamic_dimension_value and data_shape[in_idx] is not dynamic_dimension and \
+                        res_slices[-1] is not None and not is_dynamic_slice(res_slices[-1]):
+                    res_slices[-1] = slice(*res_slices[-1].indices(data_shape[in_idx]))  # convert negative begins/ends
                 in_idx += 1
         node.slices = np.array(res_slices)

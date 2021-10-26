@@ -10,8 +10,9 @@ namespace MKLDNNPlugin {
 
 class LeakyReluNode : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"LeakyRelu", 0};
-    const ngraph::NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("LeakyRelu", "cpu_plugin_opset");
+
+    LeakyReluNode() = default;
 
     LeakyReluNode(const ngraph::Output<ngraph::Node> &data, const float &negative_slope, const ngraph::element::Type output_type);
 

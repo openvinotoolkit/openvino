@@ -16,9 +16,13 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNGatherElementsNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNGatherElementsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto gatherElementsOp = ngraph::as_type_ptr<const ngraph::op::v6::GatherElements>(op);
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+        const auto gatherElementsOp = ngraph::as_type_ptr<const ngraph::op::v6::GatherElements>(op);
         if (!gatherElementsOp) {
             errorMessage = "Node is not an instance of the GatherElements operation from operation set v6.";
             return false;
@@ -86,9 +90,9 @@ void MKLDNNGatherElementsNode::initSupportedPrimitiveDescriptors() {
 
     dataTypeSize_ = inDataPrecision.size();
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, inDataPrecision},
-                          {TensorDescCreatorTypes::ncsp, Precision::I32}},
-                         {{TensorDescCreatorTypes::ncsp, inDataPrecision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision},
+                          {LayoutType::ncsp, Precision::I32}},
+                         {{LayoutType::ncsp, inDataPrecision}},
                          impl_desc_type::ref_any);
 }
 
@@ -98,7 +102,7 @@ void MKLDNNGatherElementsNode::directExecution() {
     const auto *indices = reinterpret_cast<const int *>(getParentEdgeAt(indicesIndex_)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<dataType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    const int outSize = getChildEdgeAt(0)->getBlob()->size();
+    const int outSize = getChildEdgesAtPort(0)[0]->getMemory().GetShape().getElementsCount();
     auto threadBody = [&](const int ithr, const int nthr) {
         int start(0lu), end(0lu);
         splitter(outSize, nthr, ithr, start, end);

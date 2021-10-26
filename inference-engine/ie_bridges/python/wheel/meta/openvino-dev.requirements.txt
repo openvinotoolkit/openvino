@@ -1,7 +1,7 @@
 defusedxml>=0.7.1
 scipy~=1.5.4
 jstyleson~=0.0.2
-numpy~=1.19.5
+numpy>=1.16.6,<1.20
 addict>=2.4.0
 pandas~=1.1.5
 hyperopt~=0.1.2
@@ -11,7 +11,7 @@ texttable~=1.6.3
 py-cpuinfo>=7.0.0
 PyYAML>=5.4.1
 pillow>=8.1.2
-scikit-image~=0.17.2
+scikit-image>=0.17.2
 scikit-learn>=0.24.1
 yamlloader>=0.5
 shapely>=1.7.1

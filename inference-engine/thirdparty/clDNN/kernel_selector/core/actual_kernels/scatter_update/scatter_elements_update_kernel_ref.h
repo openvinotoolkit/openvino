@@ -14,8 +14,6 @@ struct scatter_elements_update_params : public base_params {
     scatter_elements_update_params() : base_params(KernelType::SCATTER_ELEMENTS_UPDATE), axis(ScatterUpdateAxis::BATCH) {}
 
     ScatterUpdateAxis axis;
-
-    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

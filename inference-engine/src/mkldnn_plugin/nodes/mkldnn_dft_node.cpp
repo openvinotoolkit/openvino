@@ -19,8 +19,12 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNDFTNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNDFTNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto interpDFT = std::dynamic_pointer_cast<const ngraph::opset7::DFT>(op);
         const auto interpIDFT = std::dynamic_pointer_cast<const ngraph::opset7::IDFT>(op);
 
@@ -48,20 +52,20 @@ MKLDNNDFTNode::MKLDNNDFTNode(const std::shared_ptr<ngraph::Node>& op, const mkld
     }
 
     /* Data */
-    inputShape = inDims[DATA_INDEX].ToSizeVector();
-    if (inputShape.size() < 1) {
+    inputShape = inputShapes[DATA_INDEX].getStaticDims();
+    if (inputShape.size() < 2) {
         IE_THROW() << layerErrorPrefix << " has invalid 'data' input tensor with rank: " << inputShape.size();
     }
 
     /* Axes */
-    const auto axesRank = inDims[AXES_INDEX].ndims();
+    const auto axesRank = inputShapes[AXES_INDEX].getRank();
     if (axesRank != 1) {
         IE_THROW() << layerErrorPrefix << " has invalid 'axes' input tensor with rank: " << axesRank;
     }
 
     /* Signal size */
     if (inputsNumber > SIGNAL_SIZE_INDEX) {
-        const auto signalSizeRank = inDims[SIGNAL_SIZE_INDEX].ndims();
+        const auto signalSizeRank = inputShapes[SIGNAL_SIZE_INDEX].getRank();
         if (signalSizeRank != 1) {
             IE_THROW() << layerErrorPrefix << " has invalid 'signal_size' input tensor with rank: " << signalSizeRank;
         }
@@ -86,19 +90,19 @@ void MKLDNNDFTNode::initSupportedPrimitiveDescriptors() {
         IE_THROW() << layerErrorPrefix << " has unsupported 'axes' input precision: " << axesPrecision.name();
     }
 
-    if (getOriginalInputsNumber() > SIGNAL_SIZE_INDEX) {
+    if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         const auto& signalSizeTensorPrec = getOriginalInputPrecisionAtPort(SIGNAL_SIZE_INDEX);
         if (signalSizeTensorPrec != Precision::I32 && signalSizeTensorPrec != Precision::I64) {
             IE_THROW() << layerErrorPrefix << " has unsupported 'signal_size' input precision: " << signalSizeTensorPrec.name();
         }
     }
 
-    std::vector<DataConfigurator> inDataConfigurators({{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                                                       {TensorDescCreatorTypes::ncsp, Precision::I32}});
-    if (getOriginalInputsNumber() > SIGNAL_SIZE_INDEX)
-        inDataConfigurators.push_back({TensorDescCreatorTypes::ncsp,  Precision::I32});
+    std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, Precision::FP32},
+                                                       {LayoutType::ncsp, Precision::I32}});
+    if (inputShapes.size() > SIGNAL_SIZE_INDEX)
+        inDataConfigurators.push_back({LayoutType::ncsp,  Precision::I32});
 
-    addSupportedPrimDesc(inDataConfigurators, {{TensorDescCreatorTypes::ncsp, Precision::FP32}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, Precision::FP32}}, impl_desc_type::ref_any);
 }
 
 namespace {
@@ -225,7 +229,7 @@ void copyDataToOutputWithSignalSize(const float* input, const std::vector<size_t
 void MKLDNNDFTNode::execute(mkldnn::stream strm) {
     auto axesEdge = getParentEdgeAt(AXES_INDEX);
     const auto* axesStartPtr = reinterpret_cast<const int32_t*>(axesEdge->getMemoryPtr()->GetPtr());
-    axes = std::vector<int32_t>(axesStartPtr, axesStartPtr + axesEdge->getDims()[0]);
+    axes = std::vector<int32_t>(axesStartPtr, axesStartPtr + axesEdge->getMemory().getStaticDims()[0]);
     for (auto& axis : axes) {
         if (axis < 0) {
             axis += inputShape.size() - 1;
@@ -233,7 +237,7 @@ void MKLDNNDFTNode::execute(mkldnn::stream strm) {
     }
     std::sort(axes.begin(), axes.end());
 
-    outputShape = getChildEdgeAt(0)->getDims().ToSizeVector();
+    outputShape = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
     for (size_t axis : axes) {
         size_t nComplex = outputShape[axis];
         // FFT uses different twiddle factors
@@ -247,8 +251,8 @@ void MKLDNNDFTNode::execute(mkldnn::stream strm) {
     const auto *input = reinterpret_cast<const float*>(inputDataEdge->getMemoryPtr()->GetPtr());
     auto *output = reinterpret_cast<float*>(outputDataEdge->getMemoryPtr()->GetPtr());
 
-    auto inputStrides = inputDataEdge->getDesc().getBlockingDesc().getStrides();
-    auto outputStrides = outputDataEdge->getDesc().getBlockingDesc().getStrides();
+    auto inputStrides = inputDataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    auto outputStrides = outputDataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
     if (inputShape != outputShape) {
         copyDataToOutputWithSignalSize(input, inputShape, inputStrides, output, outputShape, outputStrides);
     } else {
@@ -257,7 +261,7 @@ void MKLDNNDFTNode::execute(mkldnn::stream strm) {
     }
 
     // 1d case
-    if (inputDataEdge->getDesc().getDims().size() == 2) {
+    if (inputDataEdge->getMemory().GetShape().getRank() == 2) {
         size_t nComplex = outputShape[0];
         if (IsPowerOfTwo(nComplex)) {
             fft(output, nComplex * 2, true);

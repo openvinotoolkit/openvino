@@ -22,13 +22,11 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(PreprocessTest).*(SetMeanValuePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
+            R"(.*(InferRequestPreprocessDynamicallyInSetBlobTest).*)",
             // TODO: Issue: 51764
-            ".*PreprocessConversionTest.*",
+            ".*InferRequestPreprocessConversionTest.*",
             // TODO: Issue: 41462
             R"(.*(SoftMaxLayerTest).*axis=0.*)",
-            // TODO: Issue: 41461
-            R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
-            R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
             // TODO: Issue: 43511
             R"(.*EltwiseLayerTest.*IS=\(1.4.3.2.1.3\).*)",
             R"(.*EltwiseLayerTest.*IS=\(2\).*OpType=Mod.*opType=VECTOR.*)",
@@ -47,7 +45,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*ActivationParamLayerTest.*)",
             // Unknown issues
             R"(.*(LSTMSequence).*mode=.*_RAND_SEQ_LEN_CONST.*)",
-            R"(.*(smoke_DetectionOutput3In).*)",
             R"(.*(smoke_DetectionOutput5In).*)",
             // TODO: Issue: 47773
             R"(.*(ProposalLayerTest).*)",
@@ -55,10 +52,41 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(LPT/StridedSliceTransformation).*)",
             // TODO: Issue: 48106
             R"(.*ConstantResultSubgraphTest.*inPrc=I16.*)",
-            // TODO: Issue: 54436
-            R"(.*LSTMSequence.*CompareWithRefs.*mode=PURE_SEQ_RAND_SEQ_LEN_PARAM.*direction=bidirectional_clip=0.7_netPRC=FP32.*)",
-            R"(.*LSTMSequence.*CompareWithRefs.*mode=CONVERT_TO_TI_RAND_SEQ_LEN_PARAM_seq.*direction=bidirectional_clip=0.7_netPRC=FP32.*)",
             // TODO: Issue: 54194
             R"(.*ActivationLayerTest.*SoftPlus.*)",
+            // need to implement Export / Import
+            R"(.*IEClassImportExportTestP.*)",
+            R"(.*Behavior.*InferRequestSetBlobByType.*Device=HETERO.*)",
+            // TODO: Issue: 59586, NormalizeL2 output mismatch for empty axes case
+            R"(.*NormalizeL2LayerTest.*axes=\(\).*)",
+
+            // Not allowed dynamic loop tests on GPU
+            R"(.*smoke_StaticShapeLoop_dynamic_exit.*)",
+            // Not expected behavior
+            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
+            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetInBlobWithDifferentLayouts.*layout=NHWC.*)",
+            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=(CN|HW).*)",
+            R"(.*Behavior.*(Multi|Auto).*InferRequestSetBlobByType.*Batched.*)",
+            R"(.*(Multi|Auto).*Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
+            R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
+            // TODO: until issue is xxx-59670 is resolved
+            R"(.*Gather8LayerTest.*)",
+            // Not implemented yet:
+            R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
+            R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
+            R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
+            R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
+            R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
+            // TODO: Issue 66516
+            R"(.*smoke_PrePostProcess_GPU.*convert_element_type_and_mean.*)",
+            // TODO: Issue 67408
+            R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
+            // TODO: Issue 67910
+            R"(.*smoke_PrePostProcess_GPU.*two_inputs_trivial.*)",
+            // TODO: CVS-68525
+            R"(.*CanSetInBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
+            R"(.*CanSetInBlobWithDifferentPrecision/netPRC=BIN.*)",
+            R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
+            R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=BIN.*)",
     };
 }

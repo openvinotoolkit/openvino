@@ -30,7 +30,7 @@ typedef std::tuple<
 class SplitLayerTest : public testing::WithParamInterface<splitParams>,
                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<splitParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<splitParams>& obj);
 
 protected:
     void SetUp() override;

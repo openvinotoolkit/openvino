@@ -5,7 +5,7 @@
 #include "shared_test_classes/subgraph/broadcast_power.hpp"
 
 namespace SubgraphTestsDefinitions {
-std::string BroadcastPowerTest::getTestCaseName(testing::TestParamInfo<BroadCastPowerTuple> obj) {
+std::string BroadcastPowerTest::getTestCaseName(const testing::TestParamInfo<BroadCastPowerTuple>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;

@@ -3,22 +3,19 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/tile.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
+
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/tile.hpp>
 
 #include <iostream>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 template<typename data_t>
-void tile_ref(const memory& input, memory& output, tile::tile_axis axis, int num_tiles)
+void tile_ref(const memory::ptr input, memory::ptr output, tile::tile_axis axis, int num_tiles)
 {
     auto get_sizes = [](const tensor& size, tile::tile_axis axis) -> std::pair<int, int>
     {
@@ -33,13 +30,13 @@ void tile_ref(const memory& input, memory& output, tile::tile_axis axis, int num
         }
     };
 
-    const pointer<data_t> src = input.pointer<data_t>();
-    pointer<data_t> dst = output.pointer<data_t>();
+    cldnn::mem_lock<data_t> src(input, get_test_stream());
+    cldnn::mem_lock<data_t> dst(output, get_test_stream());
 
     const data_t* psrc = src.data();
     data_t* pdst = dst.data();
 
-    auto sizes = get_sizes(input.get_layout().size, axis);
+    auto sizes = get_sizes(input->get_layout().size, axis);
     int outer_dim = sizes.first;
     int inner_dim = sizes.second;
 
@@ -58,13 +55,13 @@ void tile_ref(const memory& input, memory& output, tile::tile_axis axis, int num
 }
 
 TEST(tile_gpu, basic_in1x2x2x2_axis_b) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
-    auto output_ref = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
+    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(tile("tile", "input", tensor(2, 2, 2, 2)));
 
     std::vector<float> input_vec = { 1.f, 0.f, 5.f, 1.5f,
@@ -78,22 +75,22 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_b) {
     auto outputs = network.execute();
 
     auto output = outputs.at("tile").get_memory();
-    auto output_ptr = output.pointer<float>();
-    auto output_ref_ptr = output_ref.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
-    for (unsigned int i = 0; i < output_ref.count(); ++i) {
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
         EXPECT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
     }
 }
 
 TEST(tile_gpu, basic_in1x2x2x2_axis_f) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
-    auto output_ref = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 4, 2, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
+    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 2, 2 } });
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(tile("tile", "input", tensor(1, 4, 2, 2)));
 
     std::vector<float> input_vec = { 1.f, 0.f,
@@ -110,22 +107,22 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_f) {
     auto outputs = network.execute();
 
     auto output = outputs.at("tile").get_memory();
-    auto output_ptr = output.pointer<float>();
-    auto output_ref_ptr = output_ref.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
-    for (unsigned int i = 0; i < output_ref.count(); ++i) {
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
         EXPECT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
     }
 }
 
 TEST(tile_gpu, basic_in1x2x2x2_axis_y) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
-    auto output_ref = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
+    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 4 } });
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(tile("tile", "input", tensor(1, 2, 2, 4)));
 
     std::vector<float> input_vec = { 1.f, 0.f,
@@ -142,22 +139,22 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_y) {
     auto outputs = network.execute();
 
     auto output = outputs.at("tile").get_memory();
-    auto output_ptr = output.pointer<float>();
-    auto output_ref_ptr = output_ref.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
-    for (unsigned int i = 0; i < output_ref.count(); ++i) {
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
         EXPECT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
     }
 }
 
 TEST(tile_gpu, basic_in1x2x2x2_axis_x) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
-    auto output_ref = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 4, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
+    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 4, 2 } });
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(tile("tile", "input", tensor(1, 2, 4, 2)));
 
     std::vector<float> input_vec = { 1.f, 0.f,
@@ -174,22 +171,22 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_x) {
     auto outputs = network.execute();
 
     auto output = outputs.at("tile").get_memory();
-    auto output_ptr = output.pointer<float>();
-    auto output_ref_ptr = output_ref.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
-    for (unsigned int i = 0; i < output_ref.count(); ++i) {
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
         EXPECT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
     }
 }
 
 TEST(tile_gpu, basic_in1x2x2x2_axis_x_dense) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 1, 2 } });
-    auto output_ref = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 4, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 2 } });
+    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 4, 2 } });
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(tile("tile", "input", tensor(1, 2, 4, 2)));
 
     std::vector<float> input_vec = { 1.f, 0.f, 5.f, 1.5f};
@@ -202,22 +199,22 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_x_dense) {
     auto outputs = network.execute();
 
     auto output = outputs.at("tile").get_memory();
-    auto output_ptr = output.pointer<float>();
-    auto output_ref_ptr = output_ref.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
-    for (unsigned int i = 0; i < output_ref.count(); ++i) {
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
         EXPECT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
     }
 }
 
 TEST(tile_gpu, basic_in1x2x2x2_axis_z) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f32, format::bfzyx,{ 1, 2, 2, 2, 2 } });
-    auto output_ref = memory::allocate(engine, { data_types::f32, format::bfzyx,{ 1, 2, 2, 2, 4 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 1, 2, 2, 2, 2 } });
+    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 1, 2, 2, 2, 4 } });
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(tile("tile", "input", tensor(1, 2, 2, 2, 4)));
 
     std::vector<float> input_vec = {
@@ -239,10 +236,10 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_z) {
     auto outputs = network.execute();
 
     auto output = outputs.at("tile").get_memory();
-    auto output_ptr = output.pointer<float>();
-    auto output_ref_ptr = output_ref.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
-    for (unsigned int i = 0; i < output_ref.count(); ++i) {
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
         EXPECT_EQ(output_ptr[i], output_ref_ptr[i]) << "Index=" << i;
     }
 }

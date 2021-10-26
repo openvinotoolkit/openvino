@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_subdirectory(shared_tests)
-
 disable_deprecated_warnings()
+
+add_subdirectory(shared_tests)
 
 if (ENABLE_MYRIAD)
     add_subdirectory(vpu)

@@ -4,10 +4,8 @@
 
 set(TARGET_NAME IESharedTests)
 
-disable_deprecated_warnings()
-
 list(APPEND SHARED_LIBRARIES
-        ${NGRAPH_LIBRARIES}
+        ngraph
         commonTestUtils
         ngraphFunctions
         ieTestHelpers

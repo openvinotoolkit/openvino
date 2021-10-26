@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "eltwise_inst.h"
 #include "primitive_type_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 #include <vector>
@@ -194,7 +194,7 @@ std::string eltwise_inst::to_string(eltwise_node const& node) {
     return primitive_description.str();
 }
 
-eltwise_inst::typed_primitive_inst(network_impl& network, eltwise_node const& node) : parent(network, node) {
+eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) : parent(network, node) {
     check_inputs_count(node);
     // check for stride
     auto prim = node.get_primitive();

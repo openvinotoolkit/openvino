@@ -12,8 +12,6 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::ScaleShiftIE::type_info;
-
 element::Type getMaxBitwidth(const std::vector<element::Type>& types) {
     if (types.empty()) {
         return element::undefined;
@@ -27,6 +25,8 @@ element::Type getMaxBitwidth(const std::vector<element::Type>& types) {
     }
     return maxType;
 }
+
+BWDCMP_RTTI_DEFINITION(op::ScaleShiftIE);
 
 op::ScaleShiftIE::ScaleShiftIE(const Output<Node>& data_batch, const Output<Node>& weights, const Output<Node>& bias, const element::Type output_type)
     : Op({data_batch, weights, bias}), output_type(output_type) {

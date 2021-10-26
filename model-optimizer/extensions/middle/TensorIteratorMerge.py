@@ -4,9 +4,8 @@
 from collections import deque
 from copy import deepcopy
 
-import numpy as np
-
 from extensions.ops.tensor_iterator import TensorIterator
+from mo.front.common.partial_infer.utils import shape_insert
 from mo.graph.graph import Node, Graph, add_opoutput
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
@@ -270,7 +269,7 @@ class TensorIteratorMerge(MiddleReplacementPattern):
                 shape = ext_inp['internal_data_id'].shape.copy()
                 assert not ext_inp['internal_data_id'].has_valid('value')
                 new_input_data = Op._create_data_node(body, ext_inp['internal_data_id'].name + '/UnsqueezedInput',
-                                                      dict(shape=np.insert(shape, ext_inp['axis'], 1)))
+                                                      dict(shape=shape_insert(shape, ext_inp['axis'], 1)))
 
                 reshape_op = Squeeze(body, dict(name=ext_inp['internal_data_id'].name + '/InputSqueeze'))
                 reshape_dim_data = Const(body, {'name': ext_inp['internal_data_id'].name + '/ReshapeDim',
@@ -304,7 +303,6 @@ class TensorIteratorMerge(MiddleReplacementPattern):
 
             if ext_out['axis'] is not None:
                 # Insert unsqueezing resize at output port that has partitioning
-                assert not ext_out['internal_data_id'].has_valid('value')
                 reshape_op = Unsqueeze(body, dict(name=ext_out['internal_data_id'].name + '/OutputUnsqueeze'))
                 reshape_dim_data = Const(body, {'name': ext_out['internal_data_id'].name + '/ReshapeDim',
                                                 'value': ext_out['axis']}).create_node_with_data()

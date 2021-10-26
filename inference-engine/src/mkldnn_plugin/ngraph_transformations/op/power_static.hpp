@@ -10,8 +10,9 @@ namespace MKLDNNPlugin {
 
 class PowerStaticNode : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"PowerStatic", 0};
-    const ngraph::NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("PowerStatic", "cpu_plugin_opset");
+
+    PowerStaticNode() = default;
 
     PowerStaticNode(const ngraph::Output<ngraph::Node> &data, const float &power, const float &scale, const float &shift,
                     const ngraph::element::Type output_type = ngraph::element::undefined);

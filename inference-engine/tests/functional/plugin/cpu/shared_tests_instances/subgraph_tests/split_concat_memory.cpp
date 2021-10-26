@@ -26,7 +26,7 @@ const std::vector<InferenceEngine::SizeVector> shapes = {
     {3, 8},
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_CPU, SplitConcatMemory,
+INSTANTIATE_TEST_SUITE_P(smoke_CPU, SplitConcatMemory,
                         ::testing::Combine(
                                 ::testing::ValuesIn(shapes),
                                 ::testing::ValuesIn(netPrecisions),

@@ -22,7 +22,7 @@ using namespace cldnn;
 // primitives with single user
 //- in case of reshape->reorder sequence, the additional reorder before reshape will be added,
 //  if last reorder does not contain padding or mean subtract, it will be removed later in the graph
-void handle_reshape::run(program_impl& p) {
+void handle_reshape::run(program& p) {
     // Remove reshapes that don't change the layout of output
     auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
@@ -32,7 +32,9 @@ void handle_reshape::run(program_impl& p) {
             auto input_lay = input_node.get_output_layout();
             auto output_lay = node.get_output_layout();
 
-            if (!node.is_in_place())
+            if (!node.is_in_place() ||
+                !node.get_fused_activations_funcs().empty() ||
+                node.has_fused_primitives())
                 return;
 
             auto are_layouts_identical = program_helpers::are_layouts_identical(input_lay, output_lay);
@@ -43,6 +45,9 @@ void handle_reshape::run(program_impl& p) {
                 input_node.set_output_layout(output_lay, false);
                 p.add_optimized_primitive_info(node.id());
                 p.extract_and_remove(node);
+            } else if (are_layouts_identical.second) {
+                p.add_optimized_primitive_info(node.id());
+                node.can_be_optimized(true);
             }
         });
     }

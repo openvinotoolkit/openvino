@@ -23,6 +23,7 @@ private:
     void FuseDeconvolutionAndSimpleOperation(MKLDNNGraph &graph);
     void FuseMultiplyAndAdd(MKLDNNGraph &graph);
     void FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &graph);
+    void FuseMatMulAndSimpleOperation(MKLDNNGraph &graph);
     void FuseConvolutionAndSimpleOperationThroughMaxPool(MKLDNNGraph &graph);
     void FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph);
     void FuseConvolutionAndDWConvolution(MKLDNNGraph &graph);
@@ -36,11 +37,10 @@ private:
     void FuseConvolutionAndZeroPoints(MKLDNNGraph &graph);
     void FuseBroadcastAndEltwise(MKLDNNGraph &graph);
     void FuseEltwiseAndSimple(MKLDNNGraph &graph);
-    void FuseMulAddAndFakeQuantize(MKLDNNGraph &graph);
+    void FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph &graph);
     void FuseClampAndFakeQuantize(MKLDNNGraph &graph);
     void MergeTransposeAndReorder(MKLDNNGraph &graph);
-
-    void removeEdge(MKLDNNGraph &graph, MKLDNNEdgePtr& edge);
+    void reshapeRnnSeq(MKLDNNGraph &graph);
 };
 
 }  // namespace MKLDNNPlugin

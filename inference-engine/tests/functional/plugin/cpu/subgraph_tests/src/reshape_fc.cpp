@@ -91,7 +91,7 @@ const auto reshapeFCParams = ::testing::Combine(::testing::ValuesIn(isFC),
                                                 ::testing::ValuesIn(transpose),
                                                 ::testing::ValuesIn(fusingParamsSet));
 
-INSTANTIATE_TEST_CASE_P(smoke_Check, ReshapeFCTest, reshapeFCParams, ReshapeFCTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Check, ReshapeFCTest, reshapeFCParams, ReshapeFCTest::getTestCaseName);
 
 } // namespace
 

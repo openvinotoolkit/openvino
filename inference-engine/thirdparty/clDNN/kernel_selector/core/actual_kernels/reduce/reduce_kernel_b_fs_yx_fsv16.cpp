@@ -143,7 +143,7 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
     jit.AddConstant(MakeJitConstant("COMMON_OUTPUT_FEATURE_NUM", in_dims[1].v));
     jit.AddConstant(MakeJitConstant("COMMON_OUTPUT_BATCH_NUM", in_dims[0].v));
     jit.AddConstant(MakeJitConstant("READ_OFFSET", read_offset));
-    jit.AddConstant(MakeJitConstant("BLOCK_READ(ptr,offset)", "DT_INPUT_BLOCK_READ" + std::to_string(read_offset) + "(ptr,offset)"));
+    jit.AddConstant(MakeJitConstant("BLOCK_READ(ptr,offset)", "DT_INPUT_BLOCK_READ" + toCodeString(read_offset) + "(ptr,offset)"));
     jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
     jit.Merge(MakeTypeJitConstants(GetFinalAccumulatorType(params), "FINAL_ACCUMULATOR"));

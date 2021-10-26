@@ -7,9 +7,9 @@
 
 #include "ngraph/op/select.hpp"
 
-#include "api/select.hpp"
-#include "api/reorder.hpp"
-#include "api/reshape.hpp"
+#include "cldnn/primitives/select.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/reshape.hpp"
 
 namespace CLDNNPlugin {
 
@@ -40,7 +40,13 @@ void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Select>& o
             if (targetFormat.value != DefaultFormatForDims(inputDimsN).value) {
                 auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
                 auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(i));
-                auto reorderPrim = cldnn::reorder(reorderName, inputPrimitives[i], targetFormat, targetDatatype);
+                auto reorderPrim = cldnn::reorder(reorderName,
+                                                  inputPrimitives[i],
+                                                  targetFormat,
+                                                  targetDatatype,
+                                                  std::vector<float>(),
+                                                  cldnn::reorder_mean_mode::subtract,
+                                                  op->get_friendly_name());
 
                 p.AddPrimitive(reorderPrim);
                 p.AddInnerPrimitiveToProfiler(reorderName, layerName, op);
@@ -57,7 +63,7 @@ void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Select>& o
 
                 auto targetShape = CldnnTensorFromIEDims(inputDims);
 
-                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
+                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
 
                 p.AddPrimitive(reshapePrim);
                 p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
@@ -73,6 +79,7 @@ void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Select>& o
                                     inputPrimitives[0],
                                     inputPrimitives[1],
                                     inputPrimitives[2],
+                                    op->get_friendly_name(),
                                     cldnn::padding(),
                                     bc_string);
 

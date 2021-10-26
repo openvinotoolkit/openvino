@@ -4,14 +4,112 @@
 
 #pragma once
 
+#include "caseless.hpp"
+
+#include <vector>
+#include <string>
+
 namespace MKLDNNPlugin {
 
+using Dim = std::size_t;
+using VectorDims = std::vector<Dim>;
+
+enum Type {
+    Unknown,
+    Generic,
+    If,
+    Reorder,
+    Input,
+    Output,
+    Convolution,
+    Deconvolution,
+    Lrn,
+    Pooling,
+    AdaptivePooling,
+    FullyConnected,
+    Softmax,
+    Split,
+    Concatenation,
+    Eltwise,
+    MatMul,
+    Reshape,
+    Tile,
+    ROIAlign,
+    ROIPooling,
+    PSROIPooling,
+    BatchToSpace,
+    DepthToSpace,
+    Pad,
+    Transpose,
+    SpaceToBatch,
+    SpaceToDepth,
+    StridedSlice,
+    MemoryOutput,
+    MemoryInput,
+    RNNCell,
+    RNNSeq,
+    FakeQuantize,
+    BinaryConvolution,
+    DeformableConvolution,
+    TensorIterator,
+    Convert,
+    MVN,
+    NormalizeL2,
+    ScatterUpdate,
+    ScatterElementsUpdate,
+    ScatterNDUpdate,
+    Interpolate,
+    Reduce,
+    Broadcast,
+    EmbeddingSegmentsSum,
+    EmbeddingBagPackedSum,
+    EmbeddingBagOffsetsSum,
+    Gather,
+    GatherElements,
+    GatherND,
+    OneHot,
+    RegionYolo,
+    Select,
+    Roll,
+    Reference,
+    ShuffleChannels,
+    DFT,
+    Math,
+    CTCLoss,
+    Bucketize,
+    CTCGreedyDecoder,
+    CTCGreedyDecoderSeqLen,
+    CumSum,
+    DetectionOutput,
+    ExperimentalDetectronDetectionOutput,
+    LogSoftmax,
+    TopK,
+    GatherTree,
+    GRN,
+    Range,
+    Proposal,
+    ReorgYolo,
+    ReverseSequence,
+    ExperimentalDetectronTopKROIs,
+    ExperimentalDetectronROIFeatureExtractor,
+    ExperimentalDetectronPriorGridGenerator,
+    ExperimentalDetectronGenerateProposalsSingleImage,
+    ExtractImagePatches,
+    NonMaxSuppression,
+    MatrixNms,
+    MulticlassNms
+};
+
 enum Algorithm {
-    Undefined,
+    Default,
 
     // Pooling algorithms
     PoolingMax,
     PoolingAvg,
+
+    // Adaptive pooling algorithms
+    AdaptivePoolingMax,
+    AdaptivePoolingAvg,
 
     // Convolution algorithms
     ConvolutionCommon,
@@ -121,4 +219,11 @@ enum Algorithm {
     MathTan
 };
 
+extern const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_to_name_tbl;
+
+Type TypeFromName(const std::string& type);
+
+std::string NameFromType(const Type type);
+
+std::string algToString(const Algorithm alg);
 } // namespace MKLDNNPlugin

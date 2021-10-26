@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/attribute_adapter.hpp"
+
 #include <vector>
 
-#include "ngraph/attribute_adapter.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/coordinate.hpp"
 #include "ngraph/coordinate_diff.hpp"
@@ -17,34 +18,33 @@
 using namespace std;
 using namespace ngraph;
 
-namespace ngraph
-{
-    constexpr DiscreteTypeInfo AttributeAdapter<float>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<double>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<string>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<bool>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<int8_t>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<int16_t>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<int32_t>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<int64_t>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<uint8_t>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<uint16_t>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<uint32_t>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<uint64_t>::type_info;
+namespace ov {
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<float>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<double>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<string>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<bool>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<int8_t>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<int16_t>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<int32_t>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<int64_t>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<uint8_t>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<uint16_t>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<uint32_t>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<uint64_t>);
 #ifdef __APPLE__
-    // size_t is not uint_64t on OSX
-    constexpr DiscreteTypeInfo AttributeAdapter<size_t>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<vector<size_t>>::type_info;
+// size_t is not uint_64t on OSX
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<size_t>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<vector<size_t>>);
 #endif
-    constexpr DiscreteTypeInfo AttributeAdapter<vector<int8_t>>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<vector<int16_t>>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<vector<int32_t>>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<vector<int64_t>>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<vector<uint8_t>>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<vector<uint16_t>>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<vector<uint32_t>>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<vector<uint64_t>>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<vector<float>>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<vector<double>>::type_info;
-    constexpr DiscreteTypeInfo AttributeAdapter<vector<string>>::type_info;
-} // namespace ngraph
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<vector<int8_t>>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<vector<int16_t>>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<vector<int32_t>>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<vector<int64_t>>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<vector<uint8_t>>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<vector<uint16_t>>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<vector<uint32_t>>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<vector<uint64_t>>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<vector<float>>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<vector<double>>);
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<vector<string>>);
+}  // namespace ov

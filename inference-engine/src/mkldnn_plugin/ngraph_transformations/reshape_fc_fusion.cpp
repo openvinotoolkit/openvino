@@ -22,7 +22,11 @@ MKLDNNPlugin::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
         auto fc = std::dynamic_pointer_cast<MKLDNNPlugin::FullyConnectedNode>(m.get_match_root());
+        if (!fc)
+            return false;
         auto reshape = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(fc->get_input_node_shared_ptr(0));
+        if (!reshape)
+            return false;
 
         // Check that Reshape reshapes 4D tensor to 2D or input shape = output shape
         auto shape_in = reshape->input_value(0).get_shape();
@@ -59,14 +63,16 @@ MKLDNNPlugin::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
         if (fc->get_input_size() == 2) {
             new_fc = std::make_shared<MKLDNNPlugin::FullyConnectedNode>(reshape->input_value(0),
                                                                         weightInput,
-                                                                        outShape,
+                                                                        ngraph::Rank(outShape.size()),
                                                                         fc->output(0).get_element_type());
         } else if (fc->get_input_size() == 3) {
             new_fc = std::make_shared<MKLDNNPlugin::FullyConnectedNode>(reshape->input_value(0),
                                                                         weightInput,
                                                                         fc->input_value(2),
-                                                                        outShape,
+                                                                        ngraph::Rank(outShape.size()),
                                                                         fc->output(0).get_element_type());
+        } else {
+            return false;
         }
         new_ops.push_back(new_fc);
         new_fc->set_friendly_name(fc->get_friendly_name());

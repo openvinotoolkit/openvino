@@ -7,16 +7,14 @@
 #include <memory>
 #include <functional>
 
-#include <transformations_visibility.hpp>
-
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ReshapeAMatMul;
-class TRANSFORMATIONS_API ReshapeBMatMul;
-class TRANSFORMATIONS_API TransposeMatMul;
+class NGRAPH_API ReshapeAMatMul;
+class NGRAPH_API ReshapeBMatMul;
+class NGRAPH_API TransposeMatMul;
 
 }  // namespace pass
 }  // namespace ngraph

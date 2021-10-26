@@ -4,15 +4,13 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-
 #include "ngraph/interval.hpp"
 
 using namespace std;
 using namespace ngraph;
 using ::testing::Return;
 
-TEST(intervals, size)
-{
+TEST(intervals, size) {
     EXPECT_TRUE(Interval().size() > 0);
     EXPECT_TRUE(Interval(2).size() == 1);
     EXPECT_TRUE(Interval(1, 5).size() == 5);
@@ -20,11 +18,9 @@ TEST(intervals, size)
     EXPECT_TRUE(Interval(3, 3).size() == 1);
 }
 
-TEST(intervals, contains)
-{
+TEST(intervals, contains) {
     Interval x(3, 10);
-    for (auto i = x.get_min_val(); i <= x.get_max_val(); ++i)
-    {
+    for (auto i = x.get_min_val(); i <= x.get_max_val(); ++i) {
         EXPECT_TRUE(x.contains(i));
     }
     EXPECT_FALSE(x.contains(x.get_max_val() + 1));
@@ -34,8 +30,7 @@ TEST(intervals, contains)
     EXPECT_TRUE(Interval().contains(x));
 }
 
-TEST(intervals, equals)
-{
+TEST(intervals, equals) {
     EXPECT_TRUE(Interval(2, 5) == Interval(2, 5));
     EXPECT_FALSE(Interval(2, 5) != Interval(2, 5));
     EXPECT_FALSE(Interval(3) == Interval(5));
@@ -60,8 +55,7 @@ TEST(intervals, equals)
     EXPECT_EQ(Interval(5, 1) & Interval(2, 4), Interval(3, 1));
 }
 
-TEST(intervals, arithmetic)
-{
+TEST(intervals, arithmetic) {
     Interval a(7, 10);
     Interval b(1, 5);
     Interval a_plus = a;
@@ -84,47 +78,36 @@ TEST(intervals, arithmetic)
     Interval::value_type max_times = numeric_limits<Interval::value_type>::min();
     // Manually collect sum, difference, and product min/max ranges and verify they correspond to
     // the computed intervals and that they are all members of the computed intervals.
-    for (auto a_i = a.get_min_val(); a_i <= a.get_max_val(); ++a_i)
-    {
-        for (auto b_i = b.get_min_val(); b_i <= b.get_max_val(); ++b_i)
-        {
+    for (auto a_i = a.get_min_val(); a_i <= a.get_max_val(); ++a_i) {
+        for (auto b_i = b.get_min_val(); b_i <= b.get_max_val(); ++b_i) {
             auto sum = a_i + b_i;
             EXPECT_TRUE(a_plus_b.contains(sum));
-            if (sum < min_plus)
-            {
+            if (sum < min_plus) {
                 min_plus = sum;
             }
-            if (sum > max_plus)
-            {
+            if (sum > max_plus) {
                 max_plus = sum;
             }
             auto minus = a_i - b_i;
-            if (minus < 0)
-            {
+            if (minus < 0) {
                 EXPECT_FALSE(a_minus_b.contains(minus));
-            }
-            else
-            {
+            } else {
                 EXPECT_TRUE(a_minus_b.contains(minus));
             }
-            if (minus < min_minus)
-            {
+            if (minus < min_minus) {
                 min_minus = minus;
             }
-            if (minus > max_minus)
-            {
+            if (minus > max_minus) {
                 max_minus = minus;
             }
             min_minus = max(Interval::value_type(0), min_minus);
 
             auto times = a_i * b_i;
             EXPECT_TRUE(a_times_b.contains(times));
-            if (times < min_times)
-            {
+            if (times < min_times) {
                 min_times = times;
             }
-            if (times > max_times)
-            {
+            if (times > max_times) {
                 max_times = times;
             }
         }
@@ -134,8 +117,7 @@ TEST(intervals, arithmetic)
     EXPECT_TRUE(Interval(min_times, max_times) == a_times_b);
 }
 
-TEST(intervals, sets)
-{
+TEST(intervals, sets) {
     Interval a(1, 5);
     Interval b(3, 7);
     Interval a_int = a;
@@ -146,18 +128,13 @@ TEST(intervals, sets)
     Interval::value_type max_int = numeric_limits<Interval::value_type>::min();
     // Manually collect the min/max of the intersection and make sure this corresponds to the
     // computed intersection
-    for (auto a_i = a.get_min_val(); a_i <= a.get_max_val(); ++a_i)
-    {
-        for (auto b_i = b.get_min_val(); b_i <= b.get_max_val(); ++b_i)
-        {
-            if (a_i == b_i)
-            {
-                if (a_i < min_int)
-                {
+    for (auto a_i = a.get_min_val(); a_i <= a.get_max_val(); ++a_i) {
+        for (auto b_i = b.get_min_val(); b_i <= b.get_max_val(); ++b_i) {
+            if (a_i == b_i) {
+                if (a_i < min_int) {
                     min_int = a_i;
                 }
-                if (a_i > max_int)
-                {
+                if (a_i > max_int) {
                     max_int = a_i;
                 }
                 EXPECT_TRUE(a_int_b.contains(a_i));
@@ -165,4 +142,21 @@ TEST(intervals, sets)
         }
     }
     EXPECT_TRUE(Interval(min_int, max_int) == a_int_b);
+}
+
+TEST(intervals, corner_cases) {
+    Interval::value_type max = numeric_limits<Interval::value_type>::max();
+    Interval almost_max(0, max - 10);
+    Interval dynamic(0, max);
+    Interval zero(0, 0);
+
+    EXPECT_TRUE(almost_max + almost_max == dynamic);
+    EXPECT_TRUE(dynamic + almost_max == dynamic);
+    EXPECT_TRUE(almost_max + dynamic == dynamic);
+    EXPECT_TRUE(dynamic - almost_max == dynamic);
+
+    EXPECT_TRUE(dynamic * almost_max == dynamic);
+    EXPECT_TRUE(almost_max * dynamic == dynamic);
+    EXPECT_TRUE(zero * almost_max == zero);
+    EXPECT_TRUE(almost_max * zero == zero);
 }

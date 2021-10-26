@@ -65,7 +65,7 @@ KernelsData AverageUnpoolingKernelBase::GetCommonKernelsData(const Params& param
     KernelData kd = KernelData::Default<average_unpooling_params>(params);
 
     auto cldnn_jit = GetJitConstants(orgParams);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];

@@ -11,18 +11,7 @@ if(ENABLE_PROFILING_ITT)
             message(WARNING "Profiling option enabled, but no ITT library was found under INTEL_VTUNE_DIR")
         endif()
     else()
-        include(FetchContent)
-        FetchContent_Declare(
-            ext_ittapi
-            GIT_REPOSITORY https://github.com/intel/ittapi.git
-            GIT_TAG v3.18.6
-        )
-
-        FetchContent_GetProperties(ext_ittapi)
-        if(NOT ext_ittapi_POPULATED)
-            FetchContent_Populate(ext_ittapi)
-            add_subdirectory(${ext_ittapi_SOURCE_DIR} ${ext_ittapi_BINARY_DIR})
-        endif()
+        add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/ittapi ${CMAKE_BINARY_DIR}/_deps/ittapi)
 
         target_compile_definitions(ittnotify INTERFACE ENABLE_PROFILING_ITT)
         if (UNIX)

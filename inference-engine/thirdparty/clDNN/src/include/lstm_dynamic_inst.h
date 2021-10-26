@@ -4,9 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/lstm_dynamic.hpp"
+#include "cldnn/primitives/lstm_dynamic.hpp"
 #include "primitive_inst.h"
-#include "error_handler.h"
+
 #include <string>
 #include <memory>
 
@@ -15,7 +15,7 @@ template <>
 struct typed_program_node<lstm_dynamic> : public typed_program_node_base<lstm_dynamic> {
     using parent = typed_program_node_base<lstm_dynamic>;
 
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog) : parent(prim, prog) {}
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog) : parent(prim, prog) {}
 
     program_node& input() const { return get_dependency(0); }
     float clip() const { return get_primitive()->clip; }
@@ -40,7 +40,7 @@ public:
     static layout calc_output_layout(lstm_dynamic_node const& node);
     static std::string to_string(lstm_dynamic_node const& node);
 
-    typed_primitive_inst(network_impl& network, lstm_dynamic_node const& node);
+    typed_primitive_inst(network& network, lstm_dynamic_node const& node);
 
     static void check_direction(program_node& node, int32_t direction, std::string name) {
         if (node.get_output_layout().size.spatial[1] != direction)

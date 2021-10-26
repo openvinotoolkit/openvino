@@ -8,7 +8,8 @@
 #include "ngraph/op/mvn.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/mvn.hpp"
+#include "cldnn/primitives/mvn.hpp"
+
 #include <algorithm>
 
 namespace CLDNNPlugin {
@@ -23,7 +24,8 @@ static void CreateCommonMVNOp(Program& p, const std::shared_ptr<ngraph::Node>& o
                               normalize_variance,
                               eps,
                               eps_inside_sqrt,
-                              across_channels);
+                              across_channels,
+                              op->get_friendly_name());
 
     p.AddPrimitive(mvnPrim);
     p.AddPrimitiveToProfiler(op);

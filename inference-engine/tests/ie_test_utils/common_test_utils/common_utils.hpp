@@ -15,6 +15,7 @@
 #include <memory>
 
 #include <cpp/ie_cnn_network.h>
+#include <ngraph/function.hpp>
 
 namespace InferenceEngine {
 class CNNLayer;
@@ -46,8 +47,49 @@ inline std::string vec2str(const std::vector<vecElementType> &vec) {
     return std::string("()");
 }
 
+inline std::string partialShape2str(const std::vector<ngraph::PartialShape>& partialShapes) {
+    std::ostringstream result;
+    for (const auto& partialShape : partialShapes) {
+        result << partialShape;
+    }
+    auto retStr = result.str();
+    std::replace(retStr.begin(), retStr.end(), ',', '.');
+    return retStr;
+}
+
+inline std::string pair2str(const std::pair<size_t, size_t>& p) {
+    std::ostringstream result;
+    result << "(" << p.first << "." << p.second << ")";
+    return result.str();
+}
+
+inline std::string vec2str(const std::vector<std::pair<size_t, size_t>> &vec) {
+    std::ostringstream result;
+    for (const auto &p : vec) {
+        result << pair2str(p);
+    }
+    return result.str();
+}
+
+inline std::string vec2str(const std::vector<std::vector<std::pair<size_t, size_t>>> &vec) {
+    std::ostringstream result;
+    for (const auto &v : vec) {
+        result << vec2str(v);
+    }
+    return result.str();
+}
+
 template<typename vecElementType>
 inline std::string vec2str(const std::vector<std::vector<vecElementType>> &vec) {
+    std::ostringstream result;
+    for (const auto &v : vec) {
+        result << vec2str<vecElementType>(v);
+    }
+    return result.str();
+}
+
+template<typename vecElementType>
+inline std::string vec2str(const std::vector<std::vector<std::vector<vecElementType>>> &vec) {
     std::ostringstream result;
     for (const auto &v : vec) {
         result << vec2str<vecElementType>(v);
@@ -129,4 +171,12 @@ inline std::string GetTimestamp() {
     return std::to_string(ns.count());
 }
 
+inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, std::string>& config) {
+    os << "(";
+    for (const auto& configItem : config) {
+        os << configItem.first << "=" << configItem.second << "_";
+    }
+    os << ")";
+    return os;
+}
 }  // namespace CommonTestUtils

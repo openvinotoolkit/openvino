@@ -29,6 +29,11 @@ public:
     using VPUException::VPUException;
 };
 
+class UnsupportedConfigurationOptionException : public VPUException {
+public:
+    using VPUException::VPUException;
+};
+
 template <class Exception, typename... Args>
 void throwFormat(const char* fileName, int lineNumber, const char* messageFormat, Args&&... args) {
     IE_THROW(GeneralError) << '\n' << fileName  << ':' << lineNumber << ' '
@@ -47,11 +52,18 @@ void throwFormat(const char* fileName, int lineNumber, const char* messageFormat
         }                                                                                               \
     } while (false)
 
-#define VPU_THROW_UNSUPPORTED_UNLESS(condition, ...)                                                                    \
+#define VPU_THROW_UNSUPPORTED_LAYER_UNLESS(condition, ...)                                                              \
     do {                                                                                                                \
         if (!(condition)) {                                                                                             \
             ::vpu::details::throwFormat<::vpu::details::UnsupportedLayerException>(__FILE__, __LINE__, __VA_ARGS__);    \
         }                                                                                                               \
+    } while (false)
+
+#define VPU_THROW_UNSUPPORTED_OPTION_UNLESS(condition, ...)                                                                           \
+    do {                                                                                                                              \
+        if (!(condition)) {                                                                                                           \
+            ::vpu::details::throwFormat<::vpu::details::UnsupportedConfigurationOptionException>(__FILE__, __LINE__, __VA_ARGS__);    \
+        }                                                                                                                             \
     } while (false)
 
 #ifdef NDEBUG

@@ -117,3 +117,39 @@ def test_resize_algorithm_set(device):
     request = exec_net.requests[0]
     pp = request.preprocess_info["data"]
     assert pp.resize_algorithm == ResizeAlgorithm.RESIZE_BILINEAR
+
+
+def test_set_mean_variant_to_read_only_preprocess(device):
+    ie_core = IECore()
+    net = ie_core.read_network(test_net_xml)
+    exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
+    request = exec_net.requests[0]
+    preprocess_info = request.preprocess_info["data"]
+    assert isinstance(preprocess_info, PreProcessInfo)
+    with pytest.raises(TypeError) as e:
+        preprocess_info.mean_variant = MeanVariant.MEAN_IMAGE
+    assert "Cannot set mean image when called from constant" in str(e.value)
+
+
+def test_set_resize_algorithm_to_read_only_preprocess(device):
+    ie_core = IECore()
+    net = ie_core.read_network(test_net_xml)
+    exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
+    request = exec_net.requests[0]
+    preprocess_info = request.preprocess_info["data"]
+    assert isinstance(preprocess_info, PreProcessInfo)
+    with pytest.raises(TypeError) as e:
+        preprocess_info.resize_algorithm = ResizeAlgorithm.RESIZE_BILINEAR
+    assert "Cannot set resize algorithm when called from constant" in str(e.value)
+
+
+def test_set_color_format_to_read_only_preprocess(device):
+    ie_core = IECore()
+    net = ie_core.read_network(test_net_xml)
+    exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
+    request = exec_net.requests[0]
+    preprocess_info = request.preprocess_info["data"]
+    assert isinstance(preprocess_info, PreProcessInfo)
+    with pytest.raises(TypeError) as e:
+        preprocess_info.color_format = ColorFormat.BGR
+    assert "Cannot set color format when called from constant" in str(e.value)

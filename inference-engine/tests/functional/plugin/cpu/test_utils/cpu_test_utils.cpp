@@ -12,6 +12,10 @@ const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
     if (v == _fmt) return #_fmt; \
 } while (0)
     CASE(undef);
+    CASE(ncw);
+    CASE(nCw8c);
+    CASE(nCw16c);
+    CASE(nwc);
     CASE(nchw);
     CASE(nChw8c);
     CASE(nChw16c);
@@ -44,6 +48,10 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
     CASE(undef);
     CASE(a);
     CASE(ab);
+    CASE(abc);
+    CASE(acb);
+    CASE(aBc8b);
+    CASE(aBc16b);
     CASE(abcd);
     CASE(acdb);
     CASE(aBcd8b);
@@ -52,10 +60,13 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
     CASE(acdeb);
     CASE(aBcde8b);
     CASE(aBcde16b);
-    CASE(abc);
     CASE(bac);
     CASE(abdc);
     CASE(abdec);
+    CASE(ncw);
+    CASE(nCw8c);
+    CASE(nCw16c);
+    CASE(nwc);
     CASE(nchw);
     CASE(nChw8c);
     CASE(nChw16c);
@@ -105,7 +116,6 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
     if (nodeType.empty()) return;
 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
-    bool isNodeFound = false;
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
     auto function = execGraphInfo.getFunction();
     ASSERT_NE(nullptr, function);
@@ -129,12 +139,11 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
         // skip policy
         auto should_be_skipped = [] (const ngraph::Shape &shape, cpu_memory_format_t fmt) {
             bool skip_unsquized_1D =  std::count(shape.begin(), shape.end(), 1) == shape.size() - 1;
-            bool permule_of_1 = (fmt == cpu_memory_format_t::nhwc || fmt == cpu_memory_format_t::ndhwc) && shape[1] == 1;
+            bool permule_of_1 = (fmt == cpu_memory_format_t::nhwc || fmt == cpu_memory_format_t::ndhwc || fmt == cpu_memory_format_t::nwc) && shape[1] == 1;
             return skip_unsquized_1D || permule_of_1;
         };
 
         if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == nodeType) {
-            isNodeFound = true;
             ASSERT_LE(inFmts.size(), node->get_input_size());
             ASSERT_LE(outFmts.size(), node->get_output_size());
             for (int i = 0; i < inFmts.size(); i++) {
@@ -165,7 +174,21 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
 
             auto actualOutputMemoryFormats = getActualOutputMemoryFormats(getExecValueOutputsLayout(node));
 
-            for (size_t i = 0; i < outFmts.size(); i++) {
+            bool isAllEqual = true;
+            for (size_t i = 1; i < outFmts.size(); i++) {
+                if (outFmts[i - 1] != outFmts[i]) {
+                    isAllEqual = false;
+                    break;
+                }
+            }
+            size_t fmtsNum = outFmts.size();
+            if (isAllEqual) {
+                fmtsNum = fmtsNum == 0 ? 0 : 1;
+            } else {
+                ASSERT_EQ(fmtsNum, actualOutputMemoryFormats.size());
+            }
+
+            for (size_t i = 0; i < fmtsNum; i++) {
                 const auto actualOutputMemoryFormat = getExecValue(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
                 const auto shape = node->get_output_shape(i);
 
@@ -180,7 +203,6 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
             ASSERT_EQ(selectedType, primType);
         }
     }
-    ASSERT_TRUE(isNodeFound) << "Node type name: \"" << nodeType << "\" has not been found.";
 }
 
 std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {

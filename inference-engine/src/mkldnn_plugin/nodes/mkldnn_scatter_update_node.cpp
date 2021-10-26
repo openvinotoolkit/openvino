@@ -19,8 +19,12 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNScatterUpdateNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNScatterUpdateNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto scatterElemUpd = std::dynamic_pointer_cast<const ngraph::opset3::ScatterElementsUpdate>(op);
         const auto scatterUpd = std::dynamic_pointer_cast<const ngraph::opset3::ScatterUpdate>(op);
         const auto scatterNdUpd = std::dynamic_pointer_cast<const ngraph::opset4::ScatterNDUpdate>(op);
@@ -52,9 +56,9 @@ void MKLDNNScatterUpdateNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << " has incorrect number of output edges";
 
-    if (getParentEdgeAt(DATA_ID)->getDims().ndims() < 1 ||
-        getParentEdgeAt(INDICES_ID)->getDims().ndims() < 1 ||
-        getParentEdgeAt(UPDATE_ID)->getDims().ndims() < 1) {
+    if (getInputShapeAtPort(DATA_ID).getRank() < 1 ||
+        getInputShapeAtPort(INDICES_ID).getRank() < 1 ||
+            getInputShapeAtPort(UPDATE_ID).getRank() < 1) {
         IE_THROW() << errorPrefix << " do not support scalar input";
     }
 
@@ -77,15 +81,15 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto srcDataDim = getParentEdgeAt(DATA_ID)->getDims();
-    auto indicesDim = getParentEdgeAt(INDICES_ID)->getDims();
-    auto updateDim = getParentEdgeAt(UPDATE_ID)->getDims();
-    auto dstDataDim = getChildEdgeAt(0)->getDims();
+    auto srcDataDim = getInputShapeAtPort(DATA_ID).getStaticDims();
+    auto indicesDim = getInputShapeAtPort(INDICES_ID).getStaticDims();
+    auto updateDim =  getInputShapeAtPort(UPDATE_ID).getStaticDims();
+    auto dstDataDim = getOutputShapeAtPort(0).getStaticDims();
 
-    size_t srcRank = srcDataDim.ndims();
-    size_t indicesRank = indicesDim.ndims();
-    size_t updateRank = updateDim.ndims();
-    size_t dstRank = dstDataDim.ndims();
+    size_t srcRank = srcDataDim.size();
+    size_t indicesRank = indicesDim.size();
+    size_t updateRank = updateDim.size();
+    size_t dstRank = dstDataDim.size();
 
     // common check
     if (srcRank != dstRank) {
@@ -157,7 +161,6 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
         indicesPrec = Precision::I32;
         indicesSize = 4;
     }
-    indicesType = MKLDNNExtensionUtils::IEPrecisionToDataType(indicesPrec);
 
     if (axisRelaxed) {
         axisPrec = getOriginalInputPrecisionAtPort(AXIS_ID);
@@ -173,13 +176,12 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
     }
 
     dataPrec = getOriginalInputPrecisionAtPort(DATA_ID);
-    auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(dataPrec);
-    dataSize = MKLDNNExtensionUtils::sizeOfDataType(dataType);
+    dataSize = dataPrec.size();
 
     bool canBeInplace = getParentEdgeAt(DATA_ID)->getParent()->getChildEdges().size() == 1 &&
             !getParentEdgeAt(DATA_ID)->getParent()->isConstant();
 
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
     config.dynBatchSupport = false;
     if (axisRelaxed) {
         config.inConfs.resize(4);
@@ -200,21 +202,12 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
         config.inConfs[AXIS_ID].inPlace = -1;
     }
 
-    auto pushDesc = [&](memory::format_tag inFormat, memory::format_tag idxFormat, memory::format_tag updateFormat, memory::format_tag outFormat) {
-        config.inConfs[DATA_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(DATA_ID)->getDims(), dataType, inFormat);
-        config.inConfs[INDICES_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(INDICES_ID)->getDims(), indicesType, idxFormat);
-        config.inConfs[UPDATE_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(UPDATE_ID)->getDims(), dataType, updateFormat);
-        if (axisRelaxed)
-            config.inConfs[AXIS_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(AXIS_ID)->getDims(),
-                MKLDNNExtensionUtils::IEPrecisionToDataType(axisPrec), memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), dataType, outFormat);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, outFormat});
-    };
-
-    pushDesc(MKLDNNMemory::GetPlainFormat(memory::dims(getParentEdgeAt(DATA_ID)->getDims())),
-        MKLDNNMemory::GetPlainFormat(memory::dims(getParentEdgeAt(INDICES_ID)->getDims())),
-        MKLDNNMemory::GetPlainFormat(memory::dims(getParentEdgeAt(UPDATE_ID)->getDims())),
-        MKLDNNMemory::GetPlainFormat(memory::dims(getChildEdgeAt(0)->getDims())));
+    std::vector<PortConfigurator> inPortConfig{{LayoutType::ncsp, dataPrec}, {LayoutType::ncsp, indicesPrec}, {LayoutType::ncsp, dataPrec}};
+    if (axisRelaxed)
+        inPortConfig.emplace_back(LayoutType::ncsp, axisPrec);
+    addSupportedPrimDesc(inPortConfig,
+                         {{LayoutType::ncsp, dataPrec}},
+                          impl_desc_type::unknown);
 }
 
 void MKLDNNScatterUpdateNode::createPrimitive() {
@@ -272,14 +265,13 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
     uint8_t *indicesPtr = reinterpret_cast<uint8_t*>(indicesMemPtr->GetPtr());
     uint8_t *updatePtr = reinterpret_cast<uint8_t*>(updateMemPtr->GetPtr());
 
-    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getDesc().getDims();
-    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getDesc().getDims();
+    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
+    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
     size_t srcRank = srcDataDim.size();
     int axis = 0;
     if (axisRelaxed) {
         auto &axisMemPtr = getParentEdgeAt(AXIS_ID)->getMemoryPtr();
-        uint8_t *axisPtr = reinterpret_cast<uint8_t*>(axisMemPtr->GetData()) +
-            axisMemPtr->GetDescriptor().data.offset0 * axisSize;
+        uint8_t *axisPtr = reinterpret_cast<uint8_t*>(axisMemPtr->GetPtr());
         if (axisSize == 4) {
             auto *axisPtr32 = reinterpret_cast<int32_t*>(axisPtr);
             axis = *axisPtr32;
@@ -309,8 +301,8 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
         });
 
         if (scatterUpdateMode == ScatterUpdateMode::ScatterUpdate) {
-            SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getDesc().getDims();
-            SizeVector updateDim = getParentEdgeAt(UPDATE_ID)->getDesc().getDims();
+            SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
+            SizeVector updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
             size_t indicesRank = indicesDim.size();
             size_t updateRank = updateDim.size();
             SizeVector expectUpdateShape = {};
@@ -370,9 +362,9 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
 // and indices tensor of shape [i_0, i_1, ..., i_k].
 // Updates tensor shape should be [d_0, d_1, ... d_(axis - 1), i_0, i_1, ..., i_k, d_(axis + 1), ..., d_n].
 void MKLDNNScatterUpdateNode::scatterUpdate(uint8_t *indices, uint8_t *update, int axis, uint8_t *dstData) {
-    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getDesc().getDims();
-    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getDesc().getDims();
-    SizeVector updateDim = getParentEdgeAt(UPDATE_ID)->getDesc().getDims();
+    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
+    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
+    SizeVector updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
     size_t indicesRank = indicesDim.size();
 
     std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
@@ -403,8 +395,8 @@ void MKLDNNScatterUpdateNode::scatterUpdate(uint8_t *indices, uint8_t *update, i
 // k is indices.shape[-1] and should not be greater than rank of input, q is rank of indicies.
 // updates is a (q-1)-dimension tensor of replacement-slice-values
 void MKLDNNScatterUpdateNode::scatterNDUpdate(uint8_t *indices, uint8_t *update, uint8_t *dstData) {
-    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getDesc().getDims();
-    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getDesc().getDims();
+    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
+    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
     size_t indicesRank = indicesDim.size();
 
     std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
@@ -433,9 +425,9 @@ void MKLDNNScatterUpdateNode::scatterNDUpdate(uint8_t *indices, uint8_t *update,
 // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
 // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2.
 void MKLDNNScatterUpdateNode::scatterElementsUpdate(uint8_t *indices, uint8_t *update, int axis, uint8_t *dstData) {
-    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getDesc().getDims();
-    SizeVector updateDim = getParentEdgeAt(UPDATE_ID)->getDesc().getDims();
-    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getDesc().getDims();
+    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
+    SizeVector updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
+    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
     size_t updateRank = updateDim.size();
 
     std::vector<size_t> srcBlockND = getBlockND(srcDataDim);

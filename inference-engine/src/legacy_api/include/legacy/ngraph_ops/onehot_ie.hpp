@@ -16,10 +16,19 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(OneHotIE) : public Op {
+#ifdef BUILD_AS_IE_SOURCES
+class OneHotIE;
+#else
+class INFERENCE_ENGINE_API_CLASS(OneHotIE);
+#endif
+
+}  // namespace op
+}  // namespace ngraph
+
+class ngraph::op::OneHotIE : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"OneHotIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("OneHotIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     explicit OneHotIE(const Output<ngraph::Node>& input, int axis, int depth, float on_value, float off_value, element::Type type);
 
@@ -41,5 +50,3 @@ private:
     float m_off_value = 0.0;
     float m_on_value = 0.0;
 };
-}  // namespace op
-}  // namespace ngraph

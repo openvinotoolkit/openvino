@@ -187,7 +187,9 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
     manager.run_passes(f);
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
+    IE_SUPPRESS_DEPRECATED_START
     nGraphImpl = CNNNetwork(InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl));
+    IE_SUPPRESS_DEPRECATED_END
 
     try {
         OutputsDataMap outputs = nGraphImpl.getOutputsInfo();
@@ -248,7 +250,9 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesAllInternal) {
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
+    IE_SUPPRESS_DEPRECATED_START
     nGraphImpl = CNNNetwork(InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl));
+    IE_SUPPRESS_DEPRECATED_END
     ASSERT_EQ(nGraphImpl.layerCount(), 5);
 }
 
@@ -271,7 +275,9 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesHasResult1) {
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
+    IE_SUPPRESS_DEPRECATED_START
     nGraphImpl = CNNNetwork(InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl));
+    IE_SUPPRESS_DEPRECATED_END
     ASSERT_EQ(nGraphImpl.layerCount(), 5);
 }
 
@@ -296,7 +302,9 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesHasResult2) {
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
+    IE_SUPPRESS_DEPRECATED_START
     nGraphImpl = CNNNetwork(InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl));
+    IE_SUPPRESS_DEPRECATED_END
     ASSERT_EQ(nGraphImpl.layerCount(), 5);
 }
 
@@ -323,7 +331,9 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesHasResult3) {
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
+    IE_SUPPRESS_DEPRECATED_START
     nGraphImpl = CNNNetwork(InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl));
+    IE_SUPPRESS_DEPRECATED_END
     ASSERT_EQ(nGraphImpl.layerCount(), 7);
     auto outputs_info = nGraphImpl.getOutputsInfo();
     ASSERT_TRUE(outputs_info.count("node"));
@@ -407,9 +417,9 @@ TEST(ConvertFunctionToCNNNetworkTests, IteratorForMemoryLayers) {
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
+    IE_SUPPRESS_DEPRECATED_START
     nGraphImpl = CNNNetwork(InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl));
     int memory_count(0);
-    IE_SUPPRESS_DEPRECATED_START
     for (details::CNNNetworkIterator itLayer{nGraphImpl}; itLayer != details::CNNNetworkIterator(); itLayer++) {
         if ((*itLayer)->type == "Memory")
             memory_count++;
@@ -441,9 +451,9 @@ TEST(ConvertFunctionToCNNNetworkTests, IteratorForMemoryLayers2) {
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
+    IE_SUPPRESS_DEPRECATED_START
     nGraphImpl = CNNNetwork(InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl));
     int memory_count(0);
-    IE_SUPPRESS_DEPRECATED_START
     for (details::CNNNetworkIterator itLayer{nGraphImpl}; itLayer != details::CNNNetworkIterator(); itLayer++) {
         if ((*itLayer)->type == "Memory")
             memory_count++;

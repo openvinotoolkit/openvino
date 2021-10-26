@@ -8,7 +8,7 @@
 #include "ngraph/op/prior_box.hpp"
 #include "ngraph/op/prior_box_clustered.hpp"
 
-#include "api/prior_box.hpp"
+#include "cldnn/primitives/prior_box.hpp"
 
 namespace CLDNNPlugin {
 
@@ -54,7 +54,8 @@ void CreatePriorBoxClusteredOp(Program& p, const std::shared_ptr<ngraph::op::v0:
                                          offset,
                                          width,
                                          height,
-                                         DataTypeFromPrecision(op->get_output_element_type(0)));
+                                         DataTypeFromPrecision(op->get_output_element_type(0)),
+                                         op->get_friendly_name());
 
     p.AddPrimitive(priorBoxPrim);
     p.AddPrimitiveToProfiler(op);
@@ -103,7 +104,8 @@ void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v0::PriorBox
                                          scale_all_sizes,
                                          fixed_ratio,
                                          fixed_size,
-                                         density);
+                                         density,
+                                         op->get_friendly_name());
 
     p.AddPrimitive(priorBoxPrim);
     p.AddPrimitiveToProfiler(op);

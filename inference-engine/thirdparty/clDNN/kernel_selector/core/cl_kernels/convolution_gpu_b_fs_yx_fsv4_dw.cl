@@ -3,8 +3,9 @@
 //
 
 #include "include/imad.cl"
-#include "include/data_types.cl"
-#include "include/fetch.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/fetch_weights.cl"
 
 // ======================================================================================
 // Host side jit-constants:

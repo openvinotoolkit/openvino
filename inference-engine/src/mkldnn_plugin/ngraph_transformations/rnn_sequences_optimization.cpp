@@ -56,34 +56,15 @@ namespace {
             auto reshape1 = std::make_shared<ngraph::op::v1::Reshape>(in_0, newInShape, false);
             ngraph::replace_node(sequenceOp->get_input_node_shared_ptr(0), {reshape1->output(0)});
 
-            const auto &gruTargetInputs = sequenceOp->output(0).get_target_inputs();
-            if (gruTargetInputs.empty())
+            const auto &seqTargetInputs = sequenceOp->output(0).get_target_inputs();
+            if (seqTargetInputs.empty())
                 return false;
-            auto transposeAfter = gruTargetInputs.begin()->get_node()->shared_from_this();
+            auto transposeAfter = seqTargetInputs.begin()->get_node()->shared_from_this();
 
             auto newOutShape = ngraph::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{4}, transposeAfter->get_output_shape(0));
             auto reshape2 = std::make_shared<ngraph::op::v1::Reshape>(sequenceOp->output(0), newOutShape, false);
             reshape2->set_friendly_name(transposeAfter->get_friendly_name());
             ngraph::replace_node(transposeAfter, {reshape2->output(0)});
-        } else {
-            auto originShape = sequenceOp->get_output_shape(0);
-            const auto targetInputs = sequenceOp->get_output_target_inputs(0);
-            if (targetInputs.empty()) {
-                return false;
-            }
-            auto seqOut = targetInputs.begin()->get_node()->shared_from_this();
-
-            auto tncShape = ngraph::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{3}, {originShape[2], originShape[0], originShape[3]});
-            auto reshape1 = std::make_shared<ngraph::op::v1::Reshape>(sequenceOp->output(0), tncShape, false);
-
-            auto order = ngraph::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{3}, {1, 0, 2});
-            auto transpose = std::make_shared<ngraph::op::v1::Transpose>(reshape1->output(0), order);
-
-            auto ndtcShape = ngraph::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{4}, originShape);
-            auto reshape2 = std::make_shared<ngraph::op::v1::Reshape>(transpose->output(0), ndtcShape, false);
-            reshape2->set_friendly_name(sequenceOp->get_friendly_name()+".0");
-
-            ngraph::insert_new_node_between(sequenceOp, seqOut, reshape2);
         }
 
         sequenceOp->get_rt_info()["seqAxis"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(seqAxis);

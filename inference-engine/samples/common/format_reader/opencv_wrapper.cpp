@@ -3,12 +3,12 @@
 //
 
 #ifdef USE_OPENCV
-    #include "opencv_wrapper.h"
+#    include "opencv_wrapper.h"
 
-    #include <fstream>
-    #include <iostream>
-    #include <opencv2/opencv.hpp>
-    #include <samples/slog.hpp>
+#    include <fstream>
+#    include <iostream>
+#    include <opencv2/opencv.hpp>
+#    include <samples/slog.hpp>
 
 using namespace std;
 using namespace FormatReader;
@@ -32,7 +32,8 @@ std::shared_ptr<unsigned char> OCVReader::getData(size_t width = 0, size_t heigh
         size_t iw = img.size().width;
         size_t ih = img.size().height;
         if (width != iw || height != ih) {
-            slog::warn << "Image is resized from (" << iw << ", " << ih << ") to (" << width << ", " << height << ")" << slog::endl;
+            slog::warn << "Image is resized from (" << iw << ", " << ih << ") to (" << width << ", " << height << ")"
+                       << slog::endl;
         }
         cv::resize(img, resized, cv::Size(width, height));
     }

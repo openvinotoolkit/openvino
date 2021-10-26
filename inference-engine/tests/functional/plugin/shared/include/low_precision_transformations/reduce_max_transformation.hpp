@@ -20,7 +20,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     ReduceMaxTransformationParam
@@ -30,7 +30,7 @@ class ReduceMaxTransformation :
     public testing::WithParamInterface<ReduceMaxTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ReduceMaxTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ReduceMaxTransformationParams>& obj);
 
 protected:
     void SetUp() override;

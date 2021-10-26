@@ -43,8 +43,8 @@
 //         auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
 //         auto scales = opset5::Constant::create(element::f32, scale_shape,
 //             std::vector<float>(shape_size(scale_shape), 2.0f));
-//         auto mul = std::make_shared<opset5::Multiply>(data, scales);
-//         auto relu = std::make_shared<opset5::Relu>(mul);
+//         auto div = std::make_shared<opset5::Divide>(data, scales);
+//         auto relu = std::make_shared<opset5::Relu>(div);
 //         f_ref = std::make_shared<Function>(NodeVector{relu}, ParameterVector{data});
 //     }
 
@@ -137,8 +137,8 @@
 //         auto scaleValues = opset5::Constant::create(element::f32, scale_shape,
 //             std::vector<float>(shape_size(scale_shape), 2.0f));
 //         auto sub = std::make_shared<opset5::Subtract>(data, meanValues);
-//         auto mul = std::make_shared<opset5::Multiply>(sub, scaleValues);
-//         auto relu = std::make_shared<opset5::Relu>(mul);
+//         auto div = std::make_shared<opset5::Divide>(sub, scaleValues);
+//         auto relu = std::make_shared<opset5::Relu>(div);
 //         f_ref = std::make_shared<Function>(NodeVector{relu}, ParameterVector{data});
 //     }
 
@@ -173,8 +173,8 @@
 //         auto scaleValues = opset5::Constant::create(element::f32, scale_shape,
 //             std::vector<float>(shape_size(scale_shape), 2.0f));
 //         auto sub = std::make_shared<opset5::Subtract>(data, meanValues);
-//         auto mul = std::make_shared<opset5::Multiply>(sub, meanValues);
-//         auto relu = std::make_shared<opset5::Relu>(mul);
+//         auto div = std::make_shared<opset5::Divide>(sub, meanValues);
+//         auto relu = std::make_shared<opset5::Relu>(div);
 //         f_ref = std::make_shared<Function>(NodeVector{relu}, ParameterVector{data});
 //     }
 

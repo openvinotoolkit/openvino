@@ -7,7 +7,7 @@
 
 #include "ngraph/op/detection_output.hpp"
 
-#include "api/detection_output.hpp"
+#include "cldnn/primitives/detection_output.hpp"
 
 namespace CLDNNPlugin {
 
@@ -75,7 +75,8 @@ void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op::v0::D
                                                  input_height,
                                                  decrease_label_id,
                                                  clip_before_nms,
-                                                 clip_after_nms);
+                                                 clip_after_nms,
+                                                 op->get_friendly_name());
 
     p.AddPrimitive(detectionPrim);
     p.AddPrimitiveToProfiler(op);

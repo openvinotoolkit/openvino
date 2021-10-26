@@ -2,17 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph_ops/type_relaxed.hpp"
+
 #include <algorithm>
 #include <memory>
 #include <vector>
 
-#include "ngraph_ops/type_relaxed.hpp"
-
-namespace ngraph
-{
-    namespace op
-    {
-        TypeRelaxedBase::~TypeRelaxedBase() {}
-
-    } // namespace op
-} // namespace ngraph
+namespace ngraph {
+namespace op {
+TypeRelaxedBase::~TypeRelaxedBase() = default;
+}  // namespace op
+}  // namespace ngraph

@@ -16,7 +16,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::PadIE::type_info;
+BWDCMP_RTTI_DEFINITION(op::PadIE);
 
 op::PadIE::PadIE(const std::shared_ptr<op::v1::Pad>& pad)
     : Op({pad->input(0).get_source_output()}),

@@ -4,46 +4,46 @@
 
 **Category**: *Reduction*
 
-**Short description**: *ReduceSum* operation performs reduction with addition, on a given input `data`, along dimensions specified by `axes` input.
+**Short description**: *ReduceSum* operation performs the reduction with addition on a given input `data` along dimensions specified by `axes` input.
 
 **Detailed Description**
 
-*ReduceSum* operation performs reduction with addition, on a given input `data`, along dimensions specified by `axes` additional input.
+*ReduceSum* operation performs the reduction with addition on a given input `data` along dimensions specified by `axes` input.
 Each element in the output is calculated as follows:
 
-    output[i0, i1, ..., iN] = sum[j0,..., jN](x[j0, ..., jN]))
+    output[i0, i1, ..., iN] = sum[j0, ..., jN](x[j0, ..., jN]))
 
-where indices i0, ..., iN run through all valid indices for input `data` and summation `sum[j0, ..., jN]` has `jk = ik` for those dimensions `k` that are not in the set of indices specified by `axes` input. 
+where indices i0, ..., iN run through all valid indices for input `data`, and summation `sum[j0, ..., jN]` has `jk = ik` for those dimensions `k` that are not in the set of indices specified by `axes` input.
 
 Particular cases:
 
-1. If `axes` is an empty list, then *ReduceSum* corresponds to identity operation. 
-2. If `axes` contains all dimensions of input `data`, a single reduction value is calculated for entire input tensor. 
+1. If `axes` is an empty list, *ReduceSum* corresponds to the identity operation.
+2. If `axes` contains all dimensions of input `data`, a single reduction value is calculated for the entire input tensor.
 
 **Attributes**
 
 * *keep_dims*
 
-  * **Description**: If set to `true` it holds axes that are used for reduction. For each such axis, output dimension is equal to 1.
-  * **Range of values**: true or false
+  * **Description**: If set to `true`, it holds axes that are used for the reduction. For each such axis, the output dimension is equal to 1.
+  * **Range of values**: `true` or `false`
   * **Type**: `boolean`
-  * **Default value**: false
+  * **Default value**: `false`
   * **Required**: *no*
 
 **Inputs**
 
 * **1**: `data` - A tensor of type *T* and arbitrary shape. **Required.**
 
-* **2**: `axes` - Axis indices of `data` input tensor, along which reduction is performed. A scalar or 1D tensor of unique elements and type *T_IND*. The range of elements is `[-r, r-1]` where `r` is the rank of `data` input tensor. **Required.**
+* **2**: `axes` - Axis indices of `data` input tensor, along which the reduction is performed. A scalar or 1D tensor of unique elements and type *T_IND*. The range of elements is `[-r, r-1]`, where `r` is the rank of `data` input tensor. **Required.**
 
 **Outputs**
 
-* **1**: A tensor of type *T* and `shape[i] = shapeOf(data)[i]` for all `i` dimensions not in `axes` input tensor. For dimensions in `axes`, `shape[i] == 1` if `keep_dims == true`, otherwise the `i`-th dimension is removed from the output.
+* **1**: The result of *ReduceSum* function applied to `data` input tensor. A tensor of type *T* and `shape[i] = shapeOf(data)[i]` for all `i` dimensions not in `axes` input tensor. For dimensions in `axes`, `shape[i] == 1` if `keep_dims == true`; otherwise, the `i`-th dimension is removed from the output.
 
 **Types**
 
 * *T*: any supported numeric type.
-* *T_IND*: `int64` or `int32`.
+* *T_IND*: any supported integer type.
 
 **Examples**
 
