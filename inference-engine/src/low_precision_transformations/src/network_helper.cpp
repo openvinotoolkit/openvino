@@ -1528,7 +1528,12 @@ std::shared_ptr<Node> NetworkHelper::optimizeSubtract(std::shared_ptr<opset1::Su
         std::shared_ptr<Node> replacement;
 
         auto shiftConst = ov::as_type_ptr<opset1::Constant>(shift);
-        auto roundedShift = NetworkHelper::round(shiftConst, convertInputType);
+        std::shared_ptr<opset1::Constant> roundedShift;
+        if (shiftConst->get_element_type() != convertInputType) {
+            roundedShift = NetworkHelper::round(shiftConst, convertInputType);
+        } else {
+            roundedShift = shiftConst;
+        }
 
         if (isScalarLike(roundedShift)) {
             roundedShift = toScalar(roundedShift);
