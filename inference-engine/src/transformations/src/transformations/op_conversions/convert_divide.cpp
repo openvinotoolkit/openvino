@@ -12,6 +12,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/validation_util.hpp>
+#include <ngraph/log.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDivide, "ConvertDivide", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDivideWithConstant, "ConvertDivideWithConstant", 0);
@@ -20,23 +21,29 @@ namespace {
 bool convert_divide(std::shared_ptr<ngraph::Node> node) {
     auto div = std::dynamic_pointer_cast<ngraph::opset1::Divide>(node);
     // We can not apply this transformation in case with integer input data type
-    if (!div || div->input(0).get_element_type().is_integral()) {
+    if (!div || div->get_input_element_type(0).is_integral()
+             || div->get_input_element_type(1).is_integral()) {
         return false;
     }
 
     ngraph::Output<ngraph::Node> pow = std::make_shared<ngraph::opset1::Power>(div->input_value(1),
                                                        ngraph::op::Constant::create(div->get_input_element_type(1), ngraph::Shape{}, {-1}));
 
-    if (auto const_input = std::dynamic_pointer_cast<ngraph::op::Constant>(div->get_input_node_shared_ptr(1))) {
+    if (std::dynamic_pointer_cast<ngraph::op::Constant>(div->get_input_node_shared_ptr(1))) {
         if (auto const_pow = ngraph::get_constant_from_source(pow)) {
             pow = const_pow;
+        } else {
+            NGRAPH_DEBUG << "ConvertDivide has failed due to unsupported evaluate type in " << pow.get_node();
+            return false;
         }
+    } else {
+        ngraph::copy_runtime_info(div, pow.get_node_shared_ptr());
     }
 
     auto mul = std::make_shared<ngraph::opset1::Multiply>(div->input(0).get_source_output(), pow);
 
     mul->set_friendly_name(div->get_friendly_name());
-    ngraph::copy_runtime_info(div, {pow.get_node_shared_ptr(), mul});
+    ngraph::copy_runtime_info(div, mul);
     ngraph::replace_node(div, mul);
     return true;
 }

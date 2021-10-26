@@ -125,8 +125,8 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
     common_fusions->add_matcher<ngraph::pass::RandomUniformFusion>();
     common_fusions->add_matcher<ngraph::pass::SplitConcatPairToInterpolateFusion>(m_use_shapes);
-    // common_fusions->add_matcher<ngraph::pass::DivideFusion>(); -> Pow->Mul
-    // common_fusions->add_matcher<ngraph::pass::SubtractFusion>(); -> Mul->Add
+    common_fusions->add_matcher<ngraph::pass::DivideFusion>();
+    common_fusions->add_matcher<ngraph::pass::SubtractFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::BinarizeWeights>();
@@ -134,7 +134,7 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
-    // decomp->add_matcher<ngraph::pass::ConvertDivideWithConstant>();
+    decomp->add_matcher<ngraph::pass::ConvertDivideWithConstant>();
 
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
 
