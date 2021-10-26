@@ -370,6 +370,9 @@ void NmsLayerTest::SetUp() {
                                 scoreThr, softNmsSigma, boxEncoding, sortResDescend, outType);
     if (targetDevice == CommonTestUtils::DEVICE_CPU) {
         function = std::make_shared<Function>(nms, params, "NMS");
+        set_tensor_name(nms->output(0), "Multiply_0");
+        set_tensor_name(nms->output(1), "Multiply_1");
+        set_tensor_name(nms->output(2), "Multiply_2");
     } else {
         auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(outType, Shape{1}, {1}));
         auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(ngPrc, Shape{1}, {1}));
