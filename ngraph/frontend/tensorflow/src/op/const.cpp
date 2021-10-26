@@ -54,18 +54,14 @@ OutputVector TranslateConstOp(const NodeContext& node) {
     //   &ng_node));
     //   break;
     try {
-        std::cout << "XXXXXXX TranslateConstOp 1" << std::endl;
         const auto& func_param = TF_NGRAPH_CONST_MAP().at(dt);
-        std::cout << "XXXXXXX TranslateConstOp 2" << std::endl;
         func_param.first(node, func_param.second, res);
-        std::cout << "XXXXXXX TranslateConstOp 3" << std::endl;
     } catch (const std::out_of_range&) {
         TF_OP_VALIDATION_CHECK(node,
                                false,
                                "Failed to translate Constant with target ngraph type:" + dt.get_type_name());
     }
     SetNodeNames(node.get_name(), res.get_node_shared_ptr());
-    std::cout << "XXXXXXX TranslateConstOp 4" << std::endl;
     return {res};
 }
 }  // namespace op

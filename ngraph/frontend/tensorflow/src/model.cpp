@@ -98,12 +98,10 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
     std::set<std::string> op_names_with_consumers;
 
     m_inputs.clear();
-    std::cout << "XXXXX: InputModelTF::InputModelTFImpl::loadPlaces 1" << std::endl;
     for (; !m_graph_iterator->is_end(); m_graph_iterator->next()) {
         auto node_decoder = m_graph_iterator->get_decoder();
         auto op_name = node_decoder->get_op_name();
         auto op_type = node_decoder->get_op_type();
-        std::cout << "XXXXX: InputModelTF::InputModelTFImpl::loadPlaces 2" << op_name << " " << op_type << std::endl;
         auto op_place = std::make_shared<OpPlaceTF>(m_input_model, node_decoder);
         all_op_names.insert(op_name);
         m_op_places.push_back(op_place);
@@ -132,7 +130,6 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
             }
         }
     }
-    std::cout << "XXXXX: InputModelTF::InputModelTFImpl::loadPlaces 3" << std::endl;
     std::set<std::string> op_names_without_consumers;
     std::set_difference(all_op_names.begin(),
                         all_op_names.end(),
@@ -149,7 +146,6 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
         m_tensor_places[output_name] = output_place;
         m_outputs.push_back(output_place);
     }
-    std::cout << "XXXXX: InputModelTF::InputModelTFImpl::loadPlaces 4" << std::endl;
 }
 
 std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::get_op_places() const {
@@ -243,9 +239,7 @@ InputModelTF::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph
     : m_input_model(input_model),
       m_graph_iterator(graph_iterator) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
-    std::cout << "XXXXX: InputModelTFImpl::InputModelTFImpl 1" << std::endl;
     loadPlaces();
-    std::cout << "XXXXX: InputModelTFImpl::InputModelTFImpl 2" << std::endl;
 }
 
 std::vector<ngraph::frontend::Place::Ptr> InputModelTF::InputModelTFImpl::getInputs() const {

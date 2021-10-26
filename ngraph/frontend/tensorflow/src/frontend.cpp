@@ -54,22 +54,16 @@ void FrontEndTF::translate_graph(const ngraph::frontend::InputModel::Ptr& model,
                                  bool no_conversion,
                                  std::shared_ptr<ov::Function>& ng_function) const {
     // a map from operation names to generated nGraph Output<TFNodeDecoder>
-    std::cout << "XXXXXXX FrontEndTF::translate_graph 1" << std::endl;
     tf::OpMap ng_op_map;
 
     ov::ParameterVector params;
     ov::ResultVector results;
     const auto& model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
-    std::cout << "XXXXXXX FrontEndTF::translate_graph 2" << std::endl;
     FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into nGraph function");
     const auto& operation_places = model_tf->get_op_places();
-    std::cout << "XXXXXXX FrontEndTF::translate_graph 3" << std::endl;
     const auto& model_inputs = model_tf->get_inputs();
-    std::cout << "XXXXXXX FrontEndTF::translate_graph 4" << std::endl;
     const auto& model_outputs = model_tf->get_outputs();
-    std::cout << "XXXXXXX FrontEndTF::translate_graph 5" << std::endl;
     const auto& model_frozen_inputs = model_tf->get_tensor_values();
-    std::cout << "XXXXXXX FrontEndTF::translate_graph 6" << std::endl;
     std::map<const std::string, const std::function<ov::OutputVector(const NodeContext&)>> translate_map;
 
     const auto& TRANSLATE_OP_MAP = m_op_translators;
@@ -90,10 +84,8 @@ void FrontEndTF::translate_graph(const ngraph::frontend::InputModel::Ptr& model,
                                 "Input with frozen value has been already met: " + frozen_input_name);
         ng_op_map[frozen_input_name] = {frozen_input_value};
     }
-    std::cout << "XXXXXXX FrontEndTF::translate_graph 7" << std::endl;
     // create parameter nodes for all tensor places corresponding to inputs
     for (const auto& input_place : model_inputs) {
-        std::cout << "XXXXXXX FrontEndTF::translate_graph 8 create input" << std::endl;
         FRONT_END_GENERAL_CHECK(input_place->get_names().size() == 1, "Input place must have one name.");
         auto input_name = input_place->get_names()[0];
         if (ng_op_map.count(input_name)) {
@@ -114,7 +106,6 @@ void FrontEndTF::translate_graph(const ngraph::frontend::InputModel::Ptr& model,
     for (const auto& operation_place : operation_places) {
         auto operation_decoder = operation_place->get_decoder();
         auto operation_name = operation_place->get_names()[0];
-        std::cout << "XXXXXXX FrontEndTF::translate_graph 9" << operation_name << std::endl;
         // output for parameter nodes has been already generated
         if (ng_op_map.count(operation_name)) {
             continue;
@@ -193,7 +184,6 @@ void FrontEndTF::translate_graph(const ngraph::frontend::InputModel::Ptr& model,
 
         // register nGraph node outputs in the map for new operation node
         for (const auto& output : ng_outputs) {
-            std::cout << "XXXXXXX FrontEndTF::translate_graph 10 outputs" << std::endl;
             if (auto result = std::dynamic_pointer_cast<ov::opset8::Result>(output.get_node_shared_ptr())) {
                 // do not add RetVal type operation to ng_op_map
                 results.push_back(result);
@@ -209,7 +199,6 @@ void FrontEndTF::translate_graph(const ngraph::frontend::InputModel::Ptr& model,
 
     // create Result nodes for all model outputs
     for (const auto& model_output : model_outputs) {
-        std::cout << "XXXXXXX FrontEndTF::translate_graph 11 model outputs" << std::endl;
         auto model_output_tensor_place = std::dynamic_pointer_cast<TensorPlaceTF>(model_output);
         auto model_output_name = model_output_tensor_place->get_names()[0];
         std::string operation_name;
@@ -259,7 +248,6 @@ void FrontEndTF::translate_graph(const ngraph::frontend::InputModel::Ptr& model,
             results.push_back(std::make_shared<ov::opset8::Result>(node_outputs[producer_port_idx]));
         }
     }
-    std::cout << "XXXXXXX FrontEndTF::translate_graph 12" << std::endl;
     // find all terminal nodes in ngraph graph to complete list of results
     if (results.empty()) {
         for (const auto& node_output_vector : ng_op_map) {
@@ -276,7 +264,6 @@ void FrontEndTF::translate_graph(const ngraph::frontend::InputModel::Ptr& model,
 
     // create the nGraph function
     ng_function = std::make_shared<ov::Function>(results, params, model_name);
-    std::cout << "XXXXXXX FrontEndTF::translate_graph 13" << std::endl;
     NGRAPH_DEBUG << "Done with translations";
 }
 
@@ -320,14 +307,10 @@ ngraph::frontend::InputModel::Ptr FrontEndTF::load_impl(
 }
 
 std::shared_ptr<ov::Function> FrontEndTF::convert(ngraph::frontend::InputModel::Ptr model) const {
-    std::cout << "XXXXX: FrontEndTF::convert 1" << std::endl;
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
-    std::cout << "XXXXX: FrontEndTF::convert 2" << std::endl;
     std::shared_ptr<ov::Function> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", true, false, f);
-    std::cout << "XXXXX: FrontEndTF::convert 3" << std::endl;
     normalize(f);
-    std::cout << "XXXXX: FrontEndTF::convert 4" << std::endl;
     // TODO: check that nGraph function does not contain operations which are not in the opset
 
     return f;

@@ -99,13 +99,11 @@ void GetStaticInputVector(const NodeContext& node, int64_t input_index, std::vec
 // compatibility with nGraph).
 template <typename T, typename VecT = T>
 void ValuesFromConstNode(const NodeContext& node, ov::Shape* const_tensor_shape, std::vector<VecT>* values) {
-    std::cout << "XXXXXXX ValuesFromConstNode 1" << std::endl;
     TF_OP_VALIDATION_CHECK(node, node.get_op_type() == "Const", "Node is expected to be Constant.");
     const auto* decoder = node.get_decoder();
     auto dt1 = decoder->get_attribute("dtype", ::ov::VariantWrapper<::tensorflow::DataType>::get_type_info_static());
     FRONT_END_GENERAL_CHECK(dt1 != nullptr);
     auto dt = std::dynamic_pointer_cast<::ov::VariantWrapper<::tensorflow::DataType>>(dt1)->get();
-    std::cout << "XXXXXXX ValuesFromConstNode 2" << std::endl;
     /*
     if (dt != DataTypeToEnum<T>::value) {
       std::stringstream ss;
@@ -126,7 +124,6 @@ void ValuesFromConstNode(const NodeContext& node, ov::Shape* const_tensor_shape,
 
     // typename checkpoint::SaveTypeTraits<T>::RepeatedField* tensor_values =
     //    checkpoint::MutableTensorProtoData<T>(const_cast<ov::frontend::tf::detail::TensorWrapper*>(&tensor));
-    std::cout << "XXXXXXX ValuesFromConstNode 3" << std::endl;
     const tensorflow::TensorShapeProto& shape = tensor_proto.tensor_shape();
     ov::PartialShape pshape;
     TFTensorShapeToNGraphShape(shape, &pshape);
@@ -145,7 +142,6 @@ void ValuesFromConstNode(const NodeContext& node, ov::Shape* const_tensor_shape,
         return;
         //}
     }
-    std::cout << "XXXXXXX ValuesFromConstNode 4" << std::endl;
     const auto tensor_content_size = tensor_proto.tensor_content().size();
     if (tensor_content_size % sizeof(VecT)) {
         std::cerr << "[ ERROR ] tensor_content_size (" << tensor_content_size << ") is not a multiple of "
@@ -165,7 +161,6 @@ void ValuesFromConstNode(const NodeContext& node, ov::Shape* const_tensor_shape,
         values->resize(n_elements);
 
         auto val_lastsaved = (T)0;  // cast
-        std::cout << "XXXXXXX ValuesFromConstNode 5" << std::endl;
         for (auto i = 0; i < n_elements; i++) {
             int64_t val_size = 0;
             auto val_i = (T)0;  // cast
@@ -225,9 +220,7 @@ void MakeConstOp(const NodeContext& node, element::Type et, ov::Output<ov::Node>
     std::vector<VecT> const_values;
     ov::Shape ng_shape;
 
-    std::cout << "XXXXXXX MakeConstOp 1" << std::endl;
     ValuesFromConstNode<T, VecT>(node, &ng_shape, &const_values);
-    std::cout << "XXXXXXX MakeConstOp 2" << std::endl;
     ng_node = std::make_shared<ov::opset8::Constant>(et, ng_shape, const_values);
 };
 }  // namespace tf
