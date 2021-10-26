@@ -332,7 +332,6 @@ def run(args):
         next_step()
 
         paths_to_input = list()
-        print(args.paths_to_input)
         if args.paths_to_input:
             for path in args.paths_to_input:
                 if "::" in next(iter(path), ""):
