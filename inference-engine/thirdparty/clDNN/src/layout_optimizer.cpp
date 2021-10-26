@@ -18,6 +18,7 @@
 #include "permute_inst.h"
 #include "quantize_inst.h"
 #include "mvn_inst.h"
+#include "depth_to_space_inst.h"
 #include <vector>
 #include <memory>
 #include <utility>
@@ -347,9 +348,13 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     return false;
 }
 
-bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node& next, format fmt_prev, format fmt_next) {
+bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node* next, format fmt_prev, format fmt_next) {
+    if (next == nullptr) {
+        return prev.is_type<depth_to_space>();
+    }
+
     auto dt_prev = prev.get_output_layout().data_type;
-    auto dt_next = next.get_output_layout().data_type;
+    auto dt_next = next->get_output_layout().data_type;
     auto use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
     if (prev.is_type<reorder>())
