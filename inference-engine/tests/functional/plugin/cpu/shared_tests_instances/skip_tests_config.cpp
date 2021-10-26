@@ -69,6 +69,8 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
+        // TODO: 69084 Not constant Axis input produces dynamic output shape.
+        R"(.*GatherLayerTestCPU.*constAx=False.*)",
         // Not expected behavior
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
