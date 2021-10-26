@@ -363,7 +363,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
         while (n_shape < app_inputs_info.size() || m_file < files.second.size()) {
             auto app_info = app_inputs_info[n_shape % app_inputs_info.size()].at(input_name);
             auto precision = app_info.precision;
-            size_t inputId = app_info.batch() * m_file % files.second.size();
+            size_t inputId = m_file % files.second.size();
             if (app_info.isImage()) {
                 // Fill with Images
                 cachedBlobs[input_name].push_back(getImageBlob(files.second, inputId, {input_name, app_info}));
@@ -380,7 +380,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
                 }
             }
             ++n_shape;
-            ++m_file;
+            m_file += app_info.batch();
         }
     }
 

@@ -810,15 +810,10 @@ int main(int argc, char* argv[]) {
                 inferRequest->setLatencyGroupId(iteration % app_inputs_info.size());
 
                 for (auto& item : input) {
-                    // if (item.second.partialShape.is_dynamic())
-                    //    inferRequest->setShape(item.first, item.second.tensorShape);
                     auto input_name = item.first;
                     const auto& data = inputsData.at(input_name)[iteration % inputsData.at(input_name).size()];
                     batchSize = item.second.batch();
                     inferRequest->setBlob(input_name, data);
-                    // Blob::Ptr inputBlob = inferRequest->getBlob(item.first);
-                    // fillBlob(inputBlob,
-                    //         inputsData.at(item.first)[iteration % inputsData.at(item.first).size()]);
                 }
                 processedFramesN += batchSize;
                 if (FLAGS_api == "sync") {
