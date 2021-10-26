@@ -29,25 +29,25 @@ void DoTransformation(Node start_node, Node last_node) {
     ngraph::replace_node(last_node, activation);
 }
 
-bool IsAddConstAcceptable(const ngraph::Output<ngraph::Node>& output) {
-    auto node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(output.get_node_shared_ptr());
-    if (!node)
-        return false;
+class IsConstValueAcceptable {
+public:
+    IsConstValueAcceptable(double expected_value) :
+        m_expected_value(expected_value) {}
 
-    const std::vector<double> & values = node->cast_vector<double>();
+    bool operator()(const ngraph::Output<ngraph::Node>& output) {
+        auto node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(output.get_node_shared_ptr());
+        if (!node)
+            return false;
 
-    return (std::find_if_not(values.begin(), values.end(), [](double d) { return d == 1.0; }) == values.end());
-}
+        const std::vector<double> & values = node->cast_vector<double>();
 
-bool IsPowerConstAcceptable(const ngraph::Output<ngraph::Node>& output) {
-    auto node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(output.get_node_shared_ptr());
-    if (!node)
-        return false;
+        return (std::find_if_not(values.begin(), values.end(),
+                                 [this](double d) { return d == m_expected_value; }) == values.end());
+    }
 
-    const std::vector<double> & values = node->cast_vector<double>();
-
-    return (std::find_if_not(values.begin(), values.end(), [](double d) { return d == -1.0; }) == values.end());
-}
+private:
+    const double m_expected_value;
+};
 
 } // namespace
 
@@ -57,10 +57,10 @@ SubstituteSoftsign::SubstituteSoftsign() {
     auto root = ngraph::pattern::any_input();
     auto abs = ngraph::pattern::wrap_type<ngraph::opset8::Abs>({root});
 
-    auto add_const = ngraph::pattern::wrap_type<ngraph::opset8::Constant>(IsAddConstAcceptable);
+    auto add_const = ngraph::pattern::wrap_type<ngraph::opset8::Constant>(IsConstValueAcceptable(1.0));
     auto add = ngraph::pattern::wrap_type<ngraph::opset8::Add>({abs, add_const});
 
-    auto power_const = ngraph::pattern::wrap_type<ngraph::opset8::Constant>(IsPowerConstAcceptable);
+    auto power_const = ngraph::pattern::wrap_type<ngraph::opset8::Constant>(IsConstValueAcceptable(-1.0));
     auto power = ngraph::pattern::wrap_type<ngraph::opset8::Power>({add, power_const});
 
     auto multiply = ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({root, power});

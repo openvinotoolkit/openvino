@@ -6,12 +6,13 @@
 
 #include "openvino/op/op.hpp"
 #include "ngraph/node.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace GNAPluginNS {
 /// \brief Neural Activation Function
 /// f(x) =  x/(1.0 + |x|)
 ///
-class SoftSign : public ov::op::Op {
+class SoftSign : public ov::op::util::UnaryElementwiseArithmetic {
 public:
     NGRAPH_RTTI_DECLARATION;
 
@@ -21,7 +22,6 @@ public:
     /// \param data Input tensor
     SoftSign(const ngraph::Output<ngraph::Node>& arg);
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
-    void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override;
     bool evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const override;
     bool has_evaluate() const override;

@@ -23,24 +23,12 @@ void softsign(const T* arg, T* out, size_t count) {
     }
 }
 
-SoftSign::SoftSign(const ngraph::Output<ngraph::Node>& arg) : Op({arg}) {
+SoftSign::SoftSign(const ngraph::Output<ngraph::Node>& arg) : ov::op::util::UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
 bool SoftSign::visit_attributes(ngraph::AttributeVisitor& visitor) {
     return true;
-}
-
-void SoftSign::validate_and_infer_types() {
-    const ngraph::element::Type& input_et = get_input_element_type(0);
-
-    NODE_VALIDATION_CHECK(this,
-                          input_et.is_dynamic() || input_et.is_real(),
-                          "Input element type must be float. Got: ",
-                          input_et);
-
-    set_output_size(1);
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 std::shared_ptr<ngraph::Node> SoftSign::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
