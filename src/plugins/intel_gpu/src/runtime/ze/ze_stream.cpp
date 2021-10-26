@@ -39,6 +39,7 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
                          const kernel_arguments_data& data) {
     using args_t = argument_desc::Types;
     using scalar_t = scalar_desc::Types;
+
     for (uint32_t i = 0; i < static_cast<uint32_t>(args.size()); i++) {
         ze_result_t status = ZE_RESULT_NOT_READY;
         switch (args[i].t) {
@@ -50,7 +51,7 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
                         if (memory_capabilities::is_usm_type(input_mem->get_allocation_type())) {
                             //status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem)->get_buffer());
                             status = zeKernelSetArgumentValue(kernel, i, sizeof(void*),
-                            std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem)->get_buffer().get());
+                                std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem)->get_buffer().get());
                             std::cout << "zeKernelSetArgumentValue input"  << std::endl;
                             //ZE_CHECK(status);
                         }

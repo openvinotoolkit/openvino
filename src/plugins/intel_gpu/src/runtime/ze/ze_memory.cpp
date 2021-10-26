@@ -244,8 +244,7 @@ namespace ze {
 gpu_usm::gpu_usm(ze_engine* engine, const layout& new_layout, const ze::UsmMemory& buffer, allocation_type type)
     : lockable_gpu_mem()
     , memory(engine, new_layout, type, true)
-    , _buffer(engine->get_context(), engine->get_device()) {
-}
+    , _buffer(buffer) {}
 
 gpu_usm::gpu_usm(ze_engine* engine, const layout& layout, allocation_type type)
     : lockable_gpu_mem()
@@ -324,9 +323,9 @@ event::ptr gpu_usm::fill(stream& stream) {
 
 event::ptr gpu_usm::copy_from(stream& stream, const memory& other) {
     auto& _ze_stream = downcast<const ze_stream>(stream);
-    auto& casted = downcast<const gpu_usm>(other);
+    //auto& casted = downcast<const gpu_usm>(other);
     auto dst_ptr = get_buffer().get();
-    auto src_ptr = casted.get_buffer().get();
+    auto src_ptr = downcast<const gpu_usm>(other).get_buffer().get();
     //_ze_stream.get_usm_helper().enqueue_memcpy(_ze_stream.get_queue(),
     auto ev = stream.create_user_event(true);
     auto ev_ze = downcast<ze::ze_base_event>(ev.get())->get();
@@ -337,6 +336,9 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& other) {
                                                ev_ze,
                                                0,
                                                nullptr));
+
+    _ze_stream.finish();
+
     return ev;
 }
 
@@ -347,10 +349,10 @@ event::ptr gpu_usm::copy_from(stream& /* stream */, const void* /* host_ptr */) 
 shared_mem_params gpu_usm::get_internal_params() const {
     auto casted = downcast<const ze_engine>(_engine);
     return {
-        shared_mem_type::shared_mem_empty,  // shared_mem_type
+        shared_mem_type::shared_mem_usm,  // shared_mem_type
         static_cast<shared_handle>(casted->get_context()),  // context handle
-        nullptr,  // user_device handle
-        nullptr,  // mem handle
+        static_cast<shared_handle>(casted->get_device()),  // user_device handle
+        static_cast<shared_handle>(_buffer.get()),  // mem handle
 #ifdef _WIN32
         nullptr,  // surface handle
 #else

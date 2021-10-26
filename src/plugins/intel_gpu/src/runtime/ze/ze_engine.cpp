@@ -73,6 +73,12 @@ memory::ptr ze_engine::reinterpret_buffer(const memory& memory, const layout& ne
     if (!new_layout.format.is_image() && memory.get_layout().format.is_image())
         throw std::runtime_error("trying to reinterpret image buffer as non-image buffer");
 
+    if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
+            return std::make_shared<ze::gpu_usm>(this,
+                                     new_layout,
+                                     reinterpret_cast<const ze::gpu_usm&>(memory).get_buffer(),
+                                     memory.get_allocation_type());
+    }
     return nullptr;
     // try {
     //     if (new_layout.format.is_image_2d()) {
@@ -127,13 +133,13 @@ memory::ptr ze_engine::reinterpret_handle(const layout& new_layout, shared_mem_p
 }
 
 bool ze_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
-    return false;
-    // if (mem1.get_engine() != this || mem2.get_engine() != this)
-    //     return false;
-    // if (mem1.get_allocation_type() != mem2.get_allocation_type())
-    //     return false;
-    // if (&mem1 == &mem2)
-    //     return true;
+    //return false;
+    if (mem1.get_engine() != this || mem2.get_engine() != this)
+        return false;
+    if (mem1.get_allocation_type() != mem2.get_allocation_type())
+        return false;
+    if (&mem1 == &mem2)
+        return true;
 
     // if (!memory_capabilities::is_usm_type(mem1.get_allocation_type()))
     //     return (reinterpret_cast<const ze::gpu_buffer&>(mem1).get_buffer() ==
@@ -141,6 +147,7 @@ bool ze_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
     // else
     //     return (reinterpret_cast<const ze::gpu_usm&>(mem1).get_buffer() ==
     //             reinterpret_cast<const ze::gpu_usm&>(mem2).get_buffer());
+    return false;
 }
 
 void* ze_engine::get_user_context() const {
