@@ -1487,7 +1487,8 @@ TEST_P(CachingTest, DISABLED_Load_threads) {
 
 // MULTI-DEVICE test
 // Test loading of devices with different architectures
-TEST_P(CachingTest, LoadMulti_Archs) {
+// TODO: Disabled by issue 69273/68808
+TEST_P(CachingTest, DISABLED_LoadMulti_Archs) {
     const auto TEST_DEVICE_MAX_COUNT = 30; // Shall be >= 2
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
