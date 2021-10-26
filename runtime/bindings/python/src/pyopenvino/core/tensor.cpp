@@ -22,6 +22,14 @@ void regclass_Tensor(py::module m) {
         }),
         py::arg("array"));
 
+    cls.def(
+        py::init([](py::array& array, const ov::element::Type& ov_type, const ov::Shape& shape) {
+            return ov::runtime::Tensor(ov_type, shape, (void*)array.data());
+        }),
+        py::arg("array"),
+        py::arg("type"),
+        py::arg("shape"));
+
     cls.def(py::init<const ov::element::Type, const ov::Shape>(), py::arg("type"), py::arg("shape"));
 
     cls.def(py::init<const ov::element::Type, const std::vector<size_t>>(), py::arg("type"), py::arg("shape"));
@@ -69,6 +77,12 @@ void regclass_Tensor(py::module m) {
     cls.def_property_readonly("byte_size", &ov::runtime::Tensor::get_byte_size);
 
     cls.def_property_readonly("data", [](ov::runtime::Tensor& self) {
+        if(self.get_element_type().bitwidth() < 8) {
+            return py::array(Common::ov_type_to_dtype.at(self.get_element_type()),
+                             self.get_byte_size(),
+                             self.data(),
+                             py::cast(self));
+        }
         return py::array(Common::ov_type_to_dtype.at(self.get_element_type()),
                          self.get_shape(),
                          self.get_strides(),
