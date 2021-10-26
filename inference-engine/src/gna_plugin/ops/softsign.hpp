@@ -5,33 +5,25 @@
 #pragma once
 
 #include "openvino/op/op.hpp"
+#include "ngraph/node.hpp"
 
-namespace ov {
-namespace op {
-namespace gna {
+namespace GNAPluginNS {
 /// \brief Neural Activation Function
 /// f(x) =  x/(1.0 + |x|)
 ///
-class OPENVINO_API SoftSign : public Op {
+class SoftSign : public ov::op::Op {
 public:
-    OPENVINO_OP("SoftSign", "opset8", op::Op, 8);
-    BWDCMP_RTTI_DECLARATION;
+    NGRAPH_RTTI_DECLARATION;
 
     SoftSign() = default;
     /// \brief Constructs an SoftSign operation.
     ///
     /// \param data Input tensor
-    SoftSign(const Output<Node>& arg);
-    bool visit_attributes(AttributeVisitor& visitor) override;
+    SoftSign(const ngraph::Output<ngraph::Node>& arg);
+    bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
-
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    std::shared_ptr<Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override;
+    bool evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const override;
     bool has_evaluate() const override;
 };
-}  // namespace gna
-}  // namespace op
-}  // namespace ov
+}  // namespace GNAPluginNS

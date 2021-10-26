@@ -9,36 +9,30 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
-BWDCMP_RTTI_DEFINITION(ov::op::gna::SoftSign);
-
 #include <cmath>
 #include <cstddef>
 
-namespace ngraph {
-namespace runtime {
-namespace reference {
-namespace gna {
+NGRAPH_RTTI_DEFINITION(GNAPluginNS::SoftSign, "SoftSign", 0);
+
+namespace GNAPluginNS {
+
 template <typename T>
 void softsign(const T* arg, T* out, size_t count) {
     for (size_t i = 0; i < count; i++) {
         out[i] = 1 / (1 + std::abs(arg[i]));
     }
 }
-}  // namespace gna
-}  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
 
-ov::op::gna::SoftSign::SoftSign(const Output<Node>& arg) : Op({arg}) {
+SoftSign::SoftSign(const ngraph::Output<ngraph::Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }
 
-bool ov::op::gna::SoftSign::visit_attributes(AttributeVisitor& visitor) {
+bool SoftSign::visit_attributes(ngraph::AttributeVisitor& visitor) {
     return true;
 }
 
-void ov::op::gna::SoftSign::validate_and_infer_types() {
-    const element::Type& input_et = get_input_element_type(0);
+void SoftSign::validate_and_infer_types() {
+    const ngraph::element::Type& input_et = get_input_element_type(0);
 
     NODE_VALIDATION_CHECK(this,
                           input_et.is_dynamic() || input_et.is_real(),
@@ -49,16 +43,15 @@ void ov::op::gna::SoftSign::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-std::shared_ptr<ngraph::Node> ov::op::gna::SoftSign::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<ngraph::Node> SoftSign::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    return std::make_shared<ov::op::gna::SoftSign>(new_args.at(0));
+    return std::make_shared<SoftSign>(new_args.at(0));
 }
 
-namespace softsign {
 template <ngraph::element::Type_t ET>
 inline bool evaluate(const ngraph::HostTensorPtr& arg, const ngraph::HostTensorPtr& out, const size_t count) {
     using T = typename ngraph::element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::gna::softsign<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+    softsign<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
     return true;
 }
 
@@ -89,13 +82,12 @@ bool evaluate_softsign(const ngraph::HostTensorPtr& arg, const ngraph::HostTenso
     }
     return rc;
 }
-}  // namespace softsign
 
-bool ov::op::gna::SoftSign::evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const {
-    return softsign::evaluate_softsign(inputs[0], outputs[0]);
+bool SoftSign::evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const {
+    return evaluate_softsign(inputs[0], outputs[0]);
 }
 
-bool ov::op::gna::SoftSign::has_evaluate() const {
+bool SoftSign::has_evaluate() const {
     switch (get_input_element_type(0)) {
     case ngraph::element::f16:
     case ngraph::element::f32:
@@ -105,3 +97,5 @@ bool ov::op::gna::SoftSign::has_evaluate() const {
     }
     return false;
 }
+
+} // namespace GNAPluginNS

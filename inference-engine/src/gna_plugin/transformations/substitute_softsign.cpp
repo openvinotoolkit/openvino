@@ -23,10 +23,30 @@ using Node = std::shared_ptr<ngraph::Node>;
 namespace {
 
 void DoTransformation(Node start_node, Node last_node) {
-    auto activation = std::make_shared<ov::op::gna::SoftSign>(start_node);
+    auto activation = std::make_shared<SoftSign>(start_node);
     activation->set_friendly_name(last_node->get_friendly_name());
     ngraph::copy_runtime_info(last_node, activation);
     ngraph::replace_node(last_node, activation);
+}
+
+bool IsAddConstAcceptable(const ngraph::Output<ngraph::Node>& output) {
+    auto node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(output.get_node_shared_ptr());
+    if (!node)
+        return false;
+
+    const std::vector<double> & values = node->cast_vector<double>();
+
+    return (std::find_if_not(values.begin(), values.end(), [](double d) { return d == 1.0; }) == values.end());
+}
+
+bool IsPowerConstAcceptable(const ngraph::Output<ngraph::Node>& output) {
+    auto node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(output.get_node_shared_ptr());
+    if (!node)
+        return false;
+
+    const std::vector<double> & values = node->cast_vector<double>();
+
+    return (std::find_if_not(values.begin(), values.end(), [](double d) { return d == -1.0; }) == values.end());
 }
 
 } // namespace
@@ -37,10 +57,10 @@ SubstituteSoftsign::SubstituteSoftsign() {
     auto root = ngraph::pattern::any_input();
     auto abs = ngraph::pattern::wrap_type<ngraph::opset8::Abs>({root});
 
-    auto add_const = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
+    auto add_const = ngraph::pattern::wrap_type<ngraph::opset8::Constant>(IsAddConstAcceptable);
     auto add = ngraph::pattern::wrap_type<ngraph::opset8::Add>({abs, add_const});
 
-    auto power_const = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
+    auto power_const = ngraph::pattern::wrap_type<ngraph::opset8::Constant>(IsPowerConstAcceptable);
     auto power = ngraph::pattern::wrap_type<ngraph::opset8::Power>({add, power_const});
 
     auto multiply = ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({root, power});
