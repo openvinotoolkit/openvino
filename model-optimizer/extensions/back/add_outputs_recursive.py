@@ -11,6 +11,7 @@ from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph, Node
 from mo.ops.result import Result
 from mo.ops.unsqueeze import Unsqueeze
+from mo.utils.error import Error
 
 
 def ti_find_iterations_count_for_output(step_node, output_rec):
@@ -18,27 +19,52 @@ def ti_find_iterations_count_for_output(step_node, output_rec):
         return 'axis' in record and record['axis'] is not None and \
             'end' in record and record['end'] is not None
     iterations_count = 1
+    # 1. check if we need concatenate iteration results for given output
     if not check_axis_end(output_rec):
         # in this case we dont concat outputs, so iterations count is not needed really
         return iterations_count
 
+    # 2. check if given output record contains values for 'end', so iterations count can be calculated from this record
     if output_rec['end'] != -1:
         # get iterations count from output record
         iterations_count = (output_rec['end'] - output_rec['start']) / output_rec['stride']
         return iterations_count
 
-    # find out iterations count from inputs
+    # 3. find out iterations count from inputs.
+    # If no input contains 'axis' attribute then no slicing is in TI and it has only one iteration
+    # If several inputs have axis attribute with different iterations count then we use maximum value.
     for in_rec in step_node.input_port_map:
         if not check_axis_end(in_rec):
             continue
-        if in_rec['end'] != -1:
-            in_shape_axis = in_rec['end']
+        if in_rec['end'] != -1 and in_rec['start'] != -1:
+            in_rec_end = in_rec['end']
+            in_rec_start = in_rec['start']
+        elif in_rec['end'] != -1:
+            in_rec_end = in_rec['end']
+            in_rec_start = step_node.in_port(in_rec['external_port_id']).data.get_shape()[in_rec['axis']]
+        elif in_rec['start'] != -1:
+            in_rec_end = step_node.in_port(in_rec['external_port_id']).data.get_shape()[in_rec['axis']]
+            in_rec_start = in_rec['start']
         else:
-            in_shape_axis = step_node.in_port(in_rec['external_port_id']).data.get_shape()[in_rec['axis']]
-        iterations_count = (in_shape_axis - in_rec['start']) / in_rec['stride']
-        return iterations_count
+            raise Error("Tensor Iterator have both start and end attributes equal to -1")
+        if (in_rec_end - in_rec_start) / in_rec['stride'] > iterations_count:
+            iterations_count = (in_rec_end - in_rec_start) / in_rec['stride']
 
     return iterations_count
+
+
+def set_shape_to_port_for_internal_node(cycle_node, internal_id, port_num, iterations_count, need_adjust_port=True):
+    int_node_name = TensorIterator.find_internal_layer_id(cycle_node.body, internal_id)
+    int_node = Node(cycle_node.body, int_node_name)
+    assert int_node.op == 'Result'
+    out_shape = int_node.in_port(0).data.get_shape().copy()
+    # inside cycle node Unsqueeze was added to have the first dimension for concatenating results along it
+    assert len(out_shape) >= 1
+    out_shape[0] = iterations_count
+
+    if need_adjust_port:
+        port_num = port_num - len(cycle_node.in_ports())
+    cycle_node.out_port(port_num).data.set_shape(out_shape)
 
 
 # shape inference for TensorIterator
@@ -59,15 +85,7 @@ def ti_infer(step_node, port_num):
     # find out iterations count for TensorIterator to set output shape correctly
     iterations_count = ti_find_iterations_count_for_output(step_node, found_rec)
 
-    int_node_name = TensorIterator.find_internal_layer_id(step_node.body, found_rec['internal_layer_id'])
-    int_node = Node(step_node.body, int_node_name)
-    assert int_node.op == 'Result'
-    out_shape = int_node.in_port(0).data.get_shape().copy()
-    port_num = port_num - len(step_node.in_ports())
-
-    out_shape[0] = iterations_count
-
-    step_node.out_port(port_num).data.set_shape(out_shape)
+    set_shape_to_port_for_internal_node(step_node, found_rec['internal_layer_id'], port_num, iterations_count)
 
 
 # shape inference for Loop
@@ -80,22 +98,14 @@ def loop_infer(step_node, port_num):
         if om['external_port_id'] == port_num:
             int_layer_id = om['internal_layer_id']
 
-    # used method from TensorIterator to find out node with needed internal layer id
-    int_node_name = TensorIterator.find_internal_layer_id(step_node.body, int_layer_id)
-    int_node = Node(step_node.body, int_node_name)
-    assert int_node.op == 'Result'
-    out_shape = int_node.in_port(0).data.get_shape().copy()
-
-    out_shape[0] = iterations_count
-    step_node.out_port(port_num).data.set_shape(out_shape)
+    set_shape_to_port_for_internal_node(step_node, int_layer_id, port_num, iterations_count, False)
 
 
 def max_internal_layer_id(graph):
     max_int_layer_id = 0
     for n in graph.get_op_nodes():
-        if n.has_and_set('internal_layer_id'):
-            if n.internal_layer_id > max_int_layer_id:
-                max_int_layer_id = n.internal_layer_id
+        if n.has_and_set('internal_layer_id') and n.internal_layer_id > max_int_layer_id:
+            max_int_layer_id = n.internal_layer_id
     return max_int_layer_id
 
 
