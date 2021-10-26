@@ -362,12 +362,17 @@ static void DumpCharArray(std::ostream& dumpFile, const char *carray,  size_t co
     dumpFile << "\n";
 }
 
-void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGNA, bool dumpData, const GnaAllAllocations& allGnaAllocations, std::string modeOfOperation) {
+void DumpGna2Model(const Gna2Model& gnaModel,
+                   const std::string dumpFolderNameGNA,
+                   bool dumpData,
+                   const GnaAllAllocations& allGnaAllocations,
+                   std::string modeOfOperation) {
     std::stringstream dumpFileName;
     uint32_t opsNo = gnaModel.NumberOfOperations;
     std::time_t currTime = std::time(nullptr);
 
-    dumpFileName << dumpFolderNameGNA << "Gna2ModelDebugDump_" << opsNo << "_layer_" << std::put_time(std::localtime(&currTime), "%Y%m%d%H%M%S") << modeOfOperation;
+    dumpFileName << dumpFolderNameGNA << "Gna2ModelDebugDump_" << opsNo << "_layer_"
+                 << std::put_time(std::localtime(&currTime), "%Y%m%d%H%M%S") << modeOfOperation;
 
     std::ofstream dumpFile(dumpFileName.str() + ".txt", std::ios::out);
 

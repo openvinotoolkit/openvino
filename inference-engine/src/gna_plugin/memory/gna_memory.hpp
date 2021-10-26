@@ -71,7 +71,7 @@ class GNAMemory : public GNAMemoryInterface {
         _mem_queues.clear();
     }
 
-    GNAMemRequestsQueue *getQueue(rRegion region) {
+    GNAMemRequestsQueue *getQueue(rRegion region) override {
         return _mem_queues[region].get();
     }
 
@@ -151,7 +151,7 @@ class GNAMemory : public GNAMemoryInterface {
     /**
      * @brief calculates size required for all requests, allocates memory and updates pointers
      */
-    void commit() {
+    void commit() override {
         getTotalBytes();
         size_t heap_offset = 0;
         for (const auto &queue : _mem_queues) {

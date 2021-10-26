@@ -42,8 +42,7 @@ struct LD {
         return s.str();
     }
     std::string GetNnopName() {
-        static const std::map<uint8_t, std::string> nnopMap =
-        {
+        static const std::map<uint8_t, std::string> nnopMap = {
             {0x00, "[AFFINE] Standard fully connected layer"                            },
             {0x01, "[AFFINE_AL] Affine layer with pruned outputs (Active-List)"         },
             {0x02, "[DIAGONAL] Affine layer with a diagonal weights matrix"             },
@@ -70,7 +69,7 @@ struct LD {
         std::cout << "out:   " << offset(out) << "\n";
         if (type == 0x12) return;
         std::cout << "sum:   " << offset(sum) << "\n";
-        if(type == 0x04 || type == 0x30)
+        if (type == 0x04 || type == 0x30)
             std::cout << "fb/ada:" << offset(fb) << "\n";
         std::cout << "w/k:   " << offset(weight) << "\n";
         std::cout << "bias:  " << offset(bias) << "\n";
