@@ -219,7 +219,11 @@ def fill_blob_with_binary(binary_paths, request_id, batch_size, input_id, input_
             raise Exception(
                 f"File {binary_filename} contains {binary_file_size} bytes but network expects {blob_size}")
         binaries[b] = np.reshape(np.fromfile(binary_filename, dtype), shape)
-        binary_index += input_size
+
+        if from_map:
+            binary_index += 1
+        else:
+            binary_index += input_size
 
     return binaries
 
