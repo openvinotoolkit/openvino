@@ -18,7 +18,9 @@ OutputVector TranslateReduceOp(const NodeContext& node,
     auto input = node.get_ng_input(0);
     auto reduction_axes = node.get_ng_input(1);
     auto tf_keep_dims = node.get_attribute<bool>("keep_dims", false);
-    return {create_ng_node(input, reduction_axes, tf_keep_dims)};
+    auto res = create_ng_node(input, reduction_axes, tf_keep_dims);
+    SetNodeNames(node.get_name(), res.get_node_shared_ptr());
+    return {res};
 }
 
 template <typename T>
@@ -31,12 +33,9 @@ OutputVector TranslateDirectReduceOp(const NodeContext& node) {
                                "Expected node to be either a valid logical or arithmetic reduction "
                                "type");
     }
-    return TranslateReduceOp(node,
-                             [&node](Output<Node> ng_input, Output<Node> ng_reduction_axes, const bool keep_dims) {
-                                 auto res = make_shared<T>(ng_input, ng_reduction_axes, keep_dims);
-                                 SetNodeNames(node.get_name(), res);
-                                 return res;
-                             });
+    return TranslateReduceOp(node, [](Output<Node> ng_input, Output<Node> ng_reduction_axes, const bool keep_dims) {
+        return make_shared<T>(ng_input, ng_reduction_axes, keep_dims);
+    });
 }
 
 template OutputVector TranslateDirectReduceOp<ReduceLogicalOr>(const NodeContext& node);
