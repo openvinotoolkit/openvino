@@ -112,7 +112,6 @@ void FrontEndTF::translate_graph(const ngraph::frontend::InputModel::Ptr& model,
 
     // create the nGraph ops from TensorFlow ops
     for (const auto& operation_place : operation_places) {
-
         auto operation_decoder = operation_place->get_decoder();
         auto operation_name = operation_place->get_names()[0];
         std::cout << "XXXXXXX FrontEndTF::translate_graph 9" << operation_name << std::endl;

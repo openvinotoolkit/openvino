@@ -18,24 +18,24 @@ using ConstMap = std::map<ov::element::Type,
                           std::pair<std::function<void(const NodeContext&, ov::element::Type, ov::Output<ov::Node>&)>,
                                     const ov::element::Type>>;
 
-ConstMap TF_NGRAPH_CONST_MAP() {
-    return {
+const ConstMap& TF_NGRAPH_CONST_MAP() {
+    static const ConstMap the_map = {
         {ov::element::f32, make_pair(MakeConstOp<float>, ov::element::f32)},
-            {ov::element::f64, make_pair(MakeConstOp<double>, ov::element::f64)},
-            {ov::element::i8, make_pair(MakeConstOp<int8_t>, ov::element::i8)},
-            {ov::element::i16, make_pair(MakeConstOp<int16_t>, ov::element::i16)},
+        {ov::element::f64, make_pair(MakeConstOp<double>, ov::element::f64)},
+        {ov::element::i8, make_pair(MakeConstOp<int8_t>, ov::element::i8)},
+        {ov::element::i16, make_pair(MakeConstOp<int16_t>, ov::element::i16)},
 #if 0
       {DataType::DT_QINT8, make_pair(MakeConstOp<qint8>, ov::element::i8)},
       {DataType::DT_QUINT8, make_pair(MakeConstOp<quint8>, ov::element::u8)},
       {DataType::DT_QUINT16, make_pair(MakeConstOp<quint16>, ov::element::u16)},
 #endif
-            {ov::element::i32, make_pair(MakeConstOp<int32_t>, ov::element::i32)},
-            {ov::element::i64, make_pair(MakeConstOp<int64_t>, ov::element::i64)},
-            {ov::element::u8, make_pair(MakeConstOp<uint8_t>, ov::element::u8)},
-            {ov::element::u16, make_pair(MakeConstOp<uint16_t>, ov::element::u16)}, {
-            ov::element::boolean, make_pair(MakeConstOp<bool, char>, ov::element::boolean)
-        }
+        {ov::element::i32, make_pair(MakeConstOp<int32_t>, ov::element::i32)},
+        {ov::element::i64, make_pair(MakeConstOp<int64_t>, ov::element::i64)},
+        {ov::element::u8, make_pair(MakeConstOp<uint8_t>, ov::element::u8)},
+        {ov::element::u16, make_pair(MakeConstOp<uint16_t>, ov::element::u16)},
+        {ov::element::boolean, make_pair(MakeConstOp<bool, char>, ov::element::boolean)}
     };
+    return the_map;
 }
 }  // namespace
 
@@ -54,14 +54,18 @@ OutputVector TranslateConstOp(const NodeContext& node) {
     //   &ng_node));
     //   break;
     try {
+        std::cout << "XXXXXXX TranslateConstOp 1" << std::endl;
         const auto& func_param = TF_NGRAPH_CONST_MAP().at(dt);
+        std::cout << "XXXXXXX TranslateConstOp 2" << std::endl;
         func_param.first(node, func_param.second, res);
+        std::cout << "XXXXXXX TranslateConstOp 3" << std::endl;
     } catch (const std::out_of_range&) {
         TF_OP_VALIDATION_CHECK(node,
                                false,
                                "Failed to translate Constant with target ngraph type:" + dt.get_type_name());
     }
     SetNodeNames(node.get_name(), res.get_node_shared_ptr());
+    std::cout << "XXXXXXX TranslateConstOp 4" << std::endl;
     return {res};
 }
 }  // namespace op
