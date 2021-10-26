@@ -56,8 +56,7 @@ inline const char* rRegionToStr(uint8_t region) {
 
 inline const char* rTypeToStr(uint8_t type) {
    const char* strType = "UNKNOWN";
-   uint8_t initializerMask = 0x7;
-   switch (type & initializerMask) {
+   switch (type) {
       case REQUEST_STORE:
         strType = "REQUEST_STORE";
         break;
@@ -67,8 +66,10 @@ inline const char* rTypeToStr(uint8_t type) {
       case REQUEST_BIND:
         strType = "REQUEST_BIND";
         break;
-      case REQUEST_INITIALIZER:
-        strType = "REQUEST_INITIALIZER";
+      case REQUEST_INITIALIZER | REQUEST_STORE:
+      case REQUEST_INITIALIZER | REQUEST_ALLOCATE:
+      case REQUEST_INITIALIZER | REQUEST_BIND:
+        strType = "INITIALIZER";
         break;
    }
    return strType;
@@ -88,6 +89,10 @@ struct MemRequest {
     size_t _offset = 0;
     // expansion in bytes due to large depended layers
     size_t _padding = 0;
+
+    // fields to sort regions by execution availability
+    std::pair<uint16_t, uint16_t> _life_limits{0, UINT16_MAX};
+
     MemRequest(rRegion region,
                 rType req,
                 void *ptr_out,
@@ -127,7 +132,8 @@ struct MemRequest {
         _data.resize(sizeof(T));
         std::copy(reinterpret_cast<uint8_t *>(&element), reinterpret_cast<uint8_t *>(&element) + sizeof(T), _data.begin());
     }
-/**
+
+    /**
      * Store initializer request
      * @param req
      * @param ptr_out
