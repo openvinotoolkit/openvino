@@ -303,7 +303,6 @@ else()
     ie_add_compiler_flags(-Wundef)
     ie_add_compiler_flags(-Wreturn-type)
     ie_add_compiler_flags(-Wunused-variable)
-    ie_add_compiler_flags(-Wmissing-declarations)
 
     if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
         ie_add_compiler_flags(-Wswitch)
