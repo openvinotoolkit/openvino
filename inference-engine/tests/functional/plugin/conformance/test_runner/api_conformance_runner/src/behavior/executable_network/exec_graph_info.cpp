@@ -6,7 +6,7 @@
 #include <exec_graph_info.hpp>
 #include "behavior/executable_network/exec_graph_info.hpp"
 
-#include "conformance.hpp"
+#include ""
 
 namespace {
 using namespace ExecutionGraphTests;
