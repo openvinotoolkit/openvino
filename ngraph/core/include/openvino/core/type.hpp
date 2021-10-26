@@ -26,9 +26,6 @@ namespace ov {
 /// Type information for a type system without inheritance; instances have exactly one type not
 /// related to any other type.
 class OPENVINO_API DiscreteTypeInfo {
-private:
-    mutable size_t hash_value;
-
 public:
     const char* name;
     uint64_t version;
@@ -75,6 +72,9 @@ public:
     bool operator>=(const DiscreteTypeInfo& b) const;
     bool operator==(const DiscreteTypeInfo& b) const;
     bool operator!=(const DiscreteTypeInfo& b) const;
+
+private:
+    mutable size_t hash_value;
 };
 
 OPENVINO_API
