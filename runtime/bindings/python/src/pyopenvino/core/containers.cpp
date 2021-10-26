@@ -8,6 +8,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
+PYBIND11_MAKE_OPAQUE(Containers::PyInputsDataMap);
 PYBIND11_MAKE_OPAQUE(Containers::PyConstInputsDataMap);
 PYBIND11_MAKE_OPAQUE(Containers::PyOutputsDataMap);
 PYBIND11_MAKE_OPAQUE(Containers::PyResults);
@@ -15,6 +16,14 @@ PYBIND11_MAKE_OPAQUE(Containers::PyResults);
 namespace py = pybind11;
 
 namespace Containers {
+
+void regclass_PyInputsDataMap(py::module m) {
+    auto py_inputs_data_map = py::bind_map<PyInputsDataMap>(m, "PyInputsDataMap");
+
+    py_inputs_data_map.def("keys", [](PyInputsDataMap& self) {
+        return py::make_key_iterator(self.begin(), self.end());
+    });
+}
 
 void regclass_PyConstInputsDataMap(py::module m) {
     auto py_const_inputs_data_map = py::bind_map<PyConstInputsDataMap>(m, "PyConstInputsDataMap");
