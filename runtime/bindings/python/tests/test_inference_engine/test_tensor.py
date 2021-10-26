@@ -3,6 +3,7 @@
 
 import numpy as np
 import pytest
+import math
 from openvino import Tensor
 import openvino as ov
 
@@ -21,7 +22,7 @@ import openvino as ov
     (ov.impl.Type.i64, np.int64),
     (ov.impl.Type.u64, np.uint64),
     (ov.impl.Type.boolean, np.bool),
-    # (ov.impl.Type.u1, np.uint8),
+    (ov.impl.Type.u1, np.uint8),
 ])
 def test_init_with_ngraph(ov_type, numpy_dtype):
     ov_tensors = []
@@ -80,6 +81,23 @@ def test_init_with_roi_tensor():
     assert np.array_equal(ov_tensor1.data[0:1, :, 24:, 24:], ov_tensor2.data)
 
 
+@pytest.mark.parametrize("dtype, ov_type, shape", [
+    (np.uint8, ov.impl.Type.u1, [1, 3, 28, 28]),
+    (np.uint8, ov.impl.Type.u4, [1, 3, 27, 27]),
+    (np.int8, ov.impl.Type.i4, [1, 3, 224, 224]),
+    (np.int16, ov.impl.Type.u1, [1, 3, 248, 248]),
+    (np.int32, ov.impl.Type.u4, [1, 3, 256, 256]),
+    (np.int64, ov.impl.Type.i4, [1, 3, 300, 300]),
+])
+def test_init_with_packed_buffer(dtype, ov_type, shape):
+    fit = np.dtype(dtype).itemsize * 8 / ov_type.bitwidth
+    size = math.ceil(np.prod(shape) / fit)
+    buffer = np.random.normal(size=(size,)).astype(dtype)
+    ov_tensor = Tensor(buffer, ov_type, ov.impl.Shape(shape))
+    assert ov_tensor.data.nbytes == ov_tensor.byte_size
+    assert np.array_equal(ov_tensor.data.view(dtype), buffer)
+
+
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
     (ov.impl.Type.f32, np.float32),
     (ov.impl.Type.f64, np.float64),
@@ -94,7 +112,6 @@ def test_init_with_roi_tensor():
     (ov.impl.Type.i64, np.int64),
     (ov.impl.Type.u64, np.uint64),
     (ov.impl.Type.boolean, np.bool),
-    # (ov.impl.Type.u1, np.uint8),
 ])
 def test_write_to_buffer(ov_type, numpy_dtype):
     ov_tensor = Tensor(ov_type, ov.impl.Shape([1, 3, 32, 32]))
@@ -117,7 +134,6 @@ def test_write_to_buffer(ov_type, numpy_dtype):
     (ov.impl.Type.i64, np.int64),
     (ov.impl.Type.u64, np.uint64),
     (ov.impl.Type.boolean, np.bool),
-    # (ov.impl.Type.u1, np.uint8),
 ])
 def test_set_shape(ov_type, numpy_dtype):
     shape = ov.impl.Shape([1, 3, 32, 32])
