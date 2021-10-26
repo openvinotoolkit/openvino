@@ -46,7 +46,6 @@ public:
      */
     virtual void execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo& info, bool serial, int batchSize = -1) = 0;
 
-    //FIXME: rename to verifyAplicable
     virtual void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) = 0;
 
 protected:
@@ -86,7 +85,7 @@ class PreProcessData {
 
 public:
     PreProcessData() {
-#ifndef OPENVINO_STATIC_LIBRARY
+#ifdef OPENVINO_STATIC_LIBRARY
         CreatePreProcessData(_ptr);
         if (!_ptr)
             IE_THROW() << "Failed to create IPreProcessData for G-API based preprocessing";
@@ -106,7 +105,7 @@ public:
             IE_THROW() << "Failed to create IPreProcessData for G-API based preprocessing";
         reinterpret_cast<CreateF *>(ov::util::get_symbol(_so,
             details::SOCreatorTrait<IPreProcessData>::name))(_ptr);
-        if (!_so)
+        if (!_ptr)
             IE_THROW() << "Failed to get address of CreatePreProcessData function";
 #endif
     }
