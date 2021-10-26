@@ -489,7 +489,6 @@ set(MULTI_TEST_SRC
     backend/non_max_suppression.in.cpp
     backend/one_hot.in.cpp
     backend/pad.in.cpp
-    backend/parameter_as_output.in.cpp
     backend/prior_box_clustered.in.cpp
     backend/prior_box.in.cpp
     backend/proposal.in.cpp
@@ -497,7 +496,6 @@ set(MULTI_TEST_SRC
     backend/recurrent_cells.in.cpp
     backend/region_yolo.in.cpp
     backend/reorg_yolo.in.cpp
-    backend/result.in.cpp
     backend/roll.in.cpp
     backend/space_to_depth.in.cpp
     backend/shuffle_channels.in.cpp
