@@ -459,7 +459,6 @@ set(MULTI_TEST_SRC
     backend/aliased_output.in.cpp
     backend/api.in.cpp
     backend/auto_broadcast.in.cpp
-    backend/batch_norm.in.cpp
     backend/batch_to_space.in.cpp
     backend/broadcast.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
@@ -482,13 +481,11 @@ set(MULTI_TEST_SRC
     backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
     backend/interpolate.in.cpp
-    backend/lrn.in.cpp
     backend/matrix_nms.in.cpp
     backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
     backend/node_name.in.cpp
-    backend/normalize_l2.in.cpp
     backend/non_max_suppression.in.cpp
     backend/one_hot.in.cpp
     backend/pad.in.cpp
