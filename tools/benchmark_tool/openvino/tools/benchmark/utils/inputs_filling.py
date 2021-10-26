@@ -261,8 +261,8 @@ def parse_path(path):
     """
     Parse "input_1:file1,file2,input_2:file3" into a dict
     """
-    inputs = re.findall(r"([^,]\w+):", path)
-    input_files = [file for file in re.split(r"[^,]\w+:", path) if file]
+    inputs = re.findall(r"([^,]\w+)::", path)
+    input_files = [file for file in re.split(r"[^,]\w+::", path) if file]
     return {
         input_: files.strip(",").split(",") for input_, files in zip(inputs, input_files)
     }
