@@ -14,6 +14,25 @@ namespace ov {
 namespace test {
 namespace conformance {
 
+inline const std::string getPluginLibNameByDevice(const std::string& deviceName) {
+    const std::map<std::string, std::string> devices{
+            { "AUTO", "AutoPlugin" },
+            { "HDDL", "HDDLPlugin" },
+            { "VPUX", "VPUXPlugin" },
+            { "AUTO", "MultiDevicePlugin" },
+            { "CPU", "MKLDNNPlugin" },
+            { "GNA", "GNAPlugin" },
+            { "GPU", "clDNNPlugin" },
+            { "HETERO", "HeteroPlugin" },
+            { "MULTI", "MultiDevicePlugin" },
+            { "MYRIAD", "myriadPlugin" },
+    };
+    if (devices.find(deviceName) == devices.end()) {
+        throw std::runtime_error("Incorrect device name");
+    }
+    return devices.at(deviceName);
+}
+
 inline const std::pair<std::string, std::string> generateDefaultMultiConfig() {
     return {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ConformanceTests::targetDevice};
 }
