@@ -81,7 +81,7 @@ void op::v1::Reshape::validate_and_infer_types() {
     std::tie(lb, ub) = evaluate_both_bounds(get_input_source_output(1));
     if (lb && ub) {
         const auto lower_bound = std::make_shared<op::v0::Constant>(lb)->cast_vector<int64_t>();
-        const auto upper_bound = std::make_shared<op::v0::Constant>(ub)->cast_vector<int64_t>();
+        auto upper_bound = std::make_shared<op::v0::Constant>(ub)->cast_vector<int64_t>();
         shape_can_be_calculated = true;
         NGRAPH_CHECK(lower_bound.size() == upper_bound.size());
         for (size_t i = 0; i < lower_bound.size(); ++i) {
@@ -94,6 +94,13 @@ void op::v1::Reshape::validate_and_infer_types() {
                 NODE_VALIDATION_CHECK(this, minus_one_idx == -1, "More than one dimension has size of -1");
                 minus_one_idx = static_cast<int64_t>(i);
             }
+
+            // We must handle i32 fully dynamic dimension in a special way
+            if (get_input_element_type(1) == element::i32 &&
+                upper_bound[i] == std::numeric_limits<std::int32_t>::max()) {
+                upper_bound[i] = std::numeric_limits<std::int64_t>::max();
+            }
+
             reshape_pattern.emplace_back(lower_bound[i], upper_bound[i]);
         }
         // For scalar case reshape_patter should be empty but scalar reshape pattern should be empty

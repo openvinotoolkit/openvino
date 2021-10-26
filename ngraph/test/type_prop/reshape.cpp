@@ -561,3 +561,17 @@ TEST(type_prop, reshape_to_scalar_3) {
         make_shared<op::v1::Reshape>(param, op::Constant::create(element::i64, {}, std::vector<int64_t>{100}), false),
         std::exception);
 }
+
+TEST(type_prop, dynamic_shape_propagation_with_i32_precision) {
+    auto param = make_shared<op::Parameter>(element::f32, PartialShape{1, -1, -1});
+    auto shape_of = std::make_shared<op::v3::ShapeOf>(param, element::i32);
+
+    auto indices = op::Constant::create(element::i32, {3}, {1, 2, 0});
+    auto axis = op::Constant::create(element::i32, {1}, {0});
+    auto gather = std::make_shared<op::v1::Gather>(shape_of, indices, axis);
+
+    auto reshape = std::make_shared<op::v1::Reshape>(param, gather, true);
+
+    ASSERT_EQ(reshape->get_element_type(), element::f32);
+    ASSERT_EQ(reshape->get_output_partial_shape(0), (PartialShape{-1, -1, 1}));
+}
