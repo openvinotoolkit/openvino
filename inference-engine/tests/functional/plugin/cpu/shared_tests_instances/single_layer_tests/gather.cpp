@@ -5,18 +5,22 @@
 #include <vector>
 
 #include "single_layer_tests/gather.hpp"
-#include "common_test_utils/test_constants.hpp"
+#include "ngraph_functions/builders.hpp"
 
 using namespace LayerTestsDefinitions;
 
 namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::I64,
         InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16,
         InferenceEngine::Precision::BF16,
         InferenceEngine::Precision::I8
+};
+
+// Just need to check types transformation.
+const std::vector<InferenceEngine::Precision> netPrecisionsTrCheck = {
+        InferenceEngine::Precision::I64,
+        InferenceEngine::Precision::FP16
 };
 
 const std::vector<std::vector<size_t>> inputShapes_1D = {
@@ -46,12 +50,25 @@ const auto gather7Params_1D = testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_Gather7_1D, Gather7LayerTest, gather7Params_1D, Gather7LayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_TypesTrf, Gather7LayerTest,
+            testing::Combine(
+                testing::ValuesIn(inputShapes_1D),
+                testing::ValuesIn(indicesShapes_1D),
+                testing::ValuesIn(axes_batchdims_1D),
+                testing::ValuesIn(netPrecisionsTrCheck),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Layout::ANY),
+                testing::Values(InferenceEngine::Layout::ANY),
+                testing::Values(CommonTestUtils::DEVICE_CPU)),
+        Gather7LayerTest::getTestCaseName);
+
 const std::vector<std::vector<size_t>> inputShapes_2D = {
         std::vector<size_t>{4, 19},
 };
 
 const std::vector<std::vector<size_t>> indicesShapes_2D = {
-        std::vector<size_t>{4},
+        std::vector<size_t>{4, 1},
         std::vector<size_t>{4, 2},
 };
 
