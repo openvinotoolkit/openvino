@@ -40,27 +40,25 @@ void HeteroInferRequest::CreateInferRequest(const std::unordered_map<std::string
         IE_THROW() << "Internal error: no information about network's output/input";
     }
 
-    auto requestBlob([&](const std::string& blobName, InferenceEngine::SoIInferRequestInternal& r) {
+    auto requestBlob([&](const std::string& blobName, InferenceEngine::SoIInferRequestInternal& r, bool output) {
         std::string intermediateBlobName = blobName;
         auto itName = subgraphInputToOutputBlobNames.find(blobName);
         if (itName != subgraphInputToOutputBlobNames.end()) {
             intermediateBlobName = itName->second;
         }
-        BlobMap::iterator itBlob;
-        bool emplaced = false;
-        std::tie(itBlob, emplaced) = _blobs.emplace(intermediateBlobName, Blob::Ptr{});
-        if (emplaced) {
-            if (InferenceEngine::details::contains(_networkInputs, blobName)) {
+        if (output) {
+            if (InferenceEngine::details::contains(_networkOutputs, blobName)) {
                 _subRequestFromBlobName.emplace(blobName, r._ptr.get());
-                _blobs.erase(intermediateBlobName);
-            } else if (InferenceEngine::details::contains(_networkOutputs, blobName)) {
-                _subRequestFromBlobName.emplace(blobName, r._ptr.get());
-                _blobs.erase(intermediateBlobName);
             } else {
-                itBlob->second = r->GetBlob(blobName);
+                auto blob = r->GetBlob(blobName);
+                _blobs.emplace(intermediateBlobName, r->GetBlob(blobName));
             }
         } else {
-            r->SetBlob(blobName, itBlob->second);
+            if (InferenceEngine::details::contains(_networkInputs, blobName)) {
+                _subRequestFromBlobName.emplace(blobName, r._ptr.get());
+            } else {
+                r->SetBlob(blobName, _blobs.at(intermediateBlobName));
+            }
         }
     });
 
@@ -69,14 +67,14 @@ void HeteroInferRequest::CreateInferRequest(const std::unordered_map<std::string
         desc._request = {desc._network._so, desc._network->CreateInferRequest()};
         // go over all inputs and get blobs from subnet infer requests
         for (auto&& outputInfo : desc._network->GetOutputsInfo()) {
-            requestBlob(outputInfo.first, desc._request);
+            requestBlob(outputInfo.first, desc._request, true);
         }
     }
 
     // go over all outputs and get blobs from subnet infer requests
     for (auto&& desc : _inferRequests) {
         for (auto&& inputInfo : desc._network->GetInputsInfo()) {
-            requestBlob(inputInfo.first, desc._request);
+            requestBlob(inputInfo.first, desc._request, false);
         }
     }
 }
