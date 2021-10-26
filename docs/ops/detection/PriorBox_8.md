@@ -8,8 +8,8 @@
 
 **Detailed description**:
 
-*PriorBox* computes coordinates of prior boxes by following:
-1.  First calculates *center_x* and *center_y* of prior box:
+*PriorBox* computes coordinates of prior boxes by the following rules:
+1.  First, it calculates *center_x* and *center_y* of a prior box:
     \f[
     W \equiv Width \quad Of \quad Image \\
     H \equiv Height \quad Of \quad Image
@@ -26,7 +26,7 @@
         w \subset \left( 0, W \right ) \\
         h \subset \left( 0, H \right )
         \f]
-2.  Then, for each \f$ s \subset \left( 0, min\_sizes \right ) \f$ calculates coordinates of prior boxes:
+2.  Then, it calculates coordinates of prior boxes for each \f$ s \subset \left( 0, min\_sizes \right ) \f$:
     \f[
     xmin = \frac{\frac{center_x - s}{2}}{W}
     \f]
@@ -45,7 +45,7 @@
 
 * *min_size (max_size)*
 
-  * **Description**: *min_size (max_size)* is the minimum (maximum) box size (in pixels).
+  * **Description**: *min_size (max_size)* is the minimum (maximum) box size in pixels.
   * **Range of values**: positive floating-point numbers
   * **Type**: `float[]`
   * **Default value**: []
@@ -54,14 +54,14 @@
 * *aspect_ratio*
 
   * **Description**: *aspect_ratio* is a variance of aspect ratios. Duplicate values are ignored.
-  * **Range of values**: set of positive integer numbers
+  * **Range of values**: a set of positive integer numbers
   * **Type**: `float[]`
   * **Default value**: []
   * **Required**: *no*
 
 * *flip*
 
-  * **Description**: *flip* is a flag that denotes that each *aspect_ratio* is duplicated and flipped. For example, *flip* equals 1 and *aspect_ratio* equals to `[4.0,2.0]` mean that aspect_ratio is equal to `[4.0,2.0,0.25,0.5]`.
+  * **Description**: *flip* is a flag that denotes that each *aspect_ratio* is duplicated and flipped. For example, *flip* equals 1 and *aspect_ratio* equals `[4.0,2.0]`, meaning that the aspect_ratio is equal to `[4.0,2.0,0.25,0.5]`.
   * **Range of values**:
     * false or 0 - each *aspect_ratio* is flipped
     * true or 1  - each *aspect_ratio* is not flipped
@@ -71,10 +71,10 @@
 
 * *clip*
 
-  * **Description**: *clip* is a flag that denotes if each value in the output tensor should be clipped to `[0,1]` interval.
+  * **Description**: *clip* is a flag that denotes if each value in the output tensor should be clipped to the `[0,1]` interval.
   * **Range of values**:
     * false or 0 - clipping is not performed
-    * true or 1 - each value in the output tensor is clipped to `[0,1]` interval.
+    * true or 1 - each value in the output tensor is clipped to the `[0,1]` interval.
   * **Type**: `boolean`
   * **Default value**: false
   * **Required**: *no*
@@ -89,14 +89,14 @@
 
 * *offset*
 
-  * **Description**: *offset* is a shift of box respectively to top left corner.
+  * **Description**: *offset* is a shift of a box to the top left corner respectively.
   * **Range of values**: floating-point non-negative number
   * **Type**: `float`
   * **Required**: *yes*
 
 * *variance*
 
-  * **Description**: *variance* denotes a variance of adjusting bounding boxes. The attribute could contain 0, 1 or 4 elements.
+  * **Description**: *variance* denotes a variance of adjusting bounding boxes. The attribute could contain 0, 1, or 4 elements.
   * **Range of values**: floating-point positive numbers
   * **Type**: `float[]`
   * **Default value**: []
@@ -122,7 +122,7 @@
 
 * *fixed_size*
 
-    * **Description**: *fixed_size* is an initial box size (in pixels).
+    * **Description**: *fixed_size* is an initial box size in pixels.
     * **Range of values**: a list of positive floating-point numbers
     * **Type**: `float[]`
     * **Default value**: []
@@ -138,10 +138,10 @@
 
 * *min_max_aspect_ratios_order*
 
-  * **Description**: *min_max_aspect_ratios_order* is a flag that denotes the order of output prior box. If set True, the output prior box is in order of [min, max, aspect_ratios], which is consistent with Caffe. Please note, this order affects the weights order of convolution layer followed by and does not affect the final detection results.
+  * **Description**: *min_max_aspect_ratios_order* is a flag that denotes the order of output prior box. If set true, the output prior box is in [min, max, aspect_ratios] order, which is consistent with Caffe. Note that the order affects the weights order of the preceding convolution layer and does not affect the final detection results.
   * **Range of values**:
-    * false - the output prior box is in order of [min, aspect_ratios, max]
-    * true  - the output prior box is in order of [min, max, aspect_ratios]
+    * false - the output prior box is in [min, aspect_ratios, max] order
+    * true  - the output prior box is in [min, max, aspect_ratios] order
   * **Type**: `boolean`
   * **Default value**: true
   * **Required**: *no*
@@ -150,7 +150,7 @@
 
 *   **1**: `output_size` - 1D tensor of type *T_INT* with two elements `[height, width]`. Specifies the spatial size of generated grid with boxes. **Required.**
 
-*   **2**: `image_size` - 1D tensor of type *T_INT* with two elements `[image_height, image_width]` that specifies shape of the image for which boxes are generated. **Required.**
+*   **2**: `image_size` - 1D tensor of type *T_INT* with two elements `[image_height, image_width]`. Specifies shape of the image for which boxes are generated. **Required.**
 
 **Outputs**:
 
