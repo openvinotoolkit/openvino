@@ -486,11 +486,17 @@ void MKLDNNGraph::InitEdges() {
         InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
     };
 
+    auto updateEdge = [&](int& i) {
+        graphEdges.erase(graphEdges.begin() + i);
+        i--;
+        numberOfEdges--;
+    };
+
     for (auto i = 0; i < numberOfEdges; i++) {
         auto edge = graphEdges[i];
-        auto reorderType = graphEdges[i]->needReorder();
-        if (reorderType == MKLDNNEdge::ReorderType::Regular) {
-            MKLDNNEdge::ReorderType reorderTypeInternal = MKLDNNEdge::ReorderType::Regular;
+        auto reorderStatus = graphEdges[i]->needReorder();
+        if (reorderStatus == MKLDNNEdge::ReorderStatus::Regular) {
+            MKLDNNEdge::ReorderStatus reorderStatusInternal = MKLDNNEdge::ReorderStatus::Regular;
             // Check if there is a reorder that needs the precision conversion
             if (edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
                     !isReorderAvailable(edge->getInputDesc(), edge->getOutputDesc(), this->getEngine())) {
@@ -507,22 +513,17 @@ void MKLDNNGraph::InitEdges() {
                 InsertNode(edge, convertNode, true);
 
                 //Check if reorder is still needed
-                reorderTypeInternal = convertNode->getChildEdgeAt(0)->needReorder();
-                if (reorderTypeInternal != MKLDNNEdge::ReorderType::No)
+                reorderStatusInternal = convertNode->getChildEdgeAt(0)->needReorder();
+                if (reorderStatusInternal != MKLDNNEdge::ReorderStatus::No)
                     edge = convertNode->getChildEdgeAt(0);
             }
-            if (reorderTypeInternal != MKLDNNEdge::ReorderType::No) {
-                insertReorder(edge, reorderTypeInternal == MKLDNNEdge::ReorderType::Optimized);
+            if (reorderStatusInternal != MKLDNNEdge::ReorderStatus::No) {
+                insertReorder(edge, reorderStatusInternal == MKLDNNEdge::ReorderStatus::Optimized);
             }
-            graphEdges.erase(graphEdges.begin() + i);
-            i--;
-            numberOfEdges--;
-        } else if (reorderType == MKLDNNEdge::ReorderType::Optimized) {
+            updateEdge(i);
+        } else if (reorderStatus == MKLDNNEdge::ReorderStatus::Optimized) {
             insertReorder(edge, true);
-
-            graphEdges.erase(graphEdges.begin() + i);
-            i--;
-            numberOfEdges--;
+            updateEdge(i);
         }
     }
 }
