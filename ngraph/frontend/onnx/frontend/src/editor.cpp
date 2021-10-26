@@ -455,15 +455,20 @@ void onnx_editor::ONNXModelEditor::set_tensor_name(const std::string& current_na
 
     for (size_t i = 0; i < graph->node().size(); ++i) {
         const auto node = graph->mutable_node(i);
-        for (size_t j = 0; j < node->input().size(); ++j)
-            if (node->input(j) == current_name)
-                *node->mutable_input(j) = new_name;
 
+        bool output_found = false;
         for (size_t j = 0; j < node->output().size(); ++j)
             if (node->output(j) == current_name) {
                 *node->mutable_output(j) = new_name;
+                output_found = true;
                 break;
             }
+        if (output_found)
+            continue;
+
+        for (size_t j = 0; j < node->input().size(); ++j)
+            if (node->input(j) == current_name)
+                *node->mutable_input(j) = new_name;
     }
 }
 
