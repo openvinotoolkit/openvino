@@ -45,9 +45,11 @@ MKLDNNBatchToSpaceNode::MKLDNNBatchToSpaceNode(const std::shared_ptr<ngraph::Nod
     if (inputShapes.size() != 4 || outputShapes.size() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input or output edges!";
 
-    if (inputShapes[0].getRank() < 4 || inputShapes[0].getRank() > 5)
+    const auto inDims = getInputShapeAtPort(0).getDims();
+    const auto outDims = getOutputShapeAtPort(0).getDims();
+    if (inDims.size() < 4 || inDims.size() > 5)
         IE_THROW() << errorPrefix << " has unsupported 'data' input rank: " << inputShapes[0].getRank();
-    if (inputShapes[0].getRank() != outputShapes[0].getRank())
+    if (inDims.size() != outDims.size())
         IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions";
 
     blockShapeIn = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<size_t>();
@@ -93,12 +95,6 @@ void MKLDNNBatchToSpaceNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNBatchToSpaceNode::createPrimitive() {
-    if (inputShapesDefined()) {
-        updateLastInputDims();
-    }
-}
-
 static std::vector<size_t> getShape5D(const SizeVector &shape) {
     std::vector<size_t> shape5D(5, 1);
     for (int i = 0; i < 2; i++) {
@@ -114,8 +110,8 @@ void MKLDNNBatchToSpaceNode::batchToSpaceKernel() {
     const auto *srcData = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    auto inDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
-    auto outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const auto inDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const auto outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
 
     auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
 

@@ -32,7 +32,9 @@ public:
         CPUSpecificParams cpuParams;
         std::tie(inputShapes, blockShape, cropsBegin, cropsEnd, netPrecision, cpuParams) = obj.param;
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str(inputShapes.first) << "_";
+        if (!inputShapes.first.empty()) {
+            result << "IS=" << CommonTestUtils::partialShape2str(inputShapes.first) << "_";
+        }
         result << "TS=";
         for (const auto& shape : inputShapes.second) {
             result << "(";
@@ -106,11 +108,9 @@ const std::vector<std::vector<int64_t>> cropsEnd4D1    = {{0, 0, 0, 0}, {0, 0, 1
 const std::vector<inputShapesPair> staticInputShapes4D1 = {
         {
                 {},
-
                 // Static shapes
                 {
-                        {{8, 16, 10, 10}},
-                        {{16, 64, 13, 16}}
+                        {{8, 16, 10, 10}}
                 }
         }
 };
@@ -123,28 +123,21 @@ const std::vector<inputShapesPair> dynamicInputShapes4D1 = {
                 },
                 // target
                 {
-                        {{8, 16, 10, 10}},
-                        {{16, 8, 13, 16}}
+                        {{8, 8, 6, 7}},
+                        {{4, 10, 5, 5}},
+                        {{12, 9, 7, 5}}
                 }
         },
         {
                 // dynamic
                 {
-                        {{8, 16}, {8, 16}, -1, -1},
+                        {{4, 12}, {8, 16}, {6}, -1},
                 },
                 // target
                 {
-                        {{8, 8, 13, 16}}
-                }
-        },
-        {
-                // dynamic
-                {
-                        {{6, 12}, -1, {4, 11}, {7, 9}},
-                },
-                // target
-                {
-                        {{12, 16, 10, 9}},
+                        {{8, 8, 6, 7}},
+                        {{4, 10, 6, 5}},
+                        {{12, 9, 6, 5}},
                 }
         }
 };
@@ -157,7 +150,9 @@ const std::vector<inputShapesPair> dynamicInputShapes4D1Blocked = {
                 },
                 // target
                 {
-                        {{16, 16, 13, 16}}
+                        {{4, 16, 5, 8}},
+                        {{8, 16, 7, 6}},
+                        {{12, 16, 4, 5}}
                 }
         }
 };
@@ -169,11 +164,9 @@ const std::vector<std::vector<int64_t>> cropsEnd4D2    = {{0, 0, 1, 0}, {0, 0, 3
 const std::vector<inputShapesPair> staticInputShapes4D2 = {
         {
                 {},
-
                 // Static shapes
                 {
-                        {{48, 16, 7, 8}},
-                        {{24, 32, 6, 6}}
+                        {{24, 16, 7, 8}}
                 }
         }
 };
@@ -186,28 +179,21 @@ const std::vector<inputShapesPair> dynamicInputShapes4D2 = {
                 },
                 // target
                 {
-                        {{48, 16, 7, 8}},
-                        {{24, 32, 6, 6}}
+                        {{48, 4, 7, 8}},
+                        {{24, 8, 6, 7}},
+                        {{24, 16, 5, 5}}
                 }
         },
         {
                 // dynamic
                 {
-                        {{16, 24}, {8, 16}, -1, -1},
+                        {{24}, {4, 10}, -1, -1},
                 },
                 // target
                 {
-                        {{24, 8, 6, 7}}
-                }
-        },
-        {
-                // dynamic
-                {
-                        {{24}, -1, {4, 11}, {7, 9}},
-                },
-                // target
-                {
-                        {{24, 16, 5, 7}},
+                        {{24, 8, 6, 7}},
+                        {{24, 6, 7, 5}},
+                        {{24, 4, 5, 5}}
                 }
         }
 };
@@ -220,7 +206,9 @@ const std::vector<inputShapesPair> dynamicInputShapes4D2Blocked = {
                 },
                 // target
                 {
-                        {{24, 16, 5, 5}}
+                        {{24, 16, 5, 5}},
+                        {{24, 16, 6, 7}},
+                        {{48, 16, 4, 4}}
                 }
         }
 };
@@ -310,11 +298,9 @@ const std::vector<std::vector<int64_t>> cropsEnd5D1    = {{0, 0, 0, 0, 0}, {0, 0
 const  std::vector<inputShapesPair> staticInputShapes5D1 = {
         {
                 {},
-
                 // Static shapes
                 {
-                        {{8, 16, 4, 10, 10}},
-                        {{16, 32, 5, 8, 12}}
+                        {{8, 16, 4, 10, 10}}
                 }
         }
 };
@@ -328,7 +314,8 @@ const std::vector<inputShapesPair> dynamicInputShapes5D1 = {
                 // target
                 {
                         {{8, 16, 4, 10, 10}},
-                        {{16, 32, 5, 8, 12}}
+                        {{16, 10, 5, 11, 9}},
+                        {{24, 6, 6, 8, 8}},
                 }
         },
         {
@@ -338,17 +325,9 @@ const std::vector<inputShapesPair> dynamicInputShapes5D1 = {
                 },
                 // target
                 {
-                        {{8, 16, 4, 6, 8}}
-                }
-        },
-        {
-                // dynamic
-                {
-                        {{6, 12}, -1, -1, {4, 11}, {7, 9}},
-                },
-                // target
-                {
-                        {{8, 32, 4, 5, 7}},
+                        {{8, 16, 2, 6, 8}},
+                        {{8, 10, 4, 7, 5}},
+                        {{16, 8, 7, 5, 10}}
                 }
         }
 };
@@ -357,11 +336,13 @@ const std::vector<inputShapesPair> dynamicInputShapes5D1Blocked = {
         {
                 // dynamic
                 {
-                        {-1, {16}, -1, -1, -1},
+                        {-1, {16}, {3, 5}, -1, -1},
                 },
                 // target
                 {
-                        {{24, 16, 3, 4, 5}}
+                        {{24, 16, 3, 6, 7}},
+                        {{48, 16, 4, 5, 5}},
+                        {{24, 16, 5, 8, 5}},
                 }
         }
 };
@@ -373,11 +354,9 @@ const std::vector<std::vector<int64_t>> cropsEnd5D2    = {{0, 0, 1, 0, 1}, {0, 0
 const  std::vector<inputShapesPair> staticInputShapes5D2 = {
         {
                 {},
-
                 // Static shapes
                 {
-                        {{48, 16, 3, 3, 3}},
-                        {{24, 32, 5, 3, 5}}
+                        {{48, 16, 3, 3, 3}}
                 }
         }
 };
@@ -390,8 +369,9 @@ const std::vector<inputShapesPair> dynamicInputShapes5D2 = {
                 },
                 // target
                 {
-                        {{48, 16, 3, 3, 3}},
-                        {{24, 32, 5, 3, 5}}
+                        {{48, 4, 3, 3, 3}},
+                        {{24, 16, 5, 3, 5}},
+                        {{24, 8, 7, 5, 5}}
                 }
         },
         {
@@ -401,17 +381,9 @@ const std::vector<inputShapesPair> dynamicInputShapes5D2 = {
                 },
                 // target
                 {
-                        {{24, 16, 3, 3, 3}}
-                }
-        },
-        {
-                // dynamic
-                {
-                        {{24, 32}, -1, -1, {4, 11}, {5, 9}},
-                },
-                // target
-                {
-                        {{24, 16, 4, 4, 5}},
+                        {{24, 16, 3, 4, 3}},
+                        {{24, 12, 5, 3, 5}},
+                        {{24, 8, 4, 5, 5}}
                 }
         }
 };
@@ -424,7 +396,9 @@ const std::vector<inputShapesPair> dynamicInputShapes5D2Blocked = {
                 },
                 // target
                 {
-                        {{24, 16, 4, 5, 5}}
+                        {{24, 16, 4, 5, 5}},
+                        {{48, 16, 3, 4, 3}},
+                        {{24, 16, 5, 3, 5}}
                 }
         }
 };
