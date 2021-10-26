@@ -26,6 +26,7 @@ inline const std::string getPluginLibNameByDevice(const std::string& deviceName)
             { "HETERO", "HeteroPlugin" },
             { "MULTI", "MultiDevicePlugin" },
             { "MYRIAD", "myriadPlugin" },
+            { "TEMPLATE", "templatePlugin" },
     };
     if (devices.find(deviceName) == devices.end()) {
         throw std::runtime_error("Incorrect device name");
