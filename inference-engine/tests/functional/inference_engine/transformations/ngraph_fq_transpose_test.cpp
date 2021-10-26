@@ -56,7 +56,7 @@ TEST_F(TransformationTestsF, FQTransposeTest1) {
     }
 }
 
-TEST(TransformationTests, FQTransposeNegativeCase) {
+TEST_F(TransformationTestsF, FQTransposeNegativeCase) {
     auto create_graph = []() -> std::shared_ptr<ngraph::Function> {
         auto data = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::PartialShape{1, 3, 1});
         auto sigmoid = std::make_shared<ngraph::op::Sigmoid>(data);
@@ -85,7 +85,7 @@ TEST(TransformationTests, FQTransposeNegativeCase) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, FQTransposeDynamic) {
+TEST_F(TransformationTestsF, FQTransposeDynamic) {
     auto data = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
     auto input_low = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {2});
     auto input_high = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {3});
