@@ -6,7 +6,7 @@ from extensions.ops.If import If
 from extensions.ops.loop import Loop
 from extensions.ops.tensor_iterator import TensorIterator
 from mo.back.replacement import BackReplacementPattern
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension_value, shape_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph, Node
 from mo.ops.result import Result
@@ -25,7 +25,7 @@ def ti_find_iterations_count_for_output(step_node, output_rec):
         return iterations_count
 
     # 2. check if given output record contains values for 'end', so iterations count can be calculated from this record
-    if output_rec['end'] != -1:
+    if output_rec['end'] != -1 and output_rec['start'] != -1:
         # get iterations count from output record
         iterations_count = (output_rec['end'] - output_rec['start']) / output_rec['stride']
         return iterations_count
@@ -47,6 +47,10 @@ def ti_find_iterations_count_for_output(step_node, output_rec):
             in_rec_start = in_rec['start']
         else:
             raise Error("Tensor Iterator have both start and end attributes equal to -1")
+        # in case of dynamic itreations count don't continue any calculations on this iteration
+        if not is_fully_defined(in_rec_end) or not is_fully_defined(in_rec_start):
+            iterations_count = dynamic_dimension_value
+            continue
         if (in_rec_end - in_rec_start) / in_rec['stride'] > iterations_count:
             iterations_count = (in_rec_end - in_rec_start) / in_rec['stride']
 
@@ -61,6 +65,8 @@ def set_shape_to_port_for_internal_node(cycle_node, internal_id, port_num, itera
     # inside cycle node Unsqueeze was added to have the first dimension for concatenating results along it
     assert len(out_shape) >= 1
     out_shape[0] = iterations_count
+    if is_fully_defined(iterations_count):
+        out_shape = shape_array(out_shape)
 
     if need_adjust_port:
         port_num = port_num - len(cycle_node.in_ports())
