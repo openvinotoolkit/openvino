@@ -93,7 +93,7 @@ def test_init_with_packed_buffer(dtype, ov_type, shape):
     fit = np.dtype(dtype).itemsize * 8 / ov_type.bitwidth
     size = math.ceil(np.prod(shape) / fit)
     buffer = np.random.normal(size=(size,)).astype(dtype)
-    ov_tensor = Tensor(buffer, ov_type, ov.impl.Shape(shape))
+    ov_tensor = Tensor(buffer, ov_type, shape)
     assert ov_tensor.data.nbytes == ov_tensor.byte_size
     assert np.array_equal(ov_tensor.data.view(dtype), buffer)
 

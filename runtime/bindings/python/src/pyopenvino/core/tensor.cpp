@@ -30,6 +30,14 @@ void regclass_Tensor(py::module m) {
         py::arg("type"),
         py::arg("shape"));
 
+    cls.def(
+        py::init([](py::array& array, const ov::element::Type& ov_type, const std::vector<size_t>& shape) {
+            return ov::runtime::Tensor(ov_type, shape, (void*)array.data());
+        }),
+        py::arg("array"),
+        py::arg("type"),
+        py::arg("shape"));
+
     cls.def(py::init<const ov::element::Type, const ov::Shape>(), py::arg("type"), py::arg("shape"));
 
     cls.def(py::init<const ov::element::Type, const std::vector<size_t>>(), py::arg("type"), py::arg("shape"));
