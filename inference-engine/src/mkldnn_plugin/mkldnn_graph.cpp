@@ -1209,21 +1209,59 @@ bool MKLDNNGraph::InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNo
 void MKLDNNGraph::EnforceBF16() {
     // Floating point parts of FP32 + INT8 or FP32 + BIN mixed precision models will be executed in BF16 precision
     // only if enforceBF16 flag was set manually because current performance is not good enough to enable it by default
-    if (implication(isQuantized(), config.manualEnforceBF16)) {
-        for (auto &node : graphNodes) {
-            if (node->getType() != Input && node->getType() != Output) {
-                for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
-                    auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
-                    if (!(parent->getType() == Input && parent->isConstant()) &&       // exclude nodes after Constant Inputs
-                        !(parent->getType() == Input && node->getType() == Eltwise) && // exclude Eltwise after Input since it supports conversion to BF16
-                        node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
-                        node->setOriginalInputPrecisionAtPort(i, Precision::BF16);
-                }
+    if (!implication(isQuantized(), config.manualEnforceBF16))
+        return;
+    /* list of node types that must be forced to be executed in BF16 precision
+     * because of performance gains */
+    static const std::unordered_set<Type, std::hash<int>> significantNodes { // std::hash<int> is necessary old compilers (defect in C++11 standart)
+        Convolution,    // conv nets
+        FullyConnected, // conv / bert nets
+        RNNCell,        // recurent nets
+        RNNSeq,         // recurent nets
+        MatMul,         // bert nets
+        ROIPooling,     // object detection nets
+        Interpolate,    // super resolution nets
+    };
 
-                for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
-                    if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
-                        node->setOriginalOutputPrecisionAtPort(i, Precision::BF16);
-                }
+    std::function<void(const MKLDNNNodePtr&, std::unordered_set<MKLDNNNodePtr>& skipNodes)> searchForNodesToSkip;
+    searchForNodesToSkip = [&](const MKLDNNNodePtr& node, std::unordered_set<MKLDNNNodePtr>& skipNodes) -> void {
+        for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+            const auto& parent = node->getParentEdgeAt(i)->getParent();
+            if (significantNodes.count(parent->getType())) // stop at significant nodes
+                continue;
+
+            const auto res = skipNodes.insert(parent);
+            if (res.second) // node not visited yet
+                searchForNodesToSkip(parent, skipNodes);
+        }
+    };
+
+    /* Skip BF16 enforcement for tail of the graph by forming set of nodes to skip.
+     * Necessary to maintain accuracy.
+     * Experiments show zero peformance impact on average */
+    std::unordered_set<MKLDNNNodePtr> nodesToSkip;
+    // starting from output nodes
+    for (const auto& entry : outputNodesMap) {
+        const auto& node = entry.second;
+        searchForNodesToSkip(node, nodesToSkip);
+    }
+
+    for (const auto& node : graphNodes) {
+        if (nodesToSkip.count(node) && !node->enforceBF16evenForGraphTail)
+            continue;
+
+        if (node->getType() != Input && node->getType() != Output) {
+            for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
+                const auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
+                if (!(parent->getType() == Input && parent->isConstant()) &&       // exclude skipNodes after Constant Inputs
+                    !(parent->getType() == Input && node->getType() == Eltwise) && // exclude Eltwise after Input since it supports conversion to BF16
+                    node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
+                    node->setOriginalInputPrecisionAtPort(i, Precision::BF16);
+            }
+
+            for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
+                if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
+                    node->setOriginalOutputPrecisionAtPort(i, Precision::BF16);
             }
         }
     }
