@@ -27,10 +27,6 @@ SoftSign::SoftSign(const ngraph::Output<ngraph::Node>& arg) : ov::op::util::Unar
     constructor_validate_and_infer_types();
 }
 
-bool SoftSign::visit_attributes(ngraph::AttributeVisitor& visitor) {
-    return true;
-}
-
 std::shared_ptr<ngraph::Node> SoftSign::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return std::make_shared<SoftSign>(new_args.at(0));

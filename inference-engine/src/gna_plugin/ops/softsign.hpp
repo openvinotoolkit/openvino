@@ -21,7 +21,6 @@ public:
     ///
     /// \param data Input tensor
     SoftSign(const ngraph::Output<ngraph::Node>& arg);
-    bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override;
     bool evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const override;
     bool has_evaluate() const override;
