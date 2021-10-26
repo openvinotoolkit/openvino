@@ -1,0 +1,30 @@
+models:
+  - name: ssd_resnet_50_512
+
+    launchers:
+      - framework: dlsdk
+        device: CPU
+        adapter: ssd
+
+    datasets:
+      - name: VOC2007_bkgr
+        data_source: <PATH TO VALIDATION DATASET>/VOC2007/JPEGImages
+        annotation_conversion:
+          converter: voc_detection
+          has_background: False
+          annotations_dir: <PATH TO VALIDATION DATASET>/VOC2007/Annotations
+          images_dir: <PATH TO VALIDATION DATASET>/VOC2007/JPEGImages
+          imageset_file: <PATH TO VALIDATION DATASET>/VOC2007/ImageSets/Main/test.txt
+
+        preprocessing:
+          - type: resize
+            size: 512
+
+        postprocessing:
+          - type: resize_prediction_boxes
+
+        metrics:
+          - type: map
+            integral: 11point
+            ignore_difficult: True
+            presenter: print_scalar

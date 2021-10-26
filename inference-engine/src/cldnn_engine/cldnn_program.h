@@ -68,7 +68,7 @@ public:
     Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config, bool createTopologyOnly = false);
     Program(std::shared_ptr<cldnn::engine> engine, const Config& config) : m_config(config), m_engine(engine),
             m_curBatch(-1), queryMode(false), m_max_batch(1) {}
-    Program() : m_config({}), m_engine(nullptr), m_curBatch(-1), queryMode(false), m_max_batch(1) {}
+    Program() : m_config(), m_engine(nullptr), m_curBatch(-1), queryMode(false), m_max_batch(1) {}
 
     static const cldnn::primitive_id m_preProcessTag;
     static const cldnn::primitive_id m_meanValuesTag;
@@ -122,19 +122,7 @@ public:
     using factory_t = std::function<void(Program&, const std::shared_ptr<ngraph::Node>&)>;
     using factories_map_t = std::map<ngraph::DiscreteTypeInfo, factory_t>;
 
-    template<typename OpType,
-        typename std::enable_if<std::is_base_of<ngraph::Node, OpType>::value && ngraph::HasTypeInfoMember<OpType>::value, int>::type = 0>
-    static void RegisterFactory(factory_t func) {
-        static std::mutex m;
-        std::lock_guard<std::mutex> lock(m);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (Program::factories_map.find(OpType::type_info) == Program::factories_map.end())
-            Program::factories_map.insert({OpType::type_info, func});
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-
-    template<typename OpType,
-        typename std::enable_if<std::is_base_of<ngraph::Node, OpType>::value && !ngraph::HasTypeInfoMember<OpType>::value, int>::type = 0>
+    template<typename OpType>
     static void RegisterFactory(factory_t func) {
         static std::mutex m;
         std::lock_guard<std::mutex> lock(m);

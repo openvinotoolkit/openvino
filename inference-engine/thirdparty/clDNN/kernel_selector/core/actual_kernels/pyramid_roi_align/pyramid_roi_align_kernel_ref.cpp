@@ -33,13 +33,18 @@ ParamsKey PyramidROIAlignKernelRef::GetSupportedKey() const {
 
 PyramidROIAlignKernelBase::DispatchData PyramidROIAlignKernelRef::SetDefault(const PyramidROIAlign_params& params) const {
     auto dispatchData = PyramidROIAlignKernelBase::SetDefault(params);
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Y },
+                                                                     { Tensor::DataChannelName::FEATURE },
+                                                                     { Tensor::DataChannelName::BATCH }};
 
     dispatchData.gws = {
         params.output.X().v * params.output.Y().v,
         params.output.Feature().v,
         params.output.Batch().v };
 
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }

@@ -13,11 +13,9 @@ file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${ONNX_FRONTEND_INCLUDE_DIR}/*.hpp)
 
 # Remove disabled ops
 list(REMOVE_ITEM LIBRARY_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/conv_integer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/quant_conv.cpp
     )
 list(REMOVE_ITEM LIBRARY_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/conv_integer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/quant_conv.hpp
     )
 
@@ -28,7 +26,7 @@ source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS})
 source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
-# Create shared library
+# Create library
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 add_library(openvino::frontend::onnx ALIAS ${TARGET_NAME})
 
