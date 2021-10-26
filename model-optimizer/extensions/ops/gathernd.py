@@ -60,6 +60,7 @@ class GatherND(Op):
                                                         'name : {}'.format(node['version'], node.soft_get('name'))
 
         # compute output shape
+        batch = []
         if batch_dims > 0:
             if node['version'] == 'opset5':  # Support old version of gatherND shape inference
                 if is_fully_defined(data_shape[:batch_dims]):
@@ -67,6 +68,9 @@ class GatherND(Op):
                 else:
                     batch = [dynamic_dimension_value]
             elif node['version'] == 'opset8':
+                for dim in range(batch_dims):
+                    assert compatible_dims(indices_shape[dim], data_shape[dim]),\
+                        "Batch dimensions in data.shape and indices.shape must be compatible"
                 if is_fully_defined(indices_shape[:batch_dims]):
                     batch = indices_shape[:batch_dims].tolist()
                 elif is_fully_defined(data_shape[:batch_dims]):
@@ -80,9 +84,6 @@ class GatherND(Op):
                             batch.append(data_shape[ind])
                         else:
                             batch.append(dynamic_dimension_value)
-
-        else:   # if batch_dims == 0
-            batch = []
 
         slice_shape = list(data_shape[(batch_dims + indices_shape[-1]):])
 
