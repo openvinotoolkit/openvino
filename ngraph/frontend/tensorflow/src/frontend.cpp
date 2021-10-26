@@ -312,11 +312,14 @@ ngraph::frontend::InputModel::Ptr FrontEndTF::load_impl(
 }
 
 std::shared_ptr<ov::Function> FrontEndTF::convert(ngraph::frontend::InputModel::Ptr model) const {
+    std::cout << "XXXXX: FrontEndTF::convert 1" << std::endl;
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
+    std::cout << "XXXXX: FrontEndTF::convert 2" << std::endl;
     std::shared_ptr<ov::Function> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", true, false, f);
+    std::cout << "XXXXX: FrontEndTF::convert 3" << std::endl;
     normalize(f);
-
+    std::cout << "XXXXX: FrontEndTF::convert 4" << std::endl;
     // TODO: check that nGraph function does not contain operations which are not in the opset
 
     return f;
