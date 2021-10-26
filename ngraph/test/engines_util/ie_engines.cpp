@@ -337,6 +337,9 @@ testing::AssertionResult test::IE_Engine::compare_results_with_tolerance_as_fp(c
             comparison_result = test::compare_with_tolerance(test_results.first, test_results.second, tolerance);
             break;
         }
+        case InferenceEngine::Precision::I32:
+            comparison_result = compare_blobs<int32_t>(computed_output_blob, expected_output_blob, 0);
+            break;
         default:
             comparison_result = testing::AssertionFailure() << "Unsupported data type encountered in "
                                                                "'compare_results_with_tolerance_as_fp' method";

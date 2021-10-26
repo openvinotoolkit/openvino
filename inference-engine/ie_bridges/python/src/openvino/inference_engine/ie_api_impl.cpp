@@ -6,6 +6,7 @@
 
 #include "ie_plugin_config.hpp"
 #include "ngraph/partial_shape.hpp"
+#include "openvino/op/util/framework_node.hpp"
 
 const std::string EXPORTED_NETWORK_NAME = "undefined";
 std::map<std::string, InferenceEngine::Precision> precision_map = {{"FP32", InferenceEngine::Precision::FP32},
@@ -197,7 +198,11 @@ public:
     }
 
     std::map<std::string, ngraph::OpSet> getOpSets() override {
-        return {{"framework_node_ext", ngraph::OpSet()}};
+        std::map<std::string, ngraph::OpSet> opsets;
+        ngraph::OpSet opset;
+        opset.insert<ov::op::util::FrameworkNode>();
+        opsets["util"] = opset;
+        return opsets;
     }
 
     void Unload() noexcept override {}
@@ -212,7 +217,9 @@ InferenceEnginePython::IENetwork InferenceEnginePython::read_network(std::string
 
 PyObject* InferenceEnginePython::getPartialShape_capsule(InferenceEngine::CDataPtr data) {
     const char* py_capsule_name = "ngraph_partial_shape";
+    IE_SUPPRESS_DEPRECATED_START
     auto ngraph_pShape_ptr = std::make_shared<ngraph::PartialShape>(data->getPartialShape());
+    IE_SUPPRESS_DEPRECATED_END
     auto* sp_copy = new std::shared_ptr<const ngraph::PartialShape>(ngraph_pShape_ptr);
     auto sp_deleter = [](PyObject* capsule) {
         auto* capsule_ptr = PyCapsule_GetPointer(capsule, "ngraph_partial_shape");
@@ -679,4 +686,8 @@ InferenceEngine::Blob::Ptr InferenceEnginePython::CVariableState::getState() {
 
 void InferenceEnginePython::CVariableState::setState(InferenceEngine::Blob::Ptr state) {
     variableState.SetState(state);
+}
+
+const size_t InferenceEnginePython::product(const InferenceEngine::SizeVector& dims) {
+    return std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>{});
 }

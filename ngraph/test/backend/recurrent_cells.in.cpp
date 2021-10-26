@@ -8,15 +8,14 @@
 #endif
 // clang-format on
 
+#include "engines_util/execute_tools.hpp"
+#include "engines_util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/check.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset4.hpp"
-
-#include "engines_util/test_engines.hpp"
-#include "engines_util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "engines_util/execute_tools.hpp"
 
 using namespace std;
 using namespace ngraph;

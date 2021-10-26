@@ -55,7 +55,6 @@ void ConcatWithNeighborsGraphTransformation::SetUp() {
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 3.f} },
         "concat",
         "");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(ConcatWithNeighborsGraphTransformation, CompareWithRefImpl) {

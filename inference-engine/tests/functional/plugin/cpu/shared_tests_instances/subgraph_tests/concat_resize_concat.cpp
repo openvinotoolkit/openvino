@@ -92,7 +92,6 @@ protected:
         ngraph::ResultVector outputs;
         outputs.push_back(std::make_shared<ngraph::opset1::Result>(outputNode));
         function = std::make_shared<ngraph::Function>(outputs, inputs);
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 
@@ -109,7 +108,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcResizeConc,
                         ConcatResizeConcatTest, ::testing::Combine(
-                           ::testing::Values(ngraph::opset4::Interpolate::type_info),
+                           ::testing::Values(ngraph::opset4::Interpolate::get_type_info_static()),
                            ::testing::ValuesIn(channel_count),
                            ::testing::ValuesIn(batch_count)),
                         ConcatResizeConcatTest::getTestCaseName);

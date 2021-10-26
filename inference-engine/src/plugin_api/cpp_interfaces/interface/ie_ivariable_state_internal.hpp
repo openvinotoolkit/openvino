@@ -66,7 +66,7 @@ protected:
 using IMemoryStateInternal = IVariableStateInternal;
 
 /**
- * @brief SOPointer to IVariableStateInternal.
+ * @brief SoPtr to IVariableStateInternal.
  */
 using SoIVariableStateInternal = ov::runtime::SoPtr<IVariableStateInternal>;
 

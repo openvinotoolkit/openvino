@@ -11,7 +11,7 @@
 
 #include "pugixml.hpp"
 
-#include <transformations/serialize.hpp>
+#include <openvino/pass/serialize.hpp>
 #include <ngraph/opsets/opset.hpp>
 
 #include "ngraph/variant.hpp"
@@ -25,17 +25,25 @@ LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f), abs_threshold(-1.f) {
     core = PluginCache::get().ie(targetDevice);
 }
 void LayerTestsCommon::ResizeNgraphFunction() {
+    std::map<ov::Output<ov::Node>, ov::PartialShape> shapes;
+
     auto params = function->get_parameters();
     ASSERT_LE(params.size(), targetStaticShapes[index].size());
     for (size_t i = 0; i < params.size(); i++) {
-        params[i]->set_partial_shape(targetStaticShapes[index][i]);
+        shapes.insert({params[i]->output(0), targetStaticShapes[index][i]});
     }
-    functionRefs = ngraph::clone_function(*function);
-    functionRefs->set_friendly_name("FunctionRefs");
+    function->reshape(shapes);
+
+    shapes.clear();
+    params = functionRefs->get_parameters();
+    ASSERT_LE(params.size(), targetStaticShapes[index].size());
+    for (size_t i = 0; i < params.size(); i++) {
+        shapes.insert({params[i]->output(0), targetStaticShapes[index][i]});
+    }
+    functionRefs->reshape(shapes);
 }
 
 void LayerTestsCommon::Run() {
-    //TODO: w/a: to identify gaps with functionRefs and init it
     if (functionRefs == nullptr) {
         functionRefs = ngraph::clone_function(*function);
         functionRefs->set_friendly_name("refFunction");
@@ -60,7 +68,8 @@ void LayerTestsCommon::Run() {
 
     try {
         LoadNetwork();
-        for (size_t i = 0; i < targetStaticShapes.size(); i++) {
+        size_t i = 0;
+        do {
             index = i;
             try {
                 if (!inputDynamicShapes.empty()) {
@@ -72,9 +81,14 @@ void LayerTestsCommon::Run() {
                 Validate();
                 s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
             } catch (const std::exception &ex) {
-                THROW_IE_EXCEPTION << "Incorrect target static shape: " << CommonTestUtils::vec2str(targetStaticShapes[i]) << std::endl << ex.what();
+                std::string errorMessage;
+                if (!targetStaticShapes.empty()) {
+                    errorMessage = "Incorrect target static shape: " + CommonTestUtils::vec2str(targetStaticShapes[i]) + "\n";
+                }
+                errorMessage +=  ex.what();
+                THROW_IE_EXCEPTION << ex.what();
             }
-        }
+        } while (++i < targetStaticShapes.size());
     }
     catch (const std::runtime_error &re) {
         s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
@@ -88,7 +102,7 @@ void LayerTestsCommon::Run() {
     }
 }
 
-void LayerTestsCommon::Serialize() {
+void LayerTestsCommon::Serialize(ngraph::pass::Serialize::Version ir_version) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     std::string output_name = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + GetTimestamp();
@@ -97,7 +111,7 @@ void LayerTestsCommon::Serialize() {
     std::string out_bin_path = output_name + ".bin";
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path);
+    manager.register_pass<ov::pass::Serialize>(out_xml_path, out_bin_path, ir_version);
     manager.run_passes(function);
     function->validate_nodes_and_infer_types();
 
@@ -338,7 +352,9 @@ void LayerTestsCommon::Compare(const InferenceEngine::TensorDesc &actualDesc, co
 
 void LayerTestsCommon::ConfigureNetwork() {
     for (const auto &in : cnnNetwork.getInputsInfo()) {
-        if (inLayout != InferenceEngine::Layout::ANY) {
+        if (inLayout != InferenceEngine::Layout::ANY &&
+            // cannot setLayout for fully-dynamic network
+            !in.second->getPartialShape().rank().is_dynamic()) {
             in.second->setLayout(inLayout);
         }
         if (inPrc != InferenceEngine::Precision::UNSPECIFIED) {
@@ -347,7 +363,9 @@ void LayerTestsCommon::ConfigureNetwork() {
     }
 
     for (const auto &out : cnnNetwork.getOutputsInfo()) {
-        if (outLayout != InferenceEngine::Layout::ANY) {
+        if (outLayout != InferenceEngine::Layout::ANY &&
+            // cannot setLayout for fully-dynamic network
+            !out.second->getPartialShape().rank().is_dynamic()) {
             out.second->setLayout(outLayout);
         }
         if (outPrc != InferenceEngine::Precision::UNSPECIFIED) {
@@ -362,7 +380,7 @@ void LayerTestsCommon::ConfigureNetwork() {
         ASSERT_EQ(params.size(), inputDynamicShapes.size());
         for (size_t i = 0; i < inputDynamicShapes.size(); i++) {
             ngraph::PartialShape dynamicShape = inputDynamicShapes[i];
-            if (dynamicShape.rank() == 0) {
+            if (dynamicShape.rank() == 0 && dynamicShape.is_static()) {
                 continue;
             }
             std::string inputName = params[i]->get_friendly_name();
@@ -430,11 +448,6 @@ void LayerTestsCommon::Infer() {
 }
 
 std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTestsCommon::CalculateRefs() {
-    //TODO: w/a: to identify gaps with functionRefs and init it
-    if (functionRefs == nullptr) {
-        functionRefs = ngraph::clone_function(*function);
-    }
-    // nGraph interpreter does not support f16/bf16
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
 
@@ -502,6 +515,9 @@ void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type
 }
 
 void LayerTestsCommon::Validate() {
+    if (functionRefs == nullptr) {
+        functionRefs = ngraph::clone_function(*function);
+    }
     auto expectedOutputs = CalculateRefs();
     const auto &actualOutputs = GetOutputs();
 

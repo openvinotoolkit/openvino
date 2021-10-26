@@ -56,7 +56,6 @@ void ConcatWithDifferentChildrenTransformation::SetUp() {
 
     function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithDifferentPrecisionOnChildren(
         netPrecision, inputShapes, param.axis, param.fqOnData1, param.fqOnData2);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(ConcatWithDifferentChildrenTransformation, CompareWithRefImpl) {

@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <xml_parse_utils.h>
+#include "ir_frontend/frontend.hpp"
 
 #include <array>
-#include <ir_frontend/frontend.hpp>
-#include <ir_frontend/model.hpp>
-#include <ir_frontend/utility.hpp>
-#include <ngraph/variant.hpp>
-#include <openvino/util/file_util.hpp>
 #include <vector>
+
+#include "ir_deserializer.hpp"
+#include "ir_frontend/model.hpp"
+#include "ir_frontend/utility.hpp"
+#include "ngraph/variant.hpp"
+#include "openvino/core/op_extension.hpp"
+#include "openvino/util/file_util.hpp"
+#include "xml_parse_utils.h"
 
 using namespace ngraph;
 
@@ -89,20 +92,43 @@ bool FrontEndIR::supported_impl(const std::vector<std::shared_ptr<Variant>>& var
         return false;
     }
 
-    return version == 10;
+    return version >= 10 && version <= 11;
+}
+
+void FrontEndIR::add_extension(const std::vector<ov::Extension>& extensions) {
+    for (const auto& ext : extensions) {
+        if (std::dynamic_pointer_cast<ov::BaseOpExtension>(ext.get()))
+            this->extensions.emplace_back(ext);
+    }
 }
 
 InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
     std::ifstream local_model_stream;
     std::istream* provided_model_stream = nullptr;
-    ov::Weights weights;
-    ov::Extensions extensions;
+    std::shared_ptr<ngraph::runtime::AlignedBuffer> weights;
+    std::map<std::string, ngraph::OpSet> old_extensions;
+
+    auto create_extensions_map = [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
+        std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> exts;
+        for (const auto& ext : extensions) {
+            if (auto base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext.get()))
+                exts.insert({base_ext->type(), base_ext});
+        }
+        for (const auto& it : old_extensions) {
+            for (const auto& type_info : it.second.get_types_info()) {
+                OPENVINO_ASSERT(type_info.name != nullptr, "Custom operation type info doesn't contain the name.");
+                auto base_ext = std::make_shared<ov::ExtensionWrapper>(it.first, type_info.name, it.second);
+                exts.insert({base_ext->type(), base_ext});
+            }
+        }
+        return exts;
+    };
 
     auto create_input_model = [&]() -> std::shared_ptr<InputModelIR> {
         if (provided_model_stream) {
-            return std::make_shared<InputModelIR>(*provided_model_stream, weights, extensions);
+            return std::make_shared<InputModelIR>(*provided_model_stream, weights, create_extensions_map());
         } else if (local_model_stream.is_open()) {
-            auto input_model = std::make_shared<InputModelIR>(local_model_stream, weights, extensions);
+            auto input_model = std::make_shared<InputModelIR>(local_model_stream, weights, create_extensions_map());
             local_model_stream.close();
             return input_model;
         }
@@ -150,10 +176,10 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>
         } else if (ov::is_type<ov::VariantWrapper<std::wstring>>(variant)) {
             weights_path = ov::as_type_ptr<ov::VariantWrapper<std::wstring>>(variant)->get();
 #endif
-        } else if (ov::is_type<ov::WeightsVariant>(variant)) {
-            weights = ov::as_type_ptr<ov::WeightsVariant>(variant)->get();
-        } else if (ov::is_type<ov::ExtensionsVariant>(variant)) {
-            extensions = ov::as_type_ptr<ov::ExtensionsVariant>(variant)->get();
+        } else if (ov::is_type<VariantWrapper<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(variant)) {
+            weights = ov::as_type_ptr<VariantWrapper<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(variant)->get();
+        } else if (ov::is_type<VariantWrapper<std::map<std::string, ngraph::OpSet>>>(variant)) {
+            old_extensions = ov::as_type_ptr<VariantWrapper<std::map<std::string, ngraph::OpSet>>>(variant)->get();
         }
     }
 
@@ -202,6 +228,7 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>
 
 std::shared_ptr<ngraph::Function> FrontEndIR::convert(InputModel::Ptr model) const {
     auto ir_model = std::dynamic_pointer_cast<InputModelIR>(model);
+    OPENVINO_ASSERT(ir_model != nullptr);
     return ir_model->convert();
 }
 

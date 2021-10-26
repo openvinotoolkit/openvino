@@ -74,14 +74,20 @@ public:
 };
 
 TEST_P(TranslateNewWeightFormatToOldOne, ReshapeMatMul) {
-    ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
-    manager.run_passes(f);
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    ngraph::pass::Manager m;
+    m.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
+    m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 
-    auto res = compare_functions(f, f_ref, true);
-    ASSERT_TRUE(res.first) << res.second;
+    auto fc = FunctionsComparator::no_default()
+            .enable(FunctionsComparator::PRECISIONS)
+            .enable(FunctionsComparator::CONST_VALUES);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 INSTANTIATE_TEST_SUITE_P(NGraph, TranslateNewWeightFormatToOldOne, testing::Combine(

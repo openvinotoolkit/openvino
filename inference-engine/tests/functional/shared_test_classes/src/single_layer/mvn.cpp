@@ -45,7 +45,6 @@ void Mvn1LayerTest::SetUp() {
     }
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(mvn)};
     function = std::make_shared<ngraph::Function>(results, param, "MVN1");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 
@@ -88,7 +87,6 @@ void Mvn6LayerTest::SetUp() {
     auto mvn = ngraph::builder::makeMVN6(paramOuts[0], axesNode, normalizeVariance, eps, epsMode);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(mvn)};
     function = std::make_shared<ngraph::Function>(results, param, "MVN6");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace LayerTestsDefinitions

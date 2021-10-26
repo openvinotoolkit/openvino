@@ -30,7 +30,6 @@ void TensorNamesTest::SetUp() {
     results[0]->set_friendly_name("out");
     ngraph::ParameterVector params{parameter};
     function = std::make_shared<ngraph::Function>(results, params, "TensorNames");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace SubgraphTestsDefinitions

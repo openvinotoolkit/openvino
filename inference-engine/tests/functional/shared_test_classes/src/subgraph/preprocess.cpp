@@ -31,6 +31,7 @@ void PrePostProcessTest::SetUp() {
     function = (std::get<0>(func))();
     threshold = std::get<2>(func);
     functionRefs = ngraph::clone_function(*function);
+    abs_threshold = std::get<2>(func);
 }
 
 TEST_P(PrePostProcessTest, CompareWithRefs) {

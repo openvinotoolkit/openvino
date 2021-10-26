@@ -14,7 +14,42 @@
 #include <pugixml.hpp>
 #include <utils.hpp>
 
+#include "openvino/core/op_extension.hpp"
+
 namespace ov {
+
+/*
+ * @brief Wrapper for old IE extensions to new API
+ */
+class ExtensionWrapper : public ov::BaseOpExtension {
+public:
+    ExtensionWrapper(const std::string& opsetVersion, const std::string& type, const ngraph::OpSet& opset)
+        : m_opset_name(opsetVersion),
+          m_type(type),
+          m_ext_type(m_type.c_str(), 0, m_opset_name.c_str()),
+          m_opset(opset) {}
+
+    const ov::DiscreteTypeInfo& type() override {
+        return m_ext_type;
+    }
+
+    ngraph::OutputVector create(const ngraph::OutputVector& inputs, ngraph::AttributeVisitor& visitor) override {
+        std::shared_ptr<ngraph::Node> node(m_opset.create_insensitive(m_ext_type.name));
+
+        node->set_arguments(inputs);
+        if (node->visit_attributes(visitor)) {
+            node->constructor_validate_and_infer_types();
+        }
+        return node->outputs();
+    }
+
+private:
+    std::string m_opset_name;
+    std::string m_type;
+    ov::DiscreteTypeInfo m_ext_type;
+    ngraph::OpSet m_opset;
+};
+
 struct GenericLayerParams {
     struct LayerPortData {
         size_t portId;
@@ -55,13 +90,17 @@ struct GenericLayerParams {
 class XmlDeserializer : public ngraph::AttributeVisitor {
 public:
     explicit XmlDeserializer(const pugi::xml_node& node,
-                             const ov::Weights& weights,
+                             const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
                              const std::unordered_map<std::string, ngraph::OpSet>& opsets,
-                             std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& variables)
+                             const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
+                             std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& variables,
+                             size_t version)
         : m_node(node),
           m_weights(weights),
           m_opsets(opsets),
-          m_variables(variables) {}
+          m_extensions(extensions),
+          m_variables(variables),
+          m_version(version) {}
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
         std::string val;
@@ -132,10 +171,6 @@ public:
         adapter.set(value);
     }
 
-    void use_framework_node(bool flag) {
-        m_use_framework_node = flag;
-    }
-
 private:
     struct IoMap {
         using NodeIdToIoIndex = std::unordered_map<size_t /*xml node id*/, uint64_t /*body io index*/>;
@@ -146,22 +181,23 @@ private:
     /// \brief Traverses port_map in order to create vector of InputDescription shared_ptrs.
     /// Shall be used only for ops which have port_map attribute.
     /// \param node xml op representation
-    std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> parseInputDescription(
-        const pugi::xml_node& node);
+    std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>
+    parseInputDescription(const pugi::xml_node& node, const std::string& body_name, const std::string& port_map_name);
     /// \brief Traverses port_map in order to create vector of OutputDescription shared_ptrs.
     /// Shall be used only for ops which have port_map attribute.
     /// \param node xml op representation
-    std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> parseOutputDescription(
-        const pugi::xml_node& node);
+    std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>
+    parseOutputDescription(const pugi::xml_node& node, const std::string& body_name, const std::string& port_map_name);
 
     // TODO consider to call only once per layer/TI-Loop node
-    IoMap updated_io_map(const pugi::xml_node& node);
+    IoMap updated_io_map(const pugi::xml_node& node, const pugi::xml_node& body_node);
 
     /// \brief Traverses xml node representation in order to create nGraph function for it.
     /// \param node xml node representation
     /// \param weights weights attached to current node
     /// \return shared pointer to function representing input node
-    std::shared_ptr<ngraph::Function> parse_function(const pugi::xml_node& root, const ov::Weights& weights);
+    std::shared_ptr<ngraph::Function> parse_function(const pugi::xml_node& root,
+                                                     const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights);
     /// \brief Traverses xml node representation in order to get the purpose attribute of
     /// inputs/outputs in the body of Loop op. \param node xml node representation \return struct
     /// with value of purpuse attribute
@@ -178,6 +214,7 @@ private:
     const pugi::xml_node m_node;
     const ov::Weights& m_weights;
     const std::unordered_map<std::string, ngraph::OpSet>& m_opsets;
+    const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& m_extensions;
     std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& m_variables;
 
     ///
@@ -186,6 +223,6 @@ private:
     ///
     IoMap io_map;
 
-    bool m_use_framework_node{false};
+    int64_t m_version;
 };
 }  // namespace ov

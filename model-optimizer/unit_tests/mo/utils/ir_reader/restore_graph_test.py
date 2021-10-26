@@ -2,11 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import unittest
 import tempfile
+import unittest
+
+from defusedxml.common import EntitiesForbidden
 
 from mo.utils.ir_reader.restore_graph import restore_graph_from_ir
-from defusedxml.common import EntitiesForbidden
 
 
 class TestIRReader(unittest.TestCase):

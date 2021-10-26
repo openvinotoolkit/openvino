@@ -33,42 +33,52 @@ KERNEL(activation)(
     const unsigned x = get_global_id(0);
     const uint y = (uint)get_global_id(1) % OUTPUT_SIZE_Y;
     const uint z = (uint)get_global_id(1) / OUTPUT_SIZE_Y;
-#if OUTPUT_BATCH_NUM == 1
-    const unsigned feature = (uint)get_global_id(2);
-    const unsigned batch = 0;
+    #if OUTPUT_BATCH_NUM == 1
+        const unsigned feature = (uint)get_global_id(2);
+        const unsigned batch = 0;
+    #else
+        const unsigned feature = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
+        const unsigned batch = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
+    #endif
 #else
-    const unsigned feature = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
-    const unsigned batch = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
-#endif
-#else
-#if defined OUTPUT_LAYOUT_YXFB || defined OUTPUT_LAYOUT_B_FS_YX_FSV16
-    const unsigned x = (uint)get_global_id(1);
-    const unsigned y = (uint)get_global_id(2);
-#define z 0
-#if OUTPUT_BATCH_NUM == 1
-    const unsigned feature = (uint)get_global_id(0);
-    const unsigned batch = 0;
-#else
-    const unsigned feature = (uint)get_global_id(0) % OUTPUT_FEATURE_NUM;
-    const unsigned batch = (uint)get_global_id(0) / OUTPUT_FEATURE_NUM;
-#endif
-#else
-#define z 0
-    const unsigned x = (uint)get_global_id(0);
-    const unsigned y = (uint)get_global_id(1);
-#if OUTPUT_BATCH_NUM == 1
-    const unsigned feature = (uint)get_global_id(2);
-    const unsigned batch = 0;
-#else
-    const unsigned feature = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
-    const unsigned batch = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
-#endif
-#endif
+    #if defined OUTPUT_LAYOUT_YXFB || defined OUTPUT_LAYOUT_B_FS_YX_FSV16 || defined OUTPUT_LAYOUT_B_FS_YX_FSV32
+        const unsigned x = (uint)get_global_id(1);
+        const unsigned y = (uint)get_global_id(2);
+        #define z 0
+        #if OUTPUT_BATCH_NUM == 1
+            const unsigned feature = (uint)get_global_id(0);
+            const unsigned batch = 0;
+        #else
+            const unsigned feature = (uint)get_global_id(0) % OUTPUT_FEATURE_NUM;
+            const unsigned batch = (uint)get_global_id(0) / OUTPUT_FEATURE_NUM;
+        #endif
+    #elif defined OUTPUT_LAYOUT_BS_FS_YX_BSV32_FSV32 || defined OUTPUT_LAYOUT_BS_FS_YX_BSV32_FSV16
+        const unsigned x = (uint)get_global_id(0) % OUTPUT_SIZE_X;
+        const unsigned y = (uint)get_global_id(0) / OUTPUT_SIZE_X;
+        const unsigned feature = (uint)get_global_id(1);
+        const unsigned batch = (uint)get_global_id(2);
+    #else
+        #define z 0
+            const unsigned x = (uint)get_global_id(0);
+            const unsigned y = (uint)get_global_id(1);
+        #if OUTPUT_BATCH_NUM == 1
+            const unsigned feature = (uint)get_global_id(2);
+            const unsigned batch = 0;
+        #else
+            const unsigned feature = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
+            const unsigned batch = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
+        #endif
+    #endif
 #endif
 
-#if defined(OUTPUT_LAYOUT_B_FS_YX_FSV16) && OUTPUT_FEATURE_NUM % 16 != 0
-    // b_fs_yx_fsv16 has dispatch features aligned to multiple of 16
+// GWS.feature and GWS.batch is aligned to 16. Otherwise, there are some idling WIs.
+#if (defined(OUTPUT_LAYOUT_B_FS_YX_FSV16) || defined(OUTPUT_LAYOUT_B_FS_YX_FSV32)) \
+    && OUTPUT_FEATURE_NUM % 16 != 0
     if (feature >= OUTPUT_FEATURE_NUM)
+        return;
+#elif (defined(OUTPUT_LAYOUT_BS_FS_YX_BSV32_FSV16) || defined(OUTPUT_LAYOUT_BS_FS_YX_BSV32_FSV32)) \
+    && (OUTPUT_FEATURE_NUM % 16 != 0 || OUTPUT_BATCH_NUM % 16 != 0)
+    if (batch >= OUTPUT_BATCH_NUM || feature >= OUTPUT_FEATURE_NUM)
         return;
 #endif
 

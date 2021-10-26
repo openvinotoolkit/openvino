@@ -256,7 +256,6 @@ protected:
                 break;
             }
         }
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

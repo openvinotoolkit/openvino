@@ -94,6 +94,5 @@ void PriorBoxClusteredLayerTest::SetUp() {
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(priorBoxClustered) };
     function = std::make_shared<ngraph::Function>(results, params, "PB_Clustered");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

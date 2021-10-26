@@ -76,7 +76,6 @@ void ReadIRTest::SetUp() {
             }
         }
     }
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void ReadIRTest::GenerateInputs() {

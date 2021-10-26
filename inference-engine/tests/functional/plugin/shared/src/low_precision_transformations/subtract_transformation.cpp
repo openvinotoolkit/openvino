@@ -34,7 +34,6 @@ void SubtractTransformation::SetUp() {
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     function = ngraph::builder::subgraph::SubtractFunction::getOriginal(netPrecision, inputShape);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(SubtractTransformation, CompareWithRefImpl) {

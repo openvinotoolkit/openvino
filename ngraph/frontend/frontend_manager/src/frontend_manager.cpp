@@ -4,11 +4,10 @@
 
 #include "frontend_manager/frontend_manager.hpp"
 
-#include <frontend_manager/place.hpp>
-#include <ngraph/except.hpp>
-#include <openvino/util/env_util.hpp>
-
 #include "frontend_manager/frontend_exceptions.hpp"
+#include "frontend_manager/place.hpp"
+#include "ngraph/except.hpp"
+#include "openvino/util/env_util.hpp"
 #include "plugin_loader.hpp"
 #include "utils.hpp"
 
@@ -148,6 +147,32 @@ std::shared_ptr<ngraph::Function> FrontEnd::decode(InputModel::Ptr model) const 
 void FrontEnd::normalize(std::shared_ptr<ngraph::Function> function) const {
     FRONT_END_NOT_IMPLEMENTED(normalize);
 }
+
+void FrontEnd::add_extension(const std::vector<ov::Extension>& extensions) {
+    // Each frontend can support own set of extensions, so this method should be implemented on the frontend side
+}
+
+void FrontEnd::add_extension(const std::shared_ptr<ov::BaseExtension>& extension) {
+    add_extension(std::vector<std::shared_ptr<ov::BaseExtension>>{extension});
+}
+
+void FrontEnd::add_extension(const std::vector<std::shared_ptr<ov::BaseExtension>>& extensions) {
+    std::vector<ov::Extension> exts;
+    for (const auto& ext : extensions) {
+        exts.emplace_back(ov::Extension(ext));
+    }
+    add_extension(exts);
+}
+
+void FrontEnd::add_extension(const std::string& library_path) {
+    add_extension(ov::load_extension(library_path));
+}
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+void FrontEnd::add_extension(const std::wstring& library_path) {
+    add_extension(ov::load_extension(library_path));
+}
+#endif
 
 std::string FrontEnd::get_name() const {
     return std::string();

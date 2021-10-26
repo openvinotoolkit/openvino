@@ -6,8 +6,6 @@
 #include <ngraph/validation_util.hpp>
 namespace ngraph { namespace vpu { namespace op {
 
-constexpr NodeTypeInfo StaticShapeTopK::type_info;
-
 ngraph::vpu::op::StaticShapeTopK::StaticShapeTopK(
         const Output<Node>& data,
         const Output<Node>& k,

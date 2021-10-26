@@ -43,7 +43,6 @@ void ReduceSumTransformation::SetUp() {
         param.fakeQuantize,
         param.constantValues,
         param.keepDims);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void ReduceSumTransformation::Run() {

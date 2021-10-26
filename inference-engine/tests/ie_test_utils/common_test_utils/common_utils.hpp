@@ -50,9 +50,11 @@ inline std::string vec2str(const std::vector<vecElementType> &vec) {
 inline std::string partialShape2str(const std::vector<ngraph::PartialShape>& partialShapes) {
     std::ostringstream result;
     for (const auto& partialShape : partialShapes) {
-        result << vec2str(partialShape.get_min_shape()) << "_" << vec2str(partialShape.get_max_shape());
+        result << partialShape;
     }
-    return result.str();
+    auto retStr = result.str();
+    std::replace(retStr.begin(), retStr.end(), ',', '.');
+    return retStr;
 }
 
 inline std::string pair2str(const std::pair<size_t, size_t>& p) {

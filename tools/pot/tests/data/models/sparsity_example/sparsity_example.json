@@ -1,0 +1,7 @@
+{
+  "name": "sparsity_example",
+  "framework": "tf",
+  "mo_args": {
+    "input_model": "$model_dir/sparsity_example/sparsity_example.pb"
+  }
+}
