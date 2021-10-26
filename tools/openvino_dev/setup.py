@@ -41,12 +41,6 @@ PKG_INSTALL_CFG = {
         'prefix': 'benchmark_tool',
         'extract_entry_points': True,
     },
-    "pot": {
-        'src_dir': OPENVINO_DIR / 'tools' / 'pot',
-        'black_list': ['*tests*', '*libs*', '*sample*'],
-        'prefix': 'pot',
-        'extract_entry_points': True,
-    },
     "accuracy_checker": {
         'src_dir': OPENVINO_DIR / 'tools' / 'pot' / 'thirdparty' / 'open_model_zoo' / 'tools' / 'accuracy_checker',  # noqa:E501
         'black_list': ['*tests*'],
@@ -60,6 +54,12 @@ PKG_INSTALL_CFG = {
         'extract_requirements': True,
         'extract_entry_points': True,
         'extract_extras': True,
+    },
+    "pot": {
+        'src_dir': OPENVINO_DIR / 'tools' / 'pot',
+        'black_list': ['*tests*', '*libs*', '*sample*'],
+        'prefix': 'pot',
+        'extract_entry_points': True,
     },
 }
 
