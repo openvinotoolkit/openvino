@@ -6,55 +6,11 @@ from extensions.ops.If import If
 from extensions.ops.loop import Loop
 from extensions.ops.tensor_iterator import TensorIterator
 from mo.back.replacement import BackReplacementPattern
-from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension_value, shape_array
+from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, shape_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph, Node
 from mo.ops.result import Result
 from mo.ops.unsqueeze import Unsqueeze
-from mo.utils.error import Error
-
-
-def ti_find_iterations_count_for_output(step_node, output_rec):
-    def check_axis_end(record):
-        return 'axis' in record and record['axis'] is not None and \
-            'end' in record and record['end'] is not None
-    iterations_count = 1
-    # 1. check if we need concatenate iteration results for given output
-    if not check_axis_end(output_rec):
-        # in this case we dont concat outputs, so iterations count is not needed really
-        return iterations_count
-
-    # 2. check if given output record contains values for 'end', so iterations count can be calculated from this record
-    if output_rec['end'] != -1 and output_rec['start'] != -1:
-        # get iterations count from output record
-        iterations_count = (output_rec['end'] - output_rec['start']) / output_rec['stride']
-        return iterations_count
-
-    # 3. find out iterations count from inputs.
-    # If no input contains 'axis' attribute then no slicing is in TI and it has only one iteration
-    # If several inputs have axis attribute with different iterations count then we use maximum value.
-    for in_rec in step_node.input_port_map:
-        if not check_axis_end(in_rec):
-            continue
-        if in_rec['end'] != -1 and in_rec['start'] != -1:
-            in_rec_end = in_rec['end']
-            in_rec_start = in_rec['start']
-        elif in_rec['end'] != -1:
-            in_rec_end = in_rec['end']
-            in_rec_start = step_node.in_port(in_rec['external_port_id']).data.get_shape()[in_rec['axis']]
-        elif in_rec['start'] != -1:
-            in_rec_end = step_node.in_port(in_rec['external_port_id']).data.get_shape()[in_rec['axis']]
-            in_rec_start = in_rec['start']
-        else:
-            raise Error("Tensor Iterator have both start and end attributes equal to -1")
-        # in case of dynamic itreations count don't continue any calculations on this iteration
-        if not is_fully_defined(in_rec_end) or not is_fully_defined(in_rec_start):
-            iterations_count = dynamic_dimension_value
-            continue
-        if (in_rec_end - in_rec_start) / in_rec['stride'] > iterations_count:
-            iterations_count = (in_rec_end - in_rec_start) / in_rec['stride']
-
-    return iterations_count
 
 
 def set_shape_to_port_for_internal_node(cycle_node, internal_id, port_num, iterations_count, need_adjust_port=True):
@@ -89,7 +45,7 @@ def ti_infer(step_node, port_num):
                                                                         step_node.soft_get('name', step_node.id))
 
     # find out iterations count for TensorIterator to set output shape correctly
-    iterations_count = ti_find_iterations_count_for_output(step_node, found_rec)
+    iterations_count = TensorIterator.find_iterations_count_for_output(step_node, found_rec)
 
     set_shape_to_port_for_internal_node(step_node, found_rec['internal_layer_id'], port_num, iterations_count)
 
@@ -147,6 +103,7 @@ class AddOutputRecursive(BackReplacementPattern):
     Path structure: [node_loop_1, loop_2_in_loop_1,.., if_node, [then_list, else_list]]
     After if operation should be sub-list with 2 elements then_list and else_list where each is one node or list of
     nodes in according path
+    For cycles results from all iterations will be concatenated along 0 dimension.
     """
     enabled = False
     run_not_recursively = True
