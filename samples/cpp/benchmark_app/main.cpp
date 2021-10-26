@@ -523,7 +523,7 @@ int main(int argc, char* argv[]) {
             next_step();
             // Only in static case
             if (FLAGS_tensor_shape.empty())
-                batchSize = cnnNetwork.getBatchSize();
+                batchSize = FLAGS_b == 0 ? cnnNetwork.getBatchSize() : FLAGS_b;
             // Parse input shapes if specified
             bool reshape = false;
             app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape,
@@ -613,8 +613,8 @@ int main(int argc, char* argv[]) {
                 batchSize = 1;
             }
         }
-        // Check if network has dynamic shapes
         bool isDynamic = app_inputs_info.begin()->begin()->second.partialShape.is_dynamic();
+        // Check if network has dynamic shapes
         if (isDynamic && FLAGS_api == "sync") {
             throw std::logic_error("Benchmarking of the model with dynamic shapes is available for asyn API only."
                                    "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior");
@@ -729,6 +729,7 @@ int main(int argc, char* argv[]) {
         //    fillBlobs(inputFiles, batchSize, app_inputs_info[0], inferRequestsQueue.requests);
         //}
         auto inputsData = prepareCachedBlobs(inputFiles, app_inputs_info);
+
         // ----------------- 10. Measuring performance
         // ------------------------------------------------------------------
         size_t progressCnt = 0;
@@ -776,12 +777,9 @@ int main(int argc, char* argv[]) {
         }
         auto input = app_inputs_info[0];
         for (auto& item : input) {
-            if (item.second.partialShape.is_dynamic()) {
-                slog::info << "Set input tensor shape to " << getShapeString(item.second.tensorShape) << slog::endl;
-                inferRequest->setShape(item.first, item.second.tensorShape);
-            }
-            Blob::Ptr inputBlob = inferRequest->getBlob(item.first);
-            fillBlob(inputBlob, inputsData.at(item.first)[0]);
+            auto input_name = item.first;
+            const auto& data = inputsData.at(input_name)[0];
+            inferRequest->setBlob(input_name, data);
         }
         if (FLAGS_api == "sync") {
             inferRequest->infer();
@@ -799,26 +797,28 @@ int main(int argc, char* argv[]) {
         size_t processedFramesN = 0;
         auto startTime = Time::now();
         auto execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
-
+        // const auto* const contol_ptr = inputsData.begin()->second[0].get<uint8_t>();
         /** Start inference & calculate performance **/
         /** to align number if iterations to guarantee that last infer requests are
          * executed in the same conditions **/
         ProgressBar progressBar(progressBarTotalCount, FLAGS_stream_output, FLAGS_progress);
-
         while ((niter != 0LL && iteration < niter) ||
-               (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
-               (FLAGS_api == "async" && iteration % nireq != 0)) {
+               (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds)) {
             if (inferRequestsQueue.isIdleRequestAvailable()) {
                 auto inferRequest = inferRequestsQueue.getIdleRequest();
                 auto input = app_inputs_info[iteration % app_inputs_info.size()];
                 inferRequest->setLatencyGroupId(iteration % app_inputs_info.size());
 
                 for (auto& item : input) {
-                    if (item.second.partialShape.is_dynamic())
-                        inferRequest->setShape(item.first, item.second.tensorShape);
+                    // if (item.second.partialShape.is_dynamic())
+                    //    inferRequest->setShape(item.first, item.second.tensorShape);
+                    auto input_name = item.first;
+                    const auto& data = inputsData.at(input_name)[iteration % inputsData.at(input_name).size()];
                     batchSize = item.second.batch();
-                    Blob::Ptr inputBlob = inferRequest->getBlob(item.first);
-                    fillBlob(inputBlob, inputsData.at(item.first)[iteration % inputsData.size()]);
+                    inferRequest->setBlob(input_name, data);
+                    // Blob::Ptr inputBlob = inferRequest->getBlob(item.first);
+                    // fillBlob(inputBlob,
+                    //         inputsData.at(item.first)[iteration % inputsData.at(item.first).size()]);
                 }
                 processedFramesN += batchSize;
                 if (FLAGS_api == "sync") {

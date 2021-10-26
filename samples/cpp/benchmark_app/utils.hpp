@@ -16,6 +16,7 @@ struct InputInfo {
     ngraph::PartialShape partialShape;
     InferenceEngine::SizeVector tensorShape;
     std::string layout;
+    InferenceEngine::Layout _layout;
     std::vector<float> scale;
     std::vector<float> mean;
     bool isImage() const;
@@ -151,6 +152,8 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                 info.tensorShape = parseTensorShape(tensors_shape_map.at(name)[i % tensors_shape_map.at(name).size()]);
             } else if (info.partialShape.is_static()) {
                 info.tensorShape = info.partialShape.get_shape();
+            } else if (!tensors_shape_map.empty()) {
+                throw std::logic_error("Wrong input names in tensor_shape command line parameter.");
             } else {
                 throw std::logic_error(
                     "tensor_shape command line parameter should be set in case of network dynamic shape.");
@@ -162,11 +165,13 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                     throw std::logic_error(
                         "layout command line parameter doesn't support multiple layouts for one input.");
                 }
+                info._layout = descriptor.getLayout();
                 info.layout = layout_map.at(name)[0];
                 std::transform(info.layout.begin(), info.layout.end(), info.layout.begin(), ::toupper);
             } else {
                 std::stringstream ss;
                 ss << descriptor.getLayout();
+                info._layout = descriptor.getLayout();
                 info.layout = ss.str();
             }
             // Update shape with batch if needed (only in static case)
@@ -174,6 +179,9 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
             if (batch_size != 0) {
                 std::size_t batch_index = info.layout.find("N");
                 if ((batch_index != std::string::npos) && (info.tensorShape.at(batch_index) != batch_size)) {
+                    if (info.partialShape.is_static()) {
+                        info.partialShape[batch_index] = batch_size;
+                    }
                     info.tensorShape[batch_index] = batch_size;
                     reshape_required = true;
                 }
