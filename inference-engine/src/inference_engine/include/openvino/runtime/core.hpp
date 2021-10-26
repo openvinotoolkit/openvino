@@ -49,7 +49,7 @@ public:
      * See register_plugins for more details.
      *
      * @param xmlConfigFile A path to .xml file with plugins to load from. If XML configuration file is not specified,
-     * then default Inference Engine plugins are loaded from the default plugin.xml file.
+     * then default OpenVINO Runtime plugins are loaded from the default plugin.xml file.
      */
     explicit Core(const std::string& xmlConfigFile = {});
 
@@ -231,7 +231,7 @@ public:
     std::vector<std::string> get_available_devices() const;
 
     /**
-     * @brief Register new device and plugin which implement this device inside Inference Engine.
+     * @brief Register new device and plugin which implement this device inside OpenVINO Runtime.
      *
      * @param pluginName A name of plugin. Depending on platform pluginName is wrapped with shared library suffix and
      * prefix to identify library full name
@@ -242,15 +242,15 @@ public:
     void register_plugin(const std::string& pluginName, const std::string& deviceName);
 
     /**
-     * @brief Unloads previously loaded plugin with a specified name from Inference Engine
+     * @brief Unloads previously loaded plugin with a specified name from OpenVINO Runtime
      * The method is needed to remove plugin instance and free its resources. If plugin for a
      * specified device has not been created before, the method throws an exception.
      *
-     * @param deviceName Device name identifying plugin to remove from Inference Engine
+     * @param deviceName Device name identifying plugin to remove from OpenVINO Runtime
      */
     void unload_plugin(const std::string& deviceName);
 
-    /** @brief Registers plugin to Inference Engine Core instance using XML configuration file with
+    /** @brief Registers plugin to OpenVINO Runtime Core instance using XML configuration file with
      * plugins description.
      *
      *  XML file has the following structure:

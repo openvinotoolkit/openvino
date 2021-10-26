@@ -63,6 +63,17 @@ DECLARE_GPU_PARAM_VALUE(VA_SHARED);
 DECLARE_GPU_PARAM_KEY(OCL_CONTEXT, gpu_handle_param);
 
 /**
+ * @brief In case of multi-tile system,
+ * this key identifies tile within given context
+ */
+DECLARE_GPU_PARAM_KEY(TILE_ID, int);
+
+/**
+ * @brief This key identifies OpenCL queue handle in a shared context
+ */
+DECLARE_GPU_PARAM_KEY(OCL_QUEUE, gpu_handle_param);
+
+/**
  * @brief This key identifies video acceleration device/display handle
  * in a shared context or shared memory blob parameter map
  */

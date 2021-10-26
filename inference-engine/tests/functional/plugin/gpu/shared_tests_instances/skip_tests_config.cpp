@@ -68,11 +68,27 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=(CN|HW).*)",
             R"(.*Behavior.*(Multi|Auto).*InferRequestSetBlobByType.*Batched.*)",
             R"(.*(Multi|Auto).*Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
+            R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
             // TODO: until issue is xxx-59670 is resolved
             R"(.*Gather8LayerTest.*)",
+            // Not implemented yet:
+            R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
+            R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
+            R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
+            R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
+            R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
             // TODO: Issue 66516
             R"(.*smoke_PrePostProcess_GPU.*convert_element_type_and_mean.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
+            // TODO: Issue 67910
+            R"(.*smoke_PrePostProcess_GPU.*two_inputs_trivial.*)",
+            // TODO: CVS-68525
+            R"(.*CanSetInBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
+            R"(.*CanSetInBlobWithDifferentPrecision/netPRC=BIN.*)",
+            R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
+            R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=BIN.*)",
+            // TODO: Issue: 68712
+            R"(.*.MatMul.*CompareWithRefs.*IS0=\(1.5\)_IS1=\(1.5\).*transpose_a=0.*transpose_b=1.*CONSTANT.*FP16.*UNSPECIFIED.*UNSPECIFIED.*ANY.*)",
     };
 }

@@ -5,6 +5,7 @@ import pytest
 
 from openvino.inference_engine import CDataPtr, IECore
 from ..conftest import model_path
+import ngraph as ng
 
 
 test_net_xml, test_net_bin = model_path()
@@ -58,12 +59,8 @@ def test_initialized(device):
     assert exec_net.outputs['fc_out'].initialized, "Incorrect value for initialized property for layer 'fc_out"
 
 
-@pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_is_dynamic():
-    from ..conftest import create_relu
-    import ngraph as ng
-
     function = create_relu([-1, 3, 20, 20])
     net = ng.function_to_cnn(function)
     ie = IECore()
