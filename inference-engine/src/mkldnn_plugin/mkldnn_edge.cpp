@@ -199,46 +199,38 @@ static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const M
     // block dim check
     auto lhsBlockDimsClean = getCleanDim(lhsBlockDims, lhsBlockDims);
     auto rhsBlockDimsClean = getCleanDim(rhsBlockDims, rhsBlockDims);
-    if (lhsBlockDimsClean.size() != rhsBlockDimsClean.size()) {
+    if (!dimsEqualStrong(lhsBlockDimsClean, rhsBlockDimsClean))
         return false;
-    } else {
-        if (!dimsEqualStrong(lhsBlockDimsClean, rhsBlockDimsClean))
-            return false;
-    }
 
     // order check
     auto lhsOrderClean = getCleanDim(lhsBlockMemDesc->getOrder(), lhsBlockDims);
     auto rhsOrderClean = getCleanDim(rhsBlockMemDesc->getOrder(), rhsBlockDims);
-    if (lhsOrderClean.size() != rhsOrderClean.size()) {
+    if (!dimsEqualStrong(lhsOrderClean, rhsOrderClean))
         return false;
-    } else {
-        if (!dimsEqualStrong(lhsOrderClean, rhsOrderClean))
-            return false;
-    }
 
     return true;
 }
 
-MKLDNNEdge::ReorderType MKLDNNEdge::needReorder() {
+MKLDNNEdge::ReorderStatus MKLDNNEdge::needReorder() {
     bool optimized = false;
     if (!getInputDesc().isCompatible(getOutputDesc())) {
         if (isPhycicalMemCompatible(getInputDesc(), getOutputDesc()) && !getParent()->isConstant()) {
             optimized = true;
         } else {
-            return ReorderType::Regular;
+            return ReorderStatus::Regular;
         }
     }
 
     // put here as more costly than compatible check
     if (enforceReorder()) {
-        return ReorderType::Regular;
+        return ReorderStatus::Regular;
     }
 
     if (optimized) {
-        return ReorderType::Optimized;
+        return ReorderStatus::Optimized;
     }
 
-    return ReorderType::No;
+    return ReorderStatus::No;
 }
 
 void MKLDNNEdge::reuse(MKLDNNMemoryPtr ptr) {
