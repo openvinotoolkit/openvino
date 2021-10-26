@@ -22,6 +22,7 @@ public:
 
     bool needPrepareParams() const override { return false; }
     void executeDynamicImpl(mkldnn::stream strm) override;
+    std::vector<VectorDims> shapeInfer() const override;
 
 private:
     const std::shared_ptr<ngraph::Node> ngraphOp;
@@ -29,4 +30,3 @@ private:
 };
 
 }  // namespace MKLDNNPlugin
-
