@@ -132,7 +132,8 @@ InferenceEngine::Blob::Ptr createBlobImInfo(const std::pair<size_t, size_t>& ima
 
     InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.tensorShape, inputInfo._layout);
     InferenceEngine::Blob::Ptr blob =
-        InferenceEngine::make_shared_blob<T>(tDesc, std::make_shared<SharedBlobAllocator<T>>(data, blob_size * sizeof(T)));
+        InferenceEngine::make_shared_blob<T>(tDesc,
+                                             std::make_shared<SharedBlobAllocator<T>>(data, blob_size * sizeof(T)));
     return blob;
 }
 
@@ -171,8 +172,7 @@ InferenceEngine::Blob::Ptr createBlobFromBinary(const std::vector<std::string>& 
     InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.tensorShape, inputInfo._layout);
     InferenceEngine::Blob::Ptr blob =
         InferenceEngine::make_shared_blob<T>(tDesc,
-                                             std::make_shared<SharedBlobAllocator<T>>((T*)data,
-                                             blob_size * sizeof(T)));
+                                             std::make_shared<SharedBlobAllocator<T>>((T*)data, blob_size * sizeof(T)));
     return blob;
 }
 
@@ -253,10 +253,6 @@ InferenceEngine::Blob::Ptr getBinaryBlob(const std::vector<std::string>& files,
 
 InferenceEngine::Blob::Ptr getRandomBlob(const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
     auto precision = inputInfo.second.precision;
-    size_t blob_size = std::accumulate(inputInfo.second.tensorShape.begin(),
-                                       inputInfo.second.tensorShape.end(),
-                                       1,
-                                       std::multiplies<int>());
     if (precision == InferenceEngine::Precision::FP32) {
         return createBlobRandom<float, float>(inputInfo.second);
     } else if (precision == InferenceEngine::Precision::FP16) {
