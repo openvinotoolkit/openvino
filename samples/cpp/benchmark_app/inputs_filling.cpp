@@ -134,6 +134,7 @@ InferenceEngine::Blob::Ptr createBlobImInfo(const std::pair<size_t, size_t>& ima
     InferenceEngine::Blob::Ptr blob =
         InferenceEngine::make_shared_blob<T>(tDesc,
                                              std::make_shared<SharedBlobAllocator<T>>(data, blob_size * sizeof(T)));
+    blob->allocate();
     return blob;
 }
 
@@ -173,6 +174,7 @@ InferenceEngine::Blob::Ptr createBlobFromBinary(const std::vector<std::string>& 
     InferenceEngine::Blob::Ptr blob =
         InferenceEngine::make_shared_blob<T>(tDesc,
                                              std::make_shared<SharedBlobAllocator<T>>((T*)data, blob_size * sizeof(T)));
+    blob->allocate();
     return blob;
 }
 
@@ -194,6 +196,7 @@ InferenceEngine::Blob::Ptr createBlobRandom(const benchmark_app::InputInfo& inpu
     InferenceEngine::Blob::Ptr blob =
         InferenceEngine::make_shared_blob<T>(tDesc,
                                              std::make_shared<SharedBlobAllocator<T>>(data, blob_size * sizeof(T)));
+    blob->allocate();
     return blob;
 }
 
