@@ -88,5 +88,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*CanSetInBlobWithDifferentPrecision/netPRC=BIN.*)",
             R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
             R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=BIN.*)",
+            // TODO: Issue: 68712
+            R"(.*.MatMul.*CompareWithRefs.*IS0=\(1.5\)_IS1=\(1.5\).*transpose_a=0.*transpose_b=1.*CONSTANT.*FP16.*UNSPECIFIED.*UNSPECIFIED.*ANY.*)",
     };
 }
