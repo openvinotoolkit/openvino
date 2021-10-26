@@ -159,6 +159,12 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
             }
         }
     }
+
+    const auto it = rtInfo.find("enforceBF16evenForGraphTail");
+    if (it != rtInfo.end()) {
+        if (const auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second))
+            enforceBF16evenForGraphTail = value->get();
+    }
 }
 
 MKLDNNNode::MKLDNNNode(const std::string& type, const std::string& name, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache)
