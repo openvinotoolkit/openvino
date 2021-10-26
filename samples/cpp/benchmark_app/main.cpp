@@ -148,10 +148,12 @@ std::map<std::string, std::vector<std::string>> parseInputArguments(const std::s
         semicolon_pos = search_string.find_first_of(':');
 
         auto files = parseInputFilePaths(input_files);
+        if (files.size() == 0) {
+            throw std::logic_error("Can't parse files for input " + input_name + ".");
+        }
         for (const auto& f : files) {
             readInputFilesArguments(files_per_input[input_name], f);
         }
-
         if (files.size() != files_per_input.at(input_name).size() && files.size() != 1) {
             throw std::logic_error("Incorrect type of input in parameter string: " + input_parameter_string + ".");
         }
@@ -944,7 +946,7 @@ int main(int argc, char* argv[]) {
             std::cout << "\tMax:    " << double_to_string(maxLatency) << " ms" << std::endl;
             std::cout << "\tMin:    " << double_to_string(minLatency) << " ms" << std::endl;
             if (FLAGS_pcseq) {
-                std::cout << "Latency for each tensor shape groups:" << std::endl;
+                std::cout << "Latency for each tensor shape group:" << std::endl;
                 for (size_t i = 0; i < app_inputs_info.size(); ++i) {
                     for (auto& item : app_inputs_info[i]) {
                         std::stringstream input_shape;

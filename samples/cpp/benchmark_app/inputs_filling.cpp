@@ -296,6 +296,12 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
         for (auto& input : inputs_info) {
             if (input.second.isImage()) {
                 input_image_sizes.push_back(std::make_pair(input.second.width(), input.second.height()));
+            } else if (input.second.isImageInfo()){
+                // add image info name to the map<input_name, files> if it wasn't specified.
+                // thus we make sure that this input will be filled later.
+                if (!inputFiles.empty() && inputFiles.find(input.first) == inputFiles.end()) {
+                    inputFiles[input.first] = {""};
+                }
             }
             slog::info << "Network input '" << input.first << "' precision " << input.second.precision
                        << ", dimensions (" << input.second.layout << "): ";
@@ -316,8 +322,8 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
             files.second = filterFilesByExtensions(files.second, supported_image_extensions);
         } else {
             if (input.isImageInfo() && input_image_sizes.size() == app_inputs_info.size()) {
-                slog::info << "Input " << input_name
-                           << " probably is image info. All files for this input will"
+                slog::info << "Input '" << input_name
+                           << "' probably is image info. All files for this input will"
                               "be ignored."
                            << slog::endl;
                 continue;
@@ -337,7 +343,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
             filesToBeUsed = files.second.size() - files.second.size() % app_inputs_info.size();
             if (filesToBeUsed != files.second.size()) {
                 slog::warn << "Number of files must be a multiple of the number of shapes for certain input. Only " +
-                                  std::to_string(filesToBeUsed) + "files will be added."
+                                  std::to_string(filesToBeUsed) + " files will be added."
                            << slog::endl;
             }
             while (files.second.size() != filesToBeUsed) {
@@ -349,7 +355,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
             if (shapesToBeUsed != app_inputs_info.size()) {
                 slog::warn
                     << "Number of tensor shapes must be a multiple of the number of files for certain input. Only " +
-                           std::to_string(shapesToBeUsed) + "files will be added."
+                           std::to_string(shapesToBeUsed) + " files will be added."
                     << slog::endl;
             }
             while (app_inputs_info.size() != shapesToBeUsed) {
@@ -406,6 +412,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
                     slog::info << "Fill input '" << input.first << "' with image size " << image_size.first << "x"
                                << image_size.second << slog::endl;
                     cachedBlobs[input.first].push_back(getImInfoBlob(image_size, input));
+                    ++i;
                 } else {
                     // Fill random
                     slog::info << "Prepare blob for input '" << input.first << "' with random values ("
@@ -413,7 +420,6 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
                                << " is expected)" << slog::endl;
                     cachedBlobs[input.first].push_back(getRandomBlob(input));
                 }
-                ++i;
             }
         }
     }

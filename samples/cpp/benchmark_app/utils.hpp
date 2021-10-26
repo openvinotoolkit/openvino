@@ -113,7 +113,8 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                                     })
                        ->second.size();
         if (min_size != max_size) {
-            throw std::logic_error("Number of shapes for all inputs must be the same (except inputs with 1 shape).");
+            throw std::logic_error(
+                "Shapes number for every input should be either 1 or should be equal to shapes number of other inputs");
         }
     }
 
