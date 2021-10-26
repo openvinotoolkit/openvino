@@ -14,6 +14,7 @@
 #include "reshape_inst.h"
 #include "one_hot_inst.h"
 #include "permute_inst.h"
+#include "depth_to_space_inst.h"
 
 using namespace cldnn;
 
@@ -444,6 +445,42 @@ void remove_redundant_reorders::run(program& p) {
         }
     };
 
+    // Remove reorder for DepthToSpace b_fs_yx_fsv16 / b_fs_yx_fsv32 -> bfyx
+    auto try_fuse_reorder_fsv_to_bfyx = [&](reorder_node* node) -> bool {
+        auto& input = node->input();
+
+        if (!(input.is_type<depth_to_space>()) ||
+            !(input.get_output_layout().format == format::b_fs_yx_fsv16 || input.get_output_layout().format == format::b_fs_yx_fsv32) ||
+            !(node->get_output_layout().format == format::bfyx))
+            return false;
+
+        auto old_output_layout_of_input = input.get_output_layout();
+        auto output_layout = node->get_output_layout();
+        input.set_output_layout(output_layout, false);
+        if (input.type()->does_possible_implementation_exist(input)) {
+            input.set_output_padding(node->get_output_layout().data_padding);
+
+            // Add fused_primitive_desc of reorder to depth_to_space which propagate original output layout to jitter
+            fused_primitive_desc local_desc;
+            local_desc.node = p.get_node_ptr(node->id());
+            local_desc.dep_start_idx = input.get_fused_primitives().size();
+            local_desc.output_layout = output_layout;
+            local_desc.input_layout = input.get_dependency(0).get_output_layout();  // original depth_to_space's output layout
+            local_desc.activation = activation_func::none;
+            input.add_fused_primitive(local_desc);
+            node->set_input_layout(local_desc.input_layout);
+
+            // remove reorder node
+            node->can_be_optimized(true);
+            p.add_optimized_primitive_info(node->id());
+            p.extract_and_remove(*node);
+            return true;
+        } else {
+            input.set_output_layout(old_output_layout_of_input, false);
+            return false;
+        }
+    };
+
     if (enable_reorder_fusing) {
         itr = p.get_processing_order().begin();
         while (itr != p.get_processing_order().end()) {
@@ -471,6 +508,10 @@ void remove_redundant_reorders::run(program& p) {
                 continue;
             // Remove reorder for Convolution b_fs_yx_fsv16 -> bfyx
             if (try_fuse_reorder_fsv16_to_bfyx(&r_node))
+                continue;
+
+            // Remove reorder for DepthToSpace b_fs_yx_fsv16 / b_fs_yx_fsv32 -> bfyx
+            if (try_fuse_reorder_fsv_to_bfyx(&r_node))
                 continue;
         }
     }
