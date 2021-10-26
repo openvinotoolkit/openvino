@@ -342,6 +342,8 @@ public:
  */
 #define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                     \
     INFERENCE_PLUGIN_API(void)                                                                         \
+    IE_CREATE_PLUGIN(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) noexcept(false);  \
+    void                                                                                               \
     IE_CREATE_PLUGIN(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) noexcept(false) { \
         try {                                                                                          \
             plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                      \
