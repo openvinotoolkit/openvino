@@ -6,7 +6,6 @@ setlocal enabledelayedexpansion
 
 set TARGET=CPU
 set BUILD_FOLDER=%USERPROFILE%\Documents\Intel\OpenVINO
-set VENV_DIR=%USERPROFILE%\Documents\Intel\OpenVINO\venv_openvino
 
 :: command line arguments parsing
 :input_arguments_loop
@@ -48,6 +47,8 @@ set model_name=squeezenet1.1
 
 set target_image_path=%ROOT_DIR%car.png
 
+set omz_tool_error_message=It is required to download and convert a model. Check https://pypi.org/project/openvino-dev/ to install it. Then run the script again.
+
 if exist "%ROOT_DIR%..\..\setupvars.bat" (
     call "%ROOT_DIR%..\..\setupvars.bat"
 ) else (
@@ -86,28 +87,26 @@ if not "%python_ver%"=="okay" (
     goto error
 )
 
-:: install yaml python modules required for downloader.py
-if exist "%VENV_DIR%" (
-    echo.
-    echo ###############^|^| Using the existing python virtual environment ^|^|###############
-    echo.
-) else (
-    echo.
-    echo ###############^|^| Creating the python virtual environment ^|^|###############
-    echo.
-    python -m venv "%VENV_DIR%"
+omz_info_dumper --print_all >NUL
+if errorlevel 1 (
+    echo Error: omz_info_dumper was not found. %omz_tool_error_message%
+    goto error
 )
 
-call "%VENV_DIR%\Scripts\activate.bat"
-python -m pip install -U pip
-python -m pip install -r "%ROOT_DIR%..\open_model_zoo\tools\downloader\requirements.in"
+omz_downloader --print_all >NUL
+if errorlevel 1 (
+    echo Error: omz_downloader was not found. %omz_tool_error_message%
+    goto error
+)
 
-if ERRORLEVEL 1 GOTO errorHandling
-
-set downloader_dir=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader
+omz_converter --print_all >NUL
+if errorlevel 1 (
+    echo Error: omz_converter was not found. %omz_tool_error_message%
+    goto error
+)
 
 for /F "tokens=* usebackq" %%d in (
-    `python "%downloader_dir%\info_dumper.py" --name "%model_name%" ^|
+    `omz_info_dumper --name "%model_name%" ^|
         python -c "import sys, json; print(json.load(sys.stdin)[0]['subdirectory'])"`
 ) do (
     set model_dir=%%d
@@ -115,9 +114,10 @@ for /F "tokens=* usebackq" %%d in (
 
 set ir_dir=%irs_path%\%model_dir%\%target_precision%
 
+echo.
 echo Download public %model_name% model
-echo python "%downloader_dir%\downloader.py" --name "%model_name%" --output_dir "%models_path%" --cache_dir "%models_cache%"
-python "%downloader_dir%\downloader.py" --name "%model_name%" --output_dir "%models_path%" --cache_dir "%models_cache%"
+echo omz_downloader --name "%model_name%" --output_dir "%models_path%" --cache_dir "%models_cache%"
+omz_downloader --name "%model_name%" --output_dir "%models_path%" --cache_dir "%models_cache%"
 echo %model_name% model downloading completed
 
 CALL :delay 7
@@ -131,22 +131,13 @@ if exist "%ir_dir%" (
 )
 
 echo.
-echo ###############^|^| Install Model Optimizer prerequisites ^|^|###############
-echo.
-CALL :delay 3
-cd /d "%INTEL_OPENVINO_DIR%\tools\model_optimizer"
-python -m pip install -r requirements.txt
-if ERRORLEVEL 1 GOTO errorHandling
-
-CALL :delay 7
-echo.
 echo ###############^|^| Run Model Optimizer ^|^|###############
 echo.
 CALL :delay 3
 
 ::set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
-echo python "%downloader_dir%\converter.py" --mo "%INTEL_OPENVINO_DIR%\tools\model_optimizer\mo.py" --name "%model_name%" -d "%models_path%" -o "%irs_path%" --precisions "%TARGET_PRECISION%"
-python "%downloader_dir%\converter.py" --mo "%INTEL_OPENVINO_DIR%\tools\model_optimizer\mo.py" --name "%model_name%" -d "%models_path%" -o "%irs_path%" --precisions "%TARGET_PRECISION%"
+echo omz_converter --mo "%INTEL_OPENVINO_DIR%\tools\model_optimizer\mo.py" --name "%model_name%" -d "%models_path%" -o "%irs_path%" --precisions "%TARGET_PRECISION%"
+omz_converter --mo "%INTEL_OPENVINO_DIR%\tools\model_optimizer\mo.py" --name "%model_name%" -d "%models_path%" -o "%irs_path%" --precisions "%TARGET_PRECISION%"
 if ERRORLEVEL 1 GOTO errorHandling
 
 CALL :delay 7

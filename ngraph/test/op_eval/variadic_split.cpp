@@ -16,6 +16,7 @@
 
 using namespace std;
 using namespace ngraph;
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 TEST(op_eval, variadic_split_same_lengths) {
     const auto data_shape = Shape{3, 8, 3};

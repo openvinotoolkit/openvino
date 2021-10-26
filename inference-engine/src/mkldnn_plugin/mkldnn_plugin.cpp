@@ -28,6 +28,7 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
@@ -68,7 +69,6 @@
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/op_conversions/fq_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
-#include <transformations/serialize.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -185,6 +185,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
     }
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
+    manager.register_pass<ngraph::pass::EliminateConvert>();
 
     auto pass_config = manager.get_pass_config();
 
@@ -303,7 +304,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 for (size_t i = 0; i < node->get_output_size(); i++) {
                     const auto outputs = node->get_output_target_inputs(i);
                     for (const auto &out : outputs) {
-                        if (out.get_node()->get_type_info() != ngraph::op::v0::Result::type_info) {
+                        if (out.get_node()->get_type_info() != ngraph::op::v0::Result::get_type_info_static()) {
                             return false;
                         }
                     }

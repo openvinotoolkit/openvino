@@ -4,6 +4,7 @@
 
 #include "mkldnn_matmul_node.h"
 
+#include "ie_precision.hpp"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "cpu_types.h"
 #include "mkldnn_eltwise_node.h"
@@ -119,6 +120,12 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
 
     if (firstInPortPrec.size() != secondInPortPrec.size())
         firstInPortPrec = secondInPortPrec = getMaxPrecision(getOriginalInputPrecisions());
+
+    // fallback to fp32 for any precision that cannot be handled natively
+    if ((!one_of(firstInPortPrec , Precision::U8, Precision::I8, Precision::BF16, Precision::FP32) ||
+         !one_of(secondInPortPrec , Precision::I8, Precision::BF16, Precision::FP32))) {
+        outPortPrec = firstInPortPrec = secondInPortPrec = Precision::FP32;
+    }
 
     if (!fusedWith.empty()) {
         outPortPrec = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);

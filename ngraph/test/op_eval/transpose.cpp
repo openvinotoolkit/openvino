@@ -20,6 +20,8 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 template <element::Type_t IN_ET, element::Type_t AXIS_ET>
 void test_tranpose_eval(shared_ptr<Function> fun) {
     using T = typename element_type_traits<IN_ET>::value_type;
