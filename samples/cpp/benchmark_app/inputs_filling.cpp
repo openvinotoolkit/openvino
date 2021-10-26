@@ -313,7 +313,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
     for (auto& files : inputFiles) {
         if (!files.first.empty() && app_inputs_info[0].find(files.first) == app_inputs_info[0].end()) {
             throw std::logic_error("Input name" + files.first +
-                                   "used with files doesn't correspond any network's input");
+                                   " used in -i parameter doesn't correspond any network's input");
         }
 
         std::string input_name = files.first.empty() ? app_inputs_info[0].begin()->first : files.first;
@@ -364,10 +364,10 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
             }
         }
 
-        slog::info << "For input " << files.first << " next files will be used: " << slog::endl;
+        slog::info << "For input " << files.first << " these files will be used: " << slog::endl;
         for (size_t i = 0; i < filesToBeUsed; ++i) {
             auto inputInfo = app_inputs_info[i % app_inputs_info.size()].at(input_name);
-            slog::info << files.second[i] << " with input tensor shape " << getShapeString(inputInfo.tensorShape)
+            slog::info << "   " << files.second[i] << "  " << getShapeString(inputInfo.tensorShape)
                        << slog::endl;
         }
     }

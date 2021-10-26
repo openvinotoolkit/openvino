@@ -118,7 +118,7 @@ std::vector<std::string> parseInputFilePaths(const std::string& file_paths_strin
 std::map<std::string, std::vector<std::string>> parseInputArguments(const std::string& input_parameter_string) {
     std::string search_string = input_parameter_string;
     std::map<std::string, std::vector<std::string>> files_per_input;
-    size_t semicolon_pos = search_string.find_first_of(':');
+    size_t semicolon_pos = search_string.find_first_of("::");
     if (!search_string.empty() && semicolon_pos == std::string::npos) {
         auto files = parseInputFilePaths(search_string);
         for (const auto& f : files) {
@@ -133,19 +133,19 @@ std::map<std::string, std::vector<std::string>> parseInputArguments(const std::s
     }
 
     while (semicolon_pos != std::string::npos) {
-        size_t next_semicolon_pos = search_string.find(':', semicolon_pos + 1);
+        size_t next_semicolon_pos = search_string.find("::", semicolon_pos + 1);
         // find coma pos before next input name
         // in strings like <input1>:file1,file2,<input2>:file3
         size_t coma_pos = next_semicolon_pos == std::string::npos ? search_string.size()
                                                                   : search_string.find_last_of(',', next_semicolon_pos);
         auto input_name = search_string.substr(0, semicolon_pos);
-        auto input_files = search_string.substr(semicolon_pos + 1, coma_pos - semicolon_pos - 1);
+        auto input_files = search_string.substr(semicolon_pos + 2, coma_pos - semicolon_pos - 2);
 
         search_string = search_string.substr(coma_pos);
         if (!search_string.empty() && search_string.front() == ',')
             search_string = search_string.substr(1);
 
-        semicolon_pos = search_string.find_first_of(':');
+        semicolon_pos = search_string.find_first_of("::");
 
         auto files = parseInputFilePaths(input_files);
         if (files.size() == 0) {
