@@ -141,25 +141,39 @@ public:
 class MulOrAddConversionTests: public MulAddConversionTests {};
 
 TEST_P(MulAddConversionTests, CompareFunctions) {
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+
     ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
+    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     ngraph::pass::ConstantFolding().run_on_function(f);
     f->validate_nodes_and_infer_types();
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST_P(MulOrAddConversionTests, CompareFunctions) {
-    ngraph::pass::InitNodeInfo().run_on_function(f);
-    ngraph::pass::ConvertMulOrAddFinally().run_on_function(f);
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::ConvertMulOrAddFinally>();
+    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     ngraph::pass::ConstantFolding().run_on_function(f);
     f->validate_nodes_and_infer_types();
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 #define CONST(A, B) ConstantParams(A, B)

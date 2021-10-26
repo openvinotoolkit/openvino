@@ -25,7 +25,6 @@
 #include "ngraph/opsets/opset8.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
-#include "ngraph/provenance.hpp"
 #include "ngraph/rt_info.hpp"
 #include "ngraph/util.hpp"
 
@@ -127,27 +126,6 @@ void ov::replace_node(const std::shared_ptr<Node>& target,
     // Fix input/output descriptors
     NGRAPH_CHECK(target->get_output_size() == replacement->get_output_size());
 
-    if (ngraph::get_provenance_enabled()) {
-        auto common_args = ngraph::find_common_args(target, replacement);
-
-        std::set<string> removed_subgraph_tags;
-
-        auto set_replacement_prov = [&removed_subgraph_tags](const std::shared_ptr<Node>& node) {
-            for (const auto& tag : node->get_provenance_tags()) {
-                removed_subgraph_tags.insert(tag);
-            }
-        };
-
-        traverse_nodes({target}, set_replacement_prov, common_args);
-        replacement->add_provenance_tags(removed_subgraph_tags);
-
-        auto set_prov_new_nodes = [&removed_subgraph_tags](const std::shared_ptr<Node>& node) {
-            node->add_provenance_tags(removed_subgraph_tags);
-        };
-
-        traverse_nodes({replacement}, set_prov_new_nodes, common_args);
-    }
-
     // For each of target's output O with replacement output O_rep:
     //     For each O's connected downstream input I:
     //         Change I's connected upstream output to O_rep
@@ -177,7 +155,6 @@ void ov::replace_node(const std::shared_ptr<Node>& target, const OutputVector& r
         if (replacement_nodes.find(replacement_node) == replacement_nodes.end()) {
             replacement_node->add_node_control_dependents(target);
             replacement_node->add_node_control_dependencies(target);
-            target->transfer_provenance_tags(replacement_node);
             replacement_nodes.insert(replacement_node);
         }
         target->output(i).replace(replacement_values.at(i));
@@ -269,9 +246,6 @@ std::vector<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector
                 new_output.get_rt_info() = output_rt_info;
             }
 
-            for (const auto& tag : node->get_provenance_tags()) {
-                cloned_node->add_provenance_tag(tag);
-            }
             cloned_node->set_op_annotations(node->get_op_annotations());
 
             node_map[node.get()] = cloned_node;
@@ -318,10 +292,6 @@ std::list<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector<s
                 cloned_node->set_friendly_name(node->get_friendly_name());
                 auto rt_info = node->get_rt_info();
                 cloned_node->get_rt_info() = rt_info;
-
-                for (const auto& tag : node->get_provenance_tags()) {
-                    cloned_node->add_provenance_tag(tag);
-                }
                 cloned_node->set_op_annotations(node->get_op_annotations());
                 for (const auto& cloned_value : cloned_node->outputs()) {
                     auto original_value = node_outputs.at(cloned_value.get_index());
