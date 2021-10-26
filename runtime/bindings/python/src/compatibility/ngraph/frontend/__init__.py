@@ -11,8 +11,10 @@ Low level wrappers for the FrontEnd c++ api.
 # main classes
 from _pyngraph import FrontEndManager
 from _pyngraph import FrontEnd
+from _pyngraph import JsonConfigExtension
 from _pyngraph import InputModel
 from _pyngraph import Place
+from _pyngraph import TelemetryExtension, OpExtension, NodeContext
 
 # exceptions
 from _pyngraph import NotImplementedFailure

@@ -16,6 +16,7 @@
       "ROIFeatureExtractor2_output": "2751"
     },
     "id": "ONNXMaskRCNNReplacement",
+    "library": "where_transformation_with_id_implemented",
     "match_kind": "general"
   }
 ]

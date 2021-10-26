@@ -9,3 +9,5 @@
 namespace py = pybind11;
 
 void regclass_pyngraph_FrontEnd(py::module m);
+void regclass_pyngraph_JsonConfigExtension(py::module m);
+void regclass_pyngraph_TelemetryExtension(py::module m);

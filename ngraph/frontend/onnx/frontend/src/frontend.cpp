@@ -7,11 +7,15 @@
 #include <fstream>
 #include <input_model.hpp>
 #include <onnx_frontend/frontend.hpp>
+#include <frontend_manager/extension.hpp>
 #include <onnx_import/onnx.hpp>
+#include <onnx_import/onnx_utils.hpp>
+#include <openvino/pass/manager.hpp>
 #include <sstream>
 #include <utils/onnx_internal.hpp>
 
 #include "onnx_common/onnx_model_validator.hpp"
+#include <openvino/op/util/framework_node.hpp>
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -28,7 +32,27 @@ extern "C" ONNX_FRONTEND_API void* GetFrontEndData() {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "onnx";
     res->m_creator = []() {
-        return std::make_shared<FrontEndONNX>();
+        auto frontend = std::make_shared<FrontEndONNX>();
+        // TODO: Remove this, added for debugging purposes
+#if 0
+        frontend->add_extension(std::make_shared<DecoderTransformationExtension>([](std::shared_ptr<ov::Function> f){
+            auto ops = f->get_ordered_ops();
+            std::cerr << "HELLO! Run on function with " << ops.size() << " nodes\n";
+            for(size_t i = 0; i < 10; ++i) {
+                if(auto fwop = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(ops[i])) {
+                    std::cerr << "op[" << i << "]: " << fwop->get_type_name() << ", attrs = {" << fwop->get_attrs() << "}\n";
+                } else {
+                    std::cerr << "Not a framework node\n";
+                }
+            }
+            return true;
+        }));
+#endif
+
+#if 0
+        frontend->add_extension(std::make_shared<JsonConfigExtension>("/localdisk/slyalin/openvino_github/openvino_2/model-optimizer/extensions/front/onnx/mask_rcnn.json"));
+#endif
+        return frontend;
     };
     return res;
 }
@@ -67,6 +91,30 @@ InputModel::Ptr FrontEndONNX::load_impl(const std::vector<std::shared_ptr<Varian
 std::shared_ptr<ngraph::Function> FrontEndONNX::convert(InputModel::Ptr model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModelONNX>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
+    auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(m_telemetry);
+    if (!m_extensions.empty() || telemetry) {
+        // The list of extension may contain not only decoder extensions
+        // TODO: sort the extension initially in add_extension, avoid double checking of extension type
+        ov::pass::Manager manager;
+        bool activated = false;
+        for (auto extension: m_extensions) {
+            if (auto decoder_extension = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
+                manager.register_pass<CustomFunctionPass>(decoder_extension->get_pass()); // TODO: correct forwarding?
+                activated = true;
+            }
+        }
+
+        if(activated || telemetry) {
+            // at least one decoder transformation registered trigger alternative path with separate passes
+            auto function = decode(model);
+            telemetry->send("Number of nodes in original graph: " +std::to_string(function->get_ops().size()));
+            manager.run_passes(function);
+            convert(function);
+            telemetry->send("Number of nodes in converted graph: " +std::to_string(function->get_ops().size()));
+            return function;
+        }
+    }
+
     return model_onnx->convert();
 }
 
@@ -133,4 +181,26 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
         return onnx_common::is_valid_model(*stream);
     }
     return false;
+}
+
+void FrontEndONNX::add_extension(std::shared_ptr<Extension> extension) {
+    // Filter unknown extension out
+    // Now there is only one experimental type of extension, check it
+    if(std::dynamic_pointer_cast<DecoderTransformationExtension>(extension))
+    {
+        m_extensions.push_back(extension);
+    }
+
+    if(auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension))
+    {
+        m_telemetry = telemetry;
+    }
+
+    if(auto newop = std::dynamic_pointer_cast<OpExtension>(extension))
+    {
+        std::cerr << "++++++++++++++++REGISTER NEW OP+++++++++: " << newop->m_optype << '\n';
+        for(int i = 1; i < 13; ++i)
+        onnx_import::register_operator(newop->m_optype, i, "", [=](const onnx_import::Node& context) {
+            return newop->m_converter(std::make_shared<NodeContext>(context.op_type(), context.get_ng_inputs())); });
+    }
 }

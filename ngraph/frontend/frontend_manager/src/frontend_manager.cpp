@@ -153,6 +153,11 @@ std::string FrontEnd::get_name() const {
     return std::string();
 }
 
+void FrontEnd::add_extension (std::shared_ptr<Extension>)
+{
+    // Ignored. Implement smarter logic in a derived class.
+}
+
 //----------- InputModel ---------------------------
 std::vector<Place::Ptr> InputModel::get_inputs() const {
     return {};

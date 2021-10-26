@@ -15,6 +15,14 @@
 
 namespace ngraph {
 namespace frontend {
+
+/// Base class for all extension. TODO: Derive from a new ov::Extension class when it is ready
+class FRONTEND_API Extension {
+public:
+
+    virtual ~Extension() {}
+};
+
 /// \brief An interface for identifying a frontend for a particular framework.
 /// Provides an ability to load and convert of input model
 class FRONTEND_API FrontEnd {
@@ -87,6 +95,11 @@ public:
     ///
     /// \return Current frontend name. Empty string if not implemented
     virtual std::string get_name() const;
+
+    /// \brief Registers extension object if it is supported, ignored otherwise
+    /// Extension object should be derived from an extension base class that are supported
+    /// by a particular frontend. Any other object is just ignored without any error raised.
+    virtual void add_extension (std::shared_ptr<Extension>);
 
 protected:
     virtual bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const;

@@ -9,8 +9,10 @@ from mo.moc_frontend.extractor import fe_user_data_repack
 from mo.middle.passes.infer import validate_batch_in_shape
 
 from ngraph import Dimension, PartialShape        # pylint: disable=no-name-in-module,import-error
-from ngraph.frontend import FrontEnd, Place       # pylint: disable=no-name-in-module,import-error
+from ngraph.frontend import FrontEnd, Place, JsonConfigExtension, TelemetryExtension, NodeContext, OpExtension       # pylint: disable=no-name-in-module,import-error
 from ngraph.utils.types import get_element_type   # pylint: disable=no-name-in-module,import-error
+from ngraph.impl import Output
+import ngraph
 
 
 def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
@@ -20,6 +22,24 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     :param: moc_front_end: Loaded Frontend for converting input model
     :return: converted nGraph function ready for serialization
     """
+
+    if argv.transformations_config:
+        print(' ************** Trigger transformation config  *******')
+        moc_front_end.add_extension(JsonConfigExtension(argv.transformations_config))
+
+
+    def my_reciever (message):
+        print('Received message: {}'.format(message))
+    moc_front_end.add_extension(TelemetryExtension(my_reciever))
+
+
+    def my_converter (context):
+        print('+++++++++++ CONVETER WAS CALLED ++++++++')
+        return [ngraph.divide(context.get_ng_inputs()[0], context.get_ng_inputs()[1]).output(0)]
+
+    moc_front_end.add_extension(OpExtension("Add", my_converter))
+
+
     input_model = moc_front_end.load(argv.input_model)
 
     user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
