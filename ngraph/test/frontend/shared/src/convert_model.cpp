@@ -39,7 +39,12 @@ void FrontEndConvertModelTest::doLoadFromFile() {
 TEST_P(FrontEndConvertModelTest, test_convert_partially_equal_convert) {
     ASSERT_NO_THROW(doLoadFromFile());
     std::shared_ptr<ngraph::Function> function_ref;
-    ASSERT_NO_THROW(function_ref = m_frontEnd->convert(m_inputModel));
+    try {
+        function_ref = m_frontEnd->convert(m_inputModel);
+    } catch (const std::exception& er) {
+        std::cout << er.what() << std::endl;
+        EXPECT_EQ(true, false);
+    }
     ASSERT_NE(function_ref, nullptr);
     std::shared_ptr<ngraph::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert_partially(m_inputModel));
@@ -57,7 +62,12 @@ TEST_P(FrontEndConvertModelTest, test_convert_partially_equal_convert) {
 TEST_P(FrontEndConvertModelTest, test_decode_convert_equal_convert) {
     ASSERT_NO_THROW(doLoadFromFile());
     std::shared_ptr<ngraph::Function> function_ref;
-    ASSERT_NO_THROW(function_ref = m_frontEnd->convert(m_inputModel));
+    try {
+        function_ref = m_frontEnd->convert(m_inputModel);
+    } catch (const std::exception& er) {
+        std::cout << er.what() << std::endl;
+        EXPECT_EQ(true, false);
+    }
     ASSERT_NE(function_ref, nullptr);
     std::shared_ptr<ngraph::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->decode(m_inputModel));

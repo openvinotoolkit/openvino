@@ -313,7 +313,6 @@ ngraph::frontend::InputModel::Ptr FrontEndTF::load_impl(
 
 std::shared_ptr<ov::Function> FrontEndTF::convert(ngraph::frontend::InputModel::Ptr model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
-
     std::shared_ptr<ov::Function> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", true, false, f);
     normalize(f);
