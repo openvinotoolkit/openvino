@@ -25,14 +25,17 @@ namespace ov {
 
 /// Type information for a type system without inheritance; instances have exactly one type not
 /// related to any other type.
-struct OPENVINO_API DiscreteTypeInfo {
+class OPENVINO_API DiscreteTypeInfo {
+private:
+    mutable size_t hash_value;
+
+public:
     const char* name;
     uint64_t version;
     const char* version_id;
     // A pointer to a parent type info; used for casting and inheritance traversal, not for
     // exact type identification
     const DiscreteTypeInfo* parent;
-    size_t hash_value;
 
     DiscreteTypeInfo() = default;
 
@@ -51,6 +54,8 @@ struct OPENVINO_API DiscreteTypeInfo {
     bool is_castable(const DiscreteTypeInfo& target_type) const {
         return *this == target_type || (parent && parent->is_castable(target_type));
     }
+
+    size_t hash() const;
 
     std::string get_version() const {
         if (version_id) {
