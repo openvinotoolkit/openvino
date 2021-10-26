@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include <openvino/op/detection_output.hpp>
 
 namespace ov {
@@ -49,9 +51,14 @@ void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, 
         if (num_images.is_dynamic() && class_preds_pshape[0].is_static()) {
             num_images = class_preds_pshape[0];
         } else {
-            NODE_VALIDATION_CHECK(op,
-                                  class_preds_pshape[0].compatible(num_images),
-                                  "Class predictions' first dimension is not compatible with batch size.");
+            NODE_VALIDATION_CHECK(
+                op,
+                class_preds_pshape[0].compatible(num_images),
+                "Class predictions' first dimension is not compatible with batch size.  Current value is: ",
+                class_preds_pshape[0],
+                ", expected: ",
+                num_images,
+                ".");
         }
         if (class_preds_pshape[1].is_static()) {
             auto class_preds_pshape_2nd_dim = class_preds_pshape[1].get_length();
@@ -130,18 +137,31 @@ void shape_infer(const DetectionOutput* op, const std::vector<T>& input_shapes, 
             NODE_VALIDATION_CHECK(op,
                                   aux_class_preds_pshape[0].compatible(num_images),
                                   "Additional class predictions' first dimension must be "
-                                  "compatible with batch size.");
+                                  "compatible with batch size. Current value is: ",
+                                  aux_class_preds_pshape[0],
+                                  ", expected: ",
+                                  num_images,
+                                  ".");
             if (num_prior_boxes.is_static()) {
                 int num_prior_boxes_val = num_prior_boxes.get_length();
                 NODE_VALIDATION_CHECK(op,
                                       aux_class_preds_pshape[1].compatible(num_prior_boxes_val * 2),
                                       "Additional class predictions' second dimension must be compatible with "
-                                      "num_prior_boxes * 2 ");
+                                      "num_prior_boxes * 2. Current value is: ",
+                                      aux_class_preds_pshape[1],
+                                      ", expected: ",
+                                      num_prior_boxes_val * 2,
+                                      ".");
             }
         }
-        NODE_VALIDATION_CHECK(op,
-                              aux_box_preds_pshape.compatible(box_logits_pshape),
-                              "Additional box predictions' shape must be compatible with box logits shape.");
+        NODE_VALIDATION_CHECK(
+            op,
+            aux_box_preds_pshape.compatible(box_logits_pshape),
+            "Additional box predictions' shape must be compatible with box logits shape. Current value is: ",
+            aux_box_preds_pshape,
+            ", expected: ",
+            box_logits_pshape,
+            ".");
     }
 
     ret_output_shape[0] = 1;
