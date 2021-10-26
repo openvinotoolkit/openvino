@@ -1414,7 +1414,8 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
 
 // MULTI-DEVICE test
 // Test that it is safe to load multiple devices sharing same cache
-TEST_P(CachingTest, LoadMulti_race) {
+// TODO: Disabled by issue 69273/68808
+TEST_P(CachingTest, DISABLED_LoadMulti_race) {
     const auto TEST_DURATION_MS = 2000;
     const auto TEST_DEVICE_MAX_COUNT = 10;
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
@@ -1449,7 +1450,8 @@ TEST_P(CachingTest, LoadMulti_race) {
     std::cout << "Caching LoadMulti Test completed. Tried " << index << " times" << std::endl;
 }
 
-TEST_P(CachingTest, Load_threads) {
+// TODO: Disabled by issue 69273/68808
+TEST_P(CachingTest, DISABLED_Load_threads) {
     const auto TEST_DURATION_MS = 2000;
     const auto THREADS_COUNT = 4;
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
