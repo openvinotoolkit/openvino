@@ -202,15 +202,15 @@ const std::vector<fusingSpecificParams> fusingParamsSet {
         emptyFusingSpec,
         // eltwise
         fusingRelu,
-        fusingPRelu1D,
+//        fusingPRelu1D, //TODO [DS]
         // depthwise
-        fusingReluScaleShift,
+//        fusingReluScaleShift, //TODO [DS]
         // fake quantize
-        fusingFakeQuantizePerTensorRelu,
-        fusingFakeQuantizePerChannelRelu,
+//        fusingFakeQuantizePerTensorRelu, //TODO [DS]
+//        fusingFakeQuantizePerChannelRelu,//TODO [DS]
         // sum
-        fusingSumEluFQ,
-        fusingSum
+//        fusingSumEluFQ, //TODO [DS]
+//        fusingSum //TODO [DS]
 };
 
 const std::vector<fusingSpecificParams> fusingParamsSetBF16{
@@ -218,9 +218,9 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16{
         // eltwise
         fusingRelu,
         // depthwise
-        fusingReluScaleShift,
+//        fusingReluScaleShift, //TODO [DS]
         // sum
-        fusingSum
+//        fusingSum //TODO [DS]
 };
 
 
