@@ -40,7 +40,7 @@ class VariantImpl : public Variant {
 public:
     using value_type = VT;
 
-    VariantImpl() = default;
+    VariantImpl() {}
 
     VariantImpl(const value_type& value) : m_value(value) {}
 
