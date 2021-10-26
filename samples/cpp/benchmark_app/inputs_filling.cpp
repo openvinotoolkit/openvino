@@ -13,6 +13,7 @@
 #include "format_reader_ptr.h"
 
 #include "inputs_filling.hpp"
+#include "shared_blob_allocator.h"
 // clang-format on
 
 using namespace InferenceEngine;
@@ -130,7 +131,9 @@ InferenceEngine::Blob::Ptr createBlobImInfo(const std::pair<size_t, size_t>& ima
     }
 
     InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.tensorShape, inputInfo._layout);
-    return InferenceEngine::make_shared_blob<T>(tDesc, data);
+    InferenceEngine::Blob::Ptr blob =
+        InferenceEngine::make_shared_blob<T>(tDesc, std::make_shared<SharedBlobAllocator<T>>(data, blob_size * sizeof(T)));
+    return blob;
 }
 
 template <typename T>
@@ -166,7 +169,11 @@ InferenceEngine::Blob::Ptr createBlobFromBinary(const std::vector<std::string>& 
     }
 
     InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.tensorShape, inputInfo._layout);
-    return InferenceEngine::make_shared_blob<T>(tDesc, (T*)data);
+    InferenceEngine::Blob::Ptr blob =
+        InferenceEngine::make_shared_blob<T>(tDesc,
+                                             std::make_shared<SharedBlobAllocator<T>>((T*)data,
+                                             blob_size * sizeof(T)));
+    return blob;
 }
 
 template <typename T, typename T2>
@@ -184,7 +191,10 @@ InferenceEngine::Blob::Ptr createBlobRandom(const benchmark_app::InputInfo& inpu
     }
 
     InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.tensorShape, inputInfo._layout);
-    return InferenceEngine::make_shared_blob<T>(tDesc, data);
+    InferenceEngine::Blob::Ptr blob =
+        InferenceEngine::make_shared_blob<T>(tDesc,
+                                             std::make_shared<SharedBlobAllocator<T>>(data, blob_size * sizeof(T)));
+    return blob;
 }
 
 InferenceEngine::Blob::Ptr getImageBlob(const std::vector<std::string>& files,
