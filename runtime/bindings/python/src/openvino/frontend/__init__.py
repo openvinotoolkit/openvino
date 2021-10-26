@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-Package: ngraph
+Package: openvino
 Low level wrappers for the FrontEnd c++ api.
 """
 

@@ -26,7 +26,7 @@ try:
     # pylint: disable=no-name-in-module,import-error
     from ngraph import PartialShape
     from openvino.frontend import FrontEndManager
-    from ngraph.utils.types import get_element_type
+    from openvino.utils.types import get_element_type
 
 except Exception:
     print("No mock frontend API available, "
