@@ -255,10 +255,10 @@ def parse_paths_to_input(paths_to_inputs):
 
 def parse_path(path):
     """
-    Parse "<name1>:file1,file2,<name2>:file3" into a dict
+    Parse "input_1:file1,file2,input_2:file3" into a dict
     """
-    inputs = re.findall(r"<(\w[\w.]*)>:", path)
-    input_files = [file for file in re.split(r"<\w[\w.]*>:", path) if file]
+    inputs = re.findall(r"([^,]\w+):", path)
+    input_files = [file for file in re.split(r"[^,]\w+:", path) if file]
     return {
         input_: files.strip(",").split(",") for input_, files in zip(inputs, input_files)
     }
@@ -266,7 +266,7 @@ def parse_path(path):
 
 def check_input_file_mapping(input_file_mapping, app_input_info):
     check_inputs(app_input_info, input_file_mapping)
-    check_is_files_exist(input_file_mapping)
+    check_files_exist(input_file_mapping)
     check_files_extensions(app_input_info, input_file_mapping)
 
 
@@ -282,7 +282,7 @@ def check_inputs(app_input_info, input_file_mapping):
         )
 
 
-def check_is_files_exist(input_file_mapping):
+def check_files_exist(input_file_mapping):
     not_files = [
         file for file in chain.from_iterable(input_file_mapping.values()) if not Path(file).is_file()
     ]
@@ -299,11 +299,11 @@ def check_files_extensions(app_input_info, input_file_mapping):
         info = app_input_info[input_]
 
         proper_extentions = IMAGE_EXTENSIONS if info.is_image else BINARY_EXTENSIONS
-        unsupported_files.append(
-            "\n".join(
+        unsupported = "\n".join(
                 [file for file in files if Path(file).suffix.upper().strip(".") not in proper_extentions]
             )
-        )
+        if unsupported:
+            unsupported_files.append(unsupported)
     if unsupported_files:
         unsupported_files = "\n".join(unsupported_files)
         raise Exception(
