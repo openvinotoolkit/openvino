@@ -71,7 +71,7 @@ auto has_cycles_of_dependencies(const std::vector<std::set<ngraph::Input<ngraph:
     int64_t minResultOrder{LONG_MAX};
     for (const auto& result : results) {
         for (const auto &user : result) {
-            const auto node = user.get_source_output().get_node_shared_ptr();
+            const auto node = user.get_node()->shared_from_this();
             if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node))
                 continue;
             minResultOrder = std::min(minResultOrder, GetTopologicalOrder(node));
@@ -356,27 +356,28 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
          * Checks if the passed node introduces loop dependency for given topological bounds (pair of maxParentOrder, minChildOrder).
          * The bounds are presumed to be without dependency. The bounds are updated if no dependency is introduced by the node.
         */
-        const auto cyclicDependencyIsIntoduced = [](std::shared_ptr<Node> node, std::pair<int64_t, int64_t>& currentBounds) -> bool {
-            auto getTopologicalOrder = [](std::shared_ptr<Node> node) -> int64_t {
-                auto &rt = node->get_rt_info();
+        const auto cyclicDependencyIsIntoduced = [&node](const std::shared_ptr<Node>& nodeToExamine, std::pair<int64_t, int64_t>& currentBounds) -> bool {
+            auto getTopologicalOrder = [](const std::shared_ptr<Node>& n) -> int64_t {
+                auto &rt = n->get_rt_info();
                 const auto rinfo = rt.find("TopologicalOrder");
                 //assert(rinfo != rt.end());
                 if (rinfo == rt.end())
-                    throw ngraph_error("TopologicalOrder is not found in rt_info of " + node->get_friendly_name());
+                    throw ngraph_error("TopologicalOrder is not found in rt_info of " + n->get_friendly_name());
                 return ov::as_type_ptr<ngraph::VariantWrapper<int64_t>>(rinfo->second)->get();
             };
             assert(currentBounds.first < currentBounds.second && "Invalid currentBounds passed");
-            const auto &parentNodes = ngraph::as_node_vector(node->input_values());
+            const auto &parentNodes = ngraph::as_node_vector(nodeToExamine->input_values());
             const int64_t maxParentOrder = std::accumulate(parentNodes.begin(), parentNodes.end(), currentBounds.first,
                                                             [&getTopologicalOrder](int64_t maxOrder, std::shared_ptr<Node> n){
                                                                 if (ngraph::op::is_constant(n) || ngraph::op::is_parameter(n))
                                                                     return maxOrder;
                                                                 return std::max(maxOrder, getTopologicalOrder(n));
                                                             });
-            const auto &childNodes = node->get_users();
+            const auto &childNodes = nodeToExamine->get_users();
+            // Skip the node being attached, since it will be a part of subgraph and can't introduce loop dependency
             const int64_t minChildOrder = std::accumulate(childNodes.begin(), childNodes.end(), currentBounds.second,
-                                                            [&getTopologicalOrder](int64_t minOrder, std::shared_ptr<Node> n){
-                                                                if (ngraph::op::is_constant(n) || ngraph::op::is_parameter(n))
+                                                            [&getTopologicalOrder, &node](int64_t minOrder, std::shared_ptr<Node> n){
+                                                                if (ngraph::op::is_constant(n) || ngraph::op::is_parameter(n) || n == node)
                                                                     return minOrder;
                                                                 return std::min(minOrder, getTopologicalOrder(n));
                                                             });
