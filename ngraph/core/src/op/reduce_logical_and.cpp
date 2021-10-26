@@ -30,7 +30,7 @@ shared_ptr<Node> op::v1::ReduceLogicalAnd::clone_with_new_inputs(const OutputVec
     return make_shared<op::v1::ReduceLogicalAnd>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
-namespace reduce_and {
+namespace {
 bool evaluate_reduce_logical_and(const HostTensorPtr& data,
                                  const HostTensorPtr& out,
                                  const AxisSet& reduction_axes,
@@ -47,7 +47,7 @@ bool evaluate_reduce_logical_and(const HostTensorPtr& data,
         return false;
     }
 }
-}  // namespace reduce_and
+}  // namespace
 
 bool op::v1::ReduceLogicalAnd::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_ReduceLogicalAnd_evaluate);
@@ -61,7 +61,7 @@ bool op::v1::ReduceLogicalAnd::evaluate(const HostTensorVector& outputs, const H
     }
     const auto reduction_axes =
         get_normalized_axes_from_tensor(axes, data->get_partial_shape().rank(), get_friendly_name());
-    return reduce_and::evaluate_reduce_logical_and(data, out, reduction_axes, get_keep_dims());
+    return evaluate_reduce_logical_and(data, out, reduction_axes, get_keep_dims());
 }
 
 bool op::v1::ReduceLogicalAnd::has_evaluate() const {

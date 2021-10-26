@@ -22,7 +22,7 @@ std::shared_ptr<ov::Node> ov::op::v0::Abs::clone_with_new_inputs(const OutputVec
     return std::make_shared<Abs>(new_args.at(0));
 }
 
-namespace absop {
+namespace {
 template <ov::element::Type_t ET>
 inline bool evaluate(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr& out, const size_t count) {
     using T = typename ov::element_type_traits<ET>::value_type;
@@ -49,11 +49,11 @@ bool evaluate_abs(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr
     }
     return rc;
 }
-}  // namespace absop
+}  // namespace
 
 bool ov::op::v0::Abs::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Abs_evaluate);
-    return absop::evaluate_abs(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return evaluate_abs(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool ov::op::v0::Abs::has_evaluate() const {

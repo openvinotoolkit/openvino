@@ -17,7 +17,7 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::PullReshapeThroughDequantization, "PullReshapeThroughDequantizationFusion", 0);
 
-namespace pull_reshape_through_dequantization {
+namespace {
 
 std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& reshape, const std::shared_ptr<Node>& elementwise) {
     const auto reshapeValues = reshape->get_input_node_shared_ptr(1);
@@ -87,7 +87,7 @@ void fuseConstant(const std::shared_ptr<Node>& reshape, const std::shared_ptr<No
     copy_runtime_info({ constant, reshape }, newConstant);
 }
 
-}  // namespace pull_reshape_through_dequantization
+}  // namespace
 
 ngraph::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroughDequantization(
     const std::vector<ngraph::element::Type>& inputPrecisions) {
@@ -120,11 +120,11 @@ ngraph::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroug
         while (reshape != nullptr) {
             const auto parent = reshape->get_input_node_shared_ptr(0);
             if (ov::is_type<opset1::Multiply>(parent) || ov::is_type<opset1::Subtract>(parent)) {
-                reshape = pull_reshape_through_dequantization::moveThroughElementwise(reshape, parent);
+                reshape = moveThroughElementwise(reshape, parent);
             } else if (ov::is_type<opset1::Convert>(parent)) {
-                reshape = pull_reshape_through_dequantization::moveThroughConvert(reshape, parent);
+                reshape = moveThroughConvert(reshape, parent);
             } else if (ov::is_type<opset1::Constant>(parent)) {
-                pull_reshape_through_dequantization::fuseConstant(reshape, ov::as_type_ptr<opset1::Constant>(parent));
+                fuseConstant(reshape, ov::as_type_ptr<opset1::Constant>(parent));
                 reshape = nullptr;
             } else {
                 THROW_IE_LPT_EXCEPTION(*parent) << "unexepcted operation type";

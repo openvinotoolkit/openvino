@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-namespace roundop {
+namespace {
 // function used by TYPE_CASE
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0,
@@ -59,7 +59,7 @@ bool evaluate_round(const HostTensorPtr& arg0,
     }
     return rc;
 }
-}  // namespace roundop
+}  // namespace
 
 BWDCMP_RTTI_DEFINITION(op::v5::Round);
 
@@ -88,7 +88,7 @@ shared_ptr<Node> op::v5::Round::clone_with_new_inputs(const OutputVector& new_ar
 
 bool op::v5::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v5_Round_evaluate);
-    return roundop::evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)), get_mode());
+    return evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)), get_mode());
 }
 
 bool op::v5::Round::has_evaluate() const {

@@ -37,7 +37,7 @@ shared_ptr<Node> op::v1::ReduceSum::clone_with_new_inputs(const OutputVector& ne
     return make_shared<ReduceSum>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
-namespace reduce_sum {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims) {
     out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
@@ -60,7 +60,7 @@ bool evaluate_sum(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
     }
     return rc;
 }
-}  // namespace reduce_sum
+}  // namespace
 
 bool op::v1::ReduceSum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_ReduceSum_evaluate);
@@ -70,7 +70,7 @@ bool op::v1::ReduceSum::evaluate(const HostTensorVector& outputs, const HostTens
     const auto reduction_axes =
         get_normalized_axes_from_tensor(inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
 
-    return reduce_sum::evaluate_sum(inputs[0], outputs[0], reduction_axes, get_keep_dims());
+    return evaluate_sum(inputs[0], outputs[0], reduction_axes, get_keep_dims());
 }
 
 bool op::v1::ReduceSum::has_evaluate() const {

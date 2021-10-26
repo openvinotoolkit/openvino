@@ -39,7 +39,7 @@ shared_ptr<Node> op::v1::LogicalNot::clone_with_new_inputs(const OutputVector& n
     return make_shared<v1::LogicalNot>(new_args.at(0));
 }
 
-namespace notop {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
@@ -65,12 +65,12 @@ bool evaluate_not(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
     }
     return rc;
 }
-}  // namespace notop
+}  // namespace
 
 bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_LogicalNot_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    return notop::evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool op::v1::LogicalNot::has_evaluate() const {

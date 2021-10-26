@@ -176,7 +176,7 @@ std::shared_ptr<Node> op::v8::DeformableConvolution::clone_with_new_inputs(const
     }
 }
 
-namespace deformable_convolution {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorVector& inputs,
                      const HostTensorPtr& out,
@@ -294,20 +294,20 @@ bool evaluate_deformable_convolution(const HostTensorVector& inputs,
     }
     return rc;
 }
-}  // namespace deformable_convolution
+}  // namespace
 
 bool op::v8::DeformableConvolution::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(DeformableConvolution_v8_evaluate);
-    deformable_convolution::evaluate_deformable_convolution(inputs,
-                                                            outputs[0],
-                                                            get_strides(),
-                                                            get_dilations(),
-                                                            get_pads_begin(),
-                                                            get_pads_end(),
-                                                            get_auto_pad(),
-                                                            get_group(),
-                                                            get_deformable_group(),
-                                                            get_bilinear_interpolation_pad());
+    evaluate_deformable_convolution(inputs,
+                                    outputs[0],
+                                    get_strides(),
+                                    get_dilations(),
+                                    get_pads_begin(),
+                                    get_pads_end(),
+                                    get_auto_pad(),
+                                    get_group(),
+                                    get_deformable_group(),
+                                    get_bilinear_interpolation_pad());
     return true;
 }
 

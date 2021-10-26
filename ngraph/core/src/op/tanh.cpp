@@ -30,7 +30,7 @@ shared_ptr<Node> op::Tanh::clone_with_new_inputs(const OutputVector& new_args) c
     return make_shared<Tanh>(new_args.at(0));
 }
 
-namespace tanhop {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
@@ -55,11 +55,11 @@ bool evaluate_tanh(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
     }
     return rc;
 }
-}  // namespace tanhop
+}  // namespace
 
 bool op::Tanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Tanh_evaluate);
-    return tanhop::evaluate_tanh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return evaluate_tanh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool op::Tanh::has_evaluate() const {

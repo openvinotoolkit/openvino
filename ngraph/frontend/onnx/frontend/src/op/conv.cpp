@@ -22,7 +22,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-namespace detail {
+namespace {
 
 std::shared_ptr<ngraph::Node> add_bias(const Output<ngraph::Node>& ng_conv, const Output<ngraph::Node>& bias) {
     const auto conv_shape = std::make_shared<default_opset::ShapeOf>(ng_conv);
@@ -70,10 +70,10 @@ OutputVector conv(const Node& node,
         return {add_bias(conv_node, bias)};
     }
 }
-}  // namespace detail
+}  // namespace
 OutputVector conv(const Node& node) {
     const OutputVector& inputs = node.get_ng_inputs();
-    return detail::conv(node, inputs[0], inputs[1], inputs.size() < 3 ? std::make_shared<NullNode>() : inputs[2]);
+    return conv(node, inputs[0], inputs[1], inputs.size() < 3 ? std::make_shared<NullNode>() : inputs[2]);
 }
 }  // namespace set_1
 

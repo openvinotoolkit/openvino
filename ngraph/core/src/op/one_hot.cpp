@@ -109,7 +109,7 @@ shared_ptr<Node> op::v1::OneHot::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<v1::OneHot>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_axis);
 }
 
-namespace one_hot {
+namespace {
 template <element::Type_t T>
 bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values, const int64_t axis) {
     using INPUT_TYPE = typename element_type_traits<T>::value_type;
@@ -138,7 +138,7 @@ bool evaluate_onehot(const HostTensorVector& output_values, const HostTensorVect
     }
     return rc;
 }
-}  // namespace one_hot
+}  // namespace
 
 bool op::v1::OneHot::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     NGRAPH_OP_SCOPE(v1_OneHot_evaluate);
@@ -156,7 +156,7 @@ bool op::v1::OneHot::evaluate(const HostTensorVector& output_values, const HostT
     NGRAPH_CHECK(shape_size(ind_shape) * depth == shape_size(out_shape),
                  "Incompatible I/O shapes or wrong depth value.");
     NGRAPH_CHECK(static_cast<int64_t>(out_shape[axis]) == depth, "Incompatible axis and depth values.");
-    return one_hot::evaluate_onehot(output_values, input_values, axis);
+    return evaluate_onehot(output_values, input_values, axis);
 }
 
 bool op::v1::OneHot::has_evaluate() const {

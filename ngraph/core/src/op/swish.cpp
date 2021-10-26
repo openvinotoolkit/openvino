@@ -72,7 +72,7 @@ shared_ptr<Node> op::v4::Swish::clone_with_new_inputs(const OutputVector& new_ar
     }
 }
 
-namespace swish {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0,
                      const HostTensorPtr& arg1,
@@ -107,13 +107,13 @@ bool evaluate_swish(const HostTensorVector& inputs, const HostTensorPtr& out) {
     }
     return rc;
 }
-}  // namespace swish
+}  // namespace
 
 bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v4_Swish_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) &&
                  (validate_host_tensor_vector(inputs, 2) || validate_host_tensor_vector(inputs, 1)));
-    return swish::evaluate_swish(inputs, outputs[0]);
+    return evaluate_swish(inputs, outputs[0]);
 }
 
 bool op::v4::Swish::has_evaluate() const {

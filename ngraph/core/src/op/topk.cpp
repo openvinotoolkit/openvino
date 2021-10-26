@@ -19,7 +19,7 @@
 using namespace std;
 using namespace ngraph;
 
-namespace topk {
+namespace {
 template <element::Type_t INPUT_ET, element::Type_t INDEX_ET>
 inline bool evaluate_execute(const HostTensorPtr& arg0,
                              const HostTensorPtr& out_indices,
@@ -133,7 +133,7 @@ size_t read_k_from_host_tensor(const HostTensorPtr& arg_k) {
     }
     return k;
 }
-}  // namespace topk
+}  // namespace
 
 // v1 version starts
 BWDCMP_RTTI_DEFINITION(op::v1::TopK);
@@ -362,7 +362,7 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
         k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(), get_input_element_type(1));
         NGRAPH_CHECK(k <= arg_shape[axis], "'K' exceeds the dimension of top_k_axis");
     } else {
-        k = topk::read_k_from_host_tensor(inputs[1]);
+        k = read_k_from_host_tensor(inputs[1]);
     }
 
     // 3. Compute output_shape
@@ -374,15 +374,15 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
         k = arg_shape[axis];
     }
 
-    return topk::evaluate_topk(inputs[0],
-                               outputs[1],
-                               outputs[0],
-                               output_shape,
-                               axis,
-                               k,
-                               compute_max,
-                               sort_type,
-                               get_index_element_type());
+    return evaluate_topk(inputs[0],
+                         outputs[1],
+                         outputs[0],
+                         output_shape,
+                         axis,
+                         k,
+                         compute_max,
+                         sort_type,
+                         get_index_element_type());
 }
 
 bool op::v1::TopK::has_evaluate() const {

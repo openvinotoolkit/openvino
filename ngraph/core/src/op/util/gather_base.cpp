@@ -143,7 +143,7 @@ int64_t ov::op::util::GatherBase::get_axis() const {
     return axis;
 }
 
-namespace gather {
+namespace {
 template <ov::element::Type_t ET>
 bool evaluate(const ngraph::HostTensorPtr& arg0,
               const ngraph::HostTensorPtr& arg1,
@@ -269,7 +269,7 @@ bool cf_gather_with_subgraph(ov::OutputVector& output_values,
 
     return true;
 }
-}  // namespace gather
+}  // namespace
 
 bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(util_GatherBase_evaluate);
@@ -318,7 +318,7 @@ bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const H
     if (batch_dims < 0 && indices_rank.is_static())
         batch_dims += indices_rank.get_length();
 
-    return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis, batch_dims);
+    return evaluate_gather(inputs[0], inputs[1], outputs[0], axis, batch_dims);
 }
 
 bool ov::op::util::GatherBase::evaluate_lower(const HostTensorVector& output_values) const {
@@ -338,6 +338,6 @@ bool ov::op::util::GatherBase::constant_fold(OutputVector& output_values, const 
     if (Node::constant_fold(output_values, input_values)) {
         return true;
     } else {
-        return gather::cf_gather_with_subgraph(output_values, input_values, get_output_partial_shape(0));
+        return cf_gather_with_subgraph(output_values, input_values, get_output_partial_shape(0));
     }
 }

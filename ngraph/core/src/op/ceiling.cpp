@@ -25,7 +25,7 @@ shared_ptr<Node> op::Ceiling::clone_with_new_inputs(const OutputVector& new_args
     return make_shared<Ceiling>(new_args.at(0));
 }
 
-namespace ceiling {
+namespace {
 // function used by TYPE_CASE
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
@@ -63,11 +63,11 @@ bool evaluate_ceiling(const HostTensorPtr& arg0, const HostTensorPtr& out, const
     }
     return rc;
 }
-}  // namespace ceiling
+}  // namespace
 
 bool op::Ceiling::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Ceiling_evaluate);
-    return ceiling::evaluate_ceiling(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return evaluate_ceiling(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool op::Ceiling::has_evaluate() const {

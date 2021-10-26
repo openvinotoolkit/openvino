@@ -189,7 +189,7 @@ bool get_casted_value(const HostTensorPtr& tensor, T* val) {
     return true;
 }
 
-namespace rangeop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& out,
               const HostTensorPtr& start,
@@ -253,7 +253,7 @@ bool evaluate_power(const HostTensorPtr& out,
     }
     return rc;
 }
-}  // namespace rangeop
+}  // namespace
 
 bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v4_Range_evaluate);
@@ -261,7 +261,7 @@ bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
     HostTensorPtr start = inputs[0];
     HostTensorPtr stop = inputs[1];
     HostTensorPtr step = inputs[2];
-    return rangeop::evaluate_power(out, start, stop, step, m_output_type, 4);
+    return evaluate_power(out, start, stop, step, m_output_type, 4);
 }
 
 bool op::v4::Range::has_evaluate() const {
@@ -479,7 +479,7 @@ bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
     HostTensorPtr start = inputs[0];
     HostTensorPtr stop = inputs[1];
     HostTensorPtr step = inputs[2];
-    return rangeop::evaluate_power(out, start, stop, step, start->get_element_type(), 0);
+    return evaluate_power(out, start, stop, step, start->get_element_type(), 0);
 }
 
 bool op::v0::Range::has_evaluate() const {

@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-namespace divide {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -49,7 +49,7 @@ bool evaluate_divide(const HostTensorPtr& arg0,
     }
     return rc;
 }
-}  // namespace divide
+}  // namespace
 
 // ------------------------------ v1 -------------------------------------------
 
@@ -84,7 +84,7 @@ shared_ptr<Node> op::v1::Divide::clone_with_new_inputs(const OutputVector& new_a
 
 bool op::v1::Divide::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_Divide_evaluate);
-    return divide::evaluate_divide(inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
+    return evaluate_divide(inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
 }
 
 bool op::v1::Divide::has_evaluate() const {

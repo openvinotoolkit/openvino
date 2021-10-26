@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-namespace lessop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -46,7 +46,7 @@ bool evaluate_less(const HostTensorPtr& arg0,
     }
     return rc;
 }
-}  // namespace lessop
+}  // namespace
 
 // ----------------------------- v1 --------------------------------------------
 
@@ -65,7 +65,7 @@ shared_ptr<Node> op::v1::Less::clone_with_new_inputs(const OutputVector& new_arg
 
 bool op::v1::Less::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_Less_evaluate);
-    return lessop::evaluate_less(inputs[0], inputs[1], outputs[0], get_autob());
+    return evaluate_less(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 bool op::v1::Less::has_evaluate() const {

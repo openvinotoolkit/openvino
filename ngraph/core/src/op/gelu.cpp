@@ -107,7 +107,7 @@ op::GeluApproximationMode op::v7::Gelu::get_approximation_mode() const {
     return m_approximation_mode;
 }
 
-namespace gelu {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0,
                      const HostTensorPtr& out,
@@ -132,12 +132,12 @@ bool evaluate_gelu(const HostTensorPtr& arg0, const HostTensorPtr& out, op::Gelu
     }
     return rc;
 }
-}  // namespace gelu
+}  // namespace
 
 bool op::v7::Gelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v7_Gelu_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    return gelu::evaluate_gelu(inputs[0], outputs[0], m_approximation_mode);
+    return evaluate_gelu(inputs[0], outputs[0], m_approximation_mode);
 }
 
 bool op::v7::Gelu::has_evaluate() const {

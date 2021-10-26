@@ -28,7 +28,7 @@ shared_ptr<Node> op::v3::Asinh::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<Asinh>(new_args.at(0));
 }
 
-namespace asinhop {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     runtime::reference::asinh(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
@@ -53,11 +53,11 @@ bool evaluate_asinh(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     }
     return rc;
 }
-}  // namespace asinhop
+}  // namespace
 
 bool op::v3::Asinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v3_Asinh_evaluate);
-    return asinhop::evaluate_asinh(inputs[0], outputs[0]);
+    return evaluate_asinh(inputs[0], outputs[0]);
 }
 
 bool op::v3::Asinh::has_evaluate() const {

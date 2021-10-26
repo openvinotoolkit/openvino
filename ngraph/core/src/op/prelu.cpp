@@ -36,7 +36,7 @@ shared_ptr<ov::Node> ov::op::v0::PRelu::clone_with_new_inputs(const OutputVector
     return make_shared<PRelu>(new_args.at(0), new_args.at(1));
 }
 
-namespace prelu {
+namespace {
 template <ov::element::Type_t ET>
 bool evaluate(const ngraph::HostTensorPtr& arg, const ngraph::HostTensorPtr& slope, const ngraph::HostTensorPtr& out) {
     ngraph::runtime::reference::prelu(arg->get_data_ptr<ET>(),
@@ -62,12 +62,12 @@ bool evaluate_prelu(const ngraph::HostTensorPtr& arg,
     }
     return rc;
 }
-}  // namespace prelu
+}  // namespace
 
 bool ov::op::v0::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_PRelu_evaluate);
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1) && ngraph::validate_host_tensor_vector(inputs, 2));
-    return prelu::evaluate_prelu(inputs[0], inputs[1], outputs[0]);
+    return evaluate_prelu(inputs[0], inputs[1], outputs[0]);
 }
 
 bool ov::op::v0::PRelu::has_evaluate() const {

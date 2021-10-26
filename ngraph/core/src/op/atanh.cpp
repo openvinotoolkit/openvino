@@ -27,7 +27,7 @@ shared_ptr<Node> op::v3::Atanh::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<Atanh>(new_args.at(0));
 }
 
-namespace atanhop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     runtime::reference::atanh(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(arg0->get_shape()));
@@ -50,11 +50,11 @@ bool evaluate_atanh(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     }
     return rc;
 }
-}  // namespace atanhop
+}  // namespace
 
 bool op::v3::Atanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v3_Atanh_evaluate);
-    return atanhop::evaluate_atanh(inputs[0], outputs[0]);
+    return evaluate_atanh(inputs[0], outputs[0]);
 }
 
 bool op::v3::Atanh::has_evaluate() const {

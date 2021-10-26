@@ -30,7 +30,7 @@ shared_ptr<Node> op::v4::HSwish::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<op::v4::HSwish>(new_args.at(0));
 }
 
-namespace hswish {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
@@ -54,12 +54,12 @@ bool evaluate_hswish(const HostTensorPtr& arg, const HostTensorPtr& out) {
     }
     return rc;
 }
-}  // namespace hswish
+}  // namespace
 
 bool op::v4::HSwish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v4_HSwish_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    return hswish::evaluate_hswish(inputs[0], outputs[0]);
+    return evaluate_hswish(inputs[0], outputs[0]);
 }
 
 bool op::v4::HSwish::has_evaluate() const {

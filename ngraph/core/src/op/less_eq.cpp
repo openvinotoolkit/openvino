@@ -28,7 +28,7 @@ shared_ptr<Node> op::v1::LessEqual::clone_with_new_inputs(const OutputVector& ne
     return make_shared<v1::LessEqual>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
-namespace less_equalop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -63,11 +63,11 @@ bool evaluate_less_equal(const HostTensorPtr& arg0,
     }
     return rc;
 }
-}  // namespace less_equalop
+}  // namespace
 
 bool op::v1::LessEqual::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_LessEqual_evaluate);
-    return less_equalop::evaluate_less_equal(inputs[0], inputs[1], outputs[0], get_autob());
+    return evaluate_less_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 bool op::v1::LessEqual::has_evaluate() const {

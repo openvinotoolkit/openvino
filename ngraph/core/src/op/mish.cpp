@@ -46,7 +46,7 @@ shared_ptr<Node> op::v4::Mish::clone_with_new_inputs(const OutputVector& new_arg
     return make_shared<Mish>(new_args.at(0));
 }
 
-namespace mish {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
@@ -68,12 +68,12 @@ bool evaluate_mish(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     }
     return rc;
 }
-}  // namespace mish
+}  // namespace
 
 bool op::v4::Mish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v4_Mish_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    return mish::evaluate_mish(inputs[0], outputs[0]);
+    return evaluate_mish(inputs[0], outputs[0]);
 }
 
 bool op::v4::Mish::has_evaluate() const {

@@ -29,7 +29,7 @@ shared_ptr<Node> op::Sinh::clone_with_new_inputs(const OutputVector& new_args) c
     return make_shared<Sinh>(new_args.at(0));
 }
 
-namespace sinhop {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
@@ -54,12 +54,12 @@ bool evaluate_sinh(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
     }
     return rc;
 }
-}  // namespace sinhop
+}  // namespace
 
 bool op::Sinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Sinh_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    return sinhop::evaluate_sinh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return evaluate_sinh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool op::Sinh::has_evaluate() const {

@@ -32,7 +32,7 @@ shared_ptr<Node> op::Atan::clone_with_new_inputs(const OutputVector& new_args) c
     return make_shared<Atan>(new_args.at(0));
 }
 
-namespace atanop {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
@@ -57,11 +57,11 @@ bool evaluate_atan(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
     }
     return rc;
 }
-}  // namespace atanop
+}  // namespace
 
 bool op::Atan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Atan_evaluate);
-    return atanop::evaluate_atan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return evaluate_atan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool op::Atan::has_evaluate() const {

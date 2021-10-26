@@ -24,7 +24,7 @@ shared_ptr<Node> op::v1::FloorMod::clone_with_new_inputs(const OutputVector& new
     return make_shared<FloorMod>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
-namespace floor_mod {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -61,11 +61,11 @@ bool evaluate_floor_mod(const HostTensorPtr& arg0,
     }
     return rc;
 }
-}  // namespace floor_mod
+}  // namespace
 
 bool op::v1::FloorMod::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_FloorMod_evaluate);
-    return floor_mod::evaluate_floor_mod(inputs[0], inputs[1], outputs[0], get_autob());
+    return evaluate_floor_mod(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 bool op::v1::FloorMod::has_evaluate() const {

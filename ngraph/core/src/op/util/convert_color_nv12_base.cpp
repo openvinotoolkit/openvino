@@ -141,7 +141,7 @@ void ov::op::util::ConvertColorNV12Base::validate_and_infer_types() {
     set_output_type(0, out_type, out_shape);
 }
 
-namespace color_convert_nv12_op {
+namespace {
 
 template <ov::element::Type_t ET>
 inline bool evaluate(const ov::HostTensorVector& input_values,
@@ -202,7 +202,7 @@ bool evaluate_nv12_convert(const ov::HostTensorVector& input_values,
     return rc;
 }
 
-}  // namespace color_convert_nv12_op
+}  // namespace
 
 bool ov::op::util::ConvertColorNV12Base::visit_attributes(AttributeVisitor& visitor) {
     return true;
@@ -217,7 +217,7 @@ bool ov::op::util::ConvertColorNV12Base::evaluate(const HostTensorVector& output
                           "NV12 conversion shall have one or 2 inputs, but it is ",
                           get_input_size());
     auto single_plane = get_input_size() == 1;
-    return color_convert_nv12_op::evaluate_nv12_convert(input_values, output_values[0], single_plane, m_format);
+    return evaluate_nv12_convert(input_values, output_values[0], single_plane, m_format);
 }
 
 bool ov::op::util::ConvertColorNV12Base::has_evaluate() const {

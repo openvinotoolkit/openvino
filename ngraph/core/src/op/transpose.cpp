@@ -68,7 +68,7 @@ shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& ne
     return make_shared<v1::Transpose>(new_args[0], new_args[1]);
 }
 
-namespace transpose {
+namespace {
 bool evaluate_transpose(const HostTensorPtr& arg1, const HostTensorPtr& arg2, const HostTensorPtr& out) {
     NGRAPH_CHECK(arg2->get_element_type().is_integral_number(),
                  "Transpose axis element type has to be integral data type.");
@@ -102,10 +102,11 @@ bool evaluate_transpose(const HostTensorPtr& arg1, const HostTensorPtr& arg2, co
                                   out_shape);
     return true;
 }
-}  // namespace transpose
+}  // namespace
+
 bool op::v1::Transpose::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     NGRAPH_OP_SCOPE(v1_Transpose_evaluate);
-    return transpose::evaluate_transpose(input_values[0], input_values[1], output_values[0]);
+    return evaluate_transpose(input_values[0], input_values[1], output_values[0]);
 }
 
 bool op::v1::Transpose::has_evaluate() const {

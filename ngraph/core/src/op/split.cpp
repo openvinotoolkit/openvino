@@ -103,7 +103,7 @@ shared_ptr<Node> op::v1::Split::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<v1::Split>(new_args.at(0), new_args.at(1), m_num_splits);
 }
 
-namespace split {
+namespace {
 inline bool evaluate(const HostTensorPtr& data_tensor,
                      const HostTensorVector& outputs,
                      const int64_t axis,
@@ -137,14 +137,14 @@ bool evaluate_split(const HostTensorPtr& data_tensor,
     evaluate(data_tensor, outputs, axis, num_splits);
     return true;
 }
-}  // namespace split
+}  // namespace
 
 bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_Split_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, m_num_splits) && validate_host_tensor_vector(inputs, 2));
     const auto& data = inputs[0];
     const auto& axis = inputs[1];
-    return split::evaluate_split(data, axis, outputs, m_num_splits, this);
+    return evaluate_split(data, axis, outputs, m_num_splits, this);
 }
 
 bool op::v1::Split::has_evaluate() const {

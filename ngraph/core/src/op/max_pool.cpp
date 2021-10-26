@@ -65,7 +65,7 @@ shared_ptr<Node> op::v1::MaxPool::get_default_value() const {
     return op::v0::Constant::create(get_element_type(), get_shape(), {0});
 }
 
-namespace maxpool {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg,
                      const HostTensorPtr& out,
@@ -87,13 +87,13 @@ inline bool evaluate(const HostTensorPtr& arg,
     return true;
 }
 
-bool evaluate_maxpool(const HostTensorPtr& arg,
-                      const HostTensorPtr& out,
-                      const ov::Shape& out_shape,
-                      const ov::Shape& kernel,
-                      const Strides& strides,
-                      const ov::Shape& pad_begin,
-                      const ov::Shape& pad_end) {
+bool evaluate_maxpool_v1(const HostTensorPtr& arg,
+                         const HostTensorPtr& out,
+                         const ov::Shape& out_shape,
+                         const ov::Shape& kernel,
+                         const Strides& strides,
+                         const ov::Shape& pad_begin,
+                         const ov::Shape& pad_end) {
     bool rc = true;
     auto arg_shape = arg->get_shape();
 
@@ -110,7 +110,7 @@ bool evaluate_maxpool(const HostTensorPtr& arg,
     }
     return rc;
 }
-}  // namespace maxpool
+}  // namespace
 
 bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     auto arg_shape = inputs[0]->get_partial_shape();
@@ -129,13 +129,13 @@ bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs, const Ho
                                                    get_rounding_type() == op::RoundingType::CEIL,
                                                    Strides{});  // no dilation of the window
 
-    return maxpool::evaluate_maxpool(inputs[0],
-                                     outputs[0],
-                                     out_shape.get_shape(),
-                                     get_kernel(),
-                                     get_strides(),
-                                     get_pads_begin(),
-                                     get_pads_end());
+    return ::evaluate_maxpool_v1(inputs[0],
+                                 outputs[0],
+                                 out_shape.get_shape(),
+                                 get_kernel(),
+                                 get_strides(),
+                                 get_pads_begin(),
+                                 get_pads_end());
 }
 bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_MaxPool_evaluate);
@@ -160,7 +160,7 @@ bool op::v1::MaxPool::has_evaluate() const {
 
 // ------------------------------ V8 ------------------------------
 
-namespace maxpool_v8 {
+namespace {
 template <element::Type_t Values, element::Type_t Indices>
 inline bool evaluate(const HostTensorPtr& data,
                      const HostTensorPtr& values,
@@ -188,29 +188,29 @@ inline bool evaluate(const HostTensorPtr& data,
     return true;
 }
 
-bool evaluate_maxpool(const HostTensorPtr& data,
-                      const HostTensorPtr& values,
-                      const HostTensorPtr& indices,
-                      const ov::Shape& out_shape,
-                      const ov::Shape& kernel,
-                      const Strides& strides,
-                      const Strides& dilations,
-                      const ov::Shape& pads_begin,
-                      const ov::Shape& pads_end,
-                      const int64_t axis) {
-#define EVAL_MAX_POOL_8(data_et, index_et)            \
-    NGRAPH_2_TYPES_CASE(maxpool_v8::evaluate_maxpool, \
-                        data_et,                      \
-                        index_et,                     \
-                        data,                         \
-                        values,                       \
-                        indices,                      \
-                        out_shape,                    \
-                        kernel,                       \
-                        strides,                      \
-                        dilations,                    \
-                        pads_begin,                   \
-                        pads_end,                     \
+bool evaluate_maxpool_v8(const HostTensorPtr& data,
+                         const HostTensorPtr& values,
+                         const HostTensorPtr& indices,
+                         const ov::Shape& out_shape,
+                         const ov::Shape& kernel,
+                         const Strides& strides,
+                         const Strides& dilations,
+                         const ov::Shape& pads_begin,
+                         const ov::Shape& pads_end,
+                         const int64_t axis) {
+#define EVAL_MAX_POOL_8(data_et, index_et)  \
+    NGRAPH_2_TYPES_CASE(::evaluate_maxpool, \
+                        data_et,            \
+                        index_et,           \
+                        data,               \
+                        values,             \
+                        indices,            \
+                        out_shape,          \
+                        kernel,             \
+                        strides,            \
+                        dilations,          \
+                        pads_begin,         \
+                        pads_end,           \
                         axis)
 
     bool rc = true;
@@ -248,7 +248,7 @@ bool evaluate_maxpool(const HostTensorPtr& data,
 
     return rc;
 }
-}  // namespace maxpool_v8
+}  // namespace
 
 op::v8::MaxPool::MaxPool(const Output<Node>& arg,
                          const Strides& strides,
@@ -347,14 +347,14 @@ bool op::v8::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensor
                                                    get_rounding_type() == op::RoundingType::CEIL,
                                                    get_dilations());
 
-    return maxpool_v8::evaluate_maxpool(inputs[0],
-                                        outputs[0],
-                                        outputs[1],
-                                        out_shape.get_shape(),
-                                        get_kernel(),
-                                        get_strides(),
-                                        get_dilations(),
-                                        get_pads_begin(),
-                                        get_pads_end(),
-                                        get_axis());
+    return evaluate_maxpool_v8(inputs[0],
+                               outputs[0],
+                               outputs[1],
+                               out_shape.get_shape(),
+                               get_kernel(),
+                               get_strides(),
+                               get_dilations(),
+                               get_pads_begin(),
+                               get_pads_end(),
+                               get_axis());
 }

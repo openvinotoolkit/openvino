@@ -130,7 +130,7 @@ bool op::PriorBox::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-namespace prior_box {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -164,11 +164,11 @@ bool evaluate_prior_box(const HostTensorPtr& arg0,
     }
     return rc;
 }
-}  // namespace prior_box
+}  // namespace
 
 bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_PriorBox_evaluate);
-    return prior_box::evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
+    return evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
 }
 
 bool op::v0::PriorBox::has_evaluate() const {

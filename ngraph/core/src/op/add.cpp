@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-namespace add {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -50,7 +50,7 @@ bool evaluate_add(const HostTensorPtr& arg0,
     }
     return rc;
 }
-}  // namespace add
+}  // namespace
 
 // ------------------------------- v1 ------------------------------------------
 
@@ -75,7 +75,7 @@ shared_ptr<Node> op::v1::Add::clone_with_new_inputs(const OutputVector& new_args
 
 bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_Add_evaluate);
-    return add::evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
+    return evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 bool op::v1::Add::has_evaluate() const {

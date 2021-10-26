@@ -19,7 +19,7 @@ using namespace ngraph;
 
 // ------------------------------------ v0 -------------------------------------
 
-namespace maximumop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -53,7 +53,7 @@ bool evaluate_maximum(const HostTensorPtr& arg0,
     }
     return rc;
 }
-}  // namespace maximumop
+}  // namespace
 
 // ------------------------------------ v1 -------------------------------------
 
@@ -72,7 +72,7 @@ shared_ptr<Node> op::v1::Maximum::clone_with_new_inputs(const OutputVector& new_
 
 bool op::v1::Maximum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_Maximum_evaluate);
-    return maximumop::evaluate_maximum(inputs[0], inputs[1], outputs[0], get_autob());
+    return evaluate_maximum(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 bool op::v1::Maximum::has_evaluate() const {

@@ -35,7 +35,7 @@ shared_ptr<Node> op::v1::ReduceProd::clone_with_new_inputs(const OutputVector& n
     return make_shared<ReduceProd>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
-namespace reduce_prod {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims) {
     out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
@@ -58,7 +58,7 @@ bool evaluate_product(const HostTensorPtr& arg, const HostTensorPtr& out, const 
     }
     return rc;
 }
-}  // namespace reduce_prod
+}  // namespace
 
 bool op::v1::ReduceProd::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_ReduceProd_evaluate);
@@ -68,7 +68,7 @@ bool op::v1::ReduceProd::evaluate(const HostTensorVector& outputs, const HostTen
     const auto reduction_axes =
         get_normalized_axes_from_tensor(inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
 
-    return reduce_prod::evaluate_product(inputs[0], outputs[0], reduction_axes, get_keep_dims());
+    return evaluate_product(inputs[0], outputs[0], reduction_axes, get_keep_dims());
 }
 
 bool op::v1::ReduceProd::has_evaluate() const {

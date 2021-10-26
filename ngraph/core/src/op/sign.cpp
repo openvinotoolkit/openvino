@@ -29,7 +29,7 @@ shared_ptr<Node> op::Sign::clone_with_new_inputs(const OutputVector& new_args) c
     return make_shared<Sign>(new_args.at(0));
 }
 
-namespace signop {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
@@ -54,12 +54,12 @@ bool evaluate_sign(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
     }
     return rc;
 }
-}  // namespace signop
+}  // namespace
 
 bool op::Sign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Sign_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    return signop::evaluate_sign(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return evaluate_sign(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool op::Sign::has_evaluate() const {

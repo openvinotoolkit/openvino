@@ -35,7 +35,7 @@ shared_ptr<Node> op::v4::ReduceL2::clone_with_new_inputs(const OutputVector& new
     return make_shared<op::v4::ReduceL2>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
-namespace reduce_l2 {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims) {
     out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
@@ -55,7 +55,7 @@ bool evaluate_reduce_l2(const HostTensorPtr& arg, const HostTensorPtr& out, cons
     }
     return rc;
 }
-}  // namespace reduce_l2
+}  // namespace
 
 bool op::v4::ReduceL2::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v4_ReduceL2_evaluate);
@@ -65,7 +65,7 @@ bool op::v4::ReduceL2::evaluate(const HostTensorVector& outputs, const HostTenso
     const auto reduction_axes =
         get_normalized_axes_from_tensor(inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
 
-    return reduce_l2::evaluate_reduce_l2(inputs[0], outputs[0], reduction_axes, get_keep_dims());
+    return evaluate_reduce_l2(inputs[0], outputs[0], reduction_axes, get_keep_dims());
 }
 
 bool op::v4::ReduceL2::has_evaluate() const {

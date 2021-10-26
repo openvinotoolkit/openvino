@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-namespace equal {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -48,7 +48,7 @@ bool evaluate_equal(const HostTensorPtr& arg0,
     }
     return rc;
 }
-}  // namespace equal
+}  // namespace
 
 //------------------------------- v1 -------------------------------------------
 
@@ -67,7 +67,7 @@ shared_ptr<Node> op::v1::Equal::clone_with_new_inputs(const OutputVector& new_ar
 
 bool op::v1::Equal::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_Equal_evaluate);
-    return equal::evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
+    return evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 bool op::v1::Equal::has_evaluate() const {

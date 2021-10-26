@@ -36,7 +36,7 @@ FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation
     this->register_matcher(m, callback);
 }
 
-namespace fq_decomposition {
+namespace {
 
 // get precision details, depends on:
 // 1. FakeQuantize operation parameters (QuantizationDetails::getDetails & LayerTransformation::getPrecisionDetails)
@@ -266,7 +266,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
     return std::make_tuple(dequantize, newFQ);
 }
 
-} // namespace fq_decomposition
+} // namespace
 
 bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
     auto layer = ov::as_type_ptr<opset1::FakeQuantize>(m.get_match_root());
@@ -295,7 +295,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
             return false;
         }
 
-        const DataPrecision expectedDataPrecision = fq_decomposition::getDataPrecisionByOutputPortAndFakeQuantize(layer);
+        const DataPrecision expectedDataPrecision = getDataPrecisionByOutputPortAndFakeQuantize(layer);
         // TODO: need test to compose FakeQuantize
         if ((expectedDataPrecision.precision == element::undefined) || (expectedDataPrecision.precision == outputPrecision)) {
             return false;
@@ -315,7 +315,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         return false;
     }
 
-    DataPrecision dataPrecision = fq_decomposition::getDataPrecisionByOutputPort(layer);
+    DataPrecision dataPrecision = getDataPrecisionByOutputPort(layer);
 
     std::shared_ptr<PrecisionsAttribute> precisionsAttribute;
     {
@@ -406,7 +406,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         }
     }
 
-    auto QDQ = fq_decomposition::decomposeFakeQuantize(
+    auto QDQ = decomposeFakeQuantize(
         this,
         layer,
         intervalsAlignment,
