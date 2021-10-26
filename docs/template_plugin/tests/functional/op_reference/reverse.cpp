@@ -64,41 +64,55 @@ private:
     }
 };
 
+class ReferenceReverseTestAxesRankIndexMode : public ReferenceReverseTest {
+};
+
+class ReferenceReverseTestAxesElemsMaskMode : public ReferenceReverseTest {
+};
+
+class ReferenceReverseTestAxesOutOfBounds : public ReferenceReverseTest {
+};
+
+class ReferenceReverseTestAxesOutOfBounds4 : public ReferenceReverseTest {
+};
+
 TEST_P(ReferenceReverseTest, CompareWithRefs) {
-    if (this->GetParam().testcaseName == "reverse_v1_incorrect_rev_axes_rank_index_mode") {
-        const auto Data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
-        const auto Rev_Axes = std::make_shared<op::v0::Parameter>(element::i64, Shape{1, 1});   // correct: 1D
+    Exec();
+}
 
-        EXPECT_THROW(std::make_shared<ov::Function>(std::make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
-                                                    ParameterVector{Data, Rev_Axes}),
-                     ngraph::NodeValidationFailure);
-    } else if (this->GetParam().testcaseName == "reverse_v1_incorrect_rev_axes_elems_mask_mode") {
-        const auto Data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
-        const auto Rev_Axes = std::make_shared<op::v0::Parameter>(element::boolean, Shape{2});  // correct: 3
+TEST_P(ReferenceReverseTestAxesRankIndexMode, CompareWithRefs) {
+    const auto Data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
+    const auto Rev_Axes = std::make_shared<op::v0::Parameter>(element::i64, Shape{1, 1});   // correct: 1D
+    EXPECT_THROW(std::make_shared<ov::Function>(std::make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
+                                                ParameterVector{Data, Rev_Axes}),
+                 ngraph::NodeValidationFailure);
+}
 
-        EXPECT_THROW(std::make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::MASK),
-                     ngraph::NodeValidationFailure);
-    } else if (this->GetParam().testcaseName == "reverse_v1_axes_out_of_bounds") {
-        const auto Data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
-        const auto Rev_Axes = op::v0::Constant::create(element::i64, Shape{2}, {1, 10});
+TEST_P(ReferenceReverseTestAxesElemsMaskMode, CompareWithRefs) {
+    const auto Data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
+    const auto Rev_Axes = std::make_shared<op::v0::Parameter>(element::boolean, Shape{2});  // correct: 3
+    EXPECT_THROW(std::make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::MASK),
+                 ngraph::NodeValidationFailure);
+}
 
-        EXPECT_THROW(std::make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
-                     ngraph::NodeValidationFailure);
-    } else if (this->GetParam().testcaseName == "reverse_v1_axes_out_of_bounds_4") {
-        const auto Data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
-        const auto Rev_Axes = op::v0::Constant::create(element::i64, Shape{4}, {0, 1, 2, 3});
+TEST_P(ReferenceReverseTestAxesOutOfBounds, CompareWithRefs) {
+    const auto Data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
+    const auto Rev_Axes = op::v0::Constant::create(element::i64, Shape{2}, {1, 10});
+    EXPECT_THROW(std::make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
+                 ngraph::NodeValidationFailure);
+}
 
-        EXPECT_THROW(std::make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
-                     ngraph::NodeValidationFailure);
-    } else {
-        Exec();
-    }
+TEST_P(ReferenceReverseTestAxesOutOfBounds4, CompareWithRefs) {
+    const auto Data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2, 2});
+    const auto Rev_Axes = op::v0::Constant::create(element::i64, Shape{4}, {0, 1, 2, 3});
+    EXPECT_THROW(std::make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
+                 ngraph::NodeValidationFailure);
 }
 
 template <element::Type_t IN_ET>
-std::vector<ReverseParams> generateReverseParams() {
+std::vector<ReverseParams> generateParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
-    std::vector<ReverseParams> reverseParams {
+    std::vector<ReverseParams> params {
         // nothing_to_reverse
         ReverseParams(Tensor({0}, element::i64, std::vector<int64_t>{}),
                       op::v1::Reverse::Mode::INDEX,
@@ -198,52 +212,21 @@ std::vector<ReverseParams> generateReverseParams() {
                           23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0}),
                       "reverse_3d_012"),
     };
-    return reverseParams;
+    return params;
 }
 
-std::vector<ReverseParams> generateReverseDummyParams() {
-    std::vector<ReverseParams> reverseParams {
-        // reverse_v1_incorrect_rev_axes_rank_index_mode
-        ReverseParams(Tensor({1}, element::i64, std::vector<int64_t>{0}),
-                      op::v1::Reverse::Mode::INDEX,
-                      Tensor({1}, element::i64, std::vector<int64_t>{0}),
-                      Tensor({1}, element::i64, std::vector<int64_t>{0}),
-                      "reverse_v1_incorrect_rev_axes_rank_index_mode"),
-        // reverse_v1_incorrect_rev_axes_elems_mask_mode
-        ReverseParams(Tensor({1}, element::i64, std::vector<int64_t>{0}),
-                      op::v1::Reverse::Mode::INDEX,
-                      Tensor({1}, element::i64, std::vector<int64_t>{0}),
-                      Tensor({1}, element::i64, std::vector<int64_t>{0}),
-                      "reverse_v1_incorrect_rev_axes_elems_mask_mode"),
-        // reverse_v1_axes_out_of_bounds
-        ReverseParams(Tensor({1}, element::i64, std::vector<int64_t>{0}),
-                      op::v1::Reverse::Mode::INDEX,
-                      Tensor({1}, element::i64, std::vector<int64_t>{0}),
-                      Tensor({1}, element::i64, std::vector<int64_t>{0}),
-                      "reverse_v1_axes_out_of_bounds"),
-        // reverse_v1_axes_out_of_bounds_4
-        ReverseParams(Tensor({1}, element::i64, std::vector<int64_t>{0}),
-                      op::v1::Reverse::Mode::INDEX,
-                      Tensor({1}, element::i64, std::vector<int64_t>{0}),
-                      Tensor({1}, element::i64, std::vector<int64_t>{0}),
-                      "reverse_v1_axes_out_of_bounds_4"),
-    };
-    return reverseParams;
-}
-
-std::vector<ReverseParams> generateReverseCombinedParams() {
+std::vector<ReverseParams> generateCombinedParams() {
     const std::vector<std::vector<ReverseParams>> reverseTypeParams {
-        generateReverseParams<element::Type_t::i8>(),
-        generateReverseParams<element::Type_t::i16>(),
-        generateReverseParams<element::Type_t::i32>(),
-        generateReverseParams<element::Type_t::i64>(),
-        generateReverseParams<element::Type_t::u8>(),
-        generateReverseParams<element::Type_t::u16>(),
-        generateReverseParams<element::Type_t::u32>(),
-        generateReverseParams<element::Type_t::u64>(),
-        generateReverseParams<element::Type_t::f16>(),
-        generateReverseParams<element::Type_t::f32>(),
-        generateReverseDummyParams(),
+        generateParams<element::Type_t::i8>(),
+        generateParams<element::Type_t::i16>(),
+        generateParams<element::Type_t::i32>(),
+        generateParams<element::Type_t::i64>(),
+        generateParams<element::Type_t::u8>(),
+        generateParams<element::Type_t::u16>(),
+        generateParams<element::Type_t::u32>(),
+        generateParams<element::Type_t::u64>(),
+        generateParams<element::Type_t::f16>(),
+        generateParams<element::Type_t::f32>(),
     };
     std::vector<ReverseParams> combinedParams;
 
@@ -253,6 +236,66 @@ std::vector<ReverseParams> generateReverseCombinedParams() {
     return combinedParams;
 }
 
+std::vector<ReverseParams> generateParamsAxesRankIndexMode() {
+    std::vector<ReverseParams> params {
+        // reverse_v1_incorrect_rev_axes_rank_index_mode
+        ReverseParams(Tensor({1}, element::i64, std::vector<int64_t>{0}),
+                      op::v1::Reverse::Mode::INDEX,
+                      Tensor({1}, element::i64, std::vector<int64_t>{0}),
+                      Tensor({1}, element::i64, std::vector<int64_t>{0}),
+                      "reverse_v1_incorrect_rev_axes_rank_index_mode"),
+    };
+    return params;
+}
+
+std::vector<ReverseParams> generateParamsAxesElemsMaskMode() {
+    std::vector<ReverseParams> params {
+        // reverse_v1_incorrect_rev_axes_elems_mask_mode
+        ReverseParams(Tensor({1}, element::i64, std::vector<int64_t>{0}),
+                      op::v1::Reverse::Mode::INDEX,
+                      Tensor({1}, element::i64, std::vector<int64_t>{0}),
+                      Tensor({1}, element::i64, std::vector<int64_t>{0}),
+                      "reverse_v1_incorrect_rev_axes_elems_mask_mode"),
+    };
+    return params;
+}
+
+std::vector<ReverseParams> generateParamsAxesOutOfBounds() {
+    std::vector<ReverseParams> params {
+        // reverse_v1_axes_out_of_bounds
+        ReverseParams(Tensor({1}, element::i64, std::vector<int64_t>{0}),
+                      op::v1::Reverse::Mode::INDEX,
+                      Tensor({1}, element::i64, std::vector<int64_t>{0}),
+                      Tensor({1}, element::i64, std::vector<int64_t>{0}),
+                      "reverse_v1_axes_out_of_bounds"),
+    };
+    return params;
+}
+
+std::vector<ReverseParams> generateParamsAxesOutOfBounds4() {
+    std::vector<ReverseParams> params {
+        // reverse_v1_axes_out_of_bounds_4
+        ReverseParams(Tensor({1}, element::i64, std::vector<int64_t>{0}),
+                      op::v1::Reverse::Mode::INDEX,
+                      Tensor({1}, element::i64, std::vector<int64_t>{0}),
+                      Tensor({1}, element::i64, std::vector<int64_t>{0}),
+                      "reverse_v1_axes_out_of_bounds_4"),
+    };
+    return params;
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_Reverse_With_Hardcoded_Refs, ReferenceReverseTest,
-    testing::ValuesIn(generateReverseCombinedParams()), ReferenceReverseTest::getTestCaseName);
+    testing::ValuesIn(generateCombinedParams()), ReferenceReverseTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Reverse_With_Hardcoded_Refs, ReferenceReverseTestAxesRankIndexMode,
+    testing::ValuesIn(generateParamsAxesRankIndexMode()), ReferenceReverseTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Reverse_With_Hardcoded_Refs, ReferenceReverseTestAxesElemsMaskMode,
+    testing::ValuesIn(generateParamsAxesElemsMaskMode()), ReferenceReverseTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Reverse_With_Hardcoded_Refs, ReferenceReverseTestAxesOutOfBounds,
+    testing::ValuesIn(generateParamsAxesOutOfBounds()), ReferenceReverseTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Reverse_With_Hardcoded_Refs, ReferenceReverseTestAxesOutOfBounds4,
+    testing::ValuesIn(generateParamsAxesOutOfBounds4()), ReferenceReverseTest::getTestCaseName);
 } // namespace
