@@ -27,7 +27,7 @@ ov::OutputVector TranslateInterpolateOp(const NodeContext& node) {
         interpolate_attrs.nearest_mode = Interpolate::NearestMode::ROUND_PREFER_FLOOR;
     }
 
-    // todo (itikhono): do we need this .get_shape() actually?
+    // TODO: do we need this .get_shape() actually?
     auto input_shape = input.get_shape();
     std::vector<float> spatial_shape = {static_cast<float>(input_shape[1]), static_cast<float>(input_shape[2])};
     auto ng_spatial_shape = make_shared<Constant>(element::f32, Shape{2}, spatial_shape);

@@ -14,8 +14,6 @@ namespace tf {
 namespace op {
 
 OutputVector TranslateCropAndResizeOp(const NodeContext& node) {
-    // TODO (itikhono): refactor this code!
-
     /// ng_input: [batch, image_height, image_width, depth]
     /// ng_boxes: [num_boxes, 4]; each box is a normalized [0.to 1.] co-ordinate
     /// [y1,
@@ -34,9 +32,6 @@ OutputVector TranslateCropAndResizeOp(const NodeContext& node) {
     auto ng_size = node.get_ng_input(3);
 
     auto resize_method = node.get_attribute<string>("method");
-
-    // todo (itikhono): unused variable?
-    // auto extrapolation_value = node.get_attribute<float>("extrapolation_value");
 
     TF_OP_VALIDATION_CHECK(node,
                            ng_input.get_partial_shape().is_static() && ng_boxes.get_partial_shape().is_static() &&

@@ -169,16 +169,15 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Conv2D", TranslateConv2DOp},
         {"Conv2DBackpropInput", TranslateConv2DBackpropInputOp},
         {"Conv3D", TranslateConv3DOp},
+        {"CropAndResize", TranslateCropAndResizeOp},
         {"Cumsum", TranslateCumsumOp},
         {"DepthToSpace", TranslateDepthToSpaceOp},
         {"DepthwiseConv2dNative", TranslateDepthwiseConv2dNativeOp},
         {"Elu", TranslateEluOp},
         {"ExpandDims", TranslateExpandDimsOp},
+        {"FakeQuantWithMinMaxVars", TranslateFakeQuantWithMinMaxVarsOp},
         {"Fill", TranslateFillOp},
         {"FloorDiv", TranslateFloorDivOp},
-        {"FusedBatchNorm", TranslateFusedBatchNormOp},
-        {"FusedBatchNormV2", TranslateFusedBatchNormOp},
-        {"FusedBatchNormV3", TranslateFusedBatchNormOp},
         {"Gather", TranslateGatherOp},
         {"GatherV2", TranslateGatherV2Op},
         {"GatherNd", TranslateGatherNdOp},
@@ -213,7 +212,6 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Reciprocal", TranslateReciprocalOp},
         {"Relu6", TranslateRelu6Op},
         {"Reshape", TranslateReshapeOp},
-        {"_Retval", RetvalOp},
         {"Reverse", TranslateReverseOp},
         {"ReverseV2", TranslateReverseOp},
         {"ResizeBilinear", TranslateInterpolateOp},
@@ -244,13 +242,16 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Xdivy", TranslateXdivyOp},
         {"ZerosLike", TranslateZerosLikeOp},
 
+        // should be registered as an extensions in OVTF:
+        //{"_Arg", ArgOp},
+        {"FusedBatchNorm", TranslateFusedBatchNormOp},
+        {"FusedBatchNormV2", TranslateFusedBatchNormOp},
+        {"FusedBatchNormV3", TranslateFusedBatchNormOp},
         {"_FusedConv2D", TranslateFusedConv2DOp},
         {"_FusedMatMul", TranslateFusedMatMulOp},
         {"_FusedBatchNormEx", TranslateFusedBatchNormOp},
         {"_FusedDepthwiseConv2dNative", TranslateDepthwiseConv2dNativeOp},
-        {"FakeQuantWithMinMaxVars", TranslateFakeQuantWithMinMaxVarsOp},
-        {"CropAndResize", TranslateCropAndResizeOp},
-        // {"_Arg", ArgOp}, // should be registered as an extension in OVTF
+        {"_Retval", RetvalOp},
     };
 };
 }  // namespace op

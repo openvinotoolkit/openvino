@@ -25,7 +25,6 @@ OutputVector TranslateStridedSliceOp(const NodeContext& node) {
     auto ellipsis_mask = node.get_attribute<int32_t>("ellipsis_mask");
     auto shrink_axis_mask = node.get_attribute<int32_t>("shrink_axis_mask");
 
-    // TODO (itikhono): check the algorithm
     auto mask_to_vec = [](int32_t mask) {
         auto length = sizeof(mask) * CHAR_BIT;
         vector<int64_t> vec(length, 0);

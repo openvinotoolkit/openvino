@@ -14,7 +14,7 @@ namespace tf {
 namespace op {
 
 OutputVector TranslateIsFiniteOp(const NodeContext& node) {
-    // TODO (itikhono): Refactor this code. Not sure about in == in.
+    // TODO: Refactor this code. Not sure about in == in.
     // Implemented tf.is_finite by checking:
     // (in != inf) && (in != -inf) && (in == in)
     //                                 ^^^^^^^^ checks for NaN's

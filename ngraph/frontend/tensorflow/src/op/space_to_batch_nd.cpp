@@ -31,7 +31,7 @@ OutputVector TranslateBatchNDAndSpaceNDOp(const NodeContext& node) {
         if (N < 2)
             return {input};
     } else {
-        // todo (itikhono): support dynamic rank
+        // TODO: support dynamic rank
         TF_OP_VALIDATION_CHECK(node, false, "Dynamic rank is not supported.");
     }
 
