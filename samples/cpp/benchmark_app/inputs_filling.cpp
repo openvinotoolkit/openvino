@@ -296,7 +296,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
         for (auto& input : inputs_info) {
             if (input.second.isImage()) {
                 input_image_sizes.push_back(std::make_pair(input.second.width(), input.second.height()));
-            } else if (input.second.isImageInfo()){
+            } else if (input.second.isImageInfo()) {
                 // add image info name to the map<input_name, files> if it wasn't specified.
                 // thus we make sure that this input will be filled later.
                 if (!inputFiles.empty() && inputFiles.find(input.first) == inputFiles.end()) {

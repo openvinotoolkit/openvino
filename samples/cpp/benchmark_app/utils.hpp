@@ -166,7 +166,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                     throw std::logic_error(
                         "layout command line parameter doesn't support multiple layouts for one input.");
                 }
-                info._layout = descriptor.getLayout();
+                info._layout = descriptor.getLayout();  // TODO: change the way we get layout in this case
                 info.layout = layout_map.at(name)[0];
                 std::transform(info.layout.begin(), info.layout.end(), info.layout.begin(), ::toupper);
             } else {
