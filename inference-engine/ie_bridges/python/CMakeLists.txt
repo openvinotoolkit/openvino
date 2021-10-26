@@ -88,6 +88,14 @@ endif()
 
 ie_cpack_add_component(${PYTHON_COMPONENT})
 
+install(FILES requirements.txt
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}
+        COMPONENT ${PYTHON_COMPONENT})
+
+install(PROGRAMS ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/__init__.py
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino
+        COMPONENT ${PYTHON_COMPONENT})
+
 # package Python samples
 
 ie_cpack(${PYTHON_COMPONENT})
