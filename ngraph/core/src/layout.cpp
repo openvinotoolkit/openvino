@@ -245,11 +245,11 @@ Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& 
         std::vector<bool> used(dims.size(), false);
         for (size_t i = 0; i < dims.size(); i++) {
             auto dim = dims[i];
+            OPENVINO_ASSERT(dim < dims.size(), "Convert layout: dimension ", dim, " is out of bounds");
             OPENVINO_ASSERT(!used[dim],
                             "Convert layout: dimension ",
                             dim,
                             " is used more than once in convert arguments");
-            OPENVINO_ASSERT(dim < dims.size(), "Convert layout: dimension ", dim, " is out of bounds");
             used[dim] = true;
         }
     }

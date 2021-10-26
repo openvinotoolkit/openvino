@@ -729,9 +729,11 @@ TEST(pre_post_process, preprocess_convert_layout_invalid_dims) {
         f = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().convert_layout({0, 3, 2, 2}))).build(f),
         ov::AssertFailure);
 
-    EXPECT_THROW(
-        f = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().convert_layout({0, 3, 1, 4}))).build(f),
-        ov::AssertFailure);
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo().preprocess(
+                             PreProcessSteps().convert_layout({0, 3, 1, std::numeric_limits<uint64_t>::max()})))
+                         .build(f),
+                 ov::AssertFailure);
 }
 
 TEST(pre_post_process, preprocess_convert_layout_invalid_dims_dyn_shape) {
@@ -740,9 +742,11 @@ TEST(pre_post_process, preprocess_convert_layout_invalid_dims_dyn_shape) {
         f = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().convert_layout({0, 3, 2, 2}))).build(f),
         ov::AssertFailure);
 
-    EXPECT_THROW(
-        f = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().convert_layout({0, 3, 1, 4}))).build(f),
-        ov::AssertFailure);
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo().preprocess(
+                             PreProcessSteps().convert_layout({0, 3, 1, std::numeric_limits<uint64_t>::max()})))
+                         .build(f),
+                 ov::AssertFailure);
 }
 
 TEST(pre_post_process, preprocess_reverse_channels_multiple_planes) {
@@ -986,7 +990,22 @@ TEST(pre_post_process, postprocess_convert_layout_invalid_dims) {
                  ov::AssertFailure);
 
     EXPECT_THROW(f = PrePostProcessor()
-                         .output(OutputInfo().postprocess(PostProcessSteps().convert_layout({0, 3, 1, 4})))
+                         .output(OutputInfo().postprocess(
+                             PostProcessSteps().convert_layout({0, 3, 1, std::numeric_limits<uint64_t>::max()})))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
+TEST(pre_post_process, postprocess_convert_layout_invalid_dims_dyn_shape) {
+    auto f = create_simple_function(element::f32, PartialShape::dynamic());
+    EXPECT_THROW(f = PrePostProcessor()
+                         .output(OutputInfo().postprocess(PostProcessSteps().convert_layout({0, 3, 2, 2})))
+                         .build(f),
+                 ov::AssertFailure);
+
+    EXPECT_THROW(f = PrePostProcessor()
+                         .output(OutputInfo().postprocess(
+                             PostProcessSteps().convert_layout({0, 3, 1, std::numeric_limits<uint64_t>::max()})))
                          .build(f),
                  ov::AssertFailure);
 }

@@ -189,10 +189,12 @@ void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
         OPENVINO_ASSERT(nodes.size() == 1,
                         "Can't convert layout for multi-plane input. Suggesting to convert current image to "
                         "RGB/BGR color format using 'convert_color'");
+        auto new_layout = layout::apply_permutation(context.layout(), dims);
         auto perm_constant = op::v0::Constant::create<uint64_t>(element::u64, Shape{dims.size()}, dims);
         auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
-        context.layout() = layout::apply_permutation(context.layout(), dims);  // Update context's current layout
-        return std::make_tuple(std::vector<Output<Node>>{transpose}, true);
+        auto res = std::make_tuple(std::vector<Output<Node>>{transpose}, true);
+        context.layout() = std::move(new_layout);  // Update context's current layout
+        return res;
     });
 }
 
@@ -335,9 +337,11 @@ void PostStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
     }
     m_actions.emplace_back([dims](const Output<Node>& node, PostprocessingContext& context) {
         auto perm_constant = op::v0::Constant::create<uint64_t>(element::u64, Shape{dims.size()}, dims);
+        auto new_layout = layout::apply_permutation(context.layout(), dims);
         auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
-        context.layout() = layout::apply_permutation(context.layout(), dims);  // Update context's current layout
-        return std::make_tuple(Output<Node>(transpose), true);
+        auto res = std::make_tuple(Output<Node>(transpose), true);
+        context.layout() = std::move(new_layout);  // Update context's current layout
+        return res;
     });
 }
 
