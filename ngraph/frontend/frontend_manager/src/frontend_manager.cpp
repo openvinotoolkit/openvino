@@ -149,6 +149,7 @@ void FrontEnd::normalize(std::shared_ptr<ngraph::Function> function) const {
 }
 
 void FrontEnd::add_extension(const std::vector<ov::Extension>& extensions) {
+    // Left without the code intentionally.
     // Each frontend can support own set of extensions, so this method should be implemented on the frontend side
 }
 
@@ -176,11 +177,6 @@ void FrontEnd::add_extension(const std::wstring& library_path) {
 
 std::string FrontEnd::get_name() const {
     return std::string();
-}
-
-void FrontEnd::add_extension (std::shared_ptr<Extension>)
-{
-    // Ignored. Implement smarter logic in a derived class.
 }
 
 //----------- InputModel ---------------------------

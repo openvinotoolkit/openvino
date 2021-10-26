@@ -8,6 +8,7 @@
 #include <fstream>
 #include "frontend_manager_defs.hpp"
 #include <openvino/pass/pass.hpp>
+#include <openvino/core/extension.hpp>
 #include "../../../../../thirdparty/nlohmann/json/json.hpp"
 
 namespace ngraph {
@@ -29,7 +30,8 @@ private:
     std::function<bool(std::shared_ptr<ov::Function>)> m_pass;
 };
 
-class FRONTEND_API DecoderTransformationExtension : public Extension {
+
+class FRONTEND_API DecoderTransformationExtension : public ov::BaseExtension {
 public:
     DecoderTransformationExtension () {}
     DecoderTransformationExtension (std::function<bool(std::shared_ptr<ov::Function>)> pass) : m_pass(pass) {}
@@ -37,6 +39,7 @@ public:
 protected:
     std::function<bool(std::shared_ptr<ov::Function>)> m_pass;
 };
+
 
 // Reads MO config file and delegate transformation functionality to specified transformation ID from the config
 class FRONTEND_API JsonConfigExtension : public DecoderTransformationExtension {
@@ -58,8 +61,9 @@ public:
     }
 };
 
+
 /// \brief Provides callback to report telemetry information back to Python code
-class FRONTEND_API TelemetryExtension : public Extension {
+class FRONTEND_API TelemetryExtension : public ov::BaseExtension {
 public:
 
     TelemetryExtension (std::function<void(const std::string& message)> callback) : m_callback(callback) {}
@@ -69,6 +73,7 @@ private:
 
     std::function<void(const std::string& message)> m_callback;
 };
+
 
 class FRONTEND_API NodeContext {
 public:
@@ -82,7 +87,8 @@ private:
     std::string m_op_type;
 };
 
-class FRONTEND_API OpExtension : public Extension {
+
+class FRONTEND_API OpExtension : public ov::BaseExtension {
 public:
 
     OpExtension (const std::string& optype, std::function<OutputVector(std::shared_ptr<NodeContext>)> converter) :
