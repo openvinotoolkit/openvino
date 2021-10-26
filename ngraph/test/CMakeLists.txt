@@ -497,13 +497,10 @@ set(MULTI_TEST_SRC
     backend/one_hot.in.cpp
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
-    backend/prior_box_clustered.in.cpp
-    backend/prior_box.in.cpp
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
     backend/recurrent_cells.in.cpp
     backend/region_yolo.in.cpp
-    backend/reorg_yolo.in.cpp
     backend/reshape.in.cpp
     backend/result.in.cpp
     backend/reverse.in.cpp
