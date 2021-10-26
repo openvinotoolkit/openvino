@@ -81,6 +81,7 @@
 #include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/disable_decompression_convert_constant_folding.hpp"
+#include "transformations/op_conversions/convert_prior_box_v8_to_v0.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -149,6 +150,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     decomp->add_matcher<ngraph::pass::DropoutWithRandomUniformReplacer>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
 
+    manager.register_pass<ngraph::pass::ConvertPriorBox8To0>();  // not plugins implemented priorbox8
     // CF is required after all decompositions
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
