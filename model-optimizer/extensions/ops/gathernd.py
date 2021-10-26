@@ -95,8 +95,8 @@ class GatherND(Op):
         output_shape = batch + list(indices_shape)[batch_dims:-1] + slice_shape
         node.out_port(0).data.set_shape(output_shape)
 
-        # compute output value if all input values are defined
-        if is_fully_defined(indices_value) and is_fully_defined(data_value):
+        # compute output value if all input indices are defined
+        if is_fully_defined(indices_value):
             output_data = []
 
             reshaped_indices = indices_value.reshape(batch_dims_size, -1, indices_shape[-1])
