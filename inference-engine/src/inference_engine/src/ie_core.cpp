@@ -1206,15 +1206,16 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
     std::map<std::string, std::string> config_with_batch = config;
     auto device = ov::runtime::parseDeviceNameIntoConfig(deviceName);
     if (device._deviceName.find("GPU") != std::string::npos) {
-            bool bThroughputEnabledInPlugin = false;
-            try {
-                    bThroughputEnabledInPlugin =
-                                    GetConfig(device._deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
-                } catch (...) {
-            }
-            const auto &mode = config.find(CONFIG_KEY(PERFORMANCE_HINT));
-            if (bThroughputEnabledInPlugin || (mode != config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)))
-                    config_with_batch[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(YES);
+        bool bThroughputEnabledInPlugin = false;
+        try {
+            bThroughputEnabledInPlugin =
+                GetConfig(device._deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() ==
+                CONFIG_VALUE(THROUGHPUT);
+        } catch (...) {
+        }
+        const auto& mode = config.find(CONFIG_KEY(PERFORMANCE_HINT));
+        if (bThroughputEnabledInPlugin || (mode != config.end() && mode->second == CONFIG_VALUE(THROUGHPUT)))
+            config_with_batch[CONFIG_KEY(ALLOW_AUTO_BATCHING)] = CONFIG_VALUE(YES);
     }
     auto exec = _impl->LoadNetwork(network, deviceName, config_with_batch);
     return {exec._so, exec._ptr};
