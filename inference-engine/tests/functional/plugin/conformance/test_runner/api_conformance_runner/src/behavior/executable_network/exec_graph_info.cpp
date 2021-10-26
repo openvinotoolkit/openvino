@@ -5,8 +5,7 @@
 #include <common_test_utils/test_constants.hpp>
 #include <exec_graph_info.hpp>
 #include "behavior/executable_network/exec_graph_info.hpp"
-
-#include ""
+#include "api_conformance_helpers.hpp"
 
 namespace {
 using namespace ExecutionGraphTests;

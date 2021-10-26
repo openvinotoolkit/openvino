@@ -7,24 +7,16 @@
 #include "behavior/infer_request/multithreading.hpp"
 #include "ie_plugin_config.hpp"
 
-#include "conformance.hpp"
+#include "api_conformance_helpers.hpp"
 
 namespace {
-
+using namespace ov::test::conformance;
 using namespace ConformanceTests;
 using namespace BehaviorTestsDefinitions;
 
 const std::vector<std::map<std::string, std::string>> configsMultithreading = {
         {},
 };
-
-const std::vector<std::map<std::string, std::string>> generateMulticonfigsMultithreading() {
-        return {{{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES), targetDevice }}};
-}
-
-const std::vector<std::map<std::string, std::string>> AutoconfigsMultithreading() {
-        return {{{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES), targetDevice}}};
-}
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestMultithreadingTests,
                         ::testing::Combine(
@@ -35,13 +27,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestMultithreadingTests,
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestMultithreadingTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                ::testing::ValuesIn(generateMulticonfigsMultithreading())),
+                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
                          InferRequestMultithreadingTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestMultithreadingTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(generateMulticonfigsMultithreading())),
+                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
                          InferRequestMultithreadingTests::getTestCaseName);
 
 }  // namespace

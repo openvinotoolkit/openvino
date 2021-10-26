@@ -6,20 +6,16 @@
 
 #include "behavior/infer_request/wait.hpp"
 #include "ie_plugin_config.hpp"
-#include "conformance.hpp"
+#include "api_conformance_helpers.hpp"
 
 namespace {
-
+using namespace ov::test::conformance;
 using namespace ConformanceTests;
 using namespace BehaviorTestsDefinitions;
 
 const std::vector<std::map<std::string, std::string>> configsWait = {
         {},
 };
-
-const std::vector<std::map<std::string, std::string>> generateMulticonfigsWait() {
-        return {{{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , targetDevice}}};
-}
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestWaitTests,
                         ::testing::Combine(
@@ -30,13 +26,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestWaitTests,
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestWaitTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                ::testing::ValuesIn(generateMulticonfigsWait())),
+                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
                          InferRequestWaitTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestWaitTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(generateMulticonfigsWait())),
+                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
                          InferRequestWaitTests::getTestCaseName);
 
 }  // namespace

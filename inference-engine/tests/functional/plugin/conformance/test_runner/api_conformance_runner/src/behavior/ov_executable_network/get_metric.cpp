@@ -4,27 +4,13 @@
 
 #include "behavior/ov_executable_network/get_metric.hpp"
 #include "openvino/runtime/core.hpp"
-#include "conformance.hpp"
+#include "api_conformance_helpers.hpp"
 
 using namespace ov::test::behavior;
-
+using namespace ov::test::conformance;
 using namespace InferenceEngine::PluginConfigParams;
 
 namespace {
-
-std::string generateComplexDeviceName(const std::string& deviceName) {
-    return deviceName + ":" + ConformanceTests::targetDevice;
-}
-
-std::vector<std::string> returnAllPosibleDeviceCombination() {
-    std::vector<std::string> res{ConformanceTests::targetDevice};
-    std::vector<std::string> devices{CommonTestUtils::DEVICE_HETERO, CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_MULTI};
-    for (const auto& device : devices) {
-        res.emplace_back(generateComplexDeviceName(device));
-    }
-    return res;
-}
-
 //
 // IE Class Common tests with <pluginName, deviceName params>
 //

@@ -6,10 +6,13 @@ set(TARGET_NAME apiConformanceTests)
 
 addIeTargetTest(
         NAME ${TARGET_NAME}
-        ROOT "${CMAKE_CURRENT_SOURCE_DIR}"
+        ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         ADD_CPPLINT
+        INCLUDES
+            PUBLIC
+                "${CMAKE_CURRENT_SOURCE_DIR}/include"
         LINK_LIBRARIES
             PUBLIC
                 conformanceShared

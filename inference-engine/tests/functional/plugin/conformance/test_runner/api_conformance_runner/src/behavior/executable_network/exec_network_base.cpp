@@ -4,18 +4,15 @@
 
 #include "behavior/executable_network/exec_network_base.hpp"
 #include "ie_plugin_config.hpp"
-#include "conformance.hpp"
+
+#include "api_conformance_helpers.hpp"
 
 using namespace BehaviorTestsDefinitions;
+using namespace ov::test::conformance;
 namespace {
-
     const std::vector<std::map<std::string, std::string>> configs = {
             {},
     };
-
-    const std::vector<std::map<std::string, std::string>> generateMultiConfigsExecNetBase() {
-        return {{{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ConformanceTests::targetDevice}}};
-    }
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecutableNetworkBaseTest,
                             ::testing::Combine(
@@ -26,13 +23,13 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, ExecutableNetworkBaseTest,
                             ::testing::Combine(
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(generateMultiConfigsExecNetBase())),
+                                    ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
                             ExecutableNetworkBaseTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecutableNetworkBaseTest,
                             ::testing::Combine(
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(generateMultiConfigsExecNetBase())),
+                                    ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
                             ExecutableNetworkBaseTest::getTestCaseName);
 
     const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -57,13 +54,13 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(generateMultiConfigsExecNetBase())),
+                                    ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
                             ExecNetSetPrecision::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecNetSetPrecision,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(generateMultiConfigsExecNetBase())),
+                                    ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
                             ExecNetSetPrecision::getTestCaseName);
 }  // namespace

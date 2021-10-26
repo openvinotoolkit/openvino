@@ -3,24 +3,16 @@
 //
 
 #include "behavior/infer_request/perf_counters.hpp"
-#include "conformance.hpp"
+#include "api_conformance_helpers.hpp"
 
 namespace {
-
+using namespace ov::test::conformance;
 using namespace ConformanceTests;
 using namespace BehaviorTestsDefinitions;
 
 const std::vector<std::map<std::string, std::string>> configsPerfCounters = {
         {}
 };
-
-const std::vector<std::map<std::string, std::string>> generateMulticonfigsPerfCounters() {
-        return {{{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES), targetDevice }}};
-}
-
-const std::vector<std::map<std::string, std::string>> generateAutoconfigsPerfCounters() {
-        return {{{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES), targetDevice }}};
-}
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPerfCountersTest,
                         ::testing::Combine(
@@ -31,13 +23,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPerfCountersTest,
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPerfCountersTest,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                ::testing::ValuesIn(generateMulticonfigsPerfCounters())),
+                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
                          InferRequestPerfCountersTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestPerfCountersTest,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(generateAutoconfigsPerfCounters())),
+                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
                          InferRequestPerfCountersTest::getTestCaseName);
 
 

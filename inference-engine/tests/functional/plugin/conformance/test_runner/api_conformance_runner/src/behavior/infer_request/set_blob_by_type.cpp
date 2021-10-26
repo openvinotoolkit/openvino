@@ -4,10 +4,10 @@
 
 #include "behavior/infer_request/set_blob_by_type.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "conformance.hpp"
+#include "api_conformance_helpers.hpp"
 
 namespace {
-
+using namespace ov::test::conformance;
 using namespace ConformanceTests;
 using namespace BehaviorTestsDefinitions;
 
@@ -22,15 +22,6 @@ const std::vector<FuncTestUtils::BlobType> BlobTypes = {
 
 const std::map<std::string, std::string> ConfigBlobType{}; //nothing special
 
-const std::map<std::string, std::string> generateMultiConfigBlobType() {
-    return {{{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), targetDevice}}};
-}
-
-
-const std::map<std::string, std::string> generateHeteroConfigBlobType() {
-    return {{{ "TARGET_FALLBACK", targetDevice }}};
-}
-
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior, InferRequestSetBlobByType,
                          ::testing::Combine(::testing::ValuesIn(BlobTypes),
                                             ::testing::Values(targetDevice),
@@ -41,18 +32,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_Behavior, InferRequestSetBlobByType,
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior_Multi, InferRequestSetBlobByType,
                          ::testing::Combine(::testing::ValuesIn(BlobTypes),
                                             ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                            ::testing::Values(generateMultiConfigBlobType())),
+                                            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
                          InferRequestSetBlobByType::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior_Auto, InferRequestSetBlobByType,
                          ::testing::Combine(::testing::ValuesIn(BlobTypes),
                                             ::testing::Values(CommonTestUtils::DEVICE_AUTO + std::string(":") + targetDevice),
-                                            ::testing::Values(generateMultiConfigBlobType())),
+                                            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
                          InferRequestSetBlobByType::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior_Hetero, InferRequestSetBlobByType,
                          ::testing::Combine(::testing::ValuesIn(BlobTypes),
                                             ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                                            ::testing::Values(generateHeteroConfigBlobType())),
+                                            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
                          InferRequestSetBlobByType::getTestCaseName);
 } // namespace

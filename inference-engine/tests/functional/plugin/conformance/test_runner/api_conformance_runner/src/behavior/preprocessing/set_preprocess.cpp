@@ -3,11 +3,12 @@
 //
 
 #include "behavior/preprocessing/set_preprocess.hpp"
-#include "conformance.hpp"
+#include "api_conformance_helpers.hpp"
 
 namespace {
 
 using namespace BehaviorTestsDefinitions;
+using namespace ov::test::conformance;
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
@@ -17,14 +18,6 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 const std::vector<std::map<std::string, std::string>> configs = {
         {},
 };
-
-const std::vector<std::map<std::string, std::string>> generateHeteroConfigs() {
-       return {{{ "TARGET_FALLBACK" , ConformanceTests::targetDevice }}};
-}
-
-const std::vector<std::map<std::string, std::string>> generateMultiConfig() {
-    return {{{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , ConformanceTests::targetDevice }}};
-}
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessTest,
                         ::testing::Combine(
@@ -37,21 +30,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestPreprocessTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                                ::testing::ValuesIn(generateHeteroConfigs())),
+                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
                          InferRequestPreprocessTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPreprocessTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                ::testing::ValuesIn(generateMultiConfig())),
+                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
                          InferRequestPreprocessTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestPreprocessTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(generateAutoConfigs())),
+                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
                          InferRequestPreprocessTest::getTestCaseName);
 
 
@@ -108,7 +101,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestPreprocessConve
                             ::testing::Bool(),
                             ::testing::Bool(),
                             ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                            ::testing::ValuesIn(generateHeteroConfigs())),
+                            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
                     InferRequestPreprocessConversionTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestPreprocessDynamicallyInSetBlobTest,
@@ -122,7 +115,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestPreprocessDynam
                             ::testing::Values(true), // only SetBlob
                             ::testing::Values(true), // only SetBlob
                             ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                            ::testing::ValuesIn(generateHeteroConfigs())),
+                            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
                     InferRequestPreprocessDynamicallyInSetBlobTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPreprocessConversionTest,
@@ -136,7 +129,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPreprocessConver
                             ::testing::Bool(),
                             ::testing::Bool(),
                             ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                            ::testing::ValuesIn(generateMultiConfig())),
+                            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
                     InferRequestPreprocessConversionTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPreprocessDynamicallyInSetBlobTest,
@@ -150,35 +143,35 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPreprocessDynami
                             ::testing::Values(true), // only SetBlob
                             ::testing::Values(true), // only SetBlob
                             ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                            ::testing::ValuesIn(generateMultiConfig())),
+                            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
                     InferRequestPreprocessDynamicallyInSetBlobTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestPreprocessConversionTest,
-                    ::testing::Combine(
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::ValuesIn(ioPrecisions),
-                            ::testing::ValuesIn(ioPrecisions),
-                            ::testing::ValuesIn(netLayouts),
-                            ::testing::ValuesIn(ioLayouts),
-                            ::testing::ValuesIn(ioLayouts),
-                            ::testing::Bool(),
-                            ::testing::Bool(),
-                            ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                            ::testing::ValuesIn(generateAutoConfigs())),
-                    InferRequestPreprocessConversionTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestPreprocessDynamicallyInSetBlobTest,
-                    ::testing::Combine(
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Bool(),
-                            ::testing::Bool(),
-                            ::testing::ValuesIn(netLayouts),
-                            ::testing::Bool(),
-                            ::testing::Bool(),
-                            ::testing::Values(true), // only SetBlob
-                            ::testing::Values(true), // only SetBlob
-                            ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                            ::testing::ValuesIn(generateAutoConfigs())),
-                    InferRequestPreprocessDynamicallyInSetBlobTest::getTestCaseName);
+//INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestPreprocessConversionTest,
+//                    ::testing::Combine(
+//                            ::testing::ValuesIn(netPrecisions),
+//                            ::testing::ValuesIn(ioPrecisions),
+//                            ::testing::ValuesIn(ioPrecisions),
+//                            ::testing::ValuesIn(netLayouts),
+//                            ::testing::ValuesIn(ioLayouts),
+//                            ::testing::ValuesIn(ioLayouts),
+//                            ::testing::Bool(),
+//                            ::testing::Bool(),
+//                            ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+//                            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO)),
+//                    InferRequestPreprocessConversionTest::getTestCaseName);
+//
+//INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestPreprocessDynamicallyInSetBlobTest,
+//                    ::testing::Combine(
+//                            ::testing::ValuesIn(netPrecisions),
+//                            ::testing::Bool(),
+//                            ::testing::Bool(),
+//                            ::testing::ValuesIn(netLayouts),
+//                            ::testing::Bool(),
+//                            ::testing::Bool(),
+//                            ::testing::Values(true), // only SetBlob
+//                            ::testing::Values(true), // only SetBlob
+//                            ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+//                            ::testing::ValuesIn(generateConfigs(CommonTestUtils::A))),
+//                    InferRequestPreprocessDynamicallyInSetBlobTest::getTestCaseName);
 
 }  // namespace
