@@ -20,7 +20,6 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace detail {
-namespace {
 Output<ngraph::Node> get_zero_point(const OutputVector& inputs) {
     if (inputs.size() == 3 && !ngraph::op::is_null(inputs[2])) {
         auto zero_point = inputs[2];
@@ -34,7 +33,6 @@ Output<ngraph::Node> get_zero_point(const OutputVector& inputs) {
         return default_opset::Constant::create(element::f32, Shape{}, {0});
     }
 }
-}  // namespace
 }  // namespace detail
 namespace set_1 {
 OutputVector dequantize_linear(const Node& node) {
@@ -61,7 +59,6 @@ OutputVector dequantize_linear(const Node& node) {
 
 namespace set_13 {
 namespace detail {
-namespace {
 void validate_scale(const Output<ngraph::Node> scale, const Output<ngraph::Node> x, const int64_t axis) {
     const auto& scale_shape = scale.get_partial_shape();
     NGRAPH_CHECK(scale_shape.rank().get_length() == 0 || scale_shape.rank().get_length() == 1,
@@ -157,7 +154,6 @@ OutputVector dequantize_linear(Output<ngraph::Node> x,
         std::make_shared<default_opset::Multiply>(std::make_shared<default_opset::Subtract>(converted_x, zero_point),
                                                   scale)};
 }
-}  // namespace
 }  // namespace detail
 
 OutputVector dequantize_linear(const Node& node) {

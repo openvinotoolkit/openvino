@@ -94,6 +94,8 @@ int32_t GetValue(const Gna2Tensor& tensor, const T & elementIndex) {
     return intValue;
 }
 
+} // namespace
+
 void WriteInputAndOutputTextGNAImpl(const Gna2Model & gnaModel, const std::string dumpFolderNameGNA, const std::string refFolderName) {
     for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
         const auto & operation = gnaModel.Operations[i];
@@ -162,6 +164,8 @@ void WriteInputAndOutputTextGNAImpl(const Gna2Model & gnaModel, const std::strin
         } while (NextElement(inputElementIndex, intputTensor.Shape));
     }
 }
+
+namespace {
 
 template<typename T>
 static std::string GetName(T name, size_t index) {
