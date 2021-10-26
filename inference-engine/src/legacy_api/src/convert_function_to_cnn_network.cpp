@@ -2038,7 +2038,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 continue;
             }
 
-            auto outName = ngraph::op::util::create_ie_output_name(layer->output(i));
+            auto outName = ngraph::op::util::get_ie_output_name(layer->output(i));
 
 
             DataPtr &ptr = cnnNetworkImpl->getData(outName.c_str());
@@ -2090,7 +2090,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
             IE_ASSERT(layer->get_input_size() == 1);
             const auto &input = layer->input_value(0);
-            cnnNetworkImpl->addOutput(ngraph::op::util::create_ie_output_name(input));
+            cnnNetworkImpl->addOutput(ngraph::op::util::get_ie_output_name(input));
             continue;
         }
 

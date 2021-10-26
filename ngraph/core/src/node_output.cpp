@@ -87,7 +87,7 @@ const std::unordered_set<std::string>& Output<Node>::get_names() const {
 }
 
 std::string Output<Node>::get_any_name() const {
-    return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_any_name();
+    return get_tensor().get_any_name();
 }
 
 void Output<Node>::set_names(const std::unordered_set<std::string>& names) {
@@ -103,7 +103,7 @@ const std::unordered_set<std::string>& Output<const Node>::get_names() const {
 }
 
 std::string Output<const Node>::get_any_name() const {
-    return m_node->m_outputs.at(m_index).get_tensor_ptr()->get_any_name();
+    return get_tensor().get_any_name();
 }
 
 bool Output<Node>::operator==(const Output& other) const {

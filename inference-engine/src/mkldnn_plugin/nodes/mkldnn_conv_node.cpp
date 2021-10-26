@@ -494,6 +494,7 @@ void MKLDNNConvolutionNode::createPrimitive() {
 
     mkldnn::primitive_attr attr;
     addZeroPoints(attr);
+    // todo: [AV] delete "false" to use binary mechanism
     if (false && getSelectedPrimitiveDescriptor()->getImplementationType() == jit_gemm) {
         setPostOps(attr, true, true);
     } else {
@@ -512,6 +513,7 @@ void MKLDNNConvolutionNode::createPrimitive() {
     else
         primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()}, {DNNL_ARG_DST, dst}};
 
+// todo: [AV] uncomment to use binary mechanism
 //    auto post_ops = attr.get_post_ops();
 //    int idx = 0;
 //    for (int i = 0; i < post_ops.len(); i++) {

@@ -116,13 +116,13 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
 
         graphNodes.push_back(node);
 
-        if (op->get_type_info() == ngraph::op::v0::Parameter::type_info) {
+        if (op->get_type_info() == ngraph::op::v0::Parameter::get_type_info_static()) {
             inputNodesMap[node->getName()] = node;
         }
 
-        if (op->get_type_info() == ngraph::op::v0::Result::type_info) {
+        if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
             const auto prev = op->input_value(0);
-            const std::string inputID = ngraph::op::util::create_ie_output_name(prev);
+            const std::string inputID = ngraph::op::util::get_ie_output_name(prev);
 
             outputNodesMap[inputID] = node;
         }
@@ -139,9 +139,9 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
         }
 
         if (!MKLDNNPlugin::one_of(op->get_type_info(),
-                ngraph::op::v0::Result::type_info,
-                ngraph::op::v3::Assign::type_info,
-                ngraph::op::v6::Assign::type_info)) {
+                ngraph::op::v0::Result::get_type_info_static(),
+                ngraph::op::v3::Assign::get_type_info_static(),
+                ngraph::op::v6::Assign::get_type_info_static())) {
             int outPortIdx = 0;
             for (int oi = 0; oi < op->get_output_size(); oi++) {
                 op2node[op->output(oi).get_node_shared_ptr()] = {node, outPortIdx++};
@@ -211,7 +211,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         }
         graphNodes.push_back(node);
 
-        if (op->get_type_info() == ngraph::op::v0::Parameter::type_info) {
+        if (op->get_type_info() == ngraph::op::v0::Parameter::get_type_info_static()) {
             const auto inInfo = inputsInfo.find(node->getName());
             if (inInfo != inputsInfo.end()) {
                 inputNodesMap[node->getName()] = node;
@@ -222,9 +222,9 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
             }
         }
 
-        if (op->get_type_info() == ngraph::op::v0::Result::type_info) {
+        if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
             const auto &input = op->input_value(0);
-            const auto name = ngraph::op::util::create_ie_output_name(input);
+            const auto name = ngraph::op::util::get_ie_output_name(input);
 
             if (outputsInfo.count(name) != 0) {
                 outputNodesMap[name] = node;
@@ -243,9 +243,9 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         }
 
         if (!MKLDNNPlugin::one_of(op->get_type_info(),
-                ngraph::op::v0::Result::type_info,
-                ngraph::op::v3::Assign::type_info,
-                ngraph::op::v6::Assign::type_info)) {
+                ngraph::op::v0::Result::get_type_info_static(),
+                ngraph::op::v3::Assign::get_type_info_static(),
+                ngraph::op::v6::Assign::get_type_info_static())) {
             for (int oi = 0; oi < op->get_output_size(); oi++) {
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
@@ -956,7 +956,7 @@ void MKLDNNGraph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEn
         }
     };
 
-    for (int i = 1; i < graphNodes.size(); i++) {
+    for (int i = 0; i < graphNodes.size(); i++) {
         getPerfMapFor(perfMap, graphNodes[i]);
     }
 }

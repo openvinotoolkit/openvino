@@ -39,14 +39,3 @@ class SoPointerTests : public ::testing::Test {};
 TEST_F(SoPointerTests, UnknownPlugin) {
     ASSERT_THROW(SOPointer<InferenceEngine::details::UnknownPlugin>{std::string{"UnknownPlugin"}}, Exception);
 }
-
-TEST_F(SoPointerTests, UnknownPluginExceptionStr) {
-    try {
-        SOPointer<InferenceEngine::details::UnknownPlugin>(std::string{"UnknownPlugin"});
-    }
-    catch (Exception &e) {
-        ASSERT_STR_CONTAINS(e.what(), "Cannot load library 'UnknownPlugin':");
-        ASSERT_STR_DOES_NOT_CONTAIN(e.what(), "path:");
-        ASSERT_STR_DOES_NOT_CONTAIN(e.what(), "from CWD:");
-    }
-}
