@@ -27,6 +27,7 @@ ConcatTransformation::ConcatTransformation(const Params& params) : LayerTransfor
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
+
         if (transformation_callback(op)) {
             return false;
         }
@@ -40,6 +41,33 @@ ConcatTransformation::ConcatTransformation(const Params& params) : LayerTransfor
 
 bool ConcatTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
     std::shared_ptr<ngraph::opset1::Concat> concat = ngraph::as_type_ptr<ngraph::opset1::Concat>(m.get_match_root());
+    if (concat->get_friendly_name() == "stack0"/* ||
+        concat->get_friendly_name() == "stack1" ||
+        concat->get_friendly_name() == "stack2" ||
+        concat->get_friendly_name() == "stack3" ||
+        concat->get_friendly_name() == "stack4" ||
+        concat->get_friendly_name() == "stack5" ||
+        concat->get_friendly_name() == "stack6" ||
+        concat->get_friendly_name() == "stack7" ||
+        concat->get_friendly_name() == "stack8" ||
+        concat->get_friendly_name() == "stack9" ||
+        concat->get_friendly_name() == "stack10" ||
+        concat->get_friendly_name() == "stack11"*/) {
+        std::vector<std::shared_ptr<Node>> inputs;
+        for (auto i = 0; i < concat->get_input_size(); ++i) {
+            auto mul = concat->get_input_node_shared_ptr(i);
+            const std::shared_ptr<Node> transpose = std::make_shared<ngraph::opset1::Transpose>(
+                mul->get_input_node_shared_ptr(0),
+                std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ 6 }, std::vector<int>{ 0, 5, 2, 3, 4, 1}));
+            auto newMul = mul->clone_with_new_inputs({ transpose, mul->get_input_node_shared_ptr(1) });
+            const std::shared_ptr<Node> transpose1 = std::make_shared<ngraph::opset1::Transpose>(
+                newMul,
+                std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ 6 }, std::vector<int>{ 0, 5, 2, 3, 4, 1}));
+            inputs.push_back(transpose1);
+        }
+        auto newConcat = concat->clone_with_new_inputs(OutputVector{ inputs.begin(), inputs.end() });
+        replace_node(concat, newConcat);
+    }
     if (!canBeTransformed(context, concat)) {
         return false;
     }
