@@ -50,7 +50,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceDeformableConvolutionV8LayerTest.*bf16.*)",
         R"(.*ReferenceDeformableConvolutionV8LayerTest.*f64.*mask.*)",
         // CVS-64055
-        R"(.*ReferenceTransposeLayerTest.*_dynamic_shapes)",
+        R"(.*ReferenceTransposeLayerTest.*dynamic)",
     };
 
 #ifdef _WIN32

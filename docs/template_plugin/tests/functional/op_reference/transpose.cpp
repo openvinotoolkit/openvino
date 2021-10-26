@@ -83,22 +83,38 @@ template <element::Type_t IN_ET>
 std::vector<TransposeParams> generateTransposeParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
     std::vector<TransposeParams> transposeParams {
-        // transpose_basic_dynamic_shapes
+        // transpose_basic
+        TransposeParams({},
+                        Tensor({2, 3}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6}),
+                        Tensor({2}, element::i64, std::vector<int64_t>{0, 1}),
+                        Tensor({2, 3}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6}),
+                        "transpose_basic_1"),
+        TransposeParams({},
+                        Tensor({2, 3}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6}),
+                        Tensor({2}, element::i64, std::vector<int64_t>{1, 0}),
+                        Tensor({3, 2}, IN_ET, std::vector<T>{1, 4, 2, 5, 3, 6}),
+                        "transpose_basic_2"),
+        TransposeParams({},
+                        Tensor({2, 2, 3}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
+                        Tensor({3}, element::i64, std::vector<int64_t>{2, 1, 0}),
+                        Tensor({3, 2, 2}, IN_ET, std::vector<T>{1, 7, 4, 10, 2, 8, 5, 11, 3, 9, 6, 12}),
+                        "transpose_basic_3"),
+        // transpose_basic_dynamic
         TransposeParams(PartialShape::dynamic(),
                         Tensor({2, 3}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6}),
                         Tensor({2}, element::i64, std::vector<int64_t>{0, 1}),
                         Tensor({2, 3}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6}),
-                        "transpose_basic_1_dynamic_shapes"),
+                        "transpose_basic_1_dynamic"),
         TransposeParams(PartialShape::dynamic(),
                         Tensor({2, 3}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6}),
                         Tensor({2}, element::i64, std::vector<int64_t>{1, 0}),
                         Tensor({3, 2}, IN_ET, std::vector<T>{1, 4, 2, 5, 3, 6}),
-                        "transpose_basic_2_dynamic_shapes"),
+                        "transpose_basic_2_dynamic"),
         TransposeParams(PartialShape::dynamic(),
                         Tensor({2, 2, 3}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
                         Tensor({3}, element::i64, std::vector<int64_t>{2, 1, 0}),
                         Tensor({3, 2, 2}, IN_ET, std::vector<T>{1, 7, 4, 10, 2, 8, 5, 11, 3, 9, 6, 12}),
-                        "transpose_basic_3_dynamic_shapes"),
+                        "transpose_basic_3_dynamic"),
         // transpose_axes_constant
         TransposeParams({},
                         Tensor({2, 1, 3, 4}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
@@ -107,6 +123,14 @@ std::vector<TransposeParams> generateTransposeParams() {
                         Tensor({3, 4, 2, 1}, IN_ET, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
                                                                    7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24}),
                         "transpose_axes_constant"),
+        // transpose_axes_constant_dynamic
+        TransposeParams(PartialShape::dynamic(),
+                        Tensor({2, 1, 3, 4}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+                                                                   13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
+                        Tensor({4}, element::i64, std::vector<int64_t>{2, 3, 0, 1}),
+                        Tensor({3, 4, 2, 1}, IN_ET, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
+                                                                   7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24}),
+                        "transpose_axes_constant_dynamic"),
         // transpose_axes_empty_constant
         TransposeParams({},
                         Tensor({2, 1, 3, 4}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
@@ -115,14 +139,30 @@ std::vector<TransposeParams> generateTransposeParams() {
                         Tensor({4, 3, 1, 2}, IN_ET, std::vector<T>{1, 13, 5, 17, 9,  21, 2, 14, 6, 18, 10, 22,
                                                                    3, 15, 7, 19, 11, 23, 4, 16, 8, 20, 12, 24}),
                         "transpose_axes_empty_constant"),
-        // transpose_axes_parameter_dynamic_shapes
+        // transpose_axes_empty_constant_dynamic
         TransposeParams(PartialShape::dynamic(),
+                        Tensor({2, 1, 3, 4}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+                                                                   13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
+                        Tensor({0}, element::i64, std::vector<int64_t>{}),
+                        Tensor({4, 3, 1, 2}, IN_ET, std::vector<T>{1, 13, 5, 17, 9,  21, 2, 14, 6, 18, 10, 22,
+                                                                   3, 15, 7, 19, 11, 23, 4, 16, 8, 20, 12, 24}),
+                        "transpose_axes_empty_constant_dynamic"),
+        // transpose_axes_parameter
+        TransposeParams({},
                         Tensor({2, 1, 3, 4}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
                                                                    13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
                         Tensor({4}, element::i64, std::vector<int64_t>{2, 3, 0, 1}),
                         Tensor({4, 3, 1, 2}, IN_ET, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
                                                                    7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24}),
                         "transpose_axes_parameter_dynamic_shapes"),
+        // transpose_axes_parameter_dynamic
+        TransposeParams(PartialShape::dynamic(),
+                        Tensor({2, 1, 3, 4}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+                                                                   13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
+                        Tensor({4}, element::i64, std::vector<int64_t>{2, 3, 0, 1}),
+                        Tensor({4, 3, 1, 2}, IN_ET, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
+                                                                   7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24}),
+                        "transpose_axes_parameter_dynamic"),
         // transpose_int_data_axes_constant
         TransposeParams({},
                         Tensor({2, 1, 3, 4}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
@@ -131,6 +171,14 @@ std::vector<TransposeParams> generateTransposeParams() {
                         Tensor({3, 4, 2, 1}, IN_ET, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
                                                                    7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24}),
                         "transpose_int_data_axes_constant"),
+        // transpose_int_data_axes_constant_dynamic
+        TransposeParams(PartialShape::dynamic(),
+                        Tensor({2, 1, 3, 4}, IN_ET, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+                                                                   13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
+                        Tensor({4}, element::i64, std::vector<int64_t>{2, 3, 0, 1}),
+                        Tensor({3, 4, 2, 1}, IN_ET, std::vector<T>{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
+                                                                   7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24}),
+                        "transpose_int_data_axes_constant_dynamic"),
     };
     return transposeParams;
 }
