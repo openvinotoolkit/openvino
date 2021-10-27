@@ -6,7 +6,6 @@
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/register_info.hpp"
 #include <ngraph/opsets/opset1.hpp>
-#include "legacy/ngraph_ops/fully_connected.hpp"
 //#include "mkldnn_itt.h"
 
 namespace ngraph {
