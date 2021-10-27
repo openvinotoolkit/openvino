@@ -154,6 +154,7 @@ public:
     void add_convert_impl(const element::Type& type);
     void add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_width);
     void add_convert_layout_impl(const Layout& layout);
+    void add_convert_layout_impl(const std::vector<uint64_t>& dims);
     void add_convert_color_impl(const ColorFormat& dst_format);
     void add_reverse_channels();
 
@@ -164,6 +165,27 @@ public:
         return m_actions;
     }
 
+    PartialShape calculate_param_shape(const PartialShape& network_shape) const {
+        if (network_shape.rank().is_dynamic()) {
+            return network_shape;
+        }
+
+        std::vector<Dimension> old_dims(network_shape.rank().get_length());
+        std::vector<Dimension> dims(network_shape.rank().get_length());
+        for (size_t i = 0; i < network_shape.rank().get_length(); i++) {
+            dims[i] = network_shape[i];
+        }
+        for (const auto& convert : m_layout_converts) {
+            old_dims = dims;
+            dims = std::vector<Dimension>(network_shape.rank().get_length());
+            for (size_t i = 0; i < convert.size(); i++) {
+                OPENVINO_ASSERT(convert[i] < dims.size(), "Convert dimension ", convert[i], " is out of bounds.");
+                dims[convert[i]] = old_dims[i];
+            }
+        }
+        return {dims};
+    }
+
 private:
     static std::tuple<std::vector<Output<Node>>, bool> reverse_channels(const std::vector<Output<Node>>& nodes,
                                                                         const std::shared_ptr<Function>& function,
@@ -171,6 +193,7 @@ private:
 
 private:
     std::list<InternalPreprocessOp> m_actions;
+    std::list<std::vector<uint64_t>> m_layout_converts;
 };
 
 class PreProcessSteps::PreProcessStepsImpl : public PreStepsList {};
@@ -189,6 +212,7 @@ class PostStepsList {
 public:
     void add_convert_impl(const element::Type& type);
     void add_convert_layout_impl(const Layout& layout);
+    void add_convert_layout_impl(const std::vector<uint64_t>& dims);
 
     const std::list<InternalPostprocessOp>& actions() const {
         return m_actions;

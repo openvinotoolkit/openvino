@@ -299,6 +299,17 @@ inline std::shared_ptr<Function> resize_and_convert_layout() {
     return function;
 }
 
+inline std::shared_ptr<Function> convert_layout_by_dims() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_1input(element::f32, PartialShape{1, 30, 20, 3});
+    function = PrePostProcessor()
+            .input(InputInfo()
+                           .preprocess(PreProcessSteps()
+                                               .convert_layout({0, 3, 1, 2})))
+            .build(function);
+    return function;
+}
+
 inline std::shared_ptr<Function> resize_and_convert_layout_i8() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::i8, PartialShape{1, 30, 20, 3});
@@ -376,6 +387,7 @@ inline std::vector<preprocess_func> generic_preprocess_functions() {
             preprocess_func(resize_nearest, "resize_nearest", 0.01f),
             preprocess_func(resize_linear_nhwc, "resize_linear_nhwc", 0.01f),
             preprocess_func(resize_cubic, "resize_cubic", 0.01f),
+            preprocess_func(convert_layout_by_dims, "convert_layout_by_dims", 0.01f),
             preprocess_func(resize_and_convert_layout, "resize_and_convert_layout", 0.01f),
             preprocess_func(resize_and_convert_layout_i8, "resize_and_convert_layout_i8", 0.01f),
             preprocess_func(cvt_color_nv12_to_rgb_single_plane, "cvt_color_nv12_to_rgb_single_plane", 2.f),
