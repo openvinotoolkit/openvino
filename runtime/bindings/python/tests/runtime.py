@@ -12,6 +12,7 @@ from openvino import Core, IENetwork, Blob, DataPtr
 from openvino.exceptions import UserInputError
 from openvino.impl import Function, Node, PartialShape, Type
 from openvino.opset1.ops import result
+from openvino.pyopenvino.util import get_tensor_name
 from openvino.utils.types import NumericData, get_shape, get_dtype
 
 import tests
@@ -124,7 +125,7 @@ class Computation(object):
         if len(self.results) == 1:
             return next(iter(outputs.keys()))
         else:
-            output_tensor_name = ng.impl.util.get_tensor_name(ng_result)
+            output_tensor_name = get_tensor_name(ng_result)
             if (len(output_tensor_name) > 0):
                 return output_tensor_name
             else:

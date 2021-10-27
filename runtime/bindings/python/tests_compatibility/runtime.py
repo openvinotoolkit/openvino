@@ -13,6 +13,7 @@ from ngraph.exceptions import UserInputError
 from ngraph.impl import Function, Node, PartialShape, Type
 from ngraph.opset1.ops import result
 from ngraph.utils.types import NumericData, get_shape, get_dtype
+from ngraph.pyngraph.util import get_tensor_name
 
 import tests_compatibility
 
@@ -111,11 +112,15 @@ class Computation(object):
         if len(self.results) == 1:
             return next(iter(outputs.keys()))
         else:
-            prev_layer = ng_result.input(0).get_source_output()
-            out_name = prev_layer.get_node().get_friendly_name()
-            if prev_layer.get_node().get_output_size() != 1:
-                out_name += "." + str(prev_layer.get_index())
-            return out_name
+            output_tensor_name = get_tensor_name(ng_result)
+            if (len(output_tensor_name) > 0):
+                return output_tensor_name
+            else:
+                prev_layer = ng_result.input(0).get_source_output()
+                out_name = prev_layer.get_node().get_friendly_name()
+                if prev_layer.get_node().get_output_size() != 1:
+                    out_name += "." + str(prev_layer.get_index())
+                return out_name
 
     def _get_ie_output_blob_buffer(self, output_blobs: Dict[str, Blob], ng_result: result) -> np.ndarray:
         out_name = self._get_ie_output_blob_name(output_blobs, ng_result)
