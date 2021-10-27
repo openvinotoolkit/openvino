@@ -157,7 +157,7 @@ INSTANTIATE_TEST_SUITE_P(NV12toRGBTestFluid, NV12toRGBTestGAPI,
                                        cv::Size( 640,  480),
                                        cv::Size( 300,  300),
                                        cv::Size( 320,  200)),
-                                Values(0)));
+                                Values(1)));
 
 INSTANTIATE_TEST_SUITE_P(I420toRGBTestFluid, I420toRGBTestGAPI,
                         Combine(Values(cv::Size(3840, 2160),
@@ -168,7 +168,7 @@ INSTANTIATE_TEST_SUITE_P(I420toRGBTestFluid, I420toRGBTestGAPI,
                                        cv::Size( 640,  480),
                                        cv::Size( 300,  300),
                                        cv::Size( 320,  200)),
-                                Values(0)));
+                                Values(1)));
 
 INSTANTIATE_TEST_SUITE_P(ConvertDepthFluid, ConvertDepthTestGAPI,
                         Combine(Values(CV_16U, CV_32F, CV_8U),
