@@ -282,8 +282,9 @@ TEST(ie_core_read_network, networkRead) {
     ie_core_free(&core);
 }
 
-static std::vector<uint8_t> content_from_file(const char * filename, bool is_binary) {
-    std::vector<uint8_t> result;
+template<class T>
+static std::vector<T> content_from_file(const char * filename, bool is_binary) {
+    std::vector<T> result;
     {
         std::ifstream is(filename, is_binary ? std::ifstream::binary | std::ifstream::in : std::ifstream::in);
         if (is) {
@@ -303,7 +304,7 @@ TEST(ie_core_read_network_from_memory, networkReadFromMemory) {
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    std::vector<uint8_t> weights_content(content_from_file(bin, true));
+    std::vector<uint8_t> weights_content(content_from_file<uint8_t>(bin, true));
 
     tensor_desc_t weights_desc { ANY, { 1, { weights_content.size() } }, U8 };
     ie_blob_t *weights_blob = nullptr;
@@ -311,7 +312,7 @@ TEST(ie_core_read_network_from_memory, networkReadFromMemory) {
     EXPECT_NE(nullptr, weights_blob);
 
     if (weights_blob != nullptr) {
-        std::vector<uint8_t> xml_content(content_from_file(xml, false));
+        std::vector<uint8_t> xml_content(content_from_file<uint8_t>(xml, false));
         
         ie_network_t *network = nullptr;
         IE_EXPECT_OK(ie_core_read_network_from_memory(core, xml_content.data(), xml_content.size(), weights_blob, &network));
@@ -321,6 +322,85 @@ TEST(ie_core_read_network_from_memory, networkReadFromMemory) {
         }
         ie_blob_free(&weights_blob);
     }
+    ie_core_free(&core);
+}
+
+TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
+    ie_core_t *core = nullptr;
+    IE_ASSERT_OK(ie_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ie_config_t config = {"CPU_THREADS_NUM", "3", nullptr};
+    ie_executable_network_t *exe_network = nullptr;
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "CPU", &config, &exe_network));
+    EXPECT_NE(nullptr, exe_network);
+    
+    ie_blob_t *blob = nullptr;
+    IE_EXPECT_OK(ie_core_export_network_to_memory(core, &blob, &exe_network));
+    EXPECT_NE(nullptr, blob);
+    
+    // tensor_desc_t model_desc { ANY, { 1, { strlen(str) } }, U8 };
+    // ie_blob_t *model_blob = nullptr;
+    // IE_EXPECT_OK(ie_blob_make_memory_from_preallocated(&model_desc, str, strlen(str), &model_blob));
+    // EXPECT_NE(nullptr, model_blob);
+
+    ie_executable_network_t *network = nullptr;
+    IE_EXPECT_OK(ie_core_import_network_from_memory(core, blob, &network));
+    EXPECT_NE(nullptr, network);
+    if (network != nullptr) {
+        ie_exec_network_free(&network);
+    }
+    if (exe_network != nullptr) {
+        ie_exec_network_free(&exe_network);
+    }
+    ie_blob_free(&blob);
+    ie_core_free(&core);
+}
+
+TEST(ie_core_import_network_from_file, importNetworkFromFile) {
+    ie_core_t *core = nullptr;
+    IE_ASSERT_OK(ie_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ie_config_t config = {"CPU_THREADS_NUM", "3", nullptr};
+    ie_executable_network_t *exe_network = nullptr;
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "CPU", &config, &exe_network));
+    EXPECT_NE(nullptr, exe_network);
+
+    const char* file = "expoted.bin";
+    IE_EXPECT_OK(ie_core_export_network(core, file, &exe_network));
+
+    IE_EXPECT_OK(ie_core_import_network(core, file, "CPU", &config, &exe_network));
+    EXPECT_NE(nullptr, exe_network);
+    ie_exec_network_free(&exe_network);
+    ie_core_free(&core);
+}
+
+TEST(ie_core_import_network_from_file, importNetwork_errorHandling) {
+    ie_core_t *core = nullptr;
+    IE_ASSERT_OK(ie_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ie_config_t config = {nullptr, nullptr, nullptr};
+    ie_executable_network_t *exe_network = nullptr;
+    const char *file_name = "exported_model.bin";
+    IE_EXPECT_NOT_OK(ie_core_import_network(nullptr, file_name, "CPU", &config, &exe_network));
+    EXPECT_EQ(nullptr, exe_network);
+
+    IE_EXPECT_NOT_OK(ie_core_import_network(core, nullptr, "CPU", &config, &exe_network));
+    EXPECT_EQ(nullptr, exe_network);
+
+    IE_EXPECT_NOT_OK(ie_core_import_network(core, file_name, nullptr, &config, &exe_network));
+    EXPECT_EQ(nullptr, exe_network);
+
+    IE_EXPECT_NOT_OK(ie_core_import_network(core, file_name, "CPU", nullptr, &exe_network));
+    EXPECT_EQ(nullptr, exe_network);
+
+    IE_EXPECT_NOT_OK(ie_core_import_network(core, file_name, "CPU", &config, nullptr));
+    EXPECT_EQ(nullptr, exe_network);
+
+    IE_EXPECT_NOT_OK(ie_core_import_network(core, file_name, "UnregisteredDevice", &config, &exe_network));
+    EXPECT_EQ(nullptr, exe_network);
 
     ie_core_free(&core);
 }
