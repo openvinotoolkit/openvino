@@ -54,7 +54,7 @@ protected:
             dsr->get_input_element_type(0),
             ngraph::PartialShape::dynamic(outShapeDescriptorParam->get_output_partial_shape(0).rank()));
 
-        const auto transformations = vpu::Transformations{{ngraph::op::v1::Reshape::type_info, vpu::dynamicToStaticShapeReshape}};
+        const auto transformations = vpu::Transformations{{ngraph::op::v1::Reshape::get_type_info_static(), vpu::dynamicToStaticShapeReshape}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
