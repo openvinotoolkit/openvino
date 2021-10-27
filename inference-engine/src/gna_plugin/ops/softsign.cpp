@@ -39,27 +39,18 @@ inline bool evaluate(const ngraph::HostTensorPtr& arg, const ngraph::HostTensorP
     return true;
 }
 
-#ifndef NGRAPH_TYPE_CASE
-/* NGRAPH_TYPE_CASE is basicaly defined in ngraph/core/src/itt.h and also contains different
-   macro for tracing
-   TODO: is it good to use that header since it's not placed in ngraph/core/include?
-*/
-#define NGRAPH_TYPE_CASE(region, a, ...)                        \
-    case ov::element::Type_t::a: {                              \
-        {                                                       \
-            rc = evaluate<ov::element::Type_t::a>(__VA_ARGS__); \
-        }                                                       \
-    } break
-#endif // NGRAPH_TYPE_CASE
-
 bool evaluate_softsign(const ngraph::HostTensorPtr& arg, const ngraph::HostTensorPtr& out) {
     bool rc = true;
     out->set_unary(arg);
     size_t count = shape_size(arg->get_shape());
 
     switch (arg->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_softsign, f16, arg, out, count);
-        NGRAPH_TYPE_CASE(evaluate_softsign, f32, arg, out, count);
+    case ov::element::Type_t::f16:
+        rc = evaluate<ov::element::Type_t::f16>(arg, out, count);
+        break;
+    case ov::element::Type_t::f32:
+        rc = evaluate<ov::element::Type_t::f32>(arg, out, count);
+        break;
     default:
         rc = false;
         break;
