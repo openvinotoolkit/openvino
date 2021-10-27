@@ -71,42 +71,13 @@ TEST_F(TransformationTestsF, FQTransposeNegativeCase) {
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{transpose}, ngraph::ParameterVector{data});
     };
-    auto f = create_graph();
+    function = create_graph();
 
-    ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::PullTransposeThroughFQUp>();
     manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
         check_rt_info(f);
     });
 
-    auto f_ref = create_graph();
-    auto res = compare_functions(f, f_ref, true);
-    ASSERT_TRUE(res.first) << res.second;
-}
-
-TEST_F(TransformationTestsF, FQTransposeDynamic) {
-    auto data = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
-    auto input_low = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {2});
-    auto input_high = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {3});
-    auto output_low = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {2});
-    auto output_high = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {3});
-    auto transpose_order = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 2, 1});
-
-    std::shared_ptr<ngraph::Function> f(nullptr);
-    {
-        auto fq = std::make_shared<ngraph::op::FakeQuantize>(data, input_low, input_high, output_low, output_high, 1);
-        auto transpose = std::make_shared<ngraph::op::Transpose>(fq, transpose_order);
-
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{transpose}, ngraph::ParameterVector{data});
-
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::PullTransposeThroughFQUp>();
-        manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
-            check_rt_info(f);
-        });
-        manager.register_pass<ngraph::pass::ConstantFolding>();
-        ASSERT_NO_THROW(manager.run_passes(f));
-    }
+    function_ref = create_graph();
 }
