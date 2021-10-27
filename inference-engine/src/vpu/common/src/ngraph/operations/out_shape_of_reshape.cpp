@@ -7,8 +7,6 @@
 
 namespace ngraph { namespace vpu { namespace op {
 
-constexpr NodeTypeInfo OutShapeOfReshape::type_info;
-
 OutShapeOfReshape::OutShapeOfReshape(
         const Output<Node>& inDataShape,
         const Output<Node>& outShapeDescriptor,
