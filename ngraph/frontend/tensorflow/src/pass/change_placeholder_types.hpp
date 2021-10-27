@@ -11,6 +11,9 @@ namespace frontend {
 namespace tf {
 namespace pass {
 
+/**
+ * @brief Add OldApiMap with legacy type for Parameter node
+ */
 class TF_API ChangePlaceholderTypes : public ov::pass::FunctionPass {
 public:
     OPENVINO_RTTI("ov::frontend::tf::pass::ChangePlaceholderTypes");

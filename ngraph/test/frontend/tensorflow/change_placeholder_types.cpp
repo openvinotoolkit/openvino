@@ -3,13 +3,13 @@
 //
 
 #include "change_placeholder_types.hpp"
-#include "transformations/rt_info/old_api_map_attribute.hpp"
 
 #include <frontend_manager/frontend_manager.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/manager.hpp>
 
 #include "gtest/gtest.h"
+#include "transformations/rt_info/old_api_map_attribute.hpp"
 
 using namespace std;
 using namespace ov;
