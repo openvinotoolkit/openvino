@@ -115,13 +115,53 @@ const std::vector<InferenceEngine::Precision> netPrecisionsPerChannels = {
         Precision::FP32
 };
 
-const std::vector<inputShapesPair>
-    staticInputShapes4D = {
-        {{}, {{{2, 32, 10, 20}}}}
+const std::vector<inputShapesPair> staticInputShapes4D = {
+    {
+        {},
+        { // Static shapes
+            {{2, 16, 21, 10}}
+        }
+    },
+    {
+        {},
+        { // Static shapes
+            {{3, 16, 11, 12}}
+        }
+    },
+    {
+        {},
+        { // Static shapes
+            {{4, 32, 16, 14}}
+        }
+    },
+    {
+        {},
+        { // Static shapes
+            {{16, 32, 5, 16}}
+        }
+    }
 };
-const std::vector<inputShapesPair>
-    dynamicInputShapes4D = {
-        {{{2, ov::Dimension(20, 40), 10, 20}}, {{{2, 32, 10, 20}, {2, 10, 10, 20}}}}
+const std::vector<inputShapesPair> dynamicInputShapes4D = {
+    {
+        { // Origin dynamic shapes
+            {ov::Dimension(1, 20), ov::Dimension(10, 40), ov::Dimension(10, 40), ov::Dimension(10, 40)}
+        },
+        { // Dynamic shapes instances
+            {{1, 32, 21, 10}},
+            {{2, 25, 11, 12}},
+            {{4, 15, 16, 14}},
+            {{7, 10, 20, 16}}
+        }
+    },
+    {
+        { // Origin dynamic shapes
+            {-1, -1, -1, -1}
+        },
+        { // Dynamic shapes instances
+            {{1, 24, 21, 8}},
+            {{2, 16, 11, 6}}
+        }
+    }
 };
 
 const std::vector<std::vector<size_t>> inputOrder4D = {
@@ -162,7 +202,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamicShapes4D_Transpose, TransposeLayerCPUTest,
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_CPU),
                             ::testing::Values(additional_config),
-                            ::testing::ValuesIn(std::vector<CPUSpecificParams>{})),
+                            ::testing::Values(CPUSpecificParams{})),
                         TransposeLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_staticShapes4D_PermutePerChannels, TransposeLayerCPUTest,
@@ -182,16 +222,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamicShapes4D_PermutePerChannels, TransposeLaye
                             ::testing::ValuesIn(netPrecisionsPerChannels),
                             ::testing::Values(CommonTestUtils::DEVICE_CPU),
                             ::testing::Values(additional_config),
-                            ::testing::Values(cpuParams_nhwc)),
+                            ::testing::Values(CPUSpecificParams{})),
                         TransposeLayerCPUTest::getTestCaseName);
 
-const std::vector<inputShapesPair>
-    staticInputShapes5D = {
-        {{}, {{{2, 32, 5, 10, 20}}}}
+const std::vector<inputShapesPair> staticInputShapes5D = {
+    {
+        {},
+        { // Static shapes
+            {{2, 16, 5, 6, 5}},
+            {{3, 16, 6, 5, 6}},
+            {{4, 32, 5, 6, 5}},
+            {{5, 32, 6, 5, 6}}
+        }
+    }
 };
-const std::vector<inputShapesPair>
-    dynamicInputShapes5D = {
-        {{{2, ov::Dimension(20, 40), 5, 10, 20}}, {{{2, 32, 5, 10, 20}, {2, 20, 5, 10, 20}}}}
+const std::vector<inputShapesPair> dynamicInputShapes5D = {
+    {
+        { // Origin dynamic shapes
+            {ov::Dimension(1, 20), ov::Dimension(5, 150), ov::Dimension(5, 40), ov::Dimension(5, 40), ov::Dimension(5, 40)}
+        },
+        { // Dynamic shapes instances
+            {{1, 32, 5, 6, 5}},
+            {{2, 32, 6, 5, 6}},
+            {{4, 55, 5, 6, 5}},
+            {{3, 129, 6, 5, 6}}
+        }
+    }
 };
 
 const std::vector<std::vector<size_t>> inputOrder5D = {
@@ -240,7 +296,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamicShapes5D_Transpose, TransposeLayerCPUTest,
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_CPU),
                             ::testing::Values(additional_config),
-                            ::testing::ValuesIn(std::vector<CPUSpecificParams>{})),
+                            ::testing::Values(CPUSpecificParams{})),
                         TransposeLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_staticShapes5D_PermutePerChannels, TransposeLayerCPUTest,
@@ -260,7 +316,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamicShapes5D_PermutePerChannels, TransposeLaye
                             ::testing::ValuesIn(netPrecisionsPerChannels),
                             ::testing::Values(CommonTestUtils::DEVICE_CPU),
                             ::testing::Values(additional_config),
-                            ::testing::Values(cpuParams_ndhwc)),
+                            ::testing::Values(CPUSpecificParams{})),
                         TransposeLayerCPUTest::getTestCaseName);
 
 } // namespace
