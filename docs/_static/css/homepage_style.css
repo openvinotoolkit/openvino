@@ -11,7 +11,6 @@ img {
 
 /* === SEPARATOR HEADERS ================================================= */
 .HP_separator-header { 
-	font-family: Intel Clear;
 	font-weight: bold;
 	text-align: center;
 	width: 100%;
@@ -52,7 +51,6 @@ img {
 }
 #HP_head_banner > p {
 float: right;
-    font-family: Intel Clear;
     font-size: 1.5em;
     font-weight: bold;
     color: #fff;
@@ -93,7 +91,6 @@ float: right;
 #HP_head_banner > div > a:nth-of-type(1) {
 	width: 9em;
 	padding: 4px;
-	font-family: Intel Clear;
 	font-weight: bold;
 	color: #0068B5;
 	text-decoration: none;
@@ -140,7 +137,6 @@ img.HP_img_chart ~ p {
 
 .HP_infoboxes a p,
 .HP_infoboxes a h3 {
-	font-family: Intel Clear;
 	color: #fff;
 	margin: 0;
 	text-align: left;
