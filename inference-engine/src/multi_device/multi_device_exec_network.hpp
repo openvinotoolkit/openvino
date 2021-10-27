@@ -39,6 +39,20 @@ struct DeviceInformation {
     std::string defaultDeviceID;
 };
 
+struct AutoLoadContext {
+    std::atomic<bool> isEnabled;
+    std::atomic<bool> isAlready;
+    std::atomic<bool> isLoadSucceeded;
+    std::future<void> future;
+    std::promise<void> promise;
+    InferenceEngine::SoExecutableNetworkInternal executableNetwork;
+    DeviceInformation  deviceInfo;
+    std::vector<DeviceInformation> metaDevices;
+    std::string networkPrecision;
+    std::string errMessage;
+    InferenceEngine::Task task;
+};
+
 template<typename T>
 using DeviceMap = std::unordered_map<DeviceName, T>;
 
@@ -163,25 +177,21 @@ private:
     static bool RunPipelineTask(InferenceEngine::Task& inferPipelineTask,
                                 NotBusyWorkerRequests& idleWorkerRequests,
                                 const DeviceName& preferred_device);
+    void TryToLoadNetWork(AutoLoadContext& context,
+                          const std::string& modelPath,
+                          const InferenceEngine::CNNNetwork& network);
 
 private:
     std::shared_ptr<InferenceEngine::ICore>                             _core;
     InferenceEngine::IStreamsExecutor::Ptr                              _executor;
     MultiDeviceInferencePlugin*                                         _multiPlugin;
-    InferenceEngine::SoExecutableNetworkInternal                        _networkFirstReady;
-    mutable InferenceEngine::SoExecutableNetworkInternal                _networkActualNeeded;
-    NetworkFuture                                                       _cpuFuture;
-    NetworkPromise                                                      _cpuPromise;
-    mutable NetworkFuture                                               _acceleratorFuture;
-    mutable NetworkPromise                                              _acceleratorPromise;
-    mutable std::atomic<bool>                                           _alreadyActualNetwork = {false};
     bool                                                                _workModeIsAUTO = {false};
-    DeviceInformation                                                   _cpuDevice;
-    mutable DeviceInformation                                           _acceleratorDevice;
     mutable std::once_flag                                              _oc;
-    std::once_flag                                                      _firstReadyOC;
-    std::future<void>                                                   _firstReadyFuture;
-    std::promise<void>                                                  _firstReadyPromise;
+    std::once_flag                                                      _firstLoadOC;
+    std::future<void>                                                   _firstLoadFuture;
+    std::promise<void>                                                  _firstLoadPromise;
+    mutable AutoLoadContext                                             _loadContext[2];
+    std::mutex                                                          _confMutex;
 };
 
 }  // namespace MultiDevicePlugin
