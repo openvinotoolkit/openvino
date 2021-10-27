@@ -92,7 +92,7 @@ void compare(const ov::runtime::Tensor& expected,
     struct Error {
         double max = 0.;
         double mean = 0.;
-        Coordinate max_coordinate;
+        size_t max_coordinate;
         size_t count = 0;
     } abs_error, rel_error;
     auto less = [] (double a, double b) {
