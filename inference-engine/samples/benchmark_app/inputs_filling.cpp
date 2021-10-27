@@ -405,9 +405,10 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                 }
             }
             // Fill random
-//            slog::info << "Fill input '" << item.first << "' with random values ("
-//                       << std::string((app_info.isImage() ? "image" : "some binary data")) << " is expected)"
-//                       << slog::endl;
+            //            slog::info << "Fill input '" << item.first << "' with random values ("
+            //                       << std::string((app_info.isImage() ? "image" : "some binary data")) << " is
+            //                       expected)"
+            //                       << slog::endl;
             if (precision == InferenceEngine::Precision::FP32) {
                 fillBlobRandom<float, float>(inputBlob);
             } else if (precision == InferenceEngine::Precision::FP16) {
