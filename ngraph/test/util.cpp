@@ -19,6 +19,7 @@
 #include "ngraph/opsets/opset8.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
+#include "ngraph/validation_util.hpp"
 #include "openvino/core/version.hpp"
 #include "util/all_close.hpp"
 #include "util/ndarray.hpp"
@@ -863,4 +864,72 @@ TEST(util_host_tensor_2_vector, ht_u64_2_vec_uint64) {
     vector<uint64_t> input{0, 1, std::numeric_limits<uint64_t>::min(), std::numeric_limits<uint64_t>::max()};
     vector<uint64_t> output{input};
     host_tensor_2_vector_test<decltype(input)::value_type, decltype(output)::value_type>(input, output, element::u64);
+}
+
+template <typename T>
+static void test_get_constant_from_source(const std::shared_ptr<Node>& node, const std::vector<T>& expected) {
+    auto res = get_constant_from_source(node);
+    ASSERT_NE(res, nullptr);
+    auto actual = res->cast_vector<T>();
+    ASSERT_EQ(expected, actual);
+}
+
+template <typename T, typename U>
+static void test_convert_with_get_constant_from_source(const std::vector<T>& input, const std::vector<U>& expected) {
+    auto constant = make_shared<opset8::Constant>(element::from<T>(), Shape{input.size()}, input);
+    auto convert = make_shared<opset8::Convert>(constant, element::from<U>());
+    test_get_constant_from_source(convert, expected);
+}
+
+TEST(validation_util, get_constant_from_source) {
+    {
+        std::vector<uint64_t> input{0, 1, std::numeric_limits<uint64_t>::max()};
+        std::vector<uint32_t> expected{0, 1, std::numeric_limits<uint32_t>::max()};
+        test_convert_with_get_constant_from_source(input, expected);
+    }
+    {
+        std::vector<int8_t> input{-128, -1, 0, 1, 127};
+        std::vector<float> expected{-128, -1, 0, 1, 127};
+        test_convert_with_get_constant_from_source(input, expected);
+    }
+    {
+        std::vector<uint8_t> input{0, 1, 255};
+        std::vector<float> expected{0, 1, 255};
+        test_convert_with_get_constant_from_source(input, expected);
+    }
+    {
+        std::vector<bool> input{false, true};
+        std::vector<float> expected{0, 1};
+        test_convert_with_get_constant_from_source(input, expected);
+    }
+    {
+        std::vector<float> input{1, 0};
+        std::vector<bool> expected{true, false};
+        test_convert_with_get_constant_from_source(input, expected);
+    }
+    {
+        std::vector<uint32_t> input{0, 1, std::numeric_limits<uint32_t>::max()};
+        std::vector<float> expected{0, 1, static_cast<float>(std::numeric_limits<uint32_t>::max())};
+        test_convert_with_get_constant_from_source(input, expected);
+    }
+    {
+        std::vector<int32_t> input{0, 1, std::numeric_limits<int32_t>::max()};
+        std::vector<float> expected{0, 1, static_cast<float>(std::numeric_limits<int32_t>::max())};
+        test_convert_with_get_constant_from_source(input, expected);
+    }
+    {
+        std::vector<uint64_t> input{0, 1, std::numeric_limits<uint64_t>::max()};
+        std::vector<float> expected{0, 1, static_cast<float>(std::numeric_limits<uint64_t>::max())};
+        test_convert_with_get_constant_from_source(input, expected);
+    }
+    {
+        std::vector<int64_t> input{0, 1, std::numeric_limits<int64_t>::max()};
+        std::vector<float> expected{0, 1, static_cast<float>(std::numeric_limits<int64_t>::max())};
+        test_convert_with_get_constant_from_source(input, expected);
+    }
+    {
+        std::vector<float> input{0, 1, std::numeric_limits<float>::max()};
+        std::vector<uint64_t> expected{0, 1, std::numeric_limits<uint64_t>::max()};
+        test_convert_with_get_constant_from_source(input, expected);
+    }
 }

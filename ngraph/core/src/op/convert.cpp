@@ -131,9 +131,11 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
     const auto& input = node->input_value(0);
     if (const auto& value = is_upper ? input.get_tensor().get_upper_value() : input.get_tensor().get_lower_value()) {
         // constants for dynamic values translation
-        auto input_maximum_value = get_constant_max_of_type(input.get_element_type());
-        auto output_maximum_value = get_constant_max_of_type(output_values[0]->get_element_type());
-        if (input_maximum_value == nullptr || output_maximum_value == nullptr)
+        const auto& input_type = input.get_element_type();
+        const auto& output_type = output_values[0]->get_element_type();
+        auto input_maximum = get_constant_max_of_type(input_type);
+        auto output_maximum = get_constant_max_of_type(output_type);
+        if (input_maximum == nullptr || output_maximum == nullptr)
             return false;
 
         OPENVINO_SUPPRESS_DEPRECATED_START
@@ -143,15 +145,19 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
         if (!status)
             return status;
 
-        // dynamic values translation
-        auto input_dynamic_mask = std::make_shared<HostTensor>(element::boolean, input.get_shape());
-        status =
-            op::v1::Equal().evaluate({input_dynamic_mask}, {value, std::make_shared<HostTensor>(input_maximum_value)});
-        if (!status)
-            return status;
-        status = op::v1::Select().evaluate(
-            output_values,
-            {input_dynamic_mask, std::make_shared<HostTensor>(output_maximum_value), output_values[0]});
+        auto input_maximum_value = input_maximum->cast_vector<double>()[0];
+        auto output_maximum_value = output_maximum->cast_vector<double>()[0];
+        if (input_maximum_value > output_maximum_value) {
+            // dynamic values translation
+            auto input_dynamic_mask = std::make_shared<HostTensor>(element::boolean, input.get_shape());
+            status =
+                op::v1::Equal().evaluate({input_dynamic_mask}, {value, std::make_shared<HostTensor>(input_maximum)});
+            if (!status)
+                return status;
+            status = op::v1::Select().evaluate(
+                output_values,
+                {input_dynamic_mask, std::make_shared<HostTensor>(output_maximum), output_values[0]});
+        }
         return status;
     } else
         return false;
