@@ -870,10 +870,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     } else {
         /* *************************** Native impls format selection part ************************** */
         if (i8_u8_input) {
-            if ((_optimization_attributes.bs_fs_yx_bsv16_fsv16_network && expected_tensor.batch[0] % 16 == 0 &&
-                convolution_bs_fs_yx_bsv16_fsv16_opt(input_layout, output_layout, weights_layout, prim))) {
-                expected_format = cldnn::format::bs_fs_yx_bsv16_fsv16;
-            } else if ((_optimization_attributes.b_fs_yx_fsv16_network &&
+            if ((_optimization_attributes.b_fs_yx_fsv16_network &&
                 convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim))) {
                 expected_format = cldnn::format::b_fs_yx_fsv16;
             } else if ((_optimization_attributes.b_fs_zyx_fsv16_network &&
