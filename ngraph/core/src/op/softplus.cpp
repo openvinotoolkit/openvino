@@ -44,6 +44,7 @@ shared_ptr<Node> op::v4::SoftPlus::clone_with_new_inputs(const OutputVector& new
     return make_shared<op::v4::SoftPlus>(new_args.at(0));
 }
 
+namespace softplus {
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const size_t count) {
@@ -68,11 +69,12 @@ bool evaluate_softplus(const HostTensorPtr& arg, const HostTensorPtr& out) {
     return rc;
 }
 }  // namespace
+}  // namespace softplus
 
 bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v4_SoftPlus_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    return evaluate_softplus(inputs[0], outputs[0]);
+    return softplus::evaluate_softplus(inputs[0], outputs[0]);
 }
 
 bool op::v4::SoftPlus::has_evaluate() const {

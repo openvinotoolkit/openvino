@@ -348,11 +348,11 @@ EnumNames<ngraph::op::LSTMWeightsFormat>& EnumNames<ngraph::op::LSTMWeightsForma
 
 BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::LSTMWeightsFormat>);
 
-std::ostream& operator<<(std::ostream& s, const op::LSTMWeightsFormat& type) {
+}  // namespace ov
+
+std::ostream& ov::operator<<(std::ostream& s, const op::LSTMWeightsFormat& type) {
     return s << as_string(type);
 }
-
-}  // namespace ov
 
 op::v4::LSTMCell::LSTMCell() {
     m_activations = {"sigmoid", "tanh", "tanh"};

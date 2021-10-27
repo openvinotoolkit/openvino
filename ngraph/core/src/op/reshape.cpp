@@ -15,6 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
+namespace reshapeop {
 namespace {
 bool evaluate_reshape(const HostTensorPtr& arg0, const HostTensorPtr& out, const AxisVector& order) {
     runtime::opt_kernel::reshape(arg0->get_data_ptr<char>(),
@@ -36,6 +37,7 @@ void compute_output_shape(const HostTensorPtr& shape_pattern, std::vector<int64_
     }
 }
 }  // namespace
+}  // namespace reshapeop
 
 BWDCMP_RTTI_DEFINITION(op::v1::Reshape);
 
@@ -127,10 +129,10 @@ shared_ptr<Node> op::v1::Reshape::clone_with_new_inputs(const OutputVector& new_
     return make_shared<v1::Reshape>(new_args.at(0), new_args.at(1), m_special_zero);
 }
 
-#define COMPUTE_OUT_SHAPE_CASE(a, ...)                                \
-    case element::Type_t::a: {                                        \
-        NGRAPH_OP_SCOPE(OV_PP_CAT3(compute_reshape_out_shape, _, a)); \
-        compute_output_shape<element::Type_t::a>(__VA_ARGS__);        \
+#define COMPUTE_OUT_SHAPE_CASE(a, ...)                                    \
+    case element::Type_t::a: {                                            \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(compute_reshape_out_shape, _, a));     \
+        reshapeop::compute_output_shape<element::Type_t::a>(__VA_ARGS__); \
     } break;
 
 bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
@@ -168,7 +170,7 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs, const Ho
     outputs[0]->set_shape(ov::PartialShape(output_shape).to_shape());
 
     const AxisVector order = get_default_order(inputs[0]->get_shape());
-    return ::evaluate_reshape(inputs[0], outputs[0], order);
+    return reshapeop::evaluate_reshape(inputs[0], outputs[0], order);
 }
 
 bool op::v1::Reshape::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

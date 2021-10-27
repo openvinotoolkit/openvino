@@ -201,6 +201,7 @@ shared_ptr<Node> op::v1::StridedSlice::clone_with_new_inputs(const OutputVector&
                                          m_ellipsis_mask);
 }
 
+namespace strided_slice {
 namespace {
 inline bool evaluate(const HostTensorPtr& in, const SlicePlan& sp, const HostTensorPtr& out)
 
@@ -240,22 +241,23 @@ bool evaluate_strided_slice(const HostTensorPtr& in,
     return evaluate(in, slice_plan, out);
 }
 }  // namespace
+}  // namespace strided_slice
 
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     NGRAPH_OP_SCOPE(v1_StridedSlice_evaluate);
     // FIXME: 4th input is optional, but it is required by the following code
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 4));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
-    return evaluate_strided_slice(input_values[0],
-                                  input_values[1],
-                                  input_values[2],
-                                  input_values[3],
-                                  convert_mask_to_axis_set(get_begin_mask()),
-                                  convert_mask_to_axis_set(get_end_mask()),
-                                  convert_mask_to_axis_set(get_new_axis_mask()),
-                                  convert_mask_to_axis_set(get_shrink_axis_mask()),
-                                  convert_mask_to_axis_set(get_ellipsis_mask()),
-                                  output_values[0]);
+    return strided_slice::evaluate_strided_slice(input_values[0],
+                                                 input_values[1],
+                                                 input_values[2],
+                                                 input_values[3],
+                                                 convert_mask_to_axis_set(get_begin_mask()),
+                                                 convert_mask_to_axis_set(get_end_mask()),
+                                                 convert_mask_to_axis_set(get_new_axis_mask()),
+                                                 convert_mask_to_axis_set(get_shrink_axis_mask()),
+                                                 convert_mask_to_axis_set(get_ellipsis_mask()),
+                                                 output_values[0]);
 }
 
 bool op::v1::StridedSlice::has_evaluate() const {

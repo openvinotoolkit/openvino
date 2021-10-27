@@ -29,6 +29,7 @@ shared_ptr<Node> op::Negative::clone_with_new_inputs(const OutputVector& new_arg
     return make_shared<Negative>(new_args.at(0));
 }
 
+namespace negativeop {
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
@@ -54,12 +55,13 @@ bool evaluate_negative(const HostTensorPtr& arg0, const HostTensorPtr& out, cons
     return rc;
 }
 }  // namespace
+}  // namespace negativeop
 
 bool op::Negative::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Negative_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 1));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
-    return evaluate_negative(inputs[0], outputs[0], shape_size(outputs[0]->get_shape()));
+    return negativeop::evaluate_negative(inputs[0], outputs[0], shape_size(outputs[0]->get_shape()));
 }
 
 bool op::Negative::has_evaluate() const {

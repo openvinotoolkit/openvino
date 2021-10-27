@@ -27,6 +27,7 @@ ov::op::v0::Sigmoid::Sigmoid(const Output<Node>& arg) : UnaryElementwiseArithmet
     constructor_validate_and_infer_types();
 }
 
+namespace sigmoid {
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
@@ -54,11 +55,12 @@ bool evaluate_sigmoid(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     return rc;
 }
 }  // namespace
+}  // namespace sigmoid
 
 bool ov::op::v0::Sigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Sigmoid_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    return evaluate_sigmoid(inputs[0], outputs[0]);
+    return sigmoid::evaluate_sigmoid(inputs[0], outputs[0]);
 }
 
 bool ov::op::v0::Sigmoid::has_evaluate() const {

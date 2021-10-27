@@ -24,6 +24,7 @@ std::shared_ptr<ov::Node> ov::op::v3::Acosh::clone_with_new_inputs(const OutputV
     return std::make_shared<Acosh>(new_args.at(0));
 }
 
+namespace acoshop {
 namespace {
 template <ov::element::Type_t ET>
 bool evaluate(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr& out) {
@@ -48,10 +49,11 @@ bool evaluate_acosh(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorP
     return rc;
 }
 }  // namespace
+}  // namespace acoshop
 
 bool ov::op::v3::Acosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v3_Acosh_evaluate);
-    return evaluate_acosh(inputs[0], outputs[0]);
+    return acoshop::evaluate_acosh(inputs[0], outputs[0]);
 }
 
 bool ov::op::v3::Acosh::has_evaluate() const {

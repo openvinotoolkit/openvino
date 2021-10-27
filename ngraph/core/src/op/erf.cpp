@@ -30,6 +30,7 @@ op::Erf::Erf(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
+namespace erfop {
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
@@ -56,10 +57,11 @@ bool evaluate_erf(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
     return rc;
 }
 }  // namespace
+}  // namespace erfop
 
 bool op::Erf::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Erf_evaluate);
-    return evaluate_erf(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return erfop::evaluate_erf(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool op::Erf::has_evaluate() const {

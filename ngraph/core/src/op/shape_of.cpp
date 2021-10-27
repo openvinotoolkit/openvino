@@ -49,6 +49,7 @@ shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_
     return new_shape_of;
 }
 
+namespace shape_of {
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const ov::Shape& shape, const HostTensorPtr& output_value) {
@@ -148,12 +149,13 @@ bool evaluate_bound_shape(const Node* shape_of_node, const HostTensorVector& out
     return true;
 }
 }  // namespace
+}  // namespace shape_of
 
 bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     NGRAPH_OP_SCOPE(v3_ShapeOf_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
-    return evaluate_shape_of(output_values[0], input_values[0]);
+    return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
 bool op::v3::ShapeOf::has_evaluate() const {
@@ -171,18 +173,18 @@ bool op::v3::ShapeOf::has_evaluate() const {
 }
 
 bool op::v3::ShapeOf::evaluate_lower(const HostTensorVector& output_values) const {
-    return evaluate_bound_shape(this, output_values, false);
+    return shape_of::evaluate_bound_shape(this, output_values, false);
 }
 
 bool op::v3::ShapeOf::evaluate_upper(const HostTensorVector& output_values) const {
-    return evaluate_bound_shape(this, output_values, true);
+    return shape_of::evaluate_bound_shape(this, output_values, true);
 }
 
 bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "op::v3::ShapeOf::constant_fold");
     if (get_rt_info().count("disabled_constant_folding_0"))
         return false;
-    return constant_fold_shape_of(this, output_values[0], input_values[0]);
+    return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0]);
 }
 
 // op::v0::ShapeOf
@@ -220,7 +222,7 @@ bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values, const Host
     NGRAPH_OP_SCOPE(v0_ShapeOf_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
-    return evaluate_shape_of(output_values[0], input_values[0]);
+    return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
 bool op::v0::ShapeOf::has_evaluate() const {
@@ -241,13 +243,13 @@ bool op::v0::ShapeOf::constant_fold(OutputVector& output_values, const OutputVec
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "op::v0::ShapeOf::constant_fold");
     if (get_rt_info().count("disabled_constant_folding_0"))
         return false;
-    return constant_fold_shape_of(this, output_values[0], input_values[0]);
+    return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0]);
 }
 
 bool op::v0::ShapeOf::evaluate_lower(const HostTensorVector& output_values) const {
-    return evaluate_bound_shape(this, output_values, false);
+    return shape_of::evaluate_bound_shape(this, output_values, false);
 }
 
 bool op::v0::ShapeOf::evaluate_upper(const HostTensorVector& output_values) const {
-    return evaluate_bound_shape(this, output_values, true);
+    return shape_of::evaluate_bound_shape(this, output_values, true);
 }

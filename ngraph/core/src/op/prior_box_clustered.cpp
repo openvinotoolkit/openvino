@@ -105,6 +105,7 @@ bool ov::op::v0::PriorBoxClustered::visit_attributes(AttributeVisitor& visitor) 
     return true;
 }
 
+namespace prior_box_clustered {
 namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
@@ -140,10 +141,11 @@ bool evaluate_prior_box(const HostTensorPtr& arg0,
     return rc;
 }
 }  // namespace
+}  // namespace prior_box_clustered
 
 bool op::v0::PriorBoxClustered::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_PriorBoxClustered_evaluate);
-    return evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
+    return prior_box_clustered::evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
 }
 
 bool op::v0::PriorBoxClustered::has_evaluate() const {

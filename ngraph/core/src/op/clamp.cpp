@@ -13,6 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
+namespace clamp {
 namespace {
 template <element::Type_t ET, typename T>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, T min, T max, size_t count) {
@@ -69,11 +70,12 @@ bool evaluate_clamp(const HostTensorPtr& arg, const HostTensorPtr& out, double m
     return rc;
 }
 }  // namespace
+}  // namespace clamp
 
 bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Clamp_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    return evaluate_clamp(inputs[0], outputs[0], get_min(), get_max());
+    return clamp::evaluate_clamp(inputs[0], outputs[0], get_min(), get_max());
 }
 
 bool op::v0::Clamp::has_evaluate() const {

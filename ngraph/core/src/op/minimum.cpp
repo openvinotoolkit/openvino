@@ -17,6 +17,7 @@
 using namespace std;
 using namespace ngraph;
 
+namespace minimumop {
 namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
@@ -54,6 +55,7 @@ bool evaluate_minimum(const HostTensorPtr& arg0,
     return rc;
 }
 }  // namespace
+}  // namespace minimumop
 
 // ------------------------------ v1 -------------------------------------------
 
@@ -72,7 +74,7 @@ shared_ptr<Node> op::v1::Minimum::clone_with_new_inputs(const OutputVector& new_
 
 bool op::v1::Minimum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_Minimum_evaluate);
-    return evaluate_minimum(inputs[0], inputs[1], outputs[0], get_autob());
+    return minimumop::evaluate_minimum(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 bool op::v1::Minimum::has_evaluate() const {

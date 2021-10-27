@@ -30,6 +30,7 @@ std::shared_ptr<ov::Node> ov::op::v0::Acos::clone_with_new_inputs(const OutputVe
     return std::make_shared<Acos>(new_args.at(0));
 }
 
+namespace acosop {
 namespace {
 template <ov::element::Type_t ET>
 inline bool evaluate(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr& out, const size_t count) {
@@ -56,10 +57,11 @@ bool evaluate_acos(const ov::HostTensorPtr& arg0, const ov::HostTensorPtr& out, 
     return rc;
 }
 }  // namespace
+}  // namespace acosop
 
 bool ov::op::v0::Acos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Acos_evaluate);
-    return evaluate_acos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return acosop::evaluate_acos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool ov::op::v0::Acos::has_evaluate() const {

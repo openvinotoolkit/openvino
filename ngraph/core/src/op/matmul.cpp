@@ -37,6 +37,7 @@ shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args)
     return make_shared<MatMul>(new_args.at(0), new_args.at(1), m_transpose_a, m_transpose_b);
 }
 
+namespace matmul {
 namespace {
 ov::PartialShape validate_matmul_output_shape(const ov::PartialShape& arg0_shape,
                                               const ov::PartialShape& arg1_shape,
@@ -223,10 +224,11 @@ bool evaluate_matmul(const HostTensorPtr& arg0,
     return rc;
 }
 }  // namespace
+}  // namespace matmul
 
 bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_MatMul_evaluate);
-    return evaluate_matmul(inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
+    return matmul::evaluate_matmul(inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
 }
 
 bool op::MatMul::has_evaluate() const {
@@ -266,7 +268,7 @@ void ngraph::op::v0::MatMul::validate_and_infer_types() {
         const bool transpose_a = get_transpose_a();
         const bool transpose_b = get_transpose_b();
 
-        output_shape = validate_matmul_output_shape(A_partial_shape, B_partial_shape, transpose_a, transpose_b);
+        output_shape = matmul::validate_matmul_output_shape(A_partial_shape, B_partial_shape, transpose_a, transpose_b);
 
         set_output_type(0, result_et, output_shape);
     } else {

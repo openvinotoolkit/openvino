@@ -29,6 +29,7 @@ shared_ptr<Node> op::Cos::clone_with_new_inputs(const OutputVector& new_args) co
     return make_shared<Cos>(new_args.at(0));
 }
 
+namespace cosop {
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
@@ -55,11 +56,12 @@ bool evaluate_cos(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
     return rc;
 }
 }  // namespace
+}  // namespace cosop
 
 bool op::Cos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Cos_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    return evaluate_cos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return cosop::evaluate_cos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool op::Cos::has_evaluate() const {

@@ -30,6 +30,7 @@ shared_ptr<Node> op::Sqrt::clone_with_new_inputs(const OutputVector& new_args) c
     return make_shared<Sqrt>(new_args.at(0));
 }
 
+namespace sqrtop {
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
@@ -56,10 +57,11 @@ bool evaluate_sqrt(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
     return rc;
 }
 }  // namespace
+}  // namespace sqrtop
 
 bool op::Sqrt::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Sqrt_evaluate);
-    return evaluate_sqrt(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return sqrtop::evaluate_sqrt(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool op::Sqrt::has_evaluate() const {

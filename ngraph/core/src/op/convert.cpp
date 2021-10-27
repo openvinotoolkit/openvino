@@ -41,9 +41,12 @@ shared_ptr<Node> op::Convert::clone_with_new_inputs(const OutputVector& new_args
     return make_shared<Convert>(new_args.at(0), m_destination_type);
 }
 
+namespace convert {
 namespace {
 template <element::Type_t INPUT_ET, element::Type_t OUTPUT_ET>
-bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out) {
+bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out)
+
+{
     out->set_shape(arg->get_shape());
     size_t element_count = shape_size(out->get_shape());
 
@@ -155,12 +158,12 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
         return false;
 }
 }  // namespace
-
+}  // namespace convert
 bool op::v0::Convert::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     NGRAPH_OP_SCOPE(v0_Convert_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
-    return evaluate_convert(input_values[0], output_values[0]);
+    return convert::evaluate_convert(input_values[0], output_values[0]);
 }
 
 bool op::v0::Convert::has_evaluate() const {
@@ -212,9 +215,9 @@ bool op::v0::Convert::has_evaluate() const {
 }
 
 bool op::v0::Convert::evaluate_lower(const HostTensorVector& output_values) const {
-    return evaluate_bound(this, output_values, false);
+    return convert::evaluate_bound(this, output_values, false);
 }
 
 bool op::v0::Convert::evaluate_upper(const HostTensorVector& output_values) const {
-    return evaluate_bound(this, output_values, true);
+    return convert::evaluate_bound(this, output_values, true);
 }

@@ -30,6 +30,7 @@ shared_ptr<Node> op::Exp::clone_with_new_inputs(const OutputVector& new_args) co
     return make_shared<Exp>(new_args.at(0));
 }
 
+namespace expop {
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
@@ -57,11 +58,12 @@ bool evaluate_exp(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     return rc;
 }
 }  // namespace
+}  // namespace expop
 
 bool op::Exp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Exp_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    return evaluate_exp(inputs[0], outputs[0]);
+    return expop::evaluate_exp(inputs[0], outputs[0]);
 }
 
 bool op::Exp::has_evaluate() const {

@@ -115,6 +115,7 @@ shared_ptr<Node> op::v3::ScatterElementsUpdate::clone_with_new_inputs(const Outp
     return make_shared<v3::ScatterElementsUpdate>(inputs.at(0), inputs.at(1), inputs.at(2), inputs.at(3));
 }
 
+namespace scatter_element_update {
 namespace {
 template <element::Type_t DT, element::Type_t IT, element::Type_t AT>
 bool evaluate(const HostTensorPtr& data,
@@ -230,6 +231,7 @@ bool evaluate_scatter_element_update(const HostTensorPtr& arg0,
     return rc;
 }
 }  // namespace
+}  // namespace scatter_element_update
 
 bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(const HostTensorVector& outputs,
                                                                     const HostTensorVector& inputs) const {
@@ -247,7 +249,12 @@ bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(const HostTe
         }
     }
 
-    return ::evaluate_scatter_element_update(inputs[0], inputs[1], inputs[2], inputs[3], outputs[0], normalized_axis);
+    return scatter_element_update::evaluate_scatter_element_update(inputs[0],
+                                                                   inputs[1],
+                                                                   inputs[2],
+                                                                   inputs[3],
+                                                                   outputs[0],
+                                                                   normalized_axis);
 }
 
 bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

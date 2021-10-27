@@ -12,6 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
+namespace subtract {
 namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
@@ -48,6 +49,7 @@ bool evaluate_subtract(const HostTensorPtr& arg0,
     return rc;
 }
 }  // namespace
+}  // namespace subtract
 
 // ------------------------------- v1 ------------------------------------------
 
@@ -66,7 +68,7 @@ shared_ptr<Node> op::v1::Subtract::clone_with_new_inputs(const OutputVector& new
 
 bool op::v1::Subtract::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_Subtract_evaluate);
-    return evaluate_subtract(inputs[0], inputs[1], outputs[0], get_autob());
+    return subtract::evaluate_subtract(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 bool op::v1::Subtract::has_evaluate() const {

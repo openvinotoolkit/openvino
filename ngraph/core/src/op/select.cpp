@@ -86,6 +86,7 @@ bool op::v1::Select::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
+namespace detail {
 namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorVector& output_values,
@@ -138,13 +139,14 @@ bool evaluate_select(const HostTensorVector& output_values,
     return rc;
 }
 }  // namespace
+}  // namespace detail
 
 bool op::v1::Select::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     NGRAPH_OP_SCOPE(v1_Select_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 3));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     const auto autob = get_auto_broadcast();
-    return evaluate_select(output_values, input_values, autob, output_values[0]->get_element_type());
+    return detail::evaluate_select(output_values, input_values, autob, output_values[0]->get_element_type());
 }
 
 bool op::v1::Select::has_evaluate() const {

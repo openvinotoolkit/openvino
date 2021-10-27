@@ -74,6 +74,7 @@ shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& ne
     return make_shared<Unsqueeze>(new_args.at(0), new_args.at(1));
 }
 
+namespace unsqueeze {
 namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out) {
@@ -123,12 +124,13 @@ bool evaluate_unsqueeze(const HostTensorPtr& arg0, const HostTensorPtr& arg1, co
     return rc;
 }
 }  // namespace
+}  // namespace unsqueeze
 
 bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Unsqueeze_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
-    return evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
+    return unsqueeze::evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
 }
 
 bool op::v0::Unsqueeze::has_evaluate() const {

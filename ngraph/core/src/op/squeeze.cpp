@@ -136,6 +136,7 @@ shared_ptr<Node> op::Squeeze::clone_with_new_inputs(const OutputVector& new_args
     }
 }
 
+namespace squeeze {
 namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& arg1, const HostTensorPtr& out) {
@@ -204,6 +205,7 @@ bool evaluate_squeeze(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     return evaluate(arg0, out);
 }
 }  // namespace
+}  // namespace squeeze
 
 bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Squeeze_evaluate);
@@ -211,10 +213,10 @@ bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensor
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
     if (inputs.size() == 1) {
-        return evaluate_squeeze(inputs[0], outputs[0]);
+        return squeeze::evaluate_squeeze(inputs[0], outputs[0]);
     }
 
-    return evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
+    return squeeze::evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
 }
 
 bool op::v0::Squeeze::has_evaluate() const {

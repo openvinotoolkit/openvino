@@ -14,6 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
+namespace minop {
 namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, const bool keep_dims) {
@@ -38,6 +39,7 @@ bool evaluate_min(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
     return rc;
 }
 }  // namespace
+}  // namespace minop
 
 BWDCMP_RTTI_DEFINITION(op::v1::ReduceMin);
 
@@ -60,7 +62,7 @@ bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs, const HostTens
     const auto reduction_axes =
         get_normalized_axes_from_tensor(inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
 
-    return evaluate_min(inputs[0], outputs[0], reduction_axes, get_keep_dims());
+    return minop::evaluate_min(inputs[0], outputs[0], reduction_axes, get_keep_dims());
 }
 
 bool op::v1::ReduceMin::has_evaluate() const {
