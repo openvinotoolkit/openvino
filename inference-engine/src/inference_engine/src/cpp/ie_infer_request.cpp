@@ -13,7 +13,7 @@
 #include "ie_infer_async_request_base.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_context.hpp"
-#include "openvino/core/except.hpp"
+#include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -50,6 +50,8 @@ namespace InferenceEngine {
     OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized."); \
     try {                                                                   \
         __VA_ARGS__;                                                        \
+    } catch (const ::InferenceEngine::RequestBusy& ex) {                    \
+        throw ov::runtime::Busy(ex.what());                                 \
     } catch (const std::exception& ex) {                                    \
         throw ov::Exception(ex.what());                                     \
     } catch (...) {                                                         \
@@ -405,11 +407,29 @@ void InferRequest::start_async() {
 }
 
 void InferRequest::wait() {
-    OV_INFER_REQ_CALL_STATEMENT(_impl->Wait(ie::InferRequest::RESULT_READY);)
+    OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
+    try {
+        _impl->Wait(ie::InferRequest::RESULT_READY);
+    } catch (const ie::InferCancelled& e) {
+        throw Cancelled{e.what()};
+    } catch (const std::exception& ex) {
+        throw Exception(ex.what());
+    } catch (...) {
+        OPENVINO_UNREACHABLE("Unexpected exception");
+    }
 }
 
 bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
-    OV_INFER_REQ_CALL_STATEMENT(return _impl->Wait(timeout.count()) == ie::OK;)
+    OPENVINO_ASSERT(_impl != nullptr, "InferRequest was not initialized.");
+    try {
+        return _impl->Wait(timeout.count()) == ie::OK;
+    } catch (const ie::InferCancelled& e) {
+        throw Cancelled{e.what()};
+    } catch (const std::exception& ex) {
+        throw Exception(ex.what());
+    } catch (...) {
+        OPENVINO_UNREACHABLE("Unexpected exception");
+    }
 }
 
 void InferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {
