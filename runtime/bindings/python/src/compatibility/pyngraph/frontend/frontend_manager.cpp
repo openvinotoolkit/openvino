@@ -18,7 +18,7 @@ void regclass_pyngraph_FrontEndManager(py::module m) {
                                                                                                   "FrontEndManager",
                                                                                                   py::dynamic_attr(),
                                                                                                   py::module_local());
-    fem.doc() = "ngraph.impl.FrontEndManager wraps ngraph::frontend::FrontEndManager";
+    fem.doc() = "ngraph.impl.FrontEndManager wraps ov::frontend::FrontEndManager";
 
     fem.def(py::init<>());
 
