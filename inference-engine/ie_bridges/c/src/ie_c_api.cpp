@@ -13,6 +13,7 @@
 #include <chrono>
 #include <tuple>
 #include <memory>
+#include <fstream>
 #include <ie_extension.h>
 #include "inference_engine.hpp"
 #include "ie_compound_blob.h"
@@ -330,6 +331,90 @@ IEStatusCode ie_core_read_network_from_memory(ie_core_t *core, const uint8_t *xm
         network_result->object = core->object.ReadNetwork(std::string(reinterpret_cast<const char *>(xml_content),
             reinterpret_cast<const char *>(xml_content + xml_content_size)), weight_blob->object);
         *network = network_result.release();
+    } CATCH_IE_EXCEPTIONS
+
+    return status;
+}
+
+IEStatusCode ie_core_import_network(ie_core_t *core, const char *file_name, const char *device_name, \
+        const ie_config_t *config, ie_executable_network_t **exe_network) {
+    IEStatusCode status = IEStatusCode::OK;
+
+    if (core == nullptr || file_name == nullptr || device_name == nullptr || config == nullptr || exe_network == nullptr) {
+        status = IEStatusCode::GENERAL_ERROR;
+        return status;
+    }
+
+    try {
+        std::map<std::string, std::string> conf_map;
+        conf_map = config2Map(config);
+        std::unique_ptr<ie_executable_network_t> exe_net(new ie_executable_network_t);
+
+        exe_net->object = core->object.ImportNetwork(file_name, device_name, conf_map);
+        *exe_network = exe_net.release();
+    } CATCH_IE_EXCEPTIONS
+
+    return status;
+}
+
+IEStatusCode ie_core_import_network_from_memory(ie_core_t *core, const ie_blob_t *exported_blob, \
+        ie_executable_network_t **exe_network) {
+    if (core == nullptr || exported_blob == nullptr || exe_network == nullptr) {
+        return IEStatusCode::GENERAL_ERROR;
+    }
+
+    IEStatusCode status = IEStatusCode::OK;
+    try {
+        std::stringstream network_model;
+        IE::TensorDesc tensor = exported_blob->object->getTensorDesc();
+
+        char* data = exported_blob->object->cbuffer().as<char*>();
+        network_model.write(data, sizeof(data));
+
+        std::unique_ptr<ie_executable_network_t> exe_net(new ie_executable_network_t);
+        exe_net->object = core->object.ImportNetwork(network_model);
+        *exe_network = exe_net.release();
+    } CATCH_IE_EXCEPTIONS
+
+    return status;
+}
+
+IEStatusCode ie_core_export_network(ie_core_t *core, const char *file_name, ie_executable_network_t **exe_network) {
+    IEStatusCode status = IEStatusCode::OK;
+
+    if (core == nullptr || file_name == nullptr || exe_network == nullptr) {
+        status = IEStatusCode::GENERAL_ERROR;
+        return status;
+    }
+    try {
+        std::fstream fs(file_name, fs.binary | fs.trunc | fs.out);
+        (*exe_network)->object.Export(fs);
+    } CATCH_IE_EXCEPTIONS
+
+    return status;
+}
+
+IEStatusCode ie_core_export_network_to_memory(ie_core_t *core, ie_blob_t** blob, ie_executable_network_t **exe_network) {
+    IEStatusCode status = IEStatusCode::OK;
+
+    if (core == nullptr || blob == nullptr || exe_network == nullptr) {
+        status = IEStatusCode::GENERAL_ERROR;
+        return status;
+    }
+    try {
+        std::stringstream stream;
+        (*exe_network)->object.Export(stream);
+        std::string model = stream.str();
+
+        IE::SizeVector dims_vector = {1, model.length()};
+        IE::Precision prec = IE::Precision::U8;
+        IE::TensorDesc tensor(prec, dims_vector, IE::Layout::ANY);
+
+        std::unique_ptr<ie_blob_t> model_blob(new ie_blob_t);
+        model_blob->object->buffer() = &model;
+        char *p = const_cast<char*>(model.c_str());
+        model_blob->object = IE::make_shared_blob(tensor, p, model.size());
+        *blob = model_blob.release();
     } CATCH_IE_EXCEPTIONS
 
     return status;
