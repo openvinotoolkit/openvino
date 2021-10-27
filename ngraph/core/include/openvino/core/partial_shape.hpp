@@ -419,13 +419,12 @@ public:
 
     const std::vector<int64_t>& get() override;
     void set(const std::vector<int64_t>& value) override;
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<PartialShape>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
     operator ov::PartialShape&() {
         return m_ref;
     }
+
+    OPENVINO_RTTI("AttributeAdapter<PartialShape>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ov::PartialShape& m_ref;
