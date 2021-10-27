@@ -46,7 +46,7 @@ TEST(attributes, detectron_detection_output) {
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
     EXPECT_EQ(g_detection->get_attrs().class_agnostic_box_regression,
-+              detection->get_attrs().class_agnostic_box_regression);
+                detection->get_attrs().class_agnostic_box_regression);
     EXPECT_EQ(g_detection->get_attrs().deltas_weights, detection->get_attrs().deltas_weights);
     EXPECT_EQ(g_detection->get_attrs().max_delta_log_wh, detection->get_attrs().max_delta_log_wh);
     EXPECT_EQ(g_detection->get_attrs().max_detections_per_image, detection->get_attrs().max_detections_per_image);
