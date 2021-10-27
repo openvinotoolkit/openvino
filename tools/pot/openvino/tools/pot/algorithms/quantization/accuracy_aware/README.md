@@ -4,6 +4,10 @@
 AccuracyAware algorithm is designed to perform accurate 8-bit quantization and allows the model to stay in the 
 pre-defined range of accuracy drop, for example 1%, defined by the user in the configuration file. This may cause a 
 degradation in performance in comparison to [DefaultQuantization](../default/README.md) algorithm because some layers can be reverted back to the original precision.
+
+For a GNA `target_device`, the AccuracyAware algorithm uses baseline values based on the results of the execution of the model quantized in the `accuracy` preset (INT16 quantization). The main pipeline of the algorithm differs in that the precision changes only for weighted FakeQuantizes upward, from the initial INT8 (`performance` preset) to INT16.
+For the `accuracy` preset, this algorithm is not performed, but the parameters tuning is available (if `tune_hyperparams` option is enabled).
+
 Generally, the algorithm consists of the following steps:
 1. The model gets fully quantized using the DefaultQuantization algorithm.
 2. The quantized and full-precision models are compared on a subset of the validation set in order to find mismatches in the target accuracy metric. A ranking subset is extracted based on the mismatches.
