@@ -104,7 +104,7 @@ CONFIGURATIONS = [('performance', 8,
     ids=['symmetric_{}_bits_{}_clipping_value_{}'.format(m[0], m[1], m[3]) for m in CONFIGURATIONS]
 )
 def test_activation_scales(tmp_path, models, preset, bits, stats_path, clipping_value):
-    pytest.skip()
+
     def normalize(_list):
         norm_coef = 0
         for fq_name in _list:
@@ -147,7 +147,7 @@ def test_activation_scales(tmp_path, models, preset, bits, stats_path, clipping_
 def test_weights_scales(tmp_path, models):
     path_to_weights = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                    './data/reference_scale/mobilenet-v2-pytorch_weights.json')
-    pytest.skip()
+
     model = models.get('mobilenet-v2-pytorch', 'pytorch', tmp_path)
     ref_weights = get_ref_stats(path_to_weights)
     weights = get_fq_nodes_stats_algo(model, False, 8, True)
@@ -203,7 +203,6 @@ REFERENCES_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)),
 def test_fake_quantize_configurations(tmp_path, models, model_name, model_framework, algo_mode):
     test_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                             './data/reference_scale/test_data')
-    pytest.skip()
 
     config = _get_pytorch_accuracy_checker_config(test_dir) \
         if model_framework == 'pytorch' else _get_tf_accuracy_checker_config(test_dir)

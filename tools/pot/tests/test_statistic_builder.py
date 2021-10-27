@@ -10,33 +10,34 @@ from openvino.tools.pot.graph import load_model
 from openvino.tools.pot.data_loaders.creator import create_data_loader
 from openvino.tools.pot.engines.creator import create_engine
 from openvino.tools.pot.statistics.collector import StatisticsCollector
-# from openvino.tools.pot.algorithms.quantization.minmax.algorithm import MinMaxQuantization
-# from openvino.tools.pot.algorithms.quantization.fast_bias_correction.algorithm import FastBiasCorrection
-# from openvino.tools.pot.algorithms.quantization.channel_alignment.algorithm import ActivationChannelAlignment
+from openvino.tools.pot.algorithms.quantization.minmax.algorithm import MinMaxQuantization
+from openvino.tools.pot.algorithms.quantization.fast_bias_correction.algorithm import FastBiasCorrection
+from openvino.tools.pot.algorithms.quantization.bias_correction.algorithm import BiasCorrection
+from openvino.tools.pot.algorithms.quantization.channel_alignment.algorithm import ActivationChannelAlignment
 from openvino.tools.pot.statistics.utils import merge_stats_by_algo_names
 from openvino.tools.pot.statistics.statistic_graph_builder import StatisticGraphBuilder
 from tests.utils.config import PATHS2DATASETS_CONFIG
 from tests.utils.check_graph import check_model
 
 TEST_MODELS = [
-    # ('resnet-50-pytorch', 'pytorch', 'symmetric', True, MinMaxQuantization, 'performance', 'perchannel', 0,
-    #  'max', 'min'),
-    # ('resnet-50-pytorch', 'pytorch', 'symmetric', True, MinMaxQuantization, 'performance', 'perchannel', 0,
-    #  'abs_max', 'min'),
-    # ('resnet-50-pytorch', 'pytorch', 'symmetric', True, MinMaxQuantization, 'mixed', 'pertensor', 0,
-    #  'abs_max', 'max'),
-    # ('resnet-50-pytorch', 'pytorch', 'symmetric', True, MinMaxQuantization, 'mixed', 'pertensor', 71,
-    #  'min', 'quantile'),
-    # ('resnet-50-pytorch', 'pytorch', 'symmetric', True, MinMaxQuantization, 'performance', 'perchannel', 71,
-    #  'quantile', 'abs_quantile'),
-    # ('mobilenet-v2-pytorch', 'pytorch', 'symmetric', True, ActivationChannelAlignment, 'mixed',
-    #  'perchannel', 2, None, None),
-    # ('squeezenet1.1', 'caffe', 'symmetric', True, FastBiasCorrection, 'mixed', 'perchannel', 0,
-    #  None, None),
-    # ('mobilenet-ssd', 'caffe', 'symmetric', True, FastBiasCorrection, 'mixed', 'perchannel', 0,
-    # None, None),
-    #  ('se-resnet-50', 'caffe', 'symmetric', True, BiasCorrection, 'mixed', 'perchannel', 2,
-    # None, None)
+    ('resnet_example', 'pytorch', 'symmetric', True, MinMaxQuantization, 'performance', 'perchannel', 0,
+     'max', 'min'),
+    ('resnet_example', 'pytorch', 'symmetric', True, MinMaxQuantization, 'performance', 'perchannel', 0,
+     'abs_max', 'min'),
+    ('resnet_example', 'pytorch', 'symmetric', True, MinMaxQuantization, 'mixed', 'pertensor', 0,
+     'abs_max', 'max'),
+    ('resnet_example', 'pytorch', 'symmetric', True, MinMaxQuantization, 'mixed', 'pertensor', 23,
+     'min', 'quantile'),
+    ('resnet_example', 'pytorch', 'symmetric', True, MinMaxQuantization, 'performance', 'perchannel', 23,
+     'quantile', 'abs_quantile'),
+    ('mobilenetv2_example', 'pytorch', 'symmetric', True, ActivationChannelAlignment, 'mixed',
+     'perchannel', 1, None, None),
+    ('squeezenet1_1_example', 'pytorch', 'symmetric', True, FastBiasCorrection, 'mixed', 'perchannel', 0,
+     None, None),
+    ('mobilenetv2_ssd_example', 'pytorch', 'symmetric', True, FastBiasCorrection, 'mixed', 'perchannel', 0,
+     None, None),
+    ('mobilenet_v3_small_example', 'pytorch', 'symmetric', True, BiasCorrection, 'mixed', 'perchannel', 1,
+     None, None)
 ]
 
 
