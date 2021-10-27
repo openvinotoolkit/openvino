@@ -18,12 +18,10 @@ add_subdirectory(shape_inference)
 
 # WA for Tensor implementation via ie::Blob::Ptr
 set(IE_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/inference_engine/src")
-set(IE_SHARED_SRCS
-    "${IE_SRC_ROOT}/system_allocator.cpp"
-    "${IE_SRC_ROOT}/blob_factory.cpp"
-    "${IE_SRC_ROOT}/ie_blob_common.cpp"
-    "${IE_SRC_ROOT}/system_allocator.cpp"
-    "${IE_SRC_ROOT}/ie_layouts.cpp")
+set(IE_SHARED_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/blob_factory.cpp"
+                   "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/ie_blob_common.cpp"
+                   "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/ie_layouts.cpp"
+                   "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/system_allocator.cpp")
 set(MIXED_SRC ${IE_SHARED_SRCS}
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/ov_tensor.cpp")
