@@ -64,7 +64,7 @@ protected:
     int expectedNumOfReshapes = 0;
 };
 
-TEST_P(AlignMatMulInputRanksTest, supportedInputShapes) {
+TEST_P(AlignMatMulInputRanksTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();

@@ -43,9 +43,6 @@ private:
 
     /* whether to transpose input */
     std::array<bool, 2> transposeIn;
-    /* initial shapes without transpose,
-     * necessary to hide transpose effect from plugin */
-    std::array<Shape, 2> initialInShapes;
 
     std::array<MemoryDescPtr, 2> inDataDesc;
     MemoryDescPtr outDataDesc;
