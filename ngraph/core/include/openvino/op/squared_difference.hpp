@@ -18,7 +18,7 @@ public:
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constrcuts an uninitialized squared difference operation
-    SquaredDifference() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY) {}
+    SquaredDifference() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
     /// \brief Constructs the squared difference operation.
     ///
     /// \param x1 First input tensor

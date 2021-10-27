@@ -118,11 +118,11 @@ auto reset_broacast_config(const std::shared_ptr<ngraph::Node>& op) -> void {
 
     if (!is_scalar) {
         if (auto binary = std::dynamic_pointer_cast<ngraph::op::util::BinaryElementwiseArithmetic>(op)) {
-            binary->set_autob(ngraph::op::AutoBroadcastSpec::NONE);
+            binary->set_autob(ngraph::op::AutoBroadcastType::NONE);
         } else if (auto binary = std::dynamic_pointer_cast<ngraph::op::util::BinaryElementwiseComparison>(op)) {
-            binary->set_autob(ngraph::op::AutoBroadcastSpec::NONE);
+            binary->set_autob(ngraph::op::AutoBroadcastType::NONE);
         } else if (auto binary = std::dynamic_pointer_cast<ngraph::op::util::BinaryElementwiseLogical>(op)) {
-            binary->set_autob(ngraph::op::AutoBroadcastSpec::NONE);
+            binary->set_autob(ngraph::op::AutoBroadcastType::NONE);
         }
     }
 }

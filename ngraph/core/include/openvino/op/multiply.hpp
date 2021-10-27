@@ -16,7 +16,7 @@ public:
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a multiplication operation.
-    Multiply() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY) {}
+    Multiply() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
 
     /// \brief Constructs a multiplication operation.
     ///

@@ -500,7 +500,7 @@ void contract_two_inputs(ngraph::pass::EinsumDecomposition* einsum_decompose_ptr
         auto unsqueeze_output2 = unsqueeze_input(input_node2, unsqueeze_axis2, subgraph_nodes);
 
         // multiply both operands with broadcasting
-        auto mul = std::make_shared<ngraph::opset7::Multiply>(unsqueeze_output1, unsqueeze_output2, ngraph::op::AutoBroadcastSpec::NUMPY);
+        auto mul = std::make_shared<ngraph::opset7::Multiply>(unsqueeze_output1, unsqueeze_output2, ngraph::op::AutoBroadcastType::NUMPY);
 
         // update input operand and input subscript for Einsum operation
         update_operands(input_nodes, input_subscripts, input_ind1, input_ind2, mul->output(0), resultant_subscript);

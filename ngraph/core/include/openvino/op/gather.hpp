@@ -14,7 +14,7 @@ class OPENVINO_API Gather : public op::util::GatherBase {
 public:
     OPENVINO_OP("Gather", "opset1", op::util::GatherBase, 1);
     BWDCMP_RTTI_DECLARATION;
-    static const int64_t AXIS_NOT_SET_VALUE = std::numeric_limits<int64_t>::max();
+    static constexpr int64_t AXIS_NOT_SET_VALUE = std::numeric_limits<int64_t>::max();
     Gather() = default;
     /// \param data The tensor from which slices are gathered
     /// \param indices Tensor with indexes to gather

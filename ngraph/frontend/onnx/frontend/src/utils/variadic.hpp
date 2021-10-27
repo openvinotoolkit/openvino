@@ -26,7 +26,7 @@ namespace variadic {
 template <class T>
 inline OutputVector make_ng_variadic_op(
     const Node& node,
-    const ngraph::op::AutoBroadcastSpec& auto_broadcast = ngraph::op::AutoBroadcastSpec::NUMPY) {
+    const ngraph::op::AutoBroadcastSpec& auto_broadcast = ngraph::op::AutoBroadcastType::NUMPY) {
     const OutputVector ng_inputs{node.get_ng_inputs()};
 
     // Templated binary operation - Creates Add, Minimum, Maximum, etc.

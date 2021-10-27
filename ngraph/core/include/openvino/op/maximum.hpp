@@ -16,7 +16,7 @@ public:
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a maximum operation.
-    Maximum() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY) {}
+    Maximum() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
 
     /// \brief Constructs a maximum operation.
     ///

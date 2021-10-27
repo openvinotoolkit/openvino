@@ -102,8 +102,6 @@ using namespace std;
  * dealt with, but have not had time to implement them yet. --amprocte
  */
 
-const int ngraph::pass::VisualizeTree::max_jump_distance = 20;
-
 class HeightMap {
 public:
     HeightMap() {}

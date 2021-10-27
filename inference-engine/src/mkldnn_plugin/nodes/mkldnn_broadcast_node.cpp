@@ -28,7 +28,7 @@ bool MKLDNNBroadcastNode::isSupportedOperation(const std::shared_ptr<const ngrap
             errorMessage = "Only opset1 Broadcast operation is supported";
             return false;
         }
-        if (broadcast->get_broadcast_spec() != ngraph::op::AutoBroadcastSpec::NUMPY) {
+        if (broadcast->get_broadcast_spec() != ngraph::op::AutoBroadcastType::NUMPY) {
             errorMessage = "Only NUMPY broadcast type is supported";
             return false;
         }

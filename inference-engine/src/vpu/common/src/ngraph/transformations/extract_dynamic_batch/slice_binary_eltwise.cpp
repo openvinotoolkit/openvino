@@ -22,7 +22,7 @@ SliceConfiguration sliceBinaryEltwise(const ngraph::Node& node) {
 
     const auto& broadcastSpec = eltwise.get_autob();
     auto inputPartialShape = lhsPartialShape;
-    if (broadcastSpec == ngraph::op::AutoBroadcastSpec::NONE) {
+    if (broadcastSpec == ngraph::op::AutoBroadcastType::NONE) {
         ngraph::PartialShape::merge_into(inputPartialShape, rhsPartialShape);
     } else {
         ngraph::PartialShape::broadcast_merge_into(inputPartialShape, rhsPartialShape, broadcastSpec);

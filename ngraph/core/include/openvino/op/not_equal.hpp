@@ -15,7 +15,7 @@ public:
     OPENVINO_OP("NotEqual", "opset1", op::util::BinaryElementwiseComparison, 1);
     BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a not-equal operation.
-    NotEqual() : util::BinaryElementwiseComparison(AutoBroadcastSpec::NUMPY) {}
+    NotEqual() : util::BinaryElementwiseComparison(AutoBroadcastType::NUMPY) {}
     /// \brief Constructs a not-equal operation.
     ///
     /// \param arg0 Node that produces the first input tensor.

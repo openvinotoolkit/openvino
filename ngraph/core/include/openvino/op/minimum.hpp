@@ -16,7 +16,7 @@ public:
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a minimum operation.
-    Minimum() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY) {}
+    Minimum() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
 
     /// \brief Constructs a minimum operation.
     ///

@@ -66,7 +66,7 @@ void rnn_cell(const T* X,
 
     // Ht-1*(R^T) + Wb + Rb
     std::vector<T> Ht_R_B(H_shape[0] * R_shape[0]);
-    reference::add(Ht_R.data(), B, Ht_R_B.data(), {H_shape[0], R_shape[0]}, B_shape, op::AutoBroadcastSpec::NUMPY);
+    reference::add(Ht_R.data(), B, Ht_R_B.data(), {H_shape[0], R_shape[0]}, B_shape, op::AutoBroadcastType::NUMPY);
 
     // Xt*(W^T) + Ht-1*(R^T) + Wb + Rb
     std::vector<T> i_t(H_shape[0] * R_shape[0]);
@@ -75,7 +75,7 @@ void rnn_cell(const T* X,
                    i_t.data(),
                    {X_shape[0], W_shape[0]},
                    {H_shape[0], R_shape[0]},
-                   op::AutoBroadcastSpec::NUMPY);
+                   op::AutoBroadcastType::NUMPY);
 
     // f(Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi)
     if (clip != 0.f) {

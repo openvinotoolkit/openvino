@@ -17,7 +17,7 @@ public:
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a Mod node.
-    Mod() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY) {}
+    Mod() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
     ///
     /// \param A - Dividend tensor
     /// \param B - Divisor tensor

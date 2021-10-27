@@ -15,7 +15,7 @@ public:
     OPENVINO_OP("Subtract", "opset1", util::BinaryElementwiseArithmetic, 1);
     BWDCMP_RTTI_DECLARATION;
 
-    Subtract() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY) {}
+    Subtract() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
 
     /// \brief Constructs a subtraction operation.
     ///
