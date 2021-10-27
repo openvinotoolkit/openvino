@@ -33,17 +33,17 @@ using namespace testing;
 
 auto gen_inputs(const ngraph::Shape& shape, size_t n = 2) -> std::vector<std::vector<std::uint8_t>>{
     std::vector<std::vector<std::uint8_t>> referenceInputs(n);
-    for (int k = 0; k < n; k++) {
+    for (size_t k = 0; k < n; k++) {
         referenceInputs[k].resize(ngraph::shape_size(shape)*sizeof(float));
         float* in0 = reinterpret_cast<float*>(&referenceInputs[k][0]);
 
-        for (int i = 0; i < ngraph::shape_size(shape); i++) {
+        for (size_t i = 0; i < ngraph::shape_size(shape); i++) {
             if (k % 3 == 0) {
-                in0[i] = i/2048.f;
+                in0[i] = i / 2048.f;
             } else if (k % 3 == 1) {
-                in0[i] = 1-i/2048.f;
+                in0[i] = 1 - i / 2048.f;
             } else {
-                in0[i] = i/1024.f;
+                in0[i] = i / 1024.f;
             }
         }
     }
@@ -51,9 +51,6 @@ auto gen_inputs(const ngraph::Shape& shape, size_t n = 2) -> std::vector<std::ve
 }
 
 auto compare(std::shared_ptr<ngraph::Function>& s, std::shared_ptr<ngraph::Function>& f, std::vector<std::vector<std::uint8_t>>& in) -> bool{
-    // std::vector<ngraph::element::Type> ty;
-    // for (int i = 0; i < in.size(); i++)
-    //     ty.push_back(ngraph::element::f16);
     auto act = ngraph::helpers::interpreterFunction(s, in);
     auto exp = ngraph::helpers::interpreterFunction(f, in);
 
@@ -236,11 +233,11 @@ TEST(SnippetsTests, GenerateAddBroadcastY) {
 
     float* in0 = reinterpret_cast<float*>(&referenceInputs[0][0]);
     float* in1 = reinterpret_cast<float*>(&referenceInputs[1][0]);
-    for (int i = 0; i < ngraph::shape_size(shape0); i++) {
-        in0[i] = i/2048.f;
+    for (size_t i = 0; i < ngraph::shape_size(shape0); i++) {
+        in0[i] = i / 2048.f;
     }
-    for (int i = 0; i < ngraph::shape_size(shape1); i++) {
-        in1[i] = 1-i/2048.f;
+    for (size_t i = 0; i < ngraph::shape_size(shape1); i++) {
+        in1[i] = 1 - i / 2048.f;
     }
 
     auto act = ngraph::helpers::interpreterFunction(s, referenceInputs);
@@ -250,7 +247,7 @@ TEST(SnippetsTests, GenerateAddBroadcastY) {
     const float* pact = reinterpret_cast<float*>(&act[0].second[0]);
 
     bool isCorrect = true;
-    for (int i = 0; i < ngraph::shape_size(shape0); i++) {
+    for (size_t i = 0; i < ngraph::shape_size(shape0); i++) {
         if (pexp[i] != pact[i]) {
             isCorrect = false;
             std::cout << i << " expected " << pexp[i] << " actual " << pact[i] << std::endl;
@@ -389,7 +386,7 @@ TEST(SnippetsTests, GenerateAddBroadcastAutomatic) {
 
     std::vector<std::vector<std::uint8_t>> referenceInputs(3);
     for (int k = 0; k < referenceInputs.size(); k++) {
-        referenceInputs[k].resize(ngraph::shape_size(shapes[k])*sizeof(float));
+        referenceInputs[k].resize(ngraph::shape_size(shapes[k]) * sizeof(float));
 
         auto in0 = reinterpret_cast<float*>(&referenceInputs[k][0]);
         for (int i = 0; i < ngraph::shape_size(shapes[k]); i++) {
@@ -404,7 +401,7 @@ TEST(SnippetsTests, GenerateAddBroadcastAutomatic) {
     const float* pact = reinterpret_cast<float*>(&act[0].second[0]);
 
     bool isCorrect = true;
-    for (int i = 0; i < ngraph::shape_size(shapes[0]); i++) {
+    for (size_t i = 0; i < ngraph::shape_size(shapes[0]); i++) {
         if (pexp[i] != pact[i]) {
             isCorrect = false;
             std::cout << i << " expected " << pexp[i] << " actual " << pact[i] << std::endl;

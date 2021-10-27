@@ -13,7 +13,6 @@
 #include <snippets/op/subgraph.hpp>
 
 #include <transformations/init_node_info.hpp>
-//#include <transformations/serialize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -30,7 +29,7 @@ void SetStartSubgraph(std::shared_ptr<Node> node) {
 }
 }
 
-TEST(TransformationTests, DoNotStartAfterInputs) {
+TEST(TransformationTests, DoNotStartSubgraphAfterInputs) {
     // Do not start Subgraph after input parameters to avoid U8->FP32 and FP32->U8 conversion pairs
     // Todo: Remove this test when U8 support is enabled in SnippetS and StartSubgraph logics is updated
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -265,7 +264,6 @@ TEST(TransformationTests, DontAttachToSubgraphIfLoop) {
         m.register_pass<snippets::pass::AttachToSubgraph>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
-//        ngraph::pass::Serialize("subgraph.xml", "subgraph.bin").run_on_function(f);
     }
 
     {
@@ -281,14 +279,12 @@ TEST(TransformationTests, DontAttachToSubgraphIfLoop) {
          * Mul will be converted for the "reset" continuation strategy, (present case)
          * or left as-is for the "abort" continuation strategy
         */
-        //auto mul = std::make_shared<opset1::Multiply>(add, log);
         auto add_param = std::make_shared<opset1::Parameter>(element::f32, add->get_output_shape(0));
         auto log_param = std::make_shared<opset1::Parameter>(element::f32, log->get_output_shape(0));
         auto mul = std::make_shared<snippets::op::Subgraph>(NodeVector{add, log},
                    std::make_shared<Function>(NodeVector{std::make_shared<opset1::Multiply>(add_param, log_param)},
                                                 ParameterVector{add_param, log_param}));
         f_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data0, data1});
-//        ngraph::pass::Serialize("reference.xml", "reference.bin").run_on_function(f_ref);
     }
 
     auto res = compare_functions(f, f_ref);

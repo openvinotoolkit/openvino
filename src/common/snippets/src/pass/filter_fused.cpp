@@ -6,7 +6,6 @@
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/register_info.hpp"
 #include <ngraph/opsets/opset1.hpp>
-//#include "mkldnn_itt.h"
 
 namespace ngraph {
 namespace snippets {
@@ -86,7 +85,7 @@ bool canBePerformedAsScaleShift(std::shared_ptr<Node> node) {
     size_t numNonConstInputs = 0;
     ov::Shape dataShape;
     for (size_t i = 0; i < node->get_input_size(); i++) {
-        const auto parent = node->get_input_source_output(i).get_node_shared_ptr();
+        const auto parent = node->get_input_node_shared_ptr(i);
         if (!ngraph::op::is_constant(parent)) {
             fusingPort = i;
             dataShape = node->get_input_shape(i);

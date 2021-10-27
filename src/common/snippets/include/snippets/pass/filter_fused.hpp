@@ -19,9 +19,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API FilterFused : public ngraph::pass::FunctionPass {
 public:
-    FilterFused() : FunctionPass() {
-        //set_property(ngraph::pass::PassProperty::REQUIRE_STATIC_SHAPE, true);
-    }
+    FilterFused() : FunctionPass() {}
     bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
 };
 /*

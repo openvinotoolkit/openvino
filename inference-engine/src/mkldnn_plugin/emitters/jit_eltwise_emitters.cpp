@@ -1286,12 +1286,12 @@ size_t jit_logical_not_emitter::aux_vecs_count() const {
 /// POWER_STATIC ///
 jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {
-    auto parent = node->input(1).get_source_output().get_node_shared_ptr();
+    auto parent = node->get_input_node_shared_ptr(1);
     if (!std::dynamic_pointer_cast<ngraph::snippets::op::Scalar>(parent)) {
         throw ngraph::ngraph_error("unsupported non constant power");
     }
 
-    if (!(node->input(1).get_shape() == ngraph::Shape() || ngraph::shape_size(node->input(1).get_shape()) == 1)) {
+    if (ngraph::shape_size(node->get_input_shape(1)) != 1) {
         throw ngraph::ngraph_error("unsupported non scalar power");
     }
     power = ngraph::as_type_ptr<ngraph::snippets::op::Scalar>(parent)->get_data_ptr<float>()[0];

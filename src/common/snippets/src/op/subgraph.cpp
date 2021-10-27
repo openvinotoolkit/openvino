@@ -74,17 +74,16 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ngraph:
 
     ngraph::OutputVector subgraph_inputs;
 
-    for (auto input : node->inputs()) {
-        auto source_output = input.get_source_output();
-        if (is_scalar_constant(source_output.get_node_shared_ptr())) {
-            body_inputs.push_back(source_output);
+    for (const auto& input : node->input_values()) {
+        if (is_scalar_constant(input.get_node_shared_ptr())) {
+            body_inputs.push_back(input);
         } else {
             auto parameter = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
             body_parameters.push_back(parameter);
-            body_parameters.back()->set_friendly_name(source_output.get_node()->get_friendly_name());
+            body_parameters.back()->set_friendly_name(input.get_node()->get_friendly_name());
             body_inputs.push_back(parameter->output(0));
 
-            subgraph_inputs.push_back(source_output);
+            subgraph_inputs.push_back(input);
         }
     }
 
@@ -105,8 +104,6 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ngraph:
 
     auto body = create_body(node->get_friendly_name(), body_results, body_parameters);
     auto subgraph = build_subgraph(node, subgraph_inputs, body);
-    // todo: do we need to preserve initial dependencies?
-    // subgraph->add_node_control_dependencies(node);
 
     for (size_t i = 0; i < body->get_parameters().size(); i++) {
         body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());

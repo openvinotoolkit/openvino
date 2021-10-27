@@ -43,9 +43,6 @@ private:
 
     typedef void (*kernel)(const void *, const void *, const void *);
 
-    // Evaluates generated snippet in a single thread
-    bool evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const;
-
     // Interpret snippet with nGraph reference
     void interpret() const;
 
