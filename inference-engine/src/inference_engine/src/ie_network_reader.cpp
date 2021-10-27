@@ -395,7 +395,7 @@ std::map<std::string, ngraph::OpSet> get_extensions_map(const std::vector<Infere
 CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::string& binPath,
                                 const std::vector<IExtensionPtr>& exts,
-                                const std::vector<ov::Extension>& ov_exts,
+                                const std::vector<ov::Extension::Ptr>& ov_exts,
                                 bool newAPI) {
 #ifndef OPENVINO_STATIC_LIBRARY
     // IR v7 obsolete code
@@ -459,7 +459,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 CNNNetwork details::ReadNetwork(const std::string& model,
                                 const Blob::CPtr& weights,
                                 const std::vector<IExtensionPtr>& exts,
-                                const std::vector<ov::Extension>& ov_exts,
+                                const std::vector<ov::Extension::Ptr>& ov_exts,
                                 bool newAPI) {
     std::istringstream modelStringStream(model);
     std::istream& modelStream = modelStringStream;

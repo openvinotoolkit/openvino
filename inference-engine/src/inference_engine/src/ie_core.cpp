@@ -27,6 +27,7 @@
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_remote_context.hpp"
+#include "load_extensions.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset.hpp"
@@ -184,7 +185,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
     mutable std::unordered_set<std::string> opsetNames;
     mutable std::vector<ie::IExtensionPtr> extensions;
-    mutable std::vector<ov::Extension> ov_extensions;
+    mutable std::vector<ov::Extension::Ptr> ov_extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
@@ -366,7 +367,9 @@ public:
         opsetNames.insert("opset7");
     }
 
-    ~CoreImpl() override = default;
+    ~CoreImpl() override {
+        ov::detail::unload_extensions(ov_extensions);
+    }
 
     /**
      * @brief Register plugins for devices which are located in .xml configuration file. The function supports UNICODE
@@ -941,7 +944,7 @@ public:
         AddExtensionUnsafe(extension);
     }
 
-    void AddOVExtensions(const std::vector<ov::Extension>& extensions) {
+    void AddOVExtensions(const std::vector<ov::Extension::Ptr>& extensions) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
         for (const auto& ext : extensions)
             ov_extensions.emplace_back(ext);
@@ -955,7 +958,7 @@ public:
         return extensions;
     }
 
-    const std::vector<ov::Extension>& GetOVExtensions() const {
+    const std::vector<ov::Extension::Ptr>& GetOVExtensions() const {
         return ov_extensions;
     }
 
@@ -1438,28 +1441,19 @@ void Core::add_extension(const ie::IExtensionPtr& extension) {
 }
 
 void Core::add_extension(const std::string& library_path) {
-    OV_CORE_CALL_STATEMENT(_impl->AddOVExtensions(ov::load_extension(library_path)););
+    add_extension(ov::detail::load_extensions(library_path));
 }
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void Core::add_extension(const std::wstring& library_path) {
-    OV_CORE_CALL_STATEMENT(_impl->AddOVExtensions(ov::load_extension(library_path)););
+    add_extension(ov::detail::load_extensions(library_path));
 }
 #endif
 
-void Core::add_extension(const std::vector<ov::Extension>& extensions) {
-    OV_CORE_CALL_STATEMENT(_impl->AddOVExtensions(extensions););
+void Core::add_extension(const std::shared_ptr<ov::Extension>& extension) {
+    add_extension(std::vector<std::shared_ptr<ov::Extension>>{extension});
 }
-void Core::add_extension(const std::shared_ptr<ov::BaseExtension>& extension) {
-    add_extension(std::vector<std::shared_ptr<ov::BaseExtension>>{extension});
-}
-void Core::add_extension(const std::vector<std::shared_ptr<ov::BaseExtension>>& extensions) {
-    OV_CORE_CALL_STATEMENT({
-        std::vector<ov::Extension> exts;
-        for (const auto& ext : extensions) {
-            exts.emplace_back(ov::Extension(ext));
-        }
-        _impl->AddOVExtensions(exts);
-    });
+void Core::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions) {
+    OV_CORE_CALL_STATEMENT({ _impl->AddOVExtensions(extensions); });
 }
 
 ExecutableNetwork Core::import_model(std::istream& modelStream,

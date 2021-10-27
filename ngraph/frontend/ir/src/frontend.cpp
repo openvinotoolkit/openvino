@@ -95,9 +95,9 @@ bool FrontEndIR::supported_impl(const std::vector<std::shared_ptr<Variant>>& var
     return version >= 10 && version <= 11;
 }
 
-void FrontEndIR::add_extension(const std::vector<ov::Extension>& extensions) {
+void FrontEndIR::add_extension(const std::vector<ov::Extension::Ptr>& extensions) {
     for (const auto& ext : extensions) {
-        if (std::dynamic_pointer_cast<ov::BaseOpExtension>(ext.get()))
+        if (std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
             this->extensions.emplace_back(ext);
     }
 }
@@ -111,7 +111,7 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>
     auto create_extensions_map = [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
         std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> exts;
         for (const auto& ext : extensions) {
-            if (auto base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext.get()))
+            if (auto base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
                 exts.insert({base_ext->type(), base_ext});
         }
         for (const auto& it : old_extensions) {

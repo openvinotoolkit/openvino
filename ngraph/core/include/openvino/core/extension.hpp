@@ -32,45 +32,32 @@ namespace ov {
 
 class Extension;
 
-namespace runtime {
+namespace detail {
 
-class Core;
+std::vector<std::shared_ptr<Extension>> load_extensions(const std::string& path);
+void unload_extensions(std::vector<std::shared_ptr<Extension>>& path);
 
-}  // namespace runtime
+}  // namespace detail
 
-class OPENVINO_API BaseExtension : public std::enable_shared_from_this<BaseExtension> {
+class OPENVINO_API Extension : public std::enable_shared_from_this<Extension> {
 public:
-    using Ptr = std::shared_ptr<BaseExtension>;
+    using Ptr = std::shared_ptr<Extension>;
 
-    virtual ~BaseExtension();
-};
+    virtual ~Extension();
 
-OPENVINO_API std::vector<Extension> load_extension(const std::string& path);
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-OPENVINO_API std::vector<Extension> load_extension(const std::wstring& path);
-#endif
-
-class OPENVINO_API Extension final {
 private:
+    friend std::vector<Extension::Ptr> ov::detail::load_extensions(const std::string& path);
+    friend void ov::detail::unload_extensions(std::vector<std::shared_ptr<Extension>>& path);
     std::shared_ptr<void> so;
-    BaseExtension::Ptr ext;
-    Extension(BaseExtension::Ptr ext, std::shared_ptr<void> so = {});
-
-public:
-    const BaseExtension::Ptr& get() const;
-
-    friend OPENVINO_API std::vector<Extension> load_extension(const std::string& path);
-    friend ov::runtime::Core;
-    friend ngraph::frontend::FrontEnd;
 };
 
 OPENVINO_EXTENSION_C_API
-void create_extensions(std::vector<BaseExtension::Ptr>&);
+void create_extensions(std::vector<Extension::Ptr>&);
 
 }  // namespace ov
 
-#define OPENVINO_CREATE_EXTENSIONS(extensions)                                 \
-    OPENVINO_EXTENSION_C_API                                                   \
-    void ::ov::create_extensions(std::vector<::ov::BaseExtension::Ptr>& ext) { \
-        ext = extensions;                                                      \
+#define OPENVINO_CREATE_EXTENSIONS(extensions)                             \
+    OPENVINO_EXTENSION_C_API                                               \
+    void ::ov::create_extensions(std::vector<::ov::Extension::Ptr>& ext) { \
+        ext = extensions;                                                  \
     }

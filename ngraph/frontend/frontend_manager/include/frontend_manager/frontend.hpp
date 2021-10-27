@@ -89,16 +89,12 @@ public:
     /// \return Current frontend name. Empty string if not implemented
     virtual std::string get_name() const;
 
-    /// \brief Register extensions in the FrontEnd
-    /// \param extensions vector of extensions
-    virtual void add_extension(const std::vector<ov::Extension>& extensions);
-
     /// \brief Register base extension in the FrontEnd
     /// \param extension base extension
-    void add_extension(const std::shared_ptr<ov::BaseExtension>& extension);
+    void add_extension(const std::shared_ptr<ov::Extension>& extension);
     /// \brief Register base extensions in the FrontEnd
     /// \param extensions vector of extensions
-    void add_extension(const std::vector<std::shared_ptr<ov::BaseExtension>>& extensions);
+    virtual void add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions);
     /// \brief Registers extension
     /// \param library_path path to library with ov::Extension
     void add_extension(const std::string& library_path);
@@ -111,9 +107,9 @@ public:
 
     /// @brief Registers extension
     /// @param extension Extension class which is inherited from ov::BaseExtension class
-    template <class T, typename std::enable_if<std::is_base_of<ov::BaseExtension, T>::value, bool>::type = true>
+    template <class T, typename std::enable_if<std::is_base_of<ov::Extension, T>::value, bool>::type = true>
     void add_extension(const T& extension) {
-        std::shared_ptr<ov::BaseExtension> ext = std::make_shared<T>(extension);
+        std::shared_ptr<ov::Extension> ext = std::make_shared<T>(extension);
         add_extension(ext);
     }
 

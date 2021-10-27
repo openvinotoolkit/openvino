@@ -166,28 +166,23 @@ public:
     void add_extension(const std::wstring& library_path);
 #endif
     /**
-     * @brief Registers extensions
-     * @param extensions Vector of loaded extensions
-     */
-    void add_extension(const std::vector<ov::Extension>& extensions);
-    /**
      * @brief Registers extension
      * @param extension Pointer to base extension
      */
-    void add_extension(const std::shared_ptr<ov::BaseExtension>& extension);
+    void add_extension(const std::shared_ptr<ov::Extension>& extension);
     /**
      * @brief Registers extensions
      * @param extensions Vector of loaded base extensions
      */
-    void add_extension(const std::vector<std::shared_ptr<ov::BaseExtension>>& extensions);
+    void add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions);
 
     /**
      * @brief Registers extension
-     * @param extension Extension class which is inherited from ov::BaseExtension class
+     * @param extension Extension class which is inherited from ov::Extension class
      */
-    template <class T, typename std::enable_if<std::is_base_of<ov::BaseExtension, T>::value, bool>::type = true>
+    template <class T, typename std::enable_if<std::is_base_of<ov::Extension, T>::value, bool>::type = true>
     void add_extension(const T& extension) {
-        std::shared_ptr<ov::BaseExtension> ext = std::make_shared<T>(extension);
+        std::shared_ptr<ov::Extension> ext = std::make_shared<T>(extension);
         add_extension(ext);
     }
 

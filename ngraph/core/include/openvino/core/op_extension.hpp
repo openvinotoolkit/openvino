@@ -13,7 +13,7 @@
 
 namespace ov {
 
-class OPENVINO_EXTENSION_API BaseOpExtension : public BaseExtension {
+class OPENVINO_EXTENSION_API BaseOpExtension : public Extension {
 public:
     using Ptr = std::shared_ptr<BaseOpExtension>;
     virtual const ov::DiscreteTypeInfo& type() = 0;
