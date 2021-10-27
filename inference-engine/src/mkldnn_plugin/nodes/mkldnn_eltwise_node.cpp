@@ -1694,14 +1694,6 @@ void MKLDNNEltwiseNode::fuseInto(MKLDNNNodePtr& parentNode) {
 void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align, bool initAsBinary, bool initBinaryMemory) {
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' ";
 
-    if (getMKLDNNAlgorithm() == mkldnn::algorithm::undef) {
-        const size_t channelPos = postOpDims.size() > 1 ? 1 : 0;
-        scalesBuffer = getAlignedBuffer(postOpDims[channelPos], scales, align);
-        if (getAlgorithm() != EltwisePrelu) {
-            shiftsBuffer = getAlignedBuffer(postOpDims[channelPos], shifts, align);
-        }
-    }
-
     if (getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
         switch (getMKLDNNAlgorithm()) {
             case mkldnn::algorithm::eltwise_relu:
@@ -1729,12 +1721,16 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &p
             default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
     } else {
+        const size_t chIdx = postOpDims.size() > 1 ? 1 : 0;
+        scalesBuffer = makeAlignedBuffer(postOpDims[chIdx], scales, align);
+        if (getAlgorithm() != EltwisePrelu) {
+            shiftsBuffer = makeAlignedBuffer(postOpDims[chIdx], shifts, align);
+        }
+
         if (initAsBinary) {
             auto appendBinary = [&](const mkldnn::algorithm alg, MKLDNNMemoryPtr &memPtr, const std::vector<float> &data) {
                 if (data.empty())
                     IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
-
-                auto chIdx = postOpDims.size() > 1 ? 1 : 0;
 
                 std::vector<size_t> binaryDims(postOpDims.size(), 1);
                 binaryDims[chIdx] = postOpDims[chIdx];

@@ -12,9 +12,9 @@ using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
 
-using inferShapes = std::tuple<std::vector<ngraph::PartialShape>,
-                               std::vector<ngraph::Shape>,
-                               std::vector<SizeVector>>;
+using inputShapes = std::tuple<std::vector<ngraph::PartialShape>, // dynamic input shapes
+                               std::vector<ngraph::Shape>,        // target input shapes
+                               std::vector<SizeVector>>;          // range input shapes
 
 using fqSpecificParams = std::tuple<int64_t,                  // 'data' input low bounds
                                     int64_t,                  // 'data' input high bounds
@@ -23,7 +23,7 @@ using fqSpecificParams = std::tuple<int64_t,                  // 'data' input lo
                                     size_t>;                  // levels
 
 using fqLayerTestParamsSet = std::tuple<fqSpecificParams,
-                                        inferShapes,                                       // input shapes
+                                        inputShapes,                                       // input shapes
                                         Precision,                                         // input precision
                                         std::pair<std::vector<float>, std::vector<float>>, // il and ih values
                                         bool,                                              // should be decomposed
@@ -34,17 +34,17 @@ class FakeQuantizeLayerCPUTest : public testing::WithParamInterface<fqLayerTestP
 public:
     static std::string getTestCaseName(testing::TestParamInfo<fqLayerTestParamsSet> obj) {
         fqSpecificParams fqParams;
-        inferShapes testShapes;
+        inputShapes testShapes;
         Precision inPrec;
         std::pair<std::vector<float>, std::vector<float>> inputRangesValues;
         bool shouldBeDecomposed;
         CPUSpecificParams cpuParams;
         std::tie(fqParams, testShapes, inPrec, inputRangesValues, shouldBeDecomposed, cpuParams) = obj.param;
 
-        std::vector<ngraph::PartialShape> inputShapes;
+        std::vector<ngraph::PartialShape> dynamicShapes;
         std::vector<ngraph::Shape> targetShapes;
         std::vector<SizeVector> ranges;
-        std::tie(inputShapes, targetShapes, ranges) = testShapes;
+        std::tie(dynamicShapes, targetShapes, ranges) = testShapes;
 
         int64_t inDataLowBounds, inDataHighBounds;
         std::vector<float> inputLow, inputHigh, outputLow, outputHigh;
@@ -54,8 +54,8 @@ public:
         std::tie(inDataLowBounds, inDataHighBounds, outputLow, outputHigh, levels) = fqParams;
 
         std::ostringstream result;
-        if (!inputShapes.empty()) {
-            result << "IS=" << CommonTestUtils::partialShape2str(inputShapes) << "_";
+        if (!dynamicShapes.empty()) {
+            result << "IS=" << CommonTestUtils::partialShape2str(dynamicShapes) << "_";
         }
         result << "TS=";
         for (const auto& shape : targetShapes) {
@@ -102,7 +102,7 @@ protected:
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
         fqSpecificParams fqParams;
-        inferShapes testShapes;
+        inputShapes testShapes;
         Precision inPrec;
         std::pair<std::vector<float>, std::vector<float>> inputRangesValues;
         bool shouldBeDecomposed;
@@ -141,9 +141,7 @@ protected:
            selectedType = getPrimitiveType() + "_" + inPrec.name();
         }
 
-        fq->get_rt_info() = getCPUInfo();
-
-        function = std::make_shared<Function>(fq, params, "FakeQuantizeCPU");
+        function = makeNgraphFunction(ngInPrec, params, fq, "FakeQuantizeCPU");
     }
 
 private:
@@ -185,23 +183,23 @@ std::vector<CPUSpecificParams> memForm4D_jit = {
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {})
 };
 
-std::vector<inferShapes> rangesShapes4D_jit = {
-    inferShapes{
+std::vector<inputShapes> rangesShapes4D_jit = {
+    inputShapes{
         {},
         {{4, 5, 6, 7}},
         {{1, 5, 1, 1}, {1, 5, 1, 1}, {1, 5, 1, 1}, {1, 5, 1, 1}}
     },
-    inferShapes{
+    inputShapes{
         {},
         {{4, 5, 6, 7}},
         {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}
     },
-    inferShapes{
+    inputShapes{
         {{-1, -1, -1, -1}},
         {{4, 5, 6, 7}, {1, 12, 1, 1}, {4, 1, 8, 2}, {1, 16, 6, 1}},
         {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}
     },
-    inferShapes{
+    inputShapes{
         {{-1, -1, -1, -1}},
         {{4, 16, 6, 7}, {1, 16, 1, 1}, {7, 16, 1, 2}, {1, 16, 6, 1}},
         {{1, 16, 1, 1}, {1, 16, 1, 1}, {1, 16, 1, 1}, {1, 16, 1, 1}}
@@ -221,13 +219,13 @@ std::vector<CPUSpecificParams> memForm4D_ref = {
         CPUSpecificParams({nchw}, {nchw}, {"ref_FP32"}, {"ref_FP32"})
 };
 
-std::vector<inferShapes> rangesShapes4D_ref = {
-    inferShapes{
+std::vector<inputShapes> rangesShapes4D_ref = {
+    inputShapes{
         {},
         {{4, 5, 6, 7}},
         {{4, 1, 1, 1}, {4, 1, 1, 1}, {4, 1, 1, 1}, {4, 1, 1, 1}}
     },
-    inferShapes{
+    inputShapes{
         {{-1, -1, -1, -1}},
         {{4, 16, 6, 7}, {4, 1, 1, 1}, {4, 16, 1, 2}, {4, 16, 6, 1}},
         {{4, 1, 1, 1}, {4, 1, 1, 1}, {4, 1, 1, 1}, {4, 1, 1, 1}}
@@ -249,23 +247,23 @@ std::vector<CPUSpecificParams> memForm5D_jit = {
         CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {})
 };
 
-std::vector<inferShapes> rangesShapes5D_jit = {
-    inferShapes{
+std::vector<inputShapes> rangesShapes5D_jit = {
+    inputShapes{
         {},
         {{3, 4, 5, 6, 7}},
         {{1, 4, 1, 1, 1}, {1, 4, 1, 1, 1}, {1, 4, 1, 1, 1}, {1, 4, 1, 1, 1}}
     },
-    inferShapes{
+    inputShapes{
         {},
         {{3, 4, 5, 6, 7}},
         {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}
     },
-    inferShapes{
+    inputShapes{
         {{-1, -1, -1, -1, -1}},
         {{3, 4, 5, 6, 7}, {1, 12, 1, 1, 1}, {4, 1, 8, 2, 7}, {1, 16, 6, 5, 1}},
         {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}
     },
-    inferShapes{
+    inputShapes{
         {{-1, -1, -1, -1, -1}},
         {{4, 16, 6, 7, 8}, {1, 16, 1, 1, 1}, {7, 16, 1, 2, 5}, {1, 16, 6, 1, 7}},
         {{1, 16, 1, 1, 1}, {1, 16, 1, 1, 1}, {1, 16, 1, 1, 1}, {1, 16, 1, 1, 1}}
@@ -286,13 +284,13 @@ std::vector<CPUSpecificParams> memForm5D_ref = {
         CPUSpecificParams({ncdhw}, {ncdhw}, {"ref_FP32"}, {"ref_FP32"})
 };
 
-std::vector<inferShapes> rangesShapes5D_ref = {
-    inferShapes{
+std::vector<inputShapes> rangesShapes5D_ref = {
+    inputShapes{
         {},
         {{3, 4, 5, 6, 7}},
         {{3, 1, 1, 1, 1}, {3, 1, 1, 1, 1}, {3, 1, 1, 1, 1}, {3, 1, 1, 1, 1}}
     },
-    inferShapes{
+    inputShapes{
         {{-1, -1, -1, -1, -1}},
         {{3, 16, 6, 7, 8}, {3, 16, 1, 1, 1}, {3, 16, 1, 2, 5}, {3, 16, 6, 1, 7}},
         {{3, 1, 1, 1, 1}, {3, 1, 1, 1, 1}, {3, 1, 1, 1, 1}, {3, 1, 1, 1, 1}}
@@ -327,88 +325,88 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeLayerCPUTest_4D_bin, FakeQuantizeLaye
 
 namespace fqDecompos {
 
-std::vector<inferShapes> decomposeShapes = {
-    inferShapes{
+std::vector<inputShapes> decomposeShapes = {
+    inputShapes{
         {},
         {{4, 5, 6, 7}},
         {{4, 5, 6, 7}, {4, 5, 6, 7}, {4, 5, 6, 7}, {4, 5, 6, 7}}
     },
-    inferShapes{
+    inputShapes{
         {},
         {{4, 5, 6, 7}},
         {{1, 5, 1, 1}, {1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}}
     },
-    inferShapes{
+    inputShapes{
         {},
         {{4, 5, 6, 7}},
         {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}}
     },
-    inferShapes{
+    inputShapes{
         {},
         {{4, 5, 6, 7}},
         {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 1, 1}, {1, 1, 1, 1}}
     },
-    inferShapes{
+    inputShapes{
         {},
         {{4, 5, 6, 7}},
         {{1, 1, 6, 1}, {1, 5, 6, 7}, {1, 1, 6, 1}, {1, 1, 6, 1}}
     },
-    inferShapes{
+    inputShapes{
         {},
         {{3, 4, 5, 6, 7}},
         {{4, 5, 6, 7}, {4, 5, 6, 7}, {4, 5, 6, 7}, {4, 5, 6, 7}}
     },
-    inferShapes{
+    inputShapes{
         {},
         {{3, 4, 5, 6, 7}},
         {{1, 5, 1, 1}, {1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}}
     },
-    inferShapes{
+    inputShapes{
         {},
         {{3, 4, 5, 6, 7}},
         {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}}
     },
-    inferShapes{
+    inputShapes{
         {},
         {{3, 4, 5, 6, 7}},
         {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 1, 1}, {1, 1, 1, 1}}
     },
-    inferShapes{
+    inputShapes{
         {},
         {{3, 4, 5, 6, 7}},
         {{1, 1, 6, 1}, {1, 5, 6, 7}, {1, 1, 6, 1}, {1, 1, 6, 1}}
     },
-    inferShapes{
+    inputShapes{
         {},
         {{2, 3, 4, 5, 6, 7}},
         {{4, 5, 6, 7}, {4, 5, 6, 7}, {4, 5, 6, 7}, {4, 5, 6, 7}}
     },
-    inferShapes{
+    inputShapes{
         {},
         {{2, 3, 4, 5, 6, 7}},
         {{1, 5, 1, 1}, {1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}}
     },
-    inferShapes{
+    inputShapes{
         {},
         {{2, 3, 4, 5, 6, 7}},
         {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 6, 7}}
     },
-    inferShapes{
+    inputShapes{
         {},
         {{2, 3, 4, 5, 6, 7}},
         {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 1, 1}, {1, 1, 1, 1}}
     },
-    inferShapes{
+    inputShapes{
         {},
         {{2, 3, 4, 5, 6, 7}},
         {{1, 1, 6, 1}, {1, 5, 6, 7}, {1, 1, 6, 1}, {1, 1, 6, 1}}
     },
-    inferShapes{
+    inputShapes{
         {{-1, -1, -1, -1}},
         {{4, 5, 6, 7}, {1, 5, 6, 7}, {7, 5, 6, 7}},
         {{1, 1, 6, 1}, {1, 5, 6, 7}, {1, 1, 6, 1}, {1, 1, 6, 1}}
     },
-    inferShapes{
+    inputShapes{
         {{-1, -1, -1, -1, -1}},
         {{8, 4, 5, 6, 7}, {1, 1, 5, 6, 7}, {1, 1, 1, 6, 7}},
         {{1, 1, 6, 7}, {1, 1, 6, 7}, {1, 1, 1, 1}, {1, 1, 1, 1}}

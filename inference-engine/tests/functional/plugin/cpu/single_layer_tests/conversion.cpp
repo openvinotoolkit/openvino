@@ -66,10 +66,7 @@ protected:
         auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShapes[0][0]});
         auto conversion = ngraph::builder::makeConversion(params.front(), targetPrc, helpers::ConversionTypes::CONVERT);
 
-        conversion->get_rt_info() = getCPUInfo();
-
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(conversion)};
-        function = std::make_shared<ngraph::Function>(results, params, "ConversionCPU");
+        function = makeNgraphFunction(ngPrc, params, conversion, "ConversionCPU");
     }
 };
 

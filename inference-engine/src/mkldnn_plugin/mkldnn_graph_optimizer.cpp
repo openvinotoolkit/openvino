@@ -1631,8 +1631,8 @@ void MKLDNNGraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph 
             }
         }
 
-        scalesBuffer = getAlignedBuffer(outputDims[channelPos], scalesBuffer, 1);
-        shiftsBuffer = getAlignedBuffer(outputDims[channelPos], shiftsBuffer, 1);
+        scalesBuffer = makeAlignedBuffer(outputDims[channelPos], scalesBuffer, 1);
+        shiftsBuffer = makeAlignedBuffer(outputDims[channelPos], shiftsBuffer, 1);
 
         for (int i = 0; i < scalesBuffer.size(); i++)
             if (scalesBuffer[i] == 0.f)

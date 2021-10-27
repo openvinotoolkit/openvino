@@ -562,7 +562,7 @@ public:
     * i.e. EltwiseAdd: fill shifts from constant, fill scales with default values = 1.0f
     * @param parentNode
     * node from which data comes 
-    * @return pair scales and shifts
+    * @return pair of scales and shifts
     */
     std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const MKLDNNNode *parentNode) const;
 

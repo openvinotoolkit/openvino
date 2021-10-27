@@ -32,17 +32,13 @@ inline std::vector<size_t> getNormalizedDimsBySize(const InferenceEngine::SizeVe
 * shape on which should be broadcastable
 * @param secondInputDims
 * shape which should be broadcastable
-* @param weakCompare
+* @param weakComparison
 * flag which specify how we compare C dims if value is undefined (weak or strong)
 * @return true if broadcastable, false otherwise.
 */
 inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims, const InferenceEngine::SizeVector& secondInputDims,
-                                                 bool weakCompare = false) {
-    bool (*dimsEqual)(size_t, size_t) = dimsEqualWeak;
-    if (!weakCompare) {
-        dimsEqual = dimsEqualStrong;
-    }
-
+                                                 bool weakComparison = false) {
+    bool (*dimsEqual)(size_t, size_t) = weakComparison ? static_cast<bool (*)(size_t, size_t)>(dimsEqualWeak) : dimsEqualStrong;
     if (secondInputDims.size() > firstInputDims.size())
         return false;
     if (std::accumulate(secondInputDims.begin(), secondInputDims.end(), 1, std::multiplies<size_t>()) == 1)
@@ -100,8 +96,8 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
 
 /**
 * @brief Return aligned buffer by targetSize.
-* If buffer has size 1, values broadcast with targetSize size.
-* If alignment buffer size > targetSize, other values filled by zero.
+* If buffer has size 1, values are broadcasted with targetSize size.
+* If aligned buffer size > targetSize, other values filled by zero.
 * @param targetSize
 * target size buffer
 * @param buffer
@@ -110,22 +106,22 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
 * alignment for targetSize
 * @return aligned buffer
 */
-inline std::vector<float> getAlignedBuffer(size_t targetSize, const std::vector<float> &buffer, int align = -1) {
+inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector<float> &buffer, int align = -1) {
     if (buffer.empty()) {
         IE_THROW() << "Can't align buffer, becuase buffer is empty";
     }
 
-    auto alignmentBuffer = buffer;
+    auto alignedBuffer = buffer;
     if (align == -1) {
         align = targetSize;
     }
     const size_t bufferSizeAligned = rnd_up(targetSize, align);
 
-    alignmentBuffer.resize(bufferSizeAligned, 0);
+    alignedBuffer.resize(bufferSizeAligned, 0);
     if (buffer.size() == 1) {
-        std::fill(alignmentBuffer.begin() + 1, alignmentBuffer.begin() + targetSize, buffer[0]);
+        std::fill(alignedBuffer.begin() + 1, alignedBuffer.begin() + targetSize, buffer[0]);
     }
-    return alignmentBuffer;
+    return alignedBuffer;
 }
 
 }  // namespace MKLDNNPlugin

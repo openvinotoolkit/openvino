@@ -941,10 +941,10 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
             axisSize = ohShape[outputHighAxis];
         }
 
-        auto inputLowAxisSize = ilShape[inputLowAxis];
-        auto inputHighAxisSize = ihShape[inputHighAxis];
-        auto outputLowAxisSize = olShape[outputLowAxis];
-        auto outputHighAxisSize = ohShape[outputHighAxis];
+        auto inputLowAxisSize = ngraph::is_scalar(ilShape) ? 1 : ilShape[inputLowAxis];
+        auto inputHighAxisSize = ngraph::is_scalar(ihShape) ? 1 : ihShape[inputHighAxis];
+        auto outputLowAxisSize = ngraph::is_scalar(olShape) ? 1 : olShape[outputLowAxis];
+        auto outputHighAxisSize = ngraph::is_scalar(ohShape) ? 1 : ohShape[outputHighAxis];
 
         if (axisSize != -1 && !dimsEqualWeak(axisSize, getInputShapeAtPort(0).getDims()[axis])) {
             IE_THROW() << errorPrefix << "has different quantization axis size on 'data' and 'range' inputs";
